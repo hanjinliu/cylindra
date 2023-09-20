@@ -4,8 +4,9 @@ from typing import Callable
 import numpy as np
 from numpy.typing import NDArray
 import impy as ip
+from cylindra._dask import delayed, Delayed
 from cylindra.const import nm, Mode
-from cylindra.utils import map_coordinates, roundint
+from cylindra.utils import map_coordinates, map_coordinates_task, roundint
 
 
 class CylindricTransformer:
@@ -109,9 +110,27 @@ def get_polar_image(
 ):
     """Convert the input image into a polar image."""
     polar = map_coordinates(img, coords, order=order, mode=Mode.constant, cval=np.mean)
+    return _post_process_polar_image(polar, img, radius).compute()
+
+
+@delayed
+def _post_process_polar_image(polar: ip.ImgArray, img: ip.ImgArray, radius: nm):
     polar = ip.asarray(polar, axes="rya", dtype=np.float32)  # radius, y, angle
     a_scale = 2 * np.pi * radius / polar.shape.a
     return polar.set_scale(r=img.scale.x, y=img.scale.x, a=a_scale, unit=img.scale_unit)
+
+
+def get_polar_image_task(
+    img: ip.ImgArray | ip.LazyImgArray,
+    coords: NDArray[np.float32],
+    radius: nm,
+    order: int = 3,
+) -> Delayed[ip.ImgArray]:
+    """Convert the input image into a polar image."""
+    polar = map_coordinates_task(
+        img, coords, order=order, mode=Mode.constant, cval=np.mean
+    )
+    return _post_process_polar_image(polar, img, radius)
 
 
 def _linear_polar_mapping(output_coords, k_angle, k_radius, center):

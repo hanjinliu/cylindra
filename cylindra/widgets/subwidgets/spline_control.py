@@ -16,10 +16,10 @@ from magicclass.logging import getLogger
 from magicclass.types import OneOf, Path
 from magicclass.utils import thread_worker
 from magicclass.ext.pyqtgraph import QtMultiImageCanvas
-from dask import delayed, array as da
+from dask import array as da
 
 from cylindra.const import PropertyNames as H, Mode, FileFilter
-from cylindra.utils import map_coordinates, Projections
+from cylindra.utils import map_coordinates_task, Projections
 from ._child_widget import ChildWidget
 
 if TYPE_CHECKING:
@@ -27,18 +27,17 @@ if TYPE_CHECKING:
 _Logger = getLogger("cylindra")
 
 
-@delayed
 def delayed_map_coordinates(
     input: ip.ImgArray | ip.LazyImgArray,
     coordinates: np.ndarray,
 ):
     """Try to map coordinates. If failed (out-of-bound), return an zero array."""
     try:
-        out = map_coordinates(
+        out = map_coordinates_task(
             input, coordinates, order=1, mode=Mode.constant, cval=np.mean
         )
     except ValueError:
-        out = np.zeros(coordinates.shape[1:], dtype=input.dtype)
+        out = da.zeros(coordinates.shape[1:], dtype=input.dtype)
     return out
 
 

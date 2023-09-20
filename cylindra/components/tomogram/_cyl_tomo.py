@@ -19,7 +19,8 @@ import polars as pl
 from scipy import ndimage as ndi
 from scipy.fft import fft2, ifft2
 from scipy.spatial.transform import Rotation
-from dask import array as da, delayed
+from dask import array as da
+from cylindra._dask import compute, delayed, Delayed
 
 from acryo import Molecules, SubtomogramLoader
 from acryo.tilt import TiltSeriesModel
@@ -30,8 +31,9 @@ from cylindra.components._ftprops import LatticeParams, LatticeAnalyzer, get_pol
 from cylindra.const import nm, PropertyNames as H, Ori, Mode, ExtrapolationMode
 from cylindra.utils import (
     crop_tomogram,
+    crop_tomograms,
     centroid,
-    map_coordinates,
+    map_coordinates_task,
     rotated_auto_zncc,
     roundint,
     set_gpu,
@@ -351,9 +353,7 @@ class CylTomogram(Tomogram):
         size_px = (width_px,) + (roundint((width_px + depth_px) / 1.414),) * 2
         input_img = self._get_multiscale_or_original(binsize)
 
-        subtomograms: ip.ImgArray = np.stack(
-            [crop_tomogram(input_img, c, size_px) for c in center_px], axis="p"
-        )
+        subtomograms = crop_tomograms(input_img, center_px, size_px)
         subtomograms[:] -= subtomograms.mean()
         scale = self.scale * binsize
 
@@ -503,7 +503,7 @@ class CylTomogram(Tomogram):
                 for _j in range(ancs.size)
             ]
             imgs_aligned = _filter_by_corr(
-                np.stack(da.compute(*tasks), axis="p"),
+                np.stack(compute(*tasks), axis="p"),
                 corr_allowed,
             )
 
@@ -525,7 +525,7 @@ class CylTomogram(Tomogram):
                 )
                 for _j in range(ancs.size)
             ]
-            shifts = np.stack(da.compute(*tasks), axis=0)
+            shifts = np.stack(compute(*tasks), axis=0)
 
         # Update spline parameters
         self.splines[i] = spl.shift(ancs, shifts=shifts * scale, err_max=err_max)
@@ -588,14 +588,13 @@ class CylTomogram(Tomogram):
         thick_outer_px = spl.config.thickness_outer / _scale
 
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
-        _delayed_radial_prof = delayed(_get_radial_prof)
         tasks = []
         for anc in pos:
-            task = _delayed_radial_prof(
+            task = _get_radial_prof(
                 input_img, spl_trans, anc, (min_radius, max_radius), depth
             )
             tasks.append(task)
-        profs: list[NDArray[np.float32]] = da.compute(*tasks)
+        profs: list[NDArray[np.float32]] = compute(*tasks)
         prof = np.stack(profs, axis=0).mean(axis=0)
         imax_sub = _centroid_recursive(prof, thick_inner_px, thick_outer_px)
         offset_px = _get_radius_offset(min_radius_px, max_radius_px)
@@ -647,14 +646,13 @@ class CylTomogram(Tomogram):
         thick_inner_px = spl.config.thickness_inner / _scale
         thick_outer_px = spl.config.thickness_outer / _scale
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
-        _delayed_radial_prof = delayed(_get_radial_prof)
         tasks = []
         for anc in spl_trans.anchors:
-            task = _delayed_radial_prof(
+            task = _get_radial_prof(
                 input_img, spl_trans, anc, (min_radius, max_radius), depth
             )
             tasks.append(task)
-        profs: list[NDArray[np.float32]] = da.compute(*tasks)
+        profs: list[NDArray[np.float32]] = compute(*tasks)
         radii = list[float]()
         for prof in profs:
             imax_sub = _centroid_recursive(prof, thick_inner_px, thick_outer_px)
@@ -711,20 +709,19 @@ class CylTomogram(Tomogram):
         radii = _prepare_radii(spl, radius)
         input_img = self._get_multiscale_or_original(binsize)
         _scale = input_img.scale.x
-        tasks = []
+        tasks: list[Delayed[LatticeParams]] = []
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
-        analyzer = LatticeAnalyzer(spl.config)
-        lazy_ft_params = delayed(analyzer.estimate_lattice_params)
+        _analyze_fn = LatticeAnalyzer(spl.config).estimate_lattice_params_task
         for anc, r0 in zip(spl_trans.anchors, radii):
             rmin, rmax = spl.radius_range(r0)
             rc = (rmin + rmax) / 2
             coords = spl_trans.local_cylindrical(
                 (rmin, rmax), ft_size, anc, scale=_scale
             )
-            tasks.append(lazy_ft_params(input_img, coords, rc, nsamples=nsamples))
+            tasks.append(_analyze_fn(input_img, coords, rc, nsamples=nsamples))
 
         lprops = pl.DataFrame(
-            da.compute(*tasks),
+            compute(*tasks),
             schema=LatticeParams.polars_schema(),
         )
         if update:
@@ -1446,14 +1443,17 @@ def _mask_missing_wedge(
 
 
 def _get_radial_prof(
-    input_img: ip.ImgArray,
+    input_img: ip.ImgArray | ip.LazyImgArray,
     spl: CylSpline,
     anc: float,
     r_range: tuple[nm, nm],
     depth: nm,
-) -> NDArray[np.float32]:
+) -> da.Array[np.float32]:
     coords = spl.local_cylindrical(r_range, depth, anc, scale=input_img.scale.x)
-    prof = np.mean(map_coordinates(input_img, coords), axis=(1, 2))
+    task = map_coordinates_task(input_img, coords)
+    prof = da.mean(
+        da.from_delayed(task, shape=coords.shape[1:], dtype=np.float32), axis=(1, 2)
+    )
     return prof
 
 
@@ -1487,7 +1487,7 @@ def _multi_rotated_auto_zncc(
     imgs: ip.ImgArray, degrees: NDArray[np.float32], max_shift_px: int
 ) -> NDArray[np.float32]:
     tasks = [_lazy_rotated_auto_zncc(subimg, degrees, max_shift_px) for subimg in imgs]
-    return np.stack(da.compute(*tasks), axis=0)
+    return np.stack(compute(*tasks), axis=0)
 
 
 def _normalize_chunk_length(img, chunk_length: nm | None) -> nm:

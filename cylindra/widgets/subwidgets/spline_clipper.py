@@ -1,5 +1,5 @@
 from typing import Annotated
-from magicclass import magicclass, MagicTemplate, field, vfield, do_not_record
+from magicclass import magicclass, field, vfield, do_not_record
 from magicclass.ext.pyqtgraph import QtMultiImageCanvas
 from cylindra.components import CylSpline
 from cylindra.const import Mode, nm

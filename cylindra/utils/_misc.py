@@ -2,21 +2,24 @@ from __future__ import annotations
 
 import math
 import numpy as np
+from numpy.typing import NDArray
+from scipy import ndimage as ndi
 import impy as ip
-from typing import TypeVar, Callable
+from cylindra._dask import delayed, Delayed, compute
+from typing import Sequence, TypeVar, Callable
 from cylindra.const import Mode
 from contextlib import contextmanager
 
 
-def roundint(a: float):
+def roundint(a: float) -> int:
     return int(round(a))
 
 
-def ceilint(a: float):
+def ceilint(a: float) -> int:
     return int(math.ceil(a))
 
 
-def floorint(a: float):
+def floorint(a: float) -> int:
     return int(math.floor(a))
 
 
@@ -72,9 +75,36 @@ def crop_tomogram(
     return reg
 
 
-def centroid(arr: np.ndarray, xmin: int, xmax: int) -> float:
+def crop_tomograms(
+    img: ip.ImgArray | ip.LazyImgArray,
+    positions: Sequence[tuple[int, int, int]],
+    shape: tuple[int, int, int],
+) -> ip.ImgArray:
+    regs = []
+    for z, y, x in positions:
+        rz, ry, rx = ((s - 1) / 2 for s in shape)
+        sizez, sizey, sizex = img.sizesof("zyx")
+
+        sl_z, pad_z = make_slice_and_pad(roundint(z - rz), roundint(z + rz + 1), sizez)
+        sl_y, pad_y = make_slice_and_pad(roundint(y - ry), roundint(y + ry + 1), sizey)
+        sl_x, pad_x = make_slice_and_pad(roundint(x - rx), roundint(x + rx + 1), sizex)
+        reg = img[sl_z, sl_y, sl_x]
+        pads = [pad_z, pad_y, pad_x]
+        if np.any(np.array(pads) > 0):
+            reg = reg.pad(pads, dims="zyx", constant_values=reg.mean())
+        regs.append(reg.value)
+    if isinstance(img, ip.ImgArray):
+        return ip.asarray(np.stack(regs, axis=0), axes="pzyx")
+    else:
+        return ip.asarray(np.stack(compute(*regs), axis=0))
+
+
+def centroid(arr: NDArray[np.floating], xmin: int, xmax: int) -> float:
     """
-    Calculate the centroid of arr between xmin and xmax, for detection of subpixel maxima.
+    Centroid of 1D array.
+
+    Calculate the centroid of arr between xmin and xmax, for detection of the
+    maximal index at subpixel precision.
     """
     xmin = max(xmin, 0)
     xmax = min(xmax, arr.size)
@@ -84,6 +114,7 @@ def centroid(arr: np.ndarray, xmin: int, xmax: int) -> float:
 
 
 def rotational_average(img: ip.ImgArray, fold: int = 13):
+    """Rotational average of 2D image supposing `fold` PFs."""
     angles = np.arange(fold) * 360 / fold
     average_img = img.copy()
     for angle in angles[1:]:
@@ -125,7 +156,7 @@ def normalize_image(img: _A, outlier: float = (0.01, 0.01)) -> _A:
 
 def map_coordinates(
     input: ip.ImgArray | ip.LazyImgArray,
-    coordinates: np.ndarray,
+    coordinates: NDArray[np.float32],
     order: int = 3,
     mode: str = Mode.constant,
     cval: float | Callable[[ip.ImgArray], float] = 0.0,
@@ -135,9 +166,47 @@ def map_coordinates(
     Crop image at the edges of coordinates before calling map_coordinates to avoid
     loading entire array into memory.
     """
+    return map_coordinates_task(
+        input, coordinates, order, mode, cval, prefilter
+    ).compute()
+
+
+@delayed
+def _delayed_map_coordinates(
+    img: NDArray[np.float32],
+    coordinates: NDArray[np.float32],
+    order: int = 3,
+    mode: str = Mode.constant,
+    cval: float | Callable[[ip.ImgArray], float] = 0.0,
+    prefilter: bool | None = None,
+    like: ip.ImgArray | ip.LazyImgArray | None = None,
+):
+    if callable(cval):
+        cval = cval(img)
+    if prefilter is None:
+        prefilter = order > 1
+    out = ndi.map_coordinates(
+        img,
+        coordinates=coordinates,
+        order=order,
+        mode=mode,
+        prefilter=prefilter,
+        cval=cval,
+    )
+    return ip.asarray(out, like=like)
+
+
+def map_coordinates_task(
+    input: ip.ImgArray | ip.LazyImgArray,
+    coordinates: np.ndarray,
+    order: int = 3,
+    mode: str = Mode.constant,
+    cval: float | Callable[[ip.ImgArray], float] = 0.0,
+    prefilter: bool | None = None,
+) -> Delayed[ip.ImgArray]:
     coordinates = coordinates.copy()
     shape = input.shape
-    sl = []
+    sl: list[slice] = []
     for i in range(input.ndim):
         imin = int(np.min(coordinates[i])) - order
         imax = ceilint(np.max(coordinates[i])) + order + 1
@@ -145,20 +214,17 @@ def map_coordinates(
         sl.append(_sl)
         coordinates[i] -= _sl.start
 
-    img = input[tuple(sl)]
-    if isinstance(img, ip.LazyImgArray):
-        img = img.compute()
-    if callable(cval):
-        cval = cval(img)
-
-    return img.map_coordinates(
-        coordinates=coordinates,
+    img_cropped = input[tuple(sl)]
+    task = _delayed_map_coordinates(
+        img_cropped.value,
+        coordinates,
         order=order,
         mode=mode,
-        prefilter=prefilter,
         cval=cval,
-        dims=img.axes,
+        prefilter=prefilter,
+        like=input,
     )
+    return task
 
 
 class Projections:

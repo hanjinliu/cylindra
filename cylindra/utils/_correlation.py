@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Iterable
 import numpy as np
+from numpy.typing import NDArray
 import impy as ip
 
 from ._misc import set_gpu
@@ -44,7 +45,11 @@ def mirror_zncc(img0: ip.ImgArray, max_shifts=None):
     return ip.zncc_maximum(img0, img1, max_shifts=max_shifts)
 
 
-def rotated_auto_zncc(img0: ip.ImgArray, degrees: Iterable[float], max_shifts=None):
+def rotated_auto_zncc(
+    img0: ip.ImgArray,
+    degrees: Iterable[float],
+    max_shifts: tuple[float, float, float] | None = None,
+) -> NDArray[np.floating]:
     results = list[tuple[np.ndarray, float, float]]()
     for deg in degrees:
         img1 = img0.rotate(deg, mode="constant", dims=2)

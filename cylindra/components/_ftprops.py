@@ -6,12 +6,13 @@ import numpy as np
 from numpy.typing import NDArray
 import impy as ip
 import polars as pl
+from cylindra._dask import delayed, Delayed
 from cylindra.const import nm, PropertyNames as H
 from cylindra.components._peak import PeakDetector, PeakInfo
 from cylindra.components._boundary import CylindricParameters
 from cylindra.components.spline import SplineConfig
 from cylindra.utils import ceilint, roundint, floorint
-from cylindra.cyltransform import get_polar_image
+from cylindra.cyltransform import get_polar_image, get_polar_image_task
 
 
 class LatticeParams(NamedTuple):
@@ -62,6 +63,16 @@ class LatticeAnalyzer:
         pol = get_polar_image(img, coords, radius)
         return self.estimate_lattice_params_polar(pol, radius, nsamples)
 
+    def estimate_lattice_params_task(
+        self,
+        img: ip.ImgArray | ip.LazyImgArray,
+        coords: NDArray[np.float32],
+        radius: nm,
+        nsamples: int = 8,
+    ) -> Delayed[LatticeParams]:
+        task = get_polar_image_task(img, coords, radius)
+        return self.estimate_lattice_params_polar_delayed(task, radius, nsamples)
+
     def estimate_lattice_params_polar(
         self, img: ip.ImgArray, radius: nm, nsamples: int = 8
     ) -> LatticeParams:
@@ -76,6 +87,8 @@ class LatticeAnalyzer:
             npf=cparams.npf,
             start=cparams.start,
         )
+
+    estimate_lattice_params_polar_delayed = delayed(estimate_lattice_params_polar)
 
     def estimate_params_polar(
         self, img: ip.ImgArray, radius: nm, nsamples: int = 8

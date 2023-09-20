@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import numpy as np
 from numpy.typing import NDArray
-from dask import array as da, delayed
 
 import impy as ip
 
 from cylindra.components.spline import CylSpline
-from cylindra.components._ftprops import get_polar_image
+from cylindra.cyltransform import get_polar_image_task
 from cylindra.const import nm
-from cylindra.utils import map_coordinates, ceilint
+from cylindra.utils import map_coordinates, ceilint, map_coordinates_task
+from cylindra._dask import compute
 
 
 def straighten(
@@ -34,13 +34,9 @@ def straighten(
     scale = img.scale.x
     coords = spl.cartesian(shape=(rz, rx), s_range=range_, scale=scale)
     nchunks = ceilint(length / chunk_length)
-    if nchunks == 1:
-        transformed = map_coordinates(img, coords)
-    else:
-        delayed_map_coordinates = delayed(map_coordinates)
-        each_coords = _chunk_coords(coords, axis=1, nchunks=nchunks)
-        tasks = [delayed_map_coordinates(img, crds) for crds in each_coords]
-        transformed = np.concatenate(da.compute(*tasks), axis=1)
+    each_coords = _chunk_coords(coords, axis=1, nchunks=nchunks)
+    tasks = [map_coordinates_task(img, crds) for crds in each_coords]
+    transformed = np.concatenate(compute(*tasks), axis=1)
     axes = "zyx"
     out = ip.asarray(transformed, axes=axes)
     return out.set_scale({k: scale for k in axes}, unit="nm")
@@ -71,14 +67,10 @@ def straighten_cylindric(
     )
     rc = (rmin + rmax) / 2
     length = spl.length(*range_)
-    if length < chunk_length:
-        transformed = get_polar_image(img, coords, radius=rc)
-    else:
-        delayed_get_polar_image = delayed(get_polar_image)
-        nchunks = ceilint(length / chunk_length)
-        each_coords = _chunk_coords(coords, axis=1, nchunks=nchunks)
-        tasks = [delayed_get_polar_image(img, crds, rc) for crds in each_coords]
-        transformed = np.concatenate(da.compute(*tasks), axis=1)
+    nchunks = ceilint(length / chunk_length)
+    each_coords = _chunk_coords(coords, axis=1, nchunks=nchunks)
+    tasks = [get_polar_image_task(img, crds, rc) for crds in each_coords]
+    transformed = np.concatenate(compute(*tasks), axis=1)
     return transformed
 
 
