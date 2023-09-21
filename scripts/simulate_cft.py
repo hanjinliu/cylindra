@@ -1,12 +1,11 @@
 from enum import Enum
-from typing import Annotated
+from typing import Annotated, Any
 from pathlib import Path
 import tempfile
 from tqdm import tqdm, trange
 
 from cylindra import start
-from magicgui import magicgui
-from magicgui.widgets import PushButton
+from magicclass import magicclass, vfield
 from magicclass.types import Optional
 from magicclass.ext.polars import DataFrameView
 import numpy as np
@@ -211,91 +210,137 @@ class Funcs(Enum):
     local_curvature = local_curvature
 
 
-@magicgui
-def simulate(
-    function: Funcs = Funcs.local_expansion,
-    n_tilt: Annotated[int, {"min": 1}] = 61,
-    nsr: list[float] = [0.1, 2.5],
-    nrepeat: int = 5,
-    scale: float = 0.5,
-    binsize: Annotated[int, {"min": 1}] = 1,
-    output: Optional[Path] = None,
-    seed: Annotated[int, {"max": 1e8}] = 12345,
-):
-    func: type[Simulator] = Funcs(function).value
-    if output is not None:
-        output = Path(output)
-        assert output.parent.exists()
+@magicclass
+class Main:
+    function = vfield(Funcs)
+    n_tilt = vfield(61).with_options(min=1)
+    nsr = vfield([0.1, 2.5])
+    nrepeat = vfield(5)
+    scale = vfield(0.5)
+    binsize = vfield(1).with_options(min=1)
+    output = vfield(Optional[Path])
+    seed = vfield(12345).with_options(max=1e8)
 
-    ui = start()
-    t0 = timer(name=func.__name__)
-    simulator: Simulator = func(ui, scale)  # simulate cylinder
-    coords = simulator.prepare()
-    results = []
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmpfile = Path(tmpdir) / "image.mrc"
-        ui.cylinder_simulator.simulate_tilt_series(
-            template_path=TEMPLATE_PATH,
-            save_path=tmpfile,
-            n_tilt=n_tilt,
-            scale=scale,
-        )
-        for _rep in trange(nrepeat):
-            for _idx, _nsr in enumerate(tqdm(nsr)):
-                ui.cylinder_simulator.simulate_tomogram_from_tilt_series(
-                    path=tmpfile,
-                    nsr=_nsr,
-                    bin_size=binsize,
-                    tilt_range=(-60, 60),
-                    height=60.0,
-                    seed=seed + _rep * len(nsr) + _idx,
-                )
-                ui.register_path(coords, err_max=1e-8)
-                ui.measure_radius(splines=[0])
-                ui.tomogram.splines[0].anchors = simulator.anchors()
-                ui.local_ft_analysis(
-                    splines=[0], depth=49.0, interval=None, bin_size=binsize
-                )
-                results.append([_nsr, _rep, *simulator.results()])
+    def simulate(
+        self,
+        function: Annotated[Funcs, {"bind": function}] = Funcs.local_expansion,
+        n_tilt: Annotated[int, {"bind": n_tilt}] = 61,
+        nsr: Annotated[Any, {"bind": nsr}] = [0.1, 2.5],
+        nrepeat: Annotated[int, {"bind": nrepeat}] = 5,
+        scale: Annotated[float, {"bind": scale}] = 0.5,
+        binsize: Annotated[int, {"bind": binsize}] = 1,
+        output: Annotated[str, {"bind": output}] = None,
+        seed: Annotated[int, {"bind": seed}] = 12345,
+    ):
+        func: type[Simulator] = Funcs(function).value
+        if output is not None:
+            output = Path(output)
+            assert output.parent.exists()
 
-        columns = ["nsr", "rep"] + simulator.columns()
-        results = pl.DataFrame(results, schema=columns).sort(by="nsr")
-        if output is None:
-            view = DataFrameView()
-            view.value = results
-            view.show()
-        else:
-            results.write_csv(output)
-        agg_df = results.group_by("nsr").agg(
-            [
-                pl.format(
-                    "{}±{}", pl.col(x).mean().round(3), pl.col(x).std().round(3)
-                ).alias(x)
-                for x in results.columns[2:]
-            ]
-        )
-        print(agg_df)
-    t0.toc(log=False)
-    ui.parent_viewer.close()
+        ui = start()
+        t0 = timer(name=func.__name__)
+        simulator: Simulator = func(ui, scale)  # simulate cylinder
+        coords = simulator.prepare()
+        results = []
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpfile = Path(tmpdir) / "image.mrc"
+            ui.cylinder_simulator.simulate_tilt_series(
+                template_path=TEMPLATE_PATH,
+                save_path=tmpfile,
+                n_tilt=n_tilt,
+                scale=scale,
+            )
+            for _rep in trange(nrepeat):
+                for _idx, _nsr in enumerate(tqdm(nsr)):
+                    ui.cylinder_simulator.simulate_tomogram_from_tilt_series(
+                        path=tmpfile,
+                        nsr=_nsr,
+                        bin_size=binsize,
+                        tilt_range=(-60, 60),
+                        height=60.0,
+                        seed=seed + _rep * len(nsr) + _idx,
+                    )
+                    ui.register_path(coords, err_max=1e-8)
+                    ui.measure_radius(splines=[0])
+                    ui.tomogram.splines[0].anchors = simulator.anchors()
+                    ui.local_ft_analysis(
+                        splines=[0], depth=49.0, interval=None, bin_size=binsize
+                    )
+                    results.append([_nsr, _rep, *simulator.results()])
 
+            columns = ["nsr", "rep"] + simulator.columns()
+            results = pl.DataFrame(results, schema=columns).sort(by="nsr")
+            if output is None:
+                view = DataFrameView()
+                view.value = results
+                view.show()
+            else:
+                results.write_csv(output)
+            agg_df = results.group_by("nsr").agg(
+                [
+                    pl.format(
+                        "{}±{}", pl.col(x).mean().round(3), pl.col(x).std().round(3)
+                    ).alias(x)
+                    for x in results.columns[2:]
+                ]
+            )
+            print(agg_df)
+        t0.toc(log=False)
+        ui.parent_viewer.close()
 
-def preview(
-    function: Funcs = Funcs.local_expansion,
-    scale: float = 0.5,
-):
-    func: type[Simulator] = Funcs(function).value
-    ui = start()
-    simulator: Simulator = func(ui, scale)
-    simulator.prepare()
-    spl = ui.cylinder_simulator.spline
-    ui.tomogram.splines.append(spl)
-    ui._add_spline_instance(spl)
+    def preview(
+        self,
+        function: Annotated[Funcs, {"bind": function}] = Funcs.local_expansion,
+        scale: Annotated[float, {"bind": scale}] = 0.5,
+    ):
+        func: type[Simulator] = Funcs(function).value
+        ui = start()
+        simulator: Simulator = func(ui, scale)
+        simulator.prepare()
+        spl = ui.cylinder_simulator.spline
+        ui.tomogram.splines.append(spl)
+        ui._add_spline_instance(spl)
 
+    def show_example(
+        self,
+        function: Annotated[Funcs, {"bind": function}] = Funcs.local_expansion,
+        n_tilt: Annotated[int, {"bind": n_tilt}] = 61,
+        nsr: Annotated[Any, {"bind": nsr}] = [0.1, 2.5],
+        scale: Annotated[float, {"bind": scale}] = 0.5,
+        binsize: Annotated[int, {"bind": binsize}] = 1,
+        seed: Annotated[int, {"bind": seed}] = 12345,
+    ):
+        func: type[Simulator] = Funcs(function).value
+        ui = start()
+        t0 = timer(name=func.__name__)
+        simulator: Simulator = func(ui, scale)  # simulate cylinder
+        coords = simulator.prepare()
+        _nsr = max(nsr)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpfile = Path(tmpdir) / "image.mrc"
+            ui.cylinder_simulator.simulate_tilt_series(
+                template_path=TEMPLATE_PATH,
+                save_path=tmpfile,
+                n_tilt=n_tilt,
+                scale=scale,
+            )
+            ui.cylinder_simulator.simulate_tomogram_from_tilt_series(
+                path=tmpfile,
+                nsr=_nsr,
+                bin_size=binsize,
+                tilt_range=(-60, 60),
+                height=60.0,
+                seed=seed,
+            )
+            ui.register_path(coords, err_max=1e-8)
+            ui.measure_radius(splines=[0])
+            ui.tomogram.splines[0].anchors = simulator.anchors()
+            ui.local_ft_analysis(
+                splines=[0], depth=49.0, interval=None, bin_size=binsize
+            )
+        t0.toc(log=False)
 
-btn = PushButton(text="Preview")
-btn.clicked.connect(lambda: preview(simulate.function.value, simulate.scale.value))
-simulate.append(btn)
 
 if __name__ == "__main__":
-    print(" --- starting simulation --- ")
-    simulate.show(run=True)
+    ui = Main()
+    ui.show()

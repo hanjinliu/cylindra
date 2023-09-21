@@ -2347,7 +2347,7 @@ class CylindraMainWidget(MagicTemplate):
             all_df.select([H.spline_id, H.pos_id, H.rise, H.spacing, H.dimer_twist, H.npf, H.start])
             .with_columns(
                 pl.format("{}-{}", pl.col(H.spline_id), pl.col(H.pos_id)).alias(_id),
-                pl.format("{}_{}", pl.col(H.npf), pl.col(H.start).round(1)).alias(_str),
+                pl.format("{}_{}", pl.col(H.npf), pl.col(H.start)).alias(_str),
                 pl.col(H.rise),
                 pl.col(H.spacing),
                 pl.col(H.dimer_twist),
