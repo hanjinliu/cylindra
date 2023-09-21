@@ -472,7 +472,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @File.wraps
     @set_design(text="Load project")
-    @thread_worker.with_progress(desc="Reading project")
+    @thread_worker.with_progress(desc="Reading project", total=0)
     @confirm(text="You may have unsaved data. Open a new project?", condition="self._need_save")  # fmt: skip
     @do_not_record
     @bind_key("Ctrl+K, Ctrl+P")
