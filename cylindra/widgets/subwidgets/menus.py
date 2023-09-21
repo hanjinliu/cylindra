@@ -96,7 +96,8 @@ class File(ChildWidget):
             """
             root = _config.get_stash_dir()
             path = root / datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-            return self._get_main().save_project(path)
+            self._get_main().save_project(path)
+            return self.reset_choices()
 
         @set_design(text="Load stashed project")
         @confirm(text="You may have unsaved data. Open a new project?", condition=_need_save)  # fmt: skip

@@ -177,14 +177,14 @@ class SplineControl(ChildWidget):
 
     @num.connect_async(timeout=0.1)
     def _num_changed(self):
-        i = self.num
-        if i is None:
+        num = self.num
+        if num is None:
             return
         parent = self._get_main()
         tomo = parent.tomogram
-        if i >= len(tomo.splines):
+        if num >= len(tomo.splines):
             return
-        spl = tomo.splines[i]
+        spl = tomo.splines[num]
         if len(spl.localprops) == 0:
 
             @thread_worker.callback
@@ -199,7 +199,7 @@ class SplineControl(ChildWidget):
 
         yield from self._load_projection(spl)
         yield  # breakpoint
-        yield from self._update_canvas.arun()
+        yield from self._update_canvas.arun(num=num)
         return None
 
     def _load_projection(self, spl: "CylSpline"):
@@ -245,36 +245,38 @@ class SplineControl(ChildWidget):
         return None
 
     @pos.connect_async(timeout=0.1, abort_limit=0.5)
-    def _update_canvas(self):
+    def _update_canvas(self, pos: int | None = None, num: int | None = None):
         parent = self._get_main()
         tomo = parent.tomogram
         binsize = parent._current_binsize
-        i = self.num
-        j = self.pos
+        if num is None:
+            num = self.num
+        if pos is None:
+            pos = self.pos
 
-        if not self._projections or i is None or j is None:
+        if not self._projections or num is None or pos is None:
             return self._clear_all_layers
-        if i >= len(tomo.splines):
+        if num >= len(tomo.splines):
             return
 
-        spl = tomo.splines[i]
+        spl = tomo.splines[num]
         # Set projections
-        proj = self._projections[j].compute()
+        proj = self._projections[pos].compute()
         yield self._update_projections.with_args(proj)
 
         # Update text overlay
-        if spl.has_anchors and j < len(spl.anchors):
-            len_nm = f"{spl.length(0, spl.anchors[j]):.2f}"
+        if spl.has_anchors and pos < len(spl.anchors):
+            len_nm = f"{spl.length(0, spl.anchors[pos]):.2f}"
         else:
             len_nm = "NA"
 
-        yield self._update_text_overlay.with_args(f"{i}-{j} ({len_nm} nm)")
+        yield self._update_text_overlay.with_args(f"{num}-{pos} ({len_nm} nm)")
 
         if spl.props.has_loc(H.radius):
             radii = spl.props.get_loc(H.radius)
             if len(radii) != self["pos"].max + 1:
                 return None
-            r0 = radii[j]
+            r0 = radii[pos]
         elif spl.props.has_glob(H.radius):
             r0 = spl.props.get_glob(H.radius)
         else:
@@ -318,7 +320,7 @@ class SplineControl(ChildWidget):
             # update pyqtgraph
             if spl.has_anchors:
                 xs = spl.anchors * spl.length()
-                parent.LocalProperties._plot_spline_position(xs[j])
+                parent.LocalProperties._plot_spline_position(xs[pos])
             else:
                 parent.LocalProperties._init_plot()
 
