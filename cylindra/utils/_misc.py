@@ -5,7 +5,6 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy import ndimage as ndi
 import impy as ip
-from dask import array as da
 from cylindra._dask import delayed, Delayed, compute
 from typing import Sequence, TypeVar, Callable
 from cylindra.const import Mode
@@ -81,6 +80,8 @@ def crop_tomograms(
     positions: Sequence[tuple[int, int, int]],
     shape: tuple[int, int, int],
 ) -> ip.ImgArray:
+    from dask import array as da
+
     regs = []
     is_lazy = isinstance(img, ip.LazyImgArray)
     pad_fn = da.pad if is_lazy else np.pad

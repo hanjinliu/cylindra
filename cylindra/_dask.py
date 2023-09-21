@@ -10,7 +10,7 @@ class Delayed(Generic[_T]):
 
 
 def compute(*args: Delayed[_T]) -> list[_T]:
-    return da.compute(*args)
+    return list(da.compute(*args))
 
 
 def delayed(func: Callable[..., _T]) -> Callable[..., Delayed[_T]]:

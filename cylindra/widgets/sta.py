@@ -3,6 +3,7 @@ from typing import (
     Callable,
     Iterable,
     Literal,
+    Sequence,
     Union,
     TYPE_CHECKING,
     Annotated,
@@ -1140,7 +1141,7 @@ class SubtomogramAveraging(ChildWidget):
         angle_max: "float | None" = 5.0,
         upsample_factor: int = 5,
     ):
-        from dask import delayed, compute
+        from cylindra._dask import delayed, compute
 
         parent = self._get_main()
         layer = assert_layer(layer, self.parent_viewer)
@@ -1158,14 +1159,14 @@ class SubtomogramAveraging(ChildWidget):
         yield
         max_shifts_px = tuple(s / parent.tomogram.scale for s in max_shifts)
         mole = layer.molecules
-        npfs = mole.features[Mole.pf].unique(maintain_order=True)
+        npfs: Sequence[int] = mole.features[Mole.pf].unique(maintain_order=True)
 
         slices = [(mole.features[Mole.pf] == i).to_numpy() for i in npfs]
         viterbi_tasks = [
             delayed(landscape[sl].run_viterbi)(distance_range, angle_max)
             for sl in slices
         ]
-        vit_out: list[ViterbiResult] = compute(viterbi_tasks)[0]
+        vit_out = compute(*viterbi_tasks)
 
         inds = np.empty((mole.count(), 3), dtype=np.int32)
         for i, result in enumerate(vit_out):

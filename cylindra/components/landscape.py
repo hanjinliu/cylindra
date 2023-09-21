@@ -276,7 +276,7 @@ class Landscape:
         random_seeds: list[int] = [0],
     ) -> list[AnnealingResult]:
         """Run simulated mesh annealing."""
-        from dask import array as da, delayed
+        from cylindra._dask import compute, delayed
 
         if angle_max is None:
             angle_max = 90.0
@@ -319,8 +319,7 @@ class Landscape:
             )
 
         tasks = [_run(s) for s in random_seeds]
-        results: list[AnnealingResult] = da.compute(tasks)[0]
-        return results
+        return compute(*tasks)
 
     def _normalize_args(self, time_const, temperature, cooling_rate, reject_limit):
         nmole = self.molecules.count()
