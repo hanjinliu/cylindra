@@ -20,6 +20,7 @@ class LatticeParams(NamedTuple):
 
     rise_angle: float
     rise_length: nm
+    pitch: nm
     spacing: nm
     skew: float
     dimer_twist: float
@@ -36,6 +37,7 @@ class LatticeParams(NamedTuple):
         return [
             (H.rise, pl.Float32),
             (H.rise_length, pl.Float32),
+            (H.pitch, pl.Float32),
             (H.spacing, pl.Float32),
             (H.skew, pl.Float32),
             (H.dimer_twist, pl.Float32),
@@ -81,6 +83,7 @@ class LatticeAnalyzer:
         return LatticeParams(
             rise_angle=cparams.rise_angle,
             rise_length=cparams.rise_length,
+            pitch=cparams.pitch,
             spacing=cparams.spacing,
             skew=cparams.skew,
             dimer_twist=cparams.dimer_twist,
@@ -193,6 +196,7 @@ class LatticeAnalyzer:
         return LatticeParams(
             rise_angle=cparams.rise_angle,
             rise_length=cparams.rise_length,
+            pitch=cparams.pitch,
             spacing=cparams.spacing,
             skew=cparams.skew,
             dimer_twist=cparams.dimer_twist,

@@ -79,6 +79,7 @@ class PropertyNames(SimpleNamespace):
     spl_pos = "spl_pos"
     rise = "rise_angle"
     rise_length = "rise_length"
+    pitch = "pitch"
     spacing = "spacing"
     dimer_twist = "dimer_twist"
     skew = "skew_angle"
