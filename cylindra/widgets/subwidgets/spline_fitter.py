@@ -154,11 +154,12 @@ class SplineFitter(ChildWidget):
         prof = self.subtomograms[j].radial_profile(
             center=[z, x], nbin=nbin, r_max=r_max
         )
+        _scale = self.subtomograms.scale.x
         imax = np.argmax(prof)
         imax_sub = centroid(prof, imax - 5, imax + 5)
-        r_peak = (imax_sub + 0.5) / nbin * r_max
-        r_inner = max(r_peak - spl.config.thickness_inner, 0) / tomo.scale / binsize
-        r_outer = (r_peak + spl.config.thickness_outer) / tomo.scale / binsize
+        r_peak: nm = (imax_sub + 0.5) / nbin * r_max
+        r_inner = max(r_peak - spl.config.thickness_inner, 0) / _scale
+        r_outer = (r_peak + spl.config.thickness_outer) / _scale
 
         theta = np.linspace(0, 2 * np.pi, 100, endpoint=False)
         item_circ_inner.xdata = r_inner * np.cos(theta) + x
@@ -213,7 +214,9 @@ class SplineFitter(ChildWidget):
             out.append(
                 map_coordinates(imgb, crds, order=1, mode=Mode.constant, cval=np.mean)
             )
-        subtomo = ip.asarray(np.stack(out, axis=0), axes="pzyx")
+        subtomo = ip.asarray(np.stack(out, axis=0), axes="pzyx").set_scale(
+            imgb, unit="nm"
+        )
         self.subtomograms = subtomo.proj("y")[ip.slicer.x[::-1]]
 
         self.canvas.image = self.subtomograms[0]
