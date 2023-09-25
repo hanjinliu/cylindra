@@ -58,10 +58,10 @@ class SeamSearchResult:
     def npf(self) -> int:
         return self.scores.size // 2
 
-    def get_label(self, size: int) -> NDArray[np.bool_]:
+    def get_label(self, size: int) -> NDArray[np.uint8]:
         _id = np.arange(size)
         res = (_id - self.seam_pos) // self.npf
-        return res % 2 == 0
+        return (res % 2 == 0).astype(np.uint8)
 
 
 class ManualSeamSearcher(SeamSearcher):

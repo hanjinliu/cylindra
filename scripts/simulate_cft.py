@@ -2,11 +2,11 @@ from enum import Enum
 from typing import Annotated, Any
 from pathlib import Path
 import tempfile
-from tqdm import tqdm, trange
 
 from cylindra import start
 from magicclass import magicclass, vfield
 from magicclass.types import Optional
+from magicclass.utils import thread_worker
 from magicclass.ext.polars import DataFrameView
 import numpy as np
 from numpy.typing import NDArray
@@ -221,6 +221,10 @@ class Main:
     output = vfield(Optional[Path])
     seed = vfield(12345).with_options(max=1e8)
 
+    def __init__(self):
+        self._ui = start()
+
+    @thread_worker.with_progress(total="nrepeat * len(nsr) + 1")
     def simulate(
         self,
         function: Annotated[Funcs, {"bind": function}] = Funcs.local_expansion,
@@ -234,10 +238,9 @@ class Main:
     ):
         func: type[Simulator] = Funcs(function).value
         if output is not None:
-            output = Path(output)
-            assert output.parent.exists()
+            assert Path(output).parent.exists()
 
-        ui = start()
+        ui = self._ui
         t0 = timer(name=func.__name__)
         simulator: Simulator = func(ui, scale)  # simulate cylinder
         coords = simulator.prepare()
@@ -250,8 +253,9 @@ class Main:
                 n_tilt=n_tilt,
                 scale=scale,
             )
-            for _rep in trange(nrepeat):
-                for _idx, _nsr in enumerate(tqdm(nsr)):
+            yield
+            for _rep in range(nrepeat):
+                for _idx, _nsr in enumerate(nsr):
                     ui.cylinder_simulator.simulate_tomogram_from_tilt_series(
                         path=tmpfile,
                         nsr=_nsr,
@@ -267,26 +271,22 @@ class Main:
                         splines=[0], depth=49.0, interval=None, bin_size=binsize
                     )
                     results.append([_nsr, _rep, *simulator.results()])
+                    yield
 
             columns = ["nsr", "rep"] + simulator.columns()
             results = pl.DataFrame(results, schema=columns).sort(by="nsr")
+
+        @thread_worker.callback
+        def _out():
             if output is None:
                 view = DataFrameView()
                 view.value = results
-                view.show()
+                ui.parent_viewer.window.add_dock_widget(view)
             else:
                 results.write_csv(output)
-            agg_df = results.group_by("nsr").agg(
-                [
-                    pl.format(
-                        "{}±{}", pl.col(x).mean().round(3), pl.col(x).std().round(3)
-                    ).alias(x)
-                    for x in results.columns[2:]
-                ]
-            )
-            print(agg_df)
-        t0.toc(log=False)
-        ui.parent_viewer.close()
+            t0.toc(log=False)
+
+        return _out
 
     def preview(
         self,
@@ -294,7 +294,7 @@ class Main:
         scale: Annotated[float, {"bind": scale}] = 0.5,
     ):
         func: type[Simulator] = Funcs(function).value
-        ui = start()
+        ui = self._ui
         simulator: Simulator = func(ui, scale)
         simulator.prepare()
         spl = ui.cylinder_simulator.spline
@@ -311,7 +311,7 @@ class Main:
         seed: Annotated[int, {"bind": seed}] = 12345,
     ):
         func: type[Simulator] = Funcs(function).value
-        ui = start()
+        ui = self._ui
         t0 = timer(name=func.__name__)
         simulator: Simulator = func(ui, scale)  # simulate cylinder
         coords = simulator.prepare()

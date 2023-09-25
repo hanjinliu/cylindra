@@ -605,6 +605,28 @@ class CylinderSimulator(ChildWidget):
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         seed: Optional[Annotated[int, {"min": 0, "max": 1e8}]] = None,
     ):
+        """
+        Simulate tomographic images using a tilt series.
+
+        Parameters
+        ----------
+        path : Path
+            Path to the tilt series image.
+        nsr : float
+            Noise-to-signal ratio. It is defined by N/S, where S is the maximum
+            value of the tilt series. If the input image is already noisy, you
+            can set this value to zero to avoid adding more noises.
+        bin_size : list of int
+            Bin sizes used to create multi-scaled images from the simulated image.
+        tilt_range : tuple of float
+            Minimum and maximum tilt angles in degree.
+        height : int
+            Height of the simulated tomogram in nm.
+        interpolation : int
+            Interpolation method used during the simulation.
+        seed : int, optional
+            Random seed used for the Gaussian noise.
+        """
         main = self._get_main()
         sino = ip.imread(path)
         scale = sino.scale.x
@@ -747,9 +769,7 @@ class CylinderSimulator(ChildWidget):
         if shape is None:
             shape = self._get_shape()
         degrees = np.linspace(*tilt_range, n_tilt)
-        sino, mole = self._prep_radon(
-            template_path, degrees, scale, shape, interpolation
-        )
+        sino, _ = self._prep_radon(template_path, degrees, scale, shape, interpolation)
         sino.set_axes("zyx").set_scale(zyx=scale, unit="nm").imsave(save_path)
         _Logger.print(f"Tilt series saved at {save_path}.")
         return None
