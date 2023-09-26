@@ -34,6 +34,7 @@ class LabeledText(FieldGroup):
 
 _PlotInfo = {
     H.spacing: ("spacing (nm)", "lime"),
+    H.pitch: ("pitch (nm)", "green"),
     H.dimer_twist: ("dimer twist (deg)", "gold"),
     H.skew: ("skew angle (deg)", "orange"),
     H.rise: ("rise angle (deg)", "cyan"),
@@ -163,8 +164,6 @@ class LocalPropertiesWidget(ChildWidget):
         self,
         props: Annotated[list[str], {"widget_type": CheckBoxes, "choices": _PlotInfo.keys()}] = (H.spacing, H.dimer_twist, H.rise)
     ):  # fmt: skip
-        from cylindra.widgets.main import CylindraMainWidget
-
         self._set_properties_to_plot(props)
         main = self._get_main()
         spl = main.tomogram.splines[main.SplineControl.num]

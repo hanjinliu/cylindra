@@ -797,7 +797,7 @@ class CylinderSimulator(ChildWidget):
         return None
 
     @TransformMenu.wraps
-    @set_design(text="Screw")
+    @set_design(text="Twist")
     @impl_preview(auto_call=True)
     def twist(
         self,
