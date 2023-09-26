@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from typing import TYPE_CHECKING, Any, Literal
 
 import polars as pl
@@ -24,6 +24,7 @@ from cylindra import _config
 if TYPE_CHECKING:
     from cylindra._custom_layers import MoleculesLayer
     from napari.layers import Layer
+    from magicgui.widgets import FloatSpinBox
 
 
 # Implement preview functions.
@@ -317,6 +318,8 @@ def _label_feature_clusters_preview(
 @setup_function_gui(CylindraMainWidget.paint_molecules)
 def _(self: CylindraMainWidget, gui: FunctionGui):
     gui.layer.changed.connect(gui.color_by.reset_choices)
+    lim_l: FloatSpinBox = gui.limits[0]
+    lim_h: FloatSpinBox = gui.limits[1]
 
     @gui.layer.changed.connect
     @gui.color_by.changed.connect
@@ -330,24 +333,26 @@ def _(self: CylindraMainWidget, gui: FunctionGui):
             series = series.filter(~series.is_infinite())
             min_, max_ = series.min(), series.max()
             offset_ = (max_ - min_) / 2
-            gui.limits[0].min = gui.limits[1].min = min_ - offset_
-            gui.limits[0].max = gui.limits[1].max = max_ + offset_
-            gui.limits[0].value = min_
-            gui.limits[1].value = max_
+            lim_l.min = lim_h.min = min_ - offset_
+            lim_l.max = lim_h.max = max_ + offset_
+            lim_l.value = min_
+            lim_h.value = max_
             if series.dtype in pl.INTEGER_DTYPES:
-                gui.limits[0].step = gui.limits[1].step = 1
+                lim_l.step = lim_h.step = 1
             else:
-                gui.limits[0].step = gui.limits[1].step = None
+                lim_l.step = lim_h.step = None
 
-    @gui.limits[0].changed.connect
+    @lim_l.changed.connect
     def _assert_limits_0(val: float):
-        if val > gui.limits[1].value:
-            gui.limits[1].value = val
+        if val > lim_h.value:
+            with suppress(ValueError):
+                lim_h.value = val
 
-    @gui.limits[1].changed.connect
+    @lim_h.changed.connect
     def _assert_limits_1(val: float):
-        if val < gui.limits[0].value:
-            gui.limits[0].value = val
+        if val < lim_l.value:
+            with suppress(ValueError):
+                lim_l.value = val
 
     return None
 

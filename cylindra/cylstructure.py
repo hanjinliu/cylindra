@@ -94,20 +94,10 @@ def calc_radius(mole: Molecules, spl: CylSpline) -> pl.Series:
 
 def calc_rise_angle(mole: Molecules, spl: CylSpline) -> pl.Series:
     """Add a column of rise angles of each molecule."""
+    # NOTE: molecules must be in the canonical arrangement.
     subsets = list[Molecules]()
-    _nrise = int(round(spl.props.get_glob(H.start))) * spl.config.rise_sign
-    new_pf_id = mole.features[Mole.pf].max() + 1
-    nth_dtype = mole.features[Mole.nth].dtype
-    pf_dtype = mole.features[Mole.pf].dtype
-    mole_ext = (
-        mole.filter(pl.col(Mole.pf) == 0)
-        .with_features(
-            pl.int_range(0, pl.count(), dtype=nth_dtype).alias(Mole.nth) - _nrise,
-            pl.repeat(new_pf_id, pl.count(), dtype=pf_dtype).alias(Mole.pf),
-        )
-        .filter(pl.col(Mole.nth).is_between(0, mole.count() - 1))
-    )
-    for _, sub in _groupby_with_index(mole.concat_with(mole_ext), Mole.nth):
+    mole_ext, new_pf_id = _seam_molecules(mole, spl)
+    for i, sub in _groupby_with_index(mole.concat_with(mole_ext), Mole.nth):
         sub = sub.sort(Mole.pf)
         surf = CylinderSurface(spl)
         _interv_vec = np.diff(sub.pos, axis=0, append=np.nan)
@@ -125,19 +115,9 @@ def calc_rise_angle(mole: Molecules, spl: CylSpline) -> pl.Series:
 def calc_lateral_interval(
     mole: Molecules, spl: CylSpline, projective: bool = True
 ) -> pl.DataFrame:
+    # NOTE: molecules must be in the canonical arrangement.
     subsets = list[Molecules]()
-    _nrise = int(round(spl.props.get_glob(H.start))) * spl.config.rise_sign
-    new_pf_id = mole.features[Mole.pf].max() + 1
-    nth_dtype = mole.features[Mole.nth].dtype
-    pf_dtype = mole.features[Mole.pf].dtype
-    mole_ext = (
-        mole.filter(pl.col(Mole.pf) == 0)
-        .with_features(
-            pl.int_range(0, pl.count(), dtype=nth_dtype).alias(Mole.nth) - _nrise,
-            pl.repeat(new_pf_id, pl.count(), dtype=pf_dtype).alias(Mole.pf),
-        )
-        .filter(pl.col(Mole.nth).is_between(0, mole.count() - 1))
-    )
+    mole_ext, new_pf_id = _seam_molecules(mole, spl)
     for _, sub in _groupby_with_index(mole.concat_with(mole_ext), Mole.nth):
         sub = sub.sort(Mole.pf)
         _interv_vec = np.diff(sub.pos, axis=0, append=np.nan)
@@ -157,6 +137,29 @@ def calc_lateral_interval(
             )
         )
     return _concat_groups(subsets).features[Mole.lateral_interval]
+
+
+def _seam_molecules(mole: Molecules, spl: CylSpline) -> tuple[Molecules, int]:
+    """
+    Molecules at the seam boundary.
+
+    If the molecules are N-pf, molecules corresponding to the (N+1)-th pf will be
+    returned. This is useful for calculating the structures that need the lateral
+    interaction.
+    """
+    _nrise = int(round(spl.props.get_glob(H.start))) * spl.config.rise_sign
+    new_pf_id = mole.features[Mole.pf].max() + 1
+    pf_dtype = mole.features[Mole.pf].dtype
+    nth_rng = mole.features[Mole.nth].min(), mole.features[Mole.nth].max()
+    mole_ext = (
+        mole.filter(pl.col(Mole.pf) == 0)
+        .with_features(
+            pl.col(Mole.nth) - _nrise,
+            pl.repeat(new_pf_id, pl.count(), dtype=pf_dtype).alias(Mole.pf),
+        )
+        .filter(pl.col(Mole.nth).is_between(*nth_rng))
+    )
+    return mole_ext, new_pf_id
 
 
 class CylinderSurface:
