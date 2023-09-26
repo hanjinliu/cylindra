@@ -6,7 +6,7 @@ from .utils import pytest_group
 from ._const import TEST_DIR, PROJECT_DIR_13PF, PROJECT_DIR_14PF
 
 
-def _load(ui: CylindraMainWidget):
+def _load(ui: CylindraMainWidget, name="Loader"):
     ui.batch.construct_loader(
         paths=[
             (
@@ -16,7 +16,7 @@ def _load(ui: CylindraMainWidget):
             )
         ],
         predicate="pl.col('nth') < 3",
-        name="Loader",
+        name=name,
     )
 
 
@@ -29,6 +29,26 @@ def test_project_io(ui: CylindraMainWidget):
         assert len(ui.batch._loaders) == 1
         ui.batch.load_batch_project(path)
         assert len(ui.batch._loaders) == 1
+
+    ui.batch.construct_loader(
+        paths=[
+            (
+                TEST_DIR / "13pf_MT.tif",
+                ["Mono-0.csv", "Mono-1.csv"],
+                PROJECT_DIR_13PF,
+            ),
+            (
+                TEST_DIR / "14pf_MT.tif",
+                ["Mono-0.csv", "Mono-1.csv"],
+                PROJECT_DIR_13PF,
+            ),
+        ],
+        predicate="pl.col('npf_glob') == 13",
+        name="Loader2",
+    )
+
+    loader = ui.batch.sta.get_loader("Loader2")
+    assert loader.features["pf-id"].max() == 12
 
 
 def test_view(ui: CylindraMainWidget):

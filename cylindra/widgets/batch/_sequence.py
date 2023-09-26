@@ -189,6 +189,7 @@ class Project(MagicTemplate):
     @nogui
     @do_not_record
     def get_loader(self, order: int = 3) -> SubtomogramLoader:
+        """Get the subtomogram loader of this project"""
         project = CylindraProject.from_file(self.path)
         with project.open_project() as dir:
             molecules = [
@@ -249,7 +250,7 @@ class ProjectSequenceEdit(MagicTemplate):
     filter_expression : str
         A `polars` expression to filter molecules. e.g. `pl.col("score") > 0.5`.
         Spline global properties are also available during filtering, with suffix
-        "_glob". e.g. `pl.col("nPF_glob") == 13`
+        "_glob". e.g. `pl.col("npf_glob") == 13`
     """
 
     @magicmenu

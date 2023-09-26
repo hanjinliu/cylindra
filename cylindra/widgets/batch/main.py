@@ -183,13 +183,10 @@ class PathInfo(NamedTuple):
 
 
 def _find_source(prj: CylindraProject, dir: Path, mole_path: str) -> "CylSpline | None":
-    try:
-        idx = prj.molecules_info.index(mole_path)
-    except ValueError:
-        return None
-    else:
-        source = prj.molecules_info[idx].source
-        if source is None:
-            return None
-        return prj.load_spline(dir, source)
+    for info in prj.molecules_info:
+        if info.name == mole_path:
+            source = info.source
+            if source is None:
+                return None
+            return prj.load_spline(dir, source)
     return None
