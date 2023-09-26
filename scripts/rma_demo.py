@@ -114,17 +114,6 @@ def main(ui: CylindraMainWidget):
         footprint=[[1, 1, 1], [1, 1, 1]],
     )
 
-    viewer = ui.parent_viewer
-    ans = viewer.layers["molecules"].molecules.features["interval-nm"]
-    conv = viewer.layers["Conventional"].molecules.features["interval-nm"]
-    conv_filt = viewer.layers["Conventional"].molecules.features["interval-nm_mean"]
-    rma = viewer.layers["molecules-ALN1"].molecules.features["interval-nm"]
-    rma_filt = viewer.layers["molecules-ALN1"].molecules.features["interval-nm_mean"]
-
-    for data in [conv, conv_filt, rma, rma_filt]:
-        print(rmsd(data, ans))
-
 
 if __name__ == "__main__":
     main(start())
-    napari.run()
