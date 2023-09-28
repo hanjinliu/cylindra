@@ -1511,6 +1511,7 @@ class SubtomogramAveraging(ChildWidget):
         layer: MoleculesLayerType,
         template_path: Annotated[Union[str, Path], {"bind": params.template_path}],
         mask_params: Annotated[Any, {"bind": params._get_mask_params}],
+        anti_template_path: Annotated[Optional[Path.Read[FileFilter.IMAGE]], {"text": "Do not use anti-template"}] = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         npf: Annotated[Optional[int], {"text": "Use global properties"}] = None,
         show_average: Annotated[str, {"label": "Show averages as", "choices": AVG_CHOICES}] = AVG_CHOICES[2],
@@ -1524,7 +1525,11 @@ class SubtomogramAveraging(ChildWidget):
 
         Parameters
         ----------
-        {layer}{template_path}{mask_params}{interpolation}
+        {layer}{template_path}{mask_params}
+        anti_template_path : Path, optional
+            The anti-template used for seam search. For instance, if the template is
+            beta-tubulin, the anti-template is alpha-tubulin.
+        {interpolation}
         npf : int, optional
             Number of protofilaments. By default the global properties stored in the
             corresponding spline will be used.
@@ -1539,11 +1544,19 @@ class SubtomogramAveraging(ChildWidget):
             template=self.params._get_template(path=template_path),
             mask=self.params._get_mask(params=mask_params),
         )
+        if anti_template_path is not None:
+            anti_template = ip.asarray(
+                pipe.from_file(anti_template_path).provide(loader.scale),
+                axes="zyx",
+            )
+        else:
+            anti_template = None
 
         seam_searcher = CorrelationSeamSearcher(npf)
         result = seam_searcher.search(
             loader=loader,
             template=ip.asarray(template, axes="zyx"),
+            anti_template=anti_template,
             mask=mask,
             cutoff=cutoff,
         )

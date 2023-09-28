@@ -2145,6 +2145,18 @@ class CylindraMainWidget(MagicTemplate):
         return undo_callback(layer.feature_setter(feat))
 
     @MoleculesMenu.MoleculeFeatures.wraps
+    @set_design(text="Calculate curve index")
+    def calculate_curve_index(self, layer: MoleculesLayerType):
+        layer = assert_layer(layer, self.parent_viewer)
+        spl = _assert_source_spline_exists(layer)
+        mole = layer.molecules
+        feat = mole.features
+        new_feat_col = cylstructure.calc_curve_index(mole, spl)
+        layer.molecules = layer.molecules.with_features(new_feat_col)
+        self.reset_choices()
+        return undo_callback(layer.feature_setter(feat))
+
+    @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Convolve feature")
     def convolve_feature(
         self,

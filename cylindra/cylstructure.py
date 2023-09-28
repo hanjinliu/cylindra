@@ -162,6 +162,23 @@ def _seam_molecules(mole: Molecules, spl: CylSpline) -> tuple[Molecules, int]:
     return mole_ext, new_pf_id
 
 
+def calc_curve_index(mole: Molecules, spl: CylSpline):
+    """
+    The curve orientation index.
+
+    The curve orientation is defined as the cosine of the angle between the
+    second derivative and the relative molecule vector. That is, the inside
+    of the curve is positive.
+    """
+    _u = spl.y_to_position(mole.features[Mole.position])
+    der0 = spl.map(_u, der=0)
+    der2 = spl.map(_u, der=2)
+    mole_vec_normed = _norm(mole.pos - der0)
+    der2_normed = _norm(der2, fill=0.0)
+    _cos = _dot(mole_vec_normed, der2_normed)
+    return pl.Series(Mole.curve_index, _cos).cast(pl.Float32)
+
+
 class CylinderSurface:
     """Class to define the surface of a spline cylinder."""
 
@@ -290,9 +307,12 @@ class LatticeParameters(Enum):
         return [v.name for v in cls]
 
 
-def _norm(vec: NDArray[np.float32]) -> NDArray[np.float32]:
+def _norm(vec: NDArray[np.float32], fill=np.nan) -> NDArray[np.float32]:
     vec_len = np.linalg.norm(vec, axis=1)
-    return vec / vec_len[:, np.newaxis]
+    vec_len[vec_len == 0] = np.nan
+    out = vec / vec_len[:, np.newaxis]
+    out[np.isnan(out)] = fill
+    return out
 
 
 def _dot(a: NDArray[np.float32], b: NDArray[np.float32]) -> NDArray[np.float32]:

@@ -128,6 +128,7 @@ class MoleculesHeader(SimpleNamespace):
     skew = "skew-deg"  # skew tilt angle between two molecules
     rise = "rise-angle-deg"  # rise angle between two molecules
     radius = "radius-nm"  # distance between the molecule and the spline
+    curve_index = "curve-index"  # curve index (1 is the inside of curve)
     lateral_angle = "lateral-angle-deg"  # lateral angle between molecules
     elev_angle = "elevation-angle-deg"  # elevation angle between molecules
     position = "position-nm"  # position of the molecule along the spline

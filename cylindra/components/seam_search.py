@@ -78,6 +78,7 @@ class CorrelationSeamSearcher(SeamSearcher):
         self,
         loader: SubtomogramLoader,
         template: ip.ImgArray,
+        anti_template: ip.ImgArray | None = None,
         mask: NDArray[np.float32] | None = None,
         cutoff: float = 0.5,
     ) -> SeamSearchResult:
@@ -86,24 +87,40 @@ class CorrelationSeamSearcher(SeamSearcher):
         if mask is None:
             mask = 1
 
-        masked_template = (template * mask).lowpass_filter(cutoff=cutoff, dims="zyx")
+        masked_template = (template * mask).lowpass_filter(cutoff, dims="zyx")
+        has_anti_template = anti_template is not None
+        if has_anti_template:
+            if anti_template.shape != template.shape:
+                raise ValueError(
+                    f"The shape of anti-template ({anti_template.shape}) must be the "
+                    f"same as the shape of template ({template.shape})."
+                )
+            masked_anti_template = (anti_template * mask).lowpass_filter(
+                cutoff, dims="zyx"
+            )
+        else:
+            masked_anti_template = None
+
         averaged_images = self.calc_averages(
             loader.replace(output_shape=template.shape)
         )
 
-        corrs = list[float]()
-        for avg in averaged_images:
+        corrs = np.empty(averaged_images.shape[0], dtype=np.float32)
+        anti_corrs = np.empty(averaged_images.shape[0], dtype=np.float32)
+        for _i, avg in enumerate(averaged_images):
             avg: ip.ImgArray
             masked_avg = (avg * mask).lowpass_filter(cutoff=cutoff, dims="zyx")
-            corr = ip.zncc(masked_avg, masked_template)
-            corrs.append(corr)
+            corrs[_i] = ip.zncc(masked_avg, masked_template)
+            if has_anti_template:
+                anti_corrs[_i] = ip.zncc(masked_avg, masked_anti_template)
 
-        corrs = np.array(corrs)
-
-        corr1, corr2 = corrs[: self.npf], corrs[self.npf :]
-        score = np.empty_like(corrs, dtype=np.float32)
-        score[: self.npf] = corr1 - corr2
-        score[self.npf :] = corr2 - corr1
+        if has_anti_template:
+            score = corrs - anti_corrs
+        else:
+            corr1, corr2 = corrs[: self.npf], corrs[self.npf :]
+            score = np.empty_like(corrs, dtype=np.float32)
+            score[: self.npf] = corr1 - corr2
+            score[self.npf :] = corr2 - corr1
 
         return SeamSearchResult(score, averaged_images)
 
