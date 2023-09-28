@@ -2079,16 +2079,6 @@ class CylindraMainWidget(MagicTemplate):
         {layer}{interpolation}
         suffix : str, default is "_spl"
             Suffix of the new feature column names.
-
-        Returns
-        -------
-        _type_
-            _description_
-
-        Raises
-        ------
-        ValueError
-            _description_
         """
         from scipy.interpolate import interp1d
 
@@ -2147,6 +2137,16 @@ class CylindraMainWidget(MagicTemplate):
     @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Calculate curve index")
     def calculate_curve_index(self, layer: MoleculesLayerType):
+        """
+        Calculate the curve index for each molecule.
+
+        The "curve index" is 1 if the molecule is inside the curve. Outside will
+        be -1, and a straight line will be 0.
+
+        Parameters
+        ----------
+        {layer}
+        """
         layer = assert_layer(layer, self.parent_viewer)
         spl = _assert_source_spline_exists(layer)
         mole = layer.molecules
