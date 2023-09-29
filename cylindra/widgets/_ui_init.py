@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from contextlib import contextmanager, suppress
 from typing import TYPE_CHECKING, Any, Literal
+from acryo import Molecules
 
 import polars as pl
 from magicgui.widgets import FunctionGui, PushButton
@@ -65,12 +66,9 @@ def _(self: CylindraMainWidget, spline: int, lengths: tuple[float, float]):
             edge_width=3,
             name=name,
         )
-    is_active = False
-    try:
-        is_active = yield
-    finally:
-        if not is_active and layer in viewer.layers:
-            viewer.layers.remove(layer)
+    is_active = yield
+    if not is_active and layer in viewer.layers:
+        viewer.layers.remove(layer)
 
 
 @impl_preview(
@@ -108,12 +106,9 @@ def _(
     else:
         layer = self.add_molecules(out, name=PREVIEW_LAYER_NAME)
     layer.face_color = layer.edge_color = "crimson"
-    is_active = False
-    try:
-        is_active = yield
-    finally:
-        if not is_active and layer in viewer.layers:
-            viewer.layers.remove(layer)
+    is_active = yield
+    if not is_active and layer in viewer.layers:
+        viewer.layers.remove(layer)
 
 
 @impl_preview(CylindraMainWidget.map_monomers_with_extensions, auto_call=True)
@@ -142,12 +137,9 @@ def _(
         layer = self.add_molecules(out, name=PREVIEW_LAYER_NAME)
         layer.text = {"string": "{pf-id}"}
     layer.face_color = layer.edge_color = "crimson"
-    is_active = False
-    try:
-        is_active = yield
-    finally:
-        if not is_active and layer in viewer.layers:
-            viewer.layers.remove(layer)
+    is_active = yield
+    if not is_active and layer in viewer.layers:
+        viewer.layers.remove(layer)
 
 
 @impl_preview(CylindraMainWidget.split_molecules, auto_call=True)
@@ -163,12 +155,20 @@ def _(self: CylindraMainWidget, layer: MoleculesLayer, by: str):
 
 
 @impl_preview(CylindraMainWidget.translate_molecules, auto_call=True)
-def _(self: CylindraMainWidget, layer: MoleculesLayer, translation, internal: bool):
-    mole = layer.molecules
-    if internal:
-        out = mole.translate_internal(translation)
-    else:
-        out = mole.translate(translation)
+def _(
+    self: CylindraMainWidget, layers: list[MoleculesLayer], translation, internal: bool
+):
+    if len(layers) == 0:
+        return
+    all_mole = list[Molecules]()
+    for layer in layers:
+        mole = layer.molecules
+        if internal:
+            out = mole.translate_internal(translation)
+        else:
+            out = mole.translate(translation)
+        all_mole.append(out)
+    out = Molecules.concat(all_mole, concat_features=False)
     viewer = self.parent_viewer
     if PREVIEW_LAYER_NAME in viewer.layers:
         layer: Layer = viewer.layers[PREVIEW_LAYER_NAME]
@@ -176,31 +176,36 @@ def _(self: CylindraMainWidget, layer: MoleculesLayer, translation, internal: bo
     else:
         layer = self.add_molecules(out, name=PREVIEW_LAYER_NAME)
         layer.face_color = layer.edge_color = "crimson"
-    is_active = False
-    try:
-        is_active = yield
-    finally:
-        if not is_active and layer in viewer.layers:
-            viewer.layers.remove(layer)
+    is_active = yield
+    if not is_active and layer in viewer.layers:
+        viewer.layers.remove(layer)
 
 
 @impl_preview(CylindraMainWidget.rotate_molecules, auto_call=True)
 def _preview_rotate_molecules(
     self: CylindraMainWidget,
-    layer: MoleculesLayer,
+    layers: list[MoleculesLayer],
     degrees: list[tuple[Literal["z", "y", "x"], float]],
 ):
-    mole = layer.molecules
-    for axis, deg in degrees:
-        mole = mole.rotate_by_rotvec_internal(rotvec_from_axis_and_degree(axis, deg))
+    if len(layers) == 0:
+        return
+    all_data = list[np.ndarray]()
+    for layer in layers:
+        mole = layer.molecules
+        for axis, deg in degrees:
+            mole = mole.rotate_by_rotvec_internal(
+                rotvec_from_axis_and_degree(axis, deg)
+            )
 
-    nmol = len(mole)
-    zvec = np.stack([mole.pos, mole.z], axis=1)
-    yvec = np.stack([mole.pos, mole.y], axis=1)
-    xvec = np.stack([mole.pos, mole.x], axis=1)
+        nmol = len(mole)
+        zvec = np.stack([mole.pos, mole.z], axis=1)
+        yvec = np.stack([mole.pos, mole.y], axis=1)
+        xvec = np.stack([mole.pos, mole.x], axis=1)
 
-    vector_data = np.concatenate([zvec, yvec, xvec], axis=0)
+        vector_data = np.concatenate([zvec, yvec, xvec], axis=0)
+        all_data.append(vector_data)
 
+    vector_data = np.concatenate(all_data, axis=0)
     viewer = self.parent_viewer
     if PREVIEW_LAYER_NAME in viewer.layers:
         layer: Layer = viewer.layers[PREVIEW_LAYER_NAME]
@@ -216,12 +221,9 @@ def _preview_rotate_molecules(
             name=PREVIEW_LAYER_NAME,
             vector_style="arrow",
         )
-    is_active = False
-    try:
-        is_active = yield
-    finally:
-        if not is_active and layer in viewer.layers:
-            viewer.layers.remove(layer)
+    is_active = yield
+    if not is_active and layer in viewer.layers:
+        viewer.layers.remove(layer)
 
 
 @impl_preview(CylindraMainWidget.filter_molecules, auto_call=True)

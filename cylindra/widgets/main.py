@@ -1815,7 +1815,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Translate molecules")
     def translate_molecules(
         self,
-        layer: MoleculesLayerType,
+        layers: MoleculesLayersType,
         translation: Annotated[tuple[nm, nm, nm], {"options": {"min": -1000, "max": 1000, "step": 0.1}, "label": "translation Z, Y, X (nm)"}],
         internal: bool = True,
         inherit_source: Annotated[bool, {"label": "Inherit source spline"}] = True,
@@ -1825,7 +1825,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {layer}
+        {layers}
         translation : tuple of float
             Translation (nm) of the molecules in (Z, Y, X) order. Whether the world
             coordinate or the internal coordinate is used depends on the ``internal``
@@ -1835,31 +1835,34 @@ class CylindraMainWidget(MagicTemplate):
             with different rotations are translated differently.
         {inherit_source}
         """
-        layer = assert_layer(layer, self.parent_viewer)
-        mole = layer.molecules
-        if internal:
-            out = mole.translate_internal(translation)
-            if Mole.position in out.features.columns:
-                # update spline position feature
-                dy = translation[1]
-                out = out.with_features([pl.col(Mole.position) + dy])
-        else:
-            out = mole.translate(translation)
-            if Mole.position in out.features.columns:
-                # spline position is not predictable.
-                out = out.drop_features([Mole.position])
-        if inherit_source:
-            source = layer.source_component
-        else:
-            source = None
-        new = self.add_molecules(out, name=f"{layer.name}-Shift", source=source)
-        return self._undo_callback_for_layer(new)
+        layers = assert_list_of_layers(layers, self.parent_viewer)
+        new_layers = list[MoleculesLayer]()
+        for layer in layers:
+            mole = layer.molecules
+            if internal:
+                out = mole.translate_internal(translation)
+                if Mole.position in out.features.columns:
+                    # update spline position feature
+                    dy = translation[1]
+                    out = out.with_features([pl.col(Mole.position) + dy])
+            else:
+                out = mole.translate(translation)
+                if Mole.position in out.features.columns:
+                    # spline position is not predictable.
+                    out = out.drop_features([Mole.position])
+            if inherit_source:
+                source = layer.source_component
+            else:
+                source = None
+            new = self.add_molecules(out, name=f"{layer.name}-Shift", source=source)
+            new_layers.append(new)
+        return self._undo_callback_for_layer(new_layers)
 
     @MoleculesMenu.wraps
     @set_design(text="Rotate molecules")
     def rotate_molecules(
         self,
-        layer: MoleculesLayerType,
+        layers: MoleculesLayersType,
         degrees: Annotated[
             list[tuple[Literal["z", "y", "x"], float]],
             {"layout": "vertical", "options": {"widget_type": SingleRotationEdit}},
@@ -1871,30 +1874,33 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {layer}
+        {layers}
         degrees : list of (str, float)
             Rotation axes and degrees. For example, ``[("z", 20), ("y", -10)]`` means rotation
             by 20 degrees around the molecule Z axis and then by -10 degrees around the Y axis.
         {inherit_source}
         """
-        layer = assert_layer(layer, self.parent_viewer)
-        mole = layer.molecules
-        if (
-            len(degrees) == 2
-            and isinstance(degrees[0], str)
-            and isinstance(degrees[1], float)
-        ):
-            degrees = [degrees]
-        for axis, deg in degrees:
-            mole = mole.rotate_by_rotvec_internal(
-                rotvec_from_axis_and_degree(axis, deg)
-            )
-        if inherit_source:
-            source = layer.source_component
-        else:
-            source = None
-        new = self.add_molecules(mole, name=f"{layer.name}-Rot", source=source)
-        return self._undo_callback_for_layer(new)
+        layers = assert_list_of_layers(layers, self.parent_viewer)
+        new_layers = list[MoleculesLayer]()
+        for layer in layers:
+            mole = layer.molecules
+            if (
+                len(degrees) == 2
+                and isinstance(degrees[0], str)
+                and isinstance(degrees[1], float)
+            ):
+                degrees = [degrees]
+            for axis, deg in degrees:
+                mole = mole.rotate_by_rotvec_internal(
+                    rotvec_from_axis_and_degree(axis, deg)
+                )
+            if inherit_source:
+                source = layer.source_component
+            else:
+                source = None
+            new = self.add_molecules(mole, name=f"{layer.name}-Rot", source=source)
+            new_layers.append(new)
+        return self._undo_callback_for_layer(new_layers)
 
     @MoleculesMenu.MoleculeFeatures.wraps
     @set_design(text="Filter molecules")
