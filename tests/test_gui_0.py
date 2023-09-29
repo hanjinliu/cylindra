@@ -392,6 +392,7 @@ def test_preview(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
     layer: MoleculesLayer = ui.parent_viewer.layers["Mono-0"]
     tester = mcls_testing.FunctionGuiTester(ui.translate_molecules)
+    tester.gui.layers.value = [ui.parent_viewer.layers["Mono-0"]]
     nlayer = len(ui.parent_viewer.layers)
     tester.click_preview()
     assert len(ui.parent_viewer.layers) == nlayer + 1
@@ -399,6 +400,7 @@ def test_preview(ui: CylindraMainWidget):
     assert len(ui.parent_viewer.layers) == nlayer
 
     tester = mcls_testing.FunctionGuiTester(ui.rotate_molecules)
+    tester.gui.layers.value = [ui.parent_viewer.layers["Mono-0"]]
     nlayer = len(ui.parent_viewer.layers)
     tester.click_preview()
     assert len(ui.parent_viewer.layers) == nlayer + 1

@@ -7,6 +7,7 @@ import magicgui
 from napari.utils._magicgui import find_viewer_ancestor
 from napari.layers import Layer
 from cylindra._custom_layers import MoleculesLayer, CylinderLabels
+from cylindra.const import PREVIEW_LAYER_NAME
 
 if TYPE_CHECKING:
     from magicgui.widgets._bases import CategoricalWidget
@@ -17,7 +18,11 @@ def get_monomer_layers(gui: "CategoricalWidget") -> list[MoleculesLayer]:
     viewer = find_viewer_ancestor(gui.native)
     if not viewer:
         return []
-    return [x for x in viewer.layers if isinstance(x, MoleculesLayer)]
+    return [
+        x
+        for x in viewer.layers
+        if isinstance(x, MoleculesLayer) and x.name != PREVIEW_LAYER_NAME
+    ]
 
 
 def get_colored_layers(
@@ -26,7 +31,12 @@ def get_colored_layers(
     viewer = find_viewer_ancestor(gui.native)
     if not viewer:
         return []
-    return [x for x in viewer.layers if isinstance(x, (MoleculesLayer, CylinderLabels))]
+    return [
+        x
+        for x in viewer.layers
+        if isinstance(x, (MoleculesLayer, CylinderLabels))
+        and x.name != PREVIEW_LAYER_NAME
+    ]
 
 
 if TYPE_CHECKING:

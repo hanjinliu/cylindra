@@ -2,7 +2,6 @@ from functools import partial
 import inspect
 from typing import Annotated, TYPE_CHECKING, Literal
 from datetime import datetime
-import shutil
 
 import numpy as np
 from macrokit import Head, parse, Symbol
@@ -154,7 +153,7 @@ class File(ChildWidget):
                 Name of the stashed project to be deleted.
             """
             path = _config.get_stash_dir() / name
-            shutil.rmtree(path)
+            path.unlink()
             self.reset_choices()
             return None
 

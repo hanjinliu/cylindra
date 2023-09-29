@@ -32,13 +32,13 @@ if TYPE_CHECKING:
 
 
 @impl_preview(CylindraMainWidget.load_molecules)
-def _(self: CylindraMainWidget, paths: list[str]):
+def _preview_load_molecules(self: CylindraMainWidget, paths: list[str]):
     w = view_tables(paths, parent=self)
     self._active_widgets.add(w)
 
 
 @impl_preview(CylindraMainWidget.load_project)
-def _(self: CylindraMainWidget, path: str):
+def _preview_load_project(self: CylindraMainWidget, path: str):
     pviewer = CylindraProject.from_file(path).make_project_viewer()
     pviewer.native.setParent(self.native, pviewer.native.windowFlags())
     self._active_widgets.add(pviewer)
@@ -46,7 +46,9 @@ def _(self: CylindraMainWidget, path: str):
 
 
 @impl_preview(CylindraMainWidget.clip_spline, auto_call=True)
-def _(self: CylindraMainWidget, spline: int, lengths: tuple[float, float]):
+def _preview_clip_spline(
+    self: CylindraMainWidget, spline: int, lengths: tuple[float, float]
+):
     tomo = self.tomogram
     name = "Spline preview"
     spl = tomo.splines[spline]
@@ -74,7 +76,7 @@ def _(self: CylindraMainWidget, spline: int, lengths: tuple[float, float]):
 @impl_preview(
     CylindraMainWidget.load_project_for_reanalysis, text="Preview extracted code"
 )
-def _(self: CylindraMainWidget, path: Path):
+def _preview_load_project_for_reanalysis(self: CylindraMainWidget, path: Path):
     macro = self._get_reanalysis_macro(path)
     w = ConsoleTextEdit(value=str(macro))
     w.syntax_highlight("python", theme=widget_utils.get_code_theme(self))
@@ -85,7 +87,7 @@ def _(self: CylindraMainWidget, path: Path):
 
 
 @impl_preview(CylindraMainWidget.map_along_pf, auto_call=True)
-def _(
+def _preview_map_along_pf(
     self: CylindraMainWidget,
     spline: int,
     molecule_interval: float | None,
@@ -112,7 +114,7 @@ def _(
 
 
 @impl_preview(CylindraMainWidget.map_monomers_with_extensions, auto_call=True)
-def _(
+def _preview_map_monomers_with_extensions(
     self: CylindraMainWidget,
     spline: int,
     n_extend: dict[int, tuple[int, int]],
@@ -143,7 +145,7 @@ def _(
 
 
 @impl_preview(CylindraMainWidget.split_molecules, auto_call=True)
-def _(self: CylindraMainWidget, layer: MoleculesLayer, by: str):
+def _preview_split_molecules(self: CylindraMainWidget, layer: MoleculesLayer, by: str):
     with _temp_layer_colors(layer):
         series = layer.molecules.features[by]
         unique_values = series.unique()
@@ -155,10 +157,14 @@ def _(self: CylindraMainWidget, layer: MoleculesLayer, by: str):
 
 
 @impl_preview(CylindraMainWidget.translate_molecules, auto_call=True)
-def _(
-    self: CylindraMainWidget, layers: list[MoleculesLayer], translation, internal: bool
+def _preview_translate_molecules(
+    self: CylindraMainWidget,
+    layers: list[MoleculesLayer],
+    translation: list[float],
+    internal: bool,
 ):
     if len(layers) == 0:
+        yield
         return
     all_mole = list[Molecules]()
     for layer in layers:
@@ -176,6 +182,7 @@ def _(
     else:
         layer = self.add_molecules(out, name=PREVIEW_LAYER_NAME)
         layer.face_color = layer.edge_color = "crimson"
+    is_active = False
     is_active = yield
     if not is_active and layer in viewer.layers:
         viewer.layers.remove(layer)
@@ -188,6 +195,7 @@ def _preview_rotate_molecules(
     degrees: list[tuple[Literal["z", "y", "x"], float]],
 ):
     if len(layers) == 0:
+        yield
         return
     all_data = list[np.ndarray]()
     for layer in layers:
@@ -227,7 +235,9 @@ def _preview_rotate_molecules(
 
 
 @impl_preview(CylindraMainWidget.filter_molecules, auto_call=True)
-def _(self: CylindraMainWidget, layer: MoleculesLayer, predicate: str):
+def _preview_filter_molecules(
+    self: CylindraMainWidget, layer: MoleculesLayer, predicate: str
+):
     try:
         expr: pl.Expr = eval(predicate, widget_utils.POLARS_NAMESPACE, {})
     except Exception:
@@ -245,7 +255,7 @@ def _(self: CylindraMainWidget, layer: MoleculesLayer, predicate: str):
 
 
 @impl_preview(CylindraMainWidget.paint_molecules, auto_call=True)
-def _(
+def _preview_paint_molecules(
     self: CylindraMainWidget,
     layer: MoleculesLayer,
     cmap,
@@ -318,7 +328,7 @@ def _label_feature_clusters_preview(
 
 
 @setup_function_gui(CylindraMainWidget.paint_molecules)
-def _(self: CylindraMainWidget, gui: FunctionGui):
+def _preview_paint_molecules(self: CylindraMainWidget, gui: FunctionGui):
     gui.layer.changed.connect(gui.color_by.reset_choices)
     lim_l: FloatSpinBox = gui.limits[0]
     lim_h: FloatSpinBox = gui.limits[1]
@@ -360,7 +370,7 @@ def _(self: CylindraMainWidget, gui: FunctionGui):
 
 
 @setup_function_gui(CylindraMainWidget.copy_spline_new_config)
-def _(self: CylindraMainWidget, gui: FunctionGui):
+def _preview_copy_spline_new_config(self: CylindraMainWidget, gui: FunctionGui):
     btn = PushButton(
         text="Scan spline config",
         tooltip="Scan current spline config and update the parameters.",
@@ -381,12 +391,12 @@ def _(self: CylindraMainWidget, gui: FunctionGui):
 @setup_function_gui(SubtomogramAveraging.seam_search_by_feature)
 @setup_function_gui(CylindraMainWidget.convolve_feature)
 @setup_function_gui(CylindraMainWidget.label_feature_clusters)
-def _(self: CylindraMainWidget, gui: FunctionGui):
+def _setup_fn_with_column_selection(self: CylindraMainWidget, gui: FunctionGui):
     gui[0].changed.connect(gui[1].reset_choices)
 
 
 @setup_function_gui(CylindraMainWidget.binarize_feature)
-def _(self: CylindraMainWidget, gui: FunctionGui):
+def _setup_binarize_feature(self: CylindraMainWidget, gui: FunctionGui):
     gui.layer.changed.connect(gui.target.reset_choices)
 
     @gui.target.changed.connect
