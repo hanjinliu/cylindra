@@ -568,6 +568,9 @@ def test_seam_search(ui: CylindraMainWidget):
         template_path=TEST_DIR / "beta-tubulin.mrc",
         mask_params=(1, 1),
     )
+    with tempfile.TemporaryDirectory() as dirpath:
+        path = Path(dirpath).joinpath("seam_result.csv")
+        ui.sta.save_seam_search_result(layer, path)
     ui.sta.seam_search_by_fiducials(layer, mask_params=(1, 1))
     layer.molecules = layer.molecules.with_features(
         (pl.col("nth") * pl.col("pf-id") % 3 < 2).cast(pl.UInt8).alias("seam-label")

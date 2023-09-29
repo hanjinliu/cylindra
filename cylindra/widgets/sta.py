@@ -40,6 +40,7 @@ from cylindra import utils, _config, cylstructure
 from cylindra.types import MoleculesLayer
 from cylindra.const import (
     ALN_SUFFIX,
+    SEAM_SEARCH_RESULT,
     MoleculesHeader as Mole,
     nm,
     PropertyNames as H,
@@ -51,11 +52,12 @@ from cylindra.widgets._widget_ext import (
     RandomSeedEdit,
     MultiFileEdit,
 )
-from cylindra.components.landscape import Landscape, ViterbiResult
+from cylindra.components.landscape import Landscape
 from cylindra.components.seam_search import (
     CorrelationSeamSearcher,
     FiducialSeamSearcher,
     BooleanSeamSearcher,
+    SeamSearchResult,
 )
 
 from ._annotated import (
@@ -221,6 +223,7 @@ class SubtomogramAnalysis(MagicTemplate):
         seam_search = abstractapi()
         seam_search_by_fiducials = abstractapi()
         seam_search_by_feature = abstractapi()
+        save_seam_search_result = abstractapi()
 
     sep2 = field(Separator)
     save_last_average = abstractapi()
@@ -1564,7 +1567,7 @@ class SubtomogramAveraging(ChildWidget):
         layer.features = layer.molecules.features.with_columns(
             pl.Series(Mole.isotype, result.get_label(loader.molecules.count()))
         )
-        layer.metadata["seam-search-score"] = result.scores
+        layer.metadata[SEAM_SEARCH_RESULT] = result
 
         t0.toc()
 
@@ -1612,7 +1615,7 @@ class SubtomogramAveraging(ChildWidget):
         layer.features = layer.molecules.features.with_columns(
             pl.Series(Mole.isotype, result.get_label(loader.molecules.count()))
         )
-        layer.metadata["seam-search-score"] = result.scores
+        layer.metadata[SEAM_SEARCH_RESULT] = result
         t0.toc()
 
         @thread_worker.callback
@@ -1660,6 +1663,37 @@ class SubtomogramAveraging(ChildWidget):
         )
         layer.features = layer.molecules.features.with_columns(new_feat)
         return undo_callback(layer.feature_setter(feat, layer.colormap_info))
+
+    def _get_seam_searched_layers(self, *_) -> list[MoleculesLayer]:
+        return [
+            (layer.name, layer)
+            for layer in self.parent_viewer.layers
+            if SEAM_SEARCH_RESULT in layer.metadata
+        ]
+
+    @Subtomogram_analysis.SeamSearch.wraps
+    @set_design(text="Save seam search result")
+    @do_not_record
+    def save_seam_search_result(
+        self,
+        layer: Annotated[MoleculesLayer | str, {"choices": _get_seam_searched_layers}],
+        path: Path.Save[FileFilter.CSV],
+    ):
+        """
+        Save seam search result.
+
+        Parameters
+        ----------
+        layer : str or MoleculesLayer
+            Layer that contains seam search result.
+        path : Path
+            Path to save the result.
+        """
+        layer = assert_layer(layer, self.parent_viewer)
+        result = layer.metadata.get(SEAM_SEARCH_RESULT, None)
+        if not isinstance(result, SeamSearchResult):
+            raise TypeError("The layer does not have seam search result.")
+        return result.to_dataframe().write_csv(path)
 
     def _seam_search_input(
         self, layer: MoleculesLayer, npf: int, order: int

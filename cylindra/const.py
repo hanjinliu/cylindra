@@ -12,6 +12,7 @@ SELECTION_LAYER_NAME = "Splines"
 ALN_SUFFIX = "ALN"
 PREVIEW_LAYER_NAME = "<Preview>"
 SPLINE_ID = "spline-id"
+SEAM_SEARCH_RESULT = "seam-search-result"
 
 
 class strEnum(Enum):

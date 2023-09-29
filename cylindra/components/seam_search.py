@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 import impy as ip
+import polars as pl
 from dask import array as da
 from acryo import SubtomogramLoader
 
@@ -48,7 +49,6 @@ class SeamSearcher(ABC):
 @dataclass
 class SeamSearchResult:
     scores: NDArray[np.floating]
-    averages: ip.ImgArray | None = None
 
     @property
     def seam_pos(self) -> int:
@@ -62,6 +62,32 @@ class SeamSearchResult:
         _id = np.arange(size)
         res = (_id - self.seam_pos) // self.npf
         return (res % 2 == 0).astype(np.uint8)
+
+    def to_dataframe(self) -> pl.DataFrame:
+        return pl.DataFrame({"scores": self.scores})
+
+
+@dataclass
+class FiducialSeamSearchResult(SeamSearchResult):
+    scores: NDArray[np.floating]
+    averages: ip.ImgArray
+
+
+@dataclass
+class CorrelationSeamSearchResult(SeamSearchResult):
+    scores: NDArray[np.floating]
+    averages: ip.ImgArray
+    correlations: NDArray[np.floating]
+    anti_correlations: NDArray[np.floating] | None
+
+    def to_dataframe(self) -> pl.DataFrame:
+        d = {
+            "scores": self.scores,
+            "correlations": self.correlations,
+        }
+        if self.anti_correlations is not None:
+            d["anti_correlations"] = self.anti_correlations
+        return pl.DataFrame(d)
 
 
 class ManualSeamSearcher(SeamSearcher):
@@ -81,7 +107,7 @@ class CorrelationSeamSearcher(SeamSearcher):
         anti_template: ip.ImgArray | None = None,
         mask: NDArray[np.float32] | None = None,
         cutoff: float = 0.5,
-    ) -> SeamSearchResult:
+    ) -> CorrelationSeamSearchResult:
         corrs = list[float]()
 
         if mask is None:
@@ -121,8 +147,9 @@ class CorrelationSeamSearcher(SeamSearcher):
             score = np.empty_like(corrs, dtype=np.float32)
             score[: self.npf] = corr1 - corr2
             score[self.npf :] = corr2 - corr1
+            anti_corrs = None
 
-        return SeamSearchResult(score, averaged_images)
+        return CorrelationSeamSearchResult(score, averaged_images, corrs, anti_corrs)
 
 
 class BooleanSeamSearcher(SeamSearcher):
@@ -155,10 +182,10 @@ class FiducialSeamSearcher(SeamSearcher):
         self,
         loader: SubtomogramLoader,
         weight: NDArray[np.float32],
-    ) -> SeamSearchResult:
+    ) -> FiducialSeamSearchResult:
         averaged_images = self.calc_averages(loader.replace(output_shape=weight.shape))
 
         scores = list[float]()
         for img in averaged_images:
             scores.append(np.mean(img * weight))
-        return SeamSearchResult(np.array(scores), averaged_images)
+        return FiducialSeamSearchResult(np.array(scores), averaged_images)
