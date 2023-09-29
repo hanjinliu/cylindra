@@ -95,7 +95,7 @@ class File(ChildWidget):
             cleared using other methods in this menu.
             """
             root = _config.get_stash_dir()
-            path = root / datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+            path = root / datetime.now().strftime("%Y-%m-%d-%H-%M-%S.zip")
             self._get_main().save_project(path)
             return self.reset_choices()
 
