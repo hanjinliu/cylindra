@@ -44,7 +44,7 @@ class runner_params2:
     ----------
     interval : nm
         Interval of sampling points of cylinder fragments.
-    ft_size: nm
+    depth: nm
         Longitudinal length of local discrete Fourier transformation used
         for structural analysis.
     paint : bool
@@ -52,7 +52,7 @@ class runner_params2:
     """
 
     interval = vfield(50.0, label="Interval (nm)").with_options(min=1.0, max=200.0)
-    ft_size = vfield(50.0, label="FT window size (nm)").with_options(min=1.0, max=200.0)
+    depth = vfield(50.0, label="FT window size (nm)").with_options(min=1.0, max=200.0)
     paint = vfield(False)
 
 
@@ -136,7 +136,7 @@ class Runner(ChildWidget):
         n_refine: Annotated[int, {"bind": n_refine}] = 1,
         local_props: Annotated[bool, {"bind": local_props}] = True,
         interval: Annotated[nm, {"bind": params2.interval}] = 50.0,
-        ft_size: Annotated[nm, {"bind": params2.ft_size}] = 50.0,
+        depth: Annotated[nm, {"bind": params2.depth}] = 50.0,
         global_props: Annotated[bool, {"bind": global_props}] = True,
         paint: Annotated[bool, {"bind": params2.paint}] = False,
         infer_polarity: Annotated[bool, {"bind": infer_polarity}] = True,
@@ -171,7 +171,7 @@ class Runner(ChildWidget):
         yield
         if local_props:
             yield from main.local_ft_analysis.arun(
-                splines=splines, interval=interval, depth=ft_size, bin_size=bin_size
+                splines=splines, interval=interval, depth=depth, bin_size=bin_size
             )
             yield
         if infer_polarity:

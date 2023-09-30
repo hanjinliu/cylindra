@@ -669,11 +669,12 @@ class CylTomogram(Tomogram):
         self,
         *,
         i: int = None,
-        ft_size: nm = 50.0,
+        depth: nm = 50.0,
         binsize: int = 1,
         radius: nm | Literal["local", "global"] = "global",
         nsamples: int = 8,
         update: bool = True,
+        update_glob: bool = True,
     ) -> pl.DataFrame:
         """
         Calculate local structural parameters from cylindrical Fourier space.
@@ -685,7 +686,7 @@ class CylTomogram(Tomogram):
         ----------
         i : int or iterable of int, optional
             Spline ID that you want to analyze.
-        ft_size : nm, default is 50.0
+        depth : nm, default is 50.0
             Length of subtomogram for calculation of local parameters.
         binsize : int, default is 1
             Multiscale bin size used for calculation.
@@ -697,6 +698,11 @@ class CylTomogram(Tomogram):
             samplings are needed because up-sampled discrete Fourier transformation does not
             return exactly the same power spectra with shifted inputs, unlike FFT. Larger
             ``nsamples`` reduces the error but is slower.
+        update : bool, default is True
+            If True, spline properties will be updated.
+        update_glob : bool, default is True
+            If True, global properties will be updated using the mean or mode of the local
+            properties.
 
         Returns
         -------
@@ -714,9 +720,7 @@ class CylTomogram(Tomogram):
         for anc, r0 in zip(spl_trans.anchors, radii):
             rmin, rmax = spl.radius_range(r0)
             rc = (rmin + rmax) / 2
-            coords = spl_trans.local_cylindrical(
-                (rmin, rmax), ft_size, anc, scale=_scale
-            )
+            coords = spl_trans.local_cylindrical((rmin, rmax), depth, anc, scale=_scale)
             tasks.append(_analyze_fn(input_img, coords, rc, nsamples=nsamples))
 
         lprops = pl.DataFrame(
@@ -724,7 +728,19 @@ class CylTomogram(Tomogram):
             schema=LatticeParams.polars_schema(),
         )
         if update:
-            spl.props.update_loc(lprops, ft_size)
+            spl.props.update_loc(lprops, depth)
+        if update_glob:
+            gprops = lprops.select(
+                pl.col(H.spacing).mean(),
+                pl.col(H.pitch).mean(),
+                pl.col(H.dimer_twist).mean(),
+                pl.col(H.skew).mean(),
+                pl.col(H.rise).mean(),
+                pl.col(H.rise_length).mean(),
+                pl.col(H.npf).mode().first(),
+                pl.col(H.start).mode().first(),
+            )
+            spl.props.update_glob(gprops)
 
         return lprops
 
@@ -733,7 +749,7 @@ class CylTomogram(Tomogram):
         self,
         *,
         i: int = None,
-        ft_size: nm = 50.0,
+        depth: nm = 50.0,
         pos: int | None = None,
         binsize: int = 1,
     ) -> ip.ImgArray:
@@ -744,7 +760,7 @@ class CylTomogram(Tomogram):
         ----------
         i : int or iterable of int, optional
             Spline ID that you want to analyze.
-        ft_size : nm, default is 50.0
+        depth : nm, default is 50.0
             Length of subtomogram for calculation of local parameters.
         pos : int, optional
             Only calculate at ``pos``-th anchor if given.
@@ -773,7 +789,7 @@ class CylTomogram(Tomogram):
         with set_gpu():
             for anc in anchors:
                 coords = spl_trans.local_cylindrical(
-                    (rmin, rmax), ft_size, anc, scale=_scale
+                    (rmin, rmax), depth, anc, scale=_scale
                 )
                 polar = get_polar_image(input_img, coords, rc)
                 polar[:] -= np.mean(polar)
@@ -786,7 +802,7 @@ class CylTomogram(Tomogram):
         self,
         *,
         i: int = None,
-        ft_size: nm = 50.0,
+        depth: nm = 50.0,
         pos: int | None = None,
         binsize: int = 1,
     ) -> ip.ImgArray:
@@ -797,7 +813,7 @@ class CylTomogram(Tomogram):
         ----------
         i : int or iterable of int, optional
             Spline ID that you want to analyze.
-        ft_size : nm, default is 50.0
+        depth : nm, default is 50.0
             Length of subtomogram for calculation of local parameters.
         pos : int, optional
             Only calculate at ``pos``-th anchor if given.
@@ -809,7 +825,7 @@ class CylTomogram(Tomogram):
         ip.ImgArray
             FT images stacked along "p" axis.
         """
-        cft = self.local_cft(i=i, ft_size=ft_size, pos=pos, binsize=binsize)
+        cft = self.local_cft(i=i, depth=depth, pos=pos, binsize=binsize)
         return cft.real**2 + cft.imag**2
 
     @batch_process

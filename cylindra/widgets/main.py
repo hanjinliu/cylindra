@@ -1409,6 +1409,7 @@ class CylindraMainWidget(MagicTemplate):
         depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 50.0,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         radius: Literal["local", "global"] = "global",
+        update_glob: Annotated[bool, {"text": "Also update the global properties"}] = True,
     ):  # fmt: skip
         """
         Determine local lattice parameters by local cylindric Fourier transformation.
@@ -1424,6 +1425,7 @@ class CylindraMainWidget(MagicTemplate):
         radius : str, default is "global"
             If "local", use the local radius for the analysis. If "global", use the
             global radius.
+        {update_glob}
         """
         tomo = self.tomogram
 
@@ -1443,7 +1445,11 @@ class CylindraMainWidget(MagicTemplate):
                         )
                     tomo.make_anchors(i=i, interval=interval)
                 tomo.local_ft_params(
-                    i=i, ft_size=depth, binsize=bin_size, radius=radius
+                    i=i,
+                    depth=depth,
+                    binsize=bin_size,
+                    radius=radius,
+                    update_glob=update_glob,
                 )
                 yield _local_ft_analysis_on_yield.with_args(i)
         return tracker.as_undo_callback()
@@ -1583,7 +1589,9 @@ class CylindraMainWidget(MagicTemplate):
                 extensions=extensions,
             )
 
-            yield _add_molecules.with_args(mol, f"Mono-{i}", spl)
+            cb = _add_molecules.with_args(mol, f"Mono-{i}", spl)
+            yield cb
+            cb.await_call()
 
         return self._undo_callback_for_layer(_added_layers)
 
