@@ -145,10 +145,12 @@ class LocalPropertiesWidget(ChildWidget):
         for _plot in self.plot:
             if len(_plot.layers) > 0:
                 _plot.layers[-1].pos = [x, 0]
-        xmin, xmax = self.plot[0].xlim
-        if len(self.plot) and (x < xmin or xmax < x):
-            dx = xmax - xmin
-            self.plot[0].xlim = (x - dx / 2, x + dx / 2)
+        if len(self.plot) > 0:
+            first_plot = self.plot[0]
+            xmin, xmax = first_plot.xlim
+            if len(self.plot) and (x < xmin or xmax < x):
+                dx = xmax - xmin
+                first_plot.xlim = (x - dx / 2, x + dx / 2)
         return None
 
     @magicclass(layout="horizontal", labels=False, record=False)
