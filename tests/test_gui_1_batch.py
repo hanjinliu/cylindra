@@ -11,7 +11,7 @@ def _load(ui: CylindraMainWidget, name="Loader"):
         paths=[
             (
                 TEST_DIR / "13pf_MT.tif",
-                ["Mono-0.csv", "Mono-1.csv"],
+                ["Mole-0.csv", "Mole-1.csv"],
                 PROJECT_DIR_13PF,
             )
         ],
@@ -34,12 +34,12 @@ def test_project_io(ui: CylindraMainWidget):
         paths=[
             (
                 TEST_DIR / "13pf_MT.tif",
-                ["Mono-0.csv", "Mono-1.csv"],
+                ["Mole-0.csv", "Mole-1.csv"],
                 PROJECT_DIR_13PF,
             ),
             (
                 TEST_DIR / "14pf_MT.tif",
-                ["Mono-0.csv", "Mono-1.csv"],
+                ["Mole-0.csv", "Mole-1.csv"],
                 PROJECT_DIR_13PF,
             ),
         ],

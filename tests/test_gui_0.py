@@ -80,13 +80,13 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
 
     # Save project
     old_splines = ui.tomogram.splines.copy()
-    old_molecules = [ui.get_molecules("Mono-0"), ui.get_molecules("Mono-1")]
+    old_molecules = [ui.get_molecules("Mole-0"), ui.get_molecules("Mole-1")]
     ui.save_project(save_path)
     ui.overwrite_project()
     ui.load_project(save_path, filter="DoG")
     assert len(ui.macro.undo_stack["undo"]) == 0
     new_splines = ui.tomogram.splines
-    new_molecules = [ui.get_molecules("Mono-0"), ui.get_molecules("Mono-1")]
+    new_molecules = [ui.get_molecules("Mole-0"), ui.get_molecules("Mole-1")]
     assert old_splines[0].close_to(new_splines[0])
     assert old_splines[1].close_to(new_splines[1])
     for mol0, mol1 in zip(old_molecules, new_molecules):
@@ -99,7 +99,7 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     ui.load_project(save_path / "test_tar.tar", filter="DoG")
     assert len(ui.macro.undo_stack["undo"]) == 0
     new_splines = ui.tomogram.splines
-    new_molecules = [ui.get_molecules("Mono-0"), ui.get_molecules("Mono-1")]
+    new_molecules = [ui.get_molecules("Mole-0"), ui.get_molecules("Mole-1")]
     assert old_splines[0].close_to(new_splines[0])
     assert old_splines[1].close_to(new_splines[1])
     for mol0, mol1 in zip(old_molecules, new_molecules):
@@ -112,7 +112,7 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     ui.load_project(save_path / "test_zip.zip", filter="DoG")
     assert len(ui.macro.undo_stack["undo"]) == 0
     new_splines = ui.tomogram.splines
-    new_molecules = [ui.get_molecules("Mono-0"), ui.get_molecules("Mono-1")]
+    new_molecules = [ui.get_molecules("Mole-0"), ui.get_molecules("Mole-1")]
     assert old_splines[0].close_to(new_splines[0])
     assert old_splines[1].close_to(new_splines[1])
     for mol0, mol1 in zip(old_molecules, new_molecules):
@@ -122,7 +122,7 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     ui.show_splines()
     ui.show_splines_as_meshes()
     ui.load_splines(save_path / "spline-0.json")
-    ui.set_source_spline(ui.parent_viewer.layers["Mono-0"], 0)
+    ui.set_source_spline(ui.parent_viewer.layers["Mole-0"], 0)
 
 
 def test_io_with_different_data(ui: CylindraMainWidget):
@@ -241,7 +241,7 @@ def test_reanalysis(ui: CylindraMainWidget):
 
 def test_map_molecules(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False)
-    assert ui.get_loader("Mono-0").molecules is ui.get_molecules("Mono-0")
+    assert ui.get_loader("Mole-0").molecules is ui.get_molecules("Mole-0")
     ui.map_monomers_with_extensions(0, {0: (1, 1), 1: (-1, -1)})
     ui.map_along_pf(0)
     ui.map_centers([0])
@@ -380,19 +380,19 @@ def test_spline_switch(ui: CylindraMainWidget):
 def test_set_molecule_colormap(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
     ui.paint_molecules(
-        ui.parent_viewer.layers["Mono-0"],
+        ui.parent_viewer.layers["Mole-0"],
         "nth",
         {0: "blue", 1: "yellow"},
         (0, 10),
     )
-    ui.ImageMenu.show_colorbar(ui.parent_viewer.layers["Mono-0"])
+    ui.ImageMenu.show_colorbar(ui.parent_viewer.layers["Mole-0"])
 
 
 def test_preview(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
-    layer: MoleculesLayer = ui.parent_viewer.layers["Mono-0"]
+    layer: MoleculesLayer = ui.parent_viewer.layers["Mole-0"]
     tester = mcls_testing.FunctionGuiTester(ui.translate_molecules)
-    tester.gui.layers.value = [ui.parent_viewer.layers["Mono-0"]]
+    tester.gui.layers.value = [ui.parent_viewer.layers["Mole-0"]]
     nlayer = len(ui.parent_viewer.layers)
     tester.click_preview()
     assert len(ui.parent_viewer.layers) == nlayer + 1
@@ -400,7 +400,7 @@ def test_preview(ui: CylindraMainWidget):
     assert len(ui.parent_viewer.layers) == nlayer
 
     tester = mcls_testing.FunctionGuiTester(ui.rotate_molecules)
-    tester.gui.layers.value = [ui.parent_viewer.layers["Mono-0"]]
+    tester.gui.layers.value = [ui.parent_viewer.layers["Mole-0"]]
     nlayer = len(ui.parent_viewer.layers)
     tester.click_preview()
     assert len(ui.parent_viewer.layers) == nlayer + 1
@@ -451,7 +451,7 @@ def test_preview(ui: CylindraMainWidget):
 
     tester = mcls_testing.FunctionGuiTester(ui.load_molecules)
     tester.update_parameters(
-        paths=[PROJECT_DIR_13PF / "Mono-0.csv", PROJECT_DIR_13PF / "Mono-1.csv"]
+        paths=[PROJECT_DIR_13PF / "Mole-0.csv", PROJECT_DIR_13PF / "Mole-1.csv"]
     )
     tester.click_preview()
 
@@ -469,7 +469,7 @@ def test_preview(ui: CylindraMainWidget):
     tester.click_preview()
     tester = mcls_testing.FunctionGuiTester(ui.binarize_feature)
     tester.click_preview()
-    ui.binarize_feature(ui.parent_viewer.layers["Mono-0"], "nth", threshold=3)
+    ui.binarize_feature(ui.parent_viewer.layers["Mole-0"], "nth", threshold=3)
     tester = mcls_testing.FunctionGuiTester(ui.label_feature_clusters)
     tester.click_preview()
 
@@ -489,7 +489,7 @@ def test_slicer(ui: CylindraMainWidget):
 @pytest.mark.parametrize("bin_size", [1, 2])
 def test_sta(ui: CylindraMainWidget, bin_size: int):
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
-    mono0 = ui.parent_viewer.layers["Mono-0"]
+    mono0 = ui.parent_viewer.layers["Mole-0"]
     ui.sta.average_all(mono0, size=12.0, bin_size=bin_size)
     for method in ["steps", "first", "last", "random"]:
         ui.sta.average_subset(
@@ -512,7 +512,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
         molepath = dirpath / "monomers.txt"
         ui.save_molecules(layer=mono0, save_path=molepath)
         ui.save_spline(0, dirpath / "spline-x.json")
-        mole = ui.get_molecules("Mono-0")
+        mole = ui.get_molecules("Mole-0")
         ui.load_molecules(molepath)
         mole_read = ui.get_molecules("monomers")
         assert_molecule_equal(mole, mole_read)
@@ -558,7 +558,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
 def test_seam_search(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
     ui.filter_molecules(
-        ui.parent_viewer.layers["Mono-0"], predicate="pl.col('nth') < 5"
+        ui.parent_viewer.layers["Mole-0"], predicate="pl.col('nth') < 5"
     )
     ui.sta.params.template_path.value = TEST_DIR / "beta-tubulin.mrc"
     ui.sta.params.mask_choice = MASK_CHOICES[1]
@@ -581,7 +581,7 @@ def test_seam_search(ui: CylindraMainWidget):
 def test_classify_pca(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
     ui.filter_molecules(
-        ui.parent_viewer.layers["Mono-0"], predicate="pl.col('nth') < 3"
+        ui.parent_viewer.layers["Mole-0"], predicate="pl.col('nth') < 3"
     )
     layer = ui.parent_viewer.layers[-1]
     exc_group = ExceptionGroup()
@@ -614,7 +614,7 @@ def test_clip_spline(ui: CylindraMainWidget):
 
 def test_radius_methods(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False)
-    mole = ui.get_molecules("Mono-0")
+    mole = ui.get_molecules("Mole-0")
     shifts = np.zeros((mole.count(), 3), dtype=np.float32)
     shifts[:, 0] = np.linspace(-1, 1, mole.count())
     mole_tr = mole.translate_internal(shifts)
@@ -712,14 +712,14 @@ def test_project_viewer():
 
 def test_molecules_methods(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False)
-    ui.MoleculesMenu.View.show_orientation(ui.parent_viewer.layers["Mono-0"])
-    layer0 = ui.parent_viewer.layers["Mono-0"]
-    layer1 = ui.parent_viewer.layers["Mono-1"]
+    ui.MoleculesMenu.View.show_orientation(ui.parent_viewer.layers["Mole-0"])
+    layer0 = ui.parent_viewer.layers["Mole-0"]
+    layer1 = ui.parent_viewer.layers["Mole-1"]
     ui.concatenate_molecules([layer0, layer1])
     last_layer = ui.parent_viewer.layers[-1]
     assert last_layer.data.shape[0] == layer0.data.shape[0] + layer1.data.shape[0]
-    ui.split_molecules(ui.parent_viewer.layers["Mono-0"], by=Mole.pf)
-    ui.interpolate_spline_properties(ui.parent_viewer.layers["Mono-0"], interpolation=1)
+    ui.split_molecules(ui.parent_viewer.layers["Mole-0"], by=Mole.pf)
+    ui.interpolate_spline_properties(ui.parent_viewer.layers["Mole-0"], interpolation=1)
     ui.MoleculesMenu.View.render_molecules(
         layer0,
         template_path=TEST_DIR / "beta-tubulin.mrc",
@@ -733,7 +733,7 @@ def test_molecules_methods(ui: CylindraMainWidget):
 
 def test_translate_molecules(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False)
-    layer = ui.parent_viewer.layers["Mono-0"]
+    layer = ui.parent_viewer.layers["Mole-0"]
     ui.translate_molecules(layer, [3, -5, 2.2], internal=False)
     new_layer = ui.parent_viewer.layers[-1]
     assert new_layer.data.shape == layer.data.shape
@@ -745,7 +745,7 @@ def test_translate_molecules(ui: CylindraMainWidget):
     )
     ui.macro.undo()
     ui.macro.redo()
-    ui.translate_molecules(ui.parent_viewer.layers["Mono-0"], [1, 2, 3], internal=True)
+    ui.translate_molecules(ui.parent_viewer.layers["Mole-0"], [1, 2, 3], internal=True)
     new_layer = ui.parent_viewer.layers[-1]
     assert_allclose(
         np.linalg.norm(new_layer.data - layer.data, axis=1),
@@ -760,12 +760,12 @@ def test_translate_molecules(ui: CylindraMainWidget):
 def test_merge_molecules(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False)
     ui.merge_molecule_info(
-        pos=ui.parent_viewer.layers["Mono-0"],
-        rotation=ui.parent_viewer.layers["Mono-1"],
-        features=ui.parent_viewer.layers["Mono-0"],
+        pos=ui.parent_viewer.layers["Mole-0"],
+        rotation=ui.parent_viewer.layers["Mole-1"],
+        features=ui.parent_viewer.layers["Mole-0"],
     )
     last_layer = ui.parent_viewer.layers[-1]
-    assert_allclose(last_layer.data, ui.parent_viewer.layers["Mono-0"].data)
+    assert_allclose(last_layer.data, ui.parent_viewer.layers["Mole-0"].data)
 
 
 def test_molecule_features(ui: CylindraMainWidget):
@@ -773,7 +773,7 @@ def test_molecule_features(ui: CylindraMainWidget):
 
     ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False)
     ui.MoleculesMenu.View.show_molecule_features()
-    layer = ui.parent_viewer.layers["Mono-0"]
+    layer = ui.parent_viewer.layers["Mole-0"]
     ui.filter_molecules(layer, predicate='pl.col("position-nm") < 9.2')
     assert ui.parent_viewer.layers[-1].features["position-nm"].max() < 9.2
     # make sure predicate can also be a polars.Expr
@@ -803,7 +803,7 @@ def test_molecules_to_spline(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
     assert len(ui.tomogram.splines) == 2
     old_ori = ui.tomogram.splines[0].orientation
-    layer_src = ui.parent_viewer.layers["Mono-0"]
+    layer_src = ui.parent_viewer.layers["Mole-0"]
     ui.molecules_to_spline(layers=[layer_src])
     assert len(ui.tomogram.splines) == 2
     assert ui.tomogram.splines[0].orientation == old_ori
@@ -929,7 +929,7 @@ def test_function_menu(make_napari_viewer):
 
 def test_viterbi_alignment(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
-    layer = ui.parent_viewer.layers["Mono-0"]
+    layer = ui.parent_viewer.layers["Mole-0"]
     ui.filter_molecules(layer, "(pl.col('nth') < 4) & (pl.col('pf-id') < 2)")
     layer_filt = ui.parent_viewer.layers[-1]
     ui.sta.align_all_viterbi(
@@ -977,7 +977,7 @@ def test_viterbi_alignment(ui: CylindraMainWidget):
 
 def test_mesh_annealing(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
-    layer = ui.parent_viewer.layers["Mono-0"]
+    layer = ui.parent_viewer.layers["Mole-0"]
     ui.filter_molecules(layer, "pl.col('nth') < 3")
     layer_filt = ui.parent_viewer.layers[-1]
     mole = layer_filt.molecules
@@ -1048,22 +1048,22 @@ def test_regionprops(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
     for meth in ["mean", "median", "min", "max"]:
         ui.convolve_feature(
-            layer=ui.parent_viewer.layers["Mono-0"],
+            layer=ui.parent_viewer.layers["Mole-0"],
             target="nth",
             method=meth,
             footprint=[[0, 1, 0], [1, 1, 1], [1, 1, 1]],
         )
     ui.binarize_feature(
-        layer=ui.parent_viewer.layers["Mono-0"],
+        layer=ui.parent_viewer.layers["Mole-0"],
         target="pf-id",
         threshold=6.0,
         larger_true=True,
     )
     ui.label_feature_clusters(
-        layer=ui.parent_viewer.layers["Mono-0"], target="pf-id_binarize"
+        layer=ui.parent_viewer.layers["Mole-0"], target="pf-id_binarize"
     )
     ui.regionprops_features(
-        layer=ui.parent_viewer.layers["Mono-0"],
+        layer=ui.parent_viewer.layers["Mole-0"],
         target="nth",
         label="pf-id_binarize_label",
         properties=[

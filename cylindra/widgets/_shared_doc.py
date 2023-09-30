@@ -61,6 +61,7 @@ _PARAMETERS = [
     Parameter(name="err_max", type="float", desc="S.D. allowed for spline fitting. Larger value will result in smoother spline, i.e. fewer spline knots."),
     Parameter(name="update_glob", type="bool", desc="If true, also update the global property to the mean of local properties."),
     Parameter(name="min_radius", type="nm", desc="Minimum possible radius in nm."),
+    Parameter(name="prefix", type="str", desc="Prefix of the new molecules layer(s)."),
 ]
 # fmt: on
 

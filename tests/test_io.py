@@ -3,7 +3,7 @@ from ._const import PROJECT_DIR_13PF
 
 
 def test_read_molecules():
-    read_molecules(PROJECT_DIR_13PF / "Mono-0.csv")
+    read_molecules(PROJECT_DIR_13PF / "Mole-0.csv")
 
 
 def test_read_spline():

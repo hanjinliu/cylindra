@@ -1184,17 +1184,17 @@ class CylindraMainWidget(MagicTemplate):
         {layers}{err_max}
         delete_old : bool, default is True
             If True, delete the old spline if the molecules has one. For instance, if
-            "Mono-0" has the spline "Spline-0" as the source, and a spline "Spline-1" is
-            created from "Mono-0", then "Spline-0" will be deleted from the list.
+            "Mole-0" has the spline "Spline-0" as the source, and a spline "Spline-1" is
+            created from "Mole-0", then "Spline-0" will be deleted from the list.
         inherit_props : bool, default is True
             If True, copy the global properties from the old spline to the new one.
         missing_ok : bool, default is False
             If False, raise an error if the source spline is not found in the tomogram.
         update_sources : bool, default is True
             If True, all the molecules with the out-of-date source spline will be updated
-            to the newly created splines. For instance, if "Mono-0" and "Mono-1" have the
+            to the newly created splines. For instance, if "Mole-0" and "Mole-1" have the
             spline "Spline-0" as the source, and a spline "Spline-1" is created from
-            "Mono-1", then the source of "Mono-1" will be updated to "Spline-1" as well.
+            "Mole-1", then the source of "Mole-1" will be updated to "Spline-1" as well.
         """
         tomo = self.tomogram
         layers = assert_list_of_layers(layers, self.parent_viewer)
@@ -1556,6 +1556,7 @@ class CylindraMainWidget(MagicTemplate):
         offsets: _OffsetType = None,
         radius: Optional[nm] = None,
         extensions: Annotated[tuple[int, int], {"options": {"min": -100}}] = (0, 0),
+        prefix: str = "Mole",
     ):  # fmt: skip
         """
         Map monomers as a regular cylindric grid assembly.
@@ -1567,6 +1568,10 @@ class CylindraMainWidget(MagicTemplate):
         {splines}{orientation}{offsets}
         radius : nm, optional
             Radius of the cylinder to position monomers.
+        extensions : (int, int), default is (0, 0)
+            Number of molecules to extend. Should be a tuple of (prepend, append).
+            Negative values will remove molecules.
+        {prefix}
         """
         tomo = self.tomogram
 
@@ -1589,7 +1594,7 @@ class CylindraMainWidget(MagicTemplate):
                 extensions=extensions,
             )
 
-            cb = _add_molecules.with_args(mol, f"Mono-{i}", spl)
+            cb = _add_molecules.with_args(mol, f"{prefix}-{i}", spl)
             yield cb
             cb.await_call()
 
@@ -1620,6 +1625,7 @@ class CylindraMainWidget(MagicTemplate):
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
         offsets: _NormalizedOffsetType = None,
         radius: Optional[nm] = None,
+        prefix: str = "Mole",
     ):  # fmt: skip
         """
         Map monomers as a regular cylindric grid assembly.
@@ -1633,6 +1639,9 @@ class CylindraMainWidget(MagicTemplate):
             Number of molecules to extend. Should be mapping from the PF index to the (prepend,
             append) number of molecules to add. Remove molecules if negative values are given.
         {orientation}{offsets}
+        radius : nm, optional
+            Radius of the cylinder to position monomers.
+        {prefix}
         """
         tomo = self.tomogram
         spl = tomo.splines[spline]
@@ -1644,7 +1653,7 @@ class CylindraMainWidget(MagicTemplate):
             offsets=offsets,
             radius=normalize_radius(radius, spl),
         )
-        layer = self.add_molecules(mole, f"Mono-{spline}", source=spl)
+        layer = self.add_molecules(mole, f"{prefix}-{spline}", source=spl)
         return self._undo_callback_for_layer(layer)
 
     @MoleculesMenu.Mapping.wraps
@@ -1654,13 +1663,14 @@ class CylindraMainWidget(MagicTemplate):
         splines: _Splines = None,
         molecule_interval: Annotated[Optional[nm], {"text": "Set to dimer length"}] = None,
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
+        prefix: str = "Center",
     ):  # fmt: skip
         """
         Map molecules along splines. Each molecule is rotated by skewing.
 
         Parameters
         ----------
-        {splines}{molecule_interval}{orientation}
+        {splines}{molecule_interval}{orientation}{prefix}
         """
         tomo = self.tomogram
         if len(splines) == 0 and len(tomo.splines) > 0:
@@ -1671,7 +1681,7 @@ class CylindraMainWidget(MagicTemplate):
         _Logger.print_html("<code>map_centers</code>")
         _added_layers = []
         for i, mol in enumerate(mols):
-            _name = f"Center-{i}"
+            _name = f"{prefix}-{i}"
             layer = self.add_molecules(mol, _name, source=tomo.splines[splines[i]])
             _added_layers.append(layer)
             _Logger.print(f"{_name!r}: n = {len(mol)}")
@@ -1685,13 +1695,14 @@ class CylindraMainWidget(MagicTemplate):
         molecule_interval: Annotated[Optional[nm], {"text": "Set to dimer length"}] = None,
         offsets: _NormalizedOffsetType = None,
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
+        prefix: str = "PF",
     ):  # fmt: skip
         """
         Map molecules along the line of a protofilament.
 
         Parameters
         ----------
-        {spline}{molecule_interval}{offsets}{orientation}
+        {spline}{molecule_interval}{offsets}{orientation}{prefix}
         """
         tomo = self.tomogram
         _Logger.print_html("<code>map_along_PF</code>")
@@ -1701,7 +1712,7 @@ class CylindraMainWidget(MagicTemplate):
             offsets=normalize_offsets(offsets, tomo.splines[spline]),
             orientation=orientation,
         )
-        _name = f"PF line-{spline}"
+        _name = f"{prefix}-{spline}"
         layer = self.add_molecules(mol, _name, source=tomo.splines[spline])
         _Logger.print(f"{_name!r}: n = {len(mol)}")
         return self._undo_callback_for_layer(layer)
@@ -1735,7 +1746,7 @@ class CylindraMainWidget(MagicTemplate):
     def concatenate_molecules(
         self,
         layers: MoleculesLayersType,
-        name: str = "Mono-concat",
+        name: str = "Mole-concat",
     ):  # fmt: skip
         """
         Concatenate selected molecules and create a new ones.
@@ -1787,7 +1798,7 @@ class CylindraMainWidget(MagicTemplate):
         _feat = features.molecules
         mole = Molecules(_pos.pos, _rot.rotator, features=_feat.features)
         layer = self.add_molecules(
-            mole, name="Mono-merged", source=pos.source_component
+            mole, name="Mole-merged", source=pos.source_component
         )
         return self._undo_callback_for_layer(layer)
 
