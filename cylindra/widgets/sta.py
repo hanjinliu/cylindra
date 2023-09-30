@@ -41,6 +41,7 @@ from cylindra.types import MoleculesLayer
 from cylindra.const import (
     ALN_SUFFIX,
     SEAM_SEARCH_RESULT,
+    ANNEALING_RESULT,
     MoleculesHeader as Mole,
     nm,
     PropertyNames as H,
@@ -1246,7 +1247,7 @@ class SubtomogramAveraging(ChildWidget):
                         mole_opt,
                         name=f"{_coerce_aligned_name(layer.name, self.parent_viewer)} [{i}]",
                         source=layer.source_component,
-                        metadata={"annealing-result": result},
+                        metadata={ANNEALING_RESULT: result},
                     )
                     point_layers.append(points)
             else:
@@ -1259,7 +1260,7 @@ class SubtomogramAveraging(ChildWidget):
                     mole_opt,
                     name=_coerce_aligned_name(layer.name, self.parent_viewer),
                     source=layer.source_component,
-                    metadata={"annealing-result": results[0]},
+                    metadata={ANNEALING_RESULT: results[0]},
                 )
                 point_layers = [points]
             layer.visible = False
@@ -1665,6 +1666,8 @@ class SubtomogramAveraging(ChildWidget):
         return undo_callback(layer.feature_setter(feat, layer.colormap_info))
 
     def _get_seam_searched_layers(self, *_) -> list[MoleculesLayer]:
+        if self.parent_viewer is None:
+            return []
         return [
             (layer.name, layer)
             for layer in self.parent_viewer.layers

@@ -425,8 +425,12 @@ class MoleculesMenu(ChildWidget):
         map_along_pf = abstractapi()
 
     set_source_spline = abstractapi()
+    sep0 = field(Separator)
     translate_molecules = abstractapi()
     rotate_molecules = abstractapi()
+    filter_molecules = abstractapi()
+    split_molecules = abstractapi()
+    delete_molecule_layers = abstractapi()
 
     @magicmenu(name="Combine")
     class Combine(MagicTemplate):
@@ -439,14 +443,11 @@ class MoleculesMenu(ChildWidget):
     class MoleculeFeatures(MagicTemplate):
         """Analysis based on molecule features."""
 
-        filter_molecules = abstractapi()
-        split_molecules = abstractapi()
-        sep0 = field(Separator)
         calculate_molecule_features = abstractapi()
         interpolate_spline_properties = abstractapi()
         calculate_lattice_structure = abstractapi()
         calculate_curve_index = abstractapi()
-        sep2 = field(Separator)
+        sep0 = field(Separator)
         convolve_feature = abstractapi()
         binarize_feature = abstractapi()
         label_feature_clusters = abstractapi()

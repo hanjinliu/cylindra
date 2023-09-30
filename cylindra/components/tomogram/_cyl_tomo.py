@@ -674,7 +674,7 @@ class CylTomogram(Tomogram):
         radius: nm | Literal["local", "global"] = "global",
         nsamples: int = 8,
         update: bool = True,
-        update_glob: bool = True,
+        update_glob: bool = False,
     ) -> pl.DataFrame:
         """
         Calculate local structural parameters from cylindrical Fourier space.
@@ -700,7 +700,7 @@ class CylTomogram(Tomogram):
             ``nsamples`` reduces the error but is slower.
         update : bool, default is True
             If True, spline properties will be updated.
-        update_glob : bool, default is True
+        update_glob : bool, default is False
             If True, global properties will be updated using the mean or mode of the local
             properties.
 

@@ -13,6 +13,7 @@ ALN_SUFFIX = "ALN"
 PREVIEW_LAYER_NAME = "<Preview>"
 SPLINE_ID = "spline-id"
 SEAM_SEARCH_RESULT = "seam-search-result"
+ANNEALING_RESULT = "annealing-result"
 
 
 class strEnum(Enum):

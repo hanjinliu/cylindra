@@ -1409,7 +1409,7 @@ class CylindraMainWidget(MagicTemplate):
         depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 50.0,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         radius: Literal["local", "global"] = "global",
-        update_glob: Annotated[bool, {"text": "Also update the global properties"}] = True,
+        update_glob: Annotated[bool, {"text": "Also update the global properties"}] = False,
     ):  # fmt: skip
         """
         Determine local lattice parameters by local cylindric Fourier transformation.
@@ -1791,7 +1791,7 @@ class CylindraMainWidget(MagicTemplate):
         )
         return self._undo_callback_for_layer(layer)
 
-    @MoleculesMenu.MoleculeFeatures.wraps
+    @MoleculesMenu.wraps
     @set_design(text="Split molecules by feature")
     def split_molecules(
         self,
@@ -1910,7 +1910,50 @@ class CylindraMainWidget(MagicTemplate):
             new_layers.append(new)
         return self._undo_callback_for_layer(new_layers)
 
-    @MoleculesMenu.MoleculeFeatures.wraps
+    @MoleculesMenu.wraps
+    @set_design(text="Delete molecule layers")
+    def delete_molecule_layers(
+        self,
+        include: str = "",
+        exclude: str = "",
+    ):
+        """
+        Delete molecules by the layer names.
+
+        Parameters
+        ----------
+        include : str, optional
+            Delete layers whose names contain this string.
+        exclude : str, optional
+            Delete layers whose names do not contain this string. This is considered after
+            `include`.
+        """
+        if not include and not exclude:
+            raise ValueError("At least one of `include` and `exclude` should be given.")
+        to_delete = list[MoleculesLayer]()
+        for layer in self.parent_viewer.layers:
+            if not isinstance(layer, MoleculesLayer):
+                continue
+            if include and include not in layer.name:
+                continue
+            if exclude and exclude in layer.name:
+                continue
+            to_delete.append(layer)
+
+        @undo_callback
+        def _undo():
+            for layer in to_delete:
+                self.parent_viewer.add_layer(layer)
+
+        def delete():
+            for layer in to_delete:
+                del self.parent_viewer.layers[layer.name]
+
+        _undo.with_redo(delete)
+        delete()
+        return _undo
+
+    @MoleculesMenu.wraps
     @set_design(text="Filter molecules")
     def filter_molecules(
         self,

@@ -9,7 +9,7 @@ from magicclass.undo import undo_callback
 from cylindra.const import PropertyNames as H
 
 if TYPE_CHECKING:
-    from cylindra.components import CylSpline, CylTomogram
+    from cylindra.components import CylSpline
     from cylindra.widgets.main import CylindraMainWidget
 
 
