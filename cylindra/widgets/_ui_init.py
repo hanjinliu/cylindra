@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from acryo import Molecules
 
 import polars as pl
-from magicgui.widgets import FunctionGui, PushButton
+from magicgui.widgets import FunctionGui, PushButton, Label
 from magicclass.widgets import ConsoleTextEdit
 from magicclass import setup_function_gui, impl_preview
 
@@ -328,7 +328,7 @@ def _label_feature_clusters_preview(
 
 
 @setup_function_gui(CylindraMainWidget.paint_molecules)
-def _preview_paint_molecules(self: CylindraMainWidget, gui: FunctionGui):
+def _setup_paint_molecules(self: CylindraMainWidget, gui: FunctionGui):
     gui.layer.changed.connect(gui.color_by.reset_choices)
     lim_l: FloatSpinBox = gui.limits[0]
     lim_h: FloatSpinBox = gui.limits[1]
@@ -370,7 +370,7 @@ def _preview_paint_molecules(self: CylindraMainWidget, gui: FunctionGui):
 
 
 @setup_function_gui(CylindraMainWidget.copy_spline_new_config)
-def _preview_copy_spline_new_config(self: CylindraMainWidget, gui: FunctionGui):
+def _setup_copy_spline_new_config(self: CylindraMainWidget, gui: FunctionGui):
     btn = PushButton(
         text="Scan spline config",
         tooltip="Scan current spline config and update the parameters.",
@@ -428,6 +428,60 @@ def _setup_map_monomers_with_extensions(self: CylindraMainWidget, gui: FunctionG
             gui.n_extend.value = value
 
     gui.spline.changed.emit(gui.spline.value)  # initialize
+
+
+@setup_function_gui(CylindraMainWidget.rename_molecules)
+def _setup_rename_molecules(self: CylindraMainWidget, gui: FunctionGui):
+    label = Label(value="No change.")
+
+    @gui.changed.connect
+    def _on_change(*_):
+        old: str = gui.old.value
+        new: str = gui.new.value
+        if old == "" or new == "":
+            label.value = "Not enough arguments."
+            return
+        include: str = gui.include.value
+        exclude: str = gui.exclude.value
+        pattern: str = gui.pattern.value
+        rename_list = list[str]()
+        for layer in self.mole_layers.list(
+            include=include, exclude=exclude, pattern=pattern
+        ):
+            old_name = layer.name
+            new_name = old_name.replace(old, new)
+            if old_name != new_name:
+                rename_list.append((old_name, new_name))
+        if len(rename_list) == 0:
+            label.value = "No change."
+        else:
+            label.value = "\n".join(f"{old} --> {new}" for old, new in rename_list)
+
+    gui.insert(-1, label)
+    label.reset_choices = _on_change  # hack
+
+
+@setup_function_gui(CylindraMainWidget.delete_molecules)
+def _setup_delete_molecules(self: CylindraMainWidget, gui: FunctionGui):
+    label = Label(value="No change.")
+
+    @gui.changed.connect
+    def _on_change():
+        include: str = gui.include.value
+        exclude: str = gui.exclude.value
+        pattern: str = gui.pattern.value
+        delete_list = list[str]()
+        for layer in self.mole_layers.list(
+            include=include, exclude=exclude, pattern=pattern
+        ):
+            delete_list.append(layer.name)
+        if len(delete_list) == 0:
+            label.value = "No change."
+        else:
+            label.value = "\n".join(f"{name}" for name in delete_list)
+
+    gui.insert(-1, label)
+    label.reset_choices = _on_change  # hack
 
 
 @contextmanager

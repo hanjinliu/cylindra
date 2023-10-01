@@ -58,6 +58,7 @@ from cylindra.widgets.widget_utils import (
     change_viewer_focus,
     POLARS_NAMESPACE,
 )
+from cylindra.widgets._accessors import MoleculesLayerAccessor
 from cylindra.widgets._widget_ext import (
     ProtofilamentEdit,
     OffsetEdit,
@@ -181,7 +182,7 @@ class CylindraMainWidget(MagicTemplate):
     # Widget for subtomogram analysis
     sta = field(SubtomogramAveraging, name="_Subtomogram averaging")
 
-    # filament_transformer = field(subwidgets.FilamentTransformer, name="_Filament Transformer")
+    mole_layers = MoleculesLayerAccessor.field()
 
     @property
     def batch(self) -> "CylindraBatchWidget":
@@ -1922,11 +1923,48 @@ class CylindraMainWidget(MagicTemplate):
         return self._undo_callback_for_layer(new_layers)
 
     @MoleculesMenu.wraps
+    @set_design(text="Rename molecule layers")
+    @do_not_record(recursive=False)
+    def rename_molecules(
+        self,
+        old: str,
+        new: str,
+        include: str = "",
+        exclude: str = "",
+        pattern: str = "",
+    ):
+        """
+        Rename multiple molecules layers at once.
+
+        Parameters
+        ----------
+        old : str
+            Old string to be replaced.
+        new : str
+            New string to replace `old`.
+        include : str, optional
+            Delete layers whose names contain this string.
+        exclude : str, optional
+            Delete layers whose names do not contain this string.
+        pattern : str, optional
+            String pattern to match the layer names. Use `*` as wildcard.
+        """
+        if old == "":
+            raise ValueError("`old` is not given.")
+        if new == "":
+            raise ValueError("`new` is not given.")
+        return self.mole_layers.rename(
+            old, new, include=include, exclude=exclude, pattern=pattern
+        )
+
+    @MoleculesMenu.wraps
     @set_design(text="Delete molecule layers")
-    def delete_molecule_layers(
+    @do_not_record(recursive=False)
+    def delete_molecules(
         self,
         include: str = "",
         exclude: str = "",
+        pattern: str = "",
     ):
         """
         Delete molecules by the layer names.
@@ -1936,33 +1974,13 @@ class CylindraMainWidget(MagicTemplate):
         include : str, optional
             Delete layers whose names contain this string.
         exclude : str, optional
-            Delete layers whose names do not contain this string. This is considered after
-            `include`.
+            Delete layers whose names do not contain this string.
+        pattern : str, optional
+            String pattern to match the layer names. Use `*` as wildcard.
         """
-        if not include and not exclude:
-            raise ValueError("At least one of `include` and `exclude` should be given.")
-        to_delete = list[MoleculesLayer]()
-        for layer in self.parent_viewer.layers:
-            if not isinstance(layer, MoleculesLayer):
-                continue
-            if include and include not in layer.name:
-                continue
-            if exclude and exclude in layer.name:
-                continue
-            to_delete.append(layer)
-
-        @undo_callback
-        def _undo():
-            for layer in to_delete:
-                self.parent_viewer.add_layer(layer)
-
-        def delete():
-            for layer in to_delete:
-                del self.parent_viewer.layers[layer.name]
-
-        _undo.with_redo(delete)
-        delete()
-        return _undo
+        return self.mole_layers.delete(
+            include=include, exclude=exclude, pattern=pattern
+        )
 
     @MoleculesMenu.wraps
     @set_design(text="Filter molecules")
@@ -2458,27 +2476,6 @@ class CylindraMainWidget(MagicTemplate):
 
     @nogui
     @do_not_record
-    def get_molecules(self, name: str) -> Molecules:
-        """
-        Retrieve Molecules object from layer list.
-
-        Parameters
-        ----------
-        name : str
-            Name of the molecules layer.
-
-        Returns
-        -------
-        Molecules
-            The ``Molecules`` object.
-        """
-        layer = self.parent_viewer.layers[name]
-        if not isinstance(layer, MoleculesLayer):
-            raise ValueError(f"Layer {name!r} is not a molecules layer.")
-        return layer.molecules
-
-    @nogui
-    @do_not_record
     def add_molecules(
         self,
         molecules: Molecules,
@@ -2515,7 +2512,7 @@ class CylindraMainWidget(MagicTemplate):
         order : int, default is 1
             Interpolation order of the subtomogram loader.
         """
-        mole = self.get_molecules(name)
+        mole = self.mole_layers[name].molecules
         return self.tomogram.get_subtomogram_loader(mole, output_shape, order=order)
 
     def _init_widget_state(self, _=None):

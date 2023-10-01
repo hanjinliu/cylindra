@@ -430,7 +430,10 @@ class MoleculesMenu(ChildWidget):
     rotate_molecules = abstractapi()
     filter_molecules = abstractapi()
     split_molecules = abstractapi()
-    delete_molecule_layers = abstractapi()
+    sep1 = field(Separator)
+    rename_molecules = abstractapi()
+    delete_molecules = abstractapi()
+    sep2 = field(Separator)
 
     @magicmenu(name="Combine")
     class Combine(MagicTemplate):
@@ -830,6 +833,13 @@ class Others(ChildWidget):
                         break
             self.reset_choices()
             return None
+
+        @set_design(text="Copy workflow directory path")
+        def copy_workflow_directory(self):
+            """Copy the path of the workflow directory to clipboard."""
+            from magicclass.utils import to_clipboard
+
+            return to_clipboard(str(_config.WORKFLOWS_DIR))
 
         sep0 = field(Separator)
 
