@@ -185,17 +185,20 @@ class MoleculesLayerAccessor(Accessor, MutableSequence[MoleculesLayer]):
         exclude: str = "",
         pattern: str = "",
     ) -> None:
-        names = list(l.name for l in self._filtered_layers(include, exclude, pattern))
+        old_names = list(
+            l.name for l in self._filtered_layers(include, exclude, pattern)
+        )
+        new_names = list(n.replace(old, new) for n in old_names)
         ui = self.widget()
         viewer = self.viewer()
 
         def undo():
-            for name in names:
-                viewer.layers[name].name = name.replace(new, old)
+            for old, new in zip(old_names, new_names):
+                viewer.layers[new].name = old
 
         def redo():
-            for name in names:
-                viewer.layers[name].name = name.replace(old, new)
+            for old, new in zip(old_names, new_names):
+                viewer.layers[old].name = new
 
         with ui.macro.blocked():
             redo()

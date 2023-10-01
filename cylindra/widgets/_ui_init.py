@@ -436,6 +436,8 @@ def _setup_rename_molecules(self: CylindraMainWidget, gui: FunctionGui):
 
     @gui.changed.connect
     def _on_change(*_):
+        if self.parent_viewer is None:
+            return
         old: str = gui.old.value
         new: str = gui.new.value
         if old == "" or new == "":
@@ -467,6 +469,8 @@ def _setup_delete_molecules(self: CylindraMainWidget, gui: FunctionGui):
 
     @gui.changed.connect
     def _on_change():
+        if self.parent_viewer is None:
+            return
         include: str = gui.include.value
         exclude: str = gui.exclude.value
         pattern: str = gui.pattern.value

@@ -716,6 +716,7 @@ def test_molecules_methods(ui: CylindraMainWidget):
     ui.concatenate_molecules([layer0, layer1])
     last_layer = ui.mole_layers.last()
     assert last_layer.data.shape[0] == layer0.data.shape[0] + layer1.data.shape[0]
+    ui.mole_layers.delete(include="concat")
     ui.split_molecules("Mole-0", by=Mole.pf)
     ui.interpolate_spline_properties("Mole-0", interpolation=1)
     ui.MoleculesMenu.View.render_molecules(
@@ -727,19 +728,20 @@ def test_molecules_methods(ui: CylindraMainWidget):
         layer0,
         template_path=TEST_DIR / "beta-tubulin.mrc",
     )
-    ui.rename_molecules("Mole", "XYZ")
-    assert ui.mole_layers.names() == ["XYZ-0", "XYZ-1"]
+    ui.rename_molecules("Mole", "XYZ", exclude="_")
+    names_split = [f"Mole-0_{i}" for i in range(14)]
+    assert ui.mole_layers.names() == ["XYZ-0", "XYZ-1"] + names_split
     ui.macro.undo()
-    assert ui.mole_layers.names() == ["Mole-0", "Mole-1"]
+    assert ui.mole_layers.names() == ["Mole-0", "Mole-1"] + names_split
     ui.macro.redo()
-    assert ui.mole_layers.names() == ["XYZ-0", "XYZ-1"]
+    assert ui.mole_layers.names() == ["XYZ-0", "XYZ-1"] + names_split
     ui.macro.undo()
-    ui.delete_molecules(include="Mole")
-    assert ui.mole_layers.names() == []
-    ui.macro.undo()
+    ui.delete_molecules(include="_")
     assert ui.mole_layers.names() == ["Mole-0", "Mole-1"]
+    ui.macro.undo()
+    assert ui.mole_layers.names() == ["Mole-0", "Mole-1"] + names_split
     ui.macro.redo()
-    assert ui.mole_layers.names() == []
+    assert ui.mole_layers.names() == ["Mole-0", "Mole-1"]
 
 
 def test_translate_molecules(ui: CylindraMainWidget):

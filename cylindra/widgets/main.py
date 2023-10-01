@@ -1825,10 +1825,10 @@ class CylindraMainWidget(MagicTemplate):
             raise ValueError(f"Too many groups ({n_unique}).")
         _added_layers = list[MoleculesLayer]()
         for _key, mole in layer.molecules.groupby(by):
-            layer = self.add_molecules(
+            new = self.add_molecules(
                 mole, name=f"{layer.name}_{_key}", source=layer.source_component
             )
-            _added_layers.append(layer)
+            _added_layers.append(new)
         return self._undo_callback_for_layer(_added_layers)
 
     @MoleculesMenu.wraps
@@ -2643,7 +2643,7 @@ class CylindraMainWidget(MagicTemplate):
     def _on_molecules_layer_renamed(self, event: "Event"):
         """When layer name is renamed, record `ui.parent_viewer["old"].name = "new"`"""
         layer: MoleculesLayer = event.source
-        if layer._undo_renaming:
+        if layer._undo_renaming or not self.macro.active:
             return
         old_name = layer._old_name
         new_name = layer.name
