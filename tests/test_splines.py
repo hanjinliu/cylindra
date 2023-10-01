@@ -4,6 +4,7 @@ from cylindra.components import CylSpline
 import numpy as np
 from numpy.testing import assert_allclose
 import impy as ip
+from IPython.display import display
 
 
 @pytest.mark.parametrize("mode", ["linear", "default"])
@@ -241,3 +242,9 @@ def test_resample():
     spl = spl.fit([[3, 2, 1], [4, 6, 7], [5, 2, 3], [9, 5, 6]]).clip(0.1, 0.9)
     spl0 = spl.resample(0.3)
     assert spl.length() == pytest.approx(spl0.length(), rel=1e-2)
+
+
+def test_with_x():
+    spl = CylSpline().fit([[3, 2, 1], [4, 6, 7], [5, 2, 3], [9, 5, 6]])
+    spl.with_extrapolation("linear").with_config({"fit_width": 33})
+    display(spl.config)

@@ -68,11 +68,12 @@ def test_misc_actions(ui: CylindraMainWidget):
 )
 def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     path = TEST_DIR / f"{npf}pf_MT.tif"
-    ui.open_image(path=path, scale=1.052, tilt_range=(-60, 60), bin_size=[1, 2])
+    ui.open_image(path=path, scale=1.052, tilt_range=(-60, 60), bin_size=[1])
+    ui.add_multiscale(2)
     ui.set_multiscale(1)
     ui.register_path(coords=coords[npf])
     ui.register_path(coords=coords[npf][::-1])
-    ui._runner.run(interval=24.0)
+    ui._runner.run(interval=24.0, paint=True)
     ui.auto_align_to_polarity(align_to="MinusToPlus")
     ui.map_monomers(splines=[0, 1])
     ui.measure_local_radius(splines=[0, 1])
@@ -369,22 +370,12 @@ def test_spline_switch(ui: CylindraMainWidget):
 
         assert_canvas(ui, [False, False, False])
         ui.copy_spline(0)
+        ui.copy_spline_new_config(0, npf_range=(4, 10))
 
         ui.clear_all()
 
         assert ui.LocalProperties.params.spacing.txt == " -- nm"
         assert ui.GlobalProperties.params.params1.spacing.txt == " -- nm"
-
-
-def test_set_molecule_colormap(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
-    ui.paint_molecules(
-        ui.mole_layers["Mole-0"],
-        "nth",
-        {0: "blue", 1: "yellow"},
-        (0, 10),
-    )
-    ui.ImageMenu.show_colorbar(ui.mole_layers["Mole-0"])
 
 
 def test_preview(ui: CylindraMainWidget):
@@ -473,7 +464,7 @@ def test_preview(ui: CylindraMainWidget):
     tester.click_preview()
 
 
-def test_slicer(ui: CylindraMainWidget):
+def test_sub_widgets(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=False, paint=False)
     ui.ImageMenu.open_slicer()
     ui.spline_slicer.refresh_widget_state()
@@ -483,6 +474,17 @@ def test_slicer(ui: CylindraMainWidget):
     ui.spline_slicer._update_canvas()
     ui.spline_slicer.show_what = "Y-projection"
     ui.spline_slicer._update_canvas()
+    ui.spline_slicer.show_what = "Filtered-R-projection"
+    ui.spline_slicer._update_canvas()
+    ui.spline_slicer.measure_cft_here()
+
+    ui._file_iterator.pattern = f"{TEST_DIR.as_posix()}/*.tif"
+    ui._file_iterator.set_pattern()
+    ui._file_iterator.last_file()
+    ui._file_iterator.first_file()
+    ui._file_iterator.next_file()
+    ui._file_iterator.prev_file()
+    ui._file_iterator["open_image"].clicked()
 
 
 @pytest.mark.parametrize("bin_size", [1, 2])
@@ -742,9 +744,11 @@ def test_molecules_methods(ui: CylindraMainWidget):
     assert ui.mole_layers.names() == ["Mole-0", "Mole-1"] + names_split
     ui.macro.redo()
     assert ui.mole_layers.names() == ["Mole-0", "Mole-1"]
+    ui.paint_molecules("Mole-0", "nth", {0: "blue", 1: "yellow"}, (0, 10))
+    ui.ImageMenu.show_colorbar(ui.mole_layers["Mole-0"])
 
 
-def test_translate_molecules(ui: CylindraMainWidget):
+def test_transform_molecules(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False)
     layer = ui.mole_layers["Mole-0"]
     ui.translate_molecules("Mole-0", [3, -5, 2.2], internal=False)
@@ -758,6 +762,7 @@ def test_translate_molecules(ui: CylindraMainWidget):
     )
     ui.macro.undo()
     ui.macro.redo()
+
     ui.translate_molecules("Mole-0", [1, 2, 3], internal=True)
     new_layer = ui.mole_layers.last()
     assert_allclose(
@@ -766,6 +771,10 @@ def test_translate_molecules(ui: CylindraMainWidget):
         rtol=1e-5,
         atol=1e-6,
     )
+    ui.macro.undo()
+    ui.macro.redo()
+
+    ui.rotate_molecules("Mole-0", degrees=[("z", 10), ("x", 3)])
     ui.macro.undo()
     ui.macro.redo()
 
@@ -1084,6 +1093,7 @@ def test_regionprops(ui: CylindraMainWidget):
             "std",
         ],
     )
+    ui.calculate_curve_index("Mole-0")
 
 
 def test_showing_widgets(ui: CylindraMainWidget):
