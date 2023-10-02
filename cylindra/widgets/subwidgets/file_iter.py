@@ -36,11 +36,11 @@ class FileIterator(ChildWidget):
 
     @Header.wraps
     @set_design(text="Set")
-    def set_pattern(self):
+    def set_pattern(self, val: Annotated[str, {"bind": pattern}]):
         """Set pattern for file search."""
-        if self.pattern == "":
+        if val == "":
             raise ValueError("Pattern is not set.")
-        self.pattern = Path(self.pattern).as_posix()
+        self.pattern = Path(val).as_posix()
         self._files = list(
             Path(p).as_posix() for p in glob(self.pattern, recursive=True)
         )
@@ -94,7 +94,7 @@ class FileIterator(ChildWidget):
 
     @set_design(text="Load project")
     def load_project(self, path: Annotated[str, {"bind": path}]):
-        if Path(path).name not in ("project.json", ""):
+        if Path(path).suffix not in (".json", "", ".tar", ".zip"):
             raise ValueError("Not a project file")
         fgui = get_function_gui(self._get_main().load_project)
         fgui.path.value = path
@@ -102,7 +102,7 @@ class FileIterator(ChildWidget):
 
     @set_design(text="Re-analyze project")
     def load_project_for_reanalysis(self, path: Annotated[str, {"bind": path}]):
-        if Path(path).name not in ("project.json", ""):
+        if Path(path).suffix not in (".json", "", ".tar", ".zip"):
             raise ValueError("Not a project file")
         fgui = get_function_gui(self._get_main().load_project_for_reanalysis)
         fgui.path.value = path
