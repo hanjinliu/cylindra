@@ -79,6 +79,10 @@ class MoleculesLayerAccessor(Accessor, MutableSequence[MoleculesLayer]):
         viewer = self.widget().parent_viewer
         del viewer.layers[name]
 
+    def clear(self) -> None:
+        """Clear all molecules layers."""
+        return self.delete()
+
     def first(self) -> MoleculesLayer:
         """The first molecules layer."""
         return next(self._filtered_layers())

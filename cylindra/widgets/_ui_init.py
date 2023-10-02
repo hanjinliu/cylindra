@@ -482,7 +482,12 @@ def _setup_delete_molecules(self: CylindraMainWidget, gui: FunctionGui):
         if len(delete_list) == 0:
             label.value = "No change."
         else:
-            label.value = "\n".join(f"{name}" for name in delete_list)
+            if len(delete_list) < 8:
+                label.value = "\n".join(f"{name}" for name in delete_list)
+            else:
+                label.value = (
+                    "\n".join(f"{name}" for name in delete_list[:8]) + "\n    ..."
+                )
 
     gui.insert(-1, label)
     label.reset_choices = _on_change  # hack

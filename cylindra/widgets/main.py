@@ -1843,6 +1843,8 @@ class CylindraMainWidget(MagicTemplate):
         """
         Translate molecule coordinates without changing their rotations.
 
+        Output molecules layer will be named as "<original name>-Shift".
+
         Parameters
         ----------
         {layers}
@@ -1891,6 +1893,8 @@ class CylindraMainWidget(MagicTemplate):
     ):
         """
         Rotate molecules without changing their positions.
+
+        Output molecules layer will be named as "<original name>-Rot".
 
         Parameters
         ----------
