@@ -465,7 +465,7 @@ def test_preview(ui: CylindraMainWidget):
 
 
 def test_sub_widgets(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_14PF, filter=False, paint=False)
+    ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
     ui.ImageMenu.open_slicer()
     ui.spline_slicer.refresh_widget_state()
     ui.spline_slicer.show_what = "CFT"
@@ -478,6 +478,7 @@ def test_sub_widgets(ui: CylindraMainWidget):
     ui.spline_slicer._update_canvas()
     ui.spline_slicer.measure_cft_here()
 
+    # file iterator
     ui._file_iterator.set_pattern(f"{TEST_DIR.as_posix()}/*.tif")
     ui._file_iterator.last_file()
     ui._file_iterator.first_file()
@@ -485,6 +486,22 @@ def test_sub_widgets(ui: CylindraMainWidget):
     ui._file_iterator.prev_file()
     ui._file_iterator.open_image(ui._file_iterator.path)
     ui._file_iterator.preview_all().close()
+
+    # spline clipper
+    len_old = ui.splines[0].length()
+    ui.Splines.open_spline_clipper()
+    ui.spline_clipper.clip_length = 1
+    ui.spline_clipper.clip_here()
+    assert ui.splines[0].length() == pytest.approx(len_old - 1, abs=0.01)
+    ui.spline_clipper.the_other_side()
+    ui.spline_clipper.clip_length = 1.4
+    ui.spline_clipper.clip_here()
+    assert ui.splines[0].length() == pytest.approx(len_old - 2.4, abs=0.02)
+
+    # spectra inspector
+    ui.Analysis.open_spectra_inspector()
+    ui.spectra_inspector.log_scale = True
+    ui.spectra_inspector.log_scale = False
 
 
 @pytest.mark.parametrize("bin_size", [1, 2])
@@ -1105,26 +1122,6 @@ def test_showing_widgets(ui: CylindraMainWidget):
     ui.File.view_project(PROJECT_DIR_13PF / "project.json")
 
 
-def test_spline_clipper(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
-    len_old = ui.splines[0].length()
-    ui.Splines.open_spline_clipper()
-    ui.spline_clipper.clip_length = 1
-    ui.spline_clipper.clip_here()
-    assert ui.splines[0].length() == pytest.approx(len_old - 1, abs=0.01)
-    ui.spline_clipper.the_other_side()
-    ui.spline_clipper.clip_length = 1.4
-    ui.spline_clipper.clip_here()
-    assert ui.splines[0].length() == pytest.approx(len_old - 2.4, abs=0.02)
-
-
-def test_spectra_measurer(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=False, paint=False)
-    ui.Analysis.open_spectra_inspector()
-    ui.spectra_inspector.log_scale = True
-    ui.spectra_inspector.log_scale = False
-
-
 def test_image_processor(ui: CylindraMainWidget):
     input_path = TEST_DIR / "13pf_MT.tif"
     ui.image_processor.input_image = input_path
@@ -1138,30 +1135,31 @@ def test_image_processor(ui: CylindraMainWidget):
         ui.image_processor.preview(input_path)
 
 
-def test_custom_workflows(ui: CylindraMainWidget):
+def test_workflows_custom(ui: CylindraMainWidget):
     name = "Test"
     code = (
         "import numpy as np\n"
         "def main(ui):\n"
         "    ui.load_project('path/to/project.json')\n"
     )
-    with tempfile.TemporaryDirectory() as dirpath:
-        with _config.patch_workflow_path(dirpath):
-            ui.Others.Workflows.define_workflow(name, code)
-            ui.Others.Workflows.edit_workflow(name, code)
-            ui.Others.Workflows.delete_workflow([name])
-            ui.Others.Workflows.copy_workflow_directory()
+    with tempfile.TemporaryDirectory() as dirpath, _config.patch_workflow_path(dirpath):
+        ui.Others.Workflows.define_workflow(name, code)
+        ui.Others.Workflows.edit_workflow(name, code)
+        ui.Others.Workflows.import_workflow(
+            Path(dirpath) / f"{name}.py", name="imported"
+        )
+        ui.Others.Workflows.delete_workflow([name])
+        ui.Others.Workflows.copy_workflow_directory()
 
 
 def test_stash(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
-    with tempfile.TemporaryDirectory() as dirpath:
-        with _config.patch_stash_dir(dirpath):
-            ui.File.Stash.stash_project()
-            name0 = _config.get_stash_list()[0]
-            ui.File.Stash.load_stash_project(name0, filter=None)
-            ui.File.Stash.pop_stash_project(name0, filter=None)
-            ui.File.Stash.stash_project()
-            name1 = _config.get_stash_list()[0]
-            ui.File.Stash.delete_stash_project(name1)
-            ui.File.Stash.clear_stash_projects()
+    with tempfile.TemporaryDirectory() as dirpath, _config.patch_stash_dir(dirpath):
+        ui.File.Stash.stash_project()
+        name0 = _config.get_stash_list()[0]
+        ui.File.Stash.load_stash_project(name0, filter=None)
+        ui.File.Stash.pop_stash_project(name0, filter=None)
+        ui.File.Stash.stash_project()
+        name1 = _config.get_stash_list()[0]
+        ui.File.Stash.delete_stash_project(name1)
+        ui.File.Stash.clear_stash_projects()

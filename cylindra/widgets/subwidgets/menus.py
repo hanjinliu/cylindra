@@ -803,6 +803,23 @@ class Others(ChildWidget):
             """View or edit a workflow script."""
             return self.define_workflow(filename, workflow)
 
+        @set_design(text="Import workflow")
+        def import_workflow(
+            self,
+            path: Path.Read[FileFilter.PY],
+            name: Annotated[Optional[str], {"text": "Do not rename"}] = None,
+        ):
+            """Import a workflow script."""
+            if name == "":
+                raise ValueError("Name must be specified.")
+            path = Path(path)
+            if name is None:
+                name = path.stem
+            new_path = _config.workflow_path(name)
+            if new_path.exists():
+                raise FileExistsError(f"Workflow file {new_path} already exists.")
+            return self.define_workflow(new_path, path.read_text())
+
         @set_design(text="Delete workflow")
         @set_options(call_button="Delete", labels=False)
         def delete_workflow(
@@ -853,7 +870,7 @@ class Others(ChildWidget):
         from magicclass.command_palette import exec_command_palette
 
         def _title_fmt(parent, widget):
-            qn = type(parent).__qualname__
+            qn = str(type(parent).__qualname__)
             if qn.startswith("CylindraMainWidget."):
                 return qn[len("CylindraMainWidget.") :]
             return qn

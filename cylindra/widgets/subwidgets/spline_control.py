@@ -211,26 +211,27 @@ class SplineControl(ChildWidget):
         yield cb.with_args(spl)
 
         # calculate projection
+        anc = spl.anchors
         if (npfs := spl.props.get_loc(H.npf, None)) is not None:
             npf_list = npfs
         elif (npf := spl.props.get_glob(H.npf, None)) is not None:
-            npf_list = [npf] * spl.anchors.size
+            npf_list = [npf] * anc.size
         else:
-            npf_list = [0] * spl.anchors.size
-
+            npf_list = [0] * anc.size
         binsize = parent._current_binsize
         imgb = parent.tomogram.get_multiscale(binsize)
 
         length_px = tomo.nm2pixel(spl.config.fit_depth, binsize=binsize)
         width_px = tomo.nm2pixel(spl.config.fit_width, binsize=binsize)
 
-        mole = spl.anchors_to_molecules()
+        mole = spl.anchors_to_molecules(anc)
         if binsize > 1:
             mole = mole.translate(-parent.tomogram.multiscale_translation(binsize))
         loc_shape = (width_px, length_px, width_px)
         coords = mole.local_coordinates(
             shape=loc_shape,
             scale=tomo.scale * binsize,
+            squeeze=False,
         )
         yield
         projections = list[Projections]()
