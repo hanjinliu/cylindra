@@ -56,7 +56,6 @@ from cylindra.widgets._widget_ext import (
 from cylindra.components.landscape import Landscape
 from cylindra.components.seam_search import (
     CorrelationSeamSearcher,
-    FiducialSeamSearcher,
     BooleanSeamSearcher,
     SeamSearchResult,
 )
@@ -222,7 +221,6 @@ class SubtomogramAnalysis(MagicTemplate):
     @magicmenu
     class SeamSearch(MagicTemplate):
         seam_search = abstractapi()
-        seam_search_by_fiducials = abstractapi()
         seam_search_by_feature = abstractapi()
         save_seam_search_result = abstractapi()
 
@@ -1585,53 +1583,11 @@ class SubtomogramAveraging(ChildWidget):
             _Logger.print_html("<code>seam_search</code>")
             with _Logger.set_plt():
                 _Logger.print(f"layer = {layer.name!r}")
-                _Logger.print(f"template = {str(template_path)!r}")
-                widget_utils.plot_seam_search_result(result.scores, npf)
-
-        return _seam_search_on_return
-
-    @Subtomogram_analysis.SeamSearch.wraps
-    @set_design(text="Seam search (by fiducials)")
-    @dask_worker.with_progress(desc=_pdesc.fmt_layer("Seam search (by fiducials) of {!r}"))  # fmt: skip
-    def seam_search_by_fiducials(
-        self,
-        layer: MoleculesLayerType,
-        mask_params: Annotated[Any, {"bind": params._get_mask_params}],
-        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
-        npf: Annotated[Optional[int], {"text": "Use global properties"}] = None,
-        show_average: Annotated[str, {"label": "Show averages as", "choices": AVG_CHOICES}] = AVG_CHOICES[2],
-    ):  # fmt: skip
-        t0 = timer("seam_search_by_fiducials")
-        layer = assert_layer(layer, self.parent_viewer)
-        loader, npf = self._seam_search_input(layer, npf, interpolation)
-        seam_searcher = FiducialSeamSearcher(npf)
-        _, weight = loader.normalize_input(
-            self.params._get_template(allow_none=True),
-            self.params._get_mask(mask_params),
-        )
-        if weight is None:
-            raise ValueError("Mask is required for seam search by fiducials.")
-        weight = ip.asarray(weight, axes="zyx").set_scale(zyx=loader.scale, unit="nm")
-        result = seam_searcher.search(loader=loader, weight=weight)
-        layer.features = layer.molecules.features.with_columns(
-            pl.Series(Mole.isotype, result.get_label(loader.molecules.count()))
-        )
-        layer.metadata[SEAM_SEARCH_RESULT] = result
-        t0.toc()
-
-        @thread_worker.callback
-        def _seam_search_on_return():
-            if show_average is not None:
-                if show_average == AVG_CHOICES[2]:
-                    sigma = 0.25 / loader.scale
-                    result.averages.gaussian_filter(sigma=sigma, update=True)
-                self._show_rec(result.averages, layer.name, store=False)
-                self.sub_viewer.layers[-1].metadata["Score"] = result.scores
-
-            # plot all the correlation
-            _Logger.print_html("<code>seam_search_by_fiducials</code>")
-            with _Logger.set_plt():
-                _Logger.print(f"layer = {layer.name!r}")
+                _Logger.print(f"template = {Path(template_path).as_posix()!r}")
+                if anti_template_path is not None:
+                    _Logger.print(
+                        f"anti_template = {Path(anti_template_path).as_posix()!r}"
+                    )
                 widget_utils.plot_seam_search_result(result.scores, npf)
 
         return _seam_search_on_return

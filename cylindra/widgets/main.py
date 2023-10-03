@@ -1906,14 +1906,14 @@ class CylindraMainWidget(MagicTemplate):
         """
         layers = assert_list_of_layers(layers, self.parent_viewer)
         new_layers = list[MoleculesLayer]()
+        if (
+            len(degrees) == 2
+            and isinstance(degrees[0], str)
+            and isinstance(degrees[1], float)
+        ):
+            degrees = [degrees]
         for layer in layers:
             mole = layer.molecules
-            if (
-                len(degrees) == 2
-                and isinstance(degrees[0], str)
-                and isinstance(degrees[1], float)
-            ):
-                degrees = [degrees]
             for axis, deg in degrees:
                 mole = mole.rotate_by_rotvec_internal(
                     rotvec_from_axis_and_degree(axis, deg)
