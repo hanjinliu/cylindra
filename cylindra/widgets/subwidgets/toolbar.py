@@ -7,7 +7,6 @@ from magicclass import (
     vfield,
     MagicTemplate,
     set_design,
-    bind_key,
     abstractapi,
 )
 from magicclass.widgets import Separator
@@ -65,7 +64,6 @@ class CylindraToolbar(MagicTemplate):
 
     @do_not_record
     @set_design(icon=ICON_DIR / "undo.svg")
-    @bind_key("Ctrl+Z")
     def undo(self):
         """Undo last action."""
         if len(self.macro.undo_stack["undo"]) == 0:
@@ -76,7 +74,6 @@ class CylindraToolbar(MagicTemplate):
 
     @do_not_record
     @set_design(icon=ICON_DIR / "redo.svg")
-    @bind_key("Ctrl+Y")
     def redo(self):
         """Redo last undo action."""
         if len(self.macro.undo_stack["redo"]) == 0:

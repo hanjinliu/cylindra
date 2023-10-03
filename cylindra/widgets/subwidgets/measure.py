@@ -179,15 +179,18 @@ class SpectraInspector(ChildWidget):
         # update button texts
         btn_axial = get_button(self.select_axial_peak)
         btn_angular = get_button(self.select_angular_peak)
-        if value is MeasureMode.none:
-            btn_axial.text = "Select axial peak"
-            btn_angular.text = "Select angular peak"
-        elif value is MeasureMode.axial:
-            btn_axial.text = "Selecting ..."
-            btn_angular.text = "Select angular peak"
-        else:
-            btn_axial.text = "Select axial peak"
-            btn_angular.text = "Select ..."
+        match value:
+            case MeasureMode.none:
+                btn_axial.text = "Select axial peak"
+                btn_angular.text = "Select angular peak"
+            case MeasureMode.axial:
+                btn_axial.text = "Selecting ..."
+                btn_angular.text = "Select angular peak"
+            case MeasureMode.angular:
+                btn_axial.text = "Select axial peak"
+                btn_angular.text = "Selecting ..."
+            case _:  # pragma: no cover
+                raise ValueError(f"Invalid mode: {value}")
         self._mode = value
 
     def _get_current_index(self, *_) -> int:

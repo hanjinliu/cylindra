@@ -137,7 +137,6 @@ METHOD_CHOICES = (
     ("Phase Cross Correlation", "pcc"),
     ("Zero-mean Normalized Cross Correlation", "zncc"),
 )
-AVG_CHOICES = [None, "Raw", "Filtered"]
 _Logger = getLogger("cylindra")
 
 
@@ -1515,7 +1514,7 @@ class SubtomogramAveraging(ChildWidget):
         anti_template_path: Annotated[Optional[Path.Read[FileFilter.IMAGE]], {"text": "Do not use anti-template"}] = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         npf: Annotated[Optional[int], {"text": "Use global properties"}] = None,
-        show_average: Annotated[str, {"label": "Show averages as", "choices": AVG_CHOICES}] = AVG_CHOICES[2],
+        show_average: Annotated[str, {"label": "Show averages as", "choices": [None, "Raw", "Filtered"]}] = "Filtered",
         cutoff: _CutoffFreq = 0.25,
     ):  # fmt: skip
         """
@@ -1572,7 +1571,7 @@ class SubtomogramAveraging(ChildWidget):
         @thread_worker.callback
         def _seam_search_on_return():
             if show_average is not None:
-                if show_average == AVG_CHOICES[2]:
+                if show_average == "Filtered":
                     sigma = 0.25 / loader.scale
                     result.averages.gaussian_filter(sigma=sigma, update=True)
                 self._show_rec(result.averages, layer.name, store=False)
