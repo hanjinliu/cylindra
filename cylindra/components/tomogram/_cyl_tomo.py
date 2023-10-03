@@ -717,7 +717,7 @@ class CylTomogram(Tomogram):
         tasks: list[Delayed[LatticeParams]] = []
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
         _analyze_fn = LatticeAnalyzer(spl.config).estimate_lattice_params_task
-        for anc, r0 in zip(spl_trans.anchors, radii):
+        for anc, r0 in zip(spl_trans.anchors, radii, strict=True):
             rmin, rmax = spl.radius_range(r0)
             rc = (rmin + rmax) / 2
             coords = spl_trans.local_cylindrical((rmin, rmax), depth, anc, scale=_scale)
@@ -1254,7 +1254,7 @@ def dask_angle_corr(
 ) -> NDArray[np.float32]:
     _angle_corr = delayed(partial(angle_corr, drot=drot, nrots=nrots))
     tasks = []
-    for img, ang in zip(imgs, ang_centers):
+    for img, ang in zip(imgs, ang_centers, strict=True):
         tasks.append(da.from_delayed(_angle_corr(img, ang), shape=(), dtype=np.float32))
     return da.compute(tasks)[0]
 

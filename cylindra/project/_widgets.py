@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Union, Annotated
+from typing import TYPE_CHECKING, Annotated
 import numpy as np
 import polars as pl
 import impy as ip
@@ -165,7 +165,7 @@ class ProjectViewer(MagicTemplate):
     def load_this_project(
         self,
         path: Annotated[str, {"bind": _get_project_path}],
-        filter: Union[ImageFilter, None] = ImageFilter.Lowpass,
+        filter: ImageFilter | None = ImageFilter.Lowpass,
         paint: bool = False,
         read_image: Annotated[bool, {"label": "read image data"}] = True,
         update_config: bool = False,

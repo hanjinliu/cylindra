@@ -2,13 +2,13 @@ from __future__ import annotations
 from contextlib import contextmanager
 
 from types import MappingProxyType
-from typing import Any, Iterable, Mapping, Sequence, Union
+from typing import Any, Iterable, Mapping, Sequence
 from typing_extensions import Self
 import polars as pl
 from cylindra.const import nm
 
 
-_DataFrameLike = Union[pl.DataFrame, Mapping[str, Any], Sequence["pl.Series | pl.Expr"]]
+_DataFrameLike = pl.DataFrame | Mapping[str, Any] | Sequence[pl.Series | pl.Expr]
 _void = object()
 
 

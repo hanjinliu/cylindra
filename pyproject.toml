@@ -7,15 +7,15 @@ name = "cylindra"
 description = "Spectral analysis, simulation and subtomogram averaging of heterogenic cylindrical structures"
 keywords = ["gui", "napari", "cryo-ET", "tomography"]
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 ]
 license = { file = "LICENSE" }
 dynamic = ["version"]
@@ -32,13 +32,12 @@ dependencies = [
     "numpy>=1.23.0",
     "scipy>=1.7.1",
     "pandas>=1.5.0",
-    "polars>=0.18.13",
+    "polars>=0.19.5",
     "scikit-image>=0.21.0",
     "napari>=0.4.18",
     "qtpy>=2.3.1",
     "qt-command-palette>=0.0.7",
     "matplotlib",
-    "psutil",
 ]
 authors = [
     { email = "liuhanjin-sc@g.ecc.u-tokyo.ac.jp" },

@@ -285,22 +285,23 @@ class LatticeParameters(Enum):
 
     def calculate(self, mole: Molecules, spl: CylSpline) -> pl.Series:
         """Calculate this lattice parameter for the given molecule."""
-        if self is LatticeParameters.interv:
-            return calc_interval(mole, spl)
-        elif self is LatticeParameters.elev_angle:
-            return calc_elevation_angle(mole, spl)
-        elif self is LatticeParameters.dimer_twist:
-            return calc_dimer_twist(mole, spl)
-        elif self is LatticeParameters.skew:
-            return calc_skew(mole, spl)
-        elif self is LatticeParameters.radius:
-            return calc_radius(mole, spl)
-        elif self is LatticeParameters.rise:
-            return calc_rise_angle(mole, spl)
-        elif self is LatticeParameters.lat_interv:
-            return calc_lateral_interval(mole, spl)
-        else:
-            raise ValueError(f"Unknown lattice parameter {self!r}.")
+        match self:
+            case LatticeParameters.interv:
+                return calc_interval(mole, spl)
+            case LatticeParameters.elev_angle:
+                return calc_elevation_angle(mole, spl)
+            case LatticeParameters.dimer_twist:
+                return calc_dimer_twist(mole, spl)
+            case LatticeParameters.skew:
+                return calc_skew(mole, spl)
+            case LatticeParameters.radius:
+                return calc_radius(mole, spl)
+            case LatticeParameters.rise:
+                return calc_rise_angle(mole, spl)
+            case LatticeParameters.lat_interv:
+                return calc_lateral_interval(mole, spl)
+            case _:
+                raise ValueError(f"Unknown lattice parameter {self!r}.")
 
     @classmethod
     def choices(cls) -> list[str]:

@@ -8,7 +8,7 @@ import impy as ip
 from cylindra.components.spline import CylSpline
 from cylindra.cyltransform import get_polar_image_task
 from cylindra.const import nm
-from cylindra.utils import map_coordinates, ceilint, map_coordinates_task
+from cylindra.utils import ceilint, map_coordinates_task
 from cylindra._dask import compute
 
 

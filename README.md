@@ -52,7 +52,7 @@ pip install -e .
 
 ## Prerequisite and Recommendations
 
-- **Python &ge; 3.9**
+- **Python &ge; 3.10**. This project follows [spec-0000](https://scientific-python.org/specs/spec-0000/).
 - **Sufficient memory size**. Most of the intense calculations are done out-of-core using `dask`, so that you can even run on 8-GB memory PC in many cases. However, larger memory size will make parallel processing more efficient. &ge;32 GB is recommended.
 - **Images should be loaded from SSD**. Raw image stacks are loaded lazily in most of the processes. Loading from HDD will slow down many analyses as well.
 

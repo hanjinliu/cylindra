@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 import tempfile
-from typing import Generator, Iterable, Union, TYPE_CHECKING
+from typing import Generator, Iterable, TYPE_CHECKING
 from pathlib import Path
 import json
 import warnings
@@ -27,7 +27,7 @@ class MoleculesInfo(BaseModel):
     """Info of molecules layer."""
 
     name: str  # including extension
-    source: Union[int, None] = None
+    source: int | None = None
     visible: bool = True
 
     @property
@@ -49,10 +49,10 @@ class CylindraProject(BaseProject):
     scale: float
     multiscales: list[int]
     molecules_info: list[MoleculesInfo]
-    template_image: Union[PathLike, None]
-    mask_parameters: Union[None, tuple[float, float], PathLike]
+    template_image: PathLike | None
+    mask_parameters: None | tuple[float, float] | PathLike
     missing_wedge: MissingWedge = MissingWedge(params={}, kind="none")
-    project_path: Union[Path, None] = None
+    project_path: Path | None = None
     project_description: str = ""
 
     def _post_init(self):

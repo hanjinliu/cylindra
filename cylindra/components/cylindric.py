@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, TYPE_CHECKING, NamedTuple, Union
+from typing import Any, TYPE_CHECKING, NamedTuple
 
 from acryo import Molecules
 import numpy as np
@@ -45,7 +45,7 @@ class CylindricSlice(NamedTuple):
         return self.get_resolver(rise).resolve_slices(shape)
 
 
-_Slicer = Union[slice, tuple[slice, slice], CylindricSlice]
+_Slicer = slice | tuple[slice, slice] | CylindricSlice
 
 
 class CylinderModel:
@@ -248,7 +248,7 @@ class CylinderModel:
 
     def add_offsets(self, offsets: tuple[float, float]) -> Self:
         """Increment offsets attribute of the model."""
-        _offsets = tuple(x + y for x, y in zip(self._offsets, offsets))
+        _offsets = tuple(x + y for x, y in zip(self._offsets, offsets, strict=True))
         return self.replace(offsets=_offsets)
 
     def add_shift(self, shift: NDArray[np.floating]) -> Self:

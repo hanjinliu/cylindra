@@ -1,5 +1,4 @@
 import os
-from typing import Union
 from qtpy.QtCore import Qt
 from magicgui.widgets import TextEdit
 
@@ -69,7 +68,7 @@ class ImageLoader(MagicTemplate):
         )
 
     bin_size = vfield([1]).with_options(options={"min": 1, "max": 32})
-    filter = vfield(Union[ImageFilter, None]).with_options(value=ImageFilter.Lowpass)
+    filter = vfield(ImageFilter | None).with_options(value=ImageFilter.Lowpass)
     eager = vfield(False, label="Load the entire image into memory")
 
     @scale.wraps

@@ -26,7 +26,7 @@ def mirror_ft_pcc(ft0: ip.ImgArray, mask=None, max_shifts=None):
     """
     shape = ft0.shape
     ind = np.indices(shape)
-    phase = np.sum([ix / n for ix, n in zip(ind, shape)])
+    phase = np.sum([ix / n for ix, n in zip(ind, shape, strict=True)])
     weight = np.exp(1j * 2 * np.pi * phase)
 
     ft1 = weight * ft0.conj()

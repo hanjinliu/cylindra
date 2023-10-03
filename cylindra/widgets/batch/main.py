@@ -1,4 +1,4 @@
-from typing import Annotated, Literal, NamedTuple, Union, Any, TYPE_CHECKING
+from typing import Annotated, Literal, NamedTuple, Any, TYPE_CHECKING
 import impy as ip
 import polars as pl
 
@@ -62,7 +62,7 @@ class CylindraBatchWidget(MagicTemplate):
     def construct_loader(
         self,
         paths: Annotated[Any, {"bind": constructor._get_loader_paths}],
-        predicate: Annotated[Union[str, pl.Expr, None], {"bind": constructor._get_expression}],
+        predicate: Annotated[str | pl.Expr | None, {"bind": constructor._get_expression}],
         name: Annotated[str, {"bind": constructor.seq_name}],
     ):  # fmt: skip
         """

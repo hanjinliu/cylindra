@@ -1,5 +1,5 @@
 import os
-from typing import Union, TYPE_CHECKING
+from typing import TYPE_CHECKING
 from pathlib import Path
 import macrokit as mk
 from pydantic import BaseModel
@@ -47,10 +47,10 @@ class CylindraBatchProject(BaseProject):
     version: str
     dependency_versions: dict[str, str]
     loaders: list[LoaderInfoModel]
-    template_image: Union[PathLike, None]
-    mask_parameters: Union[None, tuple[float, float], PathLike]
+    template_image: PathLike | None
+    mask_parameters: None | tuple[float, float] | PathLike
     missing_wedge: MissingWedge = MissingWedge(params={}, kind="none")
-    project_path: Union[Path, None] = None
+    project_path: Path | None = None
 
     def _post_init(self):
         if hasattr(self, "tilt_range"):
@@ -133,7 +133,7 @@ class CylindraBatchProject(BaseProject):
             os.mkdir(project_dir)  # create a directory if not exists.
 
         # save molecules
-        for lmodel, info in zip(self.loaders, gui._loaders):
+        for lmodel, info in zip(self.loaders, gui._loaders, strict=True):
             info.loader.molecules.to_file(lmodel.molecule)
 
         self.project_path.joinpath("script.py").write_text(as_main_function(gui.macro))

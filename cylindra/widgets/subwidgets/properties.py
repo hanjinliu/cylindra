@@ -111,7 +111,7 @@ class LocalPropertiesWidget(ChildWidget):
             self.plot.addaxis(i, 0)
         for i in range(len(props), nplots):
             del self.plot[0]
-        for prop, _plot in zip(props, self.plot):
+        for prop, _plot in zip(props, self.plot, strict=True):
             info = _PlotInfo.get(prop, ("unknown", "lightgray"))
             _plot.ylabel = info[0]
             _plot.legend.visible = False
@@ -130,7 +130,7 @@ class LocalPropertiesWidget(ChildWidget):
         self._init_plot()
 
         kw = dict(pos=[x[0], 0], degree=90, color=[1.0, 0.0, 0.0, 0.3], lw=2)
-        for prop, _plot in zip(self._props_to_plot, self.plot):
+        for prop, _plot in zip(self._props_to_plot, self.plot, strict=True):
             if (_interv := spl.props.get_loc(prop, None)) is not None:
                 color = _PlotInfo[prop][1]
                 _plot.add_curve(x, _interv, color=color, antialias=True)

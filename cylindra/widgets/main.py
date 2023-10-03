@@ -1,4 +1,4 @@
-from typing import Annotated, TYPE_CHECKING, Literal, Union, Any, Sequence
+from typing import Annotated, TYPE_CHECKING, Literal, Any, Sequence
 import warnings
 from weakref import WeakSet
 
@@ -334,7 +334,7 @@ class CylindraMainWidget(MagicTemplate):
     def register_path(
         self,
         coords: Annotated[np.ndarray, {"validator": _get_spline_coordinates}] = None,
-        config: Annotated[Union[dict[str, Any], SplineConfig], {"validator": _get_default_config}] = None,
+        config: Annotated[dict[str, Any] | SplineConfig, {"validator": _get_default_config}] = None,
         err_max: Annotated[nm, {"bind": 0.5}] = 0.5,
     ):  # fmt: skip
         """Register points as a spline path."""
@@ -423,7 +423,7 @@ class CylindraMainWidget(MagicTemplate):
     @confirm(text="You may have unsaved data. Open a new tomogram?", condition="self._need_save")  # fmt: skip
     def open_image(
         self,
-        path: Annotated[Union[str, Path], {"bind": _image_loader.path}],
+        path: Annotated[str | Path, {"bind": _image_loader.path}],
         scale: Annotated[nm, {"bind": _image_loader.scale.scale_value}] = None,
         tilt_range: Annotated[Any, {"bind": _image_loader.tilt_range.range}] = None,
         bin_size: Annotated[Sequence[int], {"bind": _image_loader.bin_size}] = [1],
@@ -480,7 +480,7 @@ class CylindraMainWidget(MagicTemplate):
     def load_project(
         self,
         path: Path.Read[FileFilter.PROJECT],
-        filter: Union[ImageFilter, None] = ImageFilter.Lowpass,
+        filter: ImageFilter | None = ImageFilter.Lowpass,
         paint: bool = False,
         read_image: Annotated[bool, {"label": "read image data"}] = True,
         update_config: bool = False,
@@ -653,16 +653,17 @@ class CylindraMainWidget(MagicTemplate):
             overlap = [min(s, 32) for s in img.shape]
             _tiled = img.tiled(chunks=(224, 224, 224), overlap=overlap)
             sigma = 1.6 / self._reserved_layers.scale
-            if method is ImageFilter.Lowpass:
-                img_filt = _tiled.lowpass_filter(cutoff=0.2)
-            elif method is ImageFilter.Gaussian:
-                img_filt = _tiled.gaussian_filter(sigma=sigma, fourier=True)
-            elif method is ImageFilter.DoG:
-                img_filt = _tiled.dog_filter(low_sigma=sigma, fourier=True)
-            elif method is ImageFilter.LoG:
-                img_filt = _tiled.log_filter(sigma=sigma)
-            else:
-                raise ValueError(f"No method matches {method!r}")
+            match method:
+                case ImageFilter.Lowpass:
+                    img_filt = _tiled.lowpass_filter(cutoff=0.2)
+                case ImageFilter.Gaussian:
+                    img_filt = _tiled.gaussian_filter(sigma=sigma, fourier=True)
+                case ImageFilter.DoG:
+                    img_filt = _tiled.dog_filter(low_sigma=sigma, fourier=True)
+                case ImageFilter.LoG:
+                    img_filt = _tiled.log_filter(sigma=sigma)
+                case _:  # pragma: no cover
+                    raise ValueError(f"No method matches {method!r}")
 
         contrast_limits = np.percentile(img_filt, [1, 99.9])
 
@@ -888,7 +889,7 @@ class CylindraMainWidget(MagicTemplate):
             return _on_return
 
     def _set_orientations(self, orientations: list[Ori], resample: bool = True):
-        for spl, ori in zip(self.tomogram.splines, orientations):
+        for spl, ori in zip(self.tomogram.splines, orientations, strict=True):
             spl.orientation = ori
         self._update_splines_in_images()
         self._init_widget_state()
@@ -1383,7 +1384,7 @@ class CylindraMainWidget(MagicTemplate):
 
         indices = [self.tomogram.splines.index(spl) for spl in _splines]
         with SplineTracker(widget=self, indices=indices) as tracker:
-            for i, spl, df in zip(indices, _splines, _radius_df):
+            for i, spl, df in zip(indices, _splines, _radius_df, strict=True):
                 if interval is not None:
                     self.tomogram.make_anchors(i=i, interval=interval)
                 radii = list[float]()

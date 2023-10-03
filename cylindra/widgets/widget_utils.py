@@ -306,7 +306,7 @@ class PaintDevice:
         matrices = np.concatenate(matrices, axis=0)
 
         out = np.empty_like(cylinders)
-        for i, (img, matrix) in enumerate(zip(cylinders, matrices)):
+        for i, (img, matrix) in enumerate(zip(cylinders, matrices, strict=True)):
             out[i] = ndi.affine_transform(img, matrix, order=1, cval=0, prefilter=False)
         out = out > 0.3
 
@@ -316,7 +316,7 @@ class PaintDevice:
             sl = list[slice]()
             outsl = list[slice]()
             # We should deal with the borders of image.
-            for c, l, size in zip(center, [lz, ly, lx], lbl.shape):
+            for c, l, size in zip(center, [lz, ly, lx], lbl.shape, strict=True):
                 _left = int(c - l / 2 - 0.5)
                 _right = _left + l
                 _sl, _pad = utils.make_slice_and_pad(_left, _right, size)

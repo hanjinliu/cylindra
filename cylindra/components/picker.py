@@ -60,7 +60,7 @@ class Picker(ABC):
     ) -> Exception | None:
         imgshape_nm = np.array(img.shape) * img.scale.x
 
-        if not all(0 <= p < s for p, s in zip(point, imgshape_nm)):
+        if not all(0 <= p < s for p, s in zip(point, imgshape_nm, strict=True)):
             # outside image
             return StopIteration("Outside boundary.")
         return None

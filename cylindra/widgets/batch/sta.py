@@ -1,4 +1,4 @@
-from typing import Annotated, Union, Any
+from typing import Annotated, Any
 
 import re
 from acryo import BatchLoader, pipe
@@ -151,7 +151,7 @@ class StaParameters(MagicTemplate):
         self.params.visible = v == MASK_CHOICES[1]
         self.mask_path.visible = v == MASK_CHOICES[2]
 
-    def _get_template(self, path: Union[Path, None] = None, allow_none: bool = False):
+    def _get_template(self, path: Path | None = None, allow_none: bool = False):
         if path is None:
             path = self.template_path
 
@@ -173,7 +173,7 @@ class StaParameters(MagicTemplate):
             provider = pipe.from_file(path)
         return provider
 
-    def _get_mask_params(self, params=None) -> Union[str, tuple[nm, nm], None]:
+    def _get_mask_params(self, params=None) -> str | tuple[nm, nm] | None:
         v = self.mask_choice
         if v == MASK_CHOICES[0]:
             params = None
@@ -437,7 +437,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
     def align_all(
         self,
         loader_name: Annotated[str, {"bind": _get_current_loader_name}],
-        template_path: Annotated[Union[str, Path], {"bind": params.template_path}],
+        template_path: Annotated[str | Path, {"bind": params.template_path}],
         mask_params: Annotated[Any, {"bind": params._get_mask_params}],
         tilt_range: Annotated[Any, {"bind": params.tilt_range}] = None,
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),

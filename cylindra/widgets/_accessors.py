@@ -197,11 +197,11 @@ class MoleculesLayerAccessor(Accessor, MutableSequence[MoleculesLayer]):
         viewer = self.viewer()
 
         def undo():
-            for old, new in zip(old_names, new_names):
+            for old, new in zip(old_names, new_names, strict=True):
                 viewer.layers[new].name = old
 
         def redo():
-            for old, new in zip(old_names, new_names):
+            for old, new in zip(old_names, new_names, strict=True):
                 viewer.layers[old].name = new
 
         with ui.macro.blocked():

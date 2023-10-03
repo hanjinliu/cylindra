@@ -190,7 +190,7 @@ class Spline(BaseComponent):
     def translate(self, shift: tuple[nm, nm, nm]):
         """Translate the spline by given shift vectors."""
         new = self.copy()
-        c = [x + s for x, s in zip(self.coeff, shift)]
+        c = [x + s for x, s in zip(self.coeff, shift, strict=True)]
         new._tck = (self.knots, c, self.order)
         return new
 
@@ -306,7 +306,7 @@ class Spline(BaseComponent):
         t1, c1, k1 = other._tck
         return (
             np.allclose(t0, t1)
-            and all(np.allclose(x, y) for x, y in zip(c0, c1))
+            and all(np.allclose(x, y) for x, y in zip(c0, c1, strict=True))
             and k0 == k1
             and np.allclose(self._u, other._u)
             and np.allclose(self._lims, other._lims)
@@ -550,7 +550,7 @@ class Spline(BaseComponent):
                         der0 = splev([1], self._tck, der=0)
                         der1 = splev([1], self._tck, der=1)
                         dr = u_tr - 1
-                    coord = [a0 + a1 * dr for a0, a1 in zip(der0, der1)]
+                    coord = [a0 + a1 * dr for a0, a1 in zip(der0, der1, strict=True)]
                 elif der == 1:
                     if u_tr < 0:
                         coord = splev([0], self._tck, der=1)

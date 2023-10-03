@@ -3,7 +3,7 @@ from __future__ import annotations
 import glob
 from pathlib import Path
 from weakref import WeakSet
-from typing import TYPE_CHECKING, Iterable, Literal, Sequence, Union, overload
+from typing import TYPE_CHECKING, Iterable, Literal, Sequence, overload
 from contextlib import suppress
 
 if TYPE_CHECKING:
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from cylindra.components import CylSpline
     from cylindra.project import CylindraProject
 
-PathLike = Union[str, Path]
+PathLike = str | Path
 _CURRENT_INSTANCE: CylindraMainWidget | None = None
 _ACTIVE_WIDGETS: WeakSet[Widget] = WeakSet()
 

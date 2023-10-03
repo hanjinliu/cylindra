@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, NewType, Union
+from typing import TYPE_CHECKING, NewType
 import re
 import numpy as np
 import impy as ip
@@ -40,7 +40,7 @@ def get_colored_layers(
 
 
 if TYPE_CHECKING:
-    ColoredLayer = Union[MoleculesLayer, CylinderLabels]
+    ColoredLayer = MoleculesLayer | CylinderLabels
 else:
     ColoredLayer = NewType("ColoredLayer", Layer)
 

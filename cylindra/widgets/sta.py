@@ -4,7 +4,6 @@ from typing import (
     Iterable,
     Literal,
     Sequence,
-    Union,
     TYPE_CHECKING,
     Annotated,
 )
@@ -291,7 +290,7 @@ class StaParameters(MagicTemplate):
         except Exception:
             pass
 
-    def _get_template(self, path: Union[Path, None] = None, allow_none: bool = False):
+    def _get_template(self, path: Path | None = None, allow_none: bool = False):
         if path is None:
             path = self.template_path.value
         self._save_history()
@@ -314,7 +313,7 @@ class StaParameters(MagicTemplate):
             provider = pipe.from_file(path)
         return provider
 
-    def _get_mask_params(self, params=None) -> Union[str, tuple[nm, nm], None]:
+    def _get_mask_params(self, params=None) -> str | tuple[nm, nm] | None:
         v = self.mask_choice
         if v == MASK_CHOICES[0]:
             params = None
@@ -642,7 +641,7 @@ class SubtomogramAveraging(ChildWidget):
     def align_averaged(
         self,
         layers: MoleculesLayersType,
-        template_path: Annotated[Union[str, Path], {"bind": params.template_path}],
+        template_path: Annotated[str | Path, {"bind": params.template_path}],
         mask_params: Annotated[Any, {"bind": params._get_mask_params}],
         max_shifts: Optional[_MaxShifts] = None,
         rotations: _Rotations = ((0.0, 0.0), (15.0, 1.0), (3.0, 1.0)),
@@ -773,7 +772,7 @@ class SubtomogramAveraging(ChildWidget):
     def align_all(
         self,
         layers: MoleculesLayersType,
-        template_path: Annotated[Union[str, Path], {"bind": params.template_path}],
+        template_path: Annotated[str | Path, {"bind": params.template_path}],
         mask_params: Annotated[Any, {"bind": params._get_mask_params}],
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
@@ -916,7 +915,7 @@ class SubtomogramAveraging(ChildWidget):
     def align_all_viterbi(
         self,
         layer: MoleculesLayerType,
-        template_path: Annotated[Union[str, Path], {"bind": params.template_path}],
+        template_path: Annotated[str | Path, {"bind": params.template_path}],
         mask_params: Annotated[Any, {"bind": params._get_mask_params}] = None,
         max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
@@ -995,7 +994,7 @@ class SubtomogramAveraging(ChildWidget):
     def align_all_annealing(
         self,
         layer: MoleculesLayerType,
-        template_path: Annotated[Union[str, Path], {"bind": params.template_path}],
+        template_path: Annotated[str | Path, {"bind": params.template_path}],
         mask_params: Annotated[Any, {"bind": params._get_mask_params}] = None,
         max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
@@ -1511,7 +1510,7 @@ class SubtomogramAveraging(ChildWidget):
     def seam_search(
         self,
         layer: MoleculesLayerType,
-        template_path: Annotated[Union[str, Path], {"bind": params.template_path}],
+        template_path: Annotated[str | Path, {"bind": params.template_path}],
         mask_params: Annotated[Any, {"bind": params._get_mask_params}],
         anti_template_path: Annotated[Optional[Path.Read[FileFilter.IMAGE]], {"text": "Do not use anti-template"}] = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
@@ -1690,7 +1689,7 @@ class SubtomogramAveraging(ChildWidget):
         """The return callback function for alignment methods."""
         parent = self._get_main()
         new_layers = []
-        for mole, layer in zip(molecules, old_layers):
+        for mole, layer in zip(molecules, old_layers, strict=True):
             points = parent.add_molecules(
                 mole,
                 name=_coerce_aligned_name(layer.name, self.parent_viewer),
@@ -1753,19 +1752,20 @@ def _avg_name(layers: MoleculesLayersType) -> str:
 def _get_slice_for_average_subset(method: str, nmole: int, number: int):
     if nmole < number:
         raise ValueError(f"There are only {nmole} subtomograms.")
-    if method == "steps":
-        step = nmole // number
-        sl = slice(0, step * number, step)
-    elif method == "first":
-        sl = slice(0, number)
-    elif method == "last":
-        sl = slice(-number, -1)
-    elif method == "random":
-        sl_all = np.arange(nmole, dtype=np.uint32)
-        np.random.shuffle(sl_all)
-        sl = sl_all[:number]
-    else:
-        raise ValueError(f"method {method!r} not supported.")
+    match method:
+        case "steps":
+            step = nmole // number
+            sl = slice(0, step * number, step)
+        case "first":
+            sl = slice(0, number)
+        case "last":
+            sl = slice(-number, -1)
+        case "random":
+            sl_all = np.arange(nmole, dtype=np.uint32)
+            np.random.shuffle(sl_all)
+            sl = sl_all[:number]
+        case _:  # pragma: no cover
+            raise ValueError(f"method {method!r} not supported.")
     return sl
 
 

@@ -180,16 +180,17 @@ def run_filter(
     nrise: int,
     method: str,
 ) -> pl.Series:
-    if method == "mean":
-        _filter_func = mean_filter
-    elif method == "max":
-        _filter_func = max_filter
-    elif method == "min":
-        _filter_func = min_filter
-    elif method == "median":
-        _filter_func = median_filter
-    else:
-        raise ValueError(f"Unknown method: {method!r}")
+    match method:
+        case "mean":
+            _filter_func = mean_filter
+        case "max":
+            _filter_func = max_filter
+        case "min":
+            _filter_func = min_filter
+        case "median":
+            _filter_func = median_filter
+        case _:  # pragma: no cover
+            raise ValueError(f"Unknown method: {method!r}")
     return _filter_func(df, kernel, target, nrise)
 
 

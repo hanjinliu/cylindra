@@ -1,5 +1,5 @@
 import json
-from typing import Any, Union
+from typing import Any
 from typing_extensions import Self
 import io
 from enum import Enum
@@ -34,7 +34,7 @@ def json_encoder(obj):
         raise TypeError(f"{obj!r} is not JSON serializable")
 
 
-PathLike = Union[Path, str, bytes]
+PathLike = Path | str | bytes
 
 
 class BaseProject(BaseModel):
@@ -43,7 +43,7 @@ class BaseProject(BaseModel):
     datetime: str
     version: str
     dependency_versions: dict[str, str]
-    project_path: Union[Path, None] = None
+    project_path: Path | None = None
 
     def _post_init(self):
         pass
@@ -130,7 +130,7 @@ _void = object()
 
 
 def resolve_path(
-    path: Union[str, Path, None],
+    path: str | Path | None,
     root: Path,
     *,
     default: "Path | None" = _void,
