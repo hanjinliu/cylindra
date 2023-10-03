@@ -4,6 +4,7 @@ from pathlib import Path
 import json
 from typing import Callable
 from dataclasses import dataclass, asdict
+from functools import wraps
 from contextlib import contextmanager
 
 from appdirs import user_config_dir
@@ -17,6 +18,17 @@ TEMPLATE_PATH_HIST = "template_path_hist.txt"
 DEFAULT_SPLINE_CONFIG = "default_spline_config"
 
 USER_SETTINGS = SETTINGS_DIR / "user-settings.json"
+
+WORKFLOW_TEMPLATE = """import numpy as np
+import impy as ip
+import polars as pl
+from pathlib import Path
+from cylindra.widgets import CylindraMainWidget
+
+def main(ui: 'CylindraMainWidget'):
+    {}
+
+"""
 
 
 @dataclass
@@ -114,6 +126,7 @@ def patch_stash_dir(dir: str | Path):
 def get_main_function(filename: str | Path) -> Callable:
     """Get the main function object from the file."""
     from runpy import run_path
+    from magicclass import logging
 
     path = Path(filename)
     if not path.exists():
@@ -125,7 +138,15 @@ def get_main_function(filename: str | Path) -> Callable:
 
     ns = run_path(str(path))
     if callable(main := ns.get("main")):
-        return main
+
+        @wraps(main)
+        def _main(*args, **kwargs):
+            _logger = logging.getLogger("cylindra")
+            with _logger.set_stdout():
+                out = main(*args, **kwargs)
+            return out
+
+        return _main
     raise ValueError(f"No main function found in file {path.as_posix()}.")
 
 
@@ -178,6 +199,18 @@ def init_config(force: bool = False):  # pragma: no cover
             print(e)
         else:
             print(f"Workflows directory initialized at {WORKFLOWS_DIR}.")
+        Path(WORKFLOWS_DIR).joinpath("example_workflow.py").write_text(
+            WORKFLOW_TEMPLATE.format(
+                "\n    ".join(
+                    [
+                        "nsplines = len(ui.splines)",
+                        "for i in range(nsplines):",
+                        "    spl = ui.splines[i]",
+                        "    print(f'{i}: {spl.length():.2f} nm')",
+                    ]
+                )
+            )
+        )
 
 
 def _is_empty(path: Path) -> bool:

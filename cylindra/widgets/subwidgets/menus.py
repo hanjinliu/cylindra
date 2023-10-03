@@ -859,7 +859,7 @@ class Others(ChildWidget):
             return qn
 
         def _filter(parent, widget):
-            qn = type(parent).__qualname__
+            qn = str(type(parent).__qualname__)
             if qn.startswith("_") or "._" in qn:
                 return False
             return True
@@ -993,19 +993,7 @@ def _(self: Others.Workflows, gui: "FunctionGui"):
 @setup_function_gui(Others.Workflows.define_workflow)
 def _(self: Others.Workflows, gui: "FunctionGui"):
     gui.workflow.syntax_highlight("python", theme=get_code_theme(self))
-    gui.workflow.value = "\n".join(
-        [
-            "import numpy as np",
-            "import impy as ip",
-            "import polars as pl",
-            "from pathlib import Path",
-            "from cylindra.widgets import CylindraMainWidget",
-            "",
-            "def main(ui: 'CylindraMainWidget'):",
-            "    # Write your workflow here",
-            "",
-        ]
-    )
+    gui.workflow.value = _config.WORKFLOW_TEMPLATE.format("# Write your workflow here")
     gui.called.connect(self.reset_choices)
 
 
