@@ -39,10 +39,6 @@ class AccessorField(Generic[_T]):
             self._instances[_id] = self._constructor(instance)
         return self._instances[_id]
 
-    def _ipython_key_completions_(self) -> list[str]:
-        """Just for autocompletion."""
-        return list(self.viewer().layers)
-
 
 class Accessor:
     def __init__(self, widget: CylindraMainWidget):
