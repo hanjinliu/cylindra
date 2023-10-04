@@ -19,6 +19,7 @@ impl Region {
         self.indices.len()
     }
 
+    /// Longitudinal length of the region.
     fn length(&self, _: &Array2<f32>) -> usize {
         let mut xs: HashMap<usize, HashSet<usize>> = HashMap::new();
         for &(y, x) in self.indices.iter() {
@@ -91,6 +92,7 @@ impl Region {
 
     }
 
+    /// Lateral width of the region.
     fn width(&self, _: &Array2<f32>) -> usize {
         let mut appeared = HashSet::new();
         for &(_, x) in self.indices.iter() {
@@ -99,6 +101,7 @@ impl Region {
         appeared.len()
     }
 
+    /// Sum of the intensity of the region.
     fn intensity_sum(&self, image: &Array2<f32>) -> f32 {
         let mut sum = 0.0;
         for &(y, x) in self.indices.iter() {
@@ -107,10 +110,12 @@ impl Region {
         sum
     }
 
+    /// Average intensity of the region.
     fn intensity_mean(&self, image: &Array2<f32>) -> f32 {
         self.intensity_sum(image) / self.area(image) as f32
     }
 
+    /// Median intensity of the region.
     fn intensity_median(&self, image: &Array2<f32>) -> f32 {
         let mut values = Vec::new();
         for &(y, x) in self.indices.iter() {
@@ -125,6 +130,7 @@ impl Region {
         }
     }
 
+    /// Maximum intensity of the region.
     fn intensity_max(&self, image: &Array2<f32>) -> f32 {
         let mut max = f32::MIN;
         for &(y, x) in self.indices.iter() {
@@ -136,6 +142,7 @@ impl Region {
         max
     }
 
+    /// Minimum intensity of the region.
     fn intensity_min(&self, image: &Array2<f32>) -> f32 {
         let mut min = f32::MAX;
         for &(y, x) in self.indices.iter() {
@@ -147,6 +154,7 @@ impl Region {
         min
     }
 
+    /// Standard deviation of the intensity of the region.
     fn intensity_std(&self, image: &Array2<f32>) -> f32 {
         let mean = self.intensity_mean(image);
         let mut sum = 0.0;
@@ -202,6 +210,7 @@ impl RegionProfiler {
         Ok(Self { image, labels })
     }
 
+    /// Area of each region.
     fn area(&self) -> Vec<usize> {
         let mut out = Vec::new();
         for region in self.labels.iter() {
@@ -210,6 +219,7 @@ impl RegionProfiler {
         out
     }
 
+    /// Sum of the intensity of each region.
     fn intensity_sum(&self) -> Vec<f32> {
         let mut out = Vec::new();
         for region in self.labels.iter() {
@@ -218,6 +228,7 @@ impl RegionProfiler {
         out
     }
 
+    /// Average intensity of each region.
     fn intensity_mean(&self) -> Vec<f32> {
         let mut out = Vec::new();
         for region in self.labels.iter() {
@@ -226,6 +237,7 @@ impl RegionProfiler {
         out
     }
 
+    /// Median intensity of each region.
     fn intensity_median(&self) -> Vec<f32> {
         let mut out = Vec::new();
         for region in self.labels.iter() {
@@ -234,6 +246,7 @@ impl RegionProfiler {
         out
     }
 
+    /// Maximum intensity of each region.
     fn intensity_max(&self) -> Vec<f32> {
         let mut out = Vec::new();
         for region in self.labels.iter() {
@@ -242,6 +255,7 @@ impl RegionProfiler {
         out
     }
 
+    /// Minimum intensity of each region.
     fn intensity_min(&self) -> Vec<f32> {
         let mut out = Vec::new();
         for region in self.labels.iter() {
@@ -250,6 +264,7 @@ impl RegionProfiler {
         out
     }
 
+    /// Standard deviation of the intensity of each region.
     fn intensity_std(&self) -> Vec<f32> {
         let mut out = Vec::new();
         for region in self.labels.iter() {
@@ -310,6 +325,7 @@ impl RegionProfiler {
         Self::new(image, &label_image, nrise)
     }
 
+    /// Calculate properties of each region.
     fn calculate<'py>(&self, py: Python<'py>, props: Vec<String>) -> PyResult<HashMap<String, Py<PyArray1<f32>>>> {
         let mut out = HashMap::new();
         for prop in props {

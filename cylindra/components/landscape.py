@@ -30,7 +30,7 @@ class Landscape:
         4D array of energy values.
     molecules : Molecules
         Molecules object.
-    argmax : NDArray[np.int32] | None
+    argmax : NDArray[np.int32], optional
         Argmax indices to track which template resulted in the best alignment.
     alignment_model : ParametrizedModel | TomographyInput
         Alignment model used.
@@ -338,7 +338,7 @@ class Landscape:
 @dataclass
 class AnnealingResult:
     """
-    Dataclass for annealing results.
+    Dataclass for storing the annealing results.
 
     Parameters
     ----------
@@ -389,6 +389,17 @@ def _normalize_random_seeds(seeds) -> list[int]:
 
 @dataclass
 class ViterbiResult:
+    """
+    Dataclass for storing the Viterbi alignment results.
+
+    Parameters
+    ----------
+    indices : np.ndarray
+        The optimized indices of the molecules.
+    score : float
+        The score of the optimal alignment.
+    """
+
     indices: NDArray[np.int32]
     score: float
 

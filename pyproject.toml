@@ -88,6 +88,7 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     'if __name__ == "__main__":',
     'if sys.platform == "darwin":',
+    'def __repr__(self)',
     "@overload",
     "except ImportError",
     "except ImportError*",

@@ -108,7 +108,14 @@ impl<T: Real> Vector3D<T> {
         let dot_prd = self.dot(other);
         let a = self.length();
         let b = other.length();
-        return dot_prd / (a * b);
+        let cos = dot_prd / (a * b);
+        if cos > T::one() {
+            T::one()
+        } else if cos < -T::one() {
+            -T::one()
+        } else {
+            cos
+        }
     }
 
     /// Radian between two vectors.

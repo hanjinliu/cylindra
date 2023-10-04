@@ -10,6 +10,7 @@ pub trait BindingPotential2D {
     /// * `dr` - The vector in the world coordinate between the two molecule centers.
     /// * `vec` - The vector in the world coordinate between the origin of the local coordinate
     ///   systems.
+    /// * `typ` - The type of the edge.
     fn calculate(&self, dr: &Vector3D<f32>, vec: &Vector3D<f32>, typ: &EdgeType) -> f32 {
         match typ {
             EdgeType::Longitudinal => self.longitudinal(dr, vec),
@@ -47,9 +48,7 @@ impl TrapezoidalBoundary {
         } else if dist_min >= dist_max {
             return value_error!("Minimum distance must be smaller than maximum distance");
         }
-        Ok(
-            Self { dist_min, dist_max, slope }
-        )
+        Ok(Self { dist_min, dist_max, slope })
     }
 
     /// An unbounded version of the model.
