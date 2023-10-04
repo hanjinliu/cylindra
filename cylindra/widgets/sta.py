@@ -703,13 +703,12 @@ class SubtomogramAveraging(ChildWidget):
 
             rotator = Rotation.from_quat(result.quat)
             svec = result.shift * _scale
-            _mole_trans = mole.linear_transform(
-                result.shift * _scale, rotator
-            ).with_features(pl.col(Mole.position) + svec[1])
+            _mole_trans = mole.linear_transform(result.shift * _scale, rotator)
 
             # write offsets to spline globalprops if available
             # TODO: Undo cannot catch this change. Need to fix.
             if spl := layer.source_spline:
+                _mole_trans = _update_mole_pos(_mole_trans, mole, spl)
                 if spl.radius is None:
                     _radius: nm = cylstructure.calc_radius(mole, spl).mean()
                 else:

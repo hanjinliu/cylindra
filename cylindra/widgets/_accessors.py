@@ -39,6 +39,10 @@ class AccessorField(Generic[_T]):
             self._instances[_id] = self._constructor(instance)
         return self._instances[_id]
 
+    def _ipython_key_completions_(self) -> list[str]:
+        """Just for autocompletion."""
+        return list(self.viewer().layers)
+
 
 class Accessor:
     def __init__(self, widget: CylindraMainWidget):
@@ -107,7 +111,7 @@ class MoleculesLayerAccessor(Accessor, MutableSequence[MoleculesLayer]):
 
     def _ipython_key_completions_(self) -> list[str]:
         """Just for autocompletion."""
-        return list(self.viewer().layers)
+        return self.names()
 
     def __iter__(self) -> Iterator[MoleculesLayer]:
         for layer in self.viewer().layers:

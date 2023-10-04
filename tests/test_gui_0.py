@@ -858,8 +858,7 @@ def test_molecules_to_spline(ui: CylindraMainWidget):
 
 
 def test_calc_lattice_structures(ui: CylindraMainWidget):
-    exc_group = ExceptionGroup(max_fail=4)
-
+    exc_group = ExceptionGroup()
     for orientation, path, invert in product(
         ["PlusToMinus", "MinusToPlus"],
         [PROJECT_DIR_13PF, PROJECT_DIR_14PF],
@@ -873,24 +872,26 @@ def test_calc_lattice_structures(ui: CylindraMainWidget):
         npf = ui.tomogram.splines[0].props.get_glob(H.npf)
         if invert:
             ui.invert_spline(spline=0)
-        del ui.parent_viewer.layers[-2:]
+        ui.mole_layers.clear()
         ui.map_monomers(splines=[0], orientation=orientation)
         layer = ui.mole_layers.last()
         ui.calculate_lattice_structure(layer, ["interv", "skew", "dimer_twist", "rise"])
-        ay_ratio = np.sin(np.pi / npf) * npf / np.pi
-        with exc_group.merging(f"{orientation=}, {path=}, {invert=}"):
+        ay_ratio: float = np.sin(np.pi / npf) * npf / np.pi
+        with exc_group.merging(f"ori={orientation}, path={path.name}, inv={invert}"):
             # individial parameters must be almost equal to the global ones
             feat = layer.molecules.features
-            assert feat["interval-nm"][:-npf].mean() == pytest.approx(spacing, abs=1e-3)
-            assert feat["skew-deg"][:-npf].mean() / ay_ratio == pytest.approx(
-                skew, abs=1e-2
-            )
-            assert feat["dimer-twist-deg"][:-npf].mean() == pytest.approx(
-                dimer_twist, abs=1.5e-3
-            )
+            spacing_sm = feat["interval-nm"][npf:-npf]
+            skew_sm = feat["skew-deg"][npf:-npf] / ay_ratio
+            twist_sm = feat["dimer-twist-deg"][npf:-npf]
             r = "rise-angle-deg"
             feat_rise = feat.filter(pl.col(r).is_finite() & pl.col(r).is_not_nan())[r]
-            assert feat_rise.mean() * ay_ratio == pytest.approx(rise_angle, abs=2e-2)
+            rise_sm = feat_rise * ay_ratio
+
+            assert spacing_sm.median() == pytest.approx(spacing, abs=1e-3)
+            assert skew_sm.median() == pytest.approx(skew, abs=1e-2)
+            assert twist_sm.median() == pytest.approx(dimer_twist, abs=1e-2)
+            assert rise_sm.median() == pytest.approx(rise_angle, abs=1e-2)
+
     exc_group.raise_exceptions()
 
 

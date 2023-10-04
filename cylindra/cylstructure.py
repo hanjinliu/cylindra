@@ -202,8 +202,9 @@ class CylinderSurface:
         zyx = coords[:, :3]
         u = self._spl.y_to_position(coords[:, 3])
         _spl_coords = self._spl.map(u, der=0)
+        _spl_vec_norm = _norm(self._spl.map(u, der=1))
         _mole_to_spl_vec = _spl_coords - zyx
-        return _norm(_mole_to_spl_vec)
+        return _norm(_cancel_component(_mole_to_spl_vec, _spl_vec_norm))
 
     def spline_vec_norm(self, pos: NDArray[np.float32]) -> NDArray[np.float32]:
         """Normalized spline tangent vector for given positions (nm)."""
@@ -228,12 +229,8 @@ class CylinderSurface:
         start = np.atleast_2d(start)
         start_zyx = start[:, :3]
         start_pos = start[:, 3]
-        end_zyx = start_zyx + vec
         dpos = _dot(self.spline_vec_norm(start_pos), vec)
-        end_pos = start_pos + dpos
-        surf_norm_start = self.surface_norm(_concat(start_zyx, start_pos))
-        surf_norm_end = self.surface_norm(_concat(end_zyx, end_pos))
-        return _norm(surf_norm_start + surf_norm_end)
+        return self.surface_norm(_concat(start_zyx + vec / 2, start_pos + dpos / 2))
 
     def _parallel_to_norm_sign(
         self,
@@ -250,11 +247,13 @@ class CylinderSurface:
         """Sine of the longitudinal angle between the vector and the spline."""
         start = np.atleast_2d(start)
         vec_norm = _norm(vec)
-        spl_vec_norm = self.spline_vec_norm(start[:, 3])
+
+        start_pos = start[:, 3]
+        dpos = _dot(self.spline_vec_norm(start_pos), vec)
+        spl_vec_norm = self.spline_vec_norm(start_pos + dpos / 2)
         _cross = np.cross(vec_norm, spl_vec_norm, axis=1)
-        return np.linalg.norm(_cross, axis=1) * self._parallel_to_norm_sign(
-            _cross, start
-        )
+        _cross_len = np.linalg.norm(_cross, axis=1)
+        return _cross_len * self._parallel_to_norm_sign(_cross, start)
 
     def long_angle(
         self,
@@ -275,7 +274,7 @@ def _arcsin(x: NDArray[np.float32]) -> NDArray[np.float32]:
 
 
 class LatticeParameters(Enum):
-    interv: LatticeParameters = "interv"
+    interv = "interv"
     elev_angle = "elev_angle"
     dimer_twist = "dimer_twist"
     skew = "skew"
@@ -309,6 +308,7 @@ class LatticeParameters(Enum):
 
 
 def _norm(vec: NDArray[np.float32], fill=np.nan) -> NDArray[np.float32]:
+    """Normalize vectors."""
     vec_len = np.linalg.norm(vec, axis=1)
     vec_len[vec_len == 0] = np.nan
     out = vec / vec_len[:, np.newaxis]
@@ -335,6 +335,7 @@ def _mole_to_coords(mole: Molecules) -> NDArray[np.float32]:
 def _cancel_component(
     vec: NDArray[np.float32], other: NDArray[np.float32]
 ) -> NDArray[np.float32]:
+    """Cancel the `other` component from `vec`."""
     to_cancel = _dot(vec, other)[:, np.newaxis] * other
     out = vec - to_cancel
     return out

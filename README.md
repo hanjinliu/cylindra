@@ -41,13 +41,11 @@ pip install -e .
 ## Implemented Functions
 
 - Automatic/manual fitting of splines to cylindrical structures in 3D.
-- Calculating structural parameters (such as radius, lattice spacing and skew angle) using Cylindric Fourier transformation.
-- Automatic/manual determination of polarity, protofilament number etc.
-- Monomer mapping along splines.
-- Classical subtomogram averaging and alignment.
+- Analyze lattice structures (such as lattice spacing and skew angle) using Cylindric Fourier transformation.
+- Automatic determination of polarity, protofilament number etc.
+- Monomer mapping along splines for subtomogram averaging and alignment.
 - Microtubule seam search with or without binding proteins.
-- Subtomogram alignment with 1D constraint using Viterbi algorithm.
-- Subtomogram alignment with 2D constraint using simulated annealing optimization.
+- Subtomogram alignment with 2D constraint.
 - Tomogram simulation of cylindric structure.
 
 ## Prerequisite and Recommendations
