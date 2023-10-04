@@ -211,7 +211,7 @@ class CylindraMainWidget(MagicTemplate):
     # Widget for summary of glocal properties
     GlobalProperties = field(subwidgets.GlobalPropertiesWidget, name="Global Properties")  # fmt: skip
     # Widget for 2D overview of splines
-    overview = field(QtImageCanvas, name="Overview").with_options(tooltip="Overview of splines")  # fmt: skip
+    Overview = field(QtImageCanvas, name="Overview").with_options(tooltip="Overview of splines")  # fmt: skip
 
     ### methods ###
 
@@ -230,7 +230,7 @@ class CylindraMainWidget(MagicTemplate):
         self.min_width = 400
         self.LocalProperties.collapsed = False
         self.GlobalProperties.collapsed = False
-        self.overview.min_height = 300
+        self.Overview.min_height = 300
 
         # load all the workflows
         for file in _config.WORKFLOWS_DIR.glob("*.py"):
@@ -394,7 +394,7 @@ class CylindraMainWidget(MagicTemplate):
     def clear_all(self):
         """Clear all the splines and results."""
         self.macro.clear_undo_stack()
-        self.overview.layers.clear()
+        self.Overview.layers.clear()
         self.tomogram.splines.clear()
         self._init_widget_state()
         self._init_layers()
@@ -672,8 +672,8 @@ class CylindraMainWidget(MagicTemplate):
             self._reserved_layers.image.data = img_filt
             self._reserved_layers.image.contrast_limits = contrast_limits
             proj = self._reserved_layers.image.data.proj("z")
-            self.overview.image = proj
-            self.overview.contrast_limits = contrast_limits
+            self.Overview.image = proj
+            self.Overview.contrast_limits = contrast_limits
 
         return _filter_reference_image_on_return
 
@@ -718,9 +718,9 @@ class CylindraMainWidget(MagicTemplate):
         self.parent_viewer.dims.set_current_step(axis=0, value=current_z * factor)
 
         # update overview
-        self.overview.image = imgb.proj("z")
-        self.overview.xlim = [x * factor for x in self.overview.xlim]
-        self.overview.ylim = [y * factor for y in self.overview.ylim]
+        self.Overview.image = imgb.proj("z")
+        self.Overview.xlim = [x * factor for x in self.Overview.xlim]
+        self.Overview.ylim = [y * factor for y in self.Overview.ylim]
         self._current_binsize = bin_size
         self.reset_choices()
         return undo_callback(self.set_multiscale).with_args(_old_bin_size)
@@ -2600,8 +2600,8 @@ class CylindraMainWidget(MagicTemplate):
 
         # update overview
         proj = imgb.proj("z")
-        self.overview.image = proj
-        self.overview.ylim = (0, proj.shape[0])
+        self.Overview.image = proj
+        self.Overview.ylim = (0, proj.shape[0])
 
         try:
             parts = tomo.source.parts
@@ -2614,7 +2614,7 @@ class CylindraMainWidget(MagicTemplate):
         _Logger.print_html(f"<h2>{_name}</h2>")
 
         self.macro.clear_undo_stack()
-        self.overview.layers.clear()
+        self.Overview.layers.clear()
         self._init_widget_state()
         self._init_layers()
         self.reset_choices()
@@ -2705,7 +2705,7 @@ class CylindraMainWidget(MagicTemplate):
         if i is None or self._reserved_layers.prof is None:
             return
 
-        for layer in self.overview.layers:
+        for layer in self.Overview.layers:
             if f"spline-{i}" in layer.name:
                 layer.color = SplineColor.SELECTED
             else:
@@ -2743,7 +2743,7 @@ class CylindraMainWidget(MagicTemplate):
     def _add_spline_to_images(self, spl: CylSpline, i: int):
         scale = self._reserved_layers.scale
         fit = self._reserved_layers.add_spline(i, spl)
-        self.overview.add_curve(
+        self.Overview.add_curve(
             fit[:, 2] / scale,
             fit[:, 1] / scale,
             color=SplineColor.DEFAULT,
@@ -2760,7 +2760,7 @@ class CylindraMainWidget(MagicTemplate):
 
     def _update_splines_in_images(self, _=None):
         """Refresh splines in overview canvas and napari canvas."""
-        self.overview.layers.clear()
+        self.Overview.layers.clear()
         self._reserved_layers.prof.data = []
         scale = self._reserved_layers.scale
         for i, spl in enumerate(self.tomogram.splines):
@@ -2768,7 +2768,7 @@ class CylindraMainWidget(MagicTemplate):
             if spl._anchors is None:
                 continue
             coords = spl.map()
-            self.overview.add_scatter(
+            self.Overview.add_scatter(
                 coords[:, 2] / scale,
                 coords[:, 1] / scale,
                 color=SplineColor.DEFAULT,
