@@ -27,7 +27,6 @@ from cylindra.project import CylindraProject, get_project_file
 from cylindra.const import MoleculesHeader as Mole, FileFilter
 from cylindra.widgets import CylindraMainWidget
 from cylindra._config import get_config
-from ._localprops import LocalPropsViewer
 
 
 @magicclass(
@@ -274,7 +273,6 @@ class ProjectSequenceEdit(MagicTemplate):
         view_selected_components = abstractapi()
         view_molecules = abstractapi()
         view_filtered_molecules = abstractapi()
-        view_localprops = abstractapi()
 
     @magicmenu(name="Macro")
     class MacroMenu(MagicTemplate):
@@ -427,32 +425,6 @@ class ProjectSequenceEdit(MagicTemplate):
         CylindraMainWidget._active_widgets.add(table)
         _set_parent(table, self)
         table.show()
-        return None
-
-    @View.wraps
-    @do_not_record
-    @set_design(text="View local properties")
-    def view_localprops(self):
-        """View local properties of splines."""
-        wdt = LocalPropsViewer()
-        _set_parent(wdt, self)
-        CylindraMainWidget._active_widgets.add(wdt)
-        wdt.show()
-
-        dataframes = list[pl.DataFrame]()
-        path_map = dict[int, str]()
-        for idx, prj in enumerate(iter(self.projects)):
-            df = prj._get_localprops()
-
-            dataframes.append(
-                df.with_columns(
-                    pl.repeat(idx, pl.count()).cast(pl.UInt16).alias(Mole.image)
-                )
-            )
-            path_map[idx] = prj.path
-
-        df_all = pl.concat(dataframes, how="diagonal")
-        wdt._set_localprops(df_all, path_map)
         return None
 
     def _get_expression(self, _=None) -> pl.Expr:

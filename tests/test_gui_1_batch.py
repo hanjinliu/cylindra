@@ -58,7 +58,6 @@ def test_view(ui: CylindraMainWidget):
     ui.batch.constructor.view_components()
     ui.batch.constructor.view_molecules()
     ui.batch.constructor.view_filtered_molecules()
-    ui.batch.constructor.view_localprops()
 
 
 @pytest_group("batch.average")
