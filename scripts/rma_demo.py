@@ -28,10 +28,10 @@ def main(ui: CylindraMainWidget):
     ui.sta.align_all_multi_template(
         layers=["molecules"],
         template_paths=[
-            r"E:\EMDB\bbb_spaced\b-tublin-comp-4_05.mrc",
-            r"E:\EMDB\bbb_spaced\b-tublin-comp-4_10.mrc",
-            r"E:\EMDB\bbb_spaced\b-tublin-comp-4_15.mrc",
-            r"E:\EMDB\bbb_spaced\b-tublin-comp-4_20.mrc",
+            r"E:\EMDB\tubulin_spaced\x-tubulin-comp-4_05.mrc",
+            r"E:\EMDB\tubulin_spaced\x-tubulin-comp-4_10.mrc",
+            r"E:\EMDB\tubulin_spaced\x-tubulin-comp-4_15.mrc",
+            r"E:\EMDB\tubulin_spaced\x-tubulin-comp-4_20.mrc",
         ],
         mask_params=(0.3, 0.8),
         max_shifts=(0.8, 0.8, 0.8),
@@ -47,10 +47,10 @@ def main(ui: CylindraMainWidget):
     ui.sta.align_all_annealing_multi_template(
         layer="molecules",
         template_paths=[
-            r"E:\EMDB\bbb_spaced\b-tublin-comp-4_05.mrc",
-            r"E:\EMDB\bbb_spaced\b-tublin-comp-4_10.mrc",
-            r"E:\EMDB\bbb_spaced\b-tublin-comp-4_15.mrc",
-            r"E:\EMDB\bbb_spaced\b-tublin-comp-4_20.mrc",
+            r"E:\EMDB\tubulin_spaced\x-tubulin-comp-4_05.mrc",
+            r"E:\EMDB\tubulin_spaced\x-tubulin-comp-4_10.mrc",
+            r"E:\EMDB\tubulin_spaced\x-tubulin-comp-4_15.mrc",
+            r"E:\EMDB\tubulin_spaced\x-tubulin-comp-4_20.mrc",
         ],
         mask_params=(0.3, 0.8),
         max_shifts=(0.8, 0.8, 0.8),
@@ -71,8 +71,8 @@ def main(ui: CylindraMainWidget):
         layer="molecules",
         color_by="interval-nm",
         cmap={
-            0.0: (0.04313725, 0.0, 0.0, 1.0),
-            0.3: (0.52941176, 0.17647059, 0.61568627, 1.0),
+            0.0: (0.043, 0.0, 0.0, 1.0),
+            0.3: (0.529, 0.176, 0.616, 1.0),
             0.68: (1.0, 0.0, 0.0, 1.0),
             1.0: (1.0, 1.0, 0.0, 1.0),
         },
@@ -82,8 +82,8 @@ def main(ui: CylindraMainWidget):
         layer="Conventional",
         color_by="interval-nm",
         cmap={
-            0.0: (0.04313725, 0.0, 0.0, 1.0),
-            0.3: (0.52941176, 0.17647059, 0.61568627, 1.0),
+            0.0: (0.043, 0.0, 0.0, 1.0),
+            0.3: (0.529, 0.176, 0.616, 1.0),
             0.68: (1.0, 0.0, 0.0, 1.0),
             1.0: (1.0, 1.0, 0.0, 1.0),
         },
@@ -93,8 +93,8 @@ def main(ui: CylindraMainWidget):
         layer="molecules-ALN1",
         color_by="interval-nm",
         cmap={
-            0.0: (0.04313725, 0.0, 0.0, 1.0),
-            0.3: (0.52941176, 0.17647059, 0.61568627, 1.0),
+            0.0: (0.043, 0.0, 0.0, 1.0),
+            0.3: (0.529, 0.176, 0.616, 1.0),
             0.68: (1.0, 0.0, 0.0, 1.0),
             1.0: (1.0, 1.0, 0.0, 1.0),
         },
@@ -114,12 +114,11 @@ def main(ui: CylindraMainWidget):
         footprint=[[1, 1, 1], [1, 1, 1]],
     )
 
-    viewer = ui.parent_viewer
-    ans = viewer.layers["molecules"].molecules.features["interval-nm"]
-    conv = viewer.layers["Conventional"].molecules.features["interval-nm"]
-    conv_filt = viewer.layers["Conventional"].molecules.features["interval-nm_mean"]
-    rma = viewer.layers["molecules-ALN1"].molecules.features["interval-nm"]
-    rma_filt = viewer.layers["molecules-ALN1"].molecules.features["interval-nm_mean"]
+    ans = ui.mole_layers["molecules"].molecules.features["interval-nm"]
+    conv = ui.mole_layers["Conventional"].molecules.features["interval-nm"]
+    conv_filt = ui.mole_layers["Conventional"].molecules.features["interval-nm_mean"]
+    rma = ui.mole_layers["molecules-ALN1"].molecules.features["interval-nm"]
+    rma_filt = ui.mole_layers["molecules-ALN1"].molecules.features["interval-nm_mean"]
 
     for data in [conv, conv_filt, rma, rma_filt]:
         print(rmsd(data, ans))

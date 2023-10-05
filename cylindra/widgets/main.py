@@ -132,8 +132,14 @@ _Interval = Annotated[
 
 def _validate_colormap(self, val):
     if isinstance(val, dict):
-        val = {round(k, 3): v for k, v in val.items()}
+        val = {round(k, 3): _validate_color(v) for k, v in val.items()}
     return val
+
+
+def _validate_color(col):
+    if isinstance(col, str):
+        return col
+    return tuple(round(v) for v in col)
 
 
 _CmapType = Annotated[ColormapType, {"validator": _validate_colormap}]
