@@ -436,7 +436,7 @@ class KernelEdit(Container[Container[CheckBox]]):
                             item.enabled = True
 
     @property
-    def value(self):
+    def value(self) -> list[list[int]]:
         arr = np.zeros((self._SizeLim, self._SizeLim), dtype=np.bool_)
         for i, row in enumerate(self._cboxes):
             for j, item in enumerate(row):

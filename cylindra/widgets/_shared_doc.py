@@ -54,6 +54,7 @@ _PARAMETERS = [
     Parameter(name="limits", type="(float, float)", desc="Lower and upper limits of the colormap."),
     Parameter(name="upsample_factor", type="int", desc="Upsampling factor of ZNCC landscape. Be careful not to set this parameter too large. \nCalculation will take much longer for larger ``upsample_factor``."),
     Parameter(name="angle_max", type="float", desc="Maximum allowed angle between longitudinally consecutive monomers and the Y axis."),
+    Parameter(name="temperature_time_const", type="float", desc="Time constant of the temperature decay during annealing. Larger value results in slower annealing. 1.0 is a moderate value."),
     Parameter(name="random_seeds", type="iterable of int", desc="Random seed integers. Number of integers will be the number of trials."),
     Parameter(name="target", type="str", desc="Target column name on which calculation will run."),
     Parameter(name="footprint", type="array-like", desc="2D binary array that define the convolution kernel structure."),

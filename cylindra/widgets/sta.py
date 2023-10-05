@@ -1001,7 +1001,7 @@ class SubtomogramAveraging(ChildWidget):
         distance_range_long: _DistRangeLon = (4.0, 4.28),
         distance_range_lat: _DistRangeLat = (5.1, 5.3),
         angle_max: _AngleMaxLon = 5.0,
-        temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.4,
+        temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
         return_all: Annotated[bool, {"label": "Return all the annealing results"}] = False,
@@ -1020,7 +1020,7 @@ class SubtomogramAveraging(ChildWidget):
             Range of allowed distance between longitudianlly consecutive monomers.
         distance_range_lat : tuple of float
             Range of allowed distance between laterally consecutive monomers.
-        {angle_max}{upsample_factor}{random_seeds}
+        {angle_max}{temperature_time_const}{upsample_factor}{random_seeds}
         return_all : bool, default is False
             If True, return all the annealing results for each random seed.
         """
@@ -1046,7 +1046,7 @@ class SubtomogramAveraging(ChildWidget):
         distance_range_long: _DistRangeLon = (4.0, 4.28),
         distance_range_lat: _DistRangeLat = (5.1, 5.3),
         angle_max: _AngleMaxLon = 5.0,
-        temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.4,
+        temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
         return_all: Annotated[bool, {"label": "Return all the annealing results"}] = False,
@@ -1065,7 +1065,7 @@ class SubtomogramAveraging(ChildWidget):
             Range of allowed distance between longitudianlly consecutive monomers.
         distance_range_lat : tuple of float
             Range of allowed distance between laterally consecutive monomers.
-        {angle_max}{upsample_factor}{random_seeds}
+        {angle_max}{temperature_time_const}{upsample_factor}{random_seeds}
         """
         kwargs = locals()
         kwargs.setdefault("template_path", kwargs.pop("template_paths"))
@@ -1192,7 +1192,7 @@ class SubtomogramAveraging(ChildWidget):
         distance_range_long: tuple[nm, nm] = (4.0, 4.28),
         distance_range_lat: tuple[nm, nm] = (5.1, 5.3),
         angle_max: float = 5.0,
-        temperature_time_const: float = 1.4,
+        temperature_time_const: float = 1.0,
         upsample_factor: int = 5,
         random_seeds: Iterable[int] = range(5),
         return_all: bool = False,
