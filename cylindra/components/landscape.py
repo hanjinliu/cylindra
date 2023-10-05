@@ -215,7 +215,7 @@ class Landscape:
         distance_range_long: tuple[nm, nm],
         distance_range_lat: tuple[nm, nm],
         angle_max: float | None = None,
-        time_const: float | None = None,
+        temperature_time_const: float = 1.4,
         temperature: float | None = None,
         cooling_rate: float | None = None,
         reject_limit: int | None = None,
@@ -231,7 +231,7 @@ class Landscape:
             angle_max = 90.0
 
         time_const, temperature, cooling_rate, reject_limit = self._normalize_args(
-            time_const, temperature, cooling_rate, reject_limit
+            temperature_time_const, temperature, cooling_rate, reject_limit
         )
 
         return (
@@ -269,7 +269,7 @@ class Landscape:
         distance_range_long: tuple[nm, nm],
         distance_range_lat: tuple[nm, nm],
         angle_max: float | None = None,
-        time_const: float | None = None,
+        temperature_time_const: float = 1.4,
         temperature: float | None = None,
         cooling_rate: float | None = None,
         reject_limit: int | None = None,
@@ -281,21 +281,19 @@ class Landscape:
         if angle_max is None:
             angle_max = 90.0
         random_seeds = _normalize_random_seeds(random_seeds)
-        time_const, temperature, cooling_rate, reject_limit = self._normalize_args(
-            time_const, temperature, cooling_rate, reject_limit
-        )
         annealing = self.annealing_model(
             spl,
             distance_range_long=distance_range_long,
             distance_range_lat=distance_range_lat,
             angle_max=angle_max,
-            time_const=time_const,
+            temperature_time_const=temperature_time_const,
             temperature=temperature,
             cooling_rate=cooling_rate,
             reject_limit=reject_limit,
         )
 
-        batch_size = _to_batch_size(time_const)
+        batch_size = _to_batch_size(annealing.time_constant())
+        temp0 = annealing.temperature()
 
         @delayed
         def _run(seed: int) -> AnnealingResult:
@@ -303,16 +301,17 @@ class Landscape:
             _model.init_shift_random()
             energies = [_model.energy()]
             while (
-                _model.temperature() > temperature * 1e-6
+                _model.temperature() > temp0 * 1e-6
                 and _model.optimization_state() == "not_converged"
             ):
                 _model.simulate(batch_size)
                 energies.append(_model.energy())
-
+            _model.cool_completely()
+            energies.append(_model.energy())
             return AnnealingResult(
                 energies=np.array(energies),
                 batch_size=batch_size,
-                time_const=time_const,
+                time_const=_model.time_constant(),
                 indices=_model.shifts(),
                 niter=_model.iteration(),
                 state=_model.optimization_state(),
@@ -321,17 +320,20 @@ class Landscape:
         tasks = [_run(s) for s in random_seeds]
         return compute(*tasks)
 
-    def _normalize_args(self, time_const, temperature, cooling_rate, reject_limit):
+    def _normalize_args(
+        self, temperature_time_const, temperature, cooling_rate, reject_limit
+    ):
         nmole = self.molecules.count()
-        if time_const is None:
-            time_const = nmole * np.product(self.energy_array.shape[1:])
+        time_const = (
+            nmole * np.product(self.energy_array.shape[1:]) * temperature_time_const
+        )
         _energy_std = np.std(self.energy_array)
         if temperature is None:
             temperature = _energy_std * 2
         if cooling_rate is None:
             cooling_rate = _energy_std / time_const * 8
         if reject_limit is None:
-            reject_limit = nmole * 100
+            reject_limit = nmole * 50
         return time_const, temperature, cooling_rate, reject_limit
 
 

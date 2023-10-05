@@ -31,7 +31,6 @@ pub struct CylindricAnnealingModel {
     reservoir: Reservoir,
     iteration: usize,
     reject_limit: usize,
-    jump_every: usize,
 }
 
 #[pymethods]
@@ -48,7 +47,6 @@ impl CylindricAnnealingModel {
             reservoir: Reservoir::new(1.0, 1.0, 0.0),
             iteration: 0,
             reject_limit: 1000,
-            jump_every: 100,
         }
     }
 
@@ -63,7 +61,6 @@ impl CylindricAnnealingModel {
             reservoir: self.reservoir.clone(),
             iteration: self.iteration,
             reject_limit: self.reject_limit,
-            jump_every: self.jump_every,
         };
         out.reservoir.initialize();
         Py::new(py, out).unwrap()
@@ -79,23 +76,6 @@ impl CylindricAnnealingModel {
             reservoir: self.reservoir.clone(),
             iteration: self.iteration,
             reject_limit,
-            jump_every: self.jump_every,
-        };
-        out.reservoir.initialize();
-        Py::new(py, out).unwrap()
-    }
-
-    #[pyo3(signature = (jump_every))]
-    /// Return a new instance with different jump frequency.
-    pub fn with_jump_every<'py>(&self, py: Python<'py>, jump_every: usize) -> Py<Self> {
-        let mut out = Self {
-            rng: self.rng.clone(),
-            optimization_state: self.optimization_state.clone(),
-            graph: self.graph.clone(),
-            reservoir: self.reservoir.clone(),
-            iteration: self.iteration,
-            reject_limit: self.reject_limit,
-            jump_every,
         };
         out.reservoir.initialize();
         Py::new(py, out).unwrap()
@@ -127,11 +107,6 @@ impl CylindricAnnealingModel {
         }
         self.graph.set_shifts(&shift_array)?;
         Ok(())
-    }
-
-    /// Get the temperature of the reservoir.
-    pub fn temperature(&self) -> f32 {
-        self.reservoir.temperature()
     }
 
     /// Get all the existing distances of longitudinal connections as a numpy array.
@@ -266,6 +241,16 @@ impl CylindricAnnealingModel {
         }
     }
 
+    /// Time constant of reservoir
+    pub fn time_constant(&self) -> f32 {
+        self.reservoir.time_constant()
+    }
+
+    /// Get the temperature of the reservoir.
+    pub fn temperature(&self) -> f32 {
+        self.reservoir.temperature()
+    }
+
     /// Get the current iteration count.
     pub fn iteration(&self) -> usize {
         self.iteration
@@ -308,6 +293,26 @@ impl CylindricAnnealingModel {
         )
     }
 
+    /// Cool the system until the energy is not decreased. This method is deterministic.
+    pub fn cool_completely<'py>(&mut self, py: Python<'py>) {
+        // NOTE: This is not efficient, because shifting a local state does not alter
+        // the energy difference of the other local states that are not directly
+        // connected to it. However, since this method is called only in the end,
+        // and usually it is very fast (<10 ms). just leave it as it is for better
+        // readability.
+        py.allow_threads(
+            move || {
+                loop {
+                    let shift = self.graph.try_all_shifts();
+                    if shift.energy_diff < 0.0 {
+                        self.graph.apply_shift(&shift);
+                    } else {
+                        break;
+                    }
+                }
+            }
+        )
+    }
 }
 
 impl CylindricAnnealingModel {

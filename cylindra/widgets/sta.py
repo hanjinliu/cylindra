@@ -1001,6 +1001,7 @@ class SubtomogramAveraging(ChildWidget):
         distance_range_long: _DistRangeLon = (4.0, 4.28),
         distance_range_lat: _DistRangeLat = (5.1, 5.3),
         angle_max: _AngleMaxLon = 5.0,
+        temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.4,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
         return_all: Annotated[bool, {"label": "Return all the annealing results"}] = False,
@@ -1020,6 +1021,8 @@ class SubtomogramAveraging(ChildWidget):
         distance_range_lat : tuple of float
             Range of allowed distance between laterally consecutive monomers.
         {angle_max}{upsample_factor}{random_seeds}
+        return_all : bool, default is False
+            If True, return all the annealing results for each random seed.
         """
         kwargs = locals()
         kwargs.pop("self")
@@ -1043,6 +1046,7 @@ class SubtomogramAveraging(ChildWidget):
         distance_range_long: _DistRangeLon = (4.0, 4.28),
         distance_range_lat: _DistRangeLat = (5.1, 5.3),
         angle_max: _AngleMaxLon = 5.0,
+        temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.4,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
         return_all: Annotated[bool, {"label": "Return all the annealing results"}] = False,
@@ -1187,7 +1191,8 @@ class SubtomogramAveraging(ChildWidget):
         interpolation: int = 3,
         distance_range_long: tuple[nm, nm] = (4.0, 4.28),
         distance_range_lat: tuple[nm, nm] = (5.1, 5.3),
-        angle_max: float = 10.0,
+        angle_max: float = 5.0,
+        temperature_time_const: float = 1.4,
         upsample_factor: int = 5,
         random_seeds: Iterable[int] = range(5),
         return_all: bool = False,
@@ -1210,6 +1215,7 @@ class SubtomogramAveraging(ChildWidget):
             distance_range_long,
             distance_range_lat,
             angle_max,
+            temperature_time_const=temperature_time_const,
             random_seeds=random_seeds,
         )
         if all(result.state == "failed" for result in results):

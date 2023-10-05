@@ -50,4 +50,8 @@ impl Reservoir {
     pub fn initialize(&mut self) {
         self.temperature = self.temperature_diff + self.min_temperature;
     }
+
+    pub fn time_constant(&self) -> f32 {
+        self.time_constant
+    }
 }

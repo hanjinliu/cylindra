@@ -2,7 +2,7 @@ use rand::SeedableRng;
 use rand::prelude::Distribution;
 use rand::rngs::StdRng;
 
-use crate::coordinates::Vector3D;
+use crate::coordinates::{Vector3D, list_neighbors};
 
 /// A custom random number generator similar to np.random.
 #[derive(Clone)]
@@ -37,35 +37,7 @@ impl RandomNumberGenerator {
     }
 
     pub fn rand_shift(&mut self, src: &Vector3D<isize>, shape: &Vector3D<isize>) -> Vector3D<isize> {
-        let mut neighbors = Vec::new();
-
-        if 0 < src.z && src.z < shape.z - 1 {
-            neighbors.push(Vector3D::new(src.z - 1, src.y, src.x));
-            neighbors.push(Vector3D::new(src.z + 1, src.y, src.x));
-        } else if src.z == 0 {
-            neighbors.push(Vector3D::new(src.z + 1, src.y, src.x));
-        } else {
-            neighbors.push(Vector3D::new(src.z - 1, src.y, src.x));
-        }
-
-        if 0 < src.y && src.y < shape.y - 1 {
-            neighbors.push(Vector3D::new(src.z, src.y - 1, src.x));
-            neighbors.push(Vector3D::new(src.z, src.y + 1, src.x));
-        } else if src.y == 0 {
-            neighbors.push(Vector3D::new(src.z, src.y + 1, src.x));
-        } else {
-            neighbors.push(Vector3D::new(src.z, src.y - 1, src.x));
-        }
-
-        if 0 < src.x && src.x < shape.x - 1 {
-            neighbors.push(Vector3D::new(src.z, src.y, src.x - 1));
-            neighbors.push(Vector3D::new(src.z, src.y, src.x + 1));
-        } else if src.x == 0 {
-            neighbors.push(Vector3D::new(src.z, src.y, src.x + 1));
-        } else {
-            neighbors.push(Vector3D::new(src.z, src.y, src.x - 1));
-        }
-
+        let neighbors = list_neighbors(src, shape);
         neighbors[self.uniform_int(neighbors.len())]
     }
 }

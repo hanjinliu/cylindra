@@ -129,6 +129,15 @@ _Interval = Annotated[
     },
 ]
 
+
+def _validate_colormap(self, val):
+    if isinstance(val, dict):
+        val = {round(k, 3): v for k, v in val.items()}
+    return val
+
+
+_CmapType = Annotated[ColormapType, {"validator": _validate_colormap}]
+
 # stylesheet
 _WIDGETS_PATH = Path(__file__).parent
 _STYLE = (
@@ -2027,7 +2036,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         layer: MoleculesLayerType,
         color_by: Annotated[str, {"choices": _choice_getter("paint_molecules")}],
-        cmap: ColormapType = DEFAULT_COLORMAP,
+        cmap: _CmapType = DEFAULT_COLORMAP,
         limits: Annotated[tuple[float, float], {"options": {"min": -20, "max": 20, "step": 0.01}}] = (4.00, 4.24),
     ):  # fmt: skip
         """
@@ -2421,7 +2430,7 @@ class CylindraMainWidget(MagicTemplate):
     def paint_cylinders(
         self,
         color_by: Annotated[str, {"choices": [H.spacing, H.dimer_twist, H.rise, H.npf]}] = H.spacing,
-        cmap: ColormapType = DEFAULT_COLORMAP,
+        cmap: _CmapType = DEFAULT_COLORMAP,
         limits: Optional[tuple[float, float]] = (3.95, 4.28),
     ):  # fmt: skip
         """
