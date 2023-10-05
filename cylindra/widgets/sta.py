@@ -263,7 +263,7 @@ class StaParameters(MagicTemplate):
     params = field(MaskParameters, name="Parameters", label="")
     mask_path = field(mask_path)
 
-    _last_average: ip.ImgArray = None  # the global average result
+    _last_average: ip.ImgArray | None = None  # the global average result
 
     def __post_init__(self):
         self._template: ip.ImgArray = None

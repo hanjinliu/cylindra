@@ -5,15 +5,23 @@ use rand::rngs::StdRng;
 use crate::coordinates::{Vector3D, list_neighbors};
 
 /// A custom random number generator similar to np.random.
-#[derive(Clone)]
 pub struct RandomNumberGenerator {
-    rng: StdRng
+    rng: StdRng,
+    seed: u64
+}
+
+impl Clone for RandomNumberGenerator {
+    /// Clone the random number generator.
+    fn clone(&self) -> Self {
+        let rng = StdRng::seed_from_u64(self.seed);
+        Self { rng, seed: self.seed }
+    }
 }
 
 impl RandomNumberGenerator {
     pub fn new(seed: u64) -> Self {
         let rng = StdRng::seed_from_u64(seed);
-        Self { rng }
+        Self { rng, seed }
     }
 
     pub fn bernoulli(&mut self, ptrue: f32) -> bool {
