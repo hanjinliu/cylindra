@@ -1,15 +1,17 @@
 from enum import Enum
 from typing import Annotated, Any
-from pathlib import Path
 import tempfile
 
-from cylindra import start
+from cylindra import start  # NOTE: Set ApplicationAttributes
+
 from magicclass import magicclass, vfield
-from magicclass.types import Optional
+from magicclass.types import Optional, Path
 from magicclass.utils import thread_worker
 from magicclass.ext.polars import DataFrameView
 import numpy as np
 from numpy.typing import NDArray
+import napari
+
 from cylindra.components import CylSpline
 from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets.widget_utils import timer
@@ -18,8 +20,6 @@ from cylindra.const import PropertyNames as H
 import polars as pl
 
 TEMPLATE_PATH = Path(__file__).parent.parent / "tests" / "beta-tubulin.mrc"
-
-
 POSITIONS = [(0, 15), (15, 30), (30, 45), (45, 60)]
 
 
@@ -210,7 +210,7 @@ class Funcs(Enum):
     local_curvature = local_curvature
 
 
-@magicclass
+@magicclass(widget_type="scrollable")
 class Main:
     function = vfield(Funcs)
     n_tilt = vfield(61).with_options(min=1)
@@ -218,13 +218,17 @@ class Main:
     nrepeat = vfield(5)
     scale = vfield(0.5)
     binsize = vfield(1).with_options(min=1)
-    output = vfield(Optional[Path])
+    output = vfield(Optional[Path.Save["*.csv"]])
     seed = vfield(12345).with_options(max=1e8)
 
     def __init__(self):
         self._ui = start()
+        self._ui.parent_viewer.window.add_dock_widget(
+            self,
+            area="left",
+            tabify=True,
+        ).setFloating(True)
 
-    @thread_worker.with_progress(total="nrepeat * len(nsr) + 1")
     def simulate(
         self,
         function: Annotated[Funcs, {"bind": function}] = Funcs.local_expansion,
@@ -253,7 +257,6 @@ class Main:
                 n_tilt=n_tilt,
                 scale=scale,
             )
-            yield
             for _rep in range(nrepeat):
                 for _idx, _nsr in enumerate(nsr):
                     ui.cylinder_simulator.simulate_tomogram_from_tilt_series(
@@ -271,22 +274,19 @@ class Main:
                         splines=[0], depth=49.0, interval=None, bin_size=binsize
                     )
                     results.append([_nsr, _rep, *simulator.results()])
-                    yield
+                    print(f"repeat={_rep}, nsr={_nsr} done")
 
             columns = ["nsr", "rep"] + simulator.columns()
             results = pl.DataFrame(results, schema=columns).sort(by="nsr")
 
-        @thread_worker.callback
-        def _out():
-            if output is None:
-                view = DataFrameView()
-                view.value = results
-                ui.parent_viewer.window.add_dock_widget(view)
-            else:
-                results.write_csv(output)
-            t0.toc(log=False)
-
-        return _out
+        if output is None:
+            view = DataFrameView()
+            view.value = results
+            ui.parent_viewer.window.add_dock_widget(view)
+        else:
+            results.write_csv(output)
+        t0.toc(log=False)
+        return
 
     def preview(
         self,
@@ -343,4 +343,4 @@ class Main:
 
 if __name__ == "__main__":
     ui = Main()
-    ui.show()
+    napari.run()

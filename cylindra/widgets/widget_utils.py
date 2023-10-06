@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 # namespace used in predicate
 POLARS_NAMESPACE = {
     "pl": pl,
+    "col": pl.col,
     "int": int,
     "float": float,
     "str": str,

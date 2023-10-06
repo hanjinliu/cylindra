@@ -394,7 +394,7 @@ class CylinderSimulator(ChildWidget):
         spl = CylSpline.line(start_shift + center, end_shift + center)
         self._set_shape_and_scale(shape, scale)
         self.set_spline(spl)
-        self.show()
+        self.model = spl.cylinder_model()
         return None
 
     @CreateMenu.wraps
@@ -731,6 +731,9 @@ class CylinderSimulator(ChildWidget):
         @thread_worker.callback
         def _on_return():
             parent._send_tomogram_to_viewer(tomo)
+            spl = self._spline
+            parent.tomogram.splines.append(spl)
+            parent._add_spline_instance(spl)
             parent.add_molecules(mole, name="molecules")
 
         return _on_return
@@ -840,10 +843,6 @@ class CylinderSimulator(ChildWidget):
         original = self.model
         yield
         self.model = original
-
-    @create_empty_image.started.connect
-    def _show_simulator(self):
-        self.show()
 
 
 @thread_worker.callback

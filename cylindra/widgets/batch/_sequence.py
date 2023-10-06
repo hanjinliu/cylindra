@@ -26,6 +26,7 @@ import polars as pl
 from cylindra.project import CylindraProject, get_project_file
 from cylindra.const import MoleculesHeader as Mole, FileFilter
 from cylindra.widgets import CylindraMainWidget
+from cylindra.widgets.widget_utils import POLARS_NAMESPACE
 from cylindra._config import get_config
 
 
@@ -284,7 +285,7 @@ class ProjectSequenceEdit(MagicTemplate):
     scale = field(1.0, label="Scale (nm):").with_options(
         min=0.001, step=0.0001, max=10.0
     )
-    filter_expression = field(ExprStr.In[{"pl": pl}], label="Filter:")
+    filter_expression = field(ExprStr.In[POLARS_NAMESPACE], label="Filter:")
 
     @Select.wraps
     @do_not_record

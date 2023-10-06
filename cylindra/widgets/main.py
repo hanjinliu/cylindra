@@ -2061,6 +2061,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @MoleculesMenu.View.wraps
     @set_design(text="Plot molecule feature in 2D")
+    @do_not_record
     def plot_molecule_feature(
         self,
         layer: MoleculesLayerType,
