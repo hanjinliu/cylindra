@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from magicclass import (
     abstractapi,
     do_not_record,
+    get_function_gui,
     magicclass,
     magicmenu,
     MagicTemplate,
@@ -394,7 +395,7 @@ class CylinderSimulator(ChildWidget):
         spl = CylSpline.line(start_shift + center, end_shift + center)
         self._set_shape_and_scale(shape, scale)
         self.set_spline(spl)
-        self.model = spl.cylinder_model()
+        get_function_gui(self.update_model)()
         return None
 
     @CreateMenu.wraps
