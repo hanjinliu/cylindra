@@ -105,21 +105,3 @@ def _reshaped_positions(mole: Molecules) -> NDArray[np.float32]:
             f"feature. Original error is\n{type(e).__name__}: {e}"
         ) from e
     return pos
-
-
-def infer_start_from_molecules(mole: Molecules) -> int:
-    """Infer cylinder geometry (ny, npf, nrise) from molecules."""
-    columns = mole.features.columns
-    if not (Mole.pf in columns and Mole.position in columns):
-        raise ValueError(
-            f"Molecules must have columns {Mole.pf!r} and {Mole.position!r}."
-        )
-    npf = mole.features[Mole.pf].max() + 1
-    nmole = mole.pos.shape[0]
-    ny, res = divmod(nmole, npf)
-    if res != 0:
-        raise ValueError("Molecules are not correctly labeled.")
-    spl_pos = mole.features[Mole.position].to_numpy().reshape(ny, npf)
-    dy = np.abs(np.mean(np.diff(spl_pos, axis=0)))
-    drise = np.mean(np.diff(spl_pos, axis=1))
-    return int(np.round(drise * npf / dy))

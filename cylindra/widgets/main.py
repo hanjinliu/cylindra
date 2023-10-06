@@ -2079,28 +2079,10 @@ class CylindraMainWidget(MagicTemplate):
         backend : "inline" or "qt", optional
             Plotting backend. "inline" means the plot is shown in the console.
         """
-        from matplotlib.patches import Circle
+        from cylindra.components.visualize import flat_view
         from matplotlib.axes import Axes
 
         layer = assert_layer(layer, self.parent_viewer)
-        mole = layer.molecules
-        nth = mole.features[Mole.nth].to_numpy()
-        pf = mole.features[Mole.pf].to_numpy()
-        npf = int(pf.max() + 1)
-        if spl := layer.source_spline:
-            spacing = spl.props.get_glob(H.spacing)
-            rise = np.deg2rad(spl.props.get_glob(H.rise))
-            tan = (
-                np.tan(rise)
-                / spacing
-                * (2 * np.pi * spl.radius / npf)
-                * spl.config.rise_sign
-            )
-        else:
-            tan = utils.infer_start_from_molecules(mole) / npf
-        y = nth + tan * pf
-
-        face_color = layer.face_color
         if backend == "inline":
             plt.figure()
             ax: Axes = plt.gca()
@@ -2114,17 +2096,13 @@ class CylindraMainWidget(MagicTemplate):
         else:
             raise ValueError(f"Unknown backend: {backend!r}")
 
-        for i in range(mole.count()):
-            center = (pf[i], y[i])
-            circ = Circle(center, 0.5, fc=face_color[i], ec="black", lw=0.1)
-            ax.add_patch(circ)
+        flat_view(
+            layer.molecules,
+            spl=layer.source_spline,
+            colors=layer.face_color,
+            ax=ax,
+        )
         ax.set_title(layer.name)
-        ax.set_xlim(pf.min() - 0.6, pf.max() + 0.6)
-        if backend == "inline":
-            ax.set_ylim(y.min() - 0.6, y.max() + 0.6)
-        elif backend == "qt":
-            ax.set_ylim(y.mean() - pf.mean() - 0.6, y.mean() + pf.mean() + 0.6)
-        ax.set_aspect("equal")
         return undo_callback(lambda: _Logger.print("Undoing plotting does nothing"))
 
     @MoleculesMenu.MoleculeFeatures.wraps
