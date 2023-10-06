@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     Generic,
     Iterable,
     Iterator,
@@ -169,16 +170,22 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         self._projects.append(prj)
         return self
 
-    def sta_loader(self) -> BatchLoader:
+    def sta_loader(
+        self, name_filter: Callable[[str], bool] | None = None
+    ) -> BatchLoader:
         """Construct a STA loader from all the projects."""
         import impy as ip
         from acryo import BatchLoader
 
         col = BatchLoader(scale=self._scale_validator.value)
+        if name_filter is None:
+            name_filter = lambda _: True
         for idx, prj in enumerate(self._projects):
             tomo = ip.lazy.imread(prj.image, chunks=get_config().dask_chunk)
             with prj.open_project() as dir:
                 for info, mole in prj.iter_load_molecules(dir):
+                    if not name_filter(info.name):
+                        continue
                     mole.features = mole.features.with_columns(
                         pl.repeat(info.stem, pl.count()).alias(Mole.id)
                     )
@@ -369,9 +376,11 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         out = loc.join(glb, on=key, suffix="_glob")
         return self._normalize_id(out, id)
 
-    def collect_molecules(self) -> Molecules:
+    def collect_molecules(
+        self, name_filter: Callable[[str], bool] | None = None
+    ) -> Molecules:
         """Collect all the molecules in this project sequence."""
-        return self.sta_loader().molecules
+        return self.sta_loader(name_filter).molecules
 
     def iter_splines(self) -> Iterable[tuple[tuple[int, int], CylSpline]]:
         """Iterate over all the splines in all the projects."""
@@ -413,6 +422,22 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                             )
                         mole = mole.with_features(features)
                     yield (i_prj, info.stem), mole
+
+    def iter_molecules_with_splines(
+        self, name_filter: Callable[[str], bool] | None = None
+    ) -> Iterable[tuple[Molecules, CylSpline | None]]:
+        """Iterate over all the molecules and its source spline."""
+        if name_filter is None:
+            name_filter = lambda _: True
+        for prj in self._projects:
+            with prj.open_project() as dir:
+                for info, mole in prj.iter_load_molecules(dir):
+                    if not name_filter(info.name):
+                        continue
+                    if (src := info.source) is None:
+                        continue
+                    spl = prj.load_spline(dir, src)
+                    yield mole, spl
 
     def collect_spline_coords(self, ders: int | Iterable[int] = 0) -> pl.DataFrame:
         """

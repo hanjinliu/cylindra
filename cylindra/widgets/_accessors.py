@@ -40,7 +40,7 @@ class AccessorField(Generic[_T]):
         return self._instances[_id]
 
 
-class Accessor:
+class Accessor(MutableSequence[_V]):
     def __init__(self, widget: CylindraMainWidget):
         self._widget = weakref.ref(widget)
 
@@ -64,7 +64,7 @@ class Accessor:
 _Condition = Callable[[MoleculesLayer], bool]
 
 
-class MoleculesLayerAccessor(Accessor, MutableSequence[MoleculesLayer]):
+class MoleculesLayerAccessor(Accessor[MoleculesLayer]):
     """Accessor to the molecules layers of the viewer."""
 
     def __getitem__(self, name: str) -> MoleculesLayer:
