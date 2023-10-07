@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING, Annotated, Any
+from psygnal import Signal
 from magicclass import (
     abstractapi,
     magicclass,
@@ -45,7 +46,7 @@ _PlotInfo = {
 }
 
 
-@magicclass(widget_type="collapsible", name="Local Properties", record=False)
+@magicclass(name="Local Properties", record=False)
 class LocalPropertiesWidget(ChildWidget):
     """
     Local properties.
@@ -55,6 +56,8 @@ class LocalPropertiesWidget(ChildWidget):
     plot : QtMultiPlotCanvas
         Plot of local properties
     """
+
+    _props_changed = Signal(list[str])
 
     @magicclass(
         widget_type="groupbox",
@@ -141,7 +144,7 @@ class LocalPropertiesWidget(ChildWidget):
         return None
 
     def _plot_spline_position(self, x: float):
-        # update current position indicator
+        """update current position indicator (the red vertical line)"""
         for _plot in self.plot:
             if len(_plot.layers) > 0:
                 _plot.layers[-1].pos = [x, 0]
@@ -167,9 +170,7 @@ class LocalPropertiesWidget(ChildWidget):
         props: Annotated[list[str], {"widget_type": CheckBoxes, "choices": _PlotInfo.keys()}] = (H.spacing, H.dimer_twist, H.rise)
     ):  # fmt: skip
         self._set_properties_to_plot(props)
-        main = self._get_main()
-        spl = main.tomogram.splines[main.SplineControl.num]
-        self._plot_properties(spl)
+        self._props_changed.emit(props)
         return None
 
     @footer.wraps

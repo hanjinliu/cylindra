@@ -1,9 +1,10 @@
 from glob import glob
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, TYPE_CHECKING
 from magicclass import (
     abstractapi,
     magicclass,
+    field,
     vfield,
     set_design,
     get_button,
@@ -11,6 +12,11 @@ from magicclass import (
 )
 from ._child_widget import ChildWidget
 from cylindra.widgets._previews import view_image
+from cylindra.project import ProjectSequence, CylindraProject
+from cylindra.widgets.subwidgets import LocalPropertiesWidget
+
+if TYPE_CHECKING:
+    from cylindra.components import CylSpline
 
 
 @magicclass(name="_File Iterator", record=False)
@@ -122,3 +128,66 @@ class FileIterator(ChildWidget):
                 raise ValueError(f"Cannot open {path} as an image.")
 
         return view_image(file_paths, parent=self._get_main())
+
+    @set_design(text="View localprops")
+    def view_local_props(self):
+        seq = ProjectSequence.from_paths(self._files, skip_exc=False)
+        wdt = LocalPropsViewer(seq)
+        self.parent_viewer.window.add_dock_widget(wdt)
+
+
+@magicclass
+class LocalPropsViewer(ChildWidget):
+    def __init__(self, seq: ProjectSequence):
+        self._seq = seq
+
+    def _get_projects(self, *_) -> list[tuple[str, CylindraProject]]:
+        return [(_simple_path(p.project_path), p) for p in self._seq]
+
+    def _get_splines(self, *_) -> "list[tuple[str, CylSpline]]":
+        prj = self.project
+        if prj is None:
+            return []
+        with prj.open_project() as dir:
+            out = list(self.project.iter_load_splines(dir))
+        return out
+
+    project = vfield(CylindraProject).with_choices(_get_projects)
+    spline = vfield().with_choices(_get_splines)
+    pos = vfield(int, widget_type="Slider")
+    localprops = field(LocalPropertiesWidget)
+
+    @project.connect
+    def _project_changed(self, prj: CylindraProject):
+        self["spline"].reset_choices()
+
+    @spline.connect
+    def _spline_changed(self, spline: "CylSpline"):
+        if not spline.has_anchors:
+            return
+        self["pos"].max = spline.anchors.size - 1
+        self.localprops._plot_properties(spline)
+
+    @pos.connect
+    def _pos_changed(self, pos: int):
+        spl = self.spline
+        if spl is None or not spl.has_anchors:
+            return
+        x = spl.anchors * spl.length()
+        self.localprops._plot_spline_position(x[pos])
+        self.localprops._set_text(spl, pos)
+
+    def _reset(self):
+        self._spline_changed(self.spline)
+        self._pos_changed(self.pos)
+
+    def __post_init__(self):
+        self.localprops._props_changed.connect(self._reset)
+        self._reset()
+
+
+def _simple_path(path: Path) -> str:
+    parts = path.parts
+    if len(parts) < 3:
+        return path.as_posix()
+    return "/".join(["...", parts[-2], parts[-1]])

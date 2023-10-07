@@ -12,6 +12,7 @@ from acryo import Molecules, SubtomogramLoader
 from magicgui.widgets import Widget
 from magicclass import (
     MagicTemplate,
+    box,
     bind_key,
     confirm,
     do_not_record,
@@ -222,7 +223,7 @@ class CylindraMainWidget(MagicTemplate):
     # Widget for controling splines
     SplineControl = subwidgets.SplineControl
     # Widget for summary of local properties
-    LocalProperties = field(subwidgets.LocalPropertiesWidget, name="Local Properties")  # fmt: skip
+    LocalProperties = box.collapsible(field(subwidgets.LocalPropertiesWidget), text="Local Properties")  # fmt: skip
     # Widget for summary of glocal properties
     GlobalProperties = field(subwidgets.GlobalPropertiesWidget, name="Global Properties")  # fmt: skip
     # Widget for 2D overview of splines
@@ -246,6 +247,10 @@ class CylindraMainWidget(MagicTemplate):
         self.LocalProperties.collapsed = False
         self.GlobalProperties.collapsed = False
         self.Overview.min_height = 300
+
+        self.LocalProperties._props_changed.connect(
+            lambda: self._update_local_properties_in_widget(replot=True)
+        )
 
         # load all the workflows
         for file in _config.WORKFLOWS_DIR.glob("*.py"):

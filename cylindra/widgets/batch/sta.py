@@ -30,10 +30,16 @@ import napari
 
 from cylindra.const import nm, ALN_SUFFIX, MoleculesHeader as Mole, FileFilter
 from cylindra.utils import roundint
-from cylindra.widgets.main import CylindraMainWidget, widget_utils
 from cylindra.widgets._widget_ext import RotationsEdit
-from ..widget_utils import timer, POLARS_NAMESPACE
-from ..sta import INTERPOLATION_CHOICES, METHOD_CHOICES, MASK_CHOICES, _get_alignment
+from cylindra.widgets._annotated import FSCFreq
+from cylindra.widgets.main import CylindraMainWidget, widget_utils
+from cylindra.widgets.widget_utils import timer, POLARS_NAMESPACE
+from cylindra.widgets.sta import (
+    INTERPOLATION_CHOICES,
+    METHOD_CHOICES,
+    MASK_CHOICES,
+    _get_alignment,
+)
 
 from .menus import BatchLoaderMenu, BatchSubtomogramAnalysis, BatchRefinement
 from ._loaderlist import LoaderList, LoaderInfo
@@ -490,14 +496,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
         n_set: Annotated[int, {"min": 1, "label": "number of image pairs"}] = 1,
         show_average: bool = True,
-        dfreq: Annotated[
-            Optional[float],
-            {
-                "label": "Frequency precision",
-                "text": "Choose proper value",
-                "options": {"min": 0.005, "max": 0.1, "step": 0.005, "value": 0.02},
-            },
-        ] = None,
+        dfreq: FSCFreq = None,
     ):
         """
         Calculate Fourier Shell Correlation using the selected monomer layer.

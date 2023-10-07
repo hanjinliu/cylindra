@@ -62,6 +62,7 @@ from cylindra.components.seam_search import (
 from ._annotated import (
     MoleculesLayerType,
     MoleculesLayersType,
+    FSCFreq,
     assert_layer,
     assert_list_of_layers,
 )
@@ -122,14 +123,6 @@ _AngleMaxLon = Annotated[
     float, {"max": 90.0, "step": 0.5, "label": "Maximum angle (deg)"}
 ]
 _RandomSeeds = Annotated[list[int], {"widget_type": RandomSeedEdit}]
-_FSCFreq = Annotated[
-    Optional[float],
-    {
-        "label": "Frequency precision",
-        "text": "Choose proper value",
-        "options": {"min": 0.005, "max": 0.1, "step": 0.005, "value": 0.02},
-    },
-]
 
 # choices
 INTERPOLATION_CHOICES = (("nearest", 0), ("linear", 1), ("cubic", 3))
@@ -1360,7 +1353,7 @@ class SubtomogramAveraging(ChildWidget):
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
         n_set: Annotated[int, {"min": 1, "label": "number of image pairs"}] = 1,
         show_average: bool = True,
-        dfreq: _FSCFreq = None,
+        dfreq: FSCFreq = None,
     ):
         """
         Calculate Fourier Shell Correlation using the selected monomer layer.

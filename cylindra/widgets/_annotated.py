@@ -1,4 +1,5 @@
 from typing import Annotated, Any
+from magicclass.types import Optional
 import napari
 from cylindra.types import MoleculesLayer, get_monomer_layers
 from cylindra.widgets._widget_ext import CheckBoxes
@@ -36,6 +37,15 @@ MoleculesLayersType = Annotated[
         "widget_type": CheckBoxes,
         "value": (),
         "validator": _as_layer_names,
+    },
+]
+
+FSCFreq = Annotated[
+    Optional[float],
+    {
+        "label": "Frequency precision",
+        "text": "Choose proper value",
+        "options": {"min": 0.005, "max": 0.1, "step": 0.005, "value": 0.02},
     },
 ]
 
