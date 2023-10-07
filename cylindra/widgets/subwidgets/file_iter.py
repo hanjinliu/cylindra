@@ -114,6 +114,10 @@ class FileIterator(ChildWidget):
         fgui.path.value = path
         fgui.call_button.changed()
 
+    @set_design(text="Send to batch analyzer")
+    def send_to_batch_analyzer(self, path: Annotated[str, {"bind": path}]):
+        self._get_main().batch.constructor.add_children_glob(self.pattern)
+
     @set_design(text="Preview all")
     def preview_all(self):
         """Preview all the images."""

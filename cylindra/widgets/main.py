@@ -2069,7 +2069,7 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def plot_molecule_feature(
         self,
-        layer: MoleculesLayerType,
+        layer: MoleculesLayer,
         backend: Literal["inline", "qt"] = "inline",
     ):
         """
