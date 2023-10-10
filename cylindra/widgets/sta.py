@@ -209,7 +209,7 @@ class SubtomogramAnalysis(MagicTemplate):
     classify_pca = abstractapi()
     sep1 = field(Separator)
 
-    @magicmenu
+    @magicmenu(name="Seam search")
     class SeamSearch(MagicTemplate):
         seam_search = abstractapi()
         seam_search_by_feature = abstractapi()
@@ -707,7 +707,7 @@ class SubtomogramAveraging(ChildWidget):
                 else:
                     _radius = spl.radius
                 _dz, _dy, _dx = rotator.apply(svec)
-                _offset_y = -_dy
+                _offset_y = _dy
                 _offset_r = np.sqrt((_dz + _radius) ** 2 + _dx**2) - _radius
                 _offset_a = np.arctan2(_dx, _dz + _radius)
                 if spl.orientation is Ori.PlusToMinus:
