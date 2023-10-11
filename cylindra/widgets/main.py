@@ -1188,7 +1188,7 @@ class CylindraMainWidget(MagicTemplate):
         layers: MoleculesLayersType = (),
         err_max: Annotated[nm, {"label": "Max fit error (nm)", "step": 0.1}] = 0.8,
         delete_old: Annotated[bool, {"label": "Delete old splines"}] = True,
-        inherit_props: Annotated[bool, {"label": "Inherit properties from old splines"}] = True,
+        inherits: Annotated[Optional[list[str]], {"label": "Properties to inherit", "text": "All properties"}] = None,
         missing_ok: Annotated[bool, {"label": "Missing OK"}] = False,
         update_sources: Annotated[bool, {"label": "Update all the spline sources"}] = True,
     ):  # fmt: skip
@@ -1208,8 +1208,9 @@ class CylindraMainWidget(MagicTemplate):
             If True, delete the old spline if the molecules has one. For instance, if
             "Mole-0" has the spline "Spline-0" as the source, and a spline "Spline-1" is
             created from "Mole-0", then "Spline-0" will be deleted from the list.
-        inherit_props : bool, default is True
-            If True, copy the global properties from the old spline to the new one.
+        inherits : bool, optional
+            Which global properties to be copied to the new one. If None, all the properties
+            will be copied.
         missing_ok : bool, default is False
             If False, raise an error if the source spline is not found in the tomogram.
         update_sources : bool, default is True
@@ -1240,9 +1241,13 @@ class CylindraMainWidget(MagicTemplate):
             except ValueError:
                 tomo.splines.append(spl)
             else:
-                if inherit_props:
-                    spl.globalprops = tomo.splines[idx].globalprops.clone()
                 old_spl = tomo.splines[idx]
+                if inherits is None:
+                    spl.props.glob = old_spl.props.glob.clone()
+                else:
+                    glob = old_spl.props.glob
+                    spl.props.glob = {k: glob[k] for k in glob.columns if k in inherits}
+
                 # Must be updated here, otherwise each.source_component may return
                 # None since GC may delete the old spline.
                 if update_sources:

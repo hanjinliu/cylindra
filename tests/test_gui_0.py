@@ -855,6 +855,9 @@ def test_molecules_to_spline(ui: CylindraMainWidget):
     assert new_spl is not new_spl0
     assert layer_trans.source_component is new_spl0
     assert layer_src.source_component is new_spl
+    ui.molecules_to_spline(layers=[layer_trans], inherits=["npf", "orientation"])
+    new_spl1 = ui.tomogram.splines[0]
+    assert ["npf", "orientation"] == sorted(new_spl1.props.glob.columns)
 
 
 def test_calc_lattice_structures(ui: CylindraMainWidget):
