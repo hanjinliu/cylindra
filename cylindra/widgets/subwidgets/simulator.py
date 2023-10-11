@@ -202,9 +202,7 @@ class CylinderSimulator(ChildWidget):
         """
 
         yrange = vfield(tuple[int, int], label="axial", widget_type=RangeSlider)
-        arange = vfield(
-            tuple[int, int], label="angular", widget_type=RangeSlider
-        ).with_options(value=(0, 100))
+        arange = vfield(tuple[int, int], label="angular", widget_type=RangeSlider)
 
         @magicclass(
             properties={"margin": (0, 0, 0, 0)}, layout="horizontal", record=False
@@ -213,8 +211,8 @@ class CylinderSimulator(ChildWidget):
             allev = abstractapi()
             show_selection = abstractapi()
 
-        allev = Col.vfield(True, label="alleviate")
-        show_selection = Col.vfield(True, label="show selected molecules")
+        allev = vfield(True, label="alleviate", location=Col)
+        show_selection = vfield(True, label="show selected molecules", location=Col)
 
         def _update_slider_lims(self, ny: int, na: int):
             amax_old = self["arange"].max
@@ -257,9 +255,8 @@ class CylinderSimulator(ChildWidget):
         """Set new model and simulate molecules with the same spline."""
         return self._set_model(model, self._spline)
 
-    @CreateMenu.wraps
+    @set_design(text="Create an empty image", location=CreateMenu)
     @thread_worker.with_progress(desc="Creating an image")
-    @set_design(text="Create an empty image")
     @confirm(
         text="You have an opened image. Run anyway?",
         condition="not self._get_main().tomogram.is_dummy",
@@ -340,14 +337,12 @@ class CylinderSimulator(ChildWidget):
         )
         return None
 
-    @CreateMenu.wraps
-    @set_design(text="Set current spline")
+    @set_design(text="Set current spline", location=CreateMenu)
     def set_current_spline(self, idx: Annotated[int, {"bind": _get_current_index}]):
         """Use the current parameters and the spline to construct a model and molecules."""
         return self.set_spline(self._get_main().tomogram.splines[idx].copy())
 
-    @CreateMenu.wraps
-    @set_design(text="Load spline parameters")
+    @set_design(text="Load spline parameters", location=CreateMenu)
     def load_spline_parameters(self, idx: Annotated[int, {"bind": _get_current_index}]):
         """Copy the spline parameters in the viewer."""
         cp = self._get_main().tomogram.splines[idx].cylinder_params()
@@ -360,8 +355,7 @@ class CylinderSimulator(ChildWidget):
         )
         return None
 
-    @CreateMenu.wraps
-    @set_design(text="Create a straight line")
+    @set_design(text="Create a straight line", location=CreateMenu)
     def create_straight_line(
         self,
         length: nm = 150.0,
@@ -398,8 +392,7 @@ class CylinderSimulator(ChildWidget):
         get_function_gui(self.update_model)()
         return None
 
-    @CreateMenu.wraps
-    @set_design(text="Send molecules to viewer")
+    @set_design(text="Send molecules to viewer", location=CreateMenu)
     def send_moleclues_to_viewer(self):
         """Send the current molecules to the viewer."""
         mole = self._molecules
@@ -408,9 +401,8 @@ class CylinderSimulator(ChildWidget):
         self._get_main().add_molecules(mole, name="Simulated", source=self._spline)
         return None
 
-    @TransformMenu.wraps
+    @set_design(text="Update model parameters", location=TransformMenu)
     @impl_preview(auto_call=True)
-    @set_design(text="Update model parameters")
     def update_model(
         self,
         spacing: Annotated[nm, {"min": 0.2, "max": 100.0, "step": 0.01, "label": "spacing (nm)"}] = 1.0,
@@ -490,9 +482,8 @@ class CylinderSimulator(ChildWidget):
         )
         return tilt_series, mole
 
-    @SimulateMenu.wraps
+    @set_design(text="Simulate tomogram", location=SimulateMenu)
     @dask_thread_worker.with_progress(descs=_simulate_tomogram_iter)
-    @set_design(text="Simulate tomogram")
     def simulate_tomogram(
         self,
         template_path: Path.Read[FileFilter.IMAGE],
@@ -589,9 +580,8 @@ class CylinderSimulator(ChildWidget):
 
         return None
 
-    @SimulateMenu.wraps
+    @set_design(text="Simulate tomogram from tilt series", location=SimulateMenu)
     @dask_thread_worker.with_progress(desc="Simulating tomogram...")
-    @set_design(text="Simulate tomogram from tilt series")
     @confirm(
         text="You have an opened image. Run anyway?",
         condition="not self._get_main().tomogram.is_dummy",
@@ -653,9 +643,8 @@ class CylinderSimulator(ChildWidget):
         )
         return main._send_tomogram_to_viewer.with_args(tomo)
 
-    @SimulateMenu.wraps
+    @set_design(text="Simulate tomogram and open", location=SimulateMenu)
     @dask_thread_worker.with_progress(desc="Simulating tomogram...")
-    @set_design(text="Simulate tomogram and open")
     @confirm(
         text="You have an opened image. Run anyway?",
         condition="not self._get_main().tomogram.is_dummy",
@@ -739,9 +728,8 @@ class CylinderSimulator(ChildWidget):
 
         return _on_return
 
-    @SimulateMenu.wraps
+    @set_design(text="Simulate tilt series", location=SimulateMenu)
     @dask_thread_worker.with_progress(desc="Simulating tilt series...")
-    @set_design(text="Simulate tilt series")
     def simulate_tilt_series(
         self,
         template_path: Path.Read[FileFilter.IMAGE],
@@ -782,8 +770,7 @@ class CylinderSimulator(ChildWidget):
     #   yrange: tuple[nm, nm]
     #   arange: tuple[float, float]
     # but magicgui TupleEdit doesn't support `bind`. Use Any for now.
-    @TransformMenu.wraps
-    @set_design(text="Expansion/Compaction")
+    @set_design(text="Expansion/Compaction", location=TransformMenu)
     @impl_preview(auto_call=True)
     def expand(
         self,
@@ -800,8 +787,7 @@ class CylinderSimulator(ChildWidget):
         self.model = new_model
         return None
 
-    @TransformMenu.wraps
-    @set_design(text="Twist")
+    @set_design(text="Twist", location=TransformMenu)
     @impl_preview(auto_call=True)
     def twist(
         self,
@@ -818,8 +804,7 @@ class CylinderSimulator(ChildWidget):
         self.model = new_model
         return None
 
-    @TransformMenu.wraps
-    @set_design(text="Dilation/Erosion")
+    @set_design(text="Dilation/Erosion", location=TransformMenu)
     @impl_preview(auto_call=True)
     def dilate(
         self,

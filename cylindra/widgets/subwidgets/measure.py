@@ -165,8 +165,8 @@ class SpectraInspector(ChildWidget):
         select_angular_peak = abstractapi()
         log_scale = abstractapi()
 
-    parameters = SidePanel.field(Parameters)
-    log_scale = SidePanel.vfield(False)
+    parameters = field(Parameters, location=SidePanel)
+    log_scale = vfield(False, location=SidePanel)
 
     @property
     def mode(self):
@@ -205,8 +205,7 @@ class SpectraInspector(ChildWidget):
         parent = self._get_main()
         return [k for k, _ in parent.tomogram.multiscaled]
 
-    @SidePanel.wraps
-    @set_design(text="Load spline")
+    @set_design(text="Load spline", location=SidePanel)
     def load_spline(
         self,
         idx: Annotated[int, {"bind": _get_current_index}],
@@ -232,17 +231,16 @@ class SpectraInspector(ChildWidget):
 
         self.canvas.mouse_clicked.connect(self._on_mouse_clicked, unique=True)
 
-    @SidePanel.wraps
-    @set_design(text="Set bin size")
+    @set_design(text="Set bin size", location=SidePanel)
     def set_binsize(self, binsize: OneOf[_get_binsize_choices]):
         self.load_spline(self._get_current_index(), binsize)
 
-    @SidePanel.wraps
+    @set_design(text="Set axial peak", location=SidePanel)
     def select_axial_peak(self):
         """Click to start selecting the axial peak."""
         self.mode = MeasureMode.axial
 
-    @SidePanel.wraps
+    @set_design(text="Set angular peak", location=SidePanel)
     def select_angular_peak(self):
         """Click to start selecting the angular peak."""
         if self.parameters.spacing is None:

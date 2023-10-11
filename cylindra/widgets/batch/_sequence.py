@@ -139,8 +139,7 @@ class Project(MagicTemplate):
     def check(self, value: bool):
         self.Header.check = value
 
-    @Header.wraps
-    @set_design(text="✕", max_width=30)
+    @set_design(text="✕", max_width=30, location=Header)
     def remove_project(self):
         """Remove this project from the list."""
         parent = self.find_ancestor(ProjectPaths)
@@ -164,8 +163,8 @@ class Project(MagicTemplate):
         splines = abstractapi()
         molecules = abstractapi()
 
-    splines = Components.field(SplineList)
-    molecules = Components.field(MoleculeList)
+    splines = field(SplineList, location=Components)
+    molecules = field(MoleculeList, location=Components)
 
     @classmethod
     def _from_path(cls, path: Path):
@@ -280,14 +279,13 @@ class ProjectSequenceEdit(MagicTemplate):
         show_macro = abstractapi()
         show_native_macro = abstractapi()
 
-    seq_name = vfield("Loader").with_options(label="Name:")
     projects = field(ProjectPaths)
     scale = field(1.0, label="Scale (nm):").with_options(
         min=0.001, step=0.0001, max=10.0
     )
     filter_expression = field(ExprStr.In[POLARS_NAMESPACE], label="Filter:")
 
-    @Select.wraps
+    @set_design(text="Select all projects", location=Select)
     @do_not_record
     def select_all_projects(self):
         """Select all projects."""
@@ -295,7 +293,7 @@ class ProjectSequenceEdit(MagicTemplate):
             wdt.check = True
         return None
 
-    @Select.wraps
+    @set_design(text="Select projects by pattern", location=Select)
     @do_not_record
     def select_projects_by_pattern(self, pattern: str):
         """Select projects by pattern matching."""
@@ -303,7 +301,7 @@ class ProjectSequenceEdit(MagicTemplate):
             prj.check = fnmatch(prj.path, pattern)
         return None
 
-    @Select.wraps
+    @set_design(text="Select molecules by pattern", location=Select)
     @do_not_record
     def select_molecules_by_pattern(self, pattern: str):
         """Select molecules by pattern matching."""
@@ -353,9 +351,8 @@ class ProjectSequenceEdit(MagicTemplate):
             )
         return pl.concat(dataframes, how="diagonal")
 
-    @View.wraps
+    @set_design(text="View components in 3D", location=View)
     @do_not_record
-    @set_design(text="View components in 3D")
     def view_components(self):
         """View all the splines and molecules that exist in this project."""
         from cylindra.project import ComponentsViewer
@@ -378,8 +375,7 @@ class ProjectSequenceEdit(MagicTemplate):
         cbox.changed.emit(cbox.value)
         return None
 
-    @View.wraps
-    @set_design(text="View selected components in 3D")
+    @set_design(text="View selected components in 3D", location=View)
     def view_selected_components(self):
         """View selected components in a 3D viewer."""
         from cylindra.project import ComponentsViewer
@@ -398,9 +394,8 @@ class ProjectSequenceEdit(MagicTemplate):
         cbox.changed.emit(cbox.value)
         return None
 
-    @View.wraps
+    @set_design(text="View selected molecules in table", location=View)
     @do_not_record
-    @set_design(text="View selected molecules in table")
     def view_molecules(self):
         """View selected molecules in a table"""
         mole = self._get_batch_loader().molecules
@@ -413,9 +408,8 @@ class ProjectSequenceEdit(MagicTemplate):
         table.show()
         return None
 
-    @View.wraps
+    @set_design(text="View filtered molecules in table", location=View)
     @do_not_record
-    @set_design(text="View filtered molecules in table")
     def view_filtered_molecules(self):
         """Preview filtered molecules in a table."""
         mole = self._get_batch_loader(predicate=self._get_expression()).molecules
@@ -434,9 +428,8 @@ class ProjectSequenceEdit(MagicTemplate):
             return None
         return wdt.eval()
 
-    @File.wraps
+    @set_design(text="Add projects", location=File)
     @do_not_record
-    @set_design(text="Add projects")
     def add_children(self, paths: Path.Multiple[FileFilter.JSON]):
         """Add project json files as the child projects."""
         for path in paths:
@@ -445,9 +438,8 @@ class ProjectSequenceEdit(MagicTemplate):
         self.reset_choices()
         return None
 
-    @File.wraps
+    @set_design(text="Add projects with wildcard path", location=File)
     @do_not_record
-    @set_design(text="Add projects with wildcard path")
     def add_children_glob(self, pattern: str):
         """Add project json files using wildcard path."""
         pattern = str(pattern)
@@ -457,7 +449,7 @@ class ProjectSequenceEdit(MagicTemplate):
         self.reset_choices()
         return
 
-    @File.wraps
+    @set_design(text="Clear children", location=File)
     @do_not_record
     def clear_children(self):
         """Clear all the projects in the list."""

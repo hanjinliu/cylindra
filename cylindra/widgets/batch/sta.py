@@ -246,13 +246,12 @@ class BatchSubtomogramAveraging(MagicTemplate):
         show_loader_info = abstractapi()
         remove_loader = abstractapi()
 
-    loader_name = Header.vfield(str).with_choices(choices=_get_loader_names)
+    loader_name = vfield(str, location=Header).with_choices(choices=_get_loader_names)
 
     def _get_current_loader_name(self, _=None) -> str:
         return self.loader_name
 
-    @Header.wraps
-    @set_design(text="??", max_width=36)
+    @set_design(text="??", max_width=36, location=Header)
     @do_not_record
     def show_loader_info(self):
         """Show information about this loader"""
@@ -273,8 +272,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         cnt.native.setParent(self.native, cnt.native.windowFlags())
         cnt.show()
 
-    @Header.wraps
-    @set_design(text="✕", max_width=36)
+    @set_design(text="✕", max_width=36, location=Header)
     def remove_loader(
         self, loader_name: Annotated[str, {"bind": _get_current_loader_name}]
     ):
@@ -291,8 +289,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         except Exception:
             return []
 
-    @BatchLoaderMenu.wraps
-    @set_design(text="Split loader")
+    @set_design(text="Split loader", location=BatchLoaderMenu)
     def split_loader(
         self,
         loader_name: Annotated[str, {"bind": _get_current_loader_name}],
@@ -327,8 +324,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
                 raise RuntimeError("Loader not found.")
             del loaders[idx]
 
-    @BatchLoaderMenu.wraps
-    @set_design(text="Filter loader")
+    @set_design(text="Filter loader", location=BatchLoaderMenu)
     def filter_loader(
         self,
         loader_name: Annotated[str, {"bind": _get_current_loader_name}],
@@ -370,8 +366,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         info = self._get_parent()._loaders[name]
         return info.loader
 
-    @BatchSubtomogramAnalysis.wraps
-    @set_design(text="Average all molecules")
+    @set_design(text="Average all molecules", location=BatchSubtomogramAnalysis)
     @dask_thread_worker.with_progress(desc="Averaging all molecules in projects")
     def average_all(
         self,
@@ -393,8 +388,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         t0.toc()
         return self._show_rec.with_args(img, f"[AVG]{loader_name}")
 
-    @BatchSubtomogramAnalysis.wraps
-    @set_design(text="Average group-wise")
+    @set_design(text="Average group-wise", location=BatchSubtomogramAnalysis)
     @dask_thread_worker.with_progress(desc="Grouped subtomogram averaging")
     def average_groups(
         self,
@@ -437,8 +431,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         t0.toc()
         return self._show_rec.with_args(img, f"[AVG]{loader_name}")
 
-    @BatchRefinement.wraps
-    @set_design(text="Align all molecules")
+    @set_design(text="Align all molecules", location=BatchRefinement)
     @dask_thread_worker.with_progress(desc="Aligning all molecules")
     def align_all(
         self,
@@ -484,8 +477,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         t0.toc()
         return None
 
-    @BatchSubtomogramAnalysis.wraps
-    @set_design(text="Calculate FSC")
+    @set_design(text="Calculate FSC", location=BatchSubtomogramAnalysis)
     @dask_thread_worker.with_progress(desc="Calculating FSC")
     def calculate_fsc(
         self,
@@ -574,8 +566,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
 
         return _calculate_fsc_on_return
 
-    @BatchSubtomogramAnalysis.wraps
-    @set_design(text="PCA/K-means classification")
+    @set_design(text="PCA/K-means classification", location=BatchSubtomogramAnalysis)
     @dask_thread_worker.with_progress(descs=_classify_pca_fmt)
     def classify_pca(
         self,
@@ -651,15 +642,13 @@ class BatchSubtomogramAveraging(MagicTemplate):
         show_template = abstractapi()
         show_mask = abstractapi()
 
-    @Buttons.wraps
-    @set_design(text="Show template")
+    @set_design(text="Show template", location=Buttons)
     @do_not_record
     def show_template(self):
         """Load and show template image in the scale of the tomogram."""
         self._show_rec(self.template, name="Template image", store=False)
 
-    @Buttons.wraps
-    @set_design(text="Show mask")
+    @set_design(text="Show mask", location=Buttons)
     @do_not_record
     def show_mask(self):
         """Load and show mask image in the scale of the tomogram."""

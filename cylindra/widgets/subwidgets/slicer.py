@@ -68,18 +68,18 @@ class SplineSlicer(ChildWidget):
                 return []
 
         depth = vfield(50.0, label="depth (nm)").with_options(min=1.0, max=200.0)
-        binsize = vfield(record=False).with_choices(_get_available_binsize)
+        binsize = vfield().with_choices(_get_available_binsize)
 
     @magicclass(layout="horizontal")
     class Row0(ChildWidget):
         radius = abstractapi()
         post_filter = abstractapi()
 
-    radius = Row0.vfield(Optional[nm], label="Radius (nm)").with_options(
+    radius = vfield(Optional[nm], label="Radius (nm)", location=Row0).with_options(
         text="Use spline global radius",
         options={"min": 1.0, "max": 200.0, "step": 0.5, "value": 10.0},
     )
-    post_filter = Row0.vfield(OneOf[POST_FILTERS], label="Filter")
+    post_filter = vfield(label="Filter", location=Row0).with_choices(POST_FILTERS)
     canvas = field(QtImageCanvas).with_options(lock_contrast_limits=True)
 
     @magicclass(widget_type="frame")

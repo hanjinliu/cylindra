@@ -71,8 +71,7 @@ class ImageLoader(MagicTemplate):
     filter = vfield(ImageFilter | None).with_options(value=ImageFilter.Lowpass)
     eager = vfield(False, label="Load the entire image into memory")
 
-    @scale.wraps
-    @set_design(text="Scan header", max_width=90)
+    @set_design(text="Scan header", max_width=90, location=scale)
     def scan_header(self):
         """Scan scale from image header and set the optimal bin size."""
         path = self.path

@@ -58,12 +58,12 @@ class CylindraBatchWidget(MagicTemplate):
         self._loaders.events.removed.connect(self.reset_choices)
         self._loaders.events.moved.connect(self.reset_choices)
 
-    @constructor.wraps
+    @set_design(text="Construct loader", location=constructor)
     def construct_loader(
         self,
         paths: Annotated[Any, {"bind": constructor._get_loader_paths}],
         predicate: Annotated[str | pl.Expr | None, {"bind": constructor._get_expression}],
-        name: Annotated[str, {"bind": constructor.seq_name}],
+        name: str = "Loader",
     ):  # fmt: skip
         """
         Construct a batch loader object from the given paths and predicate.
@@ -119,7 +119,7 @@ class CylindraBatchWidget(MagicTemplate):
     def _add_loader(self, loader: BatchLoader, name: str, image_paths: dict[int, Path]):
         self._loaders.append(LoaderInfo(loader, name=name, image_paths=image_paths))
 
-    @constructor.MacroMenu.wraps
+    @set_design(text="Show macro", location=constructor.MacroMenu)
     @do_not_record
     def show_macro(self):
         from cylindra import instance
@@ -132,15 +132,14 @@ class CylindraBatchWidget(MagicTemplate):
         CylindraMainWidget._active_widgets.add(win)
         return None
 
-    @constructor.MacroMenu.wraps
+    @set_design(text="Show native macro", location=constructor.MacroMenu)
     @do_not_record
     def show_native_macro(self):
         self.macro.widget.show()
         CylindraMainWidget._active_widgets.add(self.macro.widget)
         return None
 
-    @constructor.File.wraps
-    @set_design(text="Load batch analysis project")
+    @set_design(text="Load batch analysis project", location=constructor.File)
     @confirm(
         text="Are you sure to clear all loaders?", condition="len(self._loaders) > 0"
     )
@@ -156,8 +155,7 @@ class CylindraBatchWidget(MagicTemplate):
         self._loaders.clear()
         return CylindraBatchProject.from_file(path)._to_gui(self)
 
-    @constructor.File.wraps
-    @set_design(text="Save as batch analysis project")
+    @set_design(text="Save as batch analysis project", location=constructor.File)
     def save_batch_project(
         self,
         save_path: Path.Save,

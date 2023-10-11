@@ -296,6 +296,9 @@ class Splines(ChildWidget):
         align_to_polarity = abstractapi()
         auto_align_to_polarity = abstractapi()
 
+    invert_spline = abstractapi(location=Orientation)
+    align_to_polarity = abstractapi(location=Orientation)
+    auto_align_to_polarity = abstractapi(location=Orientation)
     clip_spline = abstractapi()
 
     @set_design(text="Open spline clipper")
@@ -424,6 +427,11 @@ class MoleculesMenu(ChildWidget):
         map_centers = abstractapi()
         map_along_pf = abstractapi()
 
+    map_monomers = abstractapi(location=Mapping)
+    map_monomers_with_extensions = abstractapi(location=Mapping)
+    map_centers = abstractapi(location=Mapping)
+    map_along_pf = abstractapi(location=Mapping)
+
     set_source_spline = abstractapi()
     sep0 = field(Separator)
     translate_molecules = abstractapi()
@@ -442,6 +450,9 @@ class MoleculesMenu(ChildWidget):
         concatenate_molecules = abstractapi()
         merge_molecule_info = abstractapi()
 
+    concatenate_molecules = abstractapi(location=Combine)
+    merge_molecule_info = abstractapi(location=Combine)
+
     @magicmenu(name="Features")
     class MoleculeFeatures(MagicTemplate):
         """Analysis based on molecule features."""
@@ -455,6 +466,15 @@ class MoleculesMenu(ChildWidget):
         binarize_feature = abstractapi()
         label_feature_clusters = abstractapi()
         regionprops_features = abstractapi()
+
+    calculate_molecule_features = abstractapi(location=MoleculeFeatures)
+    interpolate_spline_properties = abstractapi(location=MoleculeFeatures)
+    calculate_lattice_structure = abstractapi(location=MoleculeFeatures)
+    calculate_curve_index = abstractapi(location=MoleculeFeatures)
+    convolve_feature = abstractapi(location=MoleculeFeatures)
+    binarize_feature = abstractapi(location=MoleculeFeatures)
+    label_feature_clusters = abstractapi(location=MoleculeFeatures)
+    regionprops_features = abstractapi(location=MoleculeFeatures)
 
     @magicmenu(name="View")
     class View(ChildWidget):
@@ -528,7 +548,51 @@ class MoleculesMenu(ChildWidget):
             return None
 
         paint_molecules = abstractapi()
-        plot_molecule_feature = abstractapi()
+
+        @set_design(text="Plot molecule feature in 2D")
+        @do_not_record
+        def plot_molecule_feature(
+            self,
+            layer: MoleculesLayer,
+            backend: Literal["inline", "qt"] = "inline",
+        ):
+            """
+            Plot current molecule feature coloring in 2D figure.
+
+            For data visualization, plotting in 2D is better than in 3D. Current
+            colormap in the 3D canvas is directly used for 2D plotting.
+
+            Parameters
+            ----------
+            {layer}
+            backend : "inline" or "qt", optional
+                Plotting backend. "inline" means the plot is shown in the console.
+            """
+            from cylindra.components.visualize import flat_view
+            from matplotlib.axes import Axes
+
+            layer = assert_layer(layer, self.parent_viewer)
+            if backend == "inline":
+                plt.figure()
+                ax: Axes = plt.gca()
+            elif backend == "qt":
+                from magicclass.widgets import Figure
+
+                fig = Figure()
+                ax = fig.ax
+                fig.show()
+                self._active_widgets.add(fig)
+            else:
+                raise ValueError(f"Unknown backend: {backend!r}")
+
+            flat_view(
+                layer.molecules,
+                spl=layer.source_spline,
+                colors=layer.face_color,
+                ax=ax,
+            )
+            ax.set_title(layer.name)
+            return
 
         @set_design(text="Render molecules")
         @do_not_record
@@ -601,6 +665,8 @@ class MoleculesMenu(ChildWidget):
                 name=f"Rendered {layer.name}",
             )
             return None
+
+    paint_molecules = abstractapi(location=View)
 
 
 @magicmenu
@@ -943,8 +1009,7 @@ class Others(ChildWidget):
 
         return dask.config.set(num_workers=num_workers, scheduler=scheduler)
 
-    @Help.wraps
-    @set_design(text="Info")
+    @set_design(text="Info", location=Help)
     @do_not_record
     def cylindra_info(self):
         """Show information of dependencies."""
@@ -959,8 +1024,7 @@ class Others(ChildWidget):
         main._active_widgets.add(w)
         return None
 
-    @Help.wraps
-    @set_design(text="Report issues")
+    @set_design(text="Report issues", location=Help)
     @do_not_record
     def report_issues(self):
         """Report issues on GitHub."""

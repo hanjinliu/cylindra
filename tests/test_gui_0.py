@@ -59,8 +59,8 @@ def test_tooltip(ui: CylindraMainWidget):
 
 
 def test_misc_actions(ui: CylindraMainWidget):
-    ui.Others.cylindra_info()
-    ui.Others.open_command_palette()
+    ui.OthersMenu.cylindra_info()
+    ui.OthersMenu.open_command_palette()
 
 
 @pytest.mark.parametrize(
@@ -176,14 +176,14 @@ def test_spline_deletion(ui: CylindraMainWidget):
     ui.delete_spline(0)
     assert ui._reserved_layers.prof.features["spline-id"].values[0] == 0.0
     assert ui._reserved_layers.prof.features["spline-id"].values[-1] == 0.0
-    ui.toolbar.undo()
+    ui.Toolbar.undo()
     assert ui._reserved_layers.prof.features["spline-id"].values[0] == 0.0
     assert ui._reserved_layers.prof.features["spline-id"].values[-1] == 1.0
-    ui.toolbar.undo()
+    ui.Toolbar.undo()
     assert ui._reserved_layers.prof.features["spline-id"].values[0] == 0.0
     assert ui._reserved_layers.prof.features["spline-id"].values[-1] == 0.0
-    ui.toolbar.redo()
-    ui.toolbar.redo()
+    ui.Toolbar.redo()
+    ui.Toolbar.redo()
     assert ui._reserved_layers.prof.features["spline-id"].values[0] == 0.0
     assert ui._reserved_layers.prof.features["spline-id"].values[-1] == 0.0
 
@@ -274,7 +274,7 @@ def test_load_macro(ui: CylindraMainWidget):
     with tempfile.TemporaryDirectory() as tmpdir:
         fp = Path(tmpdir) / "test_macro.py"
         fp.write_text("print(0)")
-        ui.Others.Macro.load_macro_file(fp)
+        ui.OthersMenu.Macro.load_macro_file(fp)
 
 
 def test_spline_switch(ui: CylindraMainWidget):
@@ -339,7 +339,7 @@ def test_spline_switch(ui: CylindraMainWidget):
         assert_orientation(ui, "MinusToPlus")
         assert_canvas(ui, [False, False, False])
 
-        ui.Splines.show_localprops()
+        ui.SplinesMenu.show_localprops()
 
         # Check align polarity.
         # Only spline 0 will get updated.
@@ -489,7 +489,7 @@ def test_sub_widgets(ui: CylindraMainWidget):
 
     # spline clipper
     len_old = ui.splines[0].length()
-    ui.Splines.open_spline_clipper()
+    ui.SplinesMenu.open_spline_clipper()
     ui.spline_clipper.clip_length = 1
     ui.spline_clipper.clip_here()
     assert ui.splines[0].length() == pytest.approx(len_old - 1, abs=0.01)
@@ -499,7 +499,7 @@ def test_sub_widgets(ui: CylindraMainWidget):
     assert ui.splines[0].length() == pytest.approx(len_old - 2.4, abs=0.02)
 
     # spectra inspector
-    ui.Analysis.open_spectra_inspector()
+    ui.AnalysisMenu.open_spectra_inspector()
     ui.spectra_inspector.log_scale = True
     ui.spectra_inspector.log_scale = False
 
@@ -903,7 +903,7 @@ def test_calc_misc(ui: CylindraMainWidget):
     ui.calculate_lattice_structure(layer=layer, props=all_props)
     assert layer.features["radius-nm"].std() < 0.1
     ui.paint_molecules(layer, color_by="radius-nm", limits=(8, 10))
-    ui.plot_molecule_feature(layer, backend="qt")
+    ui.View.plot_molecule_feature(layer, backend="qt")
 
 
 def test_spline_fitter(ui: CylindraMainWidget):
@@ -915,7 +915,7 @@ def test_spline_fitter(ui: CylindraMainWidget):
         filter=None,
     )
     ui.register_path(coords=[[21.974, 117.148, 34.873], [21.974, 36.449, 58.084]])
-    ui.Splines.fit_splines_manually(30)
+    ui.SplinesMenu.fit_splines_manually(30)
     ui.spline_fitter.controller.pos.value = 1
     ui.spline_fitter.fit(
         shifts=[[1.094, 0.797], [1.094, 0.797], [1.094, 0.698]], i=0, max_interval=50.0
@@ -1115,12 +1115,12 @@ def test_regionprops(ui: CylindraMainWidget):
 
 def test_showing_widgets(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
-    ui.Others.Macro.show_macro()
-    ui.Others.Macro.show_full_macro()
-    ui.Others.Macro.show_native_macro()
-    ui.Others.open_logger()
-    ui.File.open_image_loader()
-    ui.File.view_project(PROJECT_DIR_13PF / "project.json")
+    ui.OthersMenu.Macro.show_macro()
+    ui.OthersMenu.Macro.show_full_macro()
+    ui.OthersMenu.Macro.show_native_macro()
+    ui.OthersMenu.open_logger()
+    ui.FileMenu.open_image_loader()
+    ui.FileMenu.view_project(PROJECT_DIR_13PF / "project.json")
 
 
 def test_image_processor(ui: CylindraMainWidget):
@@ -1144,23 +1144,23 @@ def test_workflows_custom(ui: CylindraMainWidget):
         "    ui.load_project('path/to/project.json')\n"
     )
     with tempfile.TemporaryDirectory() as dirpath, _config.patch_workflow_path(dirpath):
-        ui.Others.Workflows.define_workflow(name, code)
-        ui.Others.Workflows.edit_workflow(name, code)
-        ui.Others.Workflows.import_workflow(
+        ui.OthersMenu.Workflows.define_workflow(name, code)
+        ui.OthersMenu.Workflows.edit_workflow(name, code)
+        ui.OthersMenu.Workflows.import_workflow(
             Path(dirpath) / f"{name}.py", name="imported"
         )
-        ui.Others.Workflows.delete_workflow([name])
-        ui.Others.Workflows.copy_workflow_directory()
+        ui.OthersMenu.Workflows.delete_workflow([name])
+        ui.OthersMenu.Workflows.copy_workflow_directory()
 
 
 def test_stash(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
     with tempfile.TemporaryDirectory() as dirpath, _config.patch_stash_dir(dirpath):
-        ui.File.Stash.stash_project()
+        ui.FileMenu.Stash.stash_project()
         name0 = _config.get_stash_list()[0]
-        ui.File.Stash.load_stash_project(name0, filter=None)
-        ui.File.Stash.pop_stash_project(name0, filter=None)
-        ui.File.Stash.stash_project()
+        ui.FileMenu.Stash.load_stash_project(name0, filter=None)
+        ui.FileMenu.Stash.pop_stash_project(name0, filter=None)
+        ui.FileMenu.Stash.stash_project()
         name1 = _config.get_stash_list()[0]
-        ui.File.Stash.delete_stash_project(name1)
-        ui.File.Stash.clear_stash_projects()
+        ui.FileMenu.Stash.delete_stash_project(name1)
+        ui.FileMenu.Stash.clear_stash_projects()

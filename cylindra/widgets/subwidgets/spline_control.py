@@ -18,7 +18,7 @@ from magicclass.utils import thread_worker
 from magicclass.ext.pyqtgraph import QtMultiImageCanvas
 from dask import array as da
 
-from cylindra.const import PropertyNames as H, Mode, FileFilter
+from cylindra.const import PropertyNames as H, Mode, FileFilter, SplineColor
 from cylindra.utils import map_coordinates_task, Projections
 from ._child_widget import ChildWidget
 
@@ -96,14 +96,12 @@ class SplineControl(ChildWidget):
         save_screenshot = abstractapi()
         log_screenshot = abstractapi()
 
-    @footer.wraps
-    @set_design(max_width=40, text="Copy")
+    @set_design(max_width=40, text="Copy", location=footer)
     def copy_screenshot(self):
         """Copy a screenshot of the projections to clipboard."""
         return self.canvas.to_clipboard()
 
-    @footer.wraps
-    @set_design(max_width=40, text="Scr")
+    @set_design(max_width=40, text="Scr", location=footer)
     def save_screenshot(self, path: Path.Save[FileFilter.PNG]):
         """Take a screenshot of the projections."""
         from skimage.io import imsave
@@ -111,8 +109,7 @@ class SplineControl(ChildWidget):
         img = self.canvas.render()
         return imsave(path, img)
 
-    @footer.wraps
-    @set_design(max_width=40, text="Log")
+    @set_design(max_width=40, text="Log", location=footer)
     def log_screenshot(self):
         """Take a screenshot of the projections and show in the logger."""
         import matplotlib.pyplot as plt
@@ -359,6 +356,27 @@ class SplineControl(ChildWidget):
             if img is not None:
                 self.canvas[i].contrast_limits = [img.min(), img.max()]
         return None
+
+    @num.connect
+    def _highlight_spline_in_main(self, num: int):
+        if num is None:
+            return
+        main = self._get_main()
+        return main._highlight_spline()
+
+    @num.connect
+    def _update_global_properties(self, num: int):
+        """Show global property values in widgets."""
+        if num is None:
+            return
+        main = self._get_main()
+        return main._update_global_properties_in_widget()
+
+    @num.connect
+    @pos.connect
+    def _update_local_properties(self, _=None):
+        main = self._get_main()
+        return main._update_local_properties_in_widget()
 
 
 def _circle(

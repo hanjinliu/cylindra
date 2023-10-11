@@ -159,9 +159,8 @@ class ProjectViewer(MagicTemplate):
             raise ValueError("Project path is not known.")
         return self._project.project_path
 
-    @Menu.wraps
     @thread_worker
-    @set_design(text="Load this project")
+    @set_design(text="Load this project", location=Menu)
     def load_this_project(
         self,
         path: Annotated[str, {"bind": _get_project_path}],
@@ -189,16 +188,14 @@ class ProjectViewer(MagicTemplate):
         yield from ui.load_project.arun(path, filter, paint, read_image, update_config)
         return thread_worker.callback(self.close)
 
-    @Menu.wraps
-    @set_design(text="Preview image")
+    @set_design(text="Preview image", location=Menu)
     def preview_image(self):
         """Preview the tomogram image."""
         from cylindra.widgets._previews import view_image
 
         return view_image(self._project.image, parent=self)
 
-    @Menu.wraps
-    @set_design(text="Close")
+    @set_design(text="Close", location=Menu)
     def close_window(self):
         """Close this preview."""
         return self.close()

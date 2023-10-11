@@ -26,7 +26,7 @@ class FileIterator(ChildWidget):
         pattern = abstractapi()
         set_pattern = abstractapi()
 
-    pattern = Header.vfield(str)
+    pattern = vfield(str, location=Header)
     path = vfield(str).with_options(enabled=False)
 
     @magicclass(layout="horizontal")
@@ -40,8 +40,7 @@ class FileIterator(ChildWidget):
         self._current_index = 0
         self._files: list[str] = []
 
-    @Header.wraps
-    @set_design(text="Set")
+    @set_design(text="Set", location=Header)
     def set_pattern(self, val: Annotated[str, {"bind": pattern}]):
         """Set pattern for file search."""
         if val == "":
@@ -55,26 +54,22 @@ class FileIterator(ChildWidget):
             self.path = "No files found"
         self._update_index(0)
 
-    @Arrows.wraps
-    @set_design(text="|<<")
+    @set_design(text="|<<", location=Arrows)
     def first_file(self):
         """Select the first file."""
         self._update_index(0)
 
-    @Arrows.wraps
-    @set_design(text=">>|")
+    @set_design(text=">>|", location=Arrows)
     def last_file(self):
         """Select the last file."""
         self._update_index(len(self._files) - 1)
 
-    @Arrows.wraps
-    @set_design(text="<")
+    @set_design(text="<", location=Arrows)
     def prev_file(self):
         """Select the previous file."""
         self._update_index(self._current_index - 1)
 
-    @Arrows.wraps
-    @set_design(text=">")
+    @set_design(text=">", location=Arrows)
     def next_file(self):
         """Select next file."""
         self._update_index(self._current_index + 1)
@@ -94,7 +89,7 @@ class FileIterator(ChildWidget):
 
     @set_design(text="Open image ...")
     def open_image(self, path: Annotated[str, {"bind": path}]):
-        loader = self._get_main().File.open_image_loader()
+        loader = self._get_main().FileMenu.open_image_loader()
         loader.path = path
         loader.show()
 

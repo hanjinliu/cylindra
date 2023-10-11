@@ -163,8 +163,7 @@ class LocalPropertiesWidget(ChildWidget):
         save_screenshot = abstractapi()
         log_screenshot = abstractapi()
 
-    @footer.wraps
-    @set_design(text="Edit plots")
+    @set_design(text="Edit plots", location=footer)
     def edit_props(
         self,
         props: Annotated[list[str], {"widget_type": CheckBoxes, "choices": _PlotInfo.keys()}] = (H.spacing, H.dimer_twist, H.rise)
@@ -173,14 +172,12 @@ class LocalPropertiesWidget(ChildWidget):
         self._props_changed.emit(props)
         return None
 
-    @footer.wraps
-    @set_design(max_width=40, text="Copy")
+    @set_design(max_width=40, text="Copy", location=footer)
     def copy_screenshot(self):
         """Copy a screenshot of the plots to clipboard."""
         return self.plot.to_clipboard()
 
-    @footer.wraps
-    @set_design(max_width=40, text="Scr")
+    @set_design(max_width=40, text="Scr", location=footer)
     def save_screenshot(self, path: Path.Save[FileFilter.PNG]):
         """Take a screenshot of the plots."""
         from skimage.io import imsave
@@ -188,8 +185,7 @@ class LocalPropertiesWidget(ChildWidget):
         img = self.plot.render()
         return imsave(path, img)
 
-    @footer.wraps
-    @set_design(max_width=40, text="Log")
+    @set_design(max_width=40, text="Log", location=footer)
     def log_screenshot(self):
         """Take a screenshot of the plots and show in the logger."""
         import matplotlib.pyplot as plt

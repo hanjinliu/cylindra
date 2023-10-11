@@ -71,8 +71,7 @@ class SplineFitter(ChildWidget):
     def _get_max_interval(self, _=None) -> nm:
         return self._max_interval
 
-    @controller.wraps
-    @set_design(text="Fit")
+    @set_design(text="Fit", location=controller)
     def fit(
         self,
         i: Annotated[int, {"bind": controller.num}],
