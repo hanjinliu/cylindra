@@ -906,7 +906,7 @@ def test_calc_misc(ui: CylindraMainWidget):
     ui.calculate_lattice_structure(layer=layer, props=all_props)
     assert layer.features["radius-nm"].std() < 0.1
     ui.paint_molecules(layer, color_by="radius-nm", limits=(8, 10))
-    ui.View.plot_molecule_feature(layer, backend="qt")
+    ui.MoleculesMenu.View.plot_molecule_feature(layer, backend="qt")
 
 
 def test_spline_fitter(ui: CylindraMainWidget):

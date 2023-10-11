@@ -19,12 +19,13 @@ def ui(make_napari_viewer):
     for _w in _ACTIVE_WIDGETS:
         with suppress(RuntimeError):
             _w.close()
-    _ui.close()
-    if sv := _ui.sta.sub_viewer:
-        with suppress(RuntimeError):
-            sv.close()
     if batch := _ui._batch:
         with suppress(RuntimeError):
             batch.constructor.close()
             batch.close()
+            # batch.constructor.native.deleteLater()
+    _ui.close()
+    if sv := _ui.sta.sub_viewer:
+        with suppress(RuntimeError):
+            sv.close()
     viewer.close()

@@ -337,9 +337,6 @@ class ProjectSequenceEdit(MagicTemplate):
             batch_loader = batch_loader.replace(output_shape=output_shape)
         return batch_loader
 
-    def _get_loader_paths(self, _=None) -> list[tuple[Path, list[Path], Path]]:
-        return [prj._get_loader_paths() for prj in self.projects]
-
     def _get_localprops(self) -> pl.DataFrame:
         dataframes = list[pl.DataFrame]()
         for idx, prj in enumerate(iter(self.projects)):

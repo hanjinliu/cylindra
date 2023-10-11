@@ -11,12 +11,12 @@ from .spline_clipper import SplineClipper
 from .spline_control import SplineControl
 from .spline_fitter import SplineFitter
 from .menus import (
-    File,
-    Image,
-    Splines,
+    FileMenu,
+    ImageMenu,
+    SplinesMenu,
     MoleculesMenu,
-    Analysis,
-    Others,
+    AnalysisMenu,
+    OthersMenu,
 )
 from .toolbar import CylindraToolbar
 from .file_iter import FileIterator
@@ -33,13 +33,13 @@ __all__ = [
     "SplineClipper",
     "SplineControl",
     "SplineFitter",
-    "File",
+    "FileMenu",
     "FileIterator",
-    "Image",
-    "Splines",
+    "ImageMenu",
+    "SplinesMenu",
     "MoleculesMenu",
-    "Analysis",
-    "Others",
+    "AnalysisMenu",
+    "OthersMenu",
     "CylindraToolbar",
     "Runner",
     "ImageLoader",

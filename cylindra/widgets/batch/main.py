@@ -49,7 +49,7 @@ _SPLINE_FEATURES = [
     symbol=Expr("getattr", [Symbol("ui"), "batch"]),
 )
 class CylindraBatchWidget(MagicTemplate):
-    constructor = ProjectSequenceEdit
+    constructor = field(ProjectSequenceEdit)
     sta = field(BatchSubtomogramAveraging)
 
     def __init__(self):
@@ -58,11 +58,17 @@ class CylindraBatchWidget(MagicTemplate):
         self._loaders.events.removed.connect(self.reset_choices)
         self._loaders.events.moved.connect(self.reset_choices)
 
+    def _get_loader_paths(self, *_):
+        return [prj._get_loader_paths() for prj in self.constructor.projects]
+
+    def _get_expression(self, *_):
+        return self.constructor._get_expression()
+
     @set_design(text="Construct loader", location=constructor)
     def construct_loader(
         self,
-        paths: Annotated[Any, {"bind": constructor._get_loader_paths}],
-        predicate: Annotated[str | pl.Expr | None, {"bind": constructor._get_expression}],
+        paths: Annotated[Any, {"bind": _get_loader_paths}],
+        predicate: Annotated[str | pl.Expr | None, {"bind": _get_expression}],
         name: str = "Loader",
     ):  # fmt: skip
         """
@@ -119,7 +125,7 @@ class CylindraBatchWidget(MagicTemplate):
     def _add_loader(self, loader: BatchLoader, name: str, image_paths: dict[int, Path]):
         self._loaders.append(LoaderInfo(loader, name=name, image_paths=image_paths))
 
-    @set_design(text="Show macro", location=constructor.MacroMenu)
+    @set_design(text="Show macro", location=ProjectSequenceEdit.MacroMenu)
     @do_not_record
     def show_macro(self):
         from cylindra import instance
@@ -132,14 +138,14 @@ class CylindraBatchWidget(MagicTemplate):
         CylindraMainWidget._active_widgets.add(win)
         return None
 
-    @set_design(text="Show native macro", location=constructor.MacroMenu)
+    @set_design(text="Show native macro", location=ProjectSequenceEdit.MacroMenu)
     @do_not_record
     def show_native_macro(self):
         self.macro.widget.show()
         CylindraMainWidget._active_widgets.add(self.macro.widget)
         return None
 
-    @set_design(text="Load batch analysis project", location=constructor.File)
+    @set_design(text="Load batch analysis project", location=ProjectSequenceEdit.File)
     @confirm(
         text="Are you sure to clear all loaders?", condition="len(self._loaders) > 0"
     )
@@ -155,7 +161,9 @@ class CylindraBatchWidget(MagicTemplate):
         self._loaders.clear()
         return CylindraBatchProject.from_file(path)._to_gui(self)
 
-    @set_design(text="Save as batch analysis project", location=constructor.File)
+    @set_design(
+        text="Save as batch analysis project", location=ProjectSequenceEdit.File
+    )
     def save_batch_project(
         self,
         save_path: Path.Save,

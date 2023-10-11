@@ -35,6 +35,7 @@ from cylindra.types import get_monomer_layers, ColoredLayer
 from cylindra.ext.etomo import PEET
 from cylindra.const import nm, get_versions, ImageFilter, FileFilter
 from cylindra.project import CylindraProject, extract
+from cylindra.widgets._annotated import assert_layer
 from cylindra.widgets.widget_utils import get_code_theme
 from cylindra.widgets._widget_ext import CheckBoxes
 from cylindra.components.spline import SplineConfig
@@ -51,7 +52,7 @@ _Logger = getLogger("cylindra")
 
 
 @magicmenu
-class File(ChildWidget):
+class FileMenu(ChildWidget):
     """File input and output."""
 
     @set_design(text="Open image")
@@ -188,8 +189,8 @@ class File(ChildWidget):
     PEET = PEET
 
 
-@magicmenu(name="Image")
-class Image(ChildWidget):
+@magicmenu
+class ImageMenu(ChildWidget):
     """Image processing and visualization"""
 
     filter_reference_image = abstractapi()
@@ -256,7 +257,7 @@ class Image(ChildWidget):
 
 
 @magicmenu
-class Splines(ChildWidget):
+class SplinesMenu(ChildWidget):
     """Operations on splines"""
 
     show_splines = abstractapi()
@@ -296,9 +297,6 @@ class Splines(ChildWidget):
         align_to_polarity = abstractapi()
         auto_align_to_polarity = abstractapi()
 
-    invert_spline = abstractapi(location=Orientation)
-    align_to_polarity = abstractapi(location=Orientation)
-    auto_align_to_polarity = abstractapi(location=Orientation)
     clip_spline = abstractapi()
 
     @set_design(text="Open spline clipper")
@@ -427,11 +425,6 @@ class MoleculesMenu(ChildWidget):
         map_centers = abstractapi()
         map_along_pf = abstractapi()
 
-    map_monomers = abstractapi(location=Mapping)
-    map_monomers_with_extensions = abstractapi(location=Mapping)
-    map_centers = abstractapi(location=Mapping)
-    map_along_pf = abstractapi(location=Mapping)
-
     set_source_spline = abstractapi()
     sep0 = field(Separator)
     translate_molecules = abstractapi()
@@ -450,11 +443,8 @@ class MoleculesMenu(ChildWidget):
         concatenate_molecules = abstractapi()
         merge_molecule_info = abstractapi()
 
-    concatenate_molecules = abstractapi(location=Combine)
-    merge_molecule_info = abstractapi(location=Combine)
-
     @magicmenu(name="Features")
-    class MoleculeFeatures(MagicTemplate):
+    class Features(MagicTemplate):
         """Analysis based on molecule features."""
 
         calculate_molecule_features = abstractapi()
@@ -466,15 +456,6 @@ class MoleculesMenu(ChildWidget):
         binarize_feature = abstractapi()
         label_feature_clusters = abstractapi()
         regionprops_features = abstractapi()
-
-    calculate_molecule_features = abstractapi(location=MoleculeFeatures)
-    interpolate_spline_properties = abstractapi(location=MoleculeFeatures)
-    calculate_lattice_structure = abstractapi(location=MoleculeFeatures)
-    calculate_curve_index = abstractapi(location=MoleculeFeatures)
-    convolve_feature = abstractapi(location=MoleculeFeatures)
-    binarize_feature = abstractapi(location=MoleculeFeatures)
-    label_feature_clusters = abstractapi(location=MoleculeFeatures)
-    regionprops_features = abstractapi(location=MoleculeFeatures)
 
     @magicmenu(name="View")
     class View(ChildWidget):
@@ -549,7 +530,7 @@ class MoleculesMenu(ChildWidget):
 
         paint_molecules = abstractapi()
 
-        @set_design(text="Plot molecule feature in 2D")
+        @set_design(text="Show molecule feature in flat view")
         @do_not_record
         def plot_molecule_feature(
             self,
@@ -557,21 +538,23 @@ class MoleculesMenu(ChildWidget):
             backend: Literal["inline", "qt"] = "inline",
         ):
             """
-            Plot current molecule feature coloring in 2D figure.
+            Show current molecule feature coloring in 2D figure.
 
             For data visualization, plotting in 2D is better than in 3D. Current
             colormap in the 3D canvas is directly used for 2D plotting.
 
             Parameters
             ----------
-            {layer}
+            layer : MoleculesLayer
+                The layer to plot the flat view.
             backend : "inline" or "qt", optional
                 Plotting backend. "inline" means the plot is shown in the console.
             """
             from cylindra.components.visualize import flat_view
             from matplotlib.axes import Axes
 
-            layer = assert_layer(layer, self.parent_viewer)
+            main = self._get_main()
+            layer = assert_layer(layer, main.parent_viewer)
             if backend == "inline":
                 plt.figure()
                 ax: Axes = plt.gca()
@@ -581,7 +564,7 @@ class MoleculesMenu(ChildWidget):
                 fig = Figure()
                 ax = fig.ax
                 fig.show()
-                self._active_widgets.add(fig)
+                main._active_widgets.add(fig)
             else:
                 raise ValueError(f"Unknown backend: {backend!r}")
 
@@ -666,11 +649,9 @@ class MoleculesMenu(ChildWidget):
             )
             return None
 
-    paint_molecules = abstractapi(location=View)
-
 
 @magicmenu
-class Analysis(ChildWidget):
+class AnalysisMenu(ChildWidget):
     """Analysis of tomograms."""
 
     measure_radius = abstractapi()
@@ -728,7 +709,7 @@ class Analysis(ChildWidget):
 
 
 @magicmenu
-class Others(ChildWidget):
+class OthersMenu(ChildWidget):
     """Other menus."""
 
     @magicmenu(record=False)
@@ -1055,8 +1036,8 @@ def normalize_workflow(workflow: str, ui: "CylindraMainWidget") -> str:
     return workflow
 
 
-@setup_function_gui(Others.Workflows.run_workflow)
-def _(self: Others.Workflows, gui: "FunctionGui"):
+@setup_function_gui(OthersMenu.Workflows.run_workflow)
+def _(self: OthersMenu.Workflows, gui: "FunctionGui"):
     txt = CodeEdit()
     txt.syntax_highlight("python", theme=get_code_theme(self))
     txt.read_only = True
@@ -1071,15 +1052,15 @@ def _(self: Others.Workflows, gui: "FunctionGui"):
     _on_name_change(gui.filename.value)
 
 
-@setup_function_gui(Others.Workflows.define_workflow)
-def _(self: Others.Workflows, gui: "FunctionGui"):
+@setup_function_gui(OthersMenu.Workflows.define_workflow)
+def _(self: OthersMenu.Workflows, gui: "FunctionGui"):
     gui.workflow.syntax_highlight("python", theme=get_code_theme(self))
     gui.workflow.value = _config.WORKFLOW_TEMPLATE.format("# Write your workflow here")
     gui.called.connect(self.reset_choices)
 
 
-@setup_function_gui(Others.Workflows.edit_workflow)
-def _(self: Others.Workflows, gui: "FunctionGui"):
+@setup_function_gui(OthersMenu.Workflows.edit_workflow)
+def _(self: OthersMenu.Workflows, gui: "FunctionGui"):
     gui.workflow.syntax_highlight("python", theme=get_code_theme(self))
 
     @gui.filename.changed.connect
