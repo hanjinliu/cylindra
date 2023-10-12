@@ -254,9 +254,9 @@ class ProjectSequenceEdit(MagicTemplate):
 
     @magicmenu
     class File(MagicTemplate):
-        add_children = abstractapi()
-        add_children_glob = abstractapi()
-        clear_children = abstractapi()
+        add_projects = abstractapi()
+        add_projects_glob = abstractapi()
+        clear_projects = abstractapi()
         sep0 = field(Separator)
         load_batch_project = abstractapi()
         save_batch_project = abstractapi()
@@ -427,7 +427,7 @@ class ProjectSequenceEdit(MagicTemplate):
 
     @set_design(text="Add projects", location=File)
     @do_not_record
-    def add_children(self, paths: Path.Multiple[FileFilter.JSON]):
+    def add_projects(self, paths: Path.Multiple[FileFilter.JSON]):
         """Add project json files as the child projects."""
         for path in paths:
             wdt = self.projects._add(get_project_file(path))
@@ -437,18 +437,20 @@ class ProjectSequenceEdit(MagicTemplate):
 
     @set_design(text="Add projects with wildcard path", location=File)
     @do_not_record
-    def add_children_glob(self, pattern: str):
+    def add_projects_glob(self, pattern: str, clear: bool = True):
         """Add project json files using wildcard path."""
         pattern = str(pattern)
+        if clear:
+            self.projects.clear()
         for path in glob.glob(pattern):
             wdt = self.projects._add(path)
             self.scale.value = wdt.project.scale
         self.reset_choices()
         return
 
-    @set_design(text="Clear children", location=File)
+    @set_design(text="Clear projects", location=File)
     @do_not_record
-    def clear_children(self):
+    def clear_projects(self):
         """Clear all the projects in the list."""
         self.projects.clear()
         return None
@@ -460,7 +462,7 @@ def _set_parent(wdt: Widget, parent: Widget):
     wdt.native.setParent(parent.native, wdt.native.windowFlags())
 
 
-@impl_preview(ProjectSequenceEdit.add_children_glob)
+@impl_preview(ProjectSequenceEdit.add_projects_glob)
 def _(self: ProjectSequenceEdit, pattern: str):
     paths = list[str]()
     for path in glob.glob(str(pattern)):

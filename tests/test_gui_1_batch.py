@@ -52,9 +52,9 @@ def test_project_io(ui: CylindraMainWidget):
 
 
 def test_view(ui: CylindraMainWidget):
-    ui.batch.constructor.add_children_glob(TEST_DIR / "test*" / "project.json")
-    ui.batch.constructor.clear_children()
-    ui.batch.constructor.add_children([PROJECT_DIR_13PF, PROJECT_DIR_14PF])
+    ui.batch.constructor.add_projects_glob(TEST_DIR / "test*" / "project.json")
+    ui.batch.constructor.clear_projects()
+    ui.batch.constructor.add_projects([PROJECT_DIR_13PF, PROJECT_DIR_14PF])
     ui.batch.constructor.view_components()
     ui.batch.constructor.view_molecules()
     ui.batch.constructor.view_filtered_molecules()
