@@ -180,6 +180,7 @@ class FileMenu(ChildWidget):
     @set_design(text="View project")
     @do_not_record
     def view_project(self, path: Path.Read[FileFilter.JSON]):
+        """View a project file"""
         main = self._get_main()
         pviewer = CylindraProject.from_file(path).make_project_viewer()
         pviewer.native.setParent(main.native, pviewer.native.windowFlags())
@@ -742,7 +743,7 @@ class OthersMenu(ChildWidget):
 
         @set_design(text="Show full macro")
         def show_full_macro(self):
-            """Create Python executable script since the startup this time."""
+            """Create Python executable script of this session."""
             main = self._get_main()
             text = str(main._format_macro())
             return self._get_macro_window(text, tabname="Full macro").show()
@@ -750,8 +751,9 @@ class OthersMenu(ChildWidget):
         @set_design(text="Show native macro")
         def show_native_macro(self):
             """
-            Show the native macro widget of magic-class, which is always synchronized but
-            is not editable.
+            Show the native macro widget of current session.
+
+            The native macro is always synchronized but is not editable.
             """
             main = self._get_main()
             main.macro.widget.show()
@@ -871,16 +873,11 @@ class OthersMenu(ChildWidget):
         @set_options(call_button="Delete", labels=False)
         def delete_workflow(
             self,
-            filenames: Annotated[
-                list[str],
-                {
-                    "choices": _get_workflow_names,
-                    "widget_type": CheckBoxes,
-                    "value": (),
-                },
-            ],
-        ):
+            filenames: Annotated[list[str], {"choices": _get_workflow_names, "widget_type": CheckBoxes}] = [],
+        ):  # fmt: skip
             """Delete an existing workflow file."""
+            if len(filenames) == 0:
+                raise ValueError("No workflow file selected.")
             for filename in filenames:
                 path = _config.workflow_path(filename)
                 if path.exists():
@@ -934,23 +931,6 @@ class OthersMenu(ChildWidget):
             title=_title_fmt,
             filter=_filter,
         )
-
-    @set_design(text="Open one-line runner")
-    @do_not_record
-    def open_one_line_runner(self):
-        """Open the one-line runner widget."""
-        from IPython import get_ipython
-
-        ipy = get_ipython()
-
-        def _injector():
-            return ipy.kernel.shell.user_ns
-
-        wdt = OneLineRunner(injector=_injector)
-        self.parent_viewer.window.add_dock_widget(
-            wdt, name="One-line runner", area="right"
-        )
-        return None
 
     @set_design(text="Open logger")
     @do_not_record
@@ -1015,6 +995,7 @@ class OthersMenu(ChildWidget):
 
 
 def normalize_workflow(workflow: str, ui: "CylindraMainWidget") -> str:
+    """Normalize the workflow script."""
     workflow = workflow.replace("\t", "    ")
     expr = parse(workflow)
     if errors := check_call_args(expr, {"ui": ui}):

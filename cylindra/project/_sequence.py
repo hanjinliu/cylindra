@@ -184,7 +184,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             tomo = ip.lazy.imread(prj.image, chunks=get_config().dask_chunk)
             with prj.open_project() as dir:
                 for info, mole in prj.iter_load_molecules(dir):
-                    if not name_filter(info.name):
+                    if not name_filter(info.stem):
                         continue
                     mole.features = mole.features.with_columns(
                         pl.repeat(info.stem, pl.count()).alias(Mole.id)
@@ -379,8 +379,18 @@ class ProjectSequence(MutableSequence[CylindraProject]):
     def collect_molecules(
         self, name_filter: Callable[[str], bool] | None = None
     ) -> Molecules:
-        """Collect all the molecules in this project sequence."""
-        return self.sta_loader(name_filter).molecules
+        """
+        Collect all the molecules in this project sequence.
+
+        Parameters
+        ----------
+        name_filter : callable, default is None
+            Function that takes a molecule file name (without extension) and
+            returns True if the molecule should be collected. Collect all the
+            molecules by default.
+        """
+        mole = self.sta_loader(name_filter).molecules
+        return mole
 
     def iter_splines(self) -> Iterable[tuple[tuple[int, int], CylSpline]]:
         """Iterate over all the splines in all the projects."""
