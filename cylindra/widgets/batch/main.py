@@ -6,6 +6,7 @@ from acryo import BatchLoader, Molecules
 from macrokit import Symbol, Expr
 from magicclass import (
     confirm,
+    get_button,
     magicclass,
     do_not_record,
     set_design,
@@ -13,7 +14,7 @@ from magicclass import (
     field,
 )
 from magicclass.types import Path
-
+from magicclass.utils import thread_worker
 from cylindra.const import (
     MoleculesHeader as Mole,
     PropertyNames as H,
@@ -65,6 +66,7 @@ class CylindraBatchWidget(MagicTemplate):
         return self.constructor._get_expression()
 
     @set_design(text="Construct loader", location=constructor)
+    @thread_worker
     def construct_loader(
         self,
         paths: Annotated[Any, {"bind": _get_loader_paths}],
@@ -82,16 +84,20 @@ class CylindraBatchWidget(MagicTemplate):
         """
         if name == "":
             raise ValueError("Name is empty!")
+
+        yield 0.0, 0.0
         loader = BatchLoader()
         image_paths: dict[int, Path] = {}
         to_drop = set[str]()
+        _total = len(paths)
         for img_id, _path_info in enumerate(paths):
             path_info = PathInfo(*_path_info)
             img = ip.lazy.imread(path_info.image, chunks=get_config().dask_chunk)
             image_paths[img_id] = Path(path_info.image)
             prj = CylindraProject.from_file(path_info.project)
             with prj.open_project() as dir:
-                for mole_path in path_info.molecules:
+                _total_sub = len(path_info.molecules)
+                for molecule_id, mole_path in enumerate(path_info.molecules):
                     mole_abs_path = dir / mole_path
                     mole = Molecules.from_file(mole_abs_path)
                     spl = _find_source(prj, dir, mole_path)
@@ -110,6 +116,9 @@ class CylindraBatchWidget(MagicTemplate):
                             to_drop.add(propname_glob)
                     mole = mole.with_features(features)
                     loader.add_tomogram(img.value, mole, img_id)
+                    yield img_id / _total, molecule_id / _total_sub
+                yield (img_id + 1) / _total, 0.0
+        yield 1.0, 1.0
 
         if predicate is not None:
             if isinstance(predicate, str):
@@ -119,8 +128,22 @@ class CylindraBatchWidget(MagicTemplate):
             molecules=loader.molecules.drop_features(to_drop),
             scale=self.constructor.scale.value,
         )
-        self._add_loader(new, name, image_paths)
-        return new
+
+        @thread_worker.callback
+        def _on_return():
+            self._add_loader(new, name, image_paths)
+
+        return _on_return
+
+    @construct_loader.yielded.connect
+    def _on_construct_loader_yielded(self, prog: tuple[float, float]):
+        btn = get_button(self.construct_loader, cache=True)
+        btn.text = f"Constructing... ({prog[0]:.1%}, {prog[1]:.1%})"
+
+    @construct_loader.finished.connect
+    def _on_construct_loader_finished(self):
+        btn = get_button(self.construct_loader, cache=True)
+        btn.text = "Construct loader"
 
     def _add_loader(self, loader: BatchLoader, name: str, image_paths: dict[int, Path]):
         self._loaders.append(LoaderInfo(loader, name=name, image_paths=image_paths))

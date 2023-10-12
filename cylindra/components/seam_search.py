@@ -61,7 +61,9 @@ class SeamSearchResult:
     def get_label(self, size: int) -> NDArray[np.uint8]:
         _id = np.arange(size)
         res = (_id - self.seam_pos) // self.npf
-        return (res % 2 == 0).astype(np.uint8)
+        # NOTE: value returned by SeamSearcher.label_with_seam is boolean array which
+        # means that the true molecules match the seam position.
+        return (res % 2 == 1).astype(np.uint8)
 
     def to_dataframe(self) -> pl.DataFrame:
         return pl.DataFrame({"scores": self.scores})
