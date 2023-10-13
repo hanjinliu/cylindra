@@ -13,12 +13,11 @@ from magicclass import (
     box,
 )
 from magicclass.logging import getLogger
-from magicclass.types import OneOf, Path
-from magicclass.utils import thread_worker
+from magicclass.types import Path
 from magicclass.ext.pyqtgraph import QtMultiImageCanvas
 from dask import array as da
 
-from cylindra.const import PropertyNames as H, Mode, FileFilter, SplineColor
+from cylindra.const import PropertyNames as H, Mode, FileFilter
 from cylindra.utils import map_coordinates_task, Projections
 from ._child_widget import ChildWidget
 
@@ -82,7 +81,7 @@ class SplineControl(ChildWidget):
             return []
         return [(f"({i}) {spl}", i) for i, spl in enumerate(tomo.splines)]
 
-    num = vfield(OneOf[_get_splines], label="Spline No.")
+    num = vfield(int, label="Spline No.").with_choices(_get_splines)
     pos = vfield(int, widget_type="Slider", label="Position").with_options(max=0)
     canvas = box.resizable(
         field(QtMultiImageCanvas, name="Figure").with_options(nrows=1, ncols=3),
@@ -172,7 +171,7 @@ class SplineControl(ChildWidget):
             self["pos"].max = 0
             return
 
-    @num.connect_async(timeout=0.1)
+    @num.connect
     def _num_changed(self):
         num = self.num
         if num is None:
@@ -183,20 +182,14 @@ class SplineControl(ChildWidget):
             return
         spl = tomo.splines[num]
         if len(spl.localprops) == 0:
-
-            @thread_worker.callback
-            def _on_yield():
-                parent.LocalProperties._init_text()
-                parent.LocalProperties._init_plot()
-
-            yield _on_yield
+            parent.LocalProperties._init_text()
+            parent.LocalProperties._init_plot()
 
         if not spl.has_anchors:
             return
 
-        yield from self._load_projection(spl)
-        yield  # breakpoint
-        yield from self._update_canvas.arun(num=num)
+        self._load_projection(spl)
+        self._update_canvas(num=num)
         return None
 
     def _load_projection(self, spl: "CylSpline"):
@@ -204,8 +197,7 @@ class SplineControl(ChildWidget):
         tomo = parent.tomogram
 
         # update plots in pyqtgraph, if properties exist
-        cb = thread_worker.callback(parent.LocalProperties._plot_properties)
-        yield cb.with_args(spl)
+        parent.LocalProperties._plot_properties(spl)
 
         # calculate projection
         anc = spl.anchors
@@ -230,7 +222,6 @@ class SplineControl(ChildWidget):
             scale=tomo.scale * binsize,
             squeeze=False,
         )
-        yield
         projections = list[Projections]()
         for crds, npf in zip(coords, npf_list, strict=True):
             mapped = delayed_map_coordinates(imgb, crds)
@@ -242,7 +233,7 @@ class SplineControl(ChildWidget):
         self._projections = projections
         return None
 
-    @pos.connect_async(timeout=0.1, abort_limit=0.5)
+    @pos.connect
     def _update_canvas(self, pos: int | None = None, num: int | None = None):
         parent = self._get_main()
         tomo = parent.tomogram
@@ -260,7 +251,7 @@ class SplineControl(ChildWidget):
         spl = tomo.splines[num]
         # Set projections
         proj = self._projections[pos].compute()
-        yield self._update_projections.with_args(proj)
+        self._update_projections(proj)
 
         # Update text overlay
         if spl.has_anchors and pos < len(spl.anchors):
@@ -268,7 +259,7 @@ class SplineControl(ChildWidget):
         else:
             len_nm = "NA"
 
-        yield self._update_text_overlay.with_args(f"{num}-{pos} ({len_nm} nm)")
+        self._update_text_overlay(f"{num}-{pos} ({len_nm} nm)")
 
         if spl.props.has_loc(H.radius):
             radii = spl.props.get_loc(H.radius)
@@ -295,42 +286,32 @@ class SplineControl(ChildWidget):
         ymin, ymax = ly / 2 - ylen - 0.5, ly / 2 + ylen + 0.5
         xmin, xmax = -rmax + lx / 2 - 1, rmax + lx / 2
         xy = [xmin, xmin, xmax, xmax, xmin], [ymin, ymax, ymax, ymin, ymin]
-        yield self._add_curve.with_args(0, [xy])
+        self._add_curve(0, [xy])
 
         # draw two circles in ZX-view
         center = (lx / 2 - 0.5, lz / 2 - 0.5)
-        yield self._add_curve.with_args(
-            1, [_circle(_r, center=center) for _r in [rmin, rmax]]
-        )
+        self._add_curve(1, [_circle(_r, center=center) for _r in [rmin, rmax]])
 
-        @thread_worker.callback
-        def _set_texts():
-            kw = dict(size=16, color="lime", anchor=(0.5, 0.5))
-            if spl.orientation == "PlusToMinus":
-                self.canvas[1].add_text(*center, "+", **kw)
-            elif spl.orientation == "MinusToPlus":
-                self.canvas[1].add_text(*center, "-", **kw)
+        # update texts
+        kw = dict(size=16, color="lime", anchor=(0.5, 0.5))
+        if spl.orientation == "PlusToMinus":
+            self.canvas[1].add_text(*center, "+", **kw)
+        elif spl.orientation == "MinusToPlus":
+            self.canvas[1].add_text(*center, "-", **kw)
 
-        yield _set_texts
+        # update pyqtgraph of local properties
+        if spl.has_anchors:
+            xs = spl.anchors * spl.length()
+            parent.LocalProperties._plot_spline_position(xs[pos])
+        else:
+            parent.LocalProperties._init_plot()
 
-        @thread_worker.callback
-        def _set_local_props():
-            # update pyqtgraph
-            if spl.has_anchors:
-                xs = spl.anchors * spl.length()
-                parent.LocalProperties._plot_spline_position(xs[pos])
-            else:
-                parent.LocalProperties._init_plot()
-
-        yield _set_local_props
         return None
 
-    @thread_worker.callback
     def _clear_all_layers(self):
         for ic in range(3):
             self.canvas[ic].layers.clear()
 
-    @thread_worker.callback
     def _update_projections(self, proj: Projections):
         self.canvas[0].image = proj.yx
         self.canvas[1].image = proj.zx
@@ -339,12 +320,10 @@ class SplineControl(ChildWidget):
         else:
             del self.canvas[2].image
 
-    @thread_worker.callback
     def _update_text_overlay(self, txt: str):
         self.canvas[0].text_overlay.text = txt
         self.canvas[0].text_overlay.color = "lime"
 
-    @thread_worker.callback
     def _add_curve(self, i: int, data: list[tuple[Any, Any]]):
         self.canvas[i].layers.clear()
         for x, y in data:
