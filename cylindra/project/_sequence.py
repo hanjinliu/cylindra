@@ -12,6 +12,7 @@ from typing import (
     Iterator,
     Literal,
     MutableSequence,
+    NamedTuple,
     Sequence,
     SupportsIndex,
     TypeVar,
@@ -516,3 +517,19 @@ def _make_unique_label(label: str, appeared: set[str]) -> str:
         if new_label not in appeared:
             return new_label
         i += 1
+
+
+class MoleculesKey(NamedTuple):
+    """
+    Tuple of the project id and the name of a molecules object.
+
+    Parameters
+    ----------
+    project_id : int
+        Index of the project in the project sequence.
+    name : str
+        Name of the molecules object.
+    """
+
+    project_id: int
+    name: str

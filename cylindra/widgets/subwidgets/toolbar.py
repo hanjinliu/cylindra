@@ -1,4 +1,3 @@
-from pathlib import Path
 from magicclass import (
     do_not_record,
     magicmenu,
@@ -14,8 +13,6 @@ from magicclass.logging import getLogger
 from cylindra.components.picker import AutoCorrelationPicker
 from ._child_widget import ChildWidget
 
-ICON_DIR = Path(__file__).parent.parent / "icons"
-
 _Logger = getLogger("cylindra")
 
 
@@ -28,7 +25,7 @@ class CylindraToolbar(MagicTemplate):
     sep0 = field(Separator)
     pick_next = abstractapi()
 
-    @magicmenu(icon=ICON_DIR / "adjust_intervals.svg", record=False)
+    @magicmenu(icon="carbon:settings-adjust", record=False)
     class Adjust(ChildWidget):
         """
         Adjust auto picker parameters.
@@ -63,7 +60,7 @@ class CylindraToolbar(MagicTemplate):
     sep2 = field(Separator)
 
     @do_not_record
-    @set_design(icon=ICON_DIR / "undo.svg")
+    @set_design(icon="gg:undo")
     def undo(self):
         """Undo last action."""
         if len(self.macro.undo_stack["undo"]) == 0:
@@ -73,7 +70,7 @@ class CylindraToolbar(MagicTemplate):
         return _Logger.print_html(f"Undo: <code>{expr}</code>")
 
     @do_not_record
-    @set_design(icon=ICON_DIR / "redo.svg")
+    @set_design(icon="gg:redo")
     def redo(self):
         """Redo last undo action."""
         if len(self.macro.undo_stack["redo"]) == 0:
