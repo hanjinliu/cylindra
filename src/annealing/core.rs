@@ -306,6 +306,7 @@ impl CylindricAnnealingModel {
                     let shift = self.graph.try_all_shifts();
                     if shift.energy_diff < 0.0 {
                         self.graph.apply_shift(&shift);
+                        self.iteration += 1;
                     } else {
                         break;
                     }

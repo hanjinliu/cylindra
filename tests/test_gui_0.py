@@ -1080,6 +1080,9 @@ def test_mesh_annealing(ui: CylindraMainWidget):
         random_seeds=[0, 1],
         return_all=True,
     )
+    ui.sta.save_annealing_scores(
+        ui.mole_layers.last(), PROJECT_DIR_13PF / "annealing.csv"
+    )
     ui.macro.undo()
     ui.macro.redo()
 

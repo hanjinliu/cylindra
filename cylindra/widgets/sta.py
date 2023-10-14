@@ -375,16 +375,14 @@ class StaParameters(MagicTemplate):
         StaParameters._viewer.scale_bar.unit = "nm"
         if store:
             StaParameters._last_average = image
-        thr = threshold_yen(image.value)
-        layer = StaParameters._viewer.add_image(
+        return StaParameters._viewer.add_image(
             image,
             scale=image.scale,
             name=name,
             rendering="iso",
-            iso_threshold=thr,
+            iso_threshold=threshold_yen(image.value),
             blending="opaque",
         )
-        return layer
 
 
 @magicclass
@@ -1304,13 +1302,15 @@ class SubtomogramAveraging(ChildWidget):
         layer: Annotated[MoleculesLayer, {"choices": _get_layers_with_annealing_result}],
         path: Path.Save[FileFilter.CSV],
     ):  # fmt: skip
+        layer = assert_layer(layer, self.parent_viewer)
         try:
             result: AnnealingResult = layer.metadata[ANNEALING_RESULT]
         except KeyError:
             raise ValueError(
                 f"Layer {layer!r} does not have annealing result."
             ) from None
-        df = pl.DataFrame({"score": -result.energies})
+        x = result.batch_size * np.arange(result.energies.size)
+        df = pl.DataFrame({"iteration": x, "score": -result.energies})
         return df.write_csv(path, has_header=False)
 
     @set_design(text="Calculate correlation", location=STAnalysis)
