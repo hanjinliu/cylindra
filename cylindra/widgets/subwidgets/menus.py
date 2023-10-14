@@ -179,7 +179,7 @@ class FileMenu(ChildWidget):
 
     @set_design(text="View project")
     @do_not_record
-    def view_project(self, path: Path.Read[FileFilter.JSON]):
+    def view_project(self, path: Path.Read[FileFilter.PROJECT]):
         """View a project file"""
         main = self._get_main()
         pviewer = CylindraProject.from_file(path).make_project_viewer()

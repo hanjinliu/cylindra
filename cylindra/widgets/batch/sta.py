@@ -1,7 +1,7 @@
 from typing import Annotated, Any
 
 import re
-from acryo import BatchLoader, pipe
+from acryo import BatchLoader
 
 from magicgui.widgets import Container
 from magicclass import (
@@ -18,25 +18,24 @@ from magicclass import (
 from magicclass.types import OneOf, Optional, ExprStr, Path
 from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
-from magicclass.widgets import ConsoleTextEdit, HistoryFileEdit
+from magicclass.widgets import ConsoleTextEdit
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.polars import DataFrameView
 
 import numpy as np
 import impy as ip
 import polars as pl
-import napari
 
-from cylindra.const import nm, ALN_SUFFIX, MoleculesHeader as Mole, FileFilter
+from cylindra.const import nm, ALN_SUFFIX, MoleculesHeader as Mole
 from cylindra.utils import roundint
 from cylindra.widgets._widget_ext import RotationsEdit
 from cylindra.widgets._annotated import FSCFreq
 from cylindra.widgets.main import CylindraMainWidget, widget_utils
+from cylindra.widgets.sta import StaParameters
 from cylindra.widgets.widget_utils import timer, POLARS_NAMESPACE
 from cylindra.widgets.sta import (
     INTERPOLATION_CHOICES,
     METHOD_CHOICES,
-    MASK_CHOICES,
     _get_alignment,
 )
 
@@ -45,11 +44,11 @@ from ._loaderlist import LoaderList, LoaderInfo
 
 
 def _classify_pca_fmt():
-    yield f"(0/5) Caching all the subtomograms"
-    yield f"(1/5) Creating template image for PCA clustering"
-    yield f"(2/5) Fitting PCA model"
-    yield f"(3/5) Transforming all the images"
-    yield f"(4/5) Creating average images for each cluster"
+    yield "(0/5) Caching all the subtomograms"
+    yield "(1/5) Creating template image for PCA clustering"
+    yield "(2/5) Fitting PCA model"
+    yield "(3/5) Transforming all the images"
+    yield "(4/5) Creating average images for each cluster"
     yield "(5/5) Finishing"
 
 
@@ -74,148 +73,6 @@ _SubVolumeSize = Annotated[
 _BINSIZE = OneOf[(1, 2, 3, 4, 5, 6, 7, 8)]
 
 _Logger = getLogger("cylindra")
-
-
-@magicclass(
-    layout="horizontal",
-    widget_type="groupbox",
-    name="Parameters",
-    visible=False,
-    record=False,
-)
-class MaskParameters(MagicTemplate):
-    """
-    Parameters for soft mask creation.
-
-    Soft mask creation has three steps.
-    (1) Create binary mask by applying thresholding to the template image.
-    (2) Morphological dilation of the binary mask.
-    (3) Gaussian filtering the mask.
-
-    Attributes
-    ----------
-    dilate_radius : nm
-        Radius of dilation (nm) applied to binarized template.
-    sigma : nm
-        Standard deviation (nm) of Gaussian blur applied to the edge of binary image.
-    """
-
-    dilate_radius = vfield(0.3, record=False).with_options(min=-20, max=20, step=0.1)
-    sigma = vfield(0.3, record=False).with_options(max=20, step=0.1)
-
-
-@magicclass(layout="horizontal", widget_type="frame", visible=False, record=False)
-class mask_path(MagicTemplate):
-    """Path to the mask image."""
-
-    mask_path = vfield(Path.Read[FileFilter.IMAGE])
-
-
-@magicclass(record=False, properties={"margins": (0, 0, 0, 0)})
-class StaParameters(MagicTemplate):
-    """
-    Parameters for subtomogram averaging/alignment.
-
-    Attributes
-    ----------
-    template_path : Path
-        Path to the template (reference) image file, or layer name of reconstruction.
-    mask_path : str
-        Select how to create a mask.
-    tilt_range : tuple of float, options
-        Tilt range (degree) of the tomogram.
-    """
-
-    template_path = vfield(
-        Optional[
-            Annotated[Path.Read[FileFilter.IMAGE], {"widget_type": HistoryFileEdit}]
-        ],
-        label="Template",
-    ).with_options(text="Use last averaged image", value=Path(""))
-    mask_choice = vfield(OneOf[MASK_CHOICES], label="Mask", record=False)
-    params = field(MaskParameters, name="Mask parameters")
-    mask_path = field(mask_path)
-    tilt_range = vfield(
-        Optional[tuple[nm, nm]], label="Tilt range (deg)", record=False
-    ).with_options(
-        value=(-60.0, 60.0),
-        text="No missing-wedge",
-        options={"options": {"min": -90.0, "max": 90.0, "step": 1.0}},
-    )
-
-    _last_average: ip.ImgArray = None  # the global average result
-
-    def __post_init__(self):
-        self._template: ip.ImgArray = None
-        self._viewer: "napari.Viewer | None" = None
-        self.mask_choice = MASK_CHOICES[0]
-
-    @mask_choice.connect
-    def _on_mask_switch(self):
-        v = self.mask_choice
-        self.params.visible = v == MASK_CHOICES[1]
-        self.mask_path.visible = v == MASK_CHOICES[2]
-
-    def _get_template(self, path: Path | None = None, allow_none: bool = False):
-        if path is None:
-            path = self.template_path
-
-        if path is None:
-            if self._last_average is None:
-                if allow_none:
-                    return None
-                raise ValueError(
-                    "No average image found. You can uncheck 'Use last averaged image' and select "
-                    "a template image from a file."
-                )
-            provider = pipe.from_array(self._last_average, self._last_average.scale.x)
-        else:
-            path = Path(path)
-            if path.is_dir():
-                if allow_none:
-                    return None
-                raise TypeError(f"Template image must be a file, got {path}.")
-            provider = pipe.from_file(path)
-        return provider
-
-    def _get_mask_params(self, params=None) -> str | tuple[nm, nm] | None:
-        v = self.mask_choice
-        if v == MASK_CHOICES[0]:
-            params = None
-        elif v == MASK_CHOICES[1]:
-            params = (self.params.dilate_radius, self.params.sigma)
-        else:
-            params = self.mask_path.mask_path
-        return params
-
-    def _set_mask_params(self, params):
-        if params is None:
-            self.mask_choice = MASK_CHOICES[0]
-        elif isinstance(params, (tuple, list, np.ndarray)):
-            self.mask_choice = MASK_CHOICES[1]
-            self.params.dilate_radius, self.params.sigma = params
-        else:
-            self.mask_choice = MASK_CHOICES[2]
-            self.mask_path.mask_path = params
-
-    _sentinel = object()
-
-    def _get_mask(self, params: "str | tuple[nm, nm] | None" = _sentinel):
-        if params is self._sentinel:
-            params = self._get_mask_params()
-        if params is None:
-            return None
-        elif isinstance(params, tuple):
-            radius, sigma = params
-            return pipe.soft_otsu(radius=radius, sigma=sigma)
-        else:
-            return pipe.from_file(params)
-
-    def _show_reconstruction(self, image: ip.ImgArray, name: str, store: bool = True):
-        from cylindra import instance
-
-        ui = instance()
-        return ui.sta._show_rec(image, name, store)
 
 
 @magicclass(name="Batch Subtomogram Analysis")
@@ -279,7 +136,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         loaderlist = self._get_parent()._loaders
         del loaderlist[loader_name]
 
-    params = StaParameters
+    params = field(StaParameters)
 
     def _get_selected_loader_choice(self, *_) -> list[str]:
         try:
@@ -287,6 +144,12 @@ class BatchSubtomogramAveraging(MagicTemplate):
             return loader.molecules.features.columns
         except Exception:
             return []
+
+    def _get_template_path(self, _=None):
+        return self.params.template_path
+
+    def _get_mask_params(self, _=None):
+        return self.params._get_mask_params()
 
     @set_design(text="Split loader", location=BatchLoaderMenu)
     def split_loader(
@@ -435,8 +298,8 @@ class BatchSubtomogramAveraging(MagicTemplate):
     def align_all(
         self,
         loader_name: Annotated[str, {"bind": _get_current_loader_name}],
-        template_path: Annotated[str | Path, {"bind": params.template_path}],
-        mask_params: Annotated[Any, {"bind": params._get_mask_params}],
+        template_path: Annotated[str | Path, {"bind": _get_template_path}],
+        mask_params: Annotated[Any, {"bind": _get_mask_params}],
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
@@ -479,7 +342,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
     def calculate_fsc(
         self,
         loader_name: Annotated[str, {"bind": _get_current_loader_name}],
-        mask_params: Annotated[Any, {"bind": params._get_mask_params}],
+        mask_params: Annotated[Any, {"bind": _get_mask_params}],
         size: _SubVolumeSize = None,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
@@ -532,12 +395,8 @@ class BatchSubtomogramAveraging(MagicTemplate):
         fsc_std = np.std(fsc_all, axis=1)
         crit_0143 = 0.143
         crit_0500 = 0.500
-        resolution_0143 = widget_utils.calc_resolution(
-            freq, fsc_mean, crit_0143, loader.scale
-        )
-        resolution_0500 = widget_utils.calc_resolution(
-            freq, fsc_mean, crit_0500, loader.scale
-        )
+        res0143 = widget_utils.calc_resolution(freq, fsc_mean, crit_0143, loader.scale)
+        res0500 = widget_utils.calc_resolution(freq, fsc_mean, crit_0500, loader.scale)
 
         @thread_worker.callback
         def _calculate_fsc_on_return():
@@ -548,17 +407,13 @@ class BatchSubtomogramAveraging(MagicTemplate):
                     freq, fsc_mean, fsc_std, [crit_0143, crit_0500], loader.scale
                 )
 
-            _Logger.print_html(
-                f"Resolution at FSC=0.5 ... <b>{resolution_0500:.3f} nm</b>"
-            )
-            _Logger.print_html(
-                f"Resolution at FSC=0.143 ... <b>{resolution_0143:.3f} nm</b>"
-            )
+            _Logger.print_html(f"Resolution at FSC=0.5 ... <b>{res0500:.3f} nm</b>")
+            _Logger.print_html(f"Resolution at FSC=0.143 ... <b>{res0143:.3f} nm</b>")
 
             if img_avg is not None:
                 _rec_layer = self._show_rec(img_avg, name=f"[AVG]{loader_name}")
                 _rec_layer.metadata["fsc"] = widget_utils.FscResult(
-                    freq, fsc_mean, fsc_std, resolution_0143, resolution_0500
+                    freq, fsc_mean, fsc_std, res0143, res0500
                 )
 
         return _calculate_fsc_on_return
@@ -568,7 +423,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
     def classify_pca(
         self,
         loader_name: Annotated[str, {"bind": _get_current_loader_name}],
-        mask_params: Annotated[Any, {"bind": params._get_mask_params}],
+        mask_params: Annotated[Any, {"bind": _get_mask_params}],
         size: Annotated[Optional[nm], {"text": "Use mask shape", "options": {"value": 12.0, "max": 100.0}, "label": "size (nm)"}] = None,
         cutoff: _CutoffFreq = 0.5,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
