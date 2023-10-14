@@ -9,18 +9,20 @@ def dont_use_native_menu_bar():
     return None
 
 
-def share_opengl_contexts():
-    # Docking vispy widget in napari viewer requires this.
+def init_opengl_and_dpi():
     from qtpy import QtCore, QtWidgets as QtW
 
+    # Docking vispy widget in napari viewer requires this.
     QtW.QApplication.setAttribute(QtCore.Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+    # High DPI support for High-DPI devices such as Surface Pro.
+    QtW.QApplication.setAttribute(QtCore.Qt.ApplicationAttribute.AA_UseHighDpiPixmaps)
     return None
 
 
 if sys.platform == "darwin":
     dont_use_native_menu_bar()
 
-share_opengl_contexts()
+init_opengl_and_dpi()
 
 from cylindra.core import (
     start,
@@ -51,7 +53,7 @@ from cylindra._config import init_config
 
 init_config()
 
-del import_metadata, init_config, dont_use_native_menu_bar, share_opengl_contexts
+del import_metadata, init_config, dont_use_native_menu_bar, init_opengl_and_dpi
 
 __all__ = [
     "start",

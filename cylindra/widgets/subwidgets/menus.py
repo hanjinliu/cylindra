@@ -739,7 +739,7 @@ class AnalysisMenu(ChildWidget):
 
 @magicmenu
 class OthersMenu(ChildWidget):
-    """Other menus."""
+    """Other functions."""
 
     @magicmenu(record=False)
     class Macro(ChildWidget):
@@ -803,6 +803,8 @@ class OthersMenu(ChildWidget):
 
     @magicmenu(record=False)
     class Workflows(ChildWidget):
+        """Custom analysis workflow."""
+
         def _get_workflow_names(self, *_) -> list[str]:
             return [file.stem for file in _config.WORKFLOWS_DIR.glob("*.py")]
 

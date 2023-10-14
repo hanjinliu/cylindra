@@ -931,12 +931,16 @@ def test_spline_fitter(ui: CylindraMainWidget):
 def test_cli(make_napari_viewer):
     import sys
     from cylindra.__main__ import main
+    from cylindra.core import _ACTIVE_WIDGETS
 
     viewer: napari.Viewer = make_napari_viewer()
     sys.argv = ["cylindra"]
     main(viewer)
     sys.argv = ["cylindra", str(PROJECT_DIR_14PF / "project.json")]
     main(viewer)
+    for widget in _ACTIVE_WIDGETS:
+        widget.close()
+    _ACTIVE_WIDGETS.clear()
 
 
 def test_function_menu(make_napari_viewer):
