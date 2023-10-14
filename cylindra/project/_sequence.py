@@ -393,17 +393,17 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         mole = self.sta_loader(name_filter).molecules
         return mole
 
-    def iter_splines(self) -> Iterable[tuple[tuple[int, int], CylSpline]]:
+    def iter_splines(self) -> Iterable[tuple[SplineKey, CylSpline]]:
         """Iterate over all the splines in all the projects."""
         for i_prj, prj in enumerate(self._projects):
             with prj.open_project() as dir:
                 for i_spl, spl in enumerate(prj.iter_load_splines(dir)):
-                    yield (i_prj, i_spl), spl
+                    yield SplineKey(i_prj, i_spl), spl
 
     def iter_molecules(
         self,
         name_filter: Callable[[str], bool] | None = None,
-    ) -> Iterable[tuple[tuple[int, str], Molecules]]:
+    ) -> Iterable[tuple[MoleculesKey, Molecules]]:
         """
         Iterate over all the molecules in all the projects.
 
@@ -419,7 +419,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
 
     def iter_molecules_with_splines(
         self, name_filter: Callable[[str], bool] | None = None
-    ) -> Iterable[tuple[tuple[int, str], tuple[Molecules, CylSpline | None]]]:
+    ) -> Iterable[tuple[MoleculesKey, tuple[Molecules, CylSpline | None]]]:
         """Iterate over all the molecules and its source spline."""
         if name_filter is None:
             name_filter = lambda _: True
@@ -431,7 +431,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                     if (src := info.source) is None:
                         continue
                     spl = prj.load_spline(dir, src)
-                    yield (i_prj, info.stem), (mole, spl)
+                    yield MoleculesKey(i_prj, info.stem), (mole, spl)
 
     def collect_spline_coords(self, ders: int | Iterable[int] = 0) -> pl.DataFrame:
         """
@@ -503,16 +503,18 @@ def _make_unique_label(label: str, appeared: set[str]) -> str:
 
 
 class MoleculesKey(NamedTuple):
-    """
-    Tuple of the project id and the name of a molecules object.
-
-    Parameters
-    ----------
-    project_id : int
-        Index of the project in the project sequence.
-    name : str
-        Name of the molecules object.
-    """
+    """Tuple of the project ID and the name of a molecules object."""
 
     project_id: int
+    """Index of the project in the project sequence."""
     name: str
+    """Name of the molecules object."""
+
+
+class SplineKey(NamedTuple):
+    """Tuple of the project ID and the spline ID."""
+
+    project_id: int
+    """Index of the project in the project sequence."""
+    spline_id: int
+    """Index of the spline in the project."""

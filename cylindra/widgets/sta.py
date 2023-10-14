@@ -74,6 +74,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
     from napari.layers import Image
     from cylindra.components import CylSpline
+    from cylindra.components.landscape import AnnealingResult
 
 
 def _get_template_shape(self: "SubtomogramAveraging", size: nm) -> list[str]:
@@ -196,18 +197,23 @@ class mask_path(MagicTemplate):
 
 
 @magicmenu
-class SubtomogramAnalysis(MagicTemplate):
-    """Analysis of subtomograms."""
+class Averaging(MagicTemplate):
+    """Average subtomograms."""
 
     average_all = abstractapi()
     average_subset = abstractapi()
     average_groups = abstractapi()
     split_and_average = abstractapi()
-    sep0 = field(Separator)
+
+
+@magicmenu
+class STAnalysis(MagicTemplate):
+    """Analysis of subtomograms."""
+
     calculate_correlation = abstractapi()
     calculate_fsc = abstractapi()
     classify_pca = abstractapi()
-    sep1 = field(Separator)
+    sep0 = field(Separator)
 
     @magicmenu(name="Seam search")
     class SeamSearch(MagicTemplate):
@@ -215,22 +221,26 @@ class SubtomogramAnalysis(MagicTemplate):
         seam_search_by_feature = abstractapi()
         save_seam_search_result = abstractapi()
 
-    sep2 = field(Separator)
+    sep1 = field(Separator)
     save_last_average = abstractapi()
 
 
 @magicmenu
-class Refinement(MagicTemplate):
-    """Refinement and alignment of subtomograms."""
+class Alignment(MagicTemplate):
+    """Alignment of subtomograms."""
 
     align_averaged = abstractapi()
     align_all = abstractapi()
     align_all_template_free = abstractapi()
     align_all_multi_template = abstractapi()
-    align_all_viterbi = abstractapi()
-    align_all_viterbi_multi_template = abstractapi()
-    align_all_annealing = abstractapi()
-    align_all_annealing_multi_template = abstractapi()
+
+    @magicmenu
+    class Constrained(MagicTemplate):
+        align_all_viterbi = abstractapi()
+        align_all_viterbi_multi_template = abstractapi()
+        align_all_annealing = abstractapi()
+        align_all_annealing_multi_template = abstractapi()
+        save_annealing_scores = abstractapi()
 
 
 @magicclass(record=False, properties={"margins": (0, 0, 0, 0)})
@@ -380,8 +390,9 @@ class StaParameters(MagicTemplate):
 class SubtomogramAveraging(ChildWidget):
     """Widget for subtomogram averaging."""
 
-    Subtomogram_analysis = field(SubtomogramAnalysis)
-    Refinement = field(Refinement)
+    AveragingMenu = field(Averaging, name="Averaging")
+    STAnalysisMenu = field(STAnalysis, name="Analysis")
+    AlignmentMenu = field(Alignment, name="Alignment")
     params = field(StaParameters)
 
     @property
@@ -481,7 +492,7 @@ class SubtomogramAveraging(ChildWidget):
             out = [1] + out
         return out
 
-    @set_design(text="Average all molecules", location=SubtomogramAnalysis)
+    @set_design(text="Average all molecules", location=Averaging)
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Subtomogram averaging of {!r}"))
     def average_all(
         self,
@@ -510,7 +521,7 @@ class SubtomogramAveraging(ChildWidget):
         t0.toc()
         return self._show_rec.with_args(img, f"[AVG]{_avg_name(layers)}")
 
-    @set_design(text="Average subset of molecules", location=SubtomogramAnalysis)
+    @set_design(text="Average subset of molecules", location=Averaging)
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Subtomogram averaging (subset) of {!r}"))  # fmt: skip
     def average_subset(
         self,
@@ -551,7 +562,7 @@ class SubtomogramAveraging(ChildWidget):
         t0.toc()
         return self._show_rec.with_args(img, f"[AVG(n={number})]{_avg_name(layers)}")
 
-    @set_design(text="Average group-wise", location=SubtomogramAnalysis)
+    @set_design(text="Average group-wise", location=Averaging)
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Grouped subtomogram averaging of {!r}"))  # fmt: skip
     def average_groups(
         self,
@@ -593,7 +604,7 @@ class SubtomogramAveraging(ChildWidget):
         t0.toc()
         return self._show_rec.with_args(img, f"[AVG]{_avg_name(layers)}", store=False)
 
-    @set_design(text="Split molecules and average", location=SubtomogramAnalysis)
+    @set_design(text="Split molecules and average", location=Averaging)
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Split-and-averaging of {!r}"))  # fmt: skip
     def split_and_average(
         self,
@@ -627,7 +638,7 @@ class SubtomogramAveraging(ChildWidget):
         t0.toc()
         return self._show_rec.with_args(img, f"[Split]{_avg_name(layers)}")
 
-    @set_design(text="Align average to template", location=Refinement)
+    @set_design(text="Align average to template", location=Alignment)
     @dask_worker.with_progress(descs=_pdesc.align_averaged_fmt)
     def align_averaged(
         self,
@@ -756,7 +767,9 @@ class SubtomogramAveraging(ChildWidget):
 
         return _align_averaged_on_return
 
-    @set_design(text="Align all molecules", location=Refinement)
+    sep0 = field(Separator)
+
+    @set_design(text="Align all molecules", location=Alignment)
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Alignment of {}"))
     def align_all(
         self,
@@ -800,7 +813,7 @@ class SubtomogramAveraging(ChildWidget):
         t0.toc()
         return self._align_all_on_return.with_args(molecules, layers)
 
-    @set_design(text="Align all (template-free)", location=Refinement)
+    @set_design(text="Align all (template-free)", location=Alignment)
     @dask_worker.with_progress(descs=_pdesc.align_template_free_fmt)
     def align_all_template_free(
         self,
@@ -851,7 +864,7 @@ class SubtomogramAveraging(ChildWidget):
         t0.toc()
         return self._align_all_on_return.with_args(molecules, layers)
 
-    @set_design(text="Align all (multi-template)", location=Refinement)
+    @set_design(text="Align all (multi-template)", location=Alignment)
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Multi-template alignment of {}"))  # fmt: skip
     def align_all_multi_template(
         self,
@@ -896,7 +909,9 @@ class SubtomogramAveraging(ChildWidget):
         t0.toc()
         return self._align_all_on_return.with_args(molecules, layers)
 
-    @set_design(text="Viterbi Alignment", location=Refinement)
+    sep1 = field(Separator)
+
+    @set_design(text="Viterbi Alignment", location=Alignment.Constrained)
     @dask_worker.with_progress(descs=_pdesc.align_viterbi_fmt)
     def align_all_viterbi(
         self,
@@ -934,7 +949,9 @@ class SubtomogramAveraging(ChildWidget):
         t0.toc()
         return out
 
-    @set_design(text="Viterbi Alignment (multi-template)", location=Refinement)
+    @set_design(
+        text="Viterbi Alignment (multi-template)", location=Alignment.Constrained
+    )
     @dask_worker.with_progress(descs=_pdesc.align_viterbi_fmt)
     def align_all_viterbi_multi_template(
         self,
@@ -973,7 +990,7 @@ class SubtomogramAveraging(ChildWidget):
         t0.toc()
         return out
 
-    @set_design(text="Simulated annealing", location=Refinement)
+    @set_design(text="Simulated annealing", location=Alignment.Constrained)
     @dask_worker.with_progress(descs=_pdesc.align_annealing_fmt)
     def align_all_annealing(
         self,
@@ -1017,7 +1034,9 @@ class SubtomogramAveraging(ChildWidget):
         t0.toc()
         return out
 
-    @set_design(text="Simulated annealing (multi-template)", location=Refinement)
+    @set_design(
+        text="Simulated annealing (multi-template)", location=Alignment.Constrained
+    )
     @dask_worker.with_progress(descs=_pdesc.align_annealing_fmt)
     def align_all_annealing_multi_template(
         self,
@@ -1267,7 +1286,34 @@ class SubtomogramAveraging(ChildWidget):
 
         return _on_return
 
-    @set_design(text="Calculate correlation", location=SubtomogramAnalysis)
+    def _get_layers_with_annealing_result(self, *_) -> list[MoleculesLayer]:
+        if self.parent_viewer is None:
+            return []
+        return [
+            (layer.name, layer)
+            for layer in self.parent_viewer.layers
+            if ANNEALING_RESULT in layer.metadata
+        ]
+
+    @set_design(text="Save annealing scores", location=Alignment.Constrained)
+    @do_not_record
+    def save_annealing_scores(
+        self,
+        layer: Annotated[
+            MoleculesLayer, {"choices": _get_layers_with_annealing_result}
+        ],
+        path: Path.Save[FileFilter.CSV],
+    ):
+        try:
+            result: AnnealingResult = layer.metadata[ANNEALING_RESULT]
+        except KeyError:
+            raise ValueError(
+                f"Layer {layer!r} does not have annealing result."
+            ) from None
+        df = pl.DataFrame({"score": -result.energies})
+        return df.write_csv(path, has_header=False)
+
+    @set_design(text="Calculate correlation", location=STAnalysis)
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Calculating correlations of {!r}"))  # fmt: skip
     def calculate_correlation(
         self,
@@ -1332,7 +1378,7 @@ class SubtomogramAveraging(ChildWidget):
             layer.molecules = layer.molecules.with_features(out.cast(pl.Float32))
         return None
 
-    @set_design(text="Calculate FSC", location=SubtomogramAnalysis)
+    @set_design(text="Calculate FSC", location=STAnalysis)
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Calculating FSC of {!r}"))
     def calculate_fsc(
         self,
@@ -1419,7 +1465,7 @@ class SubtomogramAveraging(ChildWidget):
 
         return _calculate_fsc_on_return
 
-    @set_design(text="PCA/K-means classification", location=SubtomogramAnalysis)
+    @set_design(text="PCA/K-means classification", location=STAnalysis)
     @dask_worker.with_progress(descs=_pdesc.classify_pca_fmt)
     def classify_pca(
         self,
@@ -1490,7 +1536,7 @@ class SubtomogramAveraging(ChildWidget):
 
         return _on_return
 
-    @set_design(text="Seam search", location=SubtomogramAnalysis.SeamSearch)
+    @set_design(text="Seam search", location=STAnalysis.SeamSearch)
     @dask_worker.with_progress(desc=_pdesc.fmt_layer("Seam search of {!r}"))
     def seam_search(
         self,
@@ -1561,7 +1607,6 @@ class SubtomogramAveraging(ChildWidget):
                     sigma = 0.25 / loader.scale
                     result.averages.gaussian_filter(sigma=sigma, update=True)
                 self._show_rec(result.averages, layer.name, store=False)
-                self.sub_viewer.layers[-1].metadata["Score"] = result.scores
 
             # plot all the correlation
             _Logger.print_html("<code>seam_search</code>")
@@ -1576,9 +1621,7 @@ class SubtomogramAveraging(ChildWidget):
 
         return _seam_search_on_return
 
-    @set_design(
-        text="Seam search (by feature)", location=SubtomogramAnalysis.SeamSearch
-    )
+    @set_design(text="Seam search by feature", location=STAnalysis.SeamSearch)
     def seam_search_by_feature(
         self,
         layer: MoleculesLayerType,
@@ -1615,7 +1658,7 @@ class SubtomogramAveraging(ChildWidget):
             if SEAM_SEARCH_RESULT in layer.metadata
         ]
 
-    @set_design(text="Save seam search result", location=SubtomogramAnalysis.SeamSearch)
+    @set_design(text="Save seam search result", location=STAnalysis.SeamSearch)
     @do_not_record
     def save_seam_search_result(
         self,
@@ -1648,7 +1691,7 @@ class SubtomogramAveraging(ChildWidget):
             npf = mole.features[Mole.pf].unique().len()
         return loader, npf
 
-    @set_design(text="Save last average", location=SubtomogramAnalysis)
+    @set_design(text="Save last average", location=STAnalysis)
     def save_last_average(self, path: Path.Save[FileFilter.IMAGE]):
         """Save the lastly generated average image."""
         path = Path(path)
