@@ -74,7 +74,7 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     ui.register_path(coords=coords[npf])
     ui.register_path(coords=coords[npf][::-1])
     ui._runner.run(interval=24.0, paint=True)
-    ui.auto_align_to_polarity(align_to="MinusToPlus")
+    ui.infer_polarity()
     ui.map_monomers(splines=[0, 1])
     ui.measure_local_radius(splines=[0, 1])
 
@@ -119,8 +119,8 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
         assert_molecule_equal(mol0, mol1)
     assert ui.tomogram.tilt_range == (-60, 60)
 
-    ui.show_splines()
-    ui.show_splines_as_meshes()
+    ui.SplinesMenu.ShowInViewer.show_splines()
+    ui.SplinesMenu.ShowInViewer.show_splines_as_meshes()
     ui.load_splines(save_path / "spline-0.json")
     ui.set_source_spline(ui.mole_layers["Mole-0"], 0)
 
@@ -827,7 +827,8 @@ def test_auto_align(ui: CylindraMainWidget):
     ui.register_path(coords=coords_13pf[::-1])
 
     ui._runner.run(interval=32.0)
-    ui.auto_align_to_polarity(align_to="MinusToPlus")
+    ui.infer_polarity()
+    ui.align_to_polarity(orientation="MinusToPlus")
     assert ui.tomogram.splines[0].orientation == "MinusToPlus"
     assert ui.tomogram.splines[1].orientation == "MinusToPlus"
 

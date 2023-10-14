@@ -738,37 +738,6 @@ class CylindraMainWidget(MagicTemplate):
         self.SplineControl._reset_contrast_limits()
         return None
 
-    @set_design(text="Show splines as curves", location=_sw.SplinesMenu)
-    def show_splines(self):
-        """Show 3D spline paths of cylinder central axes as a layer."""
-        paths = [r.partition(100) for r in self.tomogram.splines]
-        layer = self.parent_viewer.add_shapes(
-            paths,
-            shape_type="path",
-            name="Spline Curves",
-            edge_color="lime",
-            edge_width=1,
-        )
-        return self._undo_callback_for_layer(layer)
-
-    @set_design(text="Show splines as meshes", location=_sw.SplinesMenu)
-    def show_splines_as_meshes(self):
-        """Show 3D spline cylinder as a surface layer."""
-        nodes = []
-        vertices = []
-        n_nodes = 0
-        for i, spl in enumerate(self.tomogram.splines):
-            n, v = spl.cylinder_model().to_mesh(spl)
-            nodes.append(n)
-            vertices.append(v + i * n_nodes)
-            n_nodes += n.shape[0]
-        nodes = np.concatenate(nodes, axis=0)
-        vertices = np.concatenate(vertices, axis=0)
-        layer = self.parent_viewer.add_surface([nodes, vertices], shading="smooth")
-        # NOTE: re-adding surface layer is not redoable, since viewer.add_layer seems
-        # broken for the surface layer.
-        return undo_callback(self._try_removing_layers, redo=False).with_args(layer)
-
     def _get_spline_idx(self, *_) -> int:
         return self.SplineControl.num
 
@@ -825,17 +794,16 @@ class CylindraMainWidget(MagicTemplate):
             .with_redo(lambda: self._set_orientations(_new_orientations))
         )
 
-    @set_design(text="Auto-align to polarity", location=_sw.SplinesMenu.Orientation)
+    @set_design(text="Auto-detect polarity", location=_sw.SplinesMenu.Orientation)
     @thread_worker.with_progress(desc="Auto-detecting polarities...", total=_NSPLINES)
-    def auto_align_to_polarity(
+    def infer_polarity(
         self,
         splines: _Splines = None,
-        align_to: Annotated[Optional[Literal["MinusToPlus", "PlusToMinus"]], {"text": "Do not align"}] = None,
         depth: Annotated[nm, {"min": 5.0, "max": 500.0, "step": 5.0}] = 40,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
         """
-        Automatically detect the polarities and align if necessary.
+        Automatically detect the cylinder polarities.
 
         This function uses Fourier vorticity to detect the polarities of the splines.
         The subtomogram at the center of the spline will be sampled in the cylindric
@@ -845,10 +813,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        align_to : Ori, optional
-            To which direction splines will be aligned. If not given, splines will
-            not be inverted even if the orientation is not aligned.
-        {depth}{bin_size}
+        {splines}{depth}{bin_size}
         """
         tomo = self.tomogram
         _old_orientations = [spl.orientation for spl in self.tomogram.splines]
@@ -857,24 +822,20 @@ class CylindraMainWidget(MagicTemplate):
             yield
         _new_orientations = [spl.orientation for spl in self.tomogram.splines]
 
-        if align_to is not None:
-            return thread_worker.callback(self.align_to_polarity).with_args(align_to)
-        else:
+        @thread_worker.callback
+        def _on_return():
+            self._update_splines_in_images()
+            for i in range(len(tomo.splines)):
+                self._set_orientation_marker(i)
 
-            @thread_worker.callback
-            def _on_return():
-                self._update_splines_in_images()
-                for i in range(len(tomo.splines)):
-                    self._set_orientation_marker(i)
+            self.SplineControl._update_canvas()
+            return (
+                undo_callback(self._set_orientations)
+                .with_args(_old_orientations)
+                .with_redo(lambda: self._set_orientations(_new_orientations))
+            )
 
-                self.SplineControl._update_canvas()
-                return (
-                    undo_callback(self._set_orientations)
-                    .with_args(_old_orientations)
-                    .with_redo(lambda: self._set_orientations(_new_orientations))
-                )
-
-            return _on_return
+        return _on_return
 
     def _set_orientations(self, orientations: list[Ori], resample: bool = True):
         for spl, ori in zip(self.tomogram.splines, orientations, strict=True):

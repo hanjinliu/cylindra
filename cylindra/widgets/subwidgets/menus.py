@@ -261,8 +261,36 @@ class ImageMenu(ChildWidget):
 class SplinesMenu(ChildWidget):
     """Operations on splines"""
 
-    show_splines = abstractapi()
-    show_splines_as_meshes = abstractapi()
+    @magicmenu(name="Show in viewer", record=False)
+    class ShowInViewer(ChildWidget):
+        @set_design(text="Show splines as curves")
+        def show_splines(self):
+            """Show 3D spline paths of cylinder central axes as a layer."""
+            main = self._get_main()
+            paths = [r.partition(100) for r in main.tomogram.splines]
+            return main.parent_viewer.add_shapes(
+                paths,
+                shape_type="path",
+                name="Spline Curves",
+                edge_color="lime",
+                edge_width=1,
+            )
+
+        @set_design(text="Show splines as meshes")
+        def show_splines_as_meshes(self):
+            """Show 3D spline cylinder as a surface layer."""
+            main = self._get_main()
+            nodes = []
+            vertices = []
+            n_nodes = 0
+            for i, spl in enumerate(main.tomogram.splines):
+                n, v = spl.cylinder_model().to_mesh(spl)
+                nodes.append(n)
+                vertices.append(v + i * n_nodes)
+                n_nodes += n.shape[0]
+            nodes = np.concatenate(nodes, axis=0)
+            vertices = np.concatenate(vertices, axis=0)
+            return main.parent_viewer.add_surface([nodes, vertices], shading="smooth")
 
     @set_design(text="Show local properties")
     @do_not_record
@@ -296,7 +324,7 @@ class SplinesMenu(ChildWidget):
 
         invert_spline = abstractapi()
         align_to_polarity = abstractapi()
-        auto_align_to_polarity = abstractapi()
+        infer_polarity = abstractapi()
 
     clip_spline = abstractapi()
 
@@ -852,6 +880,8 @@ class OthersMenu(ChildWidget):
             """View or edit a workflow script."""
             return self.define_workflow(filename, workflow)
 
+        sep0 = field(Separator)
+
         @set_design(text="Import workflow")
         def import_workflow(
             self,
@@ -902,7 +932,7 @@ class OthersMenu(ChildWidget):
 
             return to_clipboard(str(_config.WORKFLOWS_DIR))
 
-        sep0 = field(Separator)
+        sep1 = field(Separator)
 
     sep0 = field(Separator)
 

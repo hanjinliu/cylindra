@@ -9,7 +9,7 @@ from cylindra.const import (
     MoleculesHeader as Mole,
     nm,
 )
-from cylindra.project._base import BaseProject, PathLike, resolve_path, MissingWedge
+from cylindra.project._base import BaseProject, PathLike, resolve_path
 from cylindra.project._utils import as_main_function
 from cylindra._config import get_config
 
@@ -49,13 +49,7 @@ class CylindraBatchProject(BaseProject):
     loaders: list[LoaderInfoModel]
     template_image: PathLike | None
     mask_parameters: None | tuple[float, float] | PathLike
-    missing_wedge: MissingWedge = MissingWedge(params={}, kind="none")
     project_path: Path | None = None
-
-    def _post_init(self):
-        if hasattr(self, "tilt_range"):
-            self.missing_wedge = MissingWedge.parse(self.tilt_range)
-            del self.tilt_range
 
     def resolve_path(self, file_dir: PathLike):
         """Resolve the path of the project."""
@@ -107,15 +101,13 @@ class CylindraBatchProject(BaseProject):
                     scale=info.loader.scale,
                 )
             )
-
         return cls(
             datetime=datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
             version=next(iter(_versions.values())),
             dependency_versions=_versions,
             loaders=loaders,
-            template_image=gui.sta.params.template_path,
+            template_image=gui.sta.params.template_path.value,
             mask_parameters=gui.sta.params._get_mask_params(),
-            missing_wedge=MissingWedge.parse(gui.sta.params.tilt_range),
             project_path=project_dir,
         )
 
@@ -165,7 +157,7 @@ class CylindraBatchProject(BaseProject):
         gui.macro.extend(macro.args)
 
         # load subtomogram analyzer state
-        gui.sta.params.template_path = self.template_image or ""
+        gui.sta.params.template_path.value = self.template_image or ""
         gui.sta.params._set_mask_params(self.mask_parameters)
         gui.reset_choices()
         return None

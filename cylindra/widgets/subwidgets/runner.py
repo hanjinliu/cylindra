@@ -175,7 +175,7 @@ class Runner(ChildWidget):
             )
             yield
         if infer_polarity:
-            yield from main.auto_align_to_polarity.arun(bin_size=bin_size)
+            yield from main.infer_polarity.arun(bin_size=bin_size)
             yield
         if global_props:
             yield from main.global_ft_analysis.arun(splines=splines, bin_size=bin_size)

@@ -267,10 +267,10 @@ class StaParameters(MagicTemplate):
     mask_path = field(mask_path)
 
     _last_average: ip.ImgArray | None = None  # the global average result
+    _viewer: "napari.Viewer | None" = None
 
     def __post_init__(self):
         self._template: ip.ImgArray = None
-        self._viewer: "napari.Viewer | None" = None
         self.mask_choice = MASK_CHOICES[0]
 
         # load history
@@ -298,14 +298,16 @@ class StaParameters(MagicTemplate):
         self._save_history()
 
         if path is None:
-            if self._last_average is None:
+            if StaParameters._last_average is None:
                 if allow_none:
                     return None
                 raise ValueError(
                     "No average image found. You can uncheck 'Use last averaged image' and select "
                     "a template image from a file."
                 )
-            provider = pipe.from_array(self._last_average, self._last_average.scale.x)
+            provider = pipe.from_array(
+                StaParameters._last_average, StaParameters._last_average.scale.x
+            )
         else:
             path = Path(path)
             if path.is_dir():
@@ -353,28 +355,28 @@ class StaParameters(MagicTemplate):
     ) -> "Image":
         from skimage.filters.thresholding import threshold_yen
 
-        if self._viewer is not None:
+        if StaParameters._viewer is not None:
             try:
                 # This line will raise RuntimeError if viewer window had been closed by user.
-                self._viewer.window.activate()
-            except RuntimeError:
-                self._viewer = None
-        if self._viewer is None:
+                StaParameters._viewer.window.activate()
+            except (RuntimeError, AttributeError):
+                StaParameters._viewer = None
+        if StaParameters._viewer is None:
             from cylindra.widgets.subwidgets import Volume
 
-            self._viewer = napari.Viewer(
+            StaParameters._viewer = viewer = napari.Viewer(
                 title=name, axis_labels=("z", "y", "x"), ndisplay=3
             )
             volume_menu = Volume()
-            self._viewer.window.add_dock_widget(volume_menu)
-            self._viewer.window.resize(10, 10)
-            self._viewer.window.activate()
-        self._viewer.scale_bar.visible = True
-        self._viewer.scale_bar.unit = "nm"
+            viewer.window.add_dock_widget(volume_menu)
+            viewer.window.resize(10, 10)
+            viewer.window.activate()
+        StaParameters._viewer.scale_bar.visible = True
+        StaParameters._viewer.scale_bar.unit = "nm"
         if store:
-            self._last_average = image
+            StaParameters._last_average = image
         thr = threshold_yen(image.value)
-        layer = self._viewer.add_image(
+        layer = StaParameters._viewer.add_image(
             image,
             scale=image.scale,
             name=name,
@@ -398,7 +400,7 @@ class SubtomogramAveraging(ChildWidget):
     @property
     def sub_viewer(self):
         """The napari viewer for subtomogram averaging."""
-        return self.params._viewer
+        return StaParameters._viewer
 
     def _get_template_path(self, *_):
         return self.params.template_path.value
@@ -451,7 +453,7 @@ class SubtomogramAveraging(ChildWidget):
     @property
     def last_average(self) -> "ip.ImgArray | None":
         """Last averaged image if exists."""
-        return self.params._last_average
+        return StaParameters._last_average
 
     def _get_shape_in_nm(self, default: int = None) -> tuple[nm, nm, nm]:
         if default is None:
@@ -1299,11 +1301,9 @@ class SubtomogramAveraging(ChildWidget):
     @do_not_record
     def save_annealing_scores(
         self,
-        layer: Annotated[
-            MoleculesLayer, {"choices": _get_layers_with_annealing_result}
-        ],
+        layer: Annotated[MoleculesLayer, {"choices": _get_layers_with_annealing_result}],
         path: Path.Save[FileFilter.CSV],
-    ):
+    ):  # fmt: skip
         try:
             result: AnnealingResult = layer.metadata[ANNEALING_RESULT]
         except KeyError:

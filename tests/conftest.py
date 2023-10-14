@@ -1,5 +1,6 @@
 import pytest
 from contextlib import suppress
+from cylindra.widgets.sta import StaParameters
 
 
 @pytest.fixture
@@ -25,7 +26,8 @@ def ui(make_napari_viewer):
             batch.close()
             # batch.constructor.native.deleteLater()
     _ui.close()
-    if sv := _ui.sta.sub_viewer:
+    if sv := StaParameters._viewer:
         with suppress(RuntimeError):
             sv.close()
+        StaParameters._viewer = None
     viewer.close()
