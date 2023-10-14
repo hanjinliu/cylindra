@@ -35,5 +35,5 @@ def test_mutable_sequence_methods():
 def test_sequence_methods():
     seq = collect_projects([PROJECT_DIR_13PF, PROJECT_DIR_14PF])
     seq.sta_loader()
-    for (i, s), mole in seq.iter_molecules(spline_props=["spacing"]):
+    for (i, s), mole in seq.iter_molecules():
         pass
