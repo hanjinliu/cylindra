@@ -87,7 +87,6 @@ if TYPE_CHECKING:
     from napari.utils.events import Event
     from cylindra.components._base import BaseComponent
 
-ICON_DIR = Path(__file__).parent / "icons"
 DEFAULT_COLORMAP = {
     0.00: "#0B0000",  # black
     0.30: "#872D9D",  # purple
@@ -342,7 +341,7 @@ class CylindraMainWidget(MagicTemplate):
         },
     ]
 
-    @set_design(icon=ICON_DIR / "add_spline.svg", location=Toolbar)
+    @set_design(icon="mdi:pen-add", location=Toolbar)
     @bind_key("F1")
     def register_path(
         self,
@@ -380,14 +379,7 @@ class CylindraMainWidget(MagicTemplate):
             return False
         return self.tomogram.splines[i].has_props()
 
-    @set_design(icon=ICON_DIR / "run_all.svg", location=Toolbar)
-    @bind_key("F2")
-    @do_not_record
-    def open_runner(self):
-        """Run cylindrical fitting algorithm with various settings."""
-        return self._runner.show(run=False)
-
-    @set_design(icon=ICON_DIR / "clear_last.svg", location=Toolbar)
+    @set_design(icon="solar:eraser-bold", location=Toolbar)
     @confirm(text="Spline has properties. Are you sure to delete it?", condition=_confirm_delete)  # fmt: skip
     @do_not_record(recursive=False)
     def clear_current(self):
@@ -398,7 +390,7 @@ class CylindraMainWidget(MagicTemplate):
             self.delete_spline(self.SplineControl.num)
         return None
 
-    @set_design(icon=ICON_DIR / "clear_all.svg", location=Toolbar)
+    @set_design(icon="material-symbols:bomb", location=Toolbar)
     @confirm(text="Are you sure to clear all?\nYou cannot undo this.")
     @do_not_record
     def clear_all(self):
@@ -2294,22 +2286,6 @@ class CylindraMainWidget(MagicTemplate):
         dock = self.parent_viewer.window.add_dock_widget(view, name="Region properties")
         dock.setFloating(True)
         return undo_callback(dock.close).with_redo(dock.show)
-
-    @set_design(icon=ICON_DIR / "pick_next.svg", location=Toolbar)
-    @bind_key("F3")
-    @do_not_record
-    def pick_next(self):
-        """Automatically pick cylinder center using previous two points."""
-        picker = self.Toolbar.Adjust._get_picker()
-        points = self._reserved_layers.work.data
-        if len(points) < 2:
-            raise IndexError("Auto picking needs at least two points.")
-        imgb = max(self.tomogram.multiscaled, key=lambda x: x[0])[1]
-        scale = imgb.scale.x
-        next_point = picker.iter_pick(imgb, points[-1], points[-2]).next()
-        self._reserved_layers.work.add(next_point)
-        change_viewer_focus(self.parent_viewer, next_point / scale, scale)
-        return None
 
     @set_design(text="Paint cylinders", location=_sw.ImageMenu)
     @thread_worker.with_progress(desc="Paint cylinders ...")

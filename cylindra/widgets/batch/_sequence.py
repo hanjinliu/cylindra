@@ -427,7 +427,7 @@ class ProjectSequenceEdit(MagicTemplate):
 
     @set_design(text="Add projects", location=File)
     @do_not_record
-    def add_projects(self, paths: Path.Multiple[FileFilter.JSON]):
+    def add_projects(self, paths: Path.Multiple[FileFilter.PROJECT]):
         """Add project json files as the child projects."""
         for path in paths:
             wdt = self.projects._add(get_project_file(path))

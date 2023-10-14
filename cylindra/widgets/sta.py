@@ -380,14 +380,20 @@ class StaParameters(MagicTemplate):
 class SubtomogramAveraging(ChildWidget):
     """Widget for subtomogram averaging."""
 
-    Subtomogram_analysis = SubtomogramAnalysis
+    Subtomogram_analysis = field(SubtomogramAnalysis)
     Refinement = field(Refinement)
-    params = StaParameters
+    params = field(StaParameters)
 
     @property
     def sub_viewer(self):
         """The napari viewer for subtomogram averaging."""
         return self.params._viewer
+
+    def _get_template_path(self, *_):
+        return self.params.template_path.value
+
+    def _get_mask_params(self, *_):
+        return self.params._get_mask_params()
 
     @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)})
     class Buttons(MagicTemplate):
@@ -475,7 +481,7 @@ class SubtomogramAveraging(ChildWidget):
             out = [1] + out
         return out
 
-    @set_design(text="Average all molecules", location=Subtomogram_analysis)
+    @set_design(text="Average all molecules", location=SubtomogramAnalysis)
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Subtomogram averaging of {!r}"))
     def average_all(
         self,
@@ -504,7 +510,7 @@ class SubtomogramAveraging(ChildWidget):
         t0.toc()
         return self._show_rec.with_args(img, f"[AVG]{_avg_name(layers)}")
 
-    @set_design(text="Average subset of molecules", location=Subtomogram_analysis)
+    @set_design(text="Average subset of molecules", location=SubtomogramAnalysis)
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Subtomogram averaging (subset) of {!r}"))  # fmt: skip
     def average_subset(
         self,
@@ -545,7 +551,7 @@ class SubtomogramAveraging(ChildWidget):
         t0.toc()
         return self._show_rec.with_args(img, f"[AVG(n={number})]{_avg_name(layers)}")
 
-    @set_design(text="Average group-wise", location=Subtomogram_analysis)
+    @set_design(text="Average group-wise", location=SubtomogramAnalysis)
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Grouped subtomogram averaging of {!r}"))  # fmt: skip
     def average_groups(
         self,
@@ -587,7 +593,7 @@ class SubtomogramAveraging(ChildWidget):
         t0.toc()
         return self._show_rec.with_args(img, f"[AVG]{_avg_name(layers)}", store=False)
 
-    @set_design(text="Split molecules and average", location=Subtomogram_analysis)
+    @set_design(text="Split molecules and average", location=SubtomogramAnalysis)
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Split-and-averaging of {!r}"))  # fmt: skip
     def split_and_average(
         self,
@@ -626,8 +632,8 @@ class SubtomogramAveraging(ChildWidget):
     def align_averaged(
         self,
         layers: MoleculesLayersType,
-        template_path: Annotated[str | Path, {"bind": params.template_path}],
-        mask_params: Annotated[Any, {"bind": params._get_mask_params}],
+        template_path: Annotated[str | Path, {"bind": _get_template_path}],
+        mask_params: Annotated[Any, {"bind": _get_mask_params}],
         max_shifts: Optional[_MaxShifts] = None,
         rotations: _Rotations = ((0.0, 0.0), (15.0, 1.0), (3.0, 1.0)),
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
@@ -755,8 +761,8 @@ class SubtomogramAveraging(ChildWidget):
     def align_all(
         self,
         layers: MoleculesLayersType,
-        template_path: Annotated[str | Path, {"bind": params.template_path}],
-        mask_params: Annotated[Any, {"bind": params._get_mask_params}],
+        template_path: Annotated[str | Path, {"bind": _get_template_path}],
+        mask_params: Annotated[Any, {"bind": _get_mask_params}],
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
@@ -799,7 +805,7 @@ class SubtomogramAveraging(ChildWidget):
     def align_all_template_free(
         self,
         layers: MoleculesLayersType,
-        mask_params: Annotated[Any, {"bind": params._get_mask_params}],
+        mask_params: Annotated[Any, {"bind": _get_mask_params}],
         size: _SubVolumeSize = 12.0,
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
@@ -851,7 +857,7 @@ class SubtomogramAveraging(ChildWidget):
         self,
         layers: MoleculesLayersType,
         template_paths: _ImagePaths,
-        mask_params: Annotated[Any, {"bind": params._get_mask_params}],
+        mask_params: Annotated[Any, {"bind": _get_mask_params}],
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
@@ -895,8 +901,8 @@ class SubtomogramAveraging(ChildWidget):
     def align_all_viterbi(
         self,
         layer: MoleculesLayerType,
-        template_path: Annotated[str | Path, {"bind": params.template_path}],
-        mask_params: Annotated[Any, {"bind": params._get_mask_params}] = None,
+        template_path: Annotated[str | Path, {"bind": _get_template_path}],
+        mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
@@ -904,7 +910,7 @@ class SubtomogramAveraging(ChildWidget):
         distance_range: _DistRangeLon = (4.0, 4.28),
         angle_max: Optional[float] = 5.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
-    ):
+    ):  # fmt: skip
         """
         Subtomogram alignment using 1D Viterbi alignment.
 
@@ -934,7 +940,7 @@ class SubtomogramAveraging(ChildWidget):
         self,
         layer: MoleculesLayerType,
         template_paths: _ImagePaths,
-        mask_params: Annotated[Any, {"bind": params._get_mask_params}] = None,
+        mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
@@ -942,7 +948,7 @@ class SubtomogramAveraging(ChildWidget):
         distance_range: _DistRangeLon = (4.0, 4.28),
         angle_max: Optional[float] = 5.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
-    ):
+    ):  # fmt: skip
         """
         Subtomogram alignment using 1D Viterbi alignment.
 
@@ -972,8 +978,8 @@ class SubtomogramAveraging(ChildWidget):
     def align_all_annealing(
         self,
         layer: MoleculesLayerType,
-        template_path: Annotated[str | Path, {"bind": params.template_path}],
-        mask_params: Annotated[Any, {"bind": params._get_mask_params}] = None,
+        template_path: Annotated[str | Path, {"bind": _get_template_path}],
+        mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
@@ -1017,7 +1023,7 @@ class SubtomogramAveraging(ChildWidget):
         self,
         layer: MoleculesLayerType,
         template_paths: _ImagePaths,
-        mask_params: Annotated[Any, {"bind": params._get_mask_params}] = None,
+        mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
@@ -1060,13 +1066,13 @@ class SubtomogramAveraging(ChildWidget):
         self,
         layer: MoleculesLayer,
         template_path: Any,
-        mask_params: Annotated[Any, {"bind": params._get_mask_params}] = None,
+        mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         max_shifts: tuple[nm, nm, nm] = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: float = 0.5,
         interpolation: int = 3,
         upsample_factor: int = 5,
-    ):
+    ):  # fmt: skip
         """
         Construct a landscape for subtomogram alignment.
 
@@ -1261,13 +1267,13 @@ class SubtomogramAveraging(ChildWidget):
 
         return _on_return
 
-    @set_design(text="Calculate correlation", location=Subtomogram_analysis)
+    @set_design(text="Calculate correlation", location=SubtomogramAnalysis)
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Calculating correlations of {!r}"))  # fmt: skip
     def calculate_correlation(
         self,
         layers: MoleculesLayersType,
         template_paths: _ImagePaths,
-        mask_params: Annotated[Any, {"bind": params._get_mask_params}] = None,
+        mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         metric: Literal["zncc", "ncc"] = "zncc",
         column_prefix: str = "score",
@@ -1326,12 +1332,12 @@ class SubtomogramAveraging(ChildWidget):
             layer.molecules = layer.molecules.with_features(out.cast(pl.Float32))
         return None
 
-    @set_design(text="Calculate FSC", location=Subtomogram_analysis)
+    @set_design(text="Calculate FSC", location=SubtomogramAnalysis)
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Calculating FSC of {!r}"))
     def calculate_fsc(
         self,
         layers: MoleculesLayersType,
-        mask_params: Annotated[Any, {"bind": params._get_mask_params}],
+        mask_params: Annotated[Any, {"bind": _get_mask_params}],
         size: _SubVolumeSize = None,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
@@ -1413,12 +1419,12 @@ class SubtomogramAveraging(ChildWidget):
 
         return _calculate_fsc_on_return
 
-    @set_design(text="PCA/K-means classification", location=Subtomogram_analysis)
+    @set_design(text="PCA/K-means classification", location=SubtomogramAnalysis)
     @dask_worker.with_progress(descs=_pdesc.classify_pca_fmt)
     def classify_pca(
         self,
         layer: MoleculesLayerType,
-        mask_params: Annotated[Any, {"bind": params._get_mask_params}],
+        mask_params: Annotated[Any, {"bind": _get_mask_params}],
         size: Annotated[Optional[nm], {"text": "Use mask shape", "options": {"value": 12.0, "max": 100.0}, "label": "size (nm)"}] = None,
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
@@ -1484,13 +1490,13 @@ class SubtomogramAveraging(ChildWidget):
 
         return _on_return
 
-    @set_design(text="Seam search", location=Subtomogram_analysis.SeamSearch)
+    @set_design(text="Seam search", location=SubtomogramAnalysis.SeamSearch)
     @dask_worker.with_progress(desc=_pdesc.fmt_layer("Seam search of {!r}"))
     def seam_search(
         self,
         layer: MoleculesLayerType,
-        template_path: Annotated[str | Path, {"bind": params.template_path}],
-        mask_params: Annotated[Any, {"bind": params._get_mask_params}],
+        template_path: Annotated[str | Path, {"bind": _get_template_path}],
+        mask_params: Annotated[Any, {"bind": _get_mask_params}],
         anti_template_path: Annotated[Optional[Path.Read[FileFilter.IMAGE]], {"text": "Do not use anti-template"}] = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         npf: Annotated[Optional[int], {"text": "Use global properties"}] = None,
@@ -1571,7 +1577,7 @@ class SubtomogramAveraging(ChildWidget):
         return _seam_search_on_return
 
     @set_design(
-        text="Seam search (by feature)", location=Subtomogram_analysis.SeamSearch
+        text="Seam search (by feature)", location=SubtomogramAnalysis.SeamSearch
     )
     def seam_search_by_feature(
         self,
@@ -1609,9 +1615,7 @@ class SubtomogramAveraging(ChildWidget):
             if SEAM_SEARCH_RESULT in layer.metadata
         ]
 
-    @set_design(
-        text="Save seam search result", location=Subtomogram_analysis.SeamSearch
-    )
+    @set_design(text="Save seam search result", location=SubtomogramAnalysis.SeamSearch)
     @do_not_record
     def save_seam_search_result(
         self,
@@ -1644,7 +1648,7 @@ class SubtomogramAveraging(ChildWidget):
             npf = mole.features[Mole.pf].unique().len()
         return loader, npf
 
-    @set_design(text="Save last average", location=Subtomogram_analysis)
+    @set_design(text="Save last average", location=SubtomogramAnalysis)
     def save_last_average(self, path: Path.Save[FileFilter.IMAGE]):
         """Save the lastly generated average image."""
         path = Path(path)
