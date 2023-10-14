@@ -2,7 +2,6 @@ from typing import Annotated, Any
 
 import re
 from acryo import BatchLoader, pipe
-from acryo.tilt import single_axis
 
 from magicgui.widgets import Container
 from magicclass import (
@@ -438,7 +437,6 @@ class BatchSubtomogramAveraging(MagicTemplate):
         loader_name: Annotated[str, {"bind": _get_current_loader_name}],
         template_path: Annotated[str | Path, {"bind": params.template_path}],
         mask_params: Annotated[Any, {"bind": params._get_mask_params}],
-        tilt_range: Annotated[Any, {"bind": params.tilt_range}] = None,
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
@@ -464,7 +462,6 @@ class BatchSubtomogramAveraging(MagicTemplate):
                 rotations=rotations,
                 cutoff=cutoff,
                 alignment_model=_get_alignment(method),
-                tilt=single_axis(tilt_range, axis="y"),
             )
         )
         loaderlist.append(

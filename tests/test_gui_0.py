@@ -155,7 +155,7 @@ def test_picking_splines(ui: CylindraMainWidget):
     ui.open_image(path=path, scale=1.052, tilt_range=(-60, 60), bin_size=[1, 2])
     ui._reserved_layers.work.add(coords_13pf[0])
     ui._reserved_layers.work.add(coords_13pf[1])
-    ui.pick_next()
+    ui.Toolbar.pick_next()
     ui.register_path()
     assert len(ui.tomogram.splines) == 1
 

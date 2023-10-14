@@ -379,13 +379,6 @@ class CylindraMainWidget(MagicTemplate):
             return False
         return self.tomogram.splines[i].has_props()
 
-    @set_design(icon="ant-design:fast-forward-filled", location=Toolbar)
-    @bind_key("F2")
-    @do_not_record
-    def open_runner(self):
-        """Run cylindrical fitting algorithm with various settings."""
-        return self._runner.show(run=False)
-
     @set_design(icon="solar:eraser-bold", location=Toolbar)
     @confirm(text="Spline has properties. Are you sure to delete it?", condition=_confirm_delete)  # fmt: skip
     @do_not_record(recursive=False)
@@ -2293,22 +2286,6 @@ class CylindraMainWidget(MagicTemplate):
         dock = self.parent_viewer.window.add_dock_widget(view, name="Region properties")
         dock.setFloating(True)
         return undo_callback(dock.close).with_redo(dock.show)
-
-    @set_design(icon="fe:target", location=Toolbar)
-    @bind_key("F3")
-    @do_not_record
-    def pick_next(self):
-        """Automatically pick cylinder center using previous two points."""
-        picker = self.Toolbar.Adjust._get_picker()
-        points = self._reserved_layers.work.data
-        if len(points) < 2:
-            raise IndexError("Auto picking needs at least two points.")
-        imgb = max(self.tomogram.multiscaled, key=lambda x: x[0])[1]
-        scale = imgb.scale.x
-        next_point = picker.iter_pick(imgb, points[-1], points[-2]).next()
-        self._reserved_layers.work.add(next_point)
-        change_viewer_focus(self.parent_viewer, next_point / scale, scale)
-        return None
 
     @set_design(text="Paint cylinders", location=_sw.ImageMenu)
     @thread_worker.with_progress(desc="Paint cylinders ...")

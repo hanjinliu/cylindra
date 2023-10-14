@@ -389,6 +389,9 @@ class SubtomogramAveraging(ChildWidget):
         """The napari viewer for subtomogram averaging."""
         return self.params._viewer
 
+    def _get_template_path(self, *_):
+        return self.params.template_path.value
+
     def _get_mask_params(self, *_):
         return self.params._get_mask_params()
 
@@ -629,7 +632,7 @@ class SubtomogramAveraging(ChildWidget):
     def align_averaged(
         self,
         layers: MoleculesLayersType,
-        template_path: Annotated[str | Path, {"bind": StaParameters.template_path}],
+        template_path: Annotated[str | Path, {"bind": _get_template_path}],
         mask_params: Annotated[Any, {"bind": _get_mask_params}],
         max_shifts: Optional[_MaxShifts] = None,
         rotations: _Rotations = ((0.0, 0.0), (15.0, 1.0), (3.0, 1.0)),
@@ -758,7 +761,7 @@ class SubtomogramAveraging(ChildWidget):
     def align_all(
         self,
         layers: MoleculesLayersType,
-        template_path: Annotated[str | Path, {"bind": StaParameters.template_path}],
+        template_path: Annotated[str | Path, {"bind": _get_template_path}],
         mask_params: Annotated[Any, {"bind": _get_mask_params}],
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
@@ -898,7 +901,7 @@ class SubtomogramAveraging(ChildWidget):
     def align_all_viterbi(
         self,
         layer: MoleculesLayerType,
-        template_path: Annotated[str | Path, {"bind": StaParameters.template_path}],
+        template_path: Annotated[str | Path, {"bind": _get_template_path}],
         mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
@@ -975,7 +978,7 @@ class SubtomogramAveraging(ChildWidget):
     def align_all_annealing(
         self,
         layer: MoleculesLayerType,
-        template_path: Annotated[str | Path, {"bind": StaParameters.template_path}],
+        template_path: Annotated[str | Path, {"bind": _get_template_path}],
         mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
@@ -1492,7 +1495,7 @@ class SubtomogramAveraging(ChildWidget):
     def seam_search(
         self,
         layer: MoleculesLayerType,
-        template_path: Annotated[str | Path, {"bind": StaParameters.template_path}],
+        template_path: Annotated[str | Path, {"bind": _get_template_path}],
         mask_params: Annotated[Any, {"bind": _get_mask_params}],
         anti_template_path: Annotated[Optional[Path.Read[FileFilter.IMAGE]], {"text": "Do not use anti-template"}] = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
