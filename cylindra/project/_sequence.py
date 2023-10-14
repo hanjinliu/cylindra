@@ -157,14 +157,14 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         if skip_exc:
             for path in paths:
                 with suppress(Exception):
-                    self.add(path)
+                    self.append_file(path)
         else:
             for path in paths:
-                self.add(path)
+                self.append_file(path)
         return self
 
-    def add(self, path: str | Path) -> Self:
-        """Add a project from a path."""
+    def append_file(self, path: str | Path) -> Self:
+        """Add a project from a file path."""
         prj = CylindraProject.from_file(path)
         self._scale_validator.value = prj.scale
         self._projects.append(prj)
@@ -401,8 +401,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
 
     def iter_molecules(
         self,
-        spline_props: str | Sequence[str] = (),
-        suffix: str = "",
+        name_filter: Callable[[str], bool] | None = None,
     ) -> Iterable[tuple[tuple[int, str], Molecules]]:
         """
         Iterate over all the molecules in all the projects.
@@ -414,32 +413,16 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         suffix : str, default is ""
             Suffix that will be added to the spline global property names.
         """
-        if isinstance(spline_props, str):
-            spline_props = [spline_props]
-        for i_prj, prj in enumerate(self._projects):
-            with prj.open_project() as dir:
-                for info, mole in prj.iter_load_molecules(dir):
-                    if spline_props and (src := info.source) is not None:
-                        spl = prj.load_spline(dir, src)
-                        features = list[pl.Expr]()
-                        for propname in spline_props:
-                            prop = spl.props.get_glob(propname, None)
-                            if prop is None:
-                                continue
-                            propname_glob = propname + suffix
-                            features.append(
-                                pl.repeat(prop, pl.count()).alias(propname_glob)
-                            )
-                        mole = mole.with_features(features)
-                    yield (i_prj, info.stem), mole
+        for sl, (mole, _) in self.iter_molecules_with_splines(name_filter):
+            yield sl, mole
 
     def iter_molecules_with_splines(
         self, name_filter: Callable[[str], bool] | None = None
-    ) -> Iterable[tuple[Molecules, CylSpline | None]]:
+    ) -> Iterable[tuple[tuple[int, str], tuple[Molecules, CylSpline | None]]]:
         """Iterate over all the molecules and its source spline."""
         if name_filter is None:
             name_filter = lambda _: True
-        for prj in self._projects:
+        for i_prj, prj in enumerate(self._projects):
             with prj.open_project() as dir:
                 for info, mole in prj.iter_load_molecules(dir):
                     if not name_filter(info.name):
@@ -447,7 +430,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                     if (src := info.source) is None:
                         continue
                     spl = prj.load_spline(dir, src)
-                    yield mole, spl
+                    yield (i_prj, info.stem), (mole, spl)
 
     def collect_spline_coords(self, ders: int | Iterable[int] = 0) -> pl.DataFrame:
         """
