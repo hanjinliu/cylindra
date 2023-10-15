@@ -32,7 +32,7 @@ class PeakDetector:
                 key=key,
                 upsample_factor=upsample_factor,
                 dims="rya",
-            ).proj("r")
+            ).mean(axis="r")
             power_spectra.append(pw)
         return np.stack(power_spectra, axis=0).mean(axis=0)
 

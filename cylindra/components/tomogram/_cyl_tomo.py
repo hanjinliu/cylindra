@@ -385,7 +385,7 @@ class CylTomogram(Tomogram):
                 img.rotate(-angle, cval=0, update=True)
 
             # zx-shift correction by self-PCC
-            subtomo_proj = subtomograms.proj("y")
+            subtomo_proj = subtomograms.mean(axis="y")
 
             if edge_sigma is not None:
                 # Regions outside the mask don't need to be considered.
@@ -493,7 +493,7 @@ class CylTomogram(Tomogram):
         degrees = np.linspace(-pf_ang / 2, pf_ang / 2, n_rotations) + 180
         max_shift_px = max_shift / scale
         with set_gpu():
-            inputs = subtomograms.proj("y")[ip.slicer.x[::-1]]
+            inputs = subtomograms.mean(axis="y")[ip.slicer.x[::-1]]
 
             # Align twist-corrected images
             shifts_loc = _multi_rotated_auto_zncc(inputs, degrees, max_shift_px)
@@ -507,7 +507,7 @@ class CylTomogram(Tomogram):
             )
 
             # Make 2D template using coarse aligned images.
-            imgcory = imgs_aligned.proj("p")
+            imgcory = imgs_aligned.mean(axis="p")
             shift = rotated_auto_zncc(
                 imgcory, degrees=degrees, max_shifts=max_shift_px * 2
             )
@@ -946,7 +946,7 @@ class CylTomogram(Tomogram):
         polar = get_polar_image(imgb, coords, spl.radius, order=1)
         if mask_freq:
             polar = LatticeAnalyzer(cfg).mask_spectra(polar)
-        img_flat = polar.proj("y")
+        img_flat = polar.mean(axis="y")
 
         if (npf := spl.props.get_glob(H.npf, None)) is None:
             # if the global properties are already calculated, use it
@@ -960,7 +960,7 @@ class CylTomogram(Tomogram):
             key=ip.slicer.a[npf - 1 : npf + 2],
             upsample_factor=20,
             dims="ra",
-        ).proj("a", method=np.max)
+        ).mean(axis="a")
         r_argmax = np.argmax(pw_peak)
         clkwise = r_argmax - (pw_peak.size + 1) // 2 <= 0
         ori = ori_clockwise if clkwise else ori_counterclockwise
@@ -1394,11 +1394,13 @@ def _delayed_zncc_maximum(
     return shift @ zxrot
 
 
+_FLIP_ZX = ip.slicer.z[::-1].x[::-1]
+
+
 def _filter_by_corr(imgs_aligned: ip.ImgArray, corr_allowed: float) -> ip.ImgArray:
     if corr_allowed >= 1:
         return imgs_aligned
-    sl = ip.slicer.z[::-1].x[::-1]
-    corrs = np.asarray(ip.zncc(imgs_aligned, imgs_aligned[sl]))
+    corrs = np.asarray(ip.zncc(imgs_aligned, imgs_aligned[_FLIP_ZX]))
     threshold = np.quantile(corrs, 1 - corr_allowed)
     indices: np.ndarray = np.where(corrs >= threshold)[0]
     imgs_aligned = imgs_aligned[indices.tolist()]

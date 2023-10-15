@@ -231,6 +231,9 @@ def map_coordinates_task(
     return task
 
 
+FLIP_X = ip.slicer.x[::-1]
+
+
 class Projections:
     """
     Class that stores projections of a 3D image, calculated lazily.
@@ -247,7 +250,7 @@ class Projections:
         |
         v Y
 
-    When the 3D image is projected along Y axis, that is, img.proj("y") in ``impy``,
+    When the 3D image is projected along Y axis, that is, img.mean("y") in ``impy``,
     and viewed parallel to Y axis, the projection should look like following.
 
         X <-------(x) Y
@@ -260,11 +263,9 @@ class Projections:
     in ``pyqtgraph``, we must **flip along X axis**.
     """
 
-    FLIP = ip.slicer.x[::-1]
-
     def __init__(self, image: ip.ImgArray | ip.LazyImgArray, npf: int = 13):
-        self.yx = image.proj("z")
-        self.zx = image.proj("y")[self.FLIP]
+        self.yx = image.mean(axis="z")
+        self.zx = image.mean(axis="y")[FLIP_X]
         self.zx_ave = None
         self.npf = int(npf)
 

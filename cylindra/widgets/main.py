@@ -664,7 +664,7 @@ class CylindraMainWidget(MagicTemplate):
         def _filter_reference_image_on_return():
             self._reserved_layers.image.data = img_filt
             self._reserved_layers.image.contrast_limits = contrast_limits
-            proj = self._reserved_layers.image.data.proj("z")
+            proj = self._reserved_layers.image.data.mean(axis="z")
             self.Overview.image = proj
             self.Overview.contrast_limits = contrast_limits
 
@@ -709,7 +709,7 @@ class CylindraMainWidget(MagicTemplate):
         self.parent_viewer.dims.set_current_step(axis=0, value=current_z * factor)
 
         # update overview
-        self.Overview.image = imgb.proj("z")
+        self.Overview.image = imgb.mean(axis="z")
         self.Overview.xlim = [x * factor for x in self.Overview.xlim]
         self.Overview.ylim = [y * factor for y in self.Overview.ylim]
         self._current_binsize = bin_size
@@ -2431,7 +2431,7 @@ class CylindraMainWidget(MagicTemplate):
         self._reserved_layers.init_paint()
 
         # update overview
-        proj = imgb.proj("z")
+        proj = imgb.mean(axis="z")
         self.Overview.image = proj
         self.Overview.ylim = (0, proj.shape[0])
 

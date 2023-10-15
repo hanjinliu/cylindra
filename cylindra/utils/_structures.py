@@ -47,7 +47,7 @@ def centering(
     angle_deg2 = angle_corr(img, ang_center=angle, drot=drot, nrots=nrots)
 
     img_next_rot = img.rotate(-angle_deg2, cval=np.mean(img))
-    proj = img_next_rot.proj("y")
+    proj = img_next_rot.mean(axis="y")
     shift = mirror_zncc(proj, max_shifts=max_shifts)
 
     shiftz, shiftx = shift / 2
@@ -64,7 +64,7 @@ def angle_corr(
     img: ip.ImgArray, ang_center: float = 0, drot: float = 7, nrots: int = 29
 ):
     # img: 3D
-    img_z = img.proj("z")
+    img_z = img.mean(axis="z")
     mask = ip.circular_mask(img_z.shape.y / 2 + 2, img_z.shape)
     img_mirror: ip.ImgArray = img_z["x=::-1"]
     angs = np.linspace(ang_center - drot, ang_center + drot, nrots, endpoint=True)

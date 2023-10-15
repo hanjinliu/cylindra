@@ -572,7 +572,7 @@ class CylinderSimulator(ChildWidget):
                 height=shape[0],
                 order=interpolation,
             ).set_scale(zyx=scale, unit="nm")
-            yield _on_iradon_finished.with_args(rec.proj("z"), f"N/S = {nsr_val:.1f}")
+            yield _on_iradon_finished.with_args(rec.mean("z"), f"N/S = {nsr_val:.1f}")
 
             file_name = save_dir / f"image-{i}.mrc"
             rec.imsave(file_name)
@@ -635,7 +635,7 @@ class CylinderSimulator(ChildWidget):
             height=roundint(height / scale),
             order=interpolation,
         ).set_scale(zyx=scale, unit="nm")
-        yield _on_iradon_finished.with_args(rec.proj("z"), f"N/S = {nsr:.1f}")
+        yield _on_iradon_finished.with_args(rec.mean("z"), f"N/S = {nsr:.1f}")
 
         rec.name = "Simulated tomogram"
         tomo = CylTomogram.from_image(
@@ -711,7 +711,7 @@ class CylinderSimulator(ChildWidget):
             height=shape[0],
             order=interpolation,
         ).set_scale(zyx=scale, unit="nm")
-        yield _on_iradon_finished.with_args(rec.proj("z"), f"N/S = {nsr:.1f}")
+        yield _on_iradon_finished.with_args(rec.mean("z"), f"N/S = {nsr:.1f}")
 
         rec.name = "Simulated tomogram"
         tomo = CylTomogram.from_image(

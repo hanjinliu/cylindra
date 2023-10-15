@@ -218,7 +218,7 @@ class SpectraInspector(ChildWidget):
         self._spline = tomo.splines[idx]
         self.parameters.radius = self._spline.radius
         polar = tomo.straighten_cylindric(idx, binsize=binsize)
-        pw = polar.power_spectra(zero_norm=True, dims="rya").proj("r")
+        pw = polar.power_spectra(zero_norm=True, dims="rya").mean(axis="r")
 
         self.canvas.layers.clear()
         self._image = pw.value

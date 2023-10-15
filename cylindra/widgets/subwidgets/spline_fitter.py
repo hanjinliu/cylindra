@@ -17,6 +17,8 @@ from cylindra.utils import roundint, centroid, map_coordinates
 from cylindra.const import nm, Mode
 from ._child_widget import ChildWidget
 
+_FILP_X = ip.slicer.x[::-1]
+
 
 @magicclass
 class SplineFitter(ChildWidget):
@@ -216,7 +218,7 @@ class SplineFitter(ChildWidget):
         subtomo = ip.asarray(np.stack(out, axis=0), axes="pzyx").set_scale(
             imgb, unit="nm"
         )
-        self.subtomograms = subtomo.proj("y")[ip.slicer.x[::-1]]
+        self.subtomograms = subtomo.mean(axis="y")[_FILP_X]
 
         self.canvas.image = self.subtomograms[0]
         self.controller.pos.max = npos - 1

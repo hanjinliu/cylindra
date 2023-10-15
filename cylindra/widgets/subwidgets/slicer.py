@@ -198,7 +198,7 @@ class SplineSlicer(ChildWidget):
             if isinstance(result, Exception):
                 return self._show_overlay_text_cb.with_args(result)
             yield
-            img2d = result.proj("r")
+            img2d = result.mean(axis="r")
             yield
             img = self.post_filter(img2d).value
         elif _type == YPROJ:
@@ -206,7 +206,7 @@ class SplineSlicer(ChildWidget):
             if isinstance(result, Exception):
                 return self._show_overlay_text_cb.with_args(result)
             yield
-            img2d = result.proj("y")[ip.slicer.x[::-1]]
+            img2d = result.mean(axis="y")[ip.slicer.x[::-1]]
             yield
             img = self.post_filter(img2d).value
         elif _type == CFT:
@@ -214,7 +214,7 @@ class SplineSlicer(ChildWidget):
             if isinstance(result, Exception):
                 return self._show_overlay_text_cb.with_args(result)
             yield
-            pw = result.power_spectra(zero_norm=True, dims="rya").proj("r")
+            pw = result.power_spectra(zero_norm=True, dims="rya").mean(axis="r")
             yield
             pw[:] = pw / pw.max()
             img = pw.value

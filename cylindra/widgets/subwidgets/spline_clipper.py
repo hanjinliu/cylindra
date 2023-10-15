@@ -134,9 +134,9 @@ class SplineClipper(ChildWidget):
         )
         self._subtomograms.set_scale(xyz=tomo.scale * binsize)
         shape = self._subtomograms.shape
-        self.xy_canvas.image = self._subtomograms.proj("z")
-        self.yz_canvas.image = self._subtomograms.proj("x")
-        self.xz_canvas.image = self._subtomograms.proj("y")
+        self.xy_canvas.image = self._subtomograms.mean(axis="z")
+        self.yz_canvas.image = self._subtomograms.mean(axis="x")
+        self.xz_canvas.image = self._subtomograms.mean(axis="y")
 
         # update spline curves in canvases
         zc, yc, xc = np.array(shape) / 2 - 0.5
