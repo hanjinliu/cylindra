@@ -110,8 +110,8 @@ class FileIterator(ChildWidget):
         fgui.call_button.changed()
 
     @set_design(text="Send to batch analyzer")
-    def send_to_batch_analyzer(self, path: Annotated[str, {"bind": path}]):
-        self._get_main().batch.constructor.add_children_glob(self.pattern)
+    def send_to_batch_analyzer(self):
+        self._get_main().batch.constructor.add_projects_glob(self.pattern)
 
     @set_design(text="Preview all")
     def preview_all(self):
@@ -133,6 +133,7 @@ class FileIterator(ChildWidget):
         seq = ProjectSequence.from_paths(self._files, skip_exc=False)
         wdt = LocalPropsViewer(seq)
         self.parent_viewer.window.add_dock_widget(wdt)
+        return wdt
 
 
 @magicclass

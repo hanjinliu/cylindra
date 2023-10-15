@@ -123,6 +123,21 @@ def patch_stash_dir(dir: str | Path):
         STASH_DIR = old_dir
 
 
+@contextmanager
+def patch_config_dir(dir: str | Path):
+    """Temporarily change the config directory."""
+    global VAR_PATH
+
+    dir = Path(dir)
+    assert dir.is_dir()
+    old_dir = VAR_PATH
+    VAR_PATH = dir
+    try:
+        yield
+    finally:
+        VAR_PATH = old_dir
+
+
 def get_main_function(filename: str | Path) -> Callable:
     """Get the main function object from the file."""
     from runpy import run_path

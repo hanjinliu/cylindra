@@ -23,7 +23,7 @@ from magicclass import (
     confirm,
     abstractapi,
 )
-from magicclass.widgets import Separator, ConsoleTextEdit, CodeEdit, OneLineRunner
+from magicclass.widgets import Separator, ConsoleTextEdit, CodeEdit
 from magicclass.types import Path, Color, Optional
 from magicclass.logging import getLogger
 from magicclass.utils import thread_worker

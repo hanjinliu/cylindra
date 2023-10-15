@@ -135,12 +135,13 @@ _Logger = getLogger("cylindra")
 
 
 def _get_alignment(method: str):
-    if method == "zncc":
-        return alignment.ZNCCAlignment
-    elif method == "pcc":
-        return alignment.PCCAlignment
-    else:
-        raise ValueError(f"Method {method!r} is unknown.")
+    match method:
+        case "zncc":
+            return alignment.ZNCCAlignment
+        case "pcc":
+            return alignment.PCCAlignment
+        case _:  # pragma: no cover
+            raise ValueError(f"Method {method!r} is unknown.")
 
 
 MASK_CHOICES = ("No mask", "Blur template", "From file")
@@ -1344,6 +1345,8 @@ class SubtomogramAveraging(ChildWidget):
         scale = main.tomogram.scale
         tmps = []
         _shapes = set()
+        if isinstance(template_paths, (Path, str)):
+            template_paths = [template_paths]
         for path in template_paths:
             template_image = pipe.from_file(path).provide(scale)
             tmps.append(template_image)
@@ -1352,14 +1355,15 @@ class SubtomogramAveraging(ChildWidget):
             raise ValueError(f"Inconsistent shapes: {_shapes}")
         output_shape = _shapes.pop()
         mask = self.params._get_mask(mask_params)
-        if isinstance(mask, pipe.ImageConverter):
-            msk = mask.convert(np.stack(tmps, axis=0).sum(axis=0), scale)
-        elif isinstance(mask, pipe.ImageProvider):
-            msk = mask.provide(scale)
-        elif mask is None:
-            msk = 1
-        else:
-            raise RuntimeError("Unreachable")
+        match mask:
+            case None:
+                msk = 1
+            case pipe.ImageConverter:
+                msk = mask.convert(np.stack(tmps, axis=0).sum(axis=0), scale)
+            case pipe.ImageProvider:
+                msk = mask.provide(scale)
+            case _:  # pragma: no cover
+                raise RuntimeError("Unreachable")
         corr_fn = ip.ncc if metric == "ncc" else ip.zncc
         funcs = []
         for tmp in tmps:

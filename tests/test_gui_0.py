@@ -223,6 +223,16 @@ def test_workflow_undo_redo(ui: CylindraMainWidget):
         ui.macro.redo()
 
 
+def test_config(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False)
+    ui.SplinesMenu.Config.update_default_config(npf_range=(13, 15))
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        with _config.patch_config_dir(tmpdir):
+            ui.SplinesMenu.Config.save_default_config(tmpdir)
+            ui.SplinesMenu.Config.load_default_config(tmpdir)
+
+
 def test_reanalysis(ui: CylindraMainWidget):
     ui.load_project_for_reanalysis(PROJECT_DIR_14PF)
     assert len(ui.macro.undo_stack["undo"]) == 0
@@ -467,46 +477,51 @@ def test_preview(ui: CylindraMainWidget):
 def test_sub_widgets(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
     ui.ImageMenu.open_slicer()
-    ui.spline_slicer.refresh_widget_state()
-    ui.spline_slicer.show_what = "CFT"
-    ui.spline_slicer._update_canvas()
-    ui.spline_slicer.show_what = "R-projection"
-    ui.spline_slicer._update_canvas()
-    ui.spline_slicer.show_what = "Y-projection"
-    ui.spline_slicer._update_canvas()
-    ui.spline_slicer.show_what = "Filtered-R-projection"
-    ui.spline_slicer._update_canvas()
-    ui.spline_slicer.measure_cft_here()
+    with thread_worker.blocking_mode():
+        ui.spline_slicer.refresh_widget_state()
+        ui.spline_slicer.show_what = "CFT"
+        ui.spline_slicer._update_canvas()
+        ui.spline_slicer.show_what = "R-projection"
+        ui.spline_slicer._update_canvas()
+        ui.spline_slicer.show_what = "Y-projection"
+        ui.spline_slicer._update_canvas()
+        ui.spline_slicer.show_what = "Filtered-R-projection"
+        ui.spline_slicer._update_canvas()
+        ui.spline_slicer.measure_cft_here()
 
-    # file iterator
-    ui._file_iterator.set_pattern(f"{TEST_DIR.as_posix()}/*.tif")
-    ui._file_iterator.last_file()
-    ui._file_iterator.first_file()
-    ui._file_iterator.next_file()
-    ui._file_iterator.prev_file()
-    ui._file_iterator.open_image(ui._file_iterator.path)
-    ui._file_iterator.preview_all().close()
+        # file iterator
+        ui._file_iterator.set_pattern(f"{TEST_DIR.as_posix()}/*.tif")
+        ui._file_iterator.last_file()
+        ui._file_iterator.first_file()
+        ui._file_iterator.next_file()
+        ui._file_iterator.prev_file()
+        ui._file_iterator.open_image(ui._file_iterator.path)
+        ui._file_iterator.preview_all().close()
+        ui._file_iterator.set_pattern(f"{TEST_DIR.as_posix()}/*/project.json")
+        ui._file_iterator.view_local_props()
+        ui._file_iterator.send_to_batch_analyzer()
 
-    # spline clipper
-    len_old = ui.splines[0].length()
-    ui.SplinesMenu.open_spline_clipper()
-    ui.spline_clipper.clip_length = 1
-    ui.spline_clipper.clip_here()
-    assert ui.splines[0].length() == pytest.approx(len_old - 1, abs=0.01)
-    ui.spline_clipper.the_other_side()
-    ui.spline_clipper.clip_length = 1.4
-    ui.spline_clipper.clip_here()
-    assert ui.splines[0].length() == pytest.approx(len_old - 2.4, abs=0.02)
+        # spline clipper
+        len_old = ui.splines[0].length()
+        ui.SplinesMenu.open_spline_clipper()
+        ui.spline_clipper.clip_length = 1
+        ui.spline_clipper.clip_here()
+        assert ui.splines[0].length() == pytest.approx(len_old - 1, abs=0.01)
+        ui.spline_clipper.the_other_side()
+        ui.spline_clipper.clip_length = 1.4
+        ui.spline_clipper.clip_here()
+        assert ui.splines[0].length() == pytest.approx(len_old - 2.4, abs=0.02)
 
-    # spectra inspector
-    ui.AnalysisMenu.open_spectra_inspector()
-    ui.spectra_inspector.log_scale = True
-    ui.spectra_inspector.log_scale = False
+        # spectra inspector
+        ui.AnalysisMenu.open_spectra_inspector()
+        ui.spectra_inspector.log_scale = True
+        ui.spectra_inspector.log_scale = False
 
 
 @pytest.mark.parametrize("bin_size", [1, 2])
 def test_sta(ui: CylindraMainWidget, bin_size: int):
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
+    ui.AnalysisMenu.open_subtomogram_analyzer()
     ui.sta.average_all("Mole-0", size=12.0, bin_size=bin_size)
     for method in ["steps", "first", "last", "random"]:
         ui.sta.average_subset(
@@ -558,6 +573,8 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
         interpolation=1,
         bin_size=bin_size,
     )
+    ui.macro.undo()
+    ui.macro.redo()
     ui.sta.align_all_template_free(
         layers=["Mole-0"],
         mask_params=(1, 1),
@@ -570,6 +587,12 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
         mask_params=(1, 1),
         bin_size=bin_size,
     )
+    ui.sta.calculate_correlation(
+        layers=["Mole-0-ALN1"],
+        template_paths=template_path,
+        column_prefix="score",
+    )
+    assert "score_0" in ui.mole_layers["Mole-0-ALN1"].features
 
 
 def test_seam_search(ui: CylindraMainWidget):
@@ -1149,14 +1172,11 @@ def test_image_processor(ui: CylindraMainWidget):
 
 def test_workflows_custom(ui: CylindraMainWidget):
     name = "Test"
-    code = (
-        "import numpy as np\n"
-        "def main(ui):\n"
-        "    ui.load_project('path/to/project.json')\n"
-    )
+    code = "import numpy as np\n" "def main(ui):\n" "    print(ui.default_config)\n"
     with tempfile.TemporaryDirectory() as dirpath, _config.patch_workflow_path(dirpath):
         ui.OthersMenu.Workflows.define_workflow(name, code)
         ui.OthersMenu.Workflows.edit_workflow(name, code)
+        ui.OthersMenu.Workflows.edit_workflow(name, code)  # test overwriting
         ui.OthersMenu.Workflows.import_workflow(
             Path(dirpath) / f"{name}.py", name="imported"
         )

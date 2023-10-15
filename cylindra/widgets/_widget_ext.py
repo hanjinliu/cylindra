@@ -213,7 +213,7 @@ class SingleRotationEdit(Container):
         self.changed.emit(self.value)
 
     @property
-    def value(self):
+    def value(self) -> tuple[str, float]:
         return self._axis.value, self._degree.value
 
     @value.setter
