@@ -55,11 +55,6 @@ class CylindraProject(BaseProject):
     project_path: Path | None = None
     project_description: str = ""
 
-    def _post_init(self):
-        if hasattr(self, "tilt_range"):
-            self.missing_wedge = MissingWedge.parse(self.tilt_range)
-            del self.tilt_range
-
     def resolve_path(self, file_dir: PathLike):
         """Resolve the path of the project."""
         file_dir = Path(file_dir)
@@ -77,7 +72,6 @@ class CylindraProject(BaseProject):
         mole_ext: str = ".csv",
     ) -> "CylindraProject":
         """Construct a project from a widget state."""
-        from cylindra.types import MoleculesLayer
         from datetime import datetime
 
         _versions = get_versions()
@@ -87,9 +81,7 @@ class CylindraProject(BaseProject):
 
         # Save path of molecules
         mole_infos = list[MoleculesInfo]()
-        for layer in gui.parent_viewer.layers:
-            if not isinstance(layer, MoleculesLayer):
-                continue
+        for layer in gui.mole_layers:
             try:
                 _src = gui.tomogram.splines.index(layer.source_component)
             except ValueError:
@@ -139,8 +131,6 @@ class CylindraProject(BaseProject):
         project_dir : Path
             The path to the project json file.
         """
-        from cylindra.types import MoleculesLayer
-
         self = cls.from_gui(gui, project_dir, mole_ext)
 
         tomo = gui.tomogram
@@ -154,9 +144,7 @@ class CylindraProject(BaseProject):
                 globalprops.write_csv(self.globalprops_path(results_dir))
             for i, spl in enumerate(gui.tomogram.splines):
                 spl.to_json(results_dir / f"spline-{i}.json")
-            for layer in gui.parent_viewer.layers:
-                if not isinstance(layer, MoleculesLayer):
-                    continue
+            for layer in gui.mole_layers:
                 layer.molecules.to_file(results_dir / f"{layer.name}{mole_ext}")
             js = gui.default_config.asdict()
             with open(self.default_spline_config_path(results_dir), mode="w") as f:

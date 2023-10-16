@@ -1171,9 +1171,7 @@ class CylindraMainWidget(MagicTemplate):
                 # Must be updated here, otherwise each.source_component may return
                 # None since GC may delete the old spline.
                 if update_sources:
-                    for each in self.parent_viewer.layers:
-                        if not isinstance(each, MoleculesLayer):
-                            continue
+                    for each in self.mole_layers:
                         if each.source_component is old_spl:
                             each.source_component = spl
                 if delete_old:
