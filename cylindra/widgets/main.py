@@ -1461,8 +1461,7 @@ class CylindraMainWidget(MagicTemplate):
         macro = _filter_macro_for_reanalysis(macro_expr, _ui_sym)
         self.clear_all()
         mk.Expr(mk.Head.block, macro.args[1:]).eval({_ui_sym: self})
-        self.macro.clear_undo_stack()
-        return None
+        return self.macro.clear_undo_stack()
 
     @set_design(text="Re-analyze project", location=_sw.AnalysisMenu)
     @do_not_record
@@ -1477,8 +1476,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         macro = self._get_reanalysis_macro(path)
         macro.eval({mk.symbol(self): self})
-        self.macro.clear_undo_stack()
-        return None
+        return self.macro.clear_undo_stack()
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #   Monomer mapping methods

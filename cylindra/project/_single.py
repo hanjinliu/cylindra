@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 class MoleculesInfo(BaseModel):
     """Info of molecules layer."""
 
-    name: str  # including extension
+    name: str = "#unknown"  # including extension
     source: int | None = None
     visible: bool = True
 
