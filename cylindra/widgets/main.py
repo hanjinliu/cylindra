@@ -948,7 +948,7 @@ class CylindraMainWidget(MagicTemplate):
         self.SplineControl.num = len(self.tomogram.splines) - 1
         return undo_callback(self.delete_spline).with_args(-1)
 
-    @set_design(text="Fit splines", location=_sw.SplinesMenu)
+    @set_design(text="Fit splines", location=_sw.SplinesMenu.Fitting)
     @thread_worker.with_progress(desc="Spline Fitting", total=_NSPLINES)
     def fit_splines(
         self,
@@ -1026,7 +1026,7 @@ class CylindraMainWidget(MagicTemplate):
         self._update_splines_in_images()
         return tracker.as_undo_callback()
 
-    @set_design(text="Refine splines", location=_sw.SplinesMenu)
+    @set_design(text="Refine splines", location=_sw.SplinesMenu.Fitting)
     @thread_worker.with_progress(desc="Refining splines", total=_NSPLINES)
     def refine_splines(
         self,

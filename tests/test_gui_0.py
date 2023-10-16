@@ -942,7 +942,7 @@ def test_spline_fitter(ui: CylindraMainWidget):
         filter=None,
     )
     ui.register_path(coords=[[21.974, 117.148, 34.873], [21.974, 36.449, 58.084]])
-    ui.SplinesMenu.fit_splines_manually(30)
+    ui.SplinesMenu.Fitting.fit_splines_manually(30)
     ui.spline_fitter.controller.pos.value = 1
     ui.spline_fitter.fit(
         shifts=[[1.094, 0.797], [1.094, 0.797], [1.094, 0.698]], i=0, max_interval=50.0
