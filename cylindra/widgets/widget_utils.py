@@ -348,3 +348,8 @@ def get_code_theme(self: MagicTemplate) -> str:
         else:
             theme = "native"
     return theme
+
+
+def capitalize(s: str):
+    """Just used for button texts."""
+    return s.replace("_", " ").capitalize()

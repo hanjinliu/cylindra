@@ -58,6 +58,7 @@ from cylindra.widgets.widget_utils import (
     add_molecules,
     change_viewer_focus,
     POLARS_NAMESPACE,
+    capitalize,
 )
 from cylindra.widgets._accessors import MoleculesLayerAccessor
 from cylindra.widgets._widget_ext import (
@@ -472,7 +473,7 @@ class CylindraMainWidget(MagicTemplate):
     def _open_image_on_start(self):
         return self._image_loader.close()
 
-    @set_design(text="Load project", location=_sw.FileMenu)
+    @set_design(text=capitalize, location=_sw.FileMenu)
     @thread_worker.with_progress(desc="Reading project", total=0)
     @confirm(text="You may have unsaved data. Open a new project?", condition="self._need_save")  # fmt: skip
     @do_not_record
@@ -525,7 +526,7 @@ class CylindraMainWidget(MagicTemplate):
             update_config=update_config,
         )
 
-    @set_design(text="Save project", location=_sw.FileMenu)
+    @set_design(text=capitalize, location=_sw.FileMenu)
     @do_not_record
     @bind_key("Ctrl+K, Ctrl+S")
     def save_project(
@@ -558,7 +559,7 @@ class CylindraMainWidget(MagicTemplate):
         self._project_dir = save_path
         return None
 
-    @set_design(text="Overwrite project", location=_sw.FileMenu)
+    @set_design(text=capitalize, location=_sw.FileMenu)
     @do_not_record
     @bind_key("Ctrl+K, Ctrl+Shift+S")
     def overwrite_project(self):
@@ -575,7 +576,7 @@ class CylindraMainWidget(MagicTemplate):
             ext = ".csv"
         return self.save_project(self._project_dir, ext)
 
-    @set_design(text="Load splines", location=_sw.FileMenu)
+    @set_design(text=capitalize, location=_sw.FileMenu)
     def load_splines(self, paths: Path.Multiple[FileFilter.JSON]):
         """
         Load splines from a list of json paths.
@@ -593,7 +594,7 @@ class CylindraMainWidget(MagicTemplate):
         self.reset_choices()
         return None
 
-    @set_design(text="Load molecules", location=_sw.FileMenu)
+    @set_design(text=capitalize, location=_sw.FileMenu)
     def load_molecules(self, paths: Path.Multiple[FileFilter.CSV]):
         """Load molecules from a csv file."""
         if isinstance(paths, (str, Path, bytes)):
@@ -604,7 +605,7 @@ class CylindraMainWidget(MagicTemplate):
             add_molecules(self.parent_viewer, mole, name)
         return None
 
-    @set_design(text="Save spline", location=_sw.FileMenu)
+    @set_design(text=capitalize, location=_sw.FileMenu)
     @do_not_record
     def save_spline(
         self,
@@ -617,7 +618,7 @@ class CylindraMainWidget(MagicTemplate):
         return None
 
     @do_not_record
-    @set_design(text="Save molecules", location=_sw.FileMenu)
+    @set_design(text=capitalize, location=_sw.FileMenu)
     def save_molecules(
         self, layer: MoleculesLayer, save_path: Path.Save[FileFilter.CSV]
     ):
@@ -632,7 +633,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         return assert_layer(layer, self.parent_viewer).molecules.to_csv(save_path)
 
-    @set_design(text="Filter reference image", location=_sw.ImageMenu)
+    @set_design(text=capitalize, location=_sw.ImageMenu)
     @dask_thread_worker.with_progress(desc=_pdesc.filter_image_fmt)
     @do_not_record
     def filter_reference_image(
@@ -716,7 +717,7 @@ class CylindraMainWidget(MagicTemplate):
         self.reset_choices()
         return undo_callback(self.set_multiscale).with_args(_old_bin_size)
 
-    @set_design(text="Sample subtomograms", location=_sw.ImageMenu)
+    @set_design(text=capitalize, location=_sw.ImageMenu)
     def sample_subtomograms(self):
         """Sample subtomograms at the anchor points on splines"""
         self.spline_fitter.close()
@@ -741,7 +742,7 @@ class CylindraMainWidget(MagicTemplate):
     def _get_spline_idx(self, *_) -> int:
         return self.SplineControl.num
 
-    @set_design(text="Invert spline", location=_sw.SplinesMenu.Orientation)
+    @set_design(text=capitalize, location=_sw.SplinesMenu.Orientation)
     def invert_spline(self, spline: Annotated[int, {"bind": _get_spline_idx}] = None):
         """
         Invert current displayed spline **in place**.
@@ -765,7 +766,7 @@ class CylindraMainWidget(MagicTemplate):
         self._set_orientation_marker(spline)
         return undo_callback(self.invert_spline).with_args(spline)
 
-    @set_design(text="Align to polarity", location=_sw.SplinesMenu.Orientation)
+    @set_design(text=capitalize, location=_sw.SplinesMenu.Orientation)
     def align_to_polarity(
         self, orientation: Literal["MinusToPlus", "PlusToMinus"] = "MinusToPlus"
     ):
@@ -849,7 +850,7 @@ class CylindraMainWidget(MagicTemplate):
             self.sample_subtomograms()
         return None
 
-    @set_design(text="Clip spline", location=_sw.SplinesMenu)
+    @set_design(text=capitalize, location=_sw.SplinesMenu)
     @bind_key("Ctrl+K, Ctrl+X")
     def clip_spline(
         self,
@@ -884,7 +885,7 @@ class CylindraMainWidget(MagicTemplate):
 
         return out
 
-    @set_design(text="Delete spline", location=_sw.SplinesMenu)
+    @set_design(text=capitalize, location=_sw.SplinesMenu)
     @confirm(
         text="Spline has properties. Are you sure to delete it?",
         condition=_confirm_delete,
@@ -915,7 +916,7 @@ class CylindraMainWidget(MagicTemplate):
 
         return out
 
-    @set_design(text="Copy spline", location=_sw.SplinesMenu)
+    @set_design(text=capitalize, location=_sw.SplinesMenu)
     def copy_spline(self, i: Annotated[int, {"bind": _get_spline_idx}]):
         """Make a copy of the current spline"""
         spl = self.tomogram.splines[i]
@@ -948,7 +949,7 @@ class CylindraMainWidget(MagicTemplate):
         self.SplineControl.num = len(self.tomogram.splines) - 1
         return undo_callback(self.delete_spline).with_args(-1)
 
-    @set_design(text="Fit splines", location=_sw.SplinesMenu.Fitting)
+    @set_design(text=capitalize, location=_sw.SplinesMenu.Fitting)
     @thread_worker.with_progress(desc="Spline Fitting", total=_NSPLINES)
     def fit_splines(
         self,
@@ -996,7 +997,7 @@ class CylindraMainWidget(MagicTemplate):
 
         return out
 
-    @set_design(text="Add anchors", location=_sw.SplinesMenu)
+    @set_design(text=capitalize, location=_sw.SplinesMenu)
     def add_anchors(
         self,
         splines: _Splines = None,
@@ -1026,7 +1027,7 @@ class CylindraMainWidget(MagicTemplate):
         self._update_splines_in_images()
         return tracker.as_undo_callback()
 
-    @set_design(text="Refine splines", location=_sw.SplinesMenu.Fitting)
+    @set_design(text=capitalize, location=_sw.SplinesMenu.Fitting)
     @thread_worker.with_progress(desc="Refining splines", total=_NSPLINES)
     def refine_splines(
         self,
@@ -1068,7 +1069,7 @@ class CylindraMainWidget(MagicTemplate):
 
         return out
 
-    @set_design(text="Set spline parameters", location=_sw.SplinesMenu)
+    @set_design(text="Set spline properties", location=_sw.SplinesMenu)
     def set_spline_props(
         self,
         spline: Annotated[int, {"bind": _get_spline_idx}],
@@ -1102,7 +1103,7 @@ class CylindraMainWidget(MagicTemplate):
 
         return out
 
-    @set_design(text="Molecules to spline", location=_sw.SplinesMenu)
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.FromToSpline)
     def molecules_to_spline(
         self,
         layers: MoleculesLayersType = (),
@@ -1185,7 +1186,7 @@ class CylindraMainWidget(MagicTemplate):
         self._update_splines_in_images()
         return None
 
-    @set_design(text="Measure radius", location=_sw.AnalysisMenu)
+    @set_design(text=capitalize, location=_sw.AnalysisMenu.Radius)
     @thread_worker.with_progress(desc="Measuring Radius", total=_NSPLINES)
     def measure_radius(
         self,
@@ -1207,7 +1208,7 @@ class CylindraMainWidget(MagicTemplate):
 
         return tracker.as_undo_callback()
 
-    @set_design(text="Set radius", location=_sw.AnalysisMenu)
+    @set_design(text=capitalize, location=_sw.AnalysisMenu.Radius)
     def set_radius(
         self,
         splines: _Splines = None,
@@ -1241,7 +1242,7 @@ class CylindraMainWidget(MagicTemplate):
                     spl.radius = radius_expr
         return tracker.as_undo_callback()
 
-    @set_design(text="Measure local radius", location=_sw.AnalysisMenu)
+    @set_design(text=capitalize, location=_sw.AnalysisMenu.Radius)
     @thread_worker.with_progress(desc="Measuring local radii", total=_NSPLINES)
     def measure_local_radius(
         self,
@@ -1283,7 +1284,7 @@ class CylindraMainWidget(MagicTemplate):
 
         return tracker.as_undo_callback()
 
-    @set_design(text="Measure radius by molecules", location=_sw.AnalysisMenu)
+    @set_design(text=capitalize, location=_sw.AnalysisMenu.Radius)
     def measure_radius_by_molecules(
         self,
         layers: MoleculesLayersType = (),
@@ -1480,7 +1481,7 @@ class CylindraMainWidget(MagicTemplate):
     #   Monomer mapping methods
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-    @set_design(text="Map monomers", location=_sw.MoleculesMenu.Mapping)
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.FromToSpline)
     @bind_key("M")
     @thread_worker.with_progress(desc="Mapping monomers", total=_NSPLINES)
     def map_monomers(
@@ -1550,7 +1551,7 @@ class CylindraMainWidget(MagicTemplate):
         },
     ]
 
-    @set_design(text="Map monomers with extensions", location=_sw.MoleculesMenu.Mapping)
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.FromToSpline)
     def map_monomers_with_extensions(
         self,
         spline: Annotated[int, {"choices": _get_splines}],
@@ -1589,7 +1590,7 @@ class CylindraMainWidget(MagicTemplate):
         layer = self.add_molecules(mole, f"{prefix}-{spline}", source=spl)
         return self._undo_callback_for_layer(layer)
 
-    @set_design(text="Map centers", location=_sw.MoleculesMenu.Mapping)
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.FromToSpline)
     def map_centers(
         self,
         splines: _Splines = None,
@@ -1619,7 +1620,7 @@ class CylindraMainWidget(MagicTemplate):
             _Logger.print(f"{_name!r}: n = {len(mol)}")
         return self._undo_callback_for_layer(_added_layers)
 
-    @set_design(text="Map alogn PF", location=_sw.MoleculesMenu.Mapping)
+    @set_design(text="Map alogn PF", location=_sw.MoleculesMenu.FromToSpline)
     def map_along_pf(
         self,
         spline: Annotated[int, {"choices": _get_splines}],
@@ -1648,7 +1649,7 @@ class CylindraMainWidget(MagicTemplate):
         _Logger.print(f"{_name!r}: n = {len(mol)}")
         return self._undo_callback_for_layer(layer)
 
-    @set_design(text="Set source spline", location=_sw.MoleculesMenu)
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.FromToSpline)
     def set_source_spline(
         self,
         layer: MoleculesLayerType,
@@ -1671,7 +1672,7 @@ class CylindraMainWidget(MagicTemplate):
 
         return _undo
 
-    @set_design(text="Concatenate molecules", location=_sw.MoleculesMenu.Combine)
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.Combine)
     def concatenate_molecules(
         self,
         layers: MoleculesLayersType,
@@ -1699,7 +1700,7 @@ class CylindraMainWidget(MagicTemplate):
         _Logger.print(f"{points.name!r}: n = {len(all_molecules)}")
         return self._undo_callback_for_layer(points)
 
-    @set_design(text="Merge molecule info", location=_sw.MoleculesMenu.Combine)
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.Combine)
     def merge_molecule_info(
         self,
         pos: MoleculesLayerType,
@@ -1757,7 +1758,7 @@ class CylindraMainWidget(MagicTemplate):
             _added_layers.append(new)
         return self._undo_callback_for_layer(_added_layers)
 
-    @set_design(text="Translate molecules", location=_sw.MoleculesMenu)
+    @set_design(text=capitalize, location=_sw.MoleculesMenu)
     def translate_molecules(
         self,
         layers: MoleculesLayersType,
@@ -1805,7 +1806,7 @@ class CylindraMainWidget(MagicTemplate):
             new_layers.append(new)
         return self._undo_callback_for_layer(new_layers)
 
-    @set_design(text="Rotate molecules", location=_sw.MoleculesMenu)
+    @set_design(text=capitalize, location=_sw.MoleculesMenu)
     def rotate_molecules(
         self,
         layers: MoleculesLayersType,
@@ -1908,7 +1909,7 @@ class CylindraMainWidget(MagicTemplate):
             include=include, exclude=exclude, pattern=pattern
         )
 
-    @set_design(text="Filter molecules", location=_sw.MoleculesMenu)
+    @set_design(text=capitalize, location=_sw.MoleculesMenu)
     def filter_molecules(
         self,
         layer: MoleculesLayerType,
@@ -1963,7 +1964,7 @@ class CylindraMainWidget(MagicTemplate):
             name=info.name, clim=info.clim, cmap_input=info.cmap
         )
 
-    @set_design(text="Calculate molecule features", location=_sw.MoleculesMenu.Features)
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
     @confirm(
         text="Column already exists. Overwrite?",
         condition="column_name in layer.molecules.features.columns",
@@ -2005,9 +2006,7 @@ class CylindraMainWidget(MagicTemplate):
         self.reset_choices()  # choices regarding to features need update
         return undo_callback(layer.feature_setter(feat, layer.colormap_info))
 
-    @set_design(
-        text="Interpolate spline properties", location=_sw.MoleculesMenu.Features
-    )
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
     def interpolate_spline_properties(
         self,
         layer: MoleculesLayerType,
@@ -2049,7 +2048,7 @@ class CylindraMainWidget(MagicTemplate):
         )
         return undo_callback(layer.feature_setter(feat, layer.colormap_info))
 
-    @set_design(text="Calculate lattice structure", location=_sw.MoleculesMenu.Features)
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
     def calculate_lattice_structure(
         self,
         layer: MoleculesLayerType,
@@ -2076,7 +2075,7 @@ class CylindraMainWidget(MagicTemplate):
         self.reset_choices()  # choices regarding of features need update
         return undo_callback(layer.feature_setter(feat))
 
-    @set_design(text="Calculate curve index", location=_sw.MoleculesMenu.Features)
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
     def calculate_curve_index(self, layer: MoleculesLayerType):
         """
         Calculate the curve index for each molecule.
@@ -2097,7 +2096,7 @@ class CylindraMainWidget(MagicTemplate):
         self.reset_choices()
         return undo_callback(layer.feature_setter(feat))
 
-    @set_design(text="Convolve feature", location=_sw.MoleculesMenu.Features)
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
     def convolve_feature(
         self,
         layer: MoleculesLayerType,
@@ -2137,7 +2136,7 @@ class CylindraMainWidget(MagicTemplate):
             )
         return undo_callback(layer.feature_setter(feat, cmap_info))
 
-    @set_design(text="Binarize feature", location=_sw.MoleculesMenu.Features)
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
     def binarize_feature(
         self,
         layer: MoleculesLayerType,
@@ -2171,7 +2170,7 @@ class CylindraMainWidget(MagicTemplate):
         layer.set_colormap(feature_name, (0, 1), {0: "#A5A5A5", 1: "#FF0000"})
         return undo_callback(layer.feature_setter(feat, cmap_info))
 
-    @set_design(text="Label feature clusters", location=_sw.MoleculesMenu.Features)
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
     def label_feature_clusters(
         self,
         layer: MoleculesLayerType,
@@ -2244,7 +2243,7 @@ class CylindraMainWidget(MagicTemplate):
         dock.setFloating(True)
         return undo_callback(dock.close).with_redo(dock.show)
 
-    @set_design(text="Paint cylinders", location=_sw.ImageMenu)
+    @set_design(text=capitalize, location=_sw.ImageMenu)
     @thread_worker.with_progress(desc="Paint cylinders ...")
     def paint_cylinders(
         self,

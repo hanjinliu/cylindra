@@ -40,7 +40,7 @@ def assert_molecule_equal(mole0: Molecules, mole1: Molecules):
 
 def assert_orientation(ui: CylindraMainWidget, ori: str):
     assert ui.splines[ui.SplineControl.num].orientation == ori
-    assert ui.GlobalProperties.params.params2.polarity.txt == ori
+    assert ui.GlobalProperties.params.params2.orientation.txt == ori
 
     spec = ui._reserved_layers.prof.features["spline-id"] == ui.SplineControl.num
     arr = ui._reserved_layers.prof.text.string.array[spec]
@@ -119,8 +119,8 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
         assert_molecule_equal(mol0, mol1)
     assert ui.tomogram.tilt_range == (-60, 60)
 
-    ui.SplinesMenu.ShowInViewer.show_splines()
-    ui.SplinesMenu.ShowInViewer.show_splines_as_meshes()
+    ui.SplinesMenu.Show.show_splines()
+    ui.SplinesMenu.Show.show_splines_as_meshes()
     ui.load_splines(save_path / "spline-0.json")
     ui.set_source_spline(ui.mole_layers["Mole-0"], 0)
 
@@ -349,7 +349,7 @@ def test_spline_switch(ui: CylindraMainWidget):
         assert_orientation(ui, "MinusToPlus")
         assert_canvas(ui, [False, False, False])
 
-        ui.SplinesMenu.show_localprops()
+        ui.SplinesMenu.Show.show_localprops()
 
         # Check align polarity.
         # Only spline 0 will get updated.

@@ -261,8 +261,8 @@ class ImageMenu(ChildWidget):
 class SplinesMenu(ChildWidget):
     """Operations on splines"""
 
-    @magicmenu(name="Show in viewer", record=False)
-    class ShowInViewer(ChildWidget):
+    @magicmenu(name="Show", record=False)
+    class Show(ChildWidget):
         @set_design(text="Show splines as curves")
         def show_splines(self):
             """Show 3D spline paths of cylinder central axes as a layer."""
@@ -292,28 +292,28 @@ class SplinesMenu(ChildWidget):
             vertices = np.concatenate(vertices, axis=0)
             return main.parent_viewer.add_surface([nodes, vertices], shading="smooth")
 
-    @set_design(text="Show local properties")
-    @do_not_record
-    def show_localprops(self):
-        """Show spline local properties in a table widget."""
-        from magicgui.widgets import Container, ComboBox
+        @set_design(text="Show local properties in table")
+        @do_not_record
+        def show_localprops(self):
+            """Show spline local properties in a table widget."""
+            from magicgui.widgets import Container, ComboBox
 
-        main = self._get_main()
-        cbox = ComboBox(choices=main._get_splines)
-        table = DataFrameView(value={})
+            main = self._get_main()
+            cbox = ComboBox(choices=main._get_splines)
+            table = DataFrameView(value={})
 
-        @cbox.changed.connect
-        def _update_table(i: int):
-            if i is not None:
-                spl = main.tomogram.splines[i]
-                table.value = spl.localprops
+            @cbox.changed.connect
+            def _update_table(i: int):
+                if i is not None:
+                    spl = main.tomogram.splines[i]
+                    table.value = spl.localprops
 
-        container = Container(widgets=[cbox, table], labels=False)
-        self.parent_viewer.window.add_dock_widget(
-            container, area="left", name="Molecule Features"
-        ).setFloating(True)
-        cbox.changed.emit(cbox.value)
-        return None
+            container = Container(widgets=[cbox, table], labels=False)
+            self.parent_viewer.window.add_dock_widget(
+                container, area="left", name="Molecule Features"
+            ).setFloating(True)
+            cbox.changed.emit(cbox.value)
+            return None
 
     add_anchors = abstractapi()
     sep0 = field(Separator)
@@ -325,56 +325,6 @@ class SplinesMenu(ChildWidget):
         invert_spline = abstractapi()
         align_to_polarity = abstractapi()
         infer_polarity = abstractapi()
-
-    clip_spline = abstractapi()
-
-    @set_design(text="Open spline clipper")
-    @do_not_record
-    def open_spline_clipper(self):
-        """Open the spline clipper widget to precisely clip spines."""
-        main = self._get_main()
-        main.spline_clipper.show()
-        if len(main.tomogram.splines) > 0:
-            main.spline_clipper.load_spline(main.SplineControl.num)
-        return None
-
-    delete_spline = abstractapi()
-    copy_spline = abstractapi()
-    copy_spline_new_config = abstractapi()
-    sep1 = field(Separator)
-
-    @magicmenu
-    class Fitting(ChildWidget):
-        """Methods for spline fitting."""
-
-        fit_splines = abstractapi()
-
-        @set_design(text="Fit splines manually")
-        @do_not_record
-        @bind_key("Ctrl+K, Ctrl+/")
-        def fit_splines_manually(
-            self, max_interval: Annotated[nm, {"label": "Max interval (nm)"}] = 50.0
-        ):
-            """
-            Open a spline fitter window and fit cylinder with spline manually.
-
-            Parameters
-            ----------
-            max_interval : nm, default is 50.0
-                Maximum interval (nm) between spline anchors that will be used to
-                sample subtomogram projections.
-            """
-            main = self._get_main()
-            main.spline_fitter._load_parent_state(max_interval=max_interval)
-            return main.spline_fitter.show()
-
-        refine_splines = abstractapi()
-
-    sep2 = field(Separator)
-    set_spline_props = abstractapi()
-    molecules_to_spline = abstractapi()
-
-    sep3 = field(Separator)
 
     @magicmenu(record=False)
     class Config(ChildWidget):
@@ -446,30 +396,77 @@ class SplinesMenu(ChildWidget):
                 raise FileExistsError(f"Config file {path} already exists.")
             return self._get_main().default_config.to_file(path)
 
+    @magicmenu
+    class Fitting(ChildWidget):
+        """Methods for spline fitting."""
+
+        fit_splines = abstractapi()
+
+        @set_design(text="Fit splines manually")
+        @do_not_record
+        @bind_key("Ctrl+K, Ctrl+/")
+        def fit_splines_manually(
+            self, max_interval: Annotated[nm, {"label": "Max interval (nm)"}] = 50.0
+        ):
+            """
+            Open a spline fitter window and fit cylinder with spline manually.
+
+            Parameters
+            ----------
+            max_interval : nm, default is 50.0
+                Maximum interval (nm) between spline anchors that will be used to
+                sample subtomogram projections.
+            """
+            main = self._get_main()
+            main.spline_fitter._load_parent_state(max_interval=max_interval)
+            return main.spline_fitter.show()
+
+        refine_splines = abstractapi()
+
+    clip_spline = abstractapi()
+
+    @set_design(text="Open spline clipper")
+    @do_not_record
+    def open_spline_clipper(self):
+        """Open the spline clipper widget to precisely clip spines."""
+        main = self._get_main()
+        main.spline_clipper.show()
+        if len(main.tomogram.splines) > 0:
+            main.spline_clipper.load_spline(main.SplineControl.num)
+        return None
+
+    delete_spline = abstractapi()
+    copy_spline = abstractapi()
+    copy_spline_new_config = abstractapi()
+    sep1 = field(Separator)
+
+    set_spline_props = abstractapi()
+
 
 @magicmenu(name="Molecules")
 class MoleculesMenu(ChildWidget):
     """Operations on molecules"""
 
-    @magicmenu
-    class Mapping(MagicTemplate):
-        """Map monomers along splines in several ways."""
+    translate_molecules = abstractapi()
+    rotate_molecules = abstractapi()
+    filter_molecules = abstractapi()
+    split_molecules = abstractapi()
+    sep0 = field(Separator)
+    rename_molecules = abstractapi()
+    delete_molecules = abstractapi()
+    sep1 = field(Separator)
+
+    @magicmenu(name="From/To spline")
+    class FromToSpline(MagicTemplate):
+        """Interplay between molecules and splines."""
 
         map_monomers = abstractapi()
         map_monomers_with_extensions = abstractapi()
         map_centers = abstractapi()
         map_along_pf = abstractapi()
-
-    set_source_spline = abstractapi()
-    sep0 = field(Separator)
-    translate_molecules = abstractapi()
-    rotate_molecules = abstractapi()
-    filter_molecules = abstractapi()
-    split_molecules = abstractapi()
-    sep1 = field(Separator)
-    rename_molecules = abstractapi()
-    delete_molecules = abstractapi()
-    sep2 = field(Separator)
+        sep0 = field(Separator)
+        set_source_spline = abstractapi()
+        molecules_to_spline = abstractapi()
 
     @magicmenu(name="Combine")
     class Combine(MagicTemplate):
@@ -689,11 +686,15 @@ class MoleculesMenu(ChildWidget):
 class AnalysisMenu(ChildWidget):
     """Analysis of tomograms."""
 
-    measure_radius = abstractapi()
-    set_radius = abstractapi()
-    measure_local_radius = abstractapi()
-    measure_radius_by_molecules = abstractapi()
-    sep0 = field(Separator)
+    @magicmenu
+    class Radius(ChildWidget):
+        """Measure or set cylinder radius."""
+
+        measure_radius = abstractapi()
+        set_radius = abstractapi()
+        measure_local_radius = abstractapi()
+        measure_radius_by_molecules = abstractapi()
+
     local_ft_analysis = abstractapi()
     global_ft_analysis = abstractapi()
     sep1 = field(Separator)

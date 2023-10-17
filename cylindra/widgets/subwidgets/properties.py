@@ -226,7 +226,7 @@ class GlobalPropertiesWidget(MagicTemplate):
         )
         class params2(MagicTemplate):
             radius = LabeledText("radius")
-            polarity = LabeledText("polarity")
+            orientation = LabeledText("orientation")
 
     def _init_text(self):
         self.params.params1.spacing.txt = " -- nm"
@@ -234,7 +234,7 @@ class GlobalPropertiesWidget(MagicTemplate):
         self.params.params1.rise.txt = " -- °"
         self.params.params1.structure.txt = " -- "
         self.params.params2.radius.txt = " -- nm"
-        self.params.params2.polarity.txt = " -- "
+        self.params.params2.orientation.txt = " -- "
         return None
 
     def _set_text(self, spl: "CylSpline"):
@@ -249,9 +249,9 @@ class GlobalPropertiesWidget(MagicTemplate):
             self.params.params1.structure.txt = f" {npf}_{start}"
         self.params.params2.radius.txt = f" {_fmt_prop(spl, H.radius)} nm"
         if spl.orientation is Ori.none:
-            self.params.params2.polarity.txt = " -- "
+            self.params.params2.orientation.txt = " -- "
         else:
-            self.params.params2.polarity.txt = spl.orientation
+            self.params.params2.orientation.txt = spl.orientation
         return None
 
 
