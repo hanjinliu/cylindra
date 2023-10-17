@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 import warnings
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 import weakref
 
 import polars as pl
@@ -124,6 +124,7 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
         self._source_component: weakref.ReferenceType[BaseComponent] | None = None
         self._old_name: str | None = None  # for undo/redo
         self._undo_renaming = False
+        self._view_ndim = 3
         super().__init__(data.pos, **kwargs)
         features = data.features
         if features is not None and len(features) > 0:
@@ -246,16 +247,19 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
             cmin, cmax = clim
             arr = (column.cast(pl.Float32).clip(cmin, cmax) - cmin) / (cmax - cmin)
             colors = cmap.map(arr)
-            self.face_color = self.edge_color = colors
+            self.face_color = colors
         elif column.dtype in pl.FLOAT_DTYPES:
-            self.face_color = self.edge_color = column.name
-            self.face_colormap = self.edge_colormap = cmap
-            self.face_contrast_limits = self.edge_contrast_limits = clim
+            self.face_color = column.name
+            self.face_colormap = cmap
+            self.face_contrast_limits = clim
+            if self._view_ndim == 3:
+                self.edge_colormap = cmap
+                self.edge_contrast_limits = clim
         elif column.dtype is pl.Boolean:
             cfalse, ctrue = cmap.map([0, 1])
             column2d = np.repeat(column.to_numpy()[:, np.newaxis], 4, axis=1)
             col = np.where(column2d, ctrue, cfalse)
-            self.face_color = self.edge_color = col
+            self.face_color = col
         else:
             raise ValueError(
                 f"Cannot paint by feature {column.name} of type {column.dtype}."
@@ -274,9 +278,26 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
             if cmap_info is not None:
                 self.set_colormap(cmap_info.name, cmap_info.clim, cmap_info.cmap)
             else:
-                self.face_color = self.edge_color = "lime"
+                self.face_color = "lime"
 
         return _wrapper
+
+    def set_view_ndim(self, ndim: int = 2):
+        if ndim == 2:
+            self.shading = "none"
+            self.edge_color = "#222222"
+        elif ndim == 3:
+            self.shading = "spherical"
+            self.edge_color = self.face_color
+        else:
+            raise ValueError("ndim must be 2 or 3")
+        self._view_ndim = ndim
+
+    @Points.face_color.setter
+    def face_color(self, color: Any):
+        Points.face_color.fset(self, color)
+        if self._view_ndim == 3:
+            self.edge_color = color
 
 
 class CylinderLabels(_FeatureBoundLayer, Labels):

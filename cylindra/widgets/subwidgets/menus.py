@@ -36,7 +36,7 @@ from cylindra.ext.etomo import PEET
 from cylindra.const import nm, get_versions, ImageFilter, FileFilter
 from cylindra.project import CylindraProject, extract
 from cylindra.widgets._annotated import assert_layer
-from cylindra.widgets.widget_utils import get_code_theme
+from cylindra.widgets.widget_utils import get_code_theme, capitalize
 from cylindra.widgets._widget_ext import CheckBoxes
 from cylindra.components.spline import SplineConfig
 from cylindra import _config
@@ -165,19 +165,19 @@ class FileMenu(ChildWidget):
                 self.delete_stash_project(name)
             return None
 
-    @set_design(text="Open file iterator")
+    @set_design(text=capitalize)
     @do_not_record
     def open_file_iterator(self):
         """Open The file iterator widget for efficient file IO."""
         return self._get_main()._file_iterator.show()
 
-    @set_design(text="Process images")
+    @set_design(text=capitalize)
     @do_not_record
     def open_image_processor(self):
         """Open image processor."""
         return self._get_main().image_processor.show()
 
-    @set_design(text="View project")
+    @set_design(text=capitalize)
     @do_not_record
     def view_project(self, path: Path.Read[FileFilter.PROJECT]):
         """View a project file"""
@@ -219,7 +219,7 @@ class ImageMenu(ChildWidget):
     sample_subtomograms = abstractapi()
     paint_cylinders = abstractapi()
 
-    @set_design(text="Show colorbar")
+    @set_design(text=capitalize)
     @do_not_record
     def show_colorbar(
         self,
@@ -276,7 +276,7 @@ class SplinesMenu(ChildWidget):
                 edge_width=1,
             )
 
-        @set_design(text="Show splines as meshes")
+        @set_design(text=capitalize)
         def show_splines_as_meshes(self):
             """Show 3D spline cylinder as a surface layer."""
             main = self._get_main()
@@ -331,7 +331,7 @@ class SplinesMenu(ChildWidget):
         def _get_saved_config_files(self, w=None) -> list[str]:
             return [path.stem for path in _config.get_config().list_config_paths()]
 
-        @set_design(text="Update default config")
+        @set_design(text=capitalize)
         @bind_key("Ctrl+K, Ctrl+[")
         def update_default_config(
             self,
@@ -379,7 +379,7 @@ class SplinesMenu(ChildWidget):
 
         sep0 = field(Separator)
 
-        @set_design(text="Load default config")
+        @set_design(text=capitalize)
         def load_default_config(
             self, name: Annotated[str, {"choices": _get_saved_config_files}]
         ):
@@ -388,7 +388,7 @@ class SplinesMenu(ChildWidget):
             self._get_main().default_config = SplineConfig.from_file(path)
             return None
 
-        @set_design(text="Save default config")
+        @set_design(text=capitalize)
         def save_default_config(self, name: str):
             """Save current default config."""
             path = _config.get_config().spline_config_path(name)
@@ -402,7 +402,7 @@ class SplinesMenu(ChildWidget):
 
         fit_splines = abstractapi()
 
-        @set_design(text="Fit splines manually")
+        @set_design(text=capitalize)
         @do_not_record
         @bind_key("Ctrl+K, Ctrl+/")
         def fit_splines_manually(
@@ -423,9 +423,10 @@ class SplinesMenu(ChildWidget):
 
         refine_splines = abstractapi()
 
+    sep1 = field(Separator)
     clip_spline = abstractapi()
 
-    @set_design(text="Open spline clipper")
+    @set_design(text=capitalize)
     @do_not_record
     def open_spline_clipper(self):
         """Open the spline clipper widget to precisely clip spines."""
@@ -438,7 +439,7 @@ class SplinesMenu(ChildWidget):
     delete_spline = abstractapi()
     copy_spline = abstractapi()
     copy_spline_new_config = abstractapi()
-    sep1 = field(Separator)
+    sep2 = field(Separator)
 
     set_spline_props = abstractapi()
 
@@ -493,7 +494,7 @@ class MoleculesMenu(ChildWidget):
     class View(ChildWidget):
         """Visualize molecule features."""
 
-        @set_design(text="Show orientation")
+        @set_design(text=capitalize)
         @do_not_record
         def show_orientation(
             self,
@@ -539,7 +540,7 @@ class MoleculesMenu(ChildWidget):
             )
             return main._undo_callback_for_layer(layer)
 
-        @set_design(text="Show molecule features")
+        @set_design(text=capitalize)
         @do_not_record
         def show_molecule_features(self):
             """Show molecules features in a table widget."""
@@ -609,7 +610,7 @@ class MoleculesMenu(ChildWidget):
             ax.set_title(layer.name)
             return
 
-        @set_design(text="Render molecules")
+        @set_design(text=capitalize)
         @do_not_record
         def render_molecules(
             self,
@@ -681,6 +682,26 @@ class MoleculesMenu(ChildWidget):
             )
             return None
 
+        @set_design(text=capitalize)
+        def change_dimensionality(
+            self,
+            layers: Annotated[list[MoleculesLayer], {"widget_type": CheckBoxes}],
+            ndim: Literal[2, 3] = 3,
+        ):
+            """
+            Change the dimensionality to display molecules layers.
+
+            Parameters
+            ----------
+            layers : MoleculesLayer
+                Layers to change dimensionality.
+            ndim : 2 or 3
+                Dimensionality. 2 for flat view and 3 for spherical shading.
+            """
+            for layer in layers:
+                layer.set_view_ndim(ndim)
+            return None
+
 
 @magicmenu
 class AnalysisMenu(ChildWidget):
@@ -712,7 +733,7 @@ class AnalysisMenu(ChildWidget):
             main.spectra_inspector.load_spline(main.SplineControl.num, binsize)
         return main.spectra_inspector.show()
 
-    @set_design(text="Open subtomogram analyzer")
+    @set_design(text=capitalize)
     @do_not_record
     @bind_key("Ctrl+K, S")
     def open_subtomogram_analyzer(self):
@@ -736,7 +757,7 @@ class AnalysisMenu(ChildWidget):
 
     sep2 = field(Separator)
 
-    @set_design(text="Repeat command")
+    @set_design(text=capitalize)
     @do_not_record(recursive=False)
     @bind_key("Ctrl+Shift+R")
     def repeat_command(self):
@@ -768,7 +789,7 @@ class OthersMenu(ChildWidget):
             new.textedit.syntax_highlight(lang="python", theme=get_code_theme(self))
             return new
 
-        @set_design(text="Show macro")
+        @set_design(text=capitalize)
         @bind_key("Ctrl+Shift+M")
         def show_macro(self):
             """Create Python executable script of the current project."""
@@ -776,14 +797,14 @@ class OthersMenu(ChildWidget):
             text = str(main._format_macro()[main._macro_offset :])
             return self._get_macro_window(text).show()
 
-        @set_design(text="Show full macro")
+        @set_design(text=capitalize)
         def show_full_macro(self):
             """Create Python executable script of this session."""
             main = self._get_main()
             text = str(main._format_macro())
             return self._get_macro_window(text, tabname="Full macro").show()
 
-        @set_design(text="Show native macro")
+        @set_design(text=capitalize)
         def show_native_macro(self):
             """
             Show the native macro widget of current session.
@@ -819,7 +840,7 @@ class OthersMenu(ChildWidget):
             abs_path = _config.workflow_path(path)
             return f"Run_{hex(hash(abs_path))}"
 
-        @set_design(text="Run workflow")
+        @set_design(text=capitalize)
         @bind_key("Ctrl+K, Ctrl+Shift+R")
         @set_options(labels=False)
         def run_workflow(
@@ -850,7 +871,7 @@ class OthersMenu(ChildWidget):
             return self.append(fn)
 
         @set_options(call_button="Save workflow")
-        @set_design(text="Define workflow")
+        @set_design(text=capitalize)
         @bind_key("Ctrl+K, Ctrl+Shift+D")
         def define_workflow(
             self,
@@ -891,7 +912,7 @@ class OthersMenu(ChildWidget):
 
         sep0 = field(Separator)
 
-        @set_design(text="Import workflow")
+        @set_design(text=capitalize)
         def import_workflow(
             self,
             path: Path.Read[FileFilter.PY],
@@ -908,7 +929,7 @@ class OthersMenu(ChildWidget):
                 raise FileExistsError(f"Workflow file {new_path} already exists.")
             return self.define_workflow(new_path, path.read_text())
 
-        @set_design(text="Delete workflow")
+        @set_design(text=capitalize)
         @set_options(call_button="Delete", labels=False)
         def delete_workflow(
             self,
@@ -971,7 +992,7 @@ class OthersMenu(ChildWidget):
             filter=_filter,
         )
 
-    @set_design(text="Open logger")
+    @set_design(text=capitalize)
     @do_not_record
     def open_logger(self):
         """Open logger window."""
@@ -988,7 +1009,7 @@ class OthersMenu(ChildWidget):
         report_issues = abstractapi()
 
     @do_not_record
-    @set_design(text="Configure dask")
+    @set_design(text=capitalize)
     def configure_dask(
         self,
         num_workers: Optional[Annotated[int, {"min": 1}]] = None,
@@ -1022,6 +1043,58 @@ class OthersMenu(ChildWidget):
         w.native.setParent(main.native, w.native.windowFlags())
         w.show()
         main._active_widgets.add(w)
+        return None
+
+    def _get_list_of_cfg(self, *_):
+        return [p.stem for p in _config.get_config().list_config_paths()]
+
+    @set_design(text=capitalize)
+    @do_not_record
+    def configure_cylindra(
+        self,
+        default_spline_config: Annotated[
+            str, {"choices": _get_list_of_cfg}
+        ] = _config.get_config().default_spline_config,
+        dask_chunk: tuple[int, int, int] = _config.get_config().dask_chunk,
+        point_size: Annotated[
+            float, {"min": 0.5, "max": 10}
+        ] = _config.get_config().point_size,
+        molecules_color: Color = _config.get_config().molecules_color,
+        molecules_ndim: Literal[2, 3] = _config.get_config().molecules_ndim,
+        use_gpu: Annotated[bool, {"label": "use GPU"}] = _config.get_config().use_gpu,
+    ):
+        """
+        Configure cylindra application global parameters.
+
+        Parameters
+        ----------
+        default_spline_config : str, optional
+            Default spline config file name that will be loaded on startup.
+        dask_chunk : (int, int, int)
+            Chunk size of dask array.
+        point_size : float, optional
+            Default point size for molecules.
+        molecules_color : Color, optional
+            Default point color for molecules.
+        molecules_ndim : 2 or 3
+            Default dimensionality to display molecules.
+        use_gpu : bool, optional
+            (currently does no effect)
+        """
+        if not isinstance(molecules_color, str):
+            # normalize color string
+            molecules_color = "#" + "".join(
+                hex(int(c * 255))[2:].upper().zfill(2) for c in molecules_color
+            )
+            if molecules_color.endswith("FF"):
+                molecules_color = molecules_color[:-2]
+        cfg = _config.get_config()
+        cfg.default_spline_config = default_spline_config
+        cfg.dask_chunk = dask_chunk
+        cfg.point_size = point_size
+        cfg.molecules_color = molecules_color
+        cfg.molecules_ndim = molecules_ndim
+        cfg.use_gpu = use_gpu
         return None
 
     @set_design(text="Report issues", location=Help)

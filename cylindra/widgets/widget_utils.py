@@ -67,11 +67,11 @@ def add_molecules(
     visible: bool = True,
 ) -> MoleculesLayer:
     """Add Molecules object as a point layer."""
+    app_cfg = get_config()
     layer = MoleculesLayer(
         mol,
-        size=get_config().point_size,
-        face_color="lime",
-        edge_color="lime",
+        size=app_cfg.point_size,
+        face_color=app_cfg.molecules_color,
         out_of_slice_display=True,
         name=name,
         metadata=metadata.copy(),
@@ -80,7 +80,7 @@ def add_molecules(
     if source is not None:
         layer.source_component = source
     viewer.add_layer(layer)
-    layer.shading = "spherical"
+    layer.set_view_ndim(app_cfg.molecules_ndim)
     layer.editable = False
     return layer
 

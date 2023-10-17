@@ -107,7 +107,7 @@ def _preview_map_along_pf(
         layer.molecules = out
     else:
         layer = self.add_molecules(out, name=PREVIEW_LAYER_NAME)
-    layer.face_color = layer.edge_color = "crimson"
+    layer.face_color = "crimson"
     is_active = yield
     if not is_active and layer in viewer.layers:
         viewer.layers.remove(layer)
@@ -138,7 +138,7 @@ def _preview_map_monomers_with_extensions(
     else:
         layer = self.add_molecules(out, name=PREVIEW_LAYER_NAME)
         layer.text = {"string": "{pf-id}"}
-    layer.face_color = layer.edge_color = "crimson"
+    layer.face_color = "crimson"
     is_active = yield
     if not is_active and layer in viewer.layers:
         viewer.layers.remove(layer)
@@ -152,7 +152,7 @@ def _preview_split_molecules(self: CylindraMainWidget, layer: MoleculesLayer, by
         # NOTE: the first color is translucent
         cmap = label_colormap(unique_values.len() + 1, seed=0.9414)
         layer.face_color_cycle = layer.edge_color_cycle = cmap.colors[1:]
-        layer.face_color = layer.edge_color = by
+        layer.face_color = by
         yield
 
 
@@ -181,7 +181,7 @@ def _preview_translate_molecules(
         layer.data = out.pos
     else:
         layer = self.add_molecules(out, name=PREVIEW_LAYER_NAME)
-        layer.face_color = layer.edge_color = "crimson"
+        layer.face_color = "crimson"
     is_active = False
     is_active = yield
     if not is_active and layer in viewer.layers:
@@ -250,7 +250,7 @@ def _preview_filter_molecules(
         face_color_trans = face_color.copy()
         face_color_trans[:, 3] *= 0.2
         colors = np.where(out[:, np.newaxis], face_color, face_color_trans)
-        layer.face_color = layer.edge_color = colors
+        layer.face_color = colors
         yield
 
 
@@ -285,7 +285,7 @@ def _convolve_feature_preview(
     out = cylfilters.run_filter(df, footprint, target, nrise, method)
     colors = layer.colormap_info.map(out.to_numpy())
     with _temp_layer_colors(layer):
-        layer.face_color = layer.edge_color = colors
+        layer.face_color = colors
         yield
 
 
@@ -302,8 +302,8 @@ def _binarize_feature_preview(
     else:
         out = layer.molecules.features[target] < threshold
     with _temp_layer_colors(layer):
-        layer.edge_color = "#00105B"
         layer.face_color = np.where(out, "#FF0000", "#A5A5A5")
+        layer.edge_color = "#00105B"
         yield
 
 
@@ -320,7 +320,7 @@ def _label_feature_clusters_preview(
     max_value = int(out.max())
     with _temp_layer_colors(layer):
         cmap = label_colormap(max_value, seed=0.9414)
-        layer.face_color = layer.edge_color = cmap.map(out.to_numpy() / max_value)
+        layer.face_color = cmap.map(out.to_numpy() / max_value)
         yield
 
 

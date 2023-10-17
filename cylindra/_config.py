@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 import json
 from typing import Callable
+import atexit
 from dataclasses import dataclass, asdict
 from functools import wraps
 from contextlib import contextmanager
@@ -38,6 +39,8 @@ class AppConfig:
     default_spline_config: str = "eukaryotic_MT"
     dask_chunk: tuple[int, int, int] = (256, 256, 256)
     point_size: float = 4.2
+    molecules_color: str = "#00EA00"
+    molecules_ndim: int = 3
     use_gpu: bool = True
 
     @classmethod
@@ -76,6 +79,15 @@ class AppConfig:
 
 
 _APP_CONFIG: AppConfig | None = None
+
+
+@atexit.register
+def _save_config():
+    if _APP_CONFIG is not None:
+        try:
+            _APP_CONFIG.to_user_dir()
+        except Exception as e:
+            print(f"Failed to save user settings: {e}")
 
 
 def get_config() -> AppConfig:
