@@ -212,6 +212,7 @@ class ImageFilter(strEnum):
 
 _POLARS_DTYPES = {
     PropertyNames.npf: pl.UInt8,
+    PropertyNames.start: pl.Int8,
     PropertyNames.orientation: pl.Utf8,
     PropertyNames.spline_id: pl.UInt16,
     MoleculesHeader.image: pl.UInt16,
