@@ -51,14 +51,14 @@ def test_run_all(coords, npf, rise, twist_range):
     assert H.spacing in tomo.splines.collect_globalprops(allow_none=False).columns
 
     spl = tomo.splines[0]
-    spacing_mean = spl.localprops[H.spacing].mean()
+    spacing_mean = spl.props.loc[H.spacing].mean()
     spacing_glob = spl.props.get_glob(H.spacing)
 
     # GDP-bound microtubule has spacing in this range
     assert 4.08 < spacing_glob < 4.11
     assert spacing_glob == pytest.approx(spacing_mean, abs=5e-3)
-    assert all(spl.localprops[H.npf] == npf)
-    assert all(spl.localprops[H.rise] > rise)
+    assert all(spl.props.loc[H.npf] == npf)
+    assert all(spl.props.loc[H.rise] > rise)
     tw_min, tw_max = twist_range
     assert tw_min < spl.props.get_glob(H.dimer_twist) < tw_max
 

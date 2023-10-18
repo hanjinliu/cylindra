@@ -313,13 +313,13 @@ def test_spline_switch(ui: CylindraMainWidget):
 
         # check results
         for spl in ui.tomogram.splines:
-            spacing_mean = spl.localprops[H.spacing].mean()
+            spacing_mean = spl.props.loc[H.spacing].mean()
             spacing_glob = spl.props.get_glob(H.spacing)
             # GDP-bound microtubule has lattice spacing in this range
             assert 4.08 < spacing_glob < 4.11
             assert spacing_glob == pytest.approx(spacing_mean, abs=0.02)
-            assert all(spl.localprops[H.npf] == 13)
-            assert all(spl.localprops[H.rise] > 8.3)
+            assert all(spl.props.loc[H.npf] == 13)
+            assert all(spl.props.loc[H.rise] > 8.3)
 
         # check canvas again
         assert_canvas(ui, [False, False, False])
@@ -359,7 +359,7 @@ def test_spline_switch(ui: CylindraMainWidget):
         assert_orientation(ui, "MinusToPlus")
         assert (
             ui.LocalProperties.params.spacing.txt
-            == f" {ui.splines[ui.SplineControl.num].localprops[H.spacing][1]:.2f} nm"
+            == f" {ui.splines[ui.SplineControl.num].props.loc[H.spacing][1]:.2f} nm"
         )
         assert (
             ui.GlobalProperties.params.params1.spacing.txt
@@ -371,7 +371,7 @@ def test_spline_switch(ui: CylindraMainWidget):
         assert_orientation(ui, "MinusToPlus")
         assert (
             ui.LocalProperties.params.spacing.txt
-            == f" {ui.splines[ui.SplineControl.num].localprops[H.spacing][1]:.2f} nm"
+            == f" {ui.splines[ui.SplineControl.num].props.loc[H.spacing][1]:.2f} nm"
         )
         assert (
             ui.GlobalProperties.params.params1.spacing.txt
@@ -661,7 +661,7 @@ def test_radius_methods(ui: CylindraMainWidget):
     ui.add_molecules(mole_tr, "Corn", source=ui.splines[0])
     layer = ui.parent_viewer.layers["Corn"]
     ui.measure_radius_by_molecules([layer], interval=8, depth=12)
-    radii = ui.splines[0].localprops[H.radius]
+    radii = ui.splines[0].props.loc[H.radius]
     assert all(np.diff(radii) > 0)
 
     spl = ui.tomogram.splines[0]

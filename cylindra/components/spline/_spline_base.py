@@ -80,20 +80,6 @@ class Spline(BaseComponent):
         """Return the spline configuration"""
         return self._config
 
-    @property
-    def localprops(self) -> pl.DataFrame:
-        """Local properties of the spline."""
-        return self.props.loc
-
-    @property
-    def globalprops(self) -> pl.DataFrame:
-        """Global properties of the spline."""
-        return self.props.glob
-
-    @globalprops.setter
-    def globalprops(self, df: pl.DataFrame):
-        self.props.glob = df
-
     def has_props(self) -> bool:
         """True if there are any properties."""
         return len(self.props.loc) > 0 or len(self.props.glob) > 0

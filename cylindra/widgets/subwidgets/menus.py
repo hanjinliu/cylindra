@@ -306,7 +306,7 @@ class SplinesMenu(ChildWidget):
             def _update_table(i: int):
                 if i is not None:
                     spl = main.tomogram.splines[i]
-                    table.value = spl.localprops
+                    table.value = spl.props.loc
 
             container = Container(widgets=[cbox, table], labels=False)
             self.parent_viewer.window.add_dock_widget(

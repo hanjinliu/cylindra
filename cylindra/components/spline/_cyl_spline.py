@@ -26,7 +26,7 @@ class CylSpline(Spline):
     @radius.setter
     def radius(self, value: nm | None):
         if value is None:
-            if H.radius in self.globalprops.columns:
+            if H.radius in self.props.glob.columns:
                 self.props.drop_glob(H.radius)
             return None
         value = float(value)
@@ -199,8 +199,8 @@ class CylSpline(Spline):
                 pl.Series([str(orientation)]).cast(pl.Utf8).alias(H.orientation)
             )
 
-        ldf = self.localprops.with_columns(loc)
-        gdf = self.globalprops.with_columns(glob)
+        ldf = self.props.loc.with_columns(loc)
+        gdf = self.props.glob.with_columns(glob)
 
         self.props.loc = ldf
         self.props.glob = gdf

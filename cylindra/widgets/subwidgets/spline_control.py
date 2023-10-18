@@ -162,8 +162,8 @@ class SplineControl(ChildWidget):
             return
         spl = tomo.splines[i]
 
-        if len(spl.localprops) > 0:
-            self["pos"].max = len(spl.localprops) - 1
+        if len(spl.props.loc) > 0:
+            self["pos"].max = len(spl.props.loc) - 1
         elif spl.has_anchors:
             self["pos"].max = spl.anchors.size - 1
         else:
@@ -181,7 +181,7 @@ class SplineControl(ChildWidget):
         if num >= len(tomo.splines):
             return
         spl = tomo.splines[num]
-        if len(spl.localprops) == 0:
+        if len(spl.props.loc) == 0:
             parent.LocalProperties._init_text()
             parent.LocalProperties._init_plot()
 

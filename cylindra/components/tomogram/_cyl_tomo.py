@@ -871,7 +871,7 @@ class CylTomogram(Tomogram):
             img_st, rc, nsamples=nsamples
         ).to_polars()
         if update:
-            spl.globalprops = spl.globalprops.with_columns(out)
+            spl.props.glob = spl.props.glob.with_columns(out)
         return out
 
     @batch_process
@@ -1270,7 +1270,7 @@ def _prepare_radii(
         elif radius == "local":
             if not spl.props.has_loc(H.radius):
                 raise ValueError("Local radii is not measured yet.")
-            radii = spl.localprops[H.radius].to_numpy()
+            radii = spl.props.loc[H.radius].to_numpy()
         else:
             raise ValueError("`radius` must be 'local' or 'global' if string.")
     else:

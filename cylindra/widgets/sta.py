@@ -730,7 +730,7 @@ class SubtomogramAveraging(ChildWidget):
                     _offset_a += spl.props.get_glob(H.offset_angular)
                 if spl.props.has_glob(H.offset_radial):
                     _offset_r += spl.props.get_glob(H.offset_radial)
-                spl.globalprops = spl.globalprops.with_columns(
+                spl.props.glob = spl.props.glob.with_columns(
                     pl.Series(H.offset_axial, [_offset_y], dtype=pl.Float32),
                     pl.Series(H.offset_angular, [_offset_a], dtype=pl.Float32),
                     pl.Series(H.offset_radial, [_offset_r], dtype=pl.Float32),
