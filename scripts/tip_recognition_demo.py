@@ -10,14 +10,14 @@ TEMPLATE_PATH = Path(__file__).parent.parent / "tests" / "beta-tubulin.mrc"
 
 def main():
     ui = start()
-    ui.cylinder_simulator.create_straight_line(
+    ui.simulator.create_straight_line(
         scale=0.25, size=(60.0, 240.0, 60.0), length=210.0
     )
-    ui.cylinder_simulator.update_model(
+    ui.simulator.update_model(
         spacing=4.08, dimer_twist=0.08, start=3, radius=11.2, npf=13
     )
-    ui.cylinder_simulator.expand(0.12, (0, 18), (0, 13), allev=False)
-    ui.cylinder_simulator.simulate_tomogram_and_open(
+    ui.simulator.expand(0.12, (0, 18), (0, 13), allev=False)
+    ui.simulator.simulate_tomogram_and_open(
         template_path=TEMPLATE_PATH,
         nsr=2.5,
         bin_size=2,

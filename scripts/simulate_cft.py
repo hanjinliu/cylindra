@@ -45,14 +45,14 @@ class local_expansion(Simulator):
     """Vertical MT with spacing=4.05, 4.10, 4.15, 4.20 nm."""
 
     def prepare(self):
-        self.ui.cylinder_simulator.create_straight_line(
+        self.ui.simulator.create_straight_line(
             scale=self.scale, size=(60.0, 240.0, 60.0), length=245.0
         )
-        self.ui.cylinder_simulator.update_model(
+        self.ui.simulator.update_model(
             spacing=4.12, dimer_twist=0.08, start=3, radius=11.2, npf=13
         )
         for exp, yrange in zip([-0.07, -0.02, 0.03, 0.08], POSITIONS):
-            self.ui.cylinder_simulator.expand(
+            self.ui.simulator.expand(
                 exp=exp, yrange=yrange, arange=(0, 13), allev=False
             )
         return np.array([[30, 30, 30], [30, 210, 30]])
@@ -68,14 +68,14 @@ class local_skew(Simulator):
     """Vertical MT with dimer_twist=-0.15, -0.05, 0.05, 0.15 deg."""
 
     def prepare(self):
-        self.ui.cylinder_simulator.create_straight_line(
+        self.ui.simulator.create_straight_line(
             scale=self.scale, size=(60.0, 240.0, 60.0), length=245.0
         )
-        self.ui.cylinder_simulator.update_model(
+        self.ui.simulator.update_model(
             spacing=4.1, dimer_twist=0.0, start=3, radius=11.2, npf=13
         )
         for sk, yrange in zip([-0.15, -0.05, 0.05, 0.15], POSITIONS):
-            self.ui.cylinder_simulator.twist(
+            self.ui.simulator.twist(
                 dimer_twist=sk, yrange=yrange, arange=(0, 13), allev=False
             )
         return np.array([[30, 30, 30], [30, 210, 30]])
@@ -119,11 +119,9 @@ class local_orientation(Simulator):
     def prepare(self):
         coords = self.get_coords()
         spl = CylSpline().fit(coords, err_max=1e-8)
-        self.ui.cylinder_simulator.create_empty_image(
-            size=(60, 228, 144), scale=self.scale
-        )
-        self.ui.cylinder_simulator.set_spline(spl)
-        self.ui.cylinder_simulator.update_model(
+        self.ui.simulator.create_empty_image(size=(60, 228, 144), scale=self.scale)
+        self.ui.simulator.set_spline(spl)
+        self.ui.simulator.update_model(
             spacing=4.1, dimer_twist=0.0, start=3, radius=11.2, npf=13
         )
         return coords
@@ -164,11 +162,9 @@ class local_curvature(Simulator):
     def prepare(self) -> NDArray[np.float32]:
         coords = self.get_coords()
         spl = CylSpline().fit(coords, err_max=1e-8)
-        self.ui.cylinder_simulator.create_empty_image(
-            size=(60, 230, 60), scale=self.scale
-        )
-        self.ui.cylinder_simulator.set_spline(spl)
-        self.ui.cylinder_simulator.update_model(
+        self.ui.simulator.create_empty_image(size=(60, 230, 60), scale=self.scale)
+        self.ui.simulator.set_spline(spl)
+        self.ui.simulator.update_model(
             spacing=4.1, dimer_twist=0.00, start=3, radius=11.2, npf=13
         )
         return coords
@@ -251,7 +247,7 @@ class Main:
         results = []
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpfile = Path(tmpdir) / "image.mrc"
-            ui.cylinder_simulator.simulate_tilt_series(
+            ui.simulator.simulate_tilt_series(
                 template_path=TEMPLATE_PATH,
                 save_path=tmpfile,
                 n_tilt=n_tilt,
@@ -259,7 +255,7 @@ class Main:
             )
             for _rep in range(nrepeat):
                 for _idx, _nsr in enumerate(nsr):
-                    ui.cylinder_simulator.simulate_tomogram_from_tilt_series(
+                    ui.simulator.simulate_tomogram_from_tilt_series(
                         path=tmpfile,
                         nsr=_nsr,
                         bin_size=binsize,
@@ -297,7 +293,7 @@ class Main:
         ui = self._ui
         simulator: Simulator = func(ui, scale)
         simulator.prepare()
-        spl = ui.cylinder_simulator.spline
+        spl = ui.simulator.spline
         ui.tomogram.splines.append(spl)
         ui._add_spline_instance(spl)
 
@@ -318,13 +314,13 @@ class Main:
         _nsr = max(nsr)
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpfile = Path(tmpdir) / "image.mrc"
-            ui.cylinder_simulator.simulate_tilt_series(
+            ui.simulator.simulate_tilt_series(
                 template_path=TEMPLATE_PATH,
                 save_path=tmpfile,
                 n_tilt=n_tilt,
                 scale=scale,
             )
-            ui.cylinder_simulator.simulate_tomogram_from_tilt_series(
+            ui.simulator.simulate_tomogram_from_tilt_series(
                 path=tmpfile,
                 nsr=_nsr,
                 bin_size=binsize,

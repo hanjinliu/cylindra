@@ -213,7 +213,7 @@ class ImageMenu(ChildWidget):
     @bind_key("Ctrl+K, I")
     def open_simulator(self):
         """Open the simulator widget."""
-        return self._get_main().cylinder_simulator.show()
+        return self._get_main().simulator.show()
 
     sep1 = field(Separator)
     sample_subtomograms = abstractapi()
@@ -468,6 +468,7 @@ class MoleculesMenu(ChildWidget):
         sep0 = field(Separator)
         set_source_spline = abstractapi()
         molecules_to_spline = abstractapi()
+        protofilaments_to_spline = abstractapi()
 
     @magicmenu(name="Combine")
     class Combine(MagicTemplate):

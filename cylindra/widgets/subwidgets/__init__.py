@@ -5,7 +5,7 @@ from .misc import ImageLoader, GeneralInfo
 from .pca import PcaViewer
 from .properties import LocalPropertiesWidget, GlobalPropertiesWidget
 from .runner import Runner
-from .simulator import CylinderSimulator
+from .simulator import Simulator
 from .slicer import SplineSlicer
 from .spline_clipper import SplineClipper
 from .spline_control import SplineControl

@@ -9,6 +9,8 @@ import polars as pl
 from dask import array as da
 from acryo import SubtomogramLoader
 
+from cylindra.const import MoleculesHeader as Mole
+
 
 class SeamSearcher(ABC):
     def __init__(self, npf: int):
@@ -64,6 +66,9 @@ class SeamSearchResult:
         # NOTE: value returned by SeamSearcher.label_with_seam is boolean array which
         # means that the true molecules match the seam position.
         return (res % 2 == 1).astype(np.uint8)
+
+    def as_series(self, size: int) -> pl.Series:
+        return pl.Series(Mole.isotype, self.get_label(size))
 
     def to_dataframe(self) -> pl.DataFrame:
         return pl.DataFrame({"scores": self.scores})

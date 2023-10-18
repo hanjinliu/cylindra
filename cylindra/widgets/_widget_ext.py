@@ -184,12 +184,43 @@ class RotationsEdit(Container[Container[FloatSpinBox]]):
         self.changed.emit(val)
 
 
-class SingleRotationEdit(Container):
+class ParametrizedEnumEdit(Container):
     def __init__(self, value=Undefined, *, nullable=False, **kwargs):
-        self._axis = ComboBox(
-            value="z", choices=["z", "y", "x"], tooltip="Rotation axis", name="axis"
+        self._choice = self._get_choice_widget()
+        self._value = self._get_value_widget()
+        super().__init__(
+            widgets=[self._choice, self._value],
+            labels=False,
+            layout="horizontal",
+            **kwargs,
         )
-        self._degree = FloatSpinBox(
+        self.changed.disconnect()
+        self._choice.changed.connect(self._on_value_change)
+        self._value.changed.connect(self._on_value_change)
+        if value is not Undefined:
+            self.value = value
+
+    def _get_value_widget(self) -> ValueWidget[float]:
+        raise NotImplementedError()
+
+    def _get_choice_widget(self) -> ValueWidget[str]:
+        raise NotImplementedError()
+
+    def _on_value_change(self):
+        self.changed.emit(self.value)
+
+    @property
+    def value(self) -> tuple[str, float]:
+        return self._choice.value, self._value.value
+
+    @value.setter
+    def value(self, val):
+        self._choice.value, self._value.value = val
+
+
+class SingleRotationEdit(ParametrizedEnumEdit):
+    def _get_value_widget(self):
+        return FloatSpinBox(
             value=0.0,
             min=-180,
             max=180,
@@ -197,28 +228,30 @@ class SingleRotationEdit(Container):
             tooltip="Rotation angle in degree",
             name="degree",
         )
-        super().__init__(
-            widgets=[self._axis, self._degree],
-            labels=False,
-            layout="horizontal",
-            **kwargs,
+
+    def _get_choice_widget(self):
+        return ComboBox(
+            value="z", choices=["z", "y", "x"], tooltip="Rotation axis", name="axis"
         )
-        self.changed.disconnect()
-        self._axis.changed.connect(self._on_value_change)
-        self._degree.changed.connect(self._on_value_change)
-        if value is not Undefined:
-            self.value = value
 
-    def _on_value_change(self):
-        self.changed.emit(self.value)
 
-    @property
-    def value(self) -> tuple[str, float]:
-        return self._axis.value, self._degree.value
+class SingleOperationEdit(ParametrizedEnumEdit):
+    def _get_value_widget(self):
+        return FloatSpinBox(
+            value=0.0,
+            min=-100,
+            max=100,
+            tooltip="Parameter of the operation",
+            name="by",
+        )
 
-    @value.setter
-    def value(self, val):
-        self._axis.value, self._degree.value = val
+    def _get_choice_widget(self):
+        return ComboBox(
+            value="expand",
+            choices=["expand", "twist", "dilate"],
+            tooltip="Operation",
+            label="",
+        )
 
 
 class RandomSeedEdit(Container):

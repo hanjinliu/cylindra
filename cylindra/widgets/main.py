@@ -186,7 +186,7 @@ class CylindraMainWidget(MagicTemplate):
     # Widget for pre-filtering/pre-processing
     image_processor = field(_sw.ImageProcessor, name="_Image Processor")
     # Widget for tomogram simulator
-    cylinder_simulator = field(_sw.CylinderSimulator, name="_Cylinder Simulator")
+    simulator = field(_sw.Simulator, name="_Simulator")
     # Widget for measuring FFT parameters from a 2D power spectra
     spectra_inspector = field(_sw.SpectraInspector, name="_SpectraInspector")
     # Widget for subtomogram analysis
@@ -1183,6 +1183,27 @@ class CylindraMainWidget(MagicTemplate):
 
         self.reset_choices()
         self.sample_subtomograms()
+        self._update_splines_in_images()
+        return None
+
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.FromToSpline)
+    def protofilaments_to_spline(
+        self,
+        layer: MoleculesLayerType,
+        err_max: Annotated[nm, {"label": "Max fit error (nm)", "step": 0.1}] = 0.8,
+        ids: list[int] = (),
+        config: Annotated[dict[str, Any] | SplineConfig, {"validator": _get_default_config}] = None,
+    ):  # fmt: skip
+        if len(ids) == 0:
+            raise ValueError("No protofilament ID is given.")
+        tomo = self.tomogram
+        mole = layer.molecules
+        for i in ids:
+            sub = mole.filter(pl.col(Mole.pf) == i)
+            if sub.count() == 0:
+                continue
+            tomo.add_spline(sub.sort(Mole.nth).pos, err_max=err_max, config=config)
+        self.reset_choices()
         self._update_splines_in_images()
         return None
 
@@ -2610,19 +2631,13 @@ class CylindraMainWidget(MagicTemplate):
         fgui.npf.value = int(cfg.npf_range.center)
         fgui.npf.value = None
 
-        fgui = get_function_gui(self.cylinder_simulator.update_model)
+        fgui = get_function_gui(self.simulator.update_cylinder_parameters)
         fgui.spacing.min, fgui.spacing.max = cfg.spacing_range.astuple()
         fgui.spacing.value = cfg.spacing_range.center
         fgui.dimer_twist.min, fgui.dimer_twist.max = cfg.dimer_twist_range.astuple()
         fgui.dimer_twist.value = cfg.dimer_twist_range.center
         fgui.npf.min, fgui.npf.max = cfg.npf_range.astuple()
         fgui.npf.value = int(cfg.npf_range.center)
-
-        self.cylinder_simulator.spline.props.update_glob(
-            spacing=fgui.spacing.value,
-            dimer_twist=fgui.dimer_twist.value,
-            npf=fgui.npf.value,
-        )
 
         fgui = get_function_gui(self.paint_cylinders)
         fgui.limits.value = cfg.spacing_range.astuple()

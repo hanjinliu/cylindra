@@ -41,6 +41,7 @@ from cylindra.const import (
     ALN_SUFFIX,
     SEAM_SEARCH_RESULT,
     ANNEALING_RESULT,
+    INTERPOLATION_CHOICES,
     MoleculesHeader as Mole,
     nm,
     PropertyNames as H,
@@ -56,6 +57,7 @@ from cylindra.components.landscape import Landscape
 from cylindra.components.seam_search import (
     CorrelationSeamSearcher,
     BooleanSeamSearcher,
+    ManualSeamSearcher,
     SeamSearchResult,
 )
 
@@ -66,7 +68,7 @@ from ._annotated import (
     assert_layer,
     assert_list_of_layers,
 )
-from .widget_utils import timer, POLARS_NAMESPACE
+from .widget_utils import capitalize, timer, POLARS_NAMESPACE
 from .subwidgets._child_widget import ChildWidget
 from . import widget_utils, _shared_doc, _progress_desc as _pdesc, _annealing
 
@@ -126,7 +128,6 @@ _AngleMaxLon = Annotated[
 _RandomSeeds = Annotated[list[int], {"widget_type": RandomSeedEdit}]
 
 # choices
-INTERPOLATION_CHOICES = (("nearest", 0), ("linear", 1), ("cubic", 3))
 METHOD_CHOICES = (
     ("Phase Cross Correlation", "pcc"),
     ("Zero-mean Normalized Cross Correlation", "zncc"),
@@ -220,6 +221,7 @@ class STAnalysis(MagicTemplate):
     class SeamSearch(MagicTemplate):
         seam_search = abstractapi()
         seam_search_by_feature = abstractapi()
+        seam_search_manually = abstractapi()
         save_seam_search_result = abstractapi()
 
     sep1 = field(Separator)
@@ -1296,7 +1298,7 @@ class SubtomogramAveraging(ChildWidget):
             if ANNEALING_RESULT in layer.metadata
         ]
 
-    @set_design(text="Save annealing scores", location=Alignment.Constrained)
+    @set_design(text=capitalize, location=Alignment.Constrained)
     @do_not_record
     def save_annealing_scores(
         self,
@@ -1314,7 +1316,7 @@ class SubtomogramAveraging(ChildWidget):
         df = pl.DataFrame({"iteration": x, "score": -result.energies})
         return df.write_csv(path, has_header=False)
 
-    @set_design(text="Calculate correlation", location=STAnalysis)
+    @set_design(text=capitalize, location=STAnalysis)
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Calculating correlations of {!r}"))  # fmt: skip
     def calculate_correlation(
         self,
@@ -1540,7 +1542,7 @@ class SubtomogramAveraging(ChildWidget):
 
         return _on_return
 
-    @set_design(text="Seam search", location=STAnalysis.SeamSearch)
+    @set_design(text=capitalize, location=STAnalysis.SeamSearch)
     @dask_worker.with_progress(desc=_pdesc.fmt_layer("Seam search of {!r}"))
     def seam_search(
         self,
@@ -1597,9 +1599,8 @@ class SubtomogramAveraging(ChildWidget):
             cutoff=cutoff,
         )
 
-        layer.features = layer.molecules.features.with_columns(
-            pl.Series(Mole.isotype, result.get_label(loader.molecules.count()))
-        )
+        new_feat = result.as_series(loader.molecules.count())
+        layer.features = layer.molecules.features.with_columns(new_feat)
         layer.metadata[SEAM_SEARCH_RESULT] = result
 
         t0.toc()
@@ -1625,7 +1626,7 @@ class SubtomogramAveraging(ChildWidget):
 
         return _seam_search_on_return
 
-    @set_design(text="Seam search by feature", location=STAnalysis.SeamSearch)
+    @set_design(text=capitalize, location=STAnalysis.SeamSearch)
     def seam_search_by_feature(
         self,
         layer: MoleculesLayerType,
@@ -1647,9 +1648,31 @@ class SubtomogramAveraging(ChildWidget):
         npf = utils.roundint(layer.molecules.features[Mole.pf].max() + 1)
         seam_searcher = BooleanSeamSearcher(npf)
         result = seam_searcher.search(feat[by])
-        new_feat = pl.Series(
-            Mole.isotype, result.get_label(feat.shape[0]), dtype=pl.Int8
-        )
+        new_feat = result.as_series(feat.shape[0])
+        layer.features = layer.molecules.features.with_columns(new_feat)
+        return undo_callback(layer.feature_setter(feat, layer.colormap_info))
+
+    @set_design(text=capitalize, location=STAnalysis.SeamSearch)
+    def seam_search_manually(
+        self,
+        layer: MoleculesLayerType,
+        location: int = 0,
+    ):
+        """
+        Search for seams manually.
+
+        Parameters
+        ----------
+        {layer}
+        location : int
+            Seam location.
+        """
+        layer = assert_layer(layer, self.parent_viewer)
+        feat = layer.features
+        npf = utils.roundint(layer.molecules.features[Mole.pf].max() + 1)
+        seam_searcher = ManualSeamSearcher(npf)
+        result = seam_searcher.search(location)
+        new_feat = result.as_series(feat.shape[0])
         layer.features = layer.molecules.features.with_columns(new_feat)
         return undo_callback(layer.feature_setter(feat, layer.colormap_info))
 

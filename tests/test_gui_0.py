@@ -674,10 +674,10 @@ def test_radius_methods(ui: CylindraMainWidget):
 
 
 def test_simulator(ui: CylindraMainWidget):
-    ui.cylinder_simulator.create_empty_image(size=(50.0, 100.0, 50.0), scale=0.5)
+    ui.simulator.create_empty_image(size=(50.0, 100.0, 50.0), scale=0.5)
     ui.register_path(coords=[[25.375, 83.644, 18.063], [25.375, 23.154, 28.607]])
-    ui.cylinder_simulator.set_current_spline(idx=0)
-    ui.cylinder_simulator.update_model(
+    ui.simulator.set_current_spline(idx=0)
+    ui.simulator.update_model(
         spacing=4.1,
         dimer_twist=-0.30,
         start=3,
@@ -685,21 +685,17 @@ def test_simulator(ui: CylindraMainWidget):
         radius=9.14,
         offsets=(0.0, 0.18),
     )
-    ui.cylinder_simulator.expand(exp=0.1, yrange=(11, 15), arange=(0, 14), allev=True)
-    ui.cylinder_simulator.twist(
-        dimer_twist=0.3, yrange=(11, 15), arange=(0, 14), allev=True
-    )
-    ui.cylinder_simulator.dilate(
-        radius=-0.5, yrange=(11, 15), arange=(0, 14), allev=True
-    )
-    ui.cylinder_simulator.send_moleclues_to_viewer()
-    ui.cylinder_simulator.close()
+    ui.simulator.expand(exp=0.1, yrange=(11, 15), arange=(0, 14), allev=True)
+    ui.simulator.twist(dimer_twist=0.3, yrange=(11, 15), arange=(0, 14), allev=True)
+    ui.simulator.dilate(radius=-0.5, yrange=(11, 15), arange=(0, 14), allev=True)
+    ui.simulator.send_moleclues_to_viewer()
+    ui.simulator.close()
 
 
 @pytest_group("simulate", maxfail=1)
 def test_simulate_tomogram(ui: CylindraMainWidget):
-    ui.cylinder_simulator.create_straight_line(25, (40, 42, 42), scale=0.5)
-    ui.cylinder_simulator.update_model(
+    ui.simulator.create_straight_line(25, (40, 42, 42), scale=0.5)
+    ui.simulator.update_model(
         spacing=4.06,
         dimer_twist=-0.31,
         start=3,
@@ -718,23 +714,19 @@ def test_simulate_tomogram(ui: CylindraMainWidget):
     with tempfile.TemporaryDirectory() as dirpath:
         dirpath = Path(dirpath)
         assert len(list(dirpath.glob("*"))) == 0
-        ui.cylinder_simulator.simulate_tomogram(
-            **kwargs, nsr=[0.5, 2.0], save_dir=dirpath
-        )
+        ui.simulator.simulate_tomogram(**kwargs, nsr=[0.5, 2.0], save_dir=dirpath)
         assert len(list(dirpath.glob("*.mrc"))) == 2
-    ui.cylinder_simulator.simulate_tomogram_and_open(**kwargs, nsr=1.2)
-    ui.cylinder_simulator.close()
+    ui.simulator.simulate_tomogram_and_open(**kwargs, nsr=1.2)
+    ui.simulator.close()
 
 
 @pytest_group("simulate", maxfail=1)
 def test_simulate_tilt_series(ui: CylindraMainWidget):
-    ui.cylinder_simulator.create_straight_line(
-        25, (40, 42, 42), scale=0.5, yxrotation=10
-    )
+    ui.simulator.create_straight_line(25, (40, 42, 42), scale=0.5, yxrotation=10)
     with tempfile.TemporaryDirectory() as dirpath:
         fp = Path(dirpath) / "test.mrc"
         assert not fp.exists()
-        ui.cylinder_simulator.simulate_tilt_series(
+        ui.simulator.simulate_tilt_series(
             template_path=TEST_DIR / "beta-tubulin.mrc",
             save_path=fp,
             tilt_range=(-60.0, 60.0),
@@ -742,7 +734,7 @@ def test_simulate_tilt_series(ui: CylindraMainWidget):
             interpolation=1,
         )
         assert fp.exists()
-    ui.cylinder_simulator.close()
+    ui.simulator.close()
 
 
 def test_project_viewer():
