@@ -6,9 +6,13 @@ import numpy as np
 from numpy.typing import NDArray
 import matplotlib.pyplot as plt
 import impy as ip
+from scipy.spatial.transform import Rotation
 
 from magicclass import (
+    do_not_record,
     magicclass,
+    magicmenu,
+    magictoolbar,
     set_design,
     field,
     vfield,
@@ -33,7 +37,7 @@ from cylindra.const import (
     PREVIEW_LAYER_NAME,
 )
 from cylindra.utils import roundint, ceilint
-from cylindra.components import CylTomogram
+from cylindra.components import CylTomogram, CylSpline
 from ._child_widget import ChildWidget
 
 if TYPE_CHECKING:
@@ -95,10 +99,6 @@ class Component(ChildWidget):
 class ComponentList(ChildWidget):
     """List of components"""
 
-    @magicclass
-    class Header(ChildWidget):
-        new = abstractapi()
-
     def _iter_components(self) -> Iterator[Component]:
         for wdt in self:
             if isinstance(wdt, Component):
@@ -107,25 +107,37 @@ class ComponentList(ChildWidget):
     def _as_input(self) -> list[tuple[str, Path]]:
         return [(comp.layer_name, Path(comp.path)) for comp in self._iter_components()]
 
-    @set_design(text="+", location=Header)
-    def new(self, layer: MoleculesLayer, template_path: Path.Read[FileFilter.IMAGE]):
-        """Add a new component"""
-        self.append(Component(template_path, layer))
-
-
-@magicclass(record=False)
-class Simulator(ChildWidget):
-    component_list = field(ComponentList, name="components")
-
     def reset_choices(self, *_):
         to_remove = []
-        for i, comp in enumerate(self.component_list._iter_components()):
+        for i, comp in enumerate(self._iter_components()):
             if layer := comp.layer:
                 comp.layer_name = layer.name
             else:
                 to_remove.append(i)
         for i in reversed(to_remove):
-            self.component_list.pop(i)
+            self.pop(i)
+
+
+@magicclass
+class Simulator(ChildWidget):
+    @magicmenu(name="Create")
+    class CreateMenu(ChildWidget):
+        create_empty_image = abstractapi()
+        create_image_with_straight_line = abstractapi()
+
+    @magicmenu(name="Simulate")
+    class SimulateMenu(ChildWidget):
+        simulate_tomogram = abstractapi()
+        simulate_tomogram_from_tilt_series = abstractapi()
+        simulate_tomogram_and_open = abstractapi()
+        simulate_tilt_series = abstractapi()
+
+    @magictoolbar
+    class SimulatorTools(ChildWidget):
+        add_component = abstractapi()
+        update_cylinder_parameters = abstractapi()
+
+    component_list = field(ComponentList, name="components")
 
     def _prep_radon(
         self,
@@ -146,7 +158,20 @@ class Simulator(ChildWidget):
         tilt_series = ip.asarray(tilt_series, axes=["degree", "y", "x"])
         return tilt_series.set_scale(y=scale, x=scale)
 
-    @set_design(text=capitalize)
+    def _get_monomer_layer_list(self, *_):
+        return list(self._get_main().mole_layers)
+
+    @set_design(icon="fluent:cloud-add-16-filled", location=SimulatorTools)
+    @do_not_record
+    def add_component(
+        self,
+        layer: Annotated[MoleculesLayer, {"choices": _get_monomer_layer_list}],
+        template_path: Path.Read[FileFilter.IMAGE],
+    ):
+        """Add a new component"""
+        self.component_list.append(Component(template_path, layer))
+
+    @set_design(text=capitalize, location=CreateMenu)
     @thread_worker.with_progress(desc="Creating an image")
     @confirm(
         text="You have an opened image. Run anyway?",
@@ -182,17 +207,63 @@ class Simulator(ChildWidget):
         parent._macro_offset = len(parent.macro)
         return parent._send_tomogram_to_viewer.with_args(tomo)
 
+    @set_design(text=capitalize, location=CreateMenu)
+    @thread_worker.with_progress(desc="Creating an image")
+    @confirm(
+        text="You have an opened image. Run anyway?",
+        condition="not self._get_main().tomogram.is_dummy",
+    )
+    def create_image_with_straight_line(
+        self,
+        length: nm = 150.0,
+        size: _ImageSize = (60.0, 200.0, 60.0),
+        scale: Annotated[nm, {"label": "pixel scale (nm/pixel)"}] = 0.25,
+        yxrotation: Annotated[float, {"max": 90, "step": 1, "label": "Rotation in YX plane (deg)"}] = 0.0,
+        zxrotation: Annotated[float, {"max": 90, "step": 1, "label": "Rotation in ZX plane (deg)"}] = 0.0,
+    ):  # fmt: skip
+        """
+        Create a straight line as a cylinder spline.
+
+        Parameters
+        ----------
+        length : nm, default is 150.0
+            Length if the straight line in nm.
+        size : (nm, nm, nm), (60.0, 200.0, 60.0)
+            Size of the tomogram in which the spline will reside.
+        scale : nm, default is 0.25
+            Scale of pixel in nm/pixel.
+        yxrotation : float, optional
+            Rotation in YX plane. This rotation will be applied before ZX rotation.
+        zxrotation : float, optional
+            Rotation in ZX plane. This rotation will be applied before YX rotation.
+        """
+        yxrot = Rotation.from_rotvec([np.deg2rad(yxrotation), 0.0, 0.0])
+        zxrot = Rotation.from_rotvec([0.0, 0.0, np.deg2rad(zxrotation)])
+        start_shift = zxrot.apply(yxrot.apply(np.array([0.0, -length / 2, 0.0])))
+        end_shift = zxrot.apply(yxrot.apply(np.array([0.0, length / 2, 0.0])))
+        center = np.array(size) / 2
+        spl = CylSpline.line(start_shift + center, end_shift + center)
+        yield from self.create_empty_image.arun(size=size, scale=scale)
+        main = self._get_main()
+
+        @thread_worker.callback
+        def _on_return():
+            main.tomogram.splines.append(spl)
+            main._add_spline_instance(spl)
+
+        return _on_return
+
     def _get_spline_idx(self, *_) -> int:
         return self._get_main()._get_spline_idx()
 
-    @set_design(text="Update model parameters")
+    @set_design(icon="fluent:select-object-skew-20-regular", location=SimulatorTools)
     def update_cylinder_parameters(
         self,
         spline: Annotated[int, {"bind": _get_spline_idx}],
         spacing: Annotated[nm, {"min": 0.2, "max": 100.0, "step": 0.01, "label": "spacing (nm)"}] = 1.0,
         dimer_twist: Annotated[float, {"min": -45.0, "max": 45.0, "label": "dimer twist (deg)"}] = 0.0,
         start: Annotated[int, {"min": -50, "max": 50, "label": "start"}] = 0,
-        npf: Annotated[int, {"min": 1, "label": "number of PF"}] = 1,
+        npf: Annotated[int, {"min": 1, "label": "number of PF"}] = 2,
         radius: Annotated[nm, {"min": 0.5, "max": 50.0, "step": 0.5, "label": "radius (nm)"}] = 10.0,
     ):  # fmt: skip
         """
@@ -206,7 +277,7 @@ class Simulator(ChildWidget):
         spacing : nm
             Axial spacing between molecules.
         dimer_twist : float
-            Skew angle.
+            Dimer twist of the cylinder.
         start : int
             The start number.
         npf : int
@@ -248,13 +319,14 @@ class Simulator(ChildWidget):
         }
         model = spl.cylinder_model(**kwargs)
         out = model.to_molecules(spl)
-        viewer = self.parent_viewer
+        viewer = main.parent_viewer
         if PREVIEW_LAYER_NAME in viewer.layers:
             layer: Layer = viewer.layers[PREVIEW_LAYER_NAME]
             layer.data = out.pos
         else:
-            layer = main.add_molecules(out, name=PREVIEW_LAYER_NAME)
-            layer.face_color = "crimson"
+            layer = main.add_molecules(
+                out, name=PREVIEW_LAYER_NAME, face_color="crimson"
+            )
         is_active = yield
         if not is_active and layer in viewer.layers:
             viewer.layers.remove(layer)
@@ -262,7 +334,7 @@ class Simulator(ChildWidget):
     def _get_components(self, *_):
         return self.component_list._as_input()
 
-    @set_design(text=capitalize)
+    @set_design(text=capitalize, location=SimulateMenu)
     @dask_thread_worker.with_progress(descs=_simulate_tomogram_iter)
     def simulate_tomogram(
         self,
@@ -327,7 +399,7 @@ class Simulator(ChildWidget):
         main.save_project(save_dir / PROJECT_NAME, molecules_ext=".parquet")
         return None
 
-    @set_design(text=capitalize)
+    @set_design(text=capitalize, location=SimulateMenu)
     @dask_thread_worker.with_progress(desc="Simulating tomogram...")
     @confirm(
         text="You have an opened image. Run anyway?",
@@ -390,7 +462,7 @@ class Simulator(ChildWidget):
         )
         return main._send_tomogram_to_viewer.with_args(tomo)
 
-    @set_design(text=capitalize)
+    @set_design(text=capitalize, location=SimulateMenu)
     @dask_thread_worker.with_progress(desc="Simulating tomogram...")
     @confirm(
         text="You have an opened image. Run anyway?",
@@ -450,7 +522,7 @@ class Simulator(ChildWidget):
         ).set_scale(zyx=sino.scale.x, unit="nm")
         yield _on_iradon_finished.with_args(rec.mean("z"), f"N/S = {nsr:.1f}")
 
-        rec.name = "Simulated tomogram"
+        rec.name = "Simulated"
         tomo = CylTomogram.from_image(
             rec, scale=sino.scale.x, tilt=tilt_range, binsize=bin_size
         )
@@ -464,7 +536,7 @@ class Simulator(ChildWidget):
 
         return _on_return
 
-    @set_design(text=capitalize)
+    @set_design(text=capitalize, location=SimulateMenu)
     @dask_thread_worker.with_progress(desc="Simulating tilt series...")
     def simulate_tilt_series(
         self,
@@ -510,6 +582,7 @@ def _on_radon_finished(sino: ip.ImgArray, degrees: np.ndarray):
     ysize = max(4 / nx * ny, 4)
     with _Logger.set_plt():
         _, axes = plt.subplots(nrows=1, ncols=3, figsize=(12, ysize))
+        axes: list[plt.Axes]
         for i, idx in enumerate([0, n_tilt // 2, -1]):
             axes[i].imshow(sino[idx], cmap="gray")
             axes[i].set_title(f"deg = {degrees[idx]:.1f}")

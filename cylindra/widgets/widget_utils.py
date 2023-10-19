@@ -64,19 +64,17 @@ def add_molecules(
     name: str,
     source: BaseComponent | None = None,
     metadata: dict[str, Any] = {},
-    visible: bool = True,
+    **kwargs,
 ) -> MoleculesLayer:
     """Add Molecules object as a point layer."""
     app_cfg = get_config()
-    layer = MoleculesLayer(
-        mol,
+    kw = dict(
         size=app_cfg.point_size,
         face_color=app_cfg.molecules_color,
         out_of_slice_display=True,
-        name=name,
-        metadata=metadata.copy(),
-        visible=visible,
     )
+    kw.update(**kwargs)
+    layer = MoleculesLayer(mol, name=name, metadata=metadata.copy(), **kw)
     if source is not None:
         layer.source_component = source
     viewer.add_layer(layer)

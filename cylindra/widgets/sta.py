@@ -14,6 +14,7 @@ from magicclass import (
     magicclass,
     magicmenu,
     field,
+    magictoolbar,
     nogui,
     vfield,
     MagicTemplate,
@@ -409,12 +410,13 @@ class SubtomogramAveraging(ChildWidget):
     def _get_mask_params(self, *_):
         return self.params._get_mask_params()
 
-    @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)})
-    class Buttons(MagicTemplate):
+    @magictoolbar
+    class STATools(MagicTemplate):
         show_template = abstractapi()
+        show_template_original = abstractapi()
         show_mask = abstractapi()
 
-    @set_design(text="Show template", location=Buttons)
+    @set_design(icon="ic:baseline-view-in-ar", location=STATools)
     @do_not_record
     def show_template(self):
         """Load and show template image in the scale of the tomogram."""
@@ -423,7 +425,19 @@ class SubtomogramAveraging(ChildWidget):
             raise ValueError("No template to show.")
         self._show_rec(template, name="Template image", store=False)
 
-    @set_design(text="Show mask", location=Buttons)
+    @set_design(icon="material-symbols:view-in-ar", location=STATools)
+    @do_not_record
+    def show_template_original(self):
+        """Load and show template image in the original scale."""
+        path = self.params.template_path.value
+        if path is None:
+            return self.show_template()
+        if path.is_dir():
+            raise TypeError(f"Template image must be a file, got {path}.")
+        template = ip.imread(path)
+        self._show_rec(template, name="Template image", store=False)
+
+    @set_design(icon="fluent:shape-organic-20-filled", location=STATools)
     @do_not_record
     def show_mask(self):
         """Load and show mask image in the scale of the tomogram."""

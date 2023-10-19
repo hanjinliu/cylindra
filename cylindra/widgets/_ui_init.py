@@ -13,8 +13,13 @@ from magicclass import setup_function_gui, impl_preview
 import numpy as np
 from napari.utils.colormaps import label_colormap
 
-from cylindra.const import PropertyNames as H, PREVIEW_LAYER_NAME
+from cylindra.const import (
+    PropertyNames as H,
+    PREVIEW_LAYER_NAME,
+    MoleculesHeader as Mole,
+)
 from cylindra.project import CylindraProject
+from cylindra import utils
 from cylindra.widgets import widget_utils
 from cylindra.widgets.main import CylindraMainWidget
 from cylindra.widgets.sta import SubtomogramAveraging
@@ -151,8 +156,28 @@ def _preview_split_molecules(self: CylindraMainWidget, layer: MoleculesLayer, by
         unique_values = series.unique()
         # NOTE: the first color is translucent
         cmap = label_colormap(unique_values.len() + 1, seed=0.9414)
-        layer.face_color_cycle = layer.edge_color_cycle = cmap.colors[1:]
+        colors = cmap.colors[1:]
+        layer.face_color_cycle = colors
+        if layer._view_ndim == 3:
+            layer.edge_color_cycle = colors
         layer.face_color = by
+        yield
+
+
+@impl_preview(SubtomogramAveraging.seam_search_manually, auto_call=True)
+def _preview_seam_search_manual(
+    self: SubtomogramAveraging, layer: MoleculesLayer, location: int
+):
+    from cylindra.components.seam_search import ManualSeamSearcher
+
+    feat = layer.features
+    npf = utils.roundint(layer.molecules.features[Mole.pf].max() + 1)
+    seam_searcher = ManualSeamSearcher(npf)
+    result = seam_searcher.search(location)
+    series = result.as_series(feat.shape[0]).to_numpy()
+    with _temp_layer_colors(layer):
+        layer.face_color = np.where(series, "#FF005E", "#A5A5A5")
+        layer.edge_color = "#00105B"
         yield
 
 

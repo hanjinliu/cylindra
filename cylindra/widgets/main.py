@@ -2335,7 +2335,7 @@ class CylindraMainWidget(MagicTemplate):
         name: "str | None" = None,
         source: "BaseComponent | None" = None,
         metadata: "dict[str, Any]" = {},
-        visible: bool = True,
+        **kwargs,
     ) -> MoleculesLayer:
         """Add molecules as a points layer to the viewer."""
         return add_molecules(
@@ -2344,7 +2344,7 @@ class CylindraMainWidget(MagicTemplate):
             name,
             source=source,
             metadata=metadata,
-            visible=visible,
+            **kwargs,
         )
 
     @nogui
