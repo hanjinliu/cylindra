@@ -1,4 +1,4 @@
-from typing import Iterator, Annotated, Any, TYPE_CHECKING
+from typing import Callable, Iterator, Annotated, Any, TYPE_CHECKING
 
 import weakref
 
@@ -7,7 +7,9 @@ from numpy.typing import NDArray
 import matplotlib.pyplot as plt
 import impy as ip
 from scipy.spatial.transform import Rotation
+import polars as pl
 
+from magicgui.widgets import FunctionGui, RangeSlider
 from magicclass import (
     do_not_record,
     magicclass,
@@ -15,6 +17,7 @@ from magicclass import (
     magictoolbar,
     set_design,
     field,
+    setup_function_gui,
     vfield,
     confirm,
     abstractapi,
@@ -31,13 +34,14 @@ from cylindra._custom_layers import MoleculesLayer
 from cylindra.widgets.widget_utils import capitalize
 from cylindra.const import (
     FileFilter,
+    MoleculesHeader as Mole,
     nm,
     INTERPOLATION_CHOICES,
     PropertyNames as H,
     PREVIEW_LAYER_NAME,
 )
 from cylindra.utils import roundint, ceilint
-from cylindra.components import CylTomogram, CylSpline
+from cylindra.components import CylTomogram, CylSpline, CylinderModel, indexer as Idx
 from ._child_widget import ChildWidget
 
 if TYPE_CHECKING:
@@ -60,6 +64,7 @@ _NSRatios = Annotated[
 ]
 _ImageSize = Annotated[tuple[nm, nm, nm], {"label": "image size of Z, Y, X (nm)"}]
 PROJECT_NAME = "simulation-project.tar"
+SIMULATION_MODEL_KEY = "simulation-model"
 _Logger = getLogger("cylindra")
 
 
@@ -136,6 +141,9 @@ class Simulator(ChildWidget):
     class SimulatorTools(ChildWidget):
         add_component = abstractapi()
         update_cylinder_parameters = abstractapi()
+        expand = abstractapi()
+        twist = abstractapi()
+        dilate = abstractapi()
 
     component_list = field(ComponentList, name="components")
 
@@ -158,14 +166,25 @@ class Simulator(ChildWidget):
         tilt_series = ip.asarray(tilt_series, axes=["degree", "y", "x"])
         return tilt_series.set_scale(y=scale, x=scale)
 
-    def _get_monomer_layer_list(self, *_):
+    def _get_molecules_layers(self, *_):
         return list(self._get_main().mole_layers)
+
+    def _get_proper_molecules_layers(self, *_):
+        out = list[MoleculesLayer]()
+        for layer in self._get_main().mole_layers:
+            if layer.source_spline is None:
+                continue
+            mole = layer.molecules
+            cols = mole.features.columns
+            if Mole.nth in cols and Mole.pf in cols and mole.count() > 0:
+                out.append(layer)
+        return out
 
     @set_design(icon="fluent:cloud-add-16-filled", location=SimulatorTools)
     @do_not_record
     def add_component(
         self,
-        layer: Annotated[MoleculesLayer, {"choices": _get_monomer_layer_list}],
+        layer: Annotated[MoleculesLayer, {"choices": _get_molecules_layers}],
         template_path: Path.Read[FileFilter.IMAGE],
     ):
         """Add a new component"""
@@ -572,6 +591,87 @@ class Simulator(ChildWidget):
         self._get_main().save_project(save_dir / PROJECT_NAME, molecules_ext=".parquet")
         return None
 
+    @set_design(icon="iconoir:expand-lines", location=SimulatorTools)
+    def expand(
+        self,
+        layer: Annotated[MoleculesLayer, {"choices": _get_proper_molecules_layers}],
+        by: Annotated[float, {"min": -100, "max": 100}] = 0.0,
+        yrange: Annotated[tuple[int, int], {"widget_type": RangeSlider}] = (0, 1),
+        arange: Annotated[tuple[int, int], {"widget_type": RangeSlider}] = (0, 1),
+        allev: bool = False,
+    ):
+        """
+        Apply local expansion to molecules
+
+        Parameters
+        ----------
+        layer : MoleculesLayer
+            Layer to be transformed.
+        by : float
+            Amount of expansion in nm.
+        yrange : tuple of int
+            Range of Y axis to be transformed. Range is [a, b).
+        arange : tuple of int
+            Range of angle axis to be transformed. Range is [a, b).
+        allev : bool
+            Alleviation of the local expansion. If true, the surrounding molecules
+            will be shifted to alleviate the local expansion.
+        """
+        spl, model = _local_transform(
+            CylinderModel.expand, layer, by, yrange, arange, allev
+        )
+        layer.molecules = model.to_molecules(spl)
+        _set_simulation_model(layer, model)
+        return None
+
+    @set_design(icon="mingcute:rotate-x-line", location=SimulatorTools)
+    def twist(
+        self,
+        layer: Annotated[MoleculesLayer, {"choices": _get_proper_molecules_layers}],
+        by: Annotated[float, {"min": -100, "max": 100}] = 0.0,
+        yrange: Annotated[tuple[int, int], {"widget_type": RangeSlider}] = (0, 1),
+        arange: Annotated[tuple[int, int], {"widget_type": RangeSlider}] = (0, 1),
+        allev: bool = False,
+    ):
+        spl, model = _local_transform(
+            CylinderModel.twist, layer, by, yrange, arange, allev
+        )
+        layer.molecules = model.to_molecules(spl)
+        _set_simulation_model(layer, model)
+        return None
+
+    @set_design(icon="iconoir:scale-frame-enlarge", location=SimulatorTools)
+    def dilate(
+        self,
+        layer: Annotated[MoleculesLayer, {"choices": _get_proper_molecules_layers}],
+        by: Annotated[float, {"min": -100, "max": 100}] = 0.0,
+        yrange: Annotated[tuple[int, int], {"widget_type": RangeSlider}] = (0, 1),
+        arange: Annotated[tuple[int, int], {"widget_type": RangeSlider}] = (0, 1),
+        allev: bool = False,
+    ):
+        spl, model = _local_transform(
+            CylinderModel.dilate, layer, by, yrange, arange, allev
+        )
+        layer.molecules = model.to_molecules(spl)
+        _set_simulation_model(layer, model)
+        return None
+
+
+def _get_simulation_model(layer: MoleculesLayer) -> CylinderModel | None:
+    return layer.metadata.get(SIMULATION_MODEL_KEY, None)
+
+
+def _set_simulation_model(layer: MoleculesLayer, model: CylinderModel):
+    layer.metadata[SIMULATION_MODEL_KEY] = model
+
+
+def _fill_shift(yrange, arange, val: float, shape):
+    shift = np.zeros(shape, dtype=np.float32)
+    ysl = slice(*yrange)
+    asl = slice(*arange)
+    shift[ysl, asl] = val
+    return shift, Idx[ysl, asl]
+
 
 @thread_worker.callback
 def _on_radon_finished(sino: ip.ImgArray, degrees: np.ndarray):
@@ -612,3 +712,115 @@ def _norm_save_dir(save_dir) -> Path:
         save_dir.mkdir()
         _Logger.print(f"Directory created at {save_dir}.")
     return save_dir
+
+
+@setup_function_gui(Simulator.expand)
+@setup_function_gui(Simulator.twist)
+@setup_function_gui(Simulator.dilate)
+def _fetch_shape(self: Simulator, gui: FunctionGui):
+    @gui.layer.changed.connect
+    def _on_layer_change(layer: MoleculesLayer | None):
+        if layer is None:
+            return
+        df = layer.molecules.features
+        try:
+            nth = df[Mole.nth].n_unique()
+            npf = df[Mole.pf].n_unique()
+            if len(df) != nth * npf:
+                raise ValueError
+        except (KeyError, ValueError):
+            gui.yrange.enabled = gui.arange.enabled = False
+        else:
+            gui.yrange.enabled = gui.arange.enabled = True
+            gui.yrange.min = df[Mole.nth].min()
+            gui.yrange.max = df[Mole.nth].max() + 1
+            gui.arange.min = df[Mole.pf].min()
+            gui.arange.max = df[Mole.pf].max() + 1
+            gui.yrange.value = (gui.yrange.min, gui.yrange.max)
+            gui.arange.value = (gui.arange.min, gui.arange.max)
+
+    _on_layer_change(gui.layer.value)
+
+
+def _local_transform(
+    transformer: Callable[[CylinderModel, float, Idx], CylinderModel],
+    layer: MoleculesLayer,
+    by: float,
+    yrange: tuple[int, int],
+    arange: tuple[int, int],
+    allev: bool,
+) -> tuple[CylSpline, CylinderModel]:
+    model = _get_simulation_model(layer)
+    spl = layer.source_spline
+    if spl is None:
+        raise ValueError("No spline is associated with this layer.")
+    if model is None:
+        model = spl.cylinder_model()
+    shift, indexer = _fill_shift(yrange, arange, by, model.shape)
+    new_model = transformer(model, by, indexer)
+    if allev:
+        new_model = new_model.alleviate(shift != 0)
+    return spl, new_model
+
+
+@impl_preview(Simulator.expand, auto_call=True)
+def _preview_local_transform(
+    self: Simulator,
+    layer: MoleculesLayer,
+    by: float,
+    yrange: tuple[int, int],
+    arange: tuple[int, int],
+    allev: bool,
+):
+    spl, model = _local_transform(
+        CylinderModel.expand, layer, by, yrange, arange, allev
+    )
+    yield from _select_molecules(layer, yrange, arange, model, spl)
+
+
+@impl_preview(Simulator.twist, auto_call=True)
+def _preview_local_transform(
+    self: Simulator,
+    layer: MoleculesLayer,
+    by: float,
+    yrange: tuple[int, int],
+    arange: tuple[int, int],
+    allev: bool,
+):
+    spl, model = _local_transform(CylinderModel.twist, layer, by, yrange, arange, allev)
+    yield from _select_molecules(layer, yrange, arange, model, spl)
+
+
+@impl_preview(Simulator.dilate, auto_call=True)
+def _preview_local_transform(
+    self: Simulator,
+    layer: MoleculesLayer,
+    by: float,
+    yrange: tuple[int, int],
+    arange: tuple[int, int],
+    allev: bool,
+):
+    spl, model = _local_transform(
+        CylinderModel.dilate, layer, by, yrange, arange, allev
+    )
+    yield from _select_molecules(layer, yrange, arange, model, spl)
+
+
+def _select_molecules(
+    layer: MoleculesLayer,
+    yrange: tuple[int, int],
+    arange: tuple[int, int],
+    model: CylinderModel,
+    spl: CylSpline,
+):
+    out = model.to_molecules(spl)
+    layer.data = out.pos
+    if_select = out.features.select(
+        pl.col(Mole.nth).is_between(*yrange, closed="left")
+        & pl.col(Mole.pf).is_between(*arange, closed="left"),
+    )[Mole.nth].to_numpy()
+    layer.selected_data = np.where(if_select)[0]
+    layer.refresh()
+    yield
+    layer.data = layer.molecules.pos
+    layer.selected_data = {}
