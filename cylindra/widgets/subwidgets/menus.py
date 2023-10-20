@@ -337,7 +337,7 @@ class SplinesMenu(ChildWidget):
             self,
             npf_range: Annotated[tuple[int, int], {"options": {"min": 2, "max": 100}}] = (11, 17),
             spacing_range: Annotated[tuple[nm, nm], {"options": {"step": 0.05}}] = (3.9, 4.3),
-            dimer_twist_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.05}}] = (-1.0, 1.0),
+            twist_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.05}}] = (-1.0, 1.0),
             rise_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.1}}] = (0.0, 45.0),
             rise_sign: Literal[-1, 1] = -1,
             clockwise: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus",
@@ -355,8 +355,8 @@ class SplinesMenu(ChildWidget):
                 Range of protofilament number.
             spacing_range : (float, float), default is (3.9, 4.3)
                 Range of longitudinal lattice spacing.
-            dimer_twist_range : (float, float), default is (-1.0, 1.0)
-                Range of dimer twist angle in degree.
+            twist_range : (float, float), default is (-1.0, 1.0)
+                Range of twist angle in degree.
             rise_range : (float, float), default is (0.0, 45.0)
                 Range of rise angle in degree.
             rise_sign : -1 or 1, default is -1

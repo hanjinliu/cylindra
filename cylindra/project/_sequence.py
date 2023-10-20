@@ -306,7 +306,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         if suffix:
             need_rename = [
                 H.spacing,
-                H.dimer_twist,
+                H.twist,
                 H.npf,
                 H.rise,
                 H.skew,

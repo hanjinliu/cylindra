@@ -8,7 +8,7 @@ from ._const import TEST_DIR
 coords_13pf = [[18.97, 190.0, 28.99], [18.97, 107.8, 51.48], [18.97, 35.2, 79.90]]
 coords_14pf = [[21.97, 123.1, 32.98], [21.97, 83.3, 40.5], [21.97, 17.6, 64.96]]
 
-params = [(coords_13pf, 13, 8.3, (-0.1, 0.1)), (coords_14pf, 14, 7.5, (-0.5, -0.25))]
+params = [(coords_13pf, 13, 8.3, (0.0, 0.05)), (coords_14pf, 14, 7.5, (-0.25, -0.13))]
 
 
 @pytest.mark.parametrize(["coords", "npf", "rise", "twist_range"], params)
@@ -60,12 +60,12 @@ def test_run_all(coords, npf, rise, twist_range):
     assert all(spl.props.loc[H.npf] == npf)
     assert all(spl.props.loc[H.rise] > rise)
     tw_min, tw_max = twist_range
-    assert tw_min < spl.props.get_glob(H.dimer_twist) < tw_max
+    assert tw_min < spl.props.get_glob(H.twist) < tw_max
 
     # check cylinder parameters
     cp = tomo.splines[0].cylinder_params()
     assert cp.spacing == pytest.approx(spacing_glob, abs=1e-6)
-    assert cp.dimer_twist == pytest.approx(spl.props.get_glob(H.dimer_twist), abs=1e-6)
+    assert cp.twist == pytest.approx(spl.props.get_glob(H.twist), abs=1e-6)
     assert cp.skew == pytest.approx(spl.props.get_glob(H.skew), abs=1e-6)
     assert cp.rise_angle == pytest.approx(spl.props.get_glob(H.rise), abs=1e-6)
 
@@ -113,16 +113,6 @@ def test_chunked_straightening():
     st1 = tomo.straighten_cylindric(i=0, chunk_length=32, binsize=2)
     assert st0.shape == st1.shape
     assert_allclose(st0.value, st1.value)
-
-    # from cylindra.components._ftprops import LatticeAnalyzer
-
-    # spl = tomo.splines[0]
-    # analyzer = LatticeAnalyzer(spl.config)
-    # prop0 = analyzer.estimate_lattice_params_polar(st0, spl.radius)
-    # prop1 = analyzer.estimate_lattice_params_polar(st1, spl.radius)
-
-    # assert prop0.spacing == pytest.approx(prop1.spacing, abs=1e-6)
-    # assert prop0.dimer_twist == pytest.approx(prop1.dimer_twist, abs=1e-6)
 
 
 @pytest.mark.parametrize("orientation", [None, "PlusToMinus", "MinusToPlus"])

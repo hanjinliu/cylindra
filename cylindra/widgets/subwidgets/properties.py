@@ -36,7 +36,7 @@ class LabeledText(FieldGroup):
 _PlotInfo = {
     H.spacing: ("spacing (nm)", "lime"),
     H.pitch: ("pitch (nm)", "green"),
-    H.dimer_twist: ("dimer twist (deg)", "gold"),
+    H.twist: ("twist (deg)", "gold"),
     H.skew: ("skew angle (deg)", "orange"),
     H.rise: ("rise angle (deg)", "cyan"),
     H.rise_length: ("rise length (nm)", "lightblue"),
@@ -69,7 +69,7 @@ class LocalPropertiesWidget(ChildWidget):
         """Structural parameters at the current position"""
 
         spacing = LabeledText("spacing")
-        dimer_twist = LabeledText("dimer twist")
+        twist = LabeledText("twist")
         rise = LabeledText("rise angle")
         structure = LabeledText("structure")
 
@@ -84,19 +84,19 @@ class LocalPropertiesWidget(ChildWidget):
         # Initialize multi-plot canvas
         self.plot.min_height = 300
         self._props_to_plot = list[str]()
-        self._set_properties_to_plot([H.spacing, H.dimer_twist, H.rise])
+        self._set_properties_to_plot([H.spacing, H.twist, H.rise])
         self._init_text()
 
     def _init_text(self):
         self.params.spacing.txt = " -- nm"
-        self.params.dimer_twist.txt = " -- °"
+        self.params.twist.txt = " -- °"
         self.params.rise.txt = " -- °"
         self.params.structure.txt = " -- "
         return None
 
     def _set_text(self, spl: "CylSpline", i: int):
         self.params.spacing.txt = f" {spl.props.get_loc(H.spacing)[i]:.2f} nm"
-        self.params.dimer_twist.txt = f" {spl.props.get_loc(H.dimer_twist)[i]:.2f}°"
+        self.params.twist.txt = f" {spl.props.get_loc(H.twist)[i]:.2f}°"
         self.params.rise.txt = f" {spl.props.get_loc(H.rise)[i]:.2f}°"
         npf = int(spl.props.get_loc(H.npf)[i])
         start = spl.props.get_loc(H.start)[i]
@@ -166,7 +166,7 @@ class LocalPropertiesWidget(ChildWidget):
     @set_design(text="Edit plots", location=footer)
     def edit_props(
         self,
-        props: Annotated[list[str], {"widget_type": CheckBoxes, "choices": _PlotInfo.keys()}] = (H.spacing, H.dimer_twist, H.rise)
+        props: Annotated[list[str], {"widget_type": CheckBoxes, "choices": _PlotInfo.keys()}] = (H.spacing, H.twist, H.rise)
     ):  # fmt: skip
         self._set_properties_to_plot(props)
         self._props_changed.emit(props)
@@ -217,7 +217,7 @@ class GlobalPropertiesWidget(MagicTemplate):
         )
         class params1(MagicTemplate):
             spacing = LabeledText("spacing")
-            dimer_twist = LabeledText("dimer twist")
+            twist = LabeledText("twist")
             rise = LabeledText("rise angle")
             structure = LabeledText("structure")
 
@@ -230,7 +230,7 @@ class GlobalPropertiesWidget(MagicTemplate):
 
     def _init_text(self):
         self.params.params1.spacing.txt = " -- nm"
-        self.params.params1.dimer_twist.txt = " -- °"
+        self.params.params1.twist.txt = " -- °"
         self.params.params1.rise.txt = " -- °"
         self.params.params1.structure.txt = " -- "
         self.params.params2.radius.txt = " -- nm"
@@ -239,7 +239,7 @@ class GlobalPropertiesWidget(MagicTemplate):
 
     def _set_text(self, spl: "CylSpline"):
         self.params.params1.spacing.txt = f" {_fmt_prop(spl, H.spacing)} nm"
-        self.params.params1.dimer_twist.txt = f" {_fmt_prop(spl, H.dimer_twist)}°"
+        self.params.params1.twist.txt = f" {_fmt_prop(spl, H.twist)}°"
         self.params.params1.rise.txt = f" {_fmt_prop(spl, H.rise)}°"
         npf = spl.props.get_glob(H.npf, None)
         start = spl.props.get_glob(H.start, None)

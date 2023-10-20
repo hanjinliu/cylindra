@@ -323,10 +323,10 @@ class CylindraMainWidget(MagicTemplate):
 
     def _get_all_spline_ids(self, splines: list[int] = None) -> list[int]:
         nspl = len(self.tomogram.splines)
-        if not hasattr(splines, "__iter__"):
-            splines = [int(splines)]
-        elif splines is None:
+        if splines is None:
             splines = list(range(nspl))
+        elif not hasattr(splines, "__iter__"):
+            splines = [int(splines)]
         else:
             for i in splines:
                 if i >= nspl:
@@ -933,7 +933,7 @@ class CylindraMainWidget(MagicTemplate):
         i: Annotated[int, {"bind": _get_spline_idx}],
         npf_range: Annotated[tuple[int, int], {"options": {"min": 2, "max": 100}}] = (11, 17),
         spacing_range: Annotated[tuple[nm, nm], {"options": {"step": 0.05}}] = (3.9, 4.3),
-        dimer_twist_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.05}}] = (-1.0, 1.0),
+        twist_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.05}}] = (-1.0, 1.0),
         rise_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.1}}] = (0.0, 45.0),
         rise_sign: Literal[-1, 1] = -1,
         clockwise: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus",
@@ -2263,7 +2263,7 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker.with_progress(desc="Paint cylinders ...")
     def paint_cylinders(
         self,
-        color_by: Annotated[str, {"choices": [H.spacing, H.dimer_twist, H.rise, H.npf]}] = H.spacing,
+        color_by: Annotated[str, {"choices": [H.spacing, H.twist, H.rise, H.npf]}] = H.spacing,
         cmap: _CmapType = DEFAULT_COLORMAP,
         limits: Optional[tuple[float, float]] = (3.95, 4.28),
     ):  # fmt: skip
@@ -2288,15 +2288,15 @@ class CylindraMainWidget(MagicTemplate):
         # Labels layer properties
         _id = "ID"
         _str = "structure"
-        columns = [_id, H.rise, H.spacing, H.dimer_twist, _str]
+        columns = [_id, H.rise, H.spacing, H.twist, _str]
         df = (
-            all_df.select([H.spline_id, H.pos_id, H.rise, H.spacing, H.dimer_twist, H.npf, H.start])
+            all_df.select([H.spline_id, H.pos_id, H.rise, H.spacing, H.twist, H.npf, H.start])
             .with_columns(
                 pl.format("{}-{}", pl.col(H.spline_id), pl.col(H.pos_id)).alias(_id),
                 pl.format("{}_{}", pl.col(H.npf), pl.col(H.start)).alias(_str),
                 pl.col(H.rise),
                 pl.col(H.spacing),
-                pl.col(H.dimer_twist),
+                pl.col(H.twist),
             )
         )  # fmt: skip
         back = pl.DataFrame([pl.Series(_id, [None], dtype=pl.Utf8)])
@@ -2570,7 +2570,7 @@ class CylindraMainWidget(MagicTemplate):
             return
         j = self.SplineControl.pos
         spl = tomo.splines[i]
-        if spl.props.has_loc([H.spacing, H.dimer_twist, H.npf, H.start]):
+        if spl.props.has_loc([H.spacing, H.twist, H.npf, H.start]):
             self.LocalProperties._set_text(spl, j)
         else:
             self.LocalProperties._init_plot()
@@ -2629,8 +2629,8 @@ class CylindraMainWidget(MagicTemplate):
         fgui = get_function_gui(self.simulator.generate_molecules)
         fgui.spacing.min, fgui.spacing.max = cfg.spacing_range.astuple()
         fgui.spacing.value = cfg.spacing_range.center
-        fgui.dimer_twist.min, fgui.dimer_twist.max = cfg.dimer_twist_range.astuple()
-        fgui.dimer_twist.value = cfg.dimer_twist_range.center
+        fgui.twist.min, fgui.twist.max = cfg.twist_range.astuple()
+        fgui.twist.value = cfg.twist_range.center
         fgui.npf.min, fgui.npf.max = cfg.npf_range.astuple()
         fgui.npf.value = int(cfg.npf_range.center)
 

@@ -23,7 +23,7 @@ class LatticeParams(NamedTuple):
     pitch: nm
     spacing: nm
     skew: float
-    dimer_twist: float
+    twist: float
     npf: int
     start: int
 
@@ -40,7 +40,7 @@ class LatticeParams(NamedTuple):
             (H.pitch, pl.Float32),
             (H.spacing, pl.Float32),
             (H.skew, pl.Float32),
-            (H.dimer_twist, pl.Float32),
+            (H.twist, pl.Float32),
             (H.npf, pl.UInt8),
             (H.start, pl.Int8),
         ]
@@ -86,7 +86,7 @@ class LatticeAnalyzer:
             pitch=cparams.pitch,
             spacing=cparams.spacing,
             skew=cparams.skew,
-            dimer_twist=cparams.dimer_twist,
+            twist=cparams.twist,
             npf=cparams.npf,
             start=cparams.start,
         )
@@ -124,7 +124,7 @@ class LatticeAnalyzer:
         spacing_arr = np.array(self._cfg.spacing_range.aslist())[np.newaxis]
         y_factor = np.abs(radius / spacing_arr / img.shape.a * img.shape.y / 2)
         tan_skew_min, tan_skew_max = (
-            math.tan(math.radians(s)) for s in self._cfg.dimer_twist_range.aslist()
+            math.tan(math.radians(s)) for s in self._cfg.twist_range.aslist()
         )
         npf_min_max = np.array(self._cfg.npf_range.aslist())
         return dict(
@@ -199,7 +199,7 @@ class LatticeAnalyzer:
             pitch=cparams.pitch,
             spacing=cparams.spacing,
             skew=cparams.skew,
-            dimer_twist=cparams.dimer_twist,
+            twist=cparams.twist,
             npf=cparams.npf,
             start=cparams.start,
         )

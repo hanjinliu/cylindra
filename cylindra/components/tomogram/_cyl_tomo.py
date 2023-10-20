@@ -454,7 +454,7 @@ class CylTomogram(Tomogram):
         """
         LOGGER.info(f"Running: {self.__class__.__name__}.refine, i={i}")
         spl = self.splines[i]
-        _required = [H.spacing, H.dimer_twist, H.npf]
+        _required = [H.spacing, H.twist, H.npf]
         if not spl.props.has_glob(_required):
             if (radius := spl.radius) is None:
                 radius = self.measure_radius(
@@ -475,15 +475,15 @@ class CylTomogram(Tomogram):
         # Calculate Fourier parameters by cylindrical transformation along spline.
         # Skew angles are divided by the angle of single protofilament and the residual
         # angles are used, considering missing wedge effect.
-        dimer_space = gdict[H.spacing] * 2
-        dimer_twist = gdict[H.dimer_twist]
+        space = gdict[H.spacing]
+        twist = gdict[H.twist]
         npf = roundint(gdict[H.npf])
 
-        LOGGER.info(f" >> Parameters: spacing = {dimer_space/2:.2f} nm, dimer_twist = {dimer_twist:.3f} deg, PF = {npf}")  # fmt: skip
+        LOGGER.info(f" >> Parameters: spacing = {space/2:.2f} nm, twist = {twist:.3f} deg, PF = {npf}")  # fmt: skip
 
         # complement twisting
         pf_ang = 360 / npf
-        twists = _get_twists(spl.length(), ancs.size, dimer_space, dimer_twist, npf)
+        twists = _get_twists(spl.length(), ancs.size, space, twist, npf)
         scale = self.scale * binsize
         loader = _prep_loader_for_refine(self, spl, ancs, binsize, twists)
         subtomograms = ip.asarray(loader.asnumpy(), axes="pzyx")
@@ -733,7 +733,7 @@ class CylTomogram(Tomogram):
             gprops = lprops.select(
                 pl.col(H.spacing).mean(),
                 pl.col(H.pitch).mean(),
-                pl.col(H.dimer_twist).mean(),
+                pl.col(H.twist).mean(),
                 pl.col(H.skew).mean(),
                 pl.col(H.rise).mean(),
                 pl.col(H.rise_length).mean(),
@@ -1076,11 +1076,11 @@ class CylTomogram(Tomogram):
             Molecules object with mapped coordinates and angles.
         """
         spl = self.splines[i]
-        if spl.props.has_glob([H.spacing, H.dimer_twist]):
+        if spl.props.has_glob([H.spacing, H.twist]):
             self.global_ft_params(i=i)
 
         spacing = spl.props.get_glob(H.spacing)
-        twist = spl.props.get_glob(H.dimer_twist) / 2
+        twist = spl.props.get_glob(H.twist) / 2
 
         # Check length.
         length = spl.length()
@@ -1221,10 +1221,10 @@ class CylTomogram(Tomogram):
             Object that represents protofilament positions and angles.
         """
         spl = self.splines[i]
-        if not spl.props.has_glob([H.spacing, H.dimer_twist]):
+        if not spl.props.has_glob([H.spacing, H.twist]):
             self.global_ft_params(i=i, nsamples=1)
         spacing = spl.props.get_glob(H.spacing)
-        twist = spl.props.get_glob(H.dimer_twist) / 2
+        twist = spl.props.get_glob(H.twist) / 2
 
         ny = roundint(spl.length() / interval)
         skew_rad = np.deg2rad(twist) * interval / spacing
@@ -1354,12 +1354,12 @@ def _prep_loader_for_refine(
 def _get_twists(
     length: float,
     nancs: int,
-    dimer_space: float,
-    dimer_twist: float,
+    space: float,
+    twist: float,
     npf: int,
 ):
     twist_interv = length / (nancs - 1)
-    twists = np.arange(nancs) * twist_interv / dimer_space * dimer_twist
+    twists = np.arange(nancs) * twist_interv / space * twist
     pf_ang = 360 / npf
     twists %= pf_ang
     twists[twists > pf_ang / 2] -= pf_ang

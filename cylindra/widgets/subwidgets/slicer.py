@@ -141,7 +141,7 @@ class SplineSlicer(ChildWidget):
             f"{_col('spacing:')} {params.spacing:.3f} nm<br>"
             f"{_col('rise angle:')} {params.rise_angle:.3f} °<br>"
             f"{_col('rise length:')} {params.rise_length:.3f} nm<br>"
-            f"{_col('dimer twist:')} {params.dimer_twist:.3f} °<br>"
+            f"{_col('twist:')} {params.twist:.3f} °<br>"
             f"{_col('skew angle:')} {params.skew:.3f} °<br>"
             f"{_col('PF:')} {params.npf}<br>"
             f"{_col('start:')} {params.start}"

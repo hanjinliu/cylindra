@@ -13,6 +13,7 @@ from magicclass.utils import thread_worker
 from cylindra import view_project, _config, cylstructure
 from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets.sta import MASK_CHOICES
+from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import PropertyNames as H, MoleculesHeader as Mole
 import pytest
 from .utils import pytest_group, ExceptionGroup
@@ -682,7 +683,7 @@ def test_simulator(ui: CylindraMainWidget):
     ui.simulator.generate_molecules(
         spline=0,
         spacing=4.1,
-        dimer_twist=-0.30,
+        twist=-0.30,
         start=3,
         npf=14,
         radius=9.14,
@@ -701,7 +702,7 @@ def test_simulate_tomogram(ui: CylindraMainWidget):
     ui.simulator.generate_molecules(
         spline=0,
         spacing=4.06,
-        dimer_twist=-0.31,
+        twist=-0.31,
         start=3,
         npf=14,
         radius=11.8,
@@ -893,7 +894,7 @@ def test_calc_lattice_structures(ui: CylindraMainWidget):
         ui.load_project(path, filter=None, paint=False, read_image=False)
         spacing = ui.tomogram.splines[0].props.get_glob(H.spacing)
         skew = ui.tomogram.splines[0].props.get_glob(H.skew)
-        dimer_twist = ui.tomogram.splines[0].props.get_glob(H.dimer_twist)
+        twist = ui.tomogram.splines[0].props.get_glob(H.twist)
         rise_angle = ui.tomogram.splines[0].props.get_glob(H.rise)
         npf = ui.tomogram.splines[0].props.get_glob(H.npf)
         if invert:
@@ -901,21 +902,21 @@ def test_calc_lattice_structures(ui: CylindraMainWidget):
         ui.mole_layers.clear()
         ui.map_monomers(splines=[0], orientation=orientation)
         layer = ui.mole_layers.last()
-        ui.calculate_lattice_structure(layer, ["interv", "skew", "dimer_twist", "rise"])
+        ui.calculate_lattice_structure(layer, ["interv", "skew", "twist", "rise"])
         ay_ratio: float = np.sin(np.pi / npf) * npf / np.pi
         with exc_group.merging(f"ori={orientation}, path={path.name}, inv={invert}"):
             # individial parameters must be almost equal to the global ones
             feat = layer.molecules.features
-            spacing_sm = feat["interval-nm"][npf:-npf]
-            skew_sm = feat["skew-deg"][npf:-npf] / ay_ratio
-            twist_sm = feat["dimer-twist-deg"][npf:-npf]
-            r = "rise-angle-deg"
+            spacing_sm = feat[Mole.spacing][npf:-npf]
+            skew_sm = feat[Mole.skew][npf:-npf] / ay_ratio
+            twist_sm = feat[Mole.twist][npf:-npf]
+            r = Mole.rise
             feat_rise = feat.filter(pl.col(r).is_finite() & pl.col(r).is_not_nan())[r]
             rise_sm = feat_rise * ay_ratio
 
             assert spacing_sm.mean() == pytest.approx(spacing, abs=1e-3)
             assert skew_sm.mean() == pytest.approx(skew, abs=1e-2)
-            assert twist_sm.mean() == pytest.approx(dimer_twist, abs=1e-2)
+            assert twist_sm.mean() == pytest.approx(twist, abs=1e-2)
             assert rise_sm.mean() == pytest.approx(rise_angle, abs=1e-2)
 
     exc_group.raise_exceptions()

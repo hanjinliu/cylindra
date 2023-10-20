@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 
 _SPLINE_FEATURES = [
     H.spacing,
-    H.dimer_twist,
+    H.twist,
     H.npf,
     H.start,
     H.rise,

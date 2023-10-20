@@ -284,7 +284,7 @@ class Simulator(ChildWidget):
         self,
         spline: Annotated[int, {"bind": _get_spline_idx}],
         spacing: Annotated[nm, {"min": 0.2, "max": 100.0, "step": 0.01, "label": "spacing (nm)"}] = 1.0,
-        dimer_twist: Annotated[float, {"min": -45.0, "max": 45.0, "label": "dimer twist (deg)"}] = 0.0,
+        twist: Annotated[float, {"min": -45.0, "max": 45.0, "label": "twist (deg)"}] = 0.0,
         start: Annotated[int, {"min": -50, "max": 50, "label": "start"}] = 0,
         npf: Annotated[int, {"min": 1, "label": "number of PF"}] = 2,
         radius: Annotated[nm, {"min": 0.5, "max": 50.0, "step": 0.5, "label": "radius (nm)"}] = 10.0,
@@ -300,8 +300,8 @@ class Simulator(ChildWidget):
         ----------
         spacing : nm
             Axial spacing between molecules.
-        dimer_twist : float
-            Dimer twist of the cylinder.
+        twist : float
+            Monomer twist of the cylinder.
         start : int
             The start number.
         npf : int
@@ -312,7 +312,7 @@ class Simulator(ChildWidget):
         # NOTE: these parameters are hard-coded for microtubule for now.
         main = self._get_main()
         spl = main.splines[spline]
-        model = self._prep_model(spl, spacing, dimer_twist, start, npf, radius, offsets)
+        model = self._prep_model(spl, spacing, twist, start, npf, radius, offsets)
         mole = model.to_molecules(spl)
         layer = main.add_molecules(mole, name=f"Mole(Sim)-{spline}", source=spl)
         _set_simulation_model(layer, model)
@@ -322,7 +322,7 @@ class Simulator(ChildWidget):
         self,
         spline: int,
         spacing: nm,
-        dimer_twist: float,
+        twist: float,
         start: int,
         npf: int,
         radius: nm,
@@ -330,7 +330,7 @@ class Simulator(ChildWidget):
     ):
         main = self._get_main()
         spl = main.splines[spline]
-        model = self._prep_model(spl, spacing, dimer_twist, start, npf, radius, offsets)
+        model = self._prep_model(spl, spacing, twist, start, npf, radius, offsets)
         out = model.to_molecules(spl)
         viewer = main.parent_viewer
         if PREVIEW_LAYER_NAME in viewer.layers:
@@ -348,7 +348,7 @@ class Simulator(ChildWidget):
         self,
         spl: CylSpline,
         spacing: nm,
-        dimer_twist: float,
+        twist: float,
         start: int,
         npf: int,
         radius: nm,
@@ -356,7 +356,7 @@ class Simulator(ChildWidget):
     ) -> CylinderModel:
         kwargs = {
             H.spacing: spacing,
-            H.dimer_twist: dimer_twist,
+            H.twist: twist,
             H.start: start,
             H.npf: npf,
             H.radius: radius,

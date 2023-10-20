@@ -26,9 +26,9 @@ def calc_interval(
             _interv_vec = surf.project_vector(_interv_vec, _start)
         _y_interv = np.sqrt(np.sum(_interv_vec**2, axis=1))
         _y_interv[-1] = -np.inf  # fill invalid values with 0
-        new_feat = pl.Series(Mole.interval, _y_interv).cast(pl.Float32)
+        new_feat = pl.Series(Mole.spacing, _y_interv).cast(pl.Float32)
         subsets.append(sub.with_features(new_feat))
-    return _concat_groups(subsets).features[Mole.interval]
+    return _concat_groups(subsets).features[Mole.spacing]
 
 
 def calc_elevation_angle(mole: Molecules, spl: CylSpline) -> pl.Series:
@@ -62,8 +62,8 @@ def calc_skew(mole: Molecules, spl: CylSpline) -> pl.Series:
     return _concat_groups(subsets).features[Mole.skew]
 
 
-def calc_dimer_twist(mole: Molecules, spl: CylSpline) -> pl.Series:
-    """Calculate the dimer twist of each molecule to the next one."""
+def calc_twist(mole: Molecules, spl: CylSpline) -> pl.Series:
+    """Calculate the twist of each molecule to the next one."""
     subsets = list[Molecules]()
     spacing = spl.props.get_glob(H.spacing)
     radius = spl.props.get_glob(H.radius)
@@ -73,12 +73,12 @@ def calc_dimer_twist(mole: Molecules, spl: CylSpline) -> pl.Series:
         _start = _mole_to_coords(sub)
         _interv_proj = surf.project_vector(_interv_vec, _start)
         _twist_sin = _arcsin(spacing * surf.long_sin(_interv_proj, _start) / radius)
-        _twist = np.rad2deg(2 * _arcsin(_twist_sin))
+        _twist = np.rad2deg(_arcsin(_twist_sin))
         _twist[-1] = -np.inf
-        new_feat = pl.Series(Mole.dimer_twist, _twist, dtype=pl.Float32)
+        new_feat = pl.Series(Mole.twist, _twist, dtype=pl.Float32)
         subsets.append(sub.with_features(new_feat))
 
-    return _concat_groups(subsets).features[Mole.dimer_twist]
+    return _concat_groups(subsets).features[Mole.twist]
 
 
 def calc_radius(mole: Molecules, spl: CylSpline) -> pl.Series:
@@ -276,7 +276,7 @@ def _arcsin(x: NDArray[np.float32]) -> NDArray[np.float32]:
 class LatticeParameters(Enum):
     interv = "interv"
     elev_angle = "elev_angle"
-    dimer_twist = "dimer_twist"
+    twist = "twist"
     skew = "skew"
     radius = "radius"
     rise = "rise"
@@ -289,8 +289,8 @@ class LatticeParameters(Enum):
                 return calc_interval(mole, spl)
             case LatticeParameters.elev_angle:
                 return calc_elevation_angle(mole, spl)
-            case LatticeParameters.dimer_twist:
-                return calc_dimer_twist(mole, spl)
+            case LatticeParameters.twist:
+                return calc_twist(mole, spl)
             case LatticeParameters.skew:
                 return calc_skew(mole, spl)
             case LatticeParameters.radius:

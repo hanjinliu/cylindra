@@ -133,7 +133,7 @@ class CylSpline(Spline):
         radius += (self.config.thickness_outer - self.config.thickness_inner) / 2
         return CylindricParameters.solve(
             spacing=_get_globalprops(self, kwargs, H.spacing),
-            dimer_twist=_get_globalprops(self, kwargs, H.dimer_twist),
+            twist=_get_globalprops(self, kwargs, H.twist),
             skew=_get_globalprops(self, kwargs, H.skew),
             rise_angle=_get_globalprops(self, kwargs, H.rise),
             radius=radius,
