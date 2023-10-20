@@ -78,7 +78,13 @@ class local_skew(Simulator):
             0, spacing=4.1, twist=0.0, start=3, radius=11.2, npf=13
         )
         for sk, yrange in zip([-0.15, -0.05, 0.05, 0.15], POSITIONS):
-            self.ui.simulator.twist(by=sk, yrange=yrange, arange=(0, 13), allev=False)
+            self.ui.simulator.twist(
+                self.ui.mole_layers.last(),
+                by=sk,
+                yrange=yrange,
+                arange=(0, 13),
+                allev=False,
+            )
         return np.array([[30, 30, 30], [30, 210, 30]])
 
     def results(self):
@@ -243,17 +249,16 @@ class Main(MagicTemplate):
         coords = simulator.prepare()
         results = []
         with tempfile.TemporaryDirectory() as tmpdir:
-            tmpfile = Path(tmpdir) / "image.mrc"
             ui.simulator.simulate_tilt_series(
                 components=[(ui.mole_layers.last().name, TEMPLATE_PATH)],
-                save_path=tmpfile,
+                save_dir=tmpdir,
+                tilt_range=(-60, 60),
                 n_tilt=n_tilt,
-                scale=scale,
             )
             for _rep in range(nrepeat):
                 for _idx, _nsr in enumerate(nsr):
                     ui.simulator.simulate_tomogram_from_tilt_series(
-                        path=tmpfile,
+                        path=Path(tmpdir) / "image.mrc",
                         nsr=_nsr,
                         bin_size=binsize,
                         tilt_range=(-60, 60),

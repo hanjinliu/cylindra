@@ -835,9 +835,9 @@ def _fetch_shape(self: Simulator, gui: FunctionGui):
         else:
             gui.yrange.enabled = gui.arange.enabled = True
             gui.yrange.min = df[Mole.nth].min()
-            gui.yrange.max = df[Mole.nth].max()
+            gui.yrange.max = df[Mole.nth].max() + 1
             gui.arange.min = df[Mole.pf].min()
-            gui.arange.max = df[Mole.pf].max()
+            gui.arange.max = df[Mole.pf].max() + 1
             gui.yrange.value = (gui.yrange.min, gui.yrange.max)
             gui.arange.value = (gui.arange.min, gui.arange.max)
 

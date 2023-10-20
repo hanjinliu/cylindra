@@ -63,14 +63,14 @@ def calc_skew(mole: Molecules, spl: CylSpline) -> pl.Series:
 def calc_twist(mole: Molecules, spl: CylSpline) -> pl.Series:
     """Calculate the twist of each molecule to the next one."""
     subsets = list[Molecules]()
-    spacing = spl.props.get_glob(H.spacing)
-    radius = spl.props.get_glob(H.radius)
+    radius = calc_radius(mole, spl).mean()
     for _, sub in _groupby_with_index(mole, Mole.pf):
         surf = CylinderSurface(spl)
         _interv_vec = np.diff(sub.pos, axis=0, append=0)
         _start = _mole_to_coords(sub)
         _interv_proj = surf.project_vector(_interv_vec, _start)
-        _twist_sin = _arcsin(spacing * surf.long_sin(_interv_proj, _start) / radius)
+        _spacing = np.sqrt(np.sum(_interv_proj**2, axis=1))
+        _twist_sin = _spacing * surf.long_sin(_interv_proj, _start) / radius
         _twist = np.rad2deg(_arcsin(_twist_sin))
         _twist[-1] = -np.inf
         new_feat = pl.Series(Mole.twist, _twist, dtype=pl.Float32)
