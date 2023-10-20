@@ -4,7 +4,6 @@ import weakref
 
 import numpy as np
 from numpy.typing import NDArray
-import matplotlib.pyplot as plt
 import impy as ip
 from scipy.spatial.transform import Rotation
 import polars as pl
@@ -23,15 +22,16 @@ from magicclass import (
     abstractapi,
     impl_preview,
 )
-from magicclass.types import Path, Optional
+from magicclass.types import Path, Optional, ExprStr
 from magicclass.logging import getLogger
+from magicclass.widgets import Separator
 from magicclass.utils import thread_worker
 from magicclass.ext.dask import dask_thread_worker
 
 from acryo import TomogramSimulator, pipe
 
 from cylindra._custom_layers import MoleculesLayer
-from cylindra.widgets.widget_utils import capitalize
+from cylindra.widgets.widget_utils import capitalize, POLARS_NAMESPACE
 from cylindra.const import (
     FileFilter,
     MoleculesHeader as Mole,
@@ -141,10 +141,12 @@ class Simulator(ChildWidget):
     @magictoolbar
     class SimulatorTools(ChildWidget):
         add_component = abstractapi()
+        sep0 = field(Separator)
         generate_molecules = abstractapi()
         expand = abstractapi()
         twist = abstractapi()
         dilate = abstractapi()
+        displace = abstractapi()
 
     component_list = field(ComponentList, name="components")
 
@@ -221,7 +223,8 @@ class Simulator(ChildWidget):
         img = ip.zeros(shape, axes="zyx", name="Empty image")
         img.scale_unit = "nm"
         val = 100 * binsize**3
-        img[:, 0, :] = img[:, -1, :] = img[:, :, 0] = img[:, :, -1] = val / 2
+        img[0, 0, 0] = img[0, -1, 0] = img[-1, 0, 0] = img[-1, -1, 0] = val
+        img[0, 0, -1] = img[0, -1, -1] = img[-1, 0, -1] = img[-1, -1, -1] = val
         tomo = CylTomogram.from_image(img, scale=scale, binsize=binsize)
         tomo.metadata["is_dummy"] = True
         parent._macro_offset = len(parent.macro)
@@ -309,19 +312,10 @@ class Simulator(ChildWidget):
         # NOTE: these parameters are hard-coded for microtubule for now.
         main = self._get_main()
         spl = main.splines[spline]
-        spl.props.update_glob(
-            {
-                H.spacing: spacing,
-                H.dimer_twist: dimer_twist,
-                H.start: start,
-                H.npf: npf,
-                H.radius: radius,
-            }
-        )
-        mole = self._prep_molecules(
-            spl, spacing, dimer_twist, start, npf, radius, offsets
-        )
-        main.add_molecules(mole, name=f"Mole(Sim)-{spline}", source=spl)
+        model = self._prep_model(spl, spacing, dimer_twist, start, npf, radius, offsets)
+        mole = model.to_molecules(spl)
+        layer = main.add_molecules(mole, name=f"Mole(Sim)-{spline}", source=spl)
+        _set_simulation_model(layer, model)
 
     @impl_preview(generate_molecules, auto_call=True)
     def _preview_generate_molecules(
@@ -336,9 +330,8 @@ class Simulator(ChildWidget):
     ):
         main = self._get_main()
         spl = main.splines[spline]
-        out = self._prep_molecules(
-            spl, spacing, dimer_twist, start, npf, radius, offsets
-        )
+        model = self._prep_model(spl, spacing, dimer_twist, start, npf, radius, offsets)
+        out = model.to_molecules(spl)
         viewer = main.parent_viewer
         if PREVIEW_LAYER_NAME in viewer.layers:
             layer: Layer = viewer.layers[PREVIEW_LAYER_NAME]
@@ -351,7 +344,7 @@ class Simulator(ChildWidget):
         if not is_active and layer in viewer.layers:
             viewer.layers.remove(layer)
 
-    def _prep_molecules(
+    def _prep_model(
         self,
         spl: CylSpline,
         spacing: nm,
@@ -360,7 +353,7 @@ class Simulator(ChildWidget):
         npf: int,
         radius: nm,
         offsets: tuple[float, float],
-    ):
+    ) -> CylinderModel:
         kwargs = {
             H.spacing: spacing,
             H.dimer_twist: dimer_twist,
@@ -369,7 +362,7 @@ class Simulator(ChildWidget):
             H.radius: radius,
         }
         model = spl.cylinder_model(offsets=offsets, **kwargs)
-        return model.to_molecules(spl)
+        return model
 
     def _get_components(self, *_):
         return self.component_list._as_input()
@@ -628,7 +621,7 @@ class Simulator(ChildWidget):
         allev: bool = False,
     ):
         """
-        Apply local expansion to molecules
+        Apply local expansion to molecules.
 
         Parameters
         ----------
@@ -660,8 +653,25 @@ class Simulator(ChildWidget):
         arange: Annotated[tuple[int, int], {"widget_type": RangeSlider}] = (0, 1),
         allev: bool = False,
     ):
+        """
+        Apply local twist to molecules.
+
+        Parameters
+        ----------
+        layer : MoleculesLayer
+            Layer to be transformed.
+        by : float
+            Amount of twist in degree.
+        yrange : tuple of int
+            Range of Y axis to be transformed. Range is [a, b).
+        arange : tuple of int
+            Range of angle axis to be transformed. Range is [a, b).
+        allev : bool
+            Alleviation of the local expansion. If true, the surrounding molecules
+            will be shifted to alleviate the local expansion.
+        """
         spl, model = _local_transform(
-            CylinderModel.twist, layer, by, yrange, arange, allev
+            CylinderModel.twist, layer, np.deg2rad(by), yrange, arange, allev
         )
         layer.molecules = model.to_molecules(spl)
         _set_simulation_model(layer, model)
@@ -676,6 +686,23 @@ class Simulator(ChildWidget):
         arange: Annotated[tuple[int, int], {"widget_type": RangeSlider}] = (0, 1),
         allev: bool = False,
     ):
+        """
+        Apply local dilation to molecules.
+
+        Parameters
+        ----------
+        layer : MoleculesLayer
+            Layer to be transformed.
+        by : float
+            Amount of dilation in nm.
+        yrange : tuple of int
+            Range of Y axis to be transformed. Range is [a, b).
+        arange : tuple of int
+            Range of angle axis to be transformed. Range is [a, b).
+        allev : bool
+            Alleviation of the local expansion. If true, the surrounding molecules
+            will be shifted to alleviate the local expansion.
+        """
         spl, model = _local_transform(
             CylinderModel.dilate, layer, by, yrange, arange, allev
         )
@@ -683,9 +710,53 @@ class Simulator(ChildWidget):
         _set_simulation_model(layer, model)
         return None
 
+    @set_design(icon="fluent:arrow-move-20-filled", location=SimulatorTools)
+    def displace(
+        self,
+        layer: Annotated[MoleculesLayer, {"choices": _get_proper_molecules_layers}],
+        expand: ExprStr.In[POLARS_NAMESPACE] = 0.0,
+        twist: ExprStr.In[POLARS_NAMESPACE] = 0.0,
+        dilate: ExprStr.In[POLARS_NAMESPACE] = 0.0,
+    ):
+        """
+        Detailed local transformation of molecules.
 
-def _get_simulation_model(layer: MoleculesLayer) -> CylinderModel | None:
-    return layer.metadata.get(SIMULATION_MODEL_KEY, None)
+        In this method, you'll have to specify the displacement for each molecule
+        using polars expressions. For example, if you want to expand the first
+
+        Parameters
+        ----------
+        layer : ModelLayer
+            Layer to be transformed.
+        expand : str, pl.Expr or constant
+            Displacement in the longitudinal direction (nm).
+        twist : str, pl.Expr or constant
+            Displacement in the angular direction (degree).
+        dilate : str, pl.Expr or constant
+            Displacement from the center (nm).
+        """
+        new_model = _get_shifted_model(layer, expand, twist, dilate)
+        layer.molecules = new_model.to_molecules(layer.source_spline)
+        return _set_simulation_model(layer, new_model)
+
+
+def _normalize_expression(expr: Any) -> pl.Expr:
+    if isinstance(expr, pl.Expr):
+        return expr
+    elif isinstance(expr, str):
+        out = ExprStr(expr, POLARS_NAMESPACE).eval()
+        if not isinstance(out, pl.Expr):
+            return pl.repeat(float(out), pl.count())
+        return out
+    else:
+        return pl.repeat(float(expr), pl.count())
+
+
+def _get_simulation_model(layer: MoleculesLayer) -> CylinderModel:
+    out = layer.metadata.get(SIMULATION_MODEL_KEY)
+    if out is None:
+        raise ValueError("No simulation model is associated with this layer.")
+    return out
 
 
 def _set_simulation_model(layer: MoleculesLayer, model: CylinderModel):
@@ -702,6 +773,8 @@ def _fill_shift(yrange, arange, val: float, shape):
 
 @thread_worker.callback
 def _on_radon_finished(sino: ip.ImgArray, degrees: np.ndarray):
+    import matplotlib.pyplot as plt
+
     n_tilt = len(degrees)
     if n_tilt < 3:
         return
@@ -721,6 +794,8 @@ def _on_radon_finished(sino: ip.ImgArray, degrees: np.ndarray):
 
 @thread_worker.callback
 def _on_iradon_finished(rec: ip.ImgArray, title: str):
+    import matplotlib.pyplot as plt
+
     with _Logger.set_plt():
         plt.imshow(rec, cmap="gray")
         plt.title(title)
@@ -781,8 +856,6 @@ def _local_transform(
     spl = layer.source_spline
     if spl is None:
         raise ValueError("No spline is associated with this layer.")
-    if model is None:
-        model = spl.cylinder_model()
     shift, indexer = _fill_shift(yrange, arange, by, model.shape)
     new_model = transformer(model, by, indexer)
     if allev:
@@ -791,7 +864,7 @@ def _local_transform(
 
 
 @impl_preview(Simulator.expand, auto_call=True)
-def _preview_local_transform(
+def _preview_local_expand(
     self: Simulator,
     layer: MoleculesLayer,
     by: float,
@@ -806,7 +879,7 @@ def _preview_local_transform(
 
 
 @impl_preview(Simulator.twist, auto_call=True)
-def _preview_local_transform(
+def _preview_local_twist(
     self: Simulator,
     layer: MoleculesLayer,
     by: float,
@@ -819,7 +892,7 @@ def _preview_local_transform(
 
 
 @impl_preview(Simulator.dilate, auto_call=True)
-def _preview_local_transform(
+def _preview_local_dilate(
     self: Simulator,
     layer: MoleculesLayer,
     by: float,
@@ -833,6 +906,35 @@ def _preview_local_transform(
     yield from _select_molecules(layer, yrange, arange, model, spl)
 
 
+@impl_preview(Simulator.displace, auto_call=True)
+def _preview_displace(self, layer: MoleculesLayer, expand, twist, dilate):
+    try:
+        new_model = _get_shifted_model(layer, expand, twist, dilate)
+    except Exception:
+        yield
+        return
+    old_data = layer.data
+    layer.data = new_model.to_molecules(layer.source_spline).pos
+    yield
+    layer.data = old_data
+
+
+def _get_shifted_model(layer: MoleculesLayer, expand, twist, dilate):
+    spl = layer.source_spline
+    if spl is None:
+        raise ValueError("No spline is associated with this layer.")
+    model = _get_simulation_model(layer)
+    df = layer.molecules.features
+    shifts = list[NDArray[np.floating]]()
+    for dx in [dilate, expand, twist]:
+        _dx = _normalize_expression(dx)
+        _shift = df.select(_dx).to_series().to_numpy()
+        shifts.append(_shift.reshape(model.shape))
+    shifts = np.stack(shifts, axis=2)
+    shifts[:, :, 2] = np.deg2rad(shifts[:, :, 2])
+    return model.add_shift(shifts)
+
+
 def _select_molecules(
     layer: MoleculesLayer,
     yrange: tuple[int, int],
@@ -842,10 +944,14 @@ def _select_molecules(
 ):
     out = model.to_molecules(spl)
     layer.data = out.pos
-    if_select = out.features.select(
-        pl.col(Mole.nth).is_between(*yrange, closed="left")
-        & pl.col(Mole.pf).is_between(*arange, closed="left"),
-    )[Mole.nth].to_numpy()
+    if_select = (
+        out.features.select(
+            pl.col(Mole.nth).is_between(*yrange, closed="left")
+            & pl.col(Mole.pf).is_between(*arange, closed="left"),
+        )
+        .to_series()
+        .to_numpy()
+    )
     layer.selected_data = np.where(if_select)[0]
     layer.refresh()
     yield
