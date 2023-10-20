@@ -1828,12 +1828,12 @@ def _update_mole_pos(new: Molecules, old: Molecules, spl: "CylSpline") -> Molecu
     After alignment, this feature should be updated accordingly. This fucntion
     will do this.
     """
-    new_pos = new.pos
-    old_pos = old.pos
+    if Mole.position not in old.features.columns:
+        return new
     _u = spl.y_to_position(old.features[Mole.position])
-    vec = spl.map(_u, der=1)
+    vec = spl.map(_u, der=1)  # the tangent vector of the spline
     vec_norm = vec / np.linalg.norm(vec, axis=1, keepdims=True)
-    dy = np.sum((new_pos - old_pos) * vec_norm, axis=1)
+    dy = np.sum((new.pos - old.pos) * vec_norm, axis=1)
     return new.with_features(pl.col(Mole.position) + dy)
 
 

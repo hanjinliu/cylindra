@@ -1089,10 +1089,9 @@ class CylTomogram(Tomogram):
         # Check length.
         spl_length = spl.length()
         length = spl_length
-
         npoints = length / interval + 1
         twists = np.arange(npoints) * interval / interv * twist
-        u = np.arange(npoints) * interval / length
+        u = spl.prep_anchor_positions(interval=interval)
         mole = spl.anchors_to_molecules(u, rotation=np.deg2rad(twists))
         if spl._need_rotation(orientation):
             mole = mole.rotate_by_rotvec_internal([np.pi, 0, 0])

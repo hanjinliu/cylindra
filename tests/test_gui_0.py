@@ -914,10 +914,10 @@ def test_calc_lattice_structures(ui: CylindraMainWidget):
             feat_rise = feat.filter(pl.col(r).is_finite() & pl.col(r).is_not_nan())[r]
             rise_sm = feat_rise * ay_ratio
 
-            assert spacing_sm.median() == pytest.approx(spacing, abs=1e-3)
-            assert skew_sm.median() == pytest.approx(skew, abs=1e-2)
-            assert twist_sm.median() == pytest.approx(dimer_twist, abs=1e-2)
-            assert rise_sm.median() == pytest.approx(rise_angle, abs=1e-2)
+            assert spacing_sm.mean() == pytest.approx(spacing, abs=1e-3)
+            assert skew_sm.mean() == pytest.approx(skew, abs=1e-2)
+            assert twist_sm.mean() == pytest.approx(dimer_twist, abs=1e-2)
+            assert rise_sm.mean() == pytest.approx(rise_angle, abs=1e-2)
 
     exc_group.raise_exceptions()
 
