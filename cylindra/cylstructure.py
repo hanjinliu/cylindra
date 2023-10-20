@@ -13,9 +13,7 @@ if TYPE_CHECKING:
     from cylindra.components import CylSpline
 
 
-def calc_interval(
-    mole: Molecules, spl: CylSpline, projective: bool = True
-) -> pl.Series:
+def calc_spacing(mole: Molecules, spl: CylSpline, projective: bool = True) -> pl.Series:
     """Calculate the interval of each molecule to the next one."""
     subsets = list[Molecules]()
     for _, sub in _groupby_with_index(mole, Mole.pf):
@@ -92,7 +90,7 @@ def calc_radius(mole: Molecules, spl: CylSpline) -> pl.Series:
     return pl.Series(Mole.radius, result).cast(pl.Float32)
 
 
-def calc_rise_angle(mole: Molecules, spl: CylSpline) -> pl.Series:
+def calc_rise(mole: Molecules, spl: CylSpline) -> pl.Series:
     """Add a column of rise angles of each molecule."""
     # NOTE: molecules must be in the canonical arrangement.
     subsets = list[Molecules]()
@@ -274,7 +272,7 @@ def _arcsin(x: NDArray[np.float32]) -> NDArray[np.float32]:
 
 
 class LatticeParameters(Enum):
-    interv = "interv"
+    spacing = "spacing"
     elev_angle = "elev_angle"
     twist = "twist"
     skew = "skew"
@@ -285,8 +283,8 @@ class LatticeParameters(Enum):
     def calculate(self, mole: Molecules, spl: CylSpline) -> pl.Series:
         """Calculate this lattice parameter for the given molecule."""
         match self:
-            case LatticeParameters.interv:
-                return calc_interval(mole, spl)
+            case LatticeParameters.spacing:
+                return calc_spacing(mole, spl)
             case LatticeParameters.elev_angle:
                 return calc_elevation_angle(mole, spl)
             case LatticeParameters.twist:
@@ -296,7 +294,7 @@ class LatticeParameters(Enum):
             case LatticeParameters.radius:
                 return calc_radius(mole, spl)
             case LatticeParameters.rise:
-                return calc_rise_angle(mole, spl)
+                return calc_rise(mole, spl)
             case LatticeParameters.lat_interv:
                 return calc_lateral_interval(mole, spl)
             case _:

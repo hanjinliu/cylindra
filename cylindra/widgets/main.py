@@ -2068,7 +2068,7 @@ class CylindraMainWidget(MagicTemplate):
     def calculate_lattice_structure(
         self,
         layer: MoleculesLayerType,
-        props: Annotated[list[str], {"widget_type": CheckBoxes, "choices": cylstructure.LatticeParameters.choices()}] = ("interv",),
+        props: Annotated[list[str], {"widget_type": CheckBoxes, "choices": cylstructure.LatticeParameters.choices()}] = ("spacing",),
     ):  # fmt: skip
         """
         Calculate lattice structures and store the results as new feature columns.

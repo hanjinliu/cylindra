@@ -64,9 +64,9 @@ def main(ui: CylindraMainWidget):
         random_seeds=[0, 1, 2, 3, 4],
         return_all=False,
     )
-    ui.calculate_lattice_structure(layer="molecules", props=["interv"])
-    ui.calculate_lattice_structure(layer="Conventional", props=["interv"])
-    ui.calculate_lattice_structure(layer="molecules-ALN1", props=["interv"])
+    ui.calculate_lattice_structure(layer="molecules", props=["spacing"])
+    ui.calculate_lattice_structure(layer="Conventional", props=["spacing"])
+    ui.calculate_lattice_structure(layer="molecules-ALN1", props=["spacing"])
     ui.paint_molecules(
         layer="molecules",
         color_by="interval-nm",

@@ -13,5 +13,5 @@ def test_interval():
     ans = np.ones((5, 4))
     ans[1:3, :] += 0.1
 
-    result = LatticeParameters("interv").calculate(mole, spl)
+    result = LatticeParameters("spacing").calculate(mole, spl)
     assert_allclose(result[:-4], ans.ravel()[:-4], rtol=1e-6)
