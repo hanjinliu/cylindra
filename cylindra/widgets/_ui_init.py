@@ -95,16 +95,19 @@ def _preview_load_project_for_reanalysis(self: CylindraMainWidget, path: Path):
 def _preview_map_along_pf(
     self: CylindraMainWidget,
     spline: int,
-    molecule_interval: float | None,
+    molecule_interval: float,
     offsets: tuple[float, float] | None = None,
     orientation: str | None = None,
 ):  # fmt: skip
     tomo = self.tomogram
     viewer = self.parent_viewer
+    spl = tomo.splines[spline]
+    interv_expr = widget_utils.norm_scalar_expr(molecule_interval)
+    interval = spl.props.glob.select(interv_expr).to_series()[0]
     out = tomo.map_pf_line(
         i=spline,
-        interval=molecule_interval,
-        offsets=normalize_offsets(offsets, tomo.splines[spline]),
+        interval=interval,
+        offsets=normalize_offsets(offsets, spl),
         orientation=orientation,
     )
     if PREVIEW_LAYER_NAME in viewer.layers:

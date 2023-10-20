@@ -590,10 +590,8 @@ class Simulator(ChildWidget):
         ----------
         components : list of (str, Path)
             List of tuples of layer name and path to the template image.
-        template_path : Path
-            Path to the image used for the template.
-        save_path : Path
-            Path of the file where the tilt series will be saved.
+        save_dir : Path
+            Directory path where the tilt series will be saved.
         tilt_range : tuple of float
             Minimum and maximum tilt angles in degree.
         n_tilt : int

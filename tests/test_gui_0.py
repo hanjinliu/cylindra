@@ -41,7 +41,7 @@ def assert_molecule_equal(mole0: Molecules, mole1: Molecules):
 
 def assert_orientation(ui: CylindraMainWidget, ori: str):
     assert ui.splines[ui.SplineControl.num].orientation == ori
-    assert ui.GlobalProperties.params.params2.polarity.txt == ori
+    assert ui.GlobalProperties.params.params2.orientation.txt == ori
 
     spec = ui._reserved_layers.prof.features["spline-id"] == ui.SplineControl.num
     arr = ui._reserved_layers.prof.text.string.array[spec]
@@ -731,17 +731,15 @@ def test_simulate_tilt_series(ui: CylindraMainWidget):
     ui.simulator.create_image_with_straight_line(
         25, (40, 42, 42), scale=0.5, yxrotation=10
     )
+    ui.simulator.generate_molecules(0, 4.06, -0.05, 3, 13, 11.8, (0.0, 0.0))
     with tempfile.TemporaryDirectory() as dirpath:
-        fp = Path(dirpath) / "test.mrc"
-        assert not fp.exists()
         ui.simulator.simulate_tilt_series(
             components=[(ui.mole_layers.last().name, TEST_DIR / "beta-tubulin.mrc")],
-            save_path=fp,
+            save_dir=dirpath,
             tilt_range=(-60.0, 60.0),
             n_tilt=11,
             interpolation=1,
         )
-        assert fp.exists()
     ui.simulator.close()
 
 
@@ -928,8 +926,8 @@ def test_calc_misc(ui: CylindraMainWidget):
     layer = ui.mole_layers.last()
     all_props = cylstructure.LatticeParameters.choices()
     ui.calculate_lattice_structure(layer=layer, props=all_props)
-    assert layer.features["radius-nm"].std() < 0.1
-    ui.paint_molecules(layer, color_by="radius-nm", limits=(8, 10))
+    assert layer.features[Mole.radius].std() < 0.1
+    ui.paint_molecules(layer, color_by=Mole.radius, limits=(8, 10))
     ui.MoleculesMenu.View.plot_molecule_feature(layer, backend="qt")
 
 

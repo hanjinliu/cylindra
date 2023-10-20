@@ -1,5 +1,4 @@
 from __future__ import annotations
-from types import SimpleNamespace
 from typing import Sequence, TYPE_CHECKING, Any
 from dataclasses import dataclass
 from timeit import default_timer
@@ -11,6 +10,7 @@ from scipy import ndimage as ndi
 import polars as pl
 import matplotlib.pyplot as plt
 from magicclass.logging import getLogger
+from magicclass.types import ExprStr
 import napari
 from napari.utils.theme import get_theme
 
@@ -351,3 +351,15 @@ def get_code_theme(self: MagicTemplate) -> str:
 def capitalize(s: str):
     """Just used for button texts."""
     return s.replace("_", " ").capitalize()
+
+
+def norm_scalar_expr(val) -> pl.Expr:
+    if isinstance(val, pl.Expr):
+        return val
+    elif isinstance(val, str):
+        expr = ExprStr(val, POLARS_NAMESPACE).eval()
+        if not isinstance(expr, pl.Expr):
+            expr = pl.lit(float(expr))
+        return expr
+    else:
+        return pl.lit(float(val))

@@ -1248,7 +1248,7 @@ class CylindraMainWidget(MagicTemplate):
             the polars.Expr object. The returned expression will be evaluated with the global
             properties of the spline as the context.
         """
-        radius_expr = _norm_scalar_expr(radius)
+        radius_expr = widget_utils.norm_scalar_expr(radius)
         with SplineTracker(widget=self, indices=splines, sample=True) as tracker:
             for i in splines:
                 spl = self.tomogram.splines[i]
@@ -1619,7 +1619,7 @@ class CylindraMainWidget(MagicTemplate):
         {splines}{molecule_interval}{orientation}{prefix}
         """
         tomo = self.tomogram
-        interv_expr = _norm_scalar_expr(molecule_interval)
+        interv_expr = widget_utils.norm_scalar_expr(molecule_interval)
         if len(splines) == 0 and len(tomo.splines) > 0:
             splines = tuple(range(len(tomo.splines)))
         _Logger.print_html("<code>map_centers</code>")
@@ -1651,7 +1651,7 @@ class CylindraMainWidget(MagicTemplate):
         {spline}{molecule_interval}{offsets}{orientation}{prefix}
         """
         tomo = self.tomogram
-        interv_expr = _norm_scalar_expr(molecule_interval)
+        interv_expr = widget_utils.norm_scalar_expr(molecule_interval)
         spl = tomo.splines[spline]
         _Logger.print_html("<code>map_along_PF</code>")
         mol = tomo.map_pf_line(
@@ -2690,15 +2690,3 @@ def _assert_source_spline_exists(layer: MoleculesLayer) -> "CylSpline":
     if (spl := layer.source_spline) is None:
         raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
     return spl
-
-
-def _norm_scalar_expr(val) -> pl.Expr:
-    if isinstance(val, pl.Expr):
-        return val
-    elif isinstance(val, str):
-        expr = ExprStr(val, POLARS_NAMESPACE).eval()
-        if not isinstance(expr, pl.Expr):
-            expr = pl.lit(float(expr))
-        return expr
-    else:
-        return pl.lit(float(val))
