@@ -4,9 +4,8 @@ import tempfile
 
 from cylindra import start  # NOTE: Set ApplicationAttributes
 
-from magicclass import magicclass, vfield
+from magicclass import MagicTemplate, magicclass, vfield
 from magicclass.types import Optional, Path
-from magicclass.utils import thread_worker
 from magicclass.ext.polars import DataFrameView
 import numpy as np
 from numpy.typing import NDArray
@@ -45,15 +44,19 @@ class local_expansion(Simulator):
     """Vertical MT with spacing=4.05, 4.10, 4.15, 4.20 nm."""
 
     def prepare(self):
-        self.ui.simulator.create_straight_line(
+        self.ui.simulator.create_image_with_straight_line(
             scale=self.scale, size=(60.0, 240.0, 60.0), length=245.0
         )
-        self.ui.simulator.update_model(
-            spacing=4.12, dimer_twist=0.08, start=3, radius=11.2, npf=13
+        self.ui.simulator.generate_molecules(
+            0, spacing=4.125, dimer_twist=0.08, start=3, radius=11.2, npf=13
         )
-        for exp, yrange in zip([-0.07, -0.02, 0.03, 0.08], POSITIONS):
+        for exp, yrange in zip([-0.075, -0.025, 0.025, 0.075], POSITIONS):
             self.ui.simulator.expand(
-                exp=exp, yrange=yrange, arange=(0, 13), allev=False
+                layer=self.ui.mole_layers.last(),
+                exp=exp,
+                yrange=yrange,
+                arange=(0, 13),
+                allev=False,
             )
         return np.array([[30, 30, 30], [30, 210, 30]])
 
@@ -68,11 +71,11 @@ class local_skew(Simulator):
     """Vertical MT with dimer_twist=-0.15, -0.05, 0.05, 0.15 deg."""
 
     def prepare(self):
-        self.ui.simulator.create_straight_line(
+        self.ui.simulator.create_image_with_straight_line(
             scale=self.scale, size=(60.0, 240.0, 60.0), length=245.0
         )
-        self.ui.simulator.update_model(
-            spacing=4.1, dimer_twist=0.0, start=3, radius=11.2, npf=13
+        self.ui.simulator.generate_molecules(
+            0, spacing=4.1, dimer_twist=0.0, start=3, radius=11.2, npf=13
         )
         for sk, yrange in zip([-0.15, -0.05, 0.05, 0.15], POSITIONS):
             self.ui.simulator.twist(
@@ -118,11 +121,10 @@ class local_orientation(Simulator):
 
     def prepare(self):
         coords = self.get_coords()
-        spl = CylSpline().fit(coords, err_max=1e-8)
         self.ui.simulator.create_empty_image(size=(60, 228, 144), scale=self.scale)
-        self.ui.simulator.set_spline(spl)
-        self.ui.simulator.update_model(
-            spacing=4.1, dimer_twist=0.0, start=3, radius=11.2, npf=13
+        self.ui.register_path(coords, err_max=1e-8)
+        self.ui.simulator.generate_molecules(
+            0, spacing=4.1, dimer_twist=0.0, start=3, radius=11.2, npf=13
         )
         return coords
 
@@ -161,11 +163,10 @@ class local_curvature(Simulator):
 
     def prepare(self) -> NDArray[np.float32]:
         coords = self.get_coords()
-        spl = CylSpline().fit(coords, err_max=1e-8)
         self.ui.simulator.create_empty_image(size=(60, 230, 60), scale=self.scale)
-        self.ui.simulator.set_spline(spl)
-        self.ui.simulator.update_model(
-            spacing=4.1, dimer_twist=0.00, start=3, radius=11.2, npf=13
+        self.ui.register_path(coords, err_max=1e-8)
+        self.ui.simulator.generate_molecules(
+            0, spacing=4.1, dimer_twist=0.00, start=3, radius=11.2, npf=13
         )
         return coords
 
@@ -207,7 +208,7 @@ class Funcs(Enum):
 
 
 @magicclass(widget_type="scrollable")
-class Main:
+class Main(MagicTemplate):
     function = vfield(Funcs)
     n_tilt = vfield(61).with_options(min=1)
     nsr = vfield([0.1, 2.5])
@@ -248,7 +249,7 @@ class Main:
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpfile = Path(tmpdir) / "image.mrc"
             ui.simulator.simulate_tilt_series(
-                template_path=TEMPLATE_PATH,
+                components=[(ui.mole_layers.last().name, TEMPLATE_PATH)],
                 save_path=tmpfile,
                 n_tilt=n_tilt,
                 scale=scale,
@@ -293,9 +294,6 @@ class Main:
         ui = self._ui
         simulator: Simulator = func(ui, scale)
         simulator.prepare()
-        spl = ui.simulator.spline
-        ui.tomogram.splines.append(spl)
-        ui._add_spline_instance(spl)
 
     def show_example(
         self,
@@ -315,7 +313,7 @@ class Main:
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpfile = Path(tmpdir) / "image.mrc"
             ui.simulator.simulate_tilt_series(
-                template_path=TEMPLATE_PATH,
+                components=[(ui.mole_layers.last().name, TEMPLATE_PATH)],
                 save_path=tmpfile,
                 n_tilt=n_tilt,
                 scale=scale,

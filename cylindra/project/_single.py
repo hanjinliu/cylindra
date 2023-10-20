@@ -45,7 +45,7 @@ class CylindraProject(BaseProject):
     datetime: str
     version: str
     dependency_versions: dict[str, str]
-    image: PathLike
+    image: PathLike | None
     scale: float
     multiscales: list[int]
     molecules_info: list[MoleculesInfo]
@@ -104,7 +104,7 @@ class CylindraProject(BaseProject):
             datetime=datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
             version=_versions.pop("cylindra", "unknown"),
             dependency_versions=_versions,
-            image=as_relative(tomo.source),
+            image=as_relative(tomo.metadata.get("source", None)),
             scale=tomo.scale,
             multiscales=[x[0] for x in tomo.multiscaled],
             molecules_info=mole_infos,
@@ -357,13 +357,20 @@ class CylindraProject(BaseProject):
         """Load the tomogram object of the project."""
         from cylindra.components import CylTomogram
 
-        tomo = CylTomogram.imread(
-            path=self.image,
-            scale=self.scale,
-            tilt=self.missing_wedge.as_param(),
-            binsize=self.multiscales,
-            compute=compute,
-        )
+        if self.image is not None:
+            tomo = CylTomogram.imread(
+                path=self.image,
+                scale=self.scale,
+                tilt=self.missing_wedge.as_param(),
+                binsize=self.multiscales,
+                compute=compute,
+            )
+        else:
+            tomo = CylTomogram.dummy(
+                scale=self.scale,
+                tilt=self.missing_wedge.as_param(),
+                binsize=self.multiscales,
+            )
         tomo.splines.extend(self.iter_load_splines(dir))
         return tomo
 

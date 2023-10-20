@@ -65,6 +65,7 @@ _NSRatios = Annotated[
 _ImageSize = Annotated[tuple[nm, nm, nm], {"label": "image size of Z, Y, X (nm)"}]
 PROJECT_NAME = "simulation-project.tar"
 SIMULATION_MODEL_KEY = "simulation-model"
+SIMULATED_IMAGE_NAME = "Simulated tomogram"
 _Logger = getLogger("cylindra")
 
 
@@ -140,7 +141,7 @@ class Simulator(ChildWidget):
     @magictoolbar
     class SimulatorTools(ChildWidget):
         add_component = abstractapi()
-        update_cylinder_parameters = abstractapi()
+        generate_molecules = abstractapi()
         expand = abstractapi()
         twist = abstractapi()
         dilate = abstractapi()
@@ -217,7 +218,7 @@ class Simulator(ChildWidget):
         binsize = ceilint(0.96 / scale)
         # NOTE: zero-filled image breaks contrast limit calculation, and bad for
         # visual detection of the image edges.
-        img = ip.zeros(shape, axes="zyx", name="simulated image")
+        img = ip.zeros(shape, axes="zyx", name="Empty image")
         img.scale_unit = "nm"
         val = 100 * binsize**3
         img[:, 0, :] = img[:, -1, :] = img[:, :, 0] = img[:, :, -1] = val / 2
@@ -276,7 +277,7 @@ class Simulator(ChildWidget):
         return self._get_main()._get_spline_idx()
 
     @set_design(icon="fluent:select-object-skew-20-regular", location=SimulatorTools)
-    def update_cylinder_parameters(
+    def generate_molecules(
         self,
         spline: Annotated[int, {"bind": _get_spline_idx}],
         spacing: Annotated[nm, {"min": 0.2, "max": 100.0, "step": 0.01, "label": "spacing (nm)"}] = 1.0,
@@ -284,6 +285,7 @@ class Simulator(ChildWidget):
         start: Annotated[int, {"min": -50, "max": 50, "label": "start"}] = 0,
         npf: Annotated[int, {"min": 1, "label": "number of PF"}] = 2,
         radius: Annotated[nm, {"min": 0.5, "max": 50.0, "step": 0.5, "label": "radius (nm)"}] = 10.0,
+        offsets: tuple[float, float] = (0.0, 0.0),
     ):  # fmt: skip
         """
         Update cylinder model with new parameters.
@@ -316,9 +318,13 @@ class Simulator(ChildWidget):
                 H.radius: radius,
             }
         )
+        mole = self._prep_molecules(
+            spl, spacing, dimer_twist, start, npf, radius, offsets
+        )
+        main.add_molecules(mole, name=f"Mole(Sim)-{spline}", source=spl)
 
-    @impl_preview(update_cylinder_parameters, auto_call=True)
-    def _preview_update_cylinder_parameters(
+    @impl_preview(generate_molecules, auto_call=True)
+    def _preview_generate_molecules(
         self,
         spline: int,
         spacing: nm,
@@ -326,18 +332,13 @@ class Simulator(ChildWidget):
         start: int,
         npf: int,
         radius: nm,
+        offsets: tuple[float, float],
     ):
         main = self._get_main()
         spl = main.splines[spline]
-        kwargs = {
-            H.spacing: spacing,
-            H.dimer_twist: dimer_twist,
-            H.start: start,
-            H.npf: npf,
-            H.radius: radius,
-        }
-        model = spl.cylinder_model(**kwargs)
-        out = model.to_molecules(spl)
+        out = self._prep_molecules(
+            spl, spacing, dimer_twist, start, npf, radius, offsets
+        )
         viewer = main.parent_viewer
         if PREVIEW_LAYER_NAME in viewer.layers:
             layer: Layer = viewer.layers[PREVIEW_LAYER_NAME]
@@ -349,6 +350,26 @@ class Simulator(ChildWidget):
         is_active = yield
         if not is_active and layer in viewer.layers:
             viewer.layers.remove(layer)
+
+    def _prep_molecules(
+        self,
+        spl: CylSpline,
+        spacing: nm,
+        dimer_twist: float,
+        start: int,
+        npf: int,
+        radius: nm,
+        offsets: tuple[float, float],
+    ):
+        kwargs = {
+            H.spacing: spacing,
+            H.dimer_twist: dimer_twist,
+            H.start: start,
+            H.npf: npf,
+            H.radius: radius,
+        }
+        model = spl.cylinder_model(offsets=offsets, **kwargs)
+        return model.to_molecules(spl)
 
     def _get_components(self, *_):
         return self.component_list._as_input()
@@ -373,6 +394,8 @@ class Simulator(ChildWidget):
 
         Parameters
         ----------
+        components : list of (str, Path)
+            List of tuples of layer name and path to the template image.
         save_dir : Path
             Path to the directory where the images will be saved.
         nsr : list of float
@@ -475,7 +498,7 @@ class Simulator(ChildWidget):
         ).set_scale(zyx=scale, unit="nm")
         yield _on_iradon_finished.with_args(rec.mean("z"), f"N/S = {nsr:.1f}")
 
-        rec.name = "Simulated tomogram"
+        rec.name = SIMULATED_IMAGE_NAME
         tomo = CylTomogram.from_image(
             rec, scale=scale, tilt=tilt_range, binsize=bin_size
         )
@@ -505,6 +528,8 @@ class Simulator(ChildWidget):
 
         Parameters
         ----------
+        components : list of (str, Path)
+            List of tuples of layer name and path to the template image.
         nsr : list of float
             Noise-to-signal ratio. It is defined by N/S, where S is the maximum
             value of the true monomer density and N is the standard deviation of
@@ -541,7 +566,7 @@ class Simulator(ChildWidget):
         ).set_scale(zyx=sino.scale.x, unit="nm")
         yield _on_iradon_finished.with_args(rec.mean("z"), f"N/S = {nsr:.1f}")
 
-        rec.name = "Simulated"
+        rec.name = SIMULATED_IMAGE_NAME
         tomo = CylTomogram.from_image(
             rec, scale=sino.scale.x, tilt=tilt_range, binsize=bin_size
         )
@@ -570,6 +595,8 @@ class Simulator(ChildWidget):
 
         Parameters
         ----------
+        components : list of (str, Path)
+            List of tuples of layer name and path to the template image.
         template_path : Path
             Path to the image used for the template.
         save_path : Path
@@ -733,9 +760,9 @@ def _fetch_shape(self: Simulator, gui: FunctionGui):
         else:
             gui.yrange.enabled = gui.arange.enabled = True
             gui.yrange.min = df[Mole.nth].min()
-            gui.yrange.max = df[Mole.nth].max() + 1
+            gui.yrange.max = df[Mole.nth].max()
             gui.arange.min = df[Mole.pf].min()
-            gui.arange.max = df[Mole.pf].max() + 1
+            gui.arange.max = df[Mole.pf].max()
             gui.yrange.value = (gui.yrange.min, gui.yrange.max)
             gui.arange.value = (gui.arange.min, gui.arange.max)
 

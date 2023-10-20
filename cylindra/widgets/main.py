@@ -2631,7 +2631,7 @@ class CylindraMainWidget(MagicTemplate):
         fgui.npf.value = int(cfg.npf_range.center)
         fgui.npf.value = None
 
-        fgui = get_function_gui(self.simulator.update_cylinder_parameters)
+        fgui = get_function_gui(self.simulator.generate_molecules)
         fgui.spacing.min, fgui.spacing.max = cfg.spacing_range.astuple()
         fgui.spacing.value = cfg.spacing_range.center
         fgui.dimer_twist.min, fgui.dimer_twist.max = cfg.dimer_twist_range.astuple()
