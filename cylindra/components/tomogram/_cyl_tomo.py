@@ -1057,7 +1057,7 @@ class CylTomogram(Tomogram):
         self,
         i: int = None,
         *,
-        interval: nm | None = None,
+        interval: nm = 1.0,
         orientation: Ori | str | None = None,
     ) -> Molecules:
         """
@@ -1079,19 +1079,13 @@ class CylTomogram(Tomogram):
         if spl.props.has_glob([H.spacing, H.dimer_twist]):
             self.global_ft_params(i=i)
 
-        interv = spl.props.get_glob(H.spacing) * 2
-        twist = spl.props.get_glob(H.dimer_twist)
-
-        # Set interval to the dimer length by default.
-        if interval is None:
-            interval = interv
+        spacing = spl.props.get_glob(H.spacing)
+        twist = spl.props.get_glob(H.dimer_twist) / 2
 
         # Check length.
-        spl_length = spl.length()
-        length = spl_length
-        npoints = length / interval + 1
-        twists = np.arange(npoints) * interval / interv * twist
+        length = spl.length()
         u = spl.prep_anchor_positions(interval=interval)
+        twists = spl.distances(u) / spacing * twist
         mole = spl.anchors_to_molecules(u, rotation=np.deg2rad(twists))
         if spl._need_rotation(orientation):
             mole = mole.rotate_by_rotvec_internal([np.pi, 0, 0])
@@ -1203,7 +1197,7 @@ class CylTomogram(Tomogram):
         self,
         i: int = None,
         *,
-        interval: nm | None = None,
+        interval: nm = 1.0,
         offsets: tuple[nm, float] = (0.0, 0.0),
         orientation: Ori | str | None = None,
     ) -> Molecules:
@@ -1229,13 +1223,11 @@ class CylTomogram(Tomogram):
         spl = self.splines[i]
         if not spl.props.has_glob([H.spacing, H.dimer_twist]):
             self.global_ft_params(i=i, nsamples=1)
-        interv = spl.props.get_glob(H.spacing) * 2
-        twist = spl.props.get_glob(H.dimer_twist)
+        spacing = spl.props.get_glob(H.spacing)
+        twist = spl.props.get_glob(H.dimer_twist) / 2
 
-        if interval is None:
-            interval = interv
         ny = roundint(spl.length() / interval)
-        skew_rad = np.deg2rad(twist) * interval / interv
+        skew_rad = np.deg2rad(twist) * interval / spacing
 
         yoffset, aoffset = offsets
         rcoords = np.full(ny, spl.radius)

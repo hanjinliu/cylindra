@@ -323,7 +323,9 @@ class CylindraMainWidget(MagicTemplate):
 
     def _get_all_spline_ids(self, splines: list[int] = None) -> list[int]:
         nspl = len(self.tomogram.splines)
-        if splines is None:
+        if not hasattr(splines, "__iter__"):
+            splines = [int(splines)]
+        elif splines is None:
             splines = list(range(nspl))
         else:
             for i in splines:
@@ -1246,21 +1248,11 @@ class CylindraMainWidget(MagicTemplate):
             the polars.Expr object. The returned expression will be evaluated with the global
             properties of the spline as the context.
         """
-        if isinstance(radius, pl.Expr):
-            radius_expr: "pl.Expr | float" = radius
-        elif isinstance(radius, str):
-            radius_expr = ExprStr(radius, POLARS_NAMESPACE).eval()
-            if not isinstance(radius_expr, pl.Expr):
-                radius_expr = float(radius_expr)
-        else:
-            radius_expr = float(radius)
+        radius_expr = _norm_scalar_expr(radius)
         with SplineTracker(widget=self, indices=splines, sample=True) as tracker:
             for i in splines:
                 spl = self.tomogram.splines[i]
-                if isinstance(radius_expr, pl.Expr):
-                    spl.radius = spl.props.glob.select(radius_expr).to_numpy()[0, 0]
-                else:
-                    spl.radius = radius_expr
+                spl.radius = spl.props.glob.select(radius_expr).to_series()[0]
         return tracker.as_undo_callback()
 
     @set_design(text=capitalize, location=_sw.AnalysisMenu.Radius)
@@ -1615,7 +1607,7 @@ class CylindraMainWidget(MagicTemplate):
     def map_centers(
         self,
         splines: _Splines = None,
-        molecule_interval: Annotated[Optional[nm], {"text": "Set to dimer length"}] = None,
+        molecule_interval: ExprStr.In[POLARS_NAMESPACE] = "col('spacing')",
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
         prefix: str = "Center",
     ):  # fmt: skip
@@ -1627,25 +1619,26 @@ class CylindraMainWidget(MagicTemplate):
         {splines}{molecule_interval}{orientation}{prefix}
         """
         tomo = self.tomogram
+        interv_expr = _norm_scalar_expr(molecule_interval)
         if len(splines) == 0 and len(tomo.splines) > 0:
             splines = tuple(range(len(tomo.splines)))
-        mols = tomo.map_centers(
-            i=splines, interval=molecule_interval, orientation=orientation
-        )
         _Logger.print_html("<code>map_centers</code>")
         _added_layers = []
-        for i, mol in enumerate(mols):
-            _name = f"{prefix}-{i}"
-            layer = self.add_molecules(mol, _name, source=tomo.splines[splines[i]])
+        for idx in splines:
+            spl = tomo.splines[idx]
+            interv = spl.props.glob.select(interv_expr).to_series()[0]
+            mole = tomo.map_centers(i=idx, interval=interv, orientation=orientation)
+            _name = f"{prefix}-{idx}"
+            layer = self.add_molecules(mole, _name, source=spl)
             _added_layers.append(layer)
-            _Logger.print(f"{_name!r}: n = {len(mol)}")
+            _Logger.print(f"{_name!r}: n = {mole.count()}")
         return self._undo_callback_for_layer(_added_layers)
 
     @set_design(text="Map alogn PF", location=_sw.MoleculesMenu.FromToSpline)
     def map_along_pf(
         self,
         spline: Annotated[int, {"choices": _get_splines}],
-        molecule_interval: Annotated[Optional[nm], {"text": "Set to dimer length"}] = None,
+        molecule_interval: ExprStr.In[POLARS_NAMESPACE] = "col('spacing')",
         offsets: _NormalizedOffsetType = None,
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
         prefix: str = "PF",
@@ -1658,15 +1651,17 @@ class CylindraMainWidget(MagicTemplate):
         {spline}{molecule_interval}{offsets}{orientation}{prefix}
         """
         tomo = self.tomogram
+        interv_expr = _norm_scalar_expr(molecule_interval)
+        spl = tomo.splines[spline]
         _Logger.print_html("<code>map_along_PF</code>")
         mol = tomo.map_pf_line(
             i=spline,
-            interval=molecule_interval,
-            offsets=normalize_offsets(offsets, tomo.splines[spline]),
+            interval=spl.props.glob.select(interv_expr).to_series()[0],
+            offsets=normalize_offsets(offsets, spl),
             orientation=orientation,
         )
         _name = f"{prefix}-{spline}"
-        layer = self.add_molecules(mol, _name, source=tomo.splines[spline])
+        layer = self.add_molecules(mol, _name, source=spl)
         _Logger.print(f"{_name!r}: n = {len(mol)}")
         return self._undo_callback_for_layer(layer)
 
@@ -2695,3 +2690,15 @@ def _assert_source_spline_exists(layer: MoleculesLayer) -> "CylSpline":
     if (spl := layer.source_spline) is None:
         raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
     return spl
+
+
+def _norm_scalar_expr(val) -> pl.Expr:
+    if isinstance(val, pl.Expr):
+        return val
+    elif isinstance(val, str):
+        expr = ExprStr(val, POLARS_NAMESPACE).eval()
+        if not isinstance(expr, pl.Expr):
+            expr = pl.lit(float(expr))
+        return expr
+    else:
+        return pl.lit(float(val))

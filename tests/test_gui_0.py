@@ -253,14 +253,17 @@ def test_map_molecules(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False)
     assert ui.get_loader("Mole-0").molecules is ui.mole_layers["Mole-0"].molecules
     ui.map_monomers_with_extensions(0, {0: (1, 1), 1: (-1, -1)})
-    ui.map_along_pf(0)
-    ui.map_centers([0])
+    ui.map_along_pf(0, molecule_interval=4.0)
+    ui.map_centers(0, molecule_interval=4.0)
     ui.macro.undo()
     ui.macro.undo()
     ui.macro.undo()
     ui.macro.redo()
     ui.macro.redo()
     ui.macro.redo()
+    # test expression input
+    ui.map_along_pf(0, molecule_interval=pl.col("spacing") * 2)
+    ui.map_centers(0, molecule_interval=pl.col("spacing") * 2)
 
 
 def test_napari_operations(ui: CylindraMainWidget):
