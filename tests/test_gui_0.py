@@ -41,7 +41,7 @@ def assert_molecule_equal(mole0: Molecules, mole1: Molecules):
 
 def assert_orientation(ui: CylindraMainWidget, ori: str):
     assert ui.splines[ui.SplineControl.num].orientation == ori
-    assert ui.GlobalProperties.params.params2.orientation.txt == ori
+    assert ui.GlobalProperties.params.params2.orientation_.txt == ori
 
     spec = ui._reserved_layers.prof.features["spline-id"] == ui.SplineControl.num
     arr = ui._reserved_layers.prof.text.string.array[spec]
