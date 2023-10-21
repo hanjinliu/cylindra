@@ -240,6 +240,8 @@ class ImageMenu(ChildWidget):
             Orientation of the colorbar.
         """
         info = layer.colormap_info
+        if isinstance(info, str):
+            raise ValueError(f"Layer {layer.name!r} has no colormap.")
         colors = info.cmap.map(np.linspace(0, 1, length))
         cmap_arr = np.stack([colors] * (length // 12), axis=0)
         xmin, xmax = info.clim
@@ -335,10 +337,10 @@ class SplinesMenu(ChildWidget):
         @bind_key("Ctrl+K, Ctrl+[")
         def update_default_config(
             self,
-            npf_range: Annotated[tuple[int, int], {"options": {"min": 2, "max": 100}}] = (11, 17),
-            spacing_range: Annotated[tuple[nm, nm], {"options": {"step": 0.05}}] = (3.9, 4.3),
-            twist_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.05}}] = (-1.0, 1.0),
-            rise_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.1}}] = (0.0, 45.0),
+            npf_range: Annotated[tuple[int, int], {"options": {"min": 2, "max": 100}, "layout": "horizontal"}] = (11, 17),
+            spacing_range: Annotated[tuple[nm, nm], {"options": {"step": 0.05}, "layout": "horizontal"}] = (3.9, 4.3),
+            twist_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.05}, "layout": "horizontal"}] = (-1.0, 1.0),
+            rise_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.1}, "layout": "horizontal"}] = (0.0, 45.0),
             rise_sign: Literal[-1, 1] = -1,
             clockwise: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus",
             thickness_inner: Annotated[nm, {"min": 0.0, "step": 0.1}] = 2.8,
@@ -661,7 +663,7 @@ class MoleculesMenu(ChildWidget):
                 v_transformed = mole.rotator.apply(v - center * scale) + mole.pos
                 all_verts[i::nverts] = v_transformed
 
-            if layer.colormap_info is None:
+            if isinstance(layer.colormap_info, str):
                 colormap = None
                 contrast_limits = None
                 data = (all_verts, all_faces)

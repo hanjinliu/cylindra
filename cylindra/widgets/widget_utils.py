@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Sequence, TYPE_CHECKING, Any
+from typing import Sequence, TYPE_CHECKING, Any, TypedDict
 from dataclasses import dataclass
 from timeit import default_timer
 import inspect
@@ -58,12 +58,19 @@ class timer:
             print(f"{self.name} ({dt:.1f} sec)")
 
 
+class CmapDict(TypedDict):
+    by: str
+    limits: tuple[float, float]
+    cmap: Any
+
+
 def add_molecules(
     viewer: napari.Viewer,
     mol: Molecules,
     name: str,
     source: BaseComponent | None = None,
     metadata: dict[str, Any] = {},
+    cmap: CmapDict | None = None,
     **kwargs,
 ) -> MoleculesLayer:
     """Add Molecules object as a point layer."""
@@ -75,6 +82,8 @@ def add_molecules(
     )
     kw.update(**kwargs)
     layer = MoleculesLayer(mol, name=name, metadata=metadata.copy(), **kw)
+    if cmap is not None:
+        layer.set_colormap(**cmap)
     if source is not None:
         layer.source_component = source
     viewer.add_layer(layer)

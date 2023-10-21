@@ -117,7 +117,7 @@ def start(
     ipy = get_ipython()
     ipy.run_line_magic("matplotlib", "inline")
 
-    ui.show()
+    ui.show(run=False)
     return ui
 
 

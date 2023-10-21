@@ -305,7 +305,7 @@ def _convolve_feature_preview(
 ):
     from cylindra import cylfilters
 
-    if layer.colormap_info is None:
+    if isinstance(layer.colormap_info, str):
         yield
         return
     nrise = layer.source_spline.nrise()

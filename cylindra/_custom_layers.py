@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 import warnings
-from typing import TYPE_CHECKING, Any, Literal, NamedTuple
+from typing import TYPE_CHECKING, Any, Iterable, NamedTuple
 import weakref
 
 import polars as pl
@@ -12,9 +12,17 @@ from napari.layers import Points, Labels
 from napari.utils.status_messages import generate_layer_coords_status
 
 if TYPE_CHECKING:
-    import impy as ip
     from cylindra.components import BaseComponent, CylSpline
     from napari.utils import Colormap
+
+
+def str_color(color: Iterable[float] | str) -> str:
+    if isinstance(color, str):
+        return color
+    _col = "#" + "".join(hex(int(c * 255))[2:].upper().zfill(2) for c in color)
+    if _col.endswith("FF"):
+        _col = _col[:-2]
+    return _col
 
 
 class ColormapInfo(NamedTuple):
@@ -27,6 +35,12 @@ class ColormapInfo(NamedTuple):
     def map(self, x: np.ndarray) -> np.ndarray:
         l, h = self.clim
         return self.cmap.map((x - l) / (h - l))
+
+    def to_list(self) -> list[tuple[float, str]]:
+        out = []
+        for cont, cols in zip(self.cmap.controls, self.cmap.colors):
+            out.append((cont, str_color(cols)))
+        return out
 
 
 class _FeatureBoundLayer:
@@ -120,7 +134,9 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
         if not isinstance(data, Molecules):
             raise TypeError("data must be a Molecules object")
         self._molecules = data
-        self._colormap_info: ColormapInfo | None = None
+        self._colormap_info: ColormapInfo | str = "lime"
+        if isinstance(col := kwargs.get("face_color"), str):
+            self._colormap_info = col
         self._source_component: weakref.ReferenceType[BaseComponent] | None = None
         self._old_name: str | None = None  # for undo/redo
         self._undo_renaming = False
@@ -212,51 +228,51 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
         return src
 
     @property
-    def colormap_info(self) -> ColormapInfo | None:
+    def colormap_info(self) -> ColormapInfo | str:
         """Colormap information."""
         return self._colormap_info
 
     def set_colormap(
         self,
-        name: str,
-        clim: tuple[float, float] | None = None,
-        cmap_input: Any | None = None,
+        by: str,
+        limits: tuple[float, float] | None = None,
+        cmap: Any | None = None,
     ):
         """
         Set colormap to a molecules layer.
 
         Parameters
         ----------
-        name : str
+        by : str
             Feature name from which colormap will be generated.
-        clim : (float, float)
+        limits : (float, float)
             Colormap contrast limits. Use min/max by default.
-        cmap_input : Any
+        cmap : Any
             Any object that can be converted to a Colormap object.
         """
-        column = self.molecules.features[name]
-        if clim is None:
-            seq = column.filter(~column.is_infinite())
-            clim = (seq.min(), seq.max())
+        column = self.molecules.features[by]
+        if limits is None:
+            seq = column.filter(column.is_finite())
+            limits = (seq.min(), seq.max())
         else:
-            clim = tuple(clim)
-        if cmap_input is None:
-            cmap_input = {0: "black", 1: "white"}
-        cmap = _normalize_colormap(cmap_input)
+            limits = tuple(limits)
+        if cmap is None:
+            cmap = {0: "black", 1: "white"}
+        _cmap = _normalize_colormap(cmap)
         if column.dtype in pl.INTEGER_DTYPES:
-            cmin, cmax = clim
+            cmin, cmax = limits
             arr = (column.cast(pl.Float32).clip(cmin, cmax) - cmin) / (cmax - cmin)
-            colors = cmap.map(arr)
+            colors = _cmap.map(arr)
             self.face_color = colors
         elif column.dtype in pl.FLOAT_DTYPES:
             self.face_color = column.name
-            self.face_colormap = cmap
-            self.face_contrast_limits = clim
+            self.face_colormap = _cmap
+            self.face_contrast_limits = limits
             if self._view_ndim == 3:
-                self.edge_colormap = cmap
-                self.edge_contrast_limits = clim
+                self.edge_colormap = _cmap
+                self.edge_contrast_limits = limits
         elif column.dtype is pl.Boolean:
-            cfalse, ctrue = cmap.map([0, 1])
+            cfalse, ctrue = _cmap.map([0, 1])
             column2d = np.repeat(column.to_numpy()[:, np.newaxis], 4, axis=1)
             col = np.where(column2d, ctrue, cfalse)
             self.face_color = col
@@ -264,23 +280,31 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
             raise ValueError(
                 f"Cannot paint by feature {column.name} of type {column.dtype}."
             )
-        self._colormap_info = ColormapInfo(cmap, clim, name)
+        self._colormap_info = ColormapInfo(_cmap, limits, by)
         self.refresh()
         return None
 
     def feature_setter(
-        self, features: pl.DataFrame, cmap_info: ColormapInfo | None = None
+        self, features: pl.DataFrame, cmap_info: ColormapInfo | str | None = None
     ):
         def _wrapper():
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 self.features = features
-            if cmap_info is not None:
-                self.set_colormap(cmap_info.name, cmap_info.clim, cmap_info.cmap)
-            else:
-                self.face_color = "lime"
+            match cmap_info:
+                case str(color):
+                    self.face_color = color
+                case None:
+                    self.face_color = "#000000"
+                case info:
+                    self.set_colormap(info.name, info.clim, info.cmap)
 
         return _wrapper
+
+    def face_color_setter(self, color):
+        self.face_color = color
+        self._colormap_info = str_color(color)
+        self.refresh()
 
     def set_view_ndim(self, ndim: int = 2):
         if ndim == 2:
@@ -298,6 +322,10 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
         Points.face_color.fset(self, color)
         if self._view_ndim == 3:
             self.edge_color = color
+        if isinstance(color, str):
+            self._colormap_info = color
+        elif np.isscalar(color[0]):
+            self._colormap_info = str_color(color[0])
 
 
 class CylinderLabels(_FeatureBoundLayer, Labels):
@@ -307,19 +335,19 @@ class CylinderLabels(_FeatureBoundLayer, Labels):
         self._colormap_info: ColormapInfo | None = None
         super().__init__(data, **kwargs)
 
-    def set_colormap(self, name: str, clim: tuple[float, float], cmap_input: Any):
+    def set_colormap(self, by: str, limits: tuple[float, float], cmap: Any):
         color = {
             0: np.array([0.0, 0.0, 0.0, 0.0], dtype=np.float32),
             None: np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float32),
         }
-        clim = tuple(clim)
+        clim = tuple(limits)
         lim0, lim1 = clim
-        seq = self.features[name][1:]  # skip background
-        cmap = _normalize_colormap(cmap_input)
+        seq = self.features[by][1:]  # skip background
+        _cmap = _normalize_colormap(cmap)
         for i, value in enumerate(seq):
-            color[i + 1] = cmap.map((value - lim0) / (lim1 - lim0))
+            color[i + 1] = _cmap.map((value - lim0) / (lim1 - lim0))
         self.color = color
-        self._colormap_info = ColormapInfo(cmap, clim, name)
+        self._colormap_info = ColormapInfo(_cmap, clim, by)
         return None
 
     @property
@@ -336,7 +364,7 @@ def _normalize_colormap(cmap) -> Colormap:
         return cmap
     if isinstance(cmap, str):
         return ensure_colormap(cmap)
-    if isinstance(cmap, list):
+    if isinstance(cmap, list) and isinstance(cmap[0], str):
         return Colormap(cmap)
     cmap = dict(cmap)
     if 0.0 not in cmap:

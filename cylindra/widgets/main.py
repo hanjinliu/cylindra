@@ -857,7 +857,7 @@ class CylindraMainWidget(MagicTemplate):
     def clip_spline(
         self,
         spline: Annotated[int, {"choices": _get_splines}],
-        lengths: Annotated[tuple[nm, nm], {"options": {"min": -1000.0, "max": 1000.0, "step": 0.1, "label": "clip length (nm)"}}] = (0.0, 0.0),
+        lengths: Annotated[tuple[nm, nm], {"options": {"min": -1000.0, "max": 1000.0, "step": 0.1, "label": "clip length (nm)", "layout": "horizontal"}}] = (0.0, 0.0),
     ):  # fmt: skip
         """
         Clip selected spline at its edges by given lengths.
@@ -931,10 +931,10 @@ class CylindraMainWidget(MagicTemplate):
     def copy_spline_new_config(
         self,
         i: Annotated[int, {"bind": _get_spline_idx}],
-        npf_range: Annotated[tuple[int, int], {"options": {"min": 2, "max": 100}}] = (11, 17),
-        spacing_range: Annotated[tuple[nm, nm], {"options": {"step": 0.05}}] = (3.9, 4.3),
-        twist_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.05}}] = (-1.0, 1.0),
-        rise_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.1}}] = (0.0, 45.0),
+        npf_range: Annotated[tuple[int, int], {"options": {"min": 2, "max": 100}, "layout": "horizontal"}] = (11, 17),
+        spacing_range: Annotated[tuple[nm, nm], {"options": {"step": 0.05}, "layout": "horizontal"}] = (3.9, 4.3),
+        twist_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.05}, "layout": "horizontal"}] = (-1.0, 1.0),
+        rise_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.1}, "layout": "horizontal"}] = (0.0, 45.0),
         rise_sign: Literal[-1, 1] = -1,
         clockwise: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus",
         thickness_inner: Annotated[nm, {"min": 0.0, "step": 0.1}] = 2.8,
@@ -1503,7 +1503,7 @@ class CylindraMainWidget(MagicTemplate):
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
         offsets: _OffsetType = None,
         radius: Optional[nm] = None,
-        extensions: Annotated[tuple[int, int], {"options": {"min": -100}}] = (0, 0),
+        extensions: Annotated[tuple[int, int], {"options": {"min": -100}, "layout": "horizontal"}] = (0, 0),
         prefix: str = "Mole",
     ):  # fmt: skip
         """
@@ -1778,7 +1778,7 @@ class CylindraMainWidget(MagicTemplate):
     def translate_molecules(
         self,
         layers: MoleculesLayersType,
-        translation: Annotated[tuple[nm, nm, nm], {"options": {"min": -1000, "max": 1000, "step": 0.1}, "label": "translation Z, Y, X (nm)"}],
+        translation: Annotated[tuple[nm, nm, nm], {"options": {"min": -1000, "max": 1000, "step": 0.1}, "label": "translation Z, Y, X (nm)", "layout": "horizontal"}],
         internal: bool = True,
         inherit_source: Annotated[bool, {"label": "Inherit source spline"}] = True,
     ):  # fmt: skip
@@ -1959,12 +1959,13 @@ class CylindraMainWidget(MagicTemplate):
 
     @set_design(text="Paint molecules by features", location=_sw.MoleculesMenu.View)
     @bind_key("Ctrl+K, C")
+    @do_not_record
     def paint_molecules(
         self,
         layer: MoleculesLayerType,
         color_by: Annotated[str, {"choices": _choice_getter("paint_molecules")}],
         cmap: _CmapType = DEFAULT_COLORMAP,
-        limits: Annotated[tuple[float, float], {"options": {"min": -20, "max": 20, "step": 0.01}}] = (4.00, 4.24),
+        limits: Annotated[tuple[float, float], {"options": {"min": -20, "max": 20, "step": 0.01}, "layout": "horizontal"}] = (4.00, 4.24),
     ):  # fmt: skip
         """
         Paint molecules by a feature.
@@ -1974,11 +1975,16 @@ class CylindraMainWidget(MagicTemplate):
         {layer}{color_by}{cmap}{limits}
         """
         layer = assert_layer(layer, self.parent_viewer)
-        layer.set_colormap(color_by, limits, cmap)
         info = layer.colormap_info
-        return undo_callback(layer.set_colormap).with_args(
-            name=info.name, clim=info.clim, cmap_input=info.cmap
-        )
+        layer.set_colormap(color_by, limits, cmap)
+
+        match info:
+            case str(color):
+                return undo_callback(layer.face_color_setter).with_args(color)
+            case info:
+                return undo_callback(layer.set_colormap).with_args(
+                    by=info.name, limits=info.clim, cmap=info.cmap
+                )
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
     @confirm(
@@ -2146,10 +2152,11 @@ class CylindraMainWidget(MagicTemplate):
         feature_name = f"{target}_{method}"
         layer.molecules = layer.molecules.with_features(out.alias(feature_name))
         self.reset_choices()
-        if layer.colormap_info is not None:
-            layer.set_colormap(
-                feature_name, layer.colormap_info.clim, layer.colormap_info.cmap
-            )
+        match layer.colormap_info:
+            case str(color):
+                layer.face_color = color
+            case info:
+                layer.set_colormap(feature_name, info.clim, info.cmap)
         return undo_callback(layer.feature_setter(feat, cmap_info))
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
@@ -2330,6 +2337,7 @@ class CylindraMainWidget(MagicTemplate):
         name: "str | None" = None,
         source: "BaseComponent | None" = None,
         metadata: "dict[str, Any]" = {},
+        cmap=None,
         **kwargs,
     ) -> MoleculesLayer:
         """Add molecules as a points layer to the viewer."""
@@ -2339,6 +2347,7 @@ class CylindraMainWidget(MagicTemplate):
             name,
             source=source,
             metadata=metadata,
+            cmap=cmap,
             **kwargs,
         )
 

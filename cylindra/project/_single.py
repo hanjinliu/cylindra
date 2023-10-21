@@ -23,12 +23,19 @@ if TYPE_CHECKING:
     from acryo import Molecules
 
 
+class MoleculeColormap(BaseModel):
+    cmap: list[tuple[float, str]]
+    limits: tuple[float, float]
+    by: str
+
+
 class MoleculesInfo(BaseModel):
     """Info of molecules layer."""
 
     name: str = "#unknown"  # including extension
     source: int | None = None
     visible: bool = True
+    color: MoleculeColormap | str = "lime"
 
     @property
     def stem(self) -> str:
@@ -86,9 +93,21 @@ class CylindraProject(BaseProject):
                 _src = gui.tomogram.splines.index(layer.source_component)
             except ValueError:
                 _src = None
+            info = layer.colormap_info
+            if isinstance(info, str):
+                color = info
+            else:
+                color = MoleculeColormap(
+                    cmap=info.to_list(),
+                    limits=info.clim,
+                    by=info.name,
+                )
             mole_infos.append(
                 MoleculesInfo(
-                    name=f"{layer.name}{mole_ext}", source=_src, visible=layer.visible
+                    name=f"{layer.name}{mole_ext}",
+                    source=_src,
+                    visible=layer.visible,
+                    color=color,
                 )
             )
 
@@ -218,7 +237,14 @@ class CylindraProject(BaseProject):
                 src = tomogram.splines[info.source]
             else:
                 src = None
-            cb = _add_mole.with_args(mole, info.stem, src, visible=info.visible)
+            match info.color:
+                case str(color):
+                    kwargs = dict(face_color=color)
+                case cmap:
+                    kwargs = dict(cmap=cmap.dict())
+            cb = _add_mole.with_args(
+                mole, name=info.stem, source=src, visible=info.visible, **kwargs
+            )
             yield cb
             cb.await_call(timeout=10)
 
