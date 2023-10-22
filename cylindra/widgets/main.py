@@ -622,7 +622,7 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     @set_design(text=capitalize, location=_sw.FileMenu)
     def save_molecules(
-        self, layer: MoleculesLayer, save_path: Path.Save[FileFilter.CSV]
+        self, layer: MoleculesLayerType, save_path: Path.Save[FileFilter.CSV]
     ):
         """
         Save monomer coordinates, orientation and features as a csv file.
@@ -857,7 +857,7 @@ class CylindraMainWidget(MagicTemplate):
     def clip_spline(
         self,
         spline: Annotated[int, {"choices": _get_splines}],
-        lengths: Annotated[tuple[nm, nm], {"options": {"min": -1000.0, "max": 1000.0, "step": 0.1, "label": "clip length (nm)", "layout": "horizontal"}}] = (0.0, 0.0),
+        lengths: Annotated[tuple[nm, nm], {"options": {"min": -1000.0, "max": 1000.0, "step": 0.1, "label": "clip length (nm)"}}] = (0.0, 0.0),
     ):  # fmt: skip
         """
         Clip selected spline at its edges by given lengths.
@@ -931,10 +931,10 @@ class CylindraMainWidget(MagicTemplate):
     def copy_spline_new_config(
         self,
         i: Annotated[int, {"bind": _get_spline_idx}],
-        npf_range: Annotated[tuple[int, int], {"options": {"min": 2, "max": 100}, "layout": "horizontal"}] = (11, 17),
-        spacing_range: Annotated[tuple[nm, nm], {"options": {"step": 0.05}, "layout": "horizontal"}] = (3.9, 4.3),
-        twist_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.05}, "layout": "horizontal"}] = (-1.0, 1.0),
-        rise_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.1}, "layout": "horizontal"}] = (0.0, 45.0),
+        npf_range: Annotated[tuple[int, int], {"options": {"min": 2, "max": 100}}] = (11, 17),
+        spacing_range: Annotated[tuple[nm, nm], {"options": {"step": 0.05}}] = (3.9, 4.3),
+        twist_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.05}}] = (-1.0, 1.0),
+        rise_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.1}}] = (0.0, 45.0),
         rise_sign: Literal[-1, 1] = -1,
         clockwise: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus",
         thickness_inner: Annotated[nm, {"min": 0.0, "step": 0.1}] = 2.8,
@@ -1024,7 +1024,7 @@ class CylindraMainWidget(MagicTemplate):
                 tomo.make_anchors(splines, interval=interval)
             elif how == "equal":
                 tomo.make_anchors(splines, max_interval=interval)
-            else:
+            else:  # pragma: no cover
                 raise ValueError(f"Unknown method: {how}")
         self._update_splines_in_images()
         return tracker.as_undo_callback()
@@ -1198,6 +1198,7 @@ class CylindraMainWidget(MagicTemplate):
     ):  # fmt: skip
         if len(ids) == 0:
             raise ValueError("No protofilament ID is given.")
+        layer = assert_layer(layer, self.parent_viewer)
         tomo = self.tomogram
         mole = layer.molecules
         for i in ids:
@@ -1503,7 +1504,7 @@ class CylindraMainWidget(MagicTemplate):
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
         offsets: _OffsetType = None,
         radius: Optional[nm] = None,
-        extensions: Annotated[tuple[int, int], {"options": {"min": -100}, "layout": "horizontal"}] = (0, 0),
+        extensions: Annotated[tuple[int, int], {"options": {"min": -100}}] = (0, 0),
         prefix: str = "Mole",
     ):  # fmt: skip
         """
@@ -1778,7 +1779,7 @@ class CylindraMainWidget(MagicTemplate):
     def translate_molecules(
         self,
         layers: MoleculesLayersType,
-        translation: Annotated[tuple[nm, nm, nm], {"options": {"min": -1000, "max": 1000, "step": 0.1}, "label": "translation Z, Y, X (nm)", "layout": "horizontal"}],
+        translation: Annotated[tuple[nm, nm, nm], {"options": {"min": -1000, "max": 1000, "step": 0.1}, "label": "translation Z, Y, X (nm)"}],
         internal: bool = True,
         inherit_source: Annotated[bool, {"label": "Inherit source spline"}] = True,
     ):  # fmt: skip
@@ -1959,13 +1960,12 @@ class CylindraMainWidget(MagicTemplate):
 
     @set_design(text="Paint molecules by features", location=_sw.MoleculesMenu.View)
     @bind_key("Ctrl+K, C")
-    @do_not_record
     def paint_molecules(
         self,
         layer: MoleculesLayerType,
         color_by: Annotated[str, {"choices": _choice_getter("paint_molecules")}],
         cmap: _CmapType = DEFAULT_COLORMAP,
-        limits: Annotated[tuple[float, float], {"options": {"min": -20, "max": 20, "step": 0.01}, "layout": "horizontal"}] = (4.00, 4.24),
+        limits: Annotated[tuple[float, float], {"options": {"min": -20, "max": 20, "step": 0.01}}] = (4.00, 4.24),
     ):  # fmt: skip
         """
         Paint molecules by a feature.

@@ -235,25 +235,6 @@ class SingleRotationEdit(ParametrizedEnumEdit):
         )
 
 
-class SingleOperationEdit(ParametrizedEnumEdit):
-    def _get_value_widget(self):
-        return FloatSpinBox(
-            value=0.0,
-            min=-100,
-            max=100,
-            tooltip="Parameter of the operation",
-            name="by",
-        )
-
-    def _get_choice_widget(self):
-        return ComboBox(
-            value="expand",
-            choices=["expand", "twist", "dilate"],
-            tooltip="Operation",
-            label="",
-        )
-
-
 class RandomSeedEdit(Container):
     """Widget for editing random seed values."""
 
@@ -291,7 +272,7 @@ class RandomSeedEdit(Container):
         except Exception:
             val = []
         count = 0
-        while (newval := random.randint(0, 1e9 - 1)) in val:
+        while (newval := random.randint(0, 99999999)) in val:
             # sample an identical value.
             count += 1
             if count > 1000:  # just in case!
@@ -314,6 +295,8 @@ class RandomSeedEdit(Container):
 
     @value.setter
     def value(self, val: Any):
+        if val == Undefined:
+            val = "0"
         if not isinstance(val, str):
             if hasattr(val, "__iter__"):
                 val = ", ".join(str(int(v)) for v in val)
@@ -340,7 +323,9 @@ class MultiFileEdit(Container):
         self._del_btn.max_width = 50
         _cnt = Container(widgets=[self._del_btn, self._toggle_btn, self._add_btn], layout="horizontal")
         _cnt.margins = (0, 0, 0, 0)
-        self._paths = ScrollableContainer(widgets=[], layout="vertical", labels=True)
+        self._paths = ScrollableContainer[Container[LineEdit | CheckBox]](
+            widgets=[], layout="vertical", labels=True
+        )
         self._filter = filter
         super().__init__(widgets=[self._paths, _cnt], layout="vertical", labels=False, **kwargs)
         # fmt: on
@@ -377,7 +362,6 @@ class MultiFileEdit(Container):
     def _delete_checked_paths(self):
         to_delete = list[int]()
         for i, wdt in enumerate(self._paths):
-            assert wdt[0].visible
             if wdt[0].value:
                 to_delete.append(i)
         for i in sorted(to_delete, reverse=True):

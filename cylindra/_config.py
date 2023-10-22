@@ -82,7 +82,7 @@ _APP_CONFIG: AppConfig | None = None
 
 
 @atexit.register
-def _save_config():
+def _save_config():  # pragma: no cover
     if _APP_CONFIG is not None:
         try:
             _APP_CONFIG.to_user_dir()

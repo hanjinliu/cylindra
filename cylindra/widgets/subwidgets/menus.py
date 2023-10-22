@@ -337,10 +337,10 @@ class SplinesMenu(ChildWidget):
         @bind_key("Ctrl+K, Ctrl+[")
         def update_default_config(
             self,
-            npf_range: Annotated[tuple[int, int], {"options": {"min": 2, "max": 100}, "layout": "horizontal"}] = (11, 17),
-            spacing_range: Annotated[tuple[nm, nm], {"options": {"step": 0.05}, "layout": "horizontal"}] = (3.9, 4.3),
-            twist_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.05}, "layout": "horizontal"}] = (-1.0, 1.0),
-            rise_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.1}, "layout": "horizontal"}] = (0.0, 45.0),
+            npf_range: Annotated[tuple[int, int], {"options": {"min": 2, "max": 100}}] = (11, 17),
+            spacing_range: Annotated[tuple[nm, nm], {"options": {"step": 0.05}}] = (3.9, 4.3),
+            twist_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.05}}] = (-1.0, 1.0),
+            rise_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.1}}] = (0.0, 45.0),
             rise_sign: Literal[-1, 1] = -1,
             clockwise: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus",
             thickness_inner: Annotated[nm, {"min": 0.0, "step": 0.1}] = 2.8,
@@ -1055,17 +1055,13 @@ class OthersMenu(ChildWidget):
     @do_not_record
     def configure_cylindra(
         self,
-        default_spline_config: Annotated[
-            str, {"choices": _get_list_of_cfg}
-        ] = _config.get_config().default_spline_config,
+        default_spline_config: Annotated[str, {"choices": _get_list_of_cfg}] = _config.get_config().default_spline_config,
         dask_chunk: tuple[int, int, int] = _config.get_config().dask_chunk,
-        point_size: Annotated[
-            float, {"min": 0.5, "max": 10}
-        ] = _config.get_config().point_size,
+        point_size: Annotated[float, {"min": 0.5, "max": 10}] = _config.get_config().point_size,
         molecules_color: Color = _config.get_config().molecules_color,
         molecules_ndim: Literal[2, 3] = _config.get_config().molecules_ndim,
         use_gpu: Annotated[bool, {"label": "use GPU"}] = _config.get_config().use_gpu,
-    ):
+    ):  # fmt: skip
         """
         Configure cylindra application global parameters.
 

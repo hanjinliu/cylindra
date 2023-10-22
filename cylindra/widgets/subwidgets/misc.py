@@ -63,7 +63,7 @@ class ImageLoader(MagicTemplate):
         tilt_range_label = vfield("tilt range (deg)", widget_type="Label")
         range = vfield(Optional[tuple[float, float]]).with_options(
             text="No missing wedge",
-            options={"options": dict(min=-90, max=90, step=1), "layout": "horizontal"},
+            options={"options": dict(min=-90, max=90, step=1)},
             value=(-60, 60),
         )
 

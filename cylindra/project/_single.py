@@ -348,21 +348,6 @@ class CylindraProject(BaseProject):
             spl.props.glob = cast_dataframe(_glob)
             yield spl
 
-    def iter_molecule_paths(self, dir: Path | None = None) -> "Iterable[Path]":
-        """Iterate over the paths of molecules."""
-        if dir is None:
-            with self.open_project() as dir:
-                for info in self.molecules_info:
-                    yield dir / info.name
-        else:
-            for info in self.molecules_info:
-                yield dir / info.name
-
-        if dir is None:
-            dir = self.project_path
-        for info in self.molecules_info:
-            yield dir / info.name
-
     def iter_load_molecules(
         self, dir: Path
     ) -> "Iterable[tuple[MoleculesInfo, Molecules]]":

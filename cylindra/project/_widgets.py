@@ -20,6 +20,7 @@ from cylindra.const import ImageFilter
 
 if TYPE_CHECKING:
     from ._single import CylindraProject
+    from cylindra.widgets import CylindraMainWidget
     from magicclass.ext.vispy._base import LayerItem
 
 
@@ -172,7 +173,7 @@ class ProjectViewer(MagicTemplate):
         """Load current project in main window."""
         from cylindra import instance
 
-        ui = None
+        ui: "CylindraMainWidget | None" = None
 
         @thread_worker.callback
         def _launch_ui():

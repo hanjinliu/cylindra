@@ -143,16 +143,6 @@ def interval_divmod(value: float, interval: float) -> tuple[float, int]:
 _A = TypeVar("_A", bound=np.ndarray)
 
 
-def merge_images(img0: _A, img1: _A) -> _A:
-    img0 = np.asarray(img0)
-    img1 = np.asarray(img1)
-    img0_norm = img0 - img0.min()
-    img0_norm /= img0_norm.max()
-    img1_norm = img1 - img1.min()
-    img1_norm /= img1_norm.max()
-    return np.stack([img0_norm, img1_norm, img0_norm], axis=-1)
-
-
 def normalize_image(img: _A, outlier: float = (0.01, 0.01)) -> _A:
     min, max = np.quantile(img, [outlier[0], 1 - outlier[1]])
     return (img - min) / (max - min)
@@ -280,6 +270,3 @@ class Projections:
         if self.zx_ave is None and self.npf > 1:
             self.zx_ave = rotational_average(self.zx, fold=self.npf)
         return self
-
-    def __repr__(self) -> str:
-        return f"Projections(shape={self.shape})"

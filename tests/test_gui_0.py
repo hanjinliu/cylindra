@@ -13,8 +13,12 @@ from magicclass.utils import thread_worker
 from cylindra import view_project, _config, cylstructure
 from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets.sta import MASK_CHOICES
-from cylindra.const import MoleculesHeader as Mole
-from cylindra.const import PropertyNames as H, MoleculesHeader as Mole
+from cylindra.const import (
+    MoleculesHeader as Mole,
+    PropertyNames as H,
+    MoleculesHeader as Mole,
+)
+from cylindra._config import get_config
 import pytest
 from .utils import pytest_group, ExceptionGroup
 from ._const import TEST_DIR, PROJECT_DIR_13PF, PROJECT_DIR_14PF
@@ -53,6 +57,7 @@ def assert_orientation(ui: CylindraMainWidget, ori: str):
 
 def test_click_buttons(ui: CylindraMainWidget):
     mcls_testing.check_function_gui_buildable(ui)
+    mcls_testing.check_function_gui_buildable(ui.simulator)
 
 
 def test_tooltip(ui: CylindraMainWidget):
@@ -62,6 +67,16 @@ def test_tooltip(ui: CylindraMainWidget):
 def test_misc_actions(ui: CylindraMainWidget):
     ui.OthersMenu.cylindra_info()
     ui.OthersMenu.open_command_palette()
+    ui.SplineControl.copy_screenshot()
+    ui.LocalProperties.copy_screenshot()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        ui.SplineControl.save_screenshot(Path(tmpdir) / "img.png")
+        ui.LocalProperties.save_screenshot(Path(tmpdir) / "img.png")
+    ui.SplineControl.log_screenshot()
+    ui.LocalProperties.log_screenshot()
+    cfg = get_config()
+    ui.OthersMenu.configure_cylindra(use_gpu=cfg.use_gpu)
+    cfg.to_user_dir()
 
 
 @pytest.mark.parametrize(
@@ -132,7 +147,7 @@ def test_io_with_different_data(ui: CylindraMainWidget):
         dict(local_props=False, global_props=False),
         dict(local_props=False, global_props=True),
         dict(local_props=True, global_props=False),
-        dict(local_props=True, global_props=True),
+        dict(local_props=True, global_props=True, map_monomers=True),
     ]
     exc_group = ExceptionGroup()
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -147,8 +162,14 @@ def test_io_with_different_data(ui: CylindraMainWidget):
                 ui.save_project(tmpdir)
                 ui.load_project(tmpdir, filter="DoG")
     exc_group.raise_exceptions()
+    ui.SplineControl.footer.highlight_subvolume = True
+    ui.SplineControl.pos = 1
+    ui.SplineControl.footer.highlight_subvolume = False
 
     ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False, read_image=False)
+    ui.mole_layers.get("Mole-0")
+    ui.mole_layers.get("Mole-100", None)
+    list(ui.mole_layers.iter())
 
 
 def test_picking_splines(ui: CylindraMainWidget):
@@ -300,6 +321,8 @@ def test_spline_switch(ui: CylindraMainWidget):
 
     # check canvas is updated correctly
     ui.add_anchors(interval=15.0)
+    ui.add_anchors(interval=15.0, how="equal")
+    ui.macro.undo()
     assert_canvas(ui, [True, True, True])
     with thread_worker.blocking_mode():
         ui.sample_subtomograms()
@@ -491,19 +514,11 @@ def test_sub_widgets(ui: CylindraMainWidget):
         ui.spline_slicer._update_canvas()
         ui.spline_slicer.show_what = "Filtered-R-projection"
         ui.spline_slicer._update_canvas()
+        ui.spline_slicer.params.binsize = 2
+        ui.spline_slicer._next_pos()
+        ui.spline_slicer._prev_pos()
         ui.spline_slicer.measure_cft_here()
-
-        # file iterator
-        ui._file_iterator.set_pattern(f"{TEST_DIR.as_posix()}/*.tif")
-        ui._file_iterator.last_file()
-        ui._file_iterator.first_file()
-        ui._file_iterator.next_file()
-        ui._file_iterator.prev_file()
-        ui._file_iterator.open_image(ui._file_iterator.path)
-        ui._file_iterator.preview_all().close()
-        ui._file_iterator.set_pattern(f"{TEST_DIR.as_posix()}/*/project.json")
-        ui._file_iterator.view_local_props()
-        ui._file_iterator.send_to_batch_analyzer()
+        ui.spline_slicer._show_overlay_text("some text")
 
         # spline clipper
         len_old = ui.splines[0].length()
@@ -520,6 +535,24 @@ def test_sub_widgets(ui: CylindraMainWidget):
         ui.AnalysisMenu.open_spectra_inspector()
         ui.spectra_inspector.log_scale = True
         ui.spectra_inspector.log_scale = False
+        ui.spectra_inspector.select_axial_peak()
+        ui.spectra_inspector._click_at((20, 10))
+        ui.spectra_inspector.select_angular_peak()
+        ui.spectra_inspector._click_at((10, 20))
+
+        # file iterator
+        ui._file_iterator.set_pattern(f"{TEST_DIR.as_posix()}/*.tif")
+        ui._file_iterator.last_file()
+        ui._file_iterator.first_file()
+        ui._file_iterator.next_file()
+        ui._file_iterator.prev_file()
+        ui._file_iterator.open_image(ui._file_iterator.path)
+        ui._file_iterator.preview_all().close()
+        ui._file_iterator.set_pattern(f"{TEST_DIR.as_posix()}/*/project.json")
+        ui._file_iterator.view_local_props()
+        ui._file_iterator.send_to_batch_analyzer()
+        ui._file_iterator.load_project(ui._file_iterator.path)
+        ui._file_iterator.load_project_for_reanalysis(ui._file_iterator.path)
 
 
 @pytest.mark.parametrize("bin_size", [1, 2])
@@ -527,6 +560,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
     ui.AnalysisMenu.open_subtomogram_analyzer()
     ui.sta.average_all("Mole-0", size=12.0, bin_size=bin_size)
+    ui.sta.average_all("Mole-0", size=12.0, bin_size=bin_size)  # check coerce name
     for method in ["steps", "first", "last", "random"]:
         ui.sta.average_subset(
             "Mole-0",
@@ -560,6 +594,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
     ui.sta.params.mask_choice = MASK_CHOICES[2]
     ui.sta.params.mask_choice = MASK_CHOICES[1]
     ui.sta.show_template()
+    ui.sta.show_template_original()
     ui.sta.show_mask()
     ui.sta.align_averaged(
         layers=["Mole-0"],
@@ -619,6 +654,11 @@ def test_seam_search(ui: CylindraMainWidget):
         (pl.col("nth") * pl.col("pf-id") % 3 < 2).cast(pl.UInt8).alias("seam-label")
     )
     ui.sta.seam_search_by_feature(layer, by="seam-label")
+    ui.sta.seam_search_manually(layer, 3)
+
+    image_layer_name = ui.parent_viewer.layers[0].name
+    with pytest.raises(TypeError):
+        ui.sta.seam_search_manually(image_layer_name, 3)
 
 
 def test_classify_pca(ui: CylindraMainWidget):
@@ -680,19 +720,52 @@ def test_radius_methods(ui: CylindraMainWidget):
 def test_simulator(ui: CylindraMainWidget):
     ui.simulator.create_empty_image(size=(50.0, 100.0, 50.0), scale=0.5)
     ui.register_path(coords=[[25.375, 83.644, 18.063], [25.375, 23.154, 28.607]])
+    tester = mcls_testing.FunctionGuiTester(ui.simulator.generate_molecules)
+    tester.click_preview()
+    tester.click_preview()  # has to remove the preview layer
     ui.simulator.generate_molecules(
         spline=0,
         spacing=4.1,
         twist=-0.30,
         start=3,
         npf=14,
-        radius=9.14,
+        radius=11,
         offsets=(0.0, 0.18),
     )
     layer = ui.mole_layers.last()
+    ui.simulator.generate_molecules(
+        spline=0,
+        spacing=4,
+        twist=20,
+        start=1,
+        npf=2,
+        radius=6,
+        offsets=(0.0, 0.18),
+    )
     ui.simulator.expand(layer, by=0.1, yrange=(11, 15), arange=(0, 14), allev=True)
     ui.simulator.twist(layer, by=0.3, yrange=(11, 15), arange=(0, 14), allev=True)
     ui.simulator.dilate(layer, by=-0.5, yrange=(11, 15), arange=(0, 14), allev=True)
+    ui.simulator.displace(
+        layer,
+        expand="pl.col('nth') * 0.01",
+        twist=pl.col("nth") * 0.01,
+        dilate=1.1,
+    )
+    fgui = get_function_gui(ui.simulator.expand)
+    fgui.reset_choices()
+    fgui.layer.value = ui.mole_layers.nth(1)
+    assert len(ui.simulator._get_proper_molecules_layers()) == 2
+
+    # preview
+    for method in [
+        ui.simulator.expand,
+        ui.simulator.twist,
+        ui.simulator.dilate,
+        ui.simulator.displace,
+    ]:
+        tester = mcls_testing.FunctionGuiTester(method)
+        tester.click_preview()
+        tester.click_preview()
     ui.simulator.close()
 
 
@@ -740,11 +813,16 @@ def test_simulate_tilt_series(ui: CylindraMainWidget):
             n_tilt=11,
             interpolation=1,
         )
+        ui.simulator.simulate_tomogram_from_tilt_series(Path(dirpath) / "image.mrc")
     ui.simulator.close()
 
 
 def test_project_viewer():
-    view_project(PROJECT_DIR_14PF).close()
+    pviewer = view_project(PROJECT_DIR_14PF)
+    # TODO: fails due to delayed returned callback
+    # pviewer.load_this_project(path=pviewer._get_project_path())
+    pviewer.preview_image().close()
+    pviewer.close()
 
 
 def test_molecules_methods(ui: CylindraMainWidget):
@@ -757,12 +835,23 @@ def test_molecules_methods(ui: CylindraMainWidget):
     assert last_layer.data.shape[0] == layer0.data.shape[0] + layer1.data.shape[0]
     ui.mole_layers.delete(include="concat")
     ui.split_molecules("Mole-0", by=Mole.pf)
+    with pytest.raises(TypeError):
+        ui.split_molecules(ui.parent_viewer.layers[0].name, by=Mole.pf)
     ui.interpolate_spline_properties("Mole-0", interpolation=1)
     ui.MoleculesMenu.View.render_molecules(
         layer0,
         template_path=TEST_DIR / "beta-tubulin.mrc",
     )
+
+    color0 = layer0.face_color
     ui.paint_molecules(layer0, color_by="pf-id", limits=(0, 12))
+    color1 = layer0.face_color
+    assert not np.allclose(color0, color1)
+    ui.macro.undo()
+    assert_allclose(layer0.face_color, color0)
+    ui.macro.redo()
+    assert_allclose(layer0.face_color, color1)
+
     ui.MoleculesMenu.View.render_molecules(
         layer0,
         template_path=TEST_DIR / "beta-tubulin.mrc",
@@ -781,8 +870,18 @@ def test_molecules_methods(ui: CylindraMainWidget):
     assert ui.mole_layers.names() == ["Mole-0", "Mole-1"] + names_split
     ui.macro.redo()
     assert ui.mole_layers.names() == ["Mole-0", "Mole-1"]
+
     ui.paint_molecules("Mole-0", "nth", {0: "blue", 1: "yellow"}, (0, 10))
+    ui.macro.undo()
+    ui.macro.redo()
     ui.ImageMenu.show_colorbar(ui.mole_layers["Mole-0"])
+
+    ui.MoleculesMenu.View.change_dimensionality([ui.mole_layers["Mole-0"]], 2)
+
+    tester = mcls_testing.FunctionGuiTester(ui.rename_molecules)
+    tester.update_parameters(old="Mole", new="XYZ")
+    tester = mcls_testing.FunctionGuiTester(ui.delete_molecules)
+    tester.update_parameters(include="-0")
 
 
 def test_transform_molecules(ui: CylindraMainWidget):
@@ -839,6 +938,8 @@ def test_molecule_features(ui: CylindraMainWidget):
         expression='pl.col("pf-id") < 4',
     )
     assert "new" == layer.features.columns[-1]
+    ui.macro.undo()
+    ui.macro.redo()
 
 
 def test_auto_align(ui: CylindraMainWidget):
@@ -881,6 +982,8 @@ def test_molecules_to_spline(ui: CylindraMainWidget):
     new_spl1 = ui.tomogram.splines[0]
     assert ["npf", "orientation"] == sorted(new_spl1.props.glob.columns)
 
+    ui.protofilaments_to_spline(layer=layer_trans, ids=[1, 4])
+
 
 def test_calc_lattice_structures(ui: CylindraMainWidget):
     exc_group = ExceptionGroup()
@@ -922,13 +1025,20 @@ def test_calc_lattice_structures(ui: CylindraMainWidget):
 
 def test_calc_misc(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
+    ui.mole_layers.clear()
     ui.map_monomers(splines=[0])
     layer = ui.mole_layers.last()
     all_props = cylstructure.LatticeParameters.choices()
     ui.calculate_lattice_structure(layer=layer, props=all_props)
     assert layer.features[Mole.radius].std() < 0.1
-    ui.paint_molecules(layer, color_by=Mole.radius, limits=(8, 10))
+    ui.paint_molecules(layer, color_by=Mole.nth, limits=(0, 10))
+    colors = ui.mole_layers.last().face_color
     ui.MoleculesMenu.View.plot_molecule_feature(layer, backend="qt")
+    with tempfile.TemporaryDirectory() as dirpath:
+        fp = Path(dirpath) / "test-project.tar"
+        ui.save_project(fp)
+        ui.load_project(fp, filter=None, paint=False)
+    assert_allclose(ui.mole_layers.last().face_color, colors)
 
 
 def test_spline_fitter(ui: CylindraMainWidget):
@@ -968,7 +1078,7 @@ def test_function_menu(make_napari_viewer):
     from cylindra.widgets.subwidgets import Volume
 
     viewer: napari.Viewer = make_napari_viewer()
-    vol = Volume()
+    vol = Volume(viewer)
     viewer.window.add_dock_widget(vol)
     img = ip.asarray(
         np.arange(1000, dtype=np.float32).reshape(10, 10, 10), axes="zyx"
@@ -986,6 +1096,12 @@ def test_function_menu(make_napari_viewer):
         vol.save_label_as_mask(lbl, dirpath / "test_label.tif")
         vol.save_label_as_mask(lbl, dirpath / "test_label.mrc")
     vol.plane_clip()
+    tester = mcls_testing.FunctionGuiTester(vol.gaussian_filter)
+    tester.click_preview()
+    tester.click_preview()
+    tester = mcls_testing.FunctionGuiTester(vol.threshold)
+    tester.click_preview()
+    tester.click_preview()
 
 
 def test_viterbi_alignment(ui: CylindraMainWidget):
@@ -1151,7 +1267,10 @@ def test_showing_widgets(ui: CylindraMainWidget):
     ui.OthersMenu.Macro.show_full_macro()
     ui.OthersMenu.Macro.show_native_macro()
     ui.OthersMenu.open_logger()
-    ui.FileMenu.open_image_loader()
+    loader = ui.FileMenu.open_image_loader()
+    loader.path = TEST_DIR / "13pf_MT.tif"
+    loader.scan_header()
+    loader.preview_image().close()
     ui.FileMenu.view_project(PROJECT_DIR_13PF / "project.json")
 
 
@@ -1175,6 +1294,8 @@ def test_workflows_custom(ui: CylindraMainWidget):
         ui.OthersMenu.Workflows.define_workflow(name, code)
         ui.OthersMenu.Workflows.edit_workflow(name, code)
         ui.OthersMenu.Workflows.edit_workflow(name, code)  # test overwriting
+        ui.run_workflow(name)
+        ui.OthersMenu.Workflows.run_workflow(name)
         ui.OthersMenu.Workflows.import_workflow(
             Path(dirpath) / f"{name}.py", name="imported"
         )

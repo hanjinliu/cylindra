@@ -125,6 +125,6 @@ def rotvec_from_axis_and_degree(axis: Literal["z", "y", "x"], deg: float):
         unit_vec = np.array([0, 1, 0], dtype=np.float32)
     elif axis == "x":
         unit_vec = np.array([0, 0, 1], dtype=np.float32)
-    else:
+    else:  # pragma: no cover
         raise ValueError(f"Unknown axis: {axis!r}")
     return unit_vec * np.deg2rad(deg)

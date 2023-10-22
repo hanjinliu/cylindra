@@ -14,6 +14,8 @@ def ui(make_napari_viewer):
     yield _ui
 
     _ui._disconnect_layerlist_events()
+    for dock in viewer.window._dock_widgets.values():
+        dock.close()
     for _w in _ui._active_widgets:
         with suppress(RuntimeError):
             _w.close()

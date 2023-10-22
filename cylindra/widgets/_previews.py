@@ -140,17 +140,6 @@ def view_tables(
     return container
 
 
-def view_text(path: str, parent: MagicTemplate = None, **kwargs) -> ConsoleTextEdit:
-    """Preview a text file."""
-    with open(path, mode="r", **kwargs) as f:
-        txt = f.read()
-
-    textedit = ConsoleTextEdit(value=txt)
-    textedit.native.setParent(parent.native, textedit.native.windowFlags())
-    textedit.show()
-    return textedit
-
-
 def view_image(path: str | list[str], parent: MagicTemplate = None) -> ImagePreview:
     """Preview an image."""
     prev = ImagePreview()
@@ -158,15 +147,6 @@ def view_image(path: str | list[str], parent: MagicTemplate = None) -> ImagePrev
         prev._load_images(path)
     else:
         prev._load_image(path)
-    prev.native.setParent(parent.native, prev.native.windowFlags())
-    prev.show()
-    return prev
-
-
-def view_surface(data, parent: MagicTemplate = None) -> Vispy3DCanvas:
-    """Preview a 3D surface."""
-    prev = Vispy3DCanvas()
-    prev.add_surface(data)
     prev.native.setParent(parent.native, prev.native.windowFlags())
     prev.show()
     return prev

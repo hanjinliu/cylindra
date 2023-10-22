@@ -95,7 +95,10 @@ _Rotations = Annotated[
 ]
 _MaxShifts = Annotated[
     tuple[nm, nm, nm],
-    {"options": {"max": 10.0, "step": 0.1}, "label": "Max shifts (nm)"},
+    {
+        "options": {"max": 10.0, "step": 0.1},
+        "label": "Max shifts (nm)",
+    },
 ]
 _SubVolumeSize = Annotated[
     Optional[nm],
@@ -371,8 +374,11 @@ class StaParameters(MagicTemplate):
             StaParameters._viewer = viewer = napari.Viewer(
                 title=name, axis_labels=("z", "y", "x"), ndisplay=3
             )
-            volume_menu = Volume()
-            viewer.window.add_dock_widget(volume_menu)
+            volume_menu = Volume(viewer)
+            volume_menu.native.setParent(
+                viewer.window.main_menu, volume_menu.native.windowFlags()
+            )
+            viewer.window.main_menu.addMenu(volume_menu.native)
             viewer.window.resize(10, 10)
             viewer.window.activate()
         StaParameters._viewer.scale_bar.visible = True
@@ -621,7 +627,7 @@ class SubtomogramAveraging(ChildWidget):
         t0.toc()
         return self._show_rec.with_args(img, f"[AVG]{_avg_name(layers)}", store=False)
 
-    @set_design(text="Split molecules and average", location=Averaging)
+    @set_design(text="Split and average molecules", location=Averaging)
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Split-and-averaging of {!r}"))  # fmt: skip
     def split_and_average(
         self,

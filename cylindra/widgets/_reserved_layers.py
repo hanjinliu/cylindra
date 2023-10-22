@@ -166,7 +166,7 @@ class ReservedLayers:
             str_of_interest[0], str_of_interest[-1] = "-", "+"
         elif orientation is Ori.PlusToMinus:
             str_of_interest[0], str_of_interest[-1] = "+", "-"
-        else:
+        else:  # pragma: no cover
             raise RuntimeError(orientation)
 
         # update

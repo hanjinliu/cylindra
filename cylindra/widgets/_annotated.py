@@ -52,8 +52,8 @@ FSCFreq = Annotated[
 
 def assert_layer(layer: Any, viewer: "napari.Viewer") -> MoleculesLayer:
     if isinstance(layer, str):
-        return viewer.layers[layer]
-    elif isinstance(layer, MoleculesLayer):
+        layer = viewer.layers[layer]
+    if isinstance(layer, MoleculesLayer):
         return layer
     else:
         raise TypeError(f"Layer {layer!r} is not a MoleculesLayer.")
@@ -64,11 +64,13 @@ def assert_list_of_layers(layers: Any, viewer: "napari.Viewer") -> list[Molecule
         raise ValueError("No layer selected.")
     if isinstance(layers, (MoleculesLayer, str)):
         layers = [layers]
+    elif not hasattr(layers, "__iter__"):
+        raise TypeError(f"Expected iterable, got {type(layers)}")
     layer_normed: list[MoleculesLayer] = []
     for layer in layers:
         if isinstance(layer, str):
-            layer_normed.append(viewer.layers[layer])
-        elif isinstance(layer, MoleculesLayer):
+            layer = viewer.layers[layer]
+        if isinstance(layer, MoleculesLayer):
             layer_normed.append(layer)
         else:
             raise TypeError(f"Layer {layer!r} is not a MoleculesLayer.")

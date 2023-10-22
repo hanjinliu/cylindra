@@ -82,11 +82,11 @@ def add_molecules(
     )
     kw.update(**kwargs)
     layer = MoleculesLayer(mol, name=name, metadata=metadata.copy(), **kw)
-    if cmap is not None:
-        layer.set_colormap(**cmap)
     if source is not None:
         layer.source_component = source
     viewer.add_layer(layer)
+    if cmap is not None:
+        layer.set_colormap(**cmap)
     layer.set_view_ndim(app_cfg.molecules_ndim)
     layer.editable = False
     return layer

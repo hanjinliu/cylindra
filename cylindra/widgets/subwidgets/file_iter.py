@@ -10,6 +10,7 @@ from magicclass import (
     get_button,
     get_function_gui,
 )
+from magicclass.utils import thread_worker
 from ._child_widget import ChildWidget
 from cylindra.widgets._previews import view_image
 from cylindra.project import ProjectSequence, CylindraProject
@@ -94,20 +95,23 @@ class FileIterator(ChildWidget):
         loader.show()
 
     @set_design(text="Load project")
+    @thread_worker
     def load_project(self, path: Annotated[str, {"bind": path}]):
         if Path(path).suffix not in (".json", "", ".tar", ".zip"):
             raise ValueError("Not a project file")
-        fgui = get_function_gui(self._get_main().load_project)
+        method = self._get_main().load_project
+        fgui = get_function_gui(method)
         fgui.path.value = path
-        fgui.call_button.changed()
+        yield from method.arun(**fgui.asdict())
 
     @set_design(text="Re-analyze project")
     def load_project_for_reanalysis(self, path: Annotated[str, {"bind": path}]):
         if Path(path).suffix not in (".json", "", ".tar", ".zip"):
             raise ValueError("Not a project file")
-        fgui = get_function_gui(self._get_main().load_project_for_reanalysis)
+        method = self._get_main().load_project_for_reanalysis
+        fgui = get_function_gui(method)
         fgui.path.value = path
-        fgui.call_button.changed()
+        method(**fgui.asdict())
 
     @set_design(text="Send to batch analyzer")
     def send_to_batch_analyzer(self):

@@ -1,11 +1,11 @@
-import os
-from typing import Annotated
+from typing import Annotated, Any
 from contextlib import suppress
 from magicclass import (
     magicclass,
+    magicmenu,
+    impl_preview,
     vfield,
     MagicTemplate,
-    set_options,
     set_design,
 )
 from magicclass.types import Path
@@ -13,10 +13,13 @@ from magicclass.widgets import FloatRangeSlider
 import numpy as np
 import impy as ip
 import operator
+import napari
 from napari.types import LayerDataTuple
 from napari.layers import Image, Labels, Layer
 
 from cylindra.utils import set_gpu
+from cylindra.const import PREVIEW_LAYER_NAME
+from cylindra.widgets.widget_utils import capitalize
 
 
 def _convert_array(arr: np.ndarray, scale: float) -> ip.ImgArray:
@@ -42,17 +45,17 @@ OPERATORS = [
 ]
 
 
-@magicclass(record=False)
+@magicmenu(record=False)
 class Volume(MagicTemplate):
     """A custom menu that provides useful functions for volumeric data visualization."""
 
-    @set_options(auto_call=True)
-    @set_design(text="Binning")
+    def __init__(self, viewer: napari.Viewer):
+        self._viewer = viewer
+
+    @set_design(text=capitalize)
     def binning(
         self, layer: Image, bin_size: Annotated[int, {"min": 1, "max": 16}] = 2
     ) -> LayerDataTuple:
-        if layer is None:
-            return None
         img = _convert_array(layer.data, layer.scale[-1])
         out = img.binning(binsize=bin_size, check_edges=False)
         translate = list[float]()
@@ -73,38 +76,40 @@ class Volume(MagicTemplate):
             "image",
         )
 
-    @set_options(auto_call=True)
-    @set_design(text="Gaussian filter")
+    @set_design(text=capitalize)
     def gaussian_filter(
         self,
         layer: Image,
-        sigma: Annotated[
-            float, {"widget_type": "FloatSlider", "max": 5.0, "step": 0.1}
-        ] = 1.0,
-    ) -> LayerDataTuple:
+        sigma: Annotated[float, {"widget_type": "FloatSlider", "max": 5.0, "step": 0.1}] = 1.0,
+    ) -> LayerDataTuple:  # fmt: skip
         """Apply Gaussian filter to an image."""
         return self._apply_method(layer, "gaussian_filter", sigma=sigma)
 
-    @set_options(auto_call=True)
-    @set_design(text="Threshold")
+    @impl_preview(gaussian_filter, auto_call=True)
+    def _preview_gaussian_filter(self, layer: Image, sigma: float):
+        data, kwargs, _ = self._apply_method(layer, "gaussian_filter", sigma=sigma)
+        yield from self._preview_context(layer, data, kwargs)
+
+    @set_design(text=capitalize)
     def threshold(
         self,
         layer: Image,
-        quantile: Annotated[
-            float, {"widget_type": "FloatSlider", "max": 1.0, "step": 0.01}
-        ] = 0.5,
-    ) -> LayerDataTuple:
+        quantile: Annotated[float, {"widget_type": "FloatSlider", "max": 1.0, "step": 0.01}] = 0.5,
+    ) -> LayerDataTuple:  # fmt: skip
         """Apply threshold to an image."""
         thr = np.quantile(layer.data, quantile)
         return self._apply_method(layer, "threshold", thr)
 
-    @set_options(layout="horizontal", labels=False, auto_call=True)
-    @set_design(text="Binary operation")
+    @impl_preview(threshold, auto_call=True)
+    def _preview_threshold(self, layer: Image, quantile: float):
+        thr = np.quantile(layer.data, quantile)
+        data, kwargs, _ = self._apply_method(layer, "threshold", thr)
+        yield from self._preview_context(layer, data, kwargs)
+
+    @set_design(text=capitalize)
     def binary_operation(
         self, layer_1: Image, op: Annotated[str, {"choices": OPERATORS}], layer_2: Image
     ) -> LayerDataTuple:
-        if layer_1 is None or layer_2 is None:
-            return None
         img1 = _convert_array(layer_1.data, layer_1.scale[-1])
         img2 = _convert_array(layer_2.data, layer_2.scale[-1])
         out = getattr(operator, op)(img1, img2)
@@ -119,26 +124,15 @@ class Volume(MagicTemplate):
             "image",
         )
 
-    @set_design(text="Save volume")
+    @set_design(text=capitalize)
     def save_volume(self, layer: Image, path: Path.Save):
         """Save a volume as tif or mrc file."""
         img = layer.data
         if not isinstance(img, ip.ImgArray):
             raise TypeError(f"Use napari built-in menu to save {type(img)}.")
+        img.imsave(path)
 
-        fp, ext = os.path.split(path)
-        if ext == ".mrc" and img.ndim not in (2, 3):
-            if os.path.exists(fp):
-                raise FileExistsError
-            os.mkdir(fp)
-            imgs = img.reshape(-1, *img.sizesof("zyx"))
-            imgs.axes = "pzyx"
-            for i, img0 in enumerate(imgs):
-                img0.imsave(os.path.join(fp, f"image-{i}.mrc"))
-        else:
-            img.imsave(path)
-
-    @set_design(text="Save label as mask")
+    @set_design(text=capitalize)
     def save_label_as_mask(self, layer: Labels, path: Path.Save):
         """Save a label as mask."""
         lbl: np.ndarray = layer.data
@@ -153,7 +147,7 @@ class Volume(MagicTemplate):
         )
         lbl.imsave(path)
 
-    @set_design(text="Plane clip")
+    @set_design(text=capitalize)
     def plane_clip(self):
         """Open a plane clipper as an dock widget."""
         widget = PlaneClip()
@@ -162,8 +156,6 @@ class Volume(MagicTemplate):
         return None
 
     def _apply_method(self, layer: Image, method_name: str, *args, **kwargs):
-        if layer is None:
-            return None
         img = _convert_array(layer.data, layer.scale[-1])
         with set_gpu():
             out = getattr(img, method_name)(*args, **kwargs)
@@ -177,6 +169,19 @@ class Volume(MagicTemplate):
             ),
             "image",
         )
+
+    def _preview_context(self, old_layer: Image, data, kwargs: dict[str, Any]):
+        kwargs["name"] = PREVIEW_LAYER_NAME
+        if PREVIEW_LAYER_NAME in self._viewer.layers:
+            layer: Image = self._viewer.layers[PREVIEW_LAYER_NAME]
+            layer.data = data
+        else:
+            layer = self._viewer.add_layer(Image(data, **kwargs))
+        old_layer.visible = False
+        is_active = yield
+        if not is_active and layer in self._viewer.layers:
+            self._viewer.layers.remove(layer)
+            old_layer.visible = True
 
 
 @magicclass(record=False)

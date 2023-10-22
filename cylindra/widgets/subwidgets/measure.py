@@ -255,9 +255,12 @@ class SpectraInspector(ChildWidget):
             self.canvas.image = self._image
 
     def _on_mouse_clicked(self, e: mouse_event.MouseClickEvent):
+        return self._click_at(e.pos())
+
+    def _click_at(self, pos: tuple[float, float]):
         if self.mode == MeasureMode.none:
             return
-        a0, y0 = e.pos()
+        a0, y0 = pos
         shape = self.canvas.image.shape
         ycenter, acenter = np.ceil(np.array(shape) / 2 - 0.5)
         afreq = (a0 - acenter) / shape[1]

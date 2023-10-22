@@ -382,14 +382,16 @@ class ProjectSequenceEdit(MagicTemplate):
 
         self.changed.connect(lambda: cbox.reset_choices())
         cbox.changed.connect(
-            lambda path: comp_viewer._from_project(CylindraProject.from_file(path))
+            lambda path: comp_viewer._from_project(
+                CylindraProject.from_file(path), _get_project_dir(path)
+            )
         )
         cont = Container(widgets=[cbox, comp_viewer], labels=False)
         _set_parent(cont, self)
         CylindraMainWidget._active_widgets.add(cont)
         cont.show()
         cbox.changed.emit(cbox.value)
-        return None
+        return cont
 
     @set_design(text="View selected molecules in table", location=View)
     @do_not_record
@@ -460,6 +462,13 @@ class ProjectSequenceEdit(MagicTemplate):
 
 def _set_parent(wdt: Widget, parent: Widget):
     wdt.native.setParent(parent.native, wdt.native.windowFlags())
+
+
+def _get_project_dir(path: str):
+    _path = Path(path)
+    if _path.suffix == ".json":
+        return _path.parent
+    return _path
 
 
 @impl_preview(ProjectSequenceEdit.add_projects_glob)

@@ -174,7 +174,7 @@ class LocalPropertiesWidget(ChildWidget):
 
     @set_design(max_width=40, text="Copy", location=footer)
     def copy_screenshot(self):
-        """Copy a screenshot of the plots to clipboard."""
+        """Copy the screenshot of the plots to clipboard."""
         return self.plot.to_clipboard()
 
     @set_design(max_width=40, text="Scr", location=footer)

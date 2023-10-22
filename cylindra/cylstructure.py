@@ -297,7 +297,7 @@ class LatticeParameters(Enum):
                 return calc_rise(mole, spl)
             case LatticeParameters.lat_interv:
                 return calc_lateral_interval(mole, spl)
-            case _:
+            case _:  # pragma: no cover
                 raise ValueError(f"Unknown lattice parameter {self!r}.")
 
     @classmethod
