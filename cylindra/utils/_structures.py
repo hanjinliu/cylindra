@@ -6,10 +6,7 @@ from numpy.typing import NDArray
 import impy as ip
 from acryo import Molecules
 
-from cylindra.const import (
-    Mode,
-    MoleculesHeader as Mole,
-)
+from cylindra.const import Mode, MoleculesHeader as Mole
 
 from ._correlation import mirror_zncc
 

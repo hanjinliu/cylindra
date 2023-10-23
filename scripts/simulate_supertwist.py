@@ -57,9 +57,15 @@ def post_process_layer(ui: CylindraMainWidget, layer: MoleculesLayer) -> Molecul
     return layer
 
 
+def finite_mean(series: pl.Series) -> float:
+    return series.filter(series.is_finite()).mean()
+
+
 def run_one(
-    ui: CylindraMainWidget, image_path: Path, mole_truth: Molecules, seed: int = 0
-):
+    ui: CylindraMainWidget,
+    image_path: Path,
+    seed: int = 0,
+) -> tuple[float, float, float, float]:
     ui.simulator.simulate_tomogram_from_tilt_series(
         image_path,
         nsr=2.5,
@@ -85,8 +91,7 @@ def run_one(
     ui.sta.align_all_multi_template(layers=[layer], bin_size=1, **shared_kwargs)
 
     # RMA alignment
-    intervs = calc_lateral_interval(mole_init, ui.splines[0])
-    interv_mean = intervs.filter(intervs.is_finite()).mean()
+    interv_mean = finite_mean(calc_lateral_interval(mole_init, ui.splines[0]))
     dx = 0.1
     ui.sta.align_all_annealing_multi_template(
         layer=layer,
@@ -97,7 +102,54 @@ def run_one(
         upsample_factor=5,
     )
     mole_rma = post_process_layer(ui, ui.mole_layers.last()).molecules
-    agg = mole_rma.features.group_by("isotype-id").agg(
+    return flat_agg(mole_rma.features)
+
+
+def flat_agg(df: pl.DataFrame) -> tuple[float, float, float, float]:
+    agg = df.group_by("isotype-id").agg(
         pl.col("twist").filter(pl.col("twist").is_finite()).mean(),
         pl.col("skew").filter(pl.col("skew").is_finite()).mean(),
     )
+    return agg["twist"][0], agg["twist"][1], agg["skew"][0], agg["skew"][1]
+
+
+def show_dataframe(ui: CylindraMainWidget, df: pl.DataFrame):
+    view = DataFrameView()
+    view.value = df
+    ui.parent_viewer.window.add_dock_widget(view)
+
+
+def main():
+    ui = start()
+    create_microtubule(ui)
+    ans = flat_agg(ui.mole_layers.first().molecules.features)
+    df_list = []
+    with tempfile.TemporaryDirectory() as tmpdir:
+        save_tilt_series(ui, tmpdir)
+        for i in range(10):
+            out = run_one(
+                ui,
+                Path(tmpdir) / "image.mrc",
+                seed=i,
+            )
+            df_list.append(ans + out)
+
+    df = pl.DataFrame(
+        np.array(df_list),
+        schema=[
+            "twist_a_ans",
+            "twist_b_ans",
+            "skew_a_ans",
+            "skew_b_ans",
+            "twist_a",
+            "twist_b",
+            "skew_a",
+            "skew_b",
+        ],
+    )
+    show_dataframe(ui, df)
+
+
+if __name__ == "__main__":
+    main()
+    napari.run()

@@ -4,8 +4,7 @@ from pathlib import Path
 from cylindra import start
 
 import napari
-
-TEMPLATE_PATH = Path(__file__).parent.parent / "tests" / "beta-tubulin.mrc"
+from .user_consts import TEMPLATE_B
 
 
 def main():
@@ -18,7 +17,7 @@ def main():
     )
     ui.simulator.expand(0.12, (0, 18), (0, 13), allev=False)
     ui.simulator.simulate_tomogram_and_open(
-        template_path=TEMPLATE_PATH,
+        template_path=TEMPLATE_B,
         nsr=2.5,
         bin_size=2,
         n_tilt=61,
