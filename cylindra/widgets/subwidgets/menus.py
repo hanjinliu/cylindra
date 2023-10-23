@@ -30,7 +30,7 @@ from magicclass.utils import thread_worker
 from magicclass.ext.polars import DataFrameView
 
 from cylindra._custom_layers import MoleculesLayer
-from cylindra.utils import roundint
+from cylindra.utils import roundint, str_color
 from cylindra.types import get_monomer_layers, ColoredLayer
 from cylindra.ext.etomo import PEET
 from cylindra.const import nm, get_versions, ImageFilter, FileFilter
@@ -1082,12 +1082,7 @@ class OthersMenu(ChildWidget):
             (currently does no effect)
         """
         if not isinstance(molecules_color, str):
-            # normalize color string
-            molecules_color = "#" + "".join(
-                hex(int(c * 255))[2:].upper().zfill(2) for c in molecules_color
-            )
-            if molecules_color.endswith("FF"):
-                molecules_color = molecules_color[:-2]
+            molecules_color = str_color(molecules_color)
         cfg = _config.get_config()
         cfg.default_spline_config = default_spline_config
         cfg.dask_chunk = dask_chunk

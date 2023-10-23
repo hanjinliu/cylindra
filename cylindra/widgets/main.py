@@ -121,14 +121,8 @@ _Interval = Annotated[
 
 def _validate_colormap(self, val):
     if isinstance(val, dict):
-        val = {round(k, 3): _validate_color(v) for k, v in val.items()}
+        val = {round(k, 3): utils.str_color(v) for k, v in val.items()}
     return val
-
-
-def _validate_color(col):
-    if isinstance(col, str):
-        return col
-    return tuple(round(v) for v in col)
 
 
 _CmapType = Annotated[ColormapType, {"validator": _validate_colormap}]
@@ -1949,7 +1943,7 @@ class CylindraMainWidget(MagicTemplate):
         new = self.add_molecules(out, name=f"{layer.name}-Filt", source=source)
         return self._undo_callback_for_layer(new)
 
-    @set_design(text="Paint molecules by features", location=_sw.MoleculesMenu.View)
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.View)
     @bind_key("Ctrl+K, C")
     def paint_molecules(
         self,

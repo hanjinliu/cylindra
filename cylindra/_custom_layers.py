@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 import warnings
-from typing import TYPE_CHECKING, Any, Iterable, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 import weakref
 
 import polars as pl
@@ -11,19 +11,11 @@ from acryo import Molecules
 from napari.layers import Points, Labels
 from napari.utils.status_messages import generate_layer_coords_status
 from cylindra.const import MoleculesHeader as Mole
+from cylindra.utils import str_color
 
 if TYPE_CHECKING:
     from cylindra.components import BaseComponent, CylSpline
     from napari.utils import Colormap
-
-
-def str_color(color: Iterable[float] | str) -> str:
-    if isinstance(color, str):
-        return color
-    _col = "#" + "".join(hex(int(c * 255))[2:].upper().zfill(2) for c in color)
-    if _col.endswith("FF"):
-        _col = _col[:-2]
-    return _col
 
 
 class ColormapInfo(NamedTuple):
