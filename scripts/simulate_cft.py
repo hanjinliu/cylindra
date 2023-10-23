@@ -18,7 +18,7 @@ from cylindra.const import PropertyNames as H
 
 import polars as pl
 
-TEMPLATE_PATH = Path(__file__).parent.parent / "tests" / "beta-tubulin.mrc"
+TEMPLATE_PATH = r"E:\EMDB\tubulin_spaced\x-tublin-centered.mrc"
 POSITIONS = [(0, 15), (15, 30), (30, 45), (45, 60)]
 
 
@@ -67,8 +67,16 @@ class local_expansion(Simulator):
         return [f"spacing{i}" for i in range(4)]
 
 
-class local_skew(Simulator):
-    """Vertical MT with twist=-0.075, -0.025, 0.025, 0.075 deg."""
+class _local_skew_base(Simulator):
+    def results(self):
+        return self.ui.tomogram.splines[0].props.loc[H.twist]
+
+    def columns(self) -> list[str]:
+        return [f"twist{i}" for i in range(4)]
+
+
+class local_skew_13_3(_local_skew_base):
+    """Vertical MT with twists."""
 
     def prepare(self):
         self.ui.simulator.create_image_with_straight_line(
@@ -77,7 +85,7 @@ class local_skew(Simulator):
         self.ui.simulator.generate_molecules(
             0, spacing=4.1, twist=0.0, start=3, radius=11.2, npf=13
         )
-        for sk, yrange in zip([-0.15, -0.05, 0.05, 0.15], POSITIONS):
+        for sk, yrange in zip([-0.12, -0.04, 0.04, 0.12], POSITIONS):
             self.ui.simulator.twist(
                 self.ui.mole_layers.last(),
                 by=sk,
@@ -87,11 +95,26 @@ class local_skew(Simulator):
             )
         return np.array([[30, 30, 30], [30, 210, 30]])
 
-    def results(self):
-        return self.ui.tomogram.splines[0].props.loc[H.twist]
 
-    def columns(self) -> list[str]:
-        return [f"twist{i}" for i in range(4)]
+class local_skew_14_3(_local_skew_base):
+    """Vertical MT with twists."""
+
+    def prepare(self):
+        self.ui.simulator.create_image_with_straight_line(
+            scale=self.scale, size=(60.0, 240.0, 60.0), length=245.0
+        )
+        self.ui.simulator.generate_molecules(
+            0, spacing=4.1, twist=-0.25, start=3, radius=12.1, npf=14
+        )
+        for sk, yrange in zip([-0.12, -0.04, 0.04, 0.12], POSITIONS):
+            self.ui.simulator.twist(
+                self.ui.mole_layers.last(),
+                by=sk,
+                yrange=yrange,
+                arange=(0, 13),
+                allev=False,
+            )
+        return np.array([[30, 30, 30], [30, 210, 30]])
 
 
 class local_orientation(Simulator):
@@ -204,7 +227,8 @@ class local_curvature(Simulator):
 
 class Funcs(Enum):
     local_expansion = local_expansion
-    local_skew = local_skew
+    local_skew_13_3 = local_skew_13_3
+    local_skew_14_3 = local_skew_14_3
     local_orientation = local_orientation
     local_curvature = local_curvature
 
