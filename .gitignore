@@ -1,5 +1,6 @@
 .vscode/
 test_script.py
+scripts/user_consts.py
 
 # Project files and results
 tests/**/*.txt

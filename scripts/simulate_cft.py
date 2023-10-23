@@ -18,7 +18,8 @@ from cylindra.const import PropertyNames as H
 
 import polars as pl
 
-TEMPLATE_PATH = r"E:\EMDB\tubulin_spaced\x-tublin-centered.mrc"
+from .user_consts import TEMPLATE_PATH
+
 POSITIONS = [(0, 15), (15, 30), (30, 45), (45, 60)]
 
 

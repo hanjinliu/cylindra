@@ -14,35 +14,28 @@ from cylindra.cylstructure import calc_lateral_interval
 from cylindra.types import MoleculesLayer
 
 import polars as pl
+from .user_consts import TEMPLATE_PATH, WOBBLE_TEMPLATES
 
-ROOT = Path("E:/EMDB/tubulin_spaced")
-TEMPLATE_PATH = ROOT / "x-tubulin-centered.mrc"
-WOBBLE_TEMPLATES = [
-    ROOT / "x-tubulin-comp-4_05.mrc",
-    ROOT / "x-tubulin-comp-4_10.mrc",
-    ROOT / "x-tubulin-comp-4_15.mrc",
-    ROOT / "x-tubulin-comp-4_20.mrc",
-]
 SPACING = Mole.spacing
 SPACING_MEAN = f"{Mole.spacing}_mean"
 
 
 def initialize_molecules(ui: CylindraMainWidget):
-    ui.simulator.create_image_with_straight_line(
-        length=150.0, size=(60.0, 180.0, 60.0), scale=0.25
-    )
+    ui.simulator.create_straight_line((30.0, 15.0, 30.0), (30.0, 165.0, 30.0))
     ui.simulator.generate_molecules(
         spacing=4.08, twist=0.04, start=3, npf=13, radius=11.0, offsets=(0.0, 0.0)
     )
 
 
 def create_microtubule(ui: CylindraMainWidget):
+    ui.simulator.create_empty_image(size=(60.0, 180.0, 60.0), scale=0.25)
     initialize_molecules(ui)
     layer = ui.mole_layers.last()
     ui.simulator.expand(layer=layer, by=0.1, yrange=(6, 16), arange=(0, 6), allev=True)
     ui.simulator.expand(
         layer=layer, by=0.1, yrange=(22, 32), arange=(7, 13), allev=True
     )
+    ui.calculate_lattice_structure(layer=layer, props=["spacing"])
     return layer.molecules
 
 
@@ -83,7 +76,7 @@ def post_process_layer(ui: CylindraMainWidget, layer: MoleculesLayer) -> Molecul
         layer=layer,
         target=SPACING,
         method="mean",
-        footprint=[[1, 1, 1], [1, 1, 1]],
+        footprint=[[0, 0, 0], [1, 1, 1], [1, 1, 1]],
     )
     return layer
 
@@ -100,6 +93,8 @@ def run_one(
         seed=seed,
     )
     initialize_molecules(ui)
+    ui.global_ft_analysis(splines=[0], bin_size=2)
+
     layer = ui.mole_layers.last()
     nth, npf = layer.regular_shape()
     ui.simulator.expand(
@@ -109,23 +104,22 @@ def run_one(
         arange=(0, npf),
         allev=True,
     )
-    mole_init = layer.molecules
+    mole_init = post_process_layer(ui, layer).molecules
 
     # start comparing alignment methods
     shared_kwargs = dict(
-        layers=[layer],
         template_paths=WOBBLE_TEMPLATES,
         mask_params=(0.3, 0.8),
         max_shifts=(0.8, 0.8, 0.8),
-        bin_size=1,
     )
 
     # conventional alignment
-    ui.sta.align_all_multi_template(**shared_kwargs)
+    ui.sta.align_all_multi_template(layers=[layer], bin_size=1, **shared_kwargs)
     mole_cnv = post_process_layer(ui, ui.mole_layers.last()).molecules
 
     # Viterbi alignment
     ui.sta.align_all_viterbi_multi_template(
+        layer=layer,
         **shared_kwargs,
         distance_range=(3.98, 4.28),
         angle_max=5.0,
@@ -138,6 +132,7 @@ def run_one(
     interv_mean = intervs.filter(intervs.is_finite()).mean()
     dx = 0.1
     ui.sta.align_all_annealing_multi_template(
+        layer=layer,
         **shared_kwargs,
         distance_range_long=(3.98, 4.28),
         distance_range_lat=(interv_mean - dx, interv_mean + dx),
@@ -179,7 +174,7 @@ def main():
     spacing_list = []
     with tempfile.TemporaryDirectory() as tmpdir:
         save_tilt_series(ui, tmpdir)
-        for i in range(1):
+        for i in range(10):
             pos, spacing = run_one(
                 ui,
                 Path(tmpdir) / "image.mrc",

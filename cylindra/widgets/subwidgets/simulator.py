@@ -451,7 +451,7 @@ class Simulator(ChildWidget):
         return None
 
     @set_design(text=capitalize, location=SimulateMenu)
-    @dask_thread_worker.with_progress(desc="Simulating tomogram...")
+    @dask_thread_worker.with_progress(desc="Simulating tomogram from tilt series...")
     @confirm(
         text="You have an opened image. Run anyway?",
         condition="not self._get_main().tomogram.is_dummy",
