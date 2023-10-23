@@ -1,16 +1,19 @@
 from __future__ import annotations
-from typing import Sequence, TYPE_CHECKING, Any, TypedDict
+from typing import Annotated, Sequence, TYPE_CHECKING, Any, TypedDict, Union
 from dataclasses import dataclass
 from timeit import default_timer
 import inspect
+import re
 
 import numpy as np
 from numpy.typing import NDArray
 from scipy import ndimage as ndi
 import polars as pl
 import matplotlib.pyplot as plt
+import macrokit as mk
 from magicclass.logging import getLogger
 from magicclass.types import ExprStr
+from magicclass.widgets import EvalLineEdit
 import napari
 from napari.utils.theme import get_theme
 
@@ -30,12 +33,131 @@ if TYPE_CHECKING:
 POLARS_NAMESPACE = {
     "pl": pl,
     "col": pl.col,
+    "when": pl.when,
     "int": int,
     "float": float,
     "str": str,
     "np": np,
     "__builtins__": {},
 }
+
+
+def _validate_expr_or_scalar(expr: str | pl.Expr | int | float) -> str | int | float:
+    if isinstance(expr, str):
+        value = ExprStr(expr, POLARS_NAMESPACE).eval()
+        if isinstance(value, (int, float, np.number)):
+            return value
+        elif isinstance(value, pl.Expr):
+            return expr
+        else:
+            raise TypeError(f"Invalid type: {type(value)}")
+    elif isinstance(expr, pl.Expr):
+        return _polars_expr_to_str(expr)
+    else:
+        if isinstance(value, (int, float, np.number)):
+            return value
+        else:
+            raise TypeError(f"Invalid type: {type(value)}")
+
+
+PolarsExprStrOrScalar = Annotated[
+    Union[str, int, float],
+    {
+        "widget_type": EvalLineEdit,
+        "namespace": POLARS_NAMESPACE,
+        "validator": _validate_expr_or_scalar,
+    },
+]
+
+
+def _unwrap_rust_expr(expr: mk.Symbol | mk.Expr) -> mk.Symbol | mk.Expr:
+    """The str of pl.Expr use brackets for binary expressions."""
+    if not isinstance(expr, mk.Expr):
+        return expr
+    if expr.head is mk.Head.list and len(expr.args) == 1:
+        return _unwrap_rust_expr(expr.args[0])
+    return mk.Expr(expr.head, [_unwrap_rust_expr(a) for a in expr.args])
+
+
+def _replace_utf8(string: str) -> str:
+    ptn = re.compile(r"Utf8\(.?+\)")
+    m0 = ptn.search(string)
+    if m0 is None:
+        return string
+    sl_0 = slice(None, m0.start())
+    sl_mid = slice(m0.start() + 5, m0.end() - 1)
+    sl_1 = slice(m0.end(), None)
+    return string[sl_0] + '"' + string[sl_mid] + '"' + string[sl_1]
+
+
+def _polars_expr_to_str(expr: pl.Expr) -> str:
+    expr_str = (
+        str(expr).replace(".when(", "pl.when(").replace(".strict_cast(", ".cast(")
+    )
+    # remove [...]
+    if "Utf8" in expr_str:
+        expr_str = _replace_utf8(expr_str)
+    if "[" in expr_str:
+        out = _unwrap_rust_expr(mk.parse(expr_str))
+        expr_str = str(out)
+        # converting binary expression to str will add brackets so remove them
+        if (
+            out.head is mk.Head.binop
+            and expr_str.startswith("(")
+            and expr_str.endswith(")")
+        ):
+            expr_str = expr_str[1:-1]
+    try:
+        ExprStr(expr_str, POLARS_NAMESPACE).eval()
+    except Exception:
+        raise ValueError(
+            f"Expression {expr_str!r} cannot be safely parsed. Please use "
+            "str as the input."
+        ) from None
+    return expr_str
+
+
+def _validate_expr(expr: str | pl.Expr) -> str:
+    if isinstance(expr, str):
+        value = ExprStr(expr, POLARS_NAMESPACE).eval()
+        if not isinstance(value, pl.Expr):
+            raise TypeError(f"Invalid type: {type(value)}")
+        return expr
+    elif isinstance(expr, pl.Expr):
+        return _polars_expr_to_str(expr)
+    else:
+        raise TypeError(f"Input must be string or polars.Expr type.")
+
+
+def norm_scalar_expr(val) -> pl.Expr:
+    if isinstance(val, pl.Expr):
+        return val
+    elif isinstance(val, str):
+        expr = ExprStr(val, POLARS_NAMESPACE).eval()
+        if not isinstance(expr, pl.Expr):
+            expr = pl.lit(float(expr))
+        return expr
+    else:
+        return pl.lit(float(val))
+
+
+PolarsExprStr = Annotated[
+    str,
+    {
+        "widget_type": EvalLineEdit,
+        "namespace": POLARS_NAMESPACE,
+        "validator": _validate_expr,
+    },
+]
+
+
+def norm_expr(expr) -> pl.Expr:
+    if isinstance(expr, str):
+        val = ExprStr(expr, POLARS_NAMESPACE).eval()
+    if isinstance(val, pl.Expr):
+        return val
+    raise TypeError(f"Invalid type {type(val)} during evaluating {expr!r}")
+
 
 _Logger = getLogger("cylindra")
 
@@ -360,15 +482,3 @@ def get_code_theme(self: MagicTemplate) -> str:
 def capitalize(s: str):
     """Just used for button texts."""
     return s.replace("_", " ").capitalize()
-
-
-def norm_scalar_expr(val) -> pl.Expr:
-    if isinstance(val, pl.Expr):
-        return val
-    elif isinstance(val, str):
-        expr = ExprStr(val, POLARS_NAMESPACE).eval()
-        if not isinstance(expr, pl.Expr):
-            expr = pl.lit(float(expr))
-        return expr
-    else:
-        return pl.lit(float(val))

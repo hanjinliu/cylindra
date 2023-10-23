@@ -69,7 +69,7 @@ from ._annotated import (
     assert_layer,
     assert_list_of_layers,
 )
-from .widget_utils import capitalize, timer, POLARS_NAMESPACE
+from .widget_utils import capitalize, timer, PolarsExprStr
 from .subwidgets._child_widget import ChildWidget
 from . import widget_utils, _shared_doc, _progress_desc as _pdesc, _annealing
 
@@ -591,7 +591,7 @@ class SubtomogramAveraging(ChildWidget):
         self,
         layers: MoleculesLayersType,
         size: _SubVolumeSize = None,
-        by: ExprStr.In[POLARS_NAMESPACE] = "pl.col('pf-id')",
+        by: PolarsExprStr = "col('pf-id')",
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):
@@ -611,16 +611,13 @@ class SubtomogramAveraging(ChildWidget):
         """
         t0 = timer("average_groups")
         layers = assert_list_of_layers(layers, self.parent_viewer)
-        if isinstance(by, pl.Expr):
-            expr = by
-        else:
-            expr = ExprStr(by, POLARS_NAMESPACE).eval()
         parent = self._get_main()
         tomo = parent.tomogram
         shape = self._get_shape_in_nm(size)
         loader = tomo.get_subtomogram_loader(
             _concat_molecules(layers), shape, binsize=bin_size, order=interpolation
         )
+        expr = widget_utils.norm_expr(by)
         avgs = np.stack(list(loader.groupby(expr).average().values()), axis=0)
         img = ip.asarray(avgs, axes="pzyx")
         img.set_scale(zyx=loader.scale, unit="nm")

@@ -33,7 +33,7 @@ from cylindra.widgets._widget_ext import RotationsEdit
 from cylindra.widgets._annotated import FSCFreq
 from cylindra.widgets.main import CylindraMainWidget, widget_utils
 from cylindra.widgets.sta import StaParameters
-from cylindra.widgets.widget_utils import timer, POLARS_NAMESPACE
+from cylindra.widgets.widget_utils import timer, POLARS_NAMESPACE, PolarsExprStr
 from cylindra.widgets.sta import (
     INTERPOLATION_CHOICES,
     METHOD_CHOICES,
@@ -191,7 +191,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
     def filter_loader(
         self,
         loader_name: Annotated[str, {"bind": _get_current_loader_name}],
-        expression: ExprStr.In[POLARS_NAMESPACE],
+        expression: PolarsExprStr,
     ):
         """
         Filter the selected loader and add the filtered one to the list.
@@ -202,15 +202,12 @@ class BatchSubtomogramAveraging(MagicTemplate):
             Name of the input loader
         expression : str
             polars expression that will be used to filter the loader. For example,
-            `pl.col("score") > 0.7` will filter out all low-score molecules.
+            `col("score") > 0.7` will filter out all low-score molecules.
         """
-        if expression == "":
-            raise ValueError("Predicate is not given.")
         loaderlist = self._get_parent()._loaders
         info = loaderlist[loader_name]
         loader = info.loader
-        pl_expr = ExprStr(expression, POLARS_NAMESPACE).eval()
-        new = loader.filter(pl_expr)
+        new = loader.filter(expression)
         existing_id = set(new.features[Mole.image])
         loaderlist.append(
             LoaderInfo(
@@ -257,7 +254,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         self,
         loader_name: Annotated[str, {"bind": _get_current_loader_name}],
         size: _SubVolumeSize = None,
-        by: ExprStr.In[POLARS_NAMESPACE] = "pl.col('pf-id')",
+        by: PolarsExprStr = "col('pf-id')",
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
         bin_size: _BINSIZE = 1,
     ):
@@ -276,17 +273,13 @@ class BatchSubtomogramAveraging(MagicTemplate):
         {interpolation}{bin_size}
         """
         t0 = timer("average_groups")
-        if isinstance(by, pl.Expr):
-            expr = by
-        else:
-            expr = ExprStr(by, POLARS_NAMESPACE).eval()
         loaderlist = self._get_parent()._loaders
         loader = loaderlist[loader_name].loader
         shape = self._get_shape_in_px(size, loader)
         img = ip.asarray(
             loader.replace(output_shape=shape, order=interpolation)
             .binning(bin_size, compute=False)
-            .groupby(expr)
+            .groupby(by)
             .average()
             .value_stack(axis=0),
             axes="pzyx",

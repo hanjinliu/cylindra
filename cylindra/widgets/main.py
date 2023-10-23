@@ -22,12 +22,7 @@ from magicclass import (
 )
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
-from magicclass.types import (
-    Colormap as ColormapType,
-    Optional,
-    Path,
-    ExprStr,
-)
+from magicclass.types import Colormap as ColormapType, Optional, Path
 from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
 from magicclass.undo import undo_callback
@@ -55,7 +50,8 @@ from cylindra.widgets.sta import SubtomogramAveraging
 from cylindra.widgets.widget_utils import (
     add_molecules,
     change_viewer_focus,
-    POLARS_NAMESPACE,
+    PolarsExprStrOrScalar,
+    PolarsExprStr,
     capitalize,
 )
 from cylindra.widgets._accessors import MoleculesLayerAccessor
@@ -1018,12 +1014,14 @@ class CylindraMainWidget(MagicTemplate):
         """
         tomo = self.tomogram
         with SplineTracker(widget=self, indices=splines) as tracker:
-            if how == "pack":
-                tomo.make_anchors(splines, interval=interval)
-            elif how == "equal":
-                tomo.make_anchors(splines, max_interval=interval)
-            else:  # pragma: no cover
-                raise ValueError(f"Unknown method: {how}")
+            match how:
+                case "pack":
+                    tomo.make_anchors(splines, interval=interval)
+                case "equal":
+                    tomo.make_anchors(splines, max_interval=interval)
+                case _:  # pragma: no cover
+                    raise ValueError(f"Unknown method: {how}")
+
         self._update_splines_in_images()
         return tracker.as_undo_callback()
 
@@ -1234,7 +1232,7 @@ class CylindraMainWidget(MagicTemplate):
     def set_radius(
         self,
         splines: _Splines = None,
-        radius: ExprStr.In[POLARS_NAMESPACE] = 10.0,
+        radius: PolarsExprStrOrScalar = 10.0,
     ):  # fmt: skip
         """
         Set radius of the splines.
@@ -1606,7 +1604,7 @@ class CylindraMainWidget(MagicTemplate):
     def map_centers(
         self,
         splines: _Splines = None,
-        molecule_interval: ExprStr.In[POLARS_NAMESPACE] = "col('spacing')",
+        molecule_interval: PolarsExprStrOrScalar = "col('spacing')",
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
         prefix: str = "Center",
     ):  # fmt: skip
@@ -1637,7 +1635,7 @@ class CylindraMainWidget(MagicTemplate):
     def map_along_pf(
         self,
         spline: Annotated[int, {"choices": _get_splines}],
-        molecule_interval: ExprStr.In[POLARS_NAMESPACE] = "col('spacing')",
+        molecule_interval: PolarsExprStrOrScalar = "col('spacing')",
         offsets: _NormalizedOffsetType = None,
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
         prefix: str = "PF",
@@ -1928,7 +1926,7 @@ class CylindraMainWidget(MagicTemplate):
     def filter_molecules(
         self,
         layer: MoleculesLayerType,
-        predicate: ExprStr.In[POLARS_NAMESPACE],
+        predicate: PolarsExprStr,
         inherit_source: Annotated[bool, {"label": "Inherit source spline"}] = True,
     ):
         """
@@ -1943,17 +1941,12 @@ class CylindraMainWidget(MagicTemplate):
         """
         layer = assert_layer(layer, self.parent_viewer)
         mole = layer.molecules
-        if isinstance(predicate, pl.Expr):
-            expr = predicate
-        else:
-            expr = ExprStr(predicate, POLARS_NAMESPACE).eval()
-        out = mole.filter(expr)
+        out = mole.filter(widget_utils.norm_expr(predicate))
         if inherit_source:
             source = layer.source_component
         else:
             source = None
         new = self.add_molecules(out, name=f"{layer.name}-Filt", source=source)
-
         return self._undo_callback_for_layer(new)
 
     @set_design(text="Paint molecules by features", location=_sw.MoleculesMenu.View)
@@ -1993,7 +1986,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         layer: MoleculesLayerType,
         column_name: str,
-        expression: ExprStr.In[POLARS_NAMESPACE],
+        expression: PolarsExprStr,
     ):
         """
         Calculate a new feature from the existing features.
@@ -2017,11 +2010,8 @@ class CylindraMainWidget(MagicTemplate):
         """
         layer = assert_layer(layer, self.parent_viewer)
         feat = layer.molecules.features
-        pl_expr = eval(str(expression), POLARS_NAMESPACE, {})
-        if isinstance(pl_expr, pl.Expr):
-            new_feat = feat.with_columns(pl_expr.alias(column_name))
-        else:
-            new_feat = feat.with_columns(pl.Series(column_name, pl_expr))
+        expr = widget_utils.norm_expr(expression)
+        new_feat = feat.with_columns(expr.alias(column_name))
         layer.features = new_feat
         self.reset_choices()  # choices regarding to features need update
         return undo_callback(layer.feature_setter(feat, layer.colormap_info))
