@@ -112,7 +112,7 @@ def calc_rise(mole: Molecules, spl: CylSpline) -> pl.Series:
 
 def calc_lateral_interval(
     mole: Molecules, spl: CylSpline, projective: bool = True
-) -> pl.DataFrame:
+) -> pl.Series:
     # NOTE: molecules must be in the canonical arrangement.
     subsets = list[Molecules]()
     mole_ext, new_pf_id = _seam_molecules(mole, spl)

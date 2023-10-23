@@ -1,5 +1,6 @@
 from cylindra import start
 from cylindra.widgets import CylindraMainWidget
+from cylindra.const import MoleculesHeader as Mole
 import napari
 import polars as pl
 import numpy as np
@@ -9,6 +10,10 @@ def rmsd(x: pl.Series, y: pl.Series) -> float:
     d = x - y
     d = d.filter(d.is_finite())
     return np.sqrt((d**2).mean())
+
+
+SPACING = Mole.spacing
+SPACING_MEAN = f"{Mole.spacing}_mean"
 
 
 def main(ui: CylindraMainWidget):
@@ -69,7 +74,7 @@ def main(ui: CylindraMainWidget):
     ui.calculate_lattice_structure(layer="molecules-ALN1", props=["spacing"])
     ui.paint_molecules(
         layer="molecules",
-        color_by="interval-nm",
+        color_by="SPACING",
         cmap={
             0.0: (0.043, 0.0, 0.0, 1.0),
             0.3: (0.529, 0.176, 0.616, 1.0),
@@ -80,7 +85,7 @@ def main(ui: CylindraMainWidget):
     )
     ui.paint_molecules(
         layer="Conventional",
-        color_by="interval-nm",
+        color_by=SPACING,
         cmap={
             0.0: (0.043, 0.0, 0.0, 1.0),
             0.3: (0.529, 0.176, 0.616, 1.0),
@@ -91,7 +96,7 @@ def main(ui: CylindraMainWidget):
     )
     ui.paint_molecules(
         layer="molecules-ALN1",
-        color_by="interval-nm",
+        color_by=SPACING,
         cmap={
             0.0: (0.043, 0.0, 0.0, 1.0),
             0.3: (0.529, 0.176, 0.616, 1.0),
@@ -103,22 +108,22 @@ def main(ui: CylindraMainWidget):
     ui.set_multiscale(bin_size=2)
     ui.convolve_feature(
         layer="molecules-ALN1",
-        target="interval-nm",
+        target=SPACING,
         method="mean",
         footprint=[[1, 1, 1], [1, 1, 1]],
     )
     ui.convolve_feature(
         layer="Conventional",
-        target="interval-nm",
+        target=SPACING,
         method="mean",
         footprint=[[1, 1, 1], [1, 1, 1]],
     )
 
-    ans = ui.mole_layers["molecules"].molecules.features["interval-nm"]
-    conv = ui.mole_layers["Conventional"].molecules.features["interval-nm"]
-    conv_filt = ui.mole_layers["Conventional"].molecules.features["interval-nm_mean"]
-    rma = ui.mole_layers["molecules-ALN1"].molecules.features["interval-nm"]
-    rma_filt = ui.mole_layers["molecules-ALN1"].molecules.features["interval-nm_mean"]
+    ans = ui.mole_layers["molecules"].molecules.features[SPACING]
+    conv = ui.mole_layers["Conventional"].molecules.features[SPACING]
+    conv_filt = ui.mole_layers["Conventional"].molecules.features[SPACING_MEAN]
+    rma = ui.mole_layers["molecules-ALN1"].molecules.features[SPACING]
+    rma_filt = ui.mole_layers["molecules-ALN1"].molecules.features[SPACING_MEAN]
 
     for data in [conv, conv_filt, rma, rma_filt]:
         print(rmsd(data, ans))

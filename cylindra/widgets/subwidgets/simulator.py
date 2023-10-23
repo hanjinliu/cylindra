@@ -62,7 +62,14 @@ _NSRatios = Annotated[
     list[float],
     {"label": "N/S ratio", "options": {"min": 0.0, "max": 4.0, "step": 0.1}},
 ]
-_ImageSize = Annotated[tuple[nm, nm, nm], {"label": "image size of Z, Y, X (nm)"}]
+_ImageSize = Annotated[
+    tuple[nm, nm, nm],
+    {"label": "image size of Z, Y, X (nm)", "options": {"max": 10000.0}},
+]
+_Point3D = Annotated[
+    tuple[nm, nm, nm],
+    {"label": "coordinates of Z, Y, X (nm)", "options": {"max": 10000.0}},
+]
 PROJECT_NAME = "simulation-project.tar"
 SIMULATION_MODEL_KEY = "simulation-model"
 SIMULATED_IMAGE_NAME = "Simulated tomogram"
@@ -129,6 +136,7 @@ class Simulator(ChildWidget):
     @magicmenu(name="Create")
     class CreateMenu(ChildWidget):
         create_empty_image = abstractapi()
+        create_straight_line = abstractapi()
         create_image_with_straight_line = abstractapi()
 
     @magicmenu(name="Simulate")
@@ -231,6 +239,18 @@ class Simulator(ChildWidget):
         return parent._send_tomogram_to_viewer.with_args(tomo)
 
     @set_design(text=capitalize, location=CreateMenu)
+    def create_straight_line(
+        self,
+        start: _Point3D,
+        end: _Point3D,
+    ):
+        spl = CylSpline.line(start, end)
+        main = self._get_main()
+        main.tomogram.splines.append(spl)
+        main._add_spline_instance(spl)
+        return None
+
+    @set_design(text=capitalize, location=CreateMenu)
     @thread_worker.with_progress(desc="Creating an image")
     @confirm(
         text="You have an opened image. Run anyway?",
@@ -265,16 +285,12 @@ class Simulator(ChildWidget):
         start_shift = zxrot.apply(yxrot.apply(np.array([0.0, -length / 2, 0.0])))
         end_shift = zxrot.apply(yxrot.apply(np.array([0.0, length / 2, 0.0])))
         center = np.array(size) / 2
-        spl = CylSpline.line(start_shift + center, end_shift + center)
         yield from self.create_empty_image.arun(size=size, scale=scale)
-        main = self._get_main()
 
-        @thread_worker.callback
-        def _on_return():
-            main.tomogram.splines.append(spl)
-            main._add_spline_instance(spl)
-
-        return _on_return
+        yield thread_worker.callback(self.create_straight_line).with_args(
+            start_shift + center, end_shift + center
+        )
+        return
 
     def _get_spline_idx(self, *_) -> int:
         return self._get_main()._get_spline_idx()
@@ -282,7 +298,7 @@ class Simulator(ChildWidget):
     @set_design(icon="fluent:select-object-skew-20-regular", location=SimulatorTools)
     def generate_molecules(
         self,
-        spline: Annotated[int, {"bind": _get_spline_idx}],
+        spline: Annotated[int, {"bind": _get_spline_idx}] = 0,
         spacing: Annotated[nm, {"min": 0.2, "max": 100.0, "step": 0.01, "label": "spacing (nm)"}] = 1.0,
         twist: Annotated[float, {"min": -45.0, "max": 45.0, "label": "twist (deg)"}] = 0.0,
         start: Annotated[int, {"min": -50, "max": 50, "label": "start"}] = 0,
@@ -720,7 +736,9 @@ class Simulator(ChildWidget):
         Detailed local transformation of molecules.
 
         In this method, you'll have to specify the displacement for each molecule
-        using polars expressions. For example, if you want to expand the first
+        using polars expressions. For example, if you want to expand the molecules
+        with odd numbering by 0.1 nm, you can set `expand` to
+        >>> pl.when(pl.col("nth") % 2 == 0).then(0).otherwise(0.1)
 
         Parameters
         ----------
@@ -804,7 +822,7 @@ def _on_iradon_finished(rec: ip.ImgArray, title: str):
 
 def _norm_save_dir(save_dir) -> Path:
     save_dir = Path(save_dir)
-    if not save_dir.is_dir():
+    if save_dir.suffix:
         raise ValueError(f"{save_dir.as_posix()} is not a directory.")
 
     # add noise and save image

@@ -10,6 +10,7 @@ import numpy as np
 from acryo import Molecules
 from napari.layers import Points, Labels
 from napari.utils.status_messages import generate_layer_coords_status
+from cylindra.const import MoleculesHeader as Mole
 
 if TYPE_CHECKING:
     from cylindra.components import BaseComponent, CylSpline
@@ -326,6 +327,16 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
             self._colormap_info = color
         elif np.isscalar(color[0]):
             self._colormap_info = str_color(color[0])
+
+    def regular_shape(self) -> tuple[int, int]:
+        """Get the regular shape (long, lat) of the layer."""
+        mole = self.molecules
+        df = mole.features
+        nlon = df[Mole.nth].n_unique()
+        nlat = df[Mole.pf].n_unique()
+        if nlon * nlat != mole.count():
+            raise ValueError("Molecules are not regularly arranged")
+        return nlon, nlat
 
 
 class CylinderLabels(_FeatureBoundLayer, Labels):
