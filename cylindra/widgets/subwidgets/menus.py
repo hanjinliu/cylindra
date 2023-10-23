@@ -591,18 +591,19 @@ class MoleculesMenu(ChildWidget):
 
             main = self._get_main()
             layer = assert_layer(layer, main.parent_viewer)
-            if backend == "inline":
-                plt.figure()
-                ax: Axes = plt.gca()
-            elif backend == "qt":
-                from magicclass.widgets import Figure
+            match backend:
+                case "inline":
+                    plt.figure()
+                    ax: Axes = plt.gca()
+                case "qt":
+                    from magicclass.widgets import Figure
 
-                fig = Figure()
-                ax = fig.ax
-                fig.show()
-                main._active_widgets.add(fig)
-            else:
-                raise ValueError(f"Unknown backend: {backend!r}")
+                    fig = Figure()
+                    ax = fig.ax
+                    fig.show()
+                    main._active_widgets.add(fig)
+                case _:
+                    raise ValueError(f"Unknown backend: {backend!r}")
 
             flat_view(
                 layer.molecules,

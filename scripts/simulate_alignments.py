@@ -14,7 +14,7 @@ from cylindra.cylstructure import calc_lateral_interval
 from cylindra.types import MoleculesLayer
 
 import polars as pl
-from .user_consts import TEMPLATE_PATH, WOBBLE_TEMPLATES
+from .user_consts import TEMPLATE_X, WOBBLE_TEMPLATES
 
 SPACING = Mole.spacing
 SPACING_MEAN = f"{Mole.spacing}_mean"
@@ -43,7 +43,7 @@ def save_tilt_series(ui: CylindraMainWidget, path: Path):
     path = Path(path)
     layer_name = ui.mole_layers.last().name
     ui.simulator.simulate_tilt_series(
-        components=[(layer_name, TEMPLATE_PATH)],
+        components=[(layer_name, TEMPLATE_X)],
         save_dir=path,
         tilt_range=(-60, 60),
         n_tilt=61,

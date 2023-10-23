@@ -1,10 +1,8 @@
 from typing import Annotated, TYPE_CHECKING, Literal, Any, Sequence
-import warnings
 from weakref import WeakSet
 
 import impy as ip
 import macrokit as mk
-import matplotlib.pyplot as plt
 import numpy as np
 import polars as pl
 from acryo import Molecules, SubtomogramLoader

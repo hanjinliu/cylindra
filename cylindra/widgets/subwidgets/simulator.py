@@ -222,7 +222,7 @@ class Simulator(ChildWidget):
         scale : nm, default is 0.25
             Pixel size of the image.
         """
-        parent = self._get_main()
+        main = self._get_main()
         shape = tuple(roundint(s / scale) for s in size)
 
         binsize = ceilint(0.96 / scale)
@@ -235,8 +235,8 @@ class Simulator(ChildWidget):
         img[0, 0, -1] = img[0, -1, -1] = img[-1, 0, -1] = img[-1, -1, -1] = val
         tomo = CylTomogram.from_image(img, scale=scale, binsize=binsize)
         tomo.metadata["is_dummy"] = True
-        parent._macro_offset = len(parent.macro)
-        return parent._send_tomogram_to_viewer.with_args(tomo)
+        main._macro_offset = len(main.macro)
+        return main._send_tomogram_to_viewer.with_args(tomo)
 
     @set_design(text=capitalize, location=CreateMenu)
     def create_straight_line(
@@ -511,6 +511,7 @@ class Simulator(ChildWidget):
         tomo = CylTomogram.from_image(
             rec, scale=scale, tilt=tilt_range, binsize=bin_size
         )
+        main._macro_offset = len(main.macro)
         return main._send_tomogram_to_viewer.with_args(tomo)
 
     @set_design(text=capitalize, location=SimulateMenu)
@@ -579,7 +580,7 @@ class Simulator(ChildWidget):
         tomo = CylTomogram.from_image(
             rec, scale=sino.scale.x, tilt=tilt_range, binsize=bin_size
         )
-
+        main._macro_offset = len(main.macro)
         yield main._send_tomogram_to_viewer.with_args(tomo)
 
         @thread_worker.callback

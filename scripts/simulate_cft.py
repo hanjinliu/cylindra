@@ -18,7 +18,7 @@ from cylindra.const import PropertyNames as H
 
 import polars as pl
 
-from .user_consts import TEMPLATE_PATH
+from .user_consts import TEMPLATE_X
 
 POSITIONS = [(0, 15), (15, 30), (30, 45), (45, 60)]
 
@@ -275,7 +275,7 @@ class Main(MagicTemplate):
         results = []
         with tempfile.TemporaryDirectory() as tmpdir:
             ui.simulator.simulate_tilt_series(
-                components=[(ui.mole_layers.last().name, TEMPLATE_PATH)],
+                components=[(ui.mole_layers.last().name, TEMPLATE_X)],
                 save_dir=tmpdir,
                 tilt_range=(-60, 60),
                 n_tilt=n_tilt,
@@ -339,7 +339,7 @@ class Main(MagicTemplate):
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpfile = Path(tmpdir) / "image.mrc"
             ui.simulator.simulate_tilt_series(
-                components=[(ui.mole_layers.last().name, TEMPLATE_PATH)],
+                components=[(ui.mole_layers.last().name, TEMPLATE_X)],
                 save_path=tmpfile,
                 n_tilt=n_tilt,
                 scale=scale,
