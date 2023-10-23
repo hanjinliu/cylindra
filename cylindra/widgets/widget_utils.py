@@ -44,20 +44,13 @@ POLARS_NAMESPACE = {
 
 def _validate_expr_or_scalar(expr: str | pl.Expr | int | float) -> str | int | float:
     if isinstance(expr, str):
-        value = ExprStr(expr, POLARS_NAMESPACE).eval()
-        if isinstance(value, (int, float, np.number)):
-            return value
-        elif isinstance(value, pl.Expr):
-            return expr
-        else:
-            raise TypeError(f"Invalid type: {type(value)}")
+        expr = ExprStr(expr, POLARS_NAMESPACE).eval()
+    if isinstance(expr, (int, float, np.number)):
+        return expr
     elif isinstance(expr, pl.Expr):
         return _polars_expr_to_str(expr)
     else:
-        if isinstance(value, (int, float, np.number)):
-            return value
-        else:
-            raise TypeError(f"Invalid type: {type(value)}")
+        raise TypeError(f"Got invalid type: {type(expr)}")
 
 
 PolarsExprStrOrScalar = Annotated[

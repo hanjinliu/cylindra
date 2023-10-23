@@ -1,18 +1,20 @@
-from typing import Annotated
+from typing import Annotated, Any
 import numpy as np
 import pandas as pd
 
-from magicclass import magicmenu, MagicTemplate
+from magicclass import magicmenu
 from magicclass.types import Path
 from acryo import Molecules
+import impy as ip
 
 from cylindra.types import get_monomer_layers, MoleculesLayer
 from cylindra.const import FileFilter
 from cylindra.widgets.widget_utils import add_molecules
+from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 
 @magicmenu
-class PEET(MagicTemplate):
+class PEET(ChildWidget):
     """File IO for PEET software."""
 
     def read_monomers(
@@ -129,13 +131,24 @@ class PEET(MagicTemplate):
 
     def _get_molecules_layers(self, *_) -> list[MoleculesLayer]:
         try:
-            parent = self._get_parent()
-            return get_monomer_layers(parent)
+            main = self._get_main()
+            return get_monomer_layers(main)
         except Exception:
             return []
 
+    def _get_template_path(self, *_) -> Path:
+        return self._get_main().sta._get_template_path()
+
+    def _get_mask_params(self, *_):
+        return self._get_main().sta._get_mask_params()
+
     def export_project(
-        self, layer: MoleculesLayer, save_dir: Path.Dir, project_name: str = "MyProject"
+        self,
+        layer: MoleculesLayer,
+        save_dir: Path.Dir,
+        template_path: Annotated[str, {"bind": _get_template_path}],
+        mask_params: Annotated[Any, {"bind": _get_mask_params}],
+        project_name: str = "MyProject",
     ):
         """
         Export cylindra state as a PEET prm file.
@@ -146,9 +159,18 @@ class PEET(MagicTemplate):
             Saving path.
         """
         save_dir = Path(save_dir)
-        parent = self._get_parent()
-        template_image = parent.sta.template
-        mask_image = parent.sta.mask
+        main = self._get_main()
+        loader = main.tomogram.get_subtomogram_loader(
+            Molecules.empty(),
+            binsize=1,
+        )
+        template_image, mask_image = loader.normalize_input(
+            template=main.sta.params._get_template(path=template_path),
+            mask=main.sta.params._get_mask(params=mask_params),
+        )
+
+        if template_image is None:
+            raise ValueError("Template image is not loaded.")
 
         # paths
         coordinates_path = save_dir / "coordinates.mod"
@@ -158,10 +180,10 @@ class PEET(MagicTemplate):
         prm_path = save_dir / f"{project_name}.prm"
 
         txt = PEET_TEMPLATE.format(
-            tomograms=str(parent.tomogram.source),
+            tomograms=str(main.tomogram.source),
             coordinates=str(coordinates_path),
             angles=str(angles_path),
-            tilt_range=list(parent.tomogram.tilt_range),
+            tilt_range=list(main.tomogram.tilt_range),
             template=str(template_path),
             project_name=project_name,
             shape=list(template_image.shape),
@@ -172,20 +194,15 @@ class PEET(MagicTemplate):
         prm_path.write_text(txt)
         mol = layer.molecules
         _save_molecules(save_dir=save_dir, mol=mol, scale=self.scale)
-        template_image.imsave(template_path)
+        ip.asarray(template_image).imsave(template_path)
         if mask_image is not None:
-            mask_image.imsave(mask_path)
+            ip.asarray(mask_image).imsave(mask_path)
 
         return None
 
     @property
     def scale(self) -> float:
-        return self._get_parent().tomogram.scale
-
-    def _get_parent(self):
-        from cylindra.widgets import CylindraMainWidget
-
-        return self.find_ancestor(CylindraMainWidget, cache=True)
+        return self._get_main().tomogram.scale
 
 
 def _read_angle(ang_path: str) -> np.ndarray:

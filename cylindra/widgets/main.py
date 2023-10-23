@@ -2029,14 +2029,17 @@ class CylindraMainWidget(MagicTemplate):
         from scipy.interpolate import interp1d
 
         layer = assert_layer(layer, self.parent_viewer)
-        if interpolation == 0:
-            kind = "nearest"
-        elif interpolation == 1:
-            kind = "linear"
-        elif interpolation == 3:
-            kind = "cubic"
-        else:
-            raise ValueError(f"`interpolation` must be 0, 1 or 3. Got {interpolation}.")
+        match interpolation:
+            case 0:
+                kind = "nearest"
+            case 1:
+                kind = "linear"
+            case 3:
+                kind = "cubic"
+            case _:
+                raise ValueError(
+                    f"`interpolation` must be 0, 1 or 3. Got {interpolation}."
+                )
 
         spl = _assert_source_spline_exists(layer)
         feat = layer.molecules.features

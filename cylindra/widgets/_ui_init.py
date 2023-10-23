@@ -25,10 +25,10 @@ from cylindra.widgets.main import CylindraMainWidget
 from cylindra.widgets.sta import SubtomogramAveraging
 from cylindra.widgets._previews import view_tables
 from cylindra.widgets._main_utils import normalize_offsets, rotvec_from_axis_and_degree
+from cylindra._custom_layers import MoleculesLayer
 from cylindra import _config
 
 if TYPE_CHECKING:
-    from cylindra._custom_layers import MoleculesLayer
     from napari.layers import Layer
     from magicgui.widgets import FloatSpinBox
 
@@ -429,9 +429,12 @@ def _setup_binarize_feature(self: CylindraMainWidget, gui: FunctionGui):
 
     @gui.target.changed.connect
     def _on_feature_change(target: str):
-        layer: MoleculesLayer = gui.layer.value
+        layer = gui.layer.value
+        assert isinstance(layer, MoleculesLayer)
         ser = layer.molecules.features[target]
         ser = ser.filter(~ser.is_infinite())
+        if len(ser) == 0:
+            return
         low, high = ser.min(), ser.max()
         gui.threshold.min, gui.threshold.max = low, high
         gui.threshold.step = (high - low) / 200
@@ -530,6 +533,7 @@ def _temp_layer_colors(layer: MoleculesLayer):
     ecmap = layer.edge_colormap
     fclim = layer.face_contrast_limits
     eclim = layer.edge_contrast_limits
+    info = layer.colormap_info
     try:
         yield
     finally:
@@ -539,3 +543,4 @@ def _temp_layer_colors(layer: MoleculesLayer):
         layer.edge_colormap = ecmap
         layer.face_contrast_limits = fclim
         layer.edge_contrast_limits = eclim
+        layer._colormap_info = info

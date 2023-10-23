@@ -16,7 +16,7 @@ from magicclass import (
     abstractapi,
     setup_function_gui,
 )
-from magicclass.types import OneOf, Optional, ExprStr, Path
+from magicclass.types import OneOf, Optional, Path
 from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
 from magicclass.widgets import ConsoleTextEdit
@@ -33,7 +33,7 @@ from cylindra.widgets._widget_ext import RotationsEdit
 from cylindra.widgets._annotated import FSCFreq
 from cylindra.widgets.main import CylindraMainWidget, widget_utils
 from cylindra.widgets.sta import StaParameters
-from cylindra.widgets.widget_utils import timer, POLARS_NAMESPACE, PolarsExprStr
+from cylindra.widgets.widget_utils import timer, PolarsExprStr, norm_expr
 from cylindra.widgets.sta import (
     INTERPOLATION_CHOICES,
     METHOD_CHOICES,
@@ -207,7 +207,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         loaderlist = self._get_parent()._loaders
         info = loaderlist[loader_name]
         loader = info.loader
-        new = loader.filter(expression)
+        new = loader.filter(norm_expr(expression))
         existing_id = set(new.features[Mole.image])
         loaderlist.append(
             LoaderInfo(
@@ -279,7 +279,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         img = ip.asarray(
             loader.replace(output_shape=shape, order=interpolation)
             .binning(bin_size, compute=False)
-            .groupby(by)
+            .groupby(norm_expr(by))
             .average()
             .value_stack(axis=0),
             axes="pzyx",
