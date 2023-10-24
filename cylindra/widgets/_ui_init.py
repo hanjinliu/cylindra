@@ -25,7 +25,7 @@ from cylindra.widgets.main import CylindraMainWidget
 from cylindra.widgets.sta import SubtomogramAveraging
 from cylindra.widgets._previews import view_tables
 from cylindra.widgets._main_utils import normalize_offsets, rotvec_from_axis_and_degree
-from cylindra._custom_layers import MoleculesLayer
+from cylindra._napari import MoleculesLayer
 from cylindra import _config
 
 if TYPE_CHECKING:

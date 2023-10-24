@@ -1177,34 +1177,11 @@ def test_mesh_annealing(ui: CylindraMainWidget):
         template_path=TEST_DIR / "beta-tubulin.mrc",
         mask_params=(0.3, 0.8),
         max_shifts=(1.2, 1.2, 1.2),
-        distance_range_long=(dist_lon - 0.1, dist_lon + 0.1),
-        distance_range_lat=(dist_lat - 0.1, dist_lat + 0.1),
-        angle_max=20,
-        random_seeds=[0],
-    )
-
-    ui.sta.align_all_annealing(
-        layer_filt,
-        template_path=TEST_DIR / "beta-tubulin.mrc",
-        mask_params=(0.3, 0.8),
-        max_shifts=(1.2, 1.2, 1.2),
         rotations=((0, 0), (5, 5), (0, 0)),
         distance_range_long=(dist_lon - 0.1, dist_lon + 0.1),
         distance_range_lat=(dist_lat - 0.1, dist_lat + 0.1),
         angle_max=20,
         random_seeds=[0, 1],
-        return_all=True,
-    )
-
-    ui.sta.align_all_annealing_multi_template(
-        layer_filt,
-        template_paths=[TEST_DIR / "beta-tubulin.mrc", TEST_DIR / "beta-tubulin.mrc"],
-        mask_params=(0.3, 0.8),
-        max_shifts=(1.2, 1.2, 1.2),
-        distance_range_long=(dist_lon - 0.1, dist_lon + 0.1),
-        distance_range_lat=(dist_lat - 0.1, dist_lat + 0.1),
-        angle_max=20,
-        random_seeds=[0],
     )
 
     ui.sta.align_all_annealing_multi_template(
@@ -1217,7 +1194,6 @@ def test_mesh_annealing(ui: CylindraMainWidget):
         distance_range_lat=(dist_lat - 0.1, dist_lat + 0.1),
         angle_max=20,
         random_seeds=[0, 1],
-        return_all=True,
     )
     ui.sta.save_annealing_scores(
         ui.mole_layers.last(), PROJECT_DIR_13PF / "annealing.csv"

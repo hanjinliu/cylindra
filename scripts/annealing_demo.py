@@ -5,7 +5,7 @@ import warnings
 from acryo import Molecules
 
 from cylindra.widgets.sta import SubtomogramAveraging
-from cylindra._custom_layers import MoleculesLayer
+from cylindra._napari import MoleculesLayer
 
 from magicgui import magicgui
 from magicclass.ext.pyqtgraph import plot_api as plt
@@ -58,7 +58,7 @@ def mesh_annealing_demo(
     all_molecules = [molecules]
     temps = []
     if batch_size is None:
-        batch_size = np.prod(landscape.energy_array.shape) // 25
+        batch_size = np.prod(landscape.energies.shape) // 25
     for _ in range(1000):
         _model.simulate(batch_size)
         energies.append(_model.energy())

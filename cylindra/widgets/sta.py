@@ -48,7 +48,7 @@ from cylindra.const import (
     Ori,
     FileFilter,
 )
-from cylindra._custom_layers import LandscapeSurface
+from cylindra._napari import LandscapeSurface
 from cylindra.widgets._widget_ext import (
     RotationsEdit,
     RandomSeedEdit,
@@ -1028,7 +1028,6 @@ class SubtomogramAveraging(ChildWidget):
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
-        return_all: Annotated[bool, {"label": "Return all the annealing results"}] = False,
     ):  # fmt: skip
         """
         2D-constrained subtomogram alignment using simulated annealing.
@@ -1045,8 +1044,6 @@ class SubtomogramAveraging(ChildWidget):
         distance_range_lat : tuple of float
             Range of allowed distance between laterally consecutive monomers.
         {angle_max}{temperature_time_const}{upsample_factor}{random_seeds}
-        return_all : bool, default is False
-            If True, return all the annealing results for each random seed.
         """
         kwargs = locals()
         kwargs.pop("self")
@@ -1074,7 +1071,6 @@ class SubtomogramAveraging(ChildWidget):
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
-        return_all: Annotated[bool, {"label": "Return all the annealing results"}] = False,
     ):  # fmt: skip
         """
         2D-constrained subtomogram alignment using simulated annealing.
@@ -1101,7 +1097,7 @@ class SubtomogramAveraging(ChildWidget):
         return out
 
     @set_design(text=capitalize, location=STAnalysis)
-    @dask_worker.with_progress(desc="Constructing landscape ...")
+    @dask_worker.with_progress(descs=_pdesc.construct_landscape_fmt)
     def construct_landscape(
         self,
         layer: MoleculesLayerType,
@@ -1180,7 +1176,7 @@ class SubtomogramAveraging(ChildWidget):
                 cutoff=cutoff,
                 tilt=parent.tomogram.tilt_model,
             ),
-        ).normed()  # TODO: is this necessary?
+        ).normed()
 
     def _align_all_viterbi(
         self,
@@ -1211,7 +1207,22 @@ class SubtomogramAveraging(ChildWidget):
         )
 
         yield
-        max_shifts_px = tuple(s / parent.tomogram.scale for s in max_shifts)
+        return self._run_viterbi_on_landscape(
+            layer,
+            landscape=landscape,
+            distance_range=distance_range,
+            angle_max=angle_max,
+        )
+
+    def _run_viterbi_on_landscape(
+        self,
+        layer: MoleculesLayer,
+        landscape: Landscape,
+        distance_range: tuple[nm, nm] = (4.0, 4.28),
+        angle_max: "float | None" = 5.0,
+    ):
+        from cylindra._dask import delayed, compute
+
         mole = layer.molecules
         npfs: Sequence[int] = mole.features[Mole.pf].unique(maintain_order=True)
 
@@ -1223,6 +1234,7 @@ class SubtomogramAveraging(ChildWidget):
         vit_out = compute(*viterbi_tasks)
 
         inds = np.empty((mole.count(), 3), dtype=np.int32)
+        max_shifts_px = (np.array(landscape.energies.shape[1:]) - 1) // 2
         for i, result in enumerate(vit_out):
             inds[slices[i], :] = _check_viterbi_shift(result.indices, max_shifts_px, i)
         molecules_opt = landscape.transform_molecules(mole, inds)
@@ -1245,9 +1257,7 @@ class SubtomogramAveraging(ChildWidget):
         temperature_time_const: float = 1.0,
         upsample_factor: int = 5,
         random_seeds: Iterable[int] = range(5),
-        return_all: bool = False,
     ):
-        parent = self._get_main()
         layer = assert_layer(layer, self.parent_viewer)
         landscape = self._construct_landscape(
             layer=layer,
@@ -1260,6 +1270,27 @@ class SubtomogramAveraging(ChildWidget):
             upsample_factor=upsample_factor,
         )
         yield
+        return self._run_annealing_on_landscape(
+            layer,
+            landscape=landscape,
+            distance_range_long=distance_range_long,
+            distance_range_lat=distance_range_lat,
+            angle_max=angle_max,
+            temperature_time_const=temperature_time_const,
+            random_seeds=random_seeds,
+        )
+
+    def _run_annealing_on_landscape(
+        self,
+        layer: MoleculesLayer,
+        landscape: Landscape,
+        distance_range_long: tuple[float, float],
+        distance_range_lat: tuple[float, float],
+        angle_max: float,
+        temperature_time_const: float = 1.0,
+        random_seeds: Iterable[int] = range(5),
+    ):
+        main = self._get_main()
         results = landscape.run_annealing(
             layer.source_spline,
             distance_range_long,
@@ -1286,49 +1317,22 @@ class SubtomogramAveraging(ChildWidget):
 
         @thread_worker.callback
         def _on_return():
-            if return_all:
-                point_layers = []
-                for i, result in enumerate(results):
-                    mole_opt = landscape.transform_molecules(
-                        layer.molecules, result.indices
-                    )
-                    if spl := layer.source_spline:
-                        mole_opt = _update_mole_pos(mole_opt, layer.molecules, spl)
-                    points = parent.add_molecules(
-                        mole_opt,
-                        name=f"{_coerce_aligned_name(layer.name, self.parent_viewer)} [{i}]",
-                        source=layer.source_component,
-                        metadata={ANNEALING_RESULT: result},
-                    )
-                    point_layers.append(points)
-            else:
-                mole_opt = landscape.transform_molecules(
-                    layer.molecules, results[0].indices
-                )
-                if spl := layer.source_spline:
-                    mole_opt = _update_mole_pos(mole_opt, layer.molecules, spl)
-                points = parent.add_molecules(
-                    mole_opt,
-                    name=_coerce_aligned_name(layer.name, self.parent_viewer),
-                    source=layer.source_component,
-                    metadata={ANNEALING_RESULT: results[0]},
-                )
-                point_layers = [points]
+            mole_opt = landscape.transform_molecules(
+                layer.molecules, results[0].indices
+            )
+            if spl := layer.source_spline:
+                mole_opt = _update_mole_pos(mole_opt, layer.molecules, spl)
+            points = main.add_molecules(
+                mole_opt,
+                name=_coerce_aligned_name(layer.name, self.parent_viewer),
+                source=layer.source_component,
+                metadata={ANNEALING_RESULT: results[0]},
+            )
             layer.visible = False
             with _Logger.set_plt():
                 _annealing.plot_annealing_result(results)
 
-            @undo_callback
-            def out():
-                parent._try_removing_layers(point_layers)
-                layer.visible = True
-
-            @out.with_redo
-            def out():
-                for points in point_layers:
-                    parent.parent_viewer.add_layer(points)
-
-            return out
+            return self._undo_for_new_layer([layer.name], [points])
 
         return _on_return
 
@@ -1795,17 +1799,27 @@ class SubtomogramAveraging(ChildWidget):
             new_layers.append(points)
             layer.visible = False
             _Logger.print_html(f"{layer.name!r} &#8594; {points.name!r}")
+        return self._undo_for_new_layer([l.name for l in old_layers], new_layers)
 
+    def _undo_for_new_layer(
+        self,
+        old_names: list[str],
+        new_layers: list[MoleculesLayer],
+    ):
         @undo_callback
         def out():
-            parent._try_removing_layers(new_layers)
-            for layer in old_layers:
-                layer.visible = True
+            main = self._get_main()
+            main._try_removing_layers(new_layers)
+            for name in old_names:
+                if name not in main.parent_viewer.layers:
+                    continue
+                main.parent_viewer.layers[name].visible = True
 
         @out.with_redo
         def out():
+            main = self._get_main()
             for points in new_layers:
-                parent.parent_viewer.add_layer(points)
+                main.parent_viewer.add_layer(points)
 
         return out
 

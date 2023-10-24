@@ -5,7 +5,7 @@ import numpy as np
 import impy as ip
 import polars as pl
 from napari.layers import Image, Points
-from cylindra._custom_layers import CylinderLabels
+from cylindra._napari import CylinderLabels
 
 from cylindra.const import (
     SplineColor,

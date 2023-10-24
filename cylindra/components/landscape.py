@@ -41,7 +41,7 @@ class Landscape:
         ``scale / upsample_factor`` will be passed to this parameter from the GUI.
     """
 
-    energy_array: NDArray[np.float32]
+    energies: NDArray[np.float32]
     molecules: Molecules
     argmax: NDArray[np.int32] | None
     alignment_model: ParametrizedModel | TomographyInput
@@ -53,13 +53,13 @@ class Landscape:
         """Subset of the landscape."""
         if not isinstance(key, (slice, list, np.ndarray)):
             raise TypeError(f"Invalid type of key: {type(key)}")
-        energy = self.energy_array[key]
+        energy = self.energies[key]
         mole = self.molecules.subset(key)
         argmax = self.argmax[key] if self.argmax is not None else None
         return Landscape(energy, mole, argmax, self.alignment_model, self.scale_factor)
 
     def __repr__(self) -> str:
-        energy_array_repr = f"<{self.energy_array.shape!r} array>"
+        energy_array_repr = f"<{self.energies.shape!r} array>"
         mole_repr = f"<{self.molecules.count()} molecules>"
         argmax_repr = (
             f"<{self.argmax.shape!r} array>" if self.argmax is not None else None
@@ -73,7 +73,7 @@ class Landscape:
     @property
     def offset(self) -> NDArray[np.int32]:
         """Shift from the corner (0, 0, 0) to the center."""
-        shift = (np.array(self.energy_array.shape[1:]) - 1) / 2
+        shift = (np.array(self.energies.shape[1:]) - 1) / 2
         return shift.astype(np.int32)
 
     @property
@@ -182,10 +182,7 @@ class Landscape:
             )
 
         opt_score = np.fromiter(
-            (
-                -self.energy_array[i, iz, iy, ix]
-                for i, (iz, iy, ix) in enumerate(indices)
-            ),
+            (-self.energies[i, iz, iy, ix] for i, (iz, iy, ix) in enumerate(indices)),
             dtype=np.float32,
         )
         return molecules_opt.with_features(
@@ -206,7 +203,7 @@ class Landscape:
         zvec = mole.z.astype(np.float32)
         yvec = mole.y.astype(np.float32)
         xvec = mole.x.astype(np.float32)
-        grid = ViterbiGrid(-self.energy_array, origin, zvec, yvec, xvec)
+        grid = ViterbiGrid(-self.energies, origin, zvec, yvec, xvec)
         _dist_range = [d / self.scale_factor for d in dist_range]
         result = grid.viterbi(*_dist_range, angle_max)
         return ViterbiResult(result[0], result[1])
@@ -251,7 +248,7 @@ class Landscape:
                 yvec=mole.y.astype(np.float32) * self.scale_factor,
                 xvec=mole.x.astype(np.float32) * self.scale_factor,
             )
-            .set_energy_landscape(self.energy_array)
+            .set_energy_landscape(self.energies)
             .set_reservoir(
                 temperature=temperature,
                 time_constant=time_const,
@@ -327,9 +324,9 @@ class Landscape:
     ):
         nmole = self.molecules.count()
         time_const = (
-            nmole * np.product(self.energy_array.shape[1:]) * temperature_time_const
+            nmole * np.product(self.energies.shape[1:]) * temperature_time_const
         )
-        _energy_std = np.std(self.energy_array)
+        _energy_std = np.std(self.energies)
         if temperature is None:
             temperature = _energy_std * 2
         if cooling_rate is None:
@@ -340,16 +337,16 @@ class Landscape:
 
     def normed(self, sd: bool = True) -> Landscape:
         """Return a landscape with normalized mean energy."""
-        each_mean = self.energy_array.mean(axis=(1, 2, 3))
+        each_mean = self.energies.mean(axis=(1, 2, 3))
         all_mean = each_mean.mean()
         sl = (slice(None), np.newaxis, np.newaxis, np.newaxis)
         if sd:
-            each_sd = self.energy_array.std(axis=(1, 2, 3))
+            each_sd = self.energies.std(axis=(1, 2, 3))
             all_sd = each_sd.std()
-            dif = self.energy_array - each_mean[sl]
+            dif = self.energies - each_mean[sl]
             new_array = dif * all_sd / each_sd[sl] + all_mean
         else:
-            new_array = self.energy_array + all_mean - each_mean[sl]
+            new_array = self.energies + all_mean - each_mean[sl]
         return Landscape(
             new_array,
             self.molecules,
@@ -363,7 +360,7 @@ class Landscape:
         level: float | None = None,
         resolution: nm = 0.25,
     ) -> SurfaceData:
-        neg_energy = -self.energy_array
+        neg_energy = -self.energies
         if level is None:
             level = neg_energy.mean()
         else:

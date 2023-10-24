@@ -4,7 +4,7 @@ import numpy as np
 import magicgui
 from napari.utils._magicgui import find_viewer_ancestor
 from napari.layers import Layer
-from cylindra._custom_layers import MoleculesLayer, CylinderLabels
+from cylindra._napari import MoleculesLayer, CylinderLabels
 from cylindra.const import PREVIEW_LAYER_NAME
 
 if TYPE_CHECKING:

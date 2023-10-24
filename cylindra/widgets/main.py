@@ -41,7 +41,7 @@ from cylindra.const import (
     ImageFilter,
     FileFilter,
 )
-from cylindra._custom_layers import MoleculesLayer
+from cylindra._napari import MoleculesLayer
 from cylindra.project import CylindraProject, extract
 
 from cylindra.widgets import _shared_doc, subwidgets as _sw, widget_utils

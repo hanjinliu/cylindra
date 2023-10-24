@@ -29,7 +29,7 @@ from magicclass.logging import getLogger
 from magicclass.utils import thread_worker
 from magicclass.ext.polars import DataFrameView
 
-from cylindra._custom_layers import MoleculesLayer
+from cylindra._napari import MoleculesLayer
 from cylindra.utils import roundint, str_color
 from cylindra.types import get_monomer_layers, ColoredLayer
 from cylindra.ext.etomo import PEET
@@ -703,7 +703,7 @@ class MoleculesMenu(ChildWidget):
                 Dimensionality. 2 for flat view and 3 for spherical shading.
             """
             for layer in layers:
-                layer.set_view_ndim(ndim)
+                layer.view_ndim = ndim
             return None
 
 

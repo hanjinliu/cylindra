@@ -58,7 +58,6 @@ def main(ui: CylindraMainWidget):
         angle_max=5.0,
         upsample_factor=5,
         random_seeds=[0, 1, 2, 3, 4],
-        return_all=False,
     )
     ui.calculate_lattice_structure(layer="molecules", props=["spacing"])
     ui.calculate_lattice_structure(layer="Conventional", props=["spacing"])

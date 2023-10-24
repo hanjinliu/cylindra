@@ -68,6 +68,14 @@ def align_annealing_fmt(layer: Layer):
     yield "(3/3) Finishing"
 
 
+def construct_landscape_fmt(layer: Layer):
+    name = _get_name(layer)
+    yield f"(0/3) Preparing template images for {name!r}"
+    yield f"(1/3) Calculating the correlation landscape of {name!r}"
+    yield f"(2/3) Building the surface of {name!r}"
+    yield "(3/3) Finishing"
+
+
 def classify_pca_fmt(layer: Layer):
     name = _get_name(layer)
     yield f"(0/5) Caching subtomograms of {name!r}"

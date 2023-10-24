@@ -30,7 +30,7 @@ from magicclass.ext.dask import dask_thread_worker
 
 from acryo import TomogramSimulator, pipe
 
-from cylindra._custom_layers import MoleculesLayer
+from cylindra._napari import MoleculesLayer
 from cylindra.widgets.widget_utils import capitalize, POLARS_NAMESPACE
 from cylindra.const import (
     FileFilter,

@@ -10,8 +10,11 @@ import numpy as np
 from acryo import Molecules
 from napari.layers import Points, Labels, Surface
 from napari.utils.status_messages import generate_layer_coords_status
+from napari.utils.events import Event
+
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.utils import str_color, assert_column_exists
+from cylindra._config import get_config
 
 if TYPE_CHECKING:
     from cylindra.components import BaseComponent, CylSpline
@@ -129,6 +132,7 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
             raise TypeError("data must be a Molecules object")
         self._molecules = data
         self._colormap_info: ColormapInfo | str = "lime"
+        self._point_size = float(kwargs.get("size", get_config().point_size))
         if isinstance(col := kwargs.get("face_color"), str):
             self._colormap_info = col
         self._source_component: weakref.ReferenceType[BaseComponent] | None = None
@@ -136,6 +140,7 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
         self._undo_renaming = False
         self._view_ndim = 3
         super().__init__(data.pos, **kwargs)
+        self.events.add(point_size=Event, view_ndim=Event)
         features = data.features
         if features is not None and len(features) > 0:
             self.features = features
@@ -179,6 +184,17 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
             name = self._basename()
         self._name = str(name)
         self.events.name()
+
+    @property
+    def point_size(self) -> float:
+        return self._point_size
+
+    @point_size.setter
+    def point_size(self, size: float):
+        self.size = size
+        self._point_size = size
+        self.events.point_size(value=size)
+        self.refresh()
 
     @contextmanager
     def _undo_context(self):
@@ -301,16 +317,24 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
         self._colormap_info = str_color(color)
         self.refresh()
 
-    def set_view_ndim(self, ndim: int = 2):
+    @property
+    def view_ndim(self):
+        """Get the view dimension."""
+        return self._view_ndim
+
+    @view_ndim.setter
+    def view_ndim(self, ndim: int):
         """Set the view dimension."""
-        if ndim == 2:
-            self.shading = "none"
-            self.edge_color = "#222222"
-        elif ndim == 3:
-            self.shading = "spherical"
-            self.edge_color = self.face_color
-        else:
-            raise ValueError("ndim must be 2 or 3")
+        match ndim:
+            case 2:
+                self.shading = "none"
+                self.edge_color = "#222222"
+            case 3:
+                self.shading = "spherical"
+                self.edge_color = self.face_color
+            case _:
+                raise ValueError("ndim must be 2 or 3")
+        self.events.view_ndim(value=ndim)
         self._view_ndim = ndim
 
     @Points.face_color.setter
@@ -321,7 +345,7 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
         if isinstance(color, str):
             self._colormap_info = color
         elif np.isscalar(color[0]):
-            self._colormap_info = str_color(color[0])
+            self._colormap_info = str_color(color)
 
     def regular_shape(self) -> tuple[int, int]:
         """Get the regular shape (long, lat) of the layer."""
@@ -365,15 +389,18 @@ class CylinderLabels(_FeatureBoundLayer, Labels):
 class LandscapeSurface(Surface):
     """Surface layer for an energy landscape."""
 
+    _type_string = "surface"
+
     def __init__(self, landscape: Landscape, **kwargs):
         kwargs.setdefault("colormap", "inferno")
         kwargs.setdefault("opacity", 0.6)
         kwargs.setdefault("blending", "translucent_no_depth")
-        self._landscape_min = landscape.energy_array.min()
-        self._landscape_max = landscape.energy_array.max()
-        level = (self._landscape_max + self._landscape_min) / 2
+        self._level_min = landscape.energies.min()
+        self._level_max = landscape.energies.max()
+        level = (self._level_max + self._level_min) / 2
         data = landscape.create_surface(level=level, resolution=0.25)
         super().__init__(data, **kwargs)
+        self.events.add(level=Event)
         self._energy_level = level
         self._landscape = landscape
         self._resolution = 0.25
@@ -390,14 +417,15 @@ class LandscapeSurface(Surface):
 
     @level.setter
     def level(self, level: float):
-        if level < self._landscape_min or level > self._landscape_max:
+        if level < self._level_min or level > self._level_max:
             raise ValueError(
-                f"level must be in range of ({self._landscape_min}, {self._landscape_max})"
+                f"level must be in range of ({self._level_min}, {self._level_max})"
             )
         self.data = self._landscape.create_surface(
             level=level, resolution=self._resolution
         )
         self._energy_level = level
+        self.events.level(value=level)
         self.refresh()
 
     def create_slider(self):
@@ -405,8 +433,8 @@ class LandscapeSurface(Surface):
         from magicgui.widgets import FloatSlider
 
         sl = FloatSlider(
-            min=self._landscape_min,
-            max=self._landscape_max,
+            min=self._level_min,
+            max=self._level_max,
             value=self._energy_level,
             tracking=False,
         )
