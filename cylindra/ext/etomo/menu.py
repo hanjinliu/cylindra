@@ -137,7 +137,7 @@ class PEET(ChildWidget):
             return []
 
     def _get_template_path(self, *_) -> Path:
-        return self._get_main().sta._get_template_path()
+        return self._get_main().sta._template_param()
 
     def _get_mask_params(self, *_):
         return self._get_main().sta._get_mask_params()

@@ -12,7 +12,7 @@ from magicclass.utils import thread_worker
 
 from cylindra import view_project, _config, cylstructure
 from cylindra.widgets import CylindraMainWidget
-from cylindra.widgets.sta import MASK_CHOICES
+from cylindra.widgets.sta import MaskChoice
 from cylindra.const import (
     MoleculesHeader as Mole,
     PropertyNames as H,
@@ -591,8 +591,8 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
 
     template_path = TEST_DIR / "beta-tubulin.mrc"
     ui.sta.params.template_path.value = template_path
-    ui.sta.params.mask_choice = MASK_CHOICES[2]
-    ui.sta.params.mask_choice = MASK_CHOICES[1]
+    ui.sta.params.mask_choice = MaskChoice.from_file
+    ui.sta.params.mask_choice = MaskChoice.blur_template
     ui.sta.show_template()
     ui.sta.show_template_original()
     ui.sta.show_mask()
@@ -620,9 +620,9 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
         size=12.0,
         bin_size=bin_size,
     )
-    ui.sta.align_all_multi_template(
+    ui.sta.align_all(
         layers=["Mole-0"],
-        template_paths=[template_path, template_path],
+        template_path=[template_path, template_path],
         mask_params=(1, 1),
         bin_size=bin_size,
     )
@@ -640,7 +640,7 @@ def test_seam_search(ui: CylindraMainWidget):
         ui.parent_viewer.layers["Mole-0"], predicate="pl.col('nth') < 5"
     )
     ui.sta.params.template_path.value = TEST_DIR / "beta-tubulin.mrc"
-    ui.sta.params.mask_choice = MASK_CHOICES[1]
+    ui.sta.params.mask_choice = MaskChoice.blur_template
     layer = ui.mole_layers.last()
     ui.sta.seam_search(
         layer=layer,
@@ -1127,8 +1127,8 @@ def test_viterbi_alignment(ui: CylindraMainWidget):
         rotations=((0, 0), (5, 5), (0, 0)),
         distance_range=(4, 4.5),
     )
-
-    ui.sta.align_all_viterbi_multi_template(
+    # multi-template
+    ui.sta.align_all_viterbi(
         layer_filt,
         template_paths=[TEST_DIR / "beta-tubulin.mrc", TEST_DIR / "beta-tubulin.mrc"],
         mask_params=(0.3, 0.8),
@@ -1136,7 +1136,7 @@ def test_viterbi_alignment(ui: CylindraMainWidget):
         distance_range=(4, 4.5),
     )
 
-    ui.sta.align_all_viterbi_multi_template(
+    ui.sta.align_all_viterbi(
         layer_filt,
         template_paths=[TEST_DIR / "beta-tubulin.mrc", TEST_DIR / "beta-tubulin.mrc"],
         mask_params=(0.3, 0.8),
@@ -1165,12 +1165,8 @@ def test_mesh_annealing(ui: CylindraMainWidget):
     assert dist_lon == pytest.approx(4.09, abs=0.2)
 
     # click preview
-    fgui = get_function_gui(ui.sta.align_all_annealing)
-    assert fgui[-2].widget_type == "PushButton" and fgui[-2] is not fgui.call_button
-    fgui[-2].clicked()
-    fgui = get_function_gui(ui.sta.align_all_annealing_multi_template)
-    assert fgui[-2].widget_type == "PushButton" and fgui[-2] is not fgui.call_button
-    fgui[-2].clicked()
+    tester = mcls_testing.FunctionGuiTester(ui.sta.align_all_annealing)
+    tester.click_preview()
 
     ui.sta.align_all_annealing(
         layer_filt,
@@ -1184,9 +1180,9 @@ def test_mesh_annealing(ui: CylindraMainWidget):
         random_seeds=[0, 1],
     )
 
-    ui.sta.align_all_annealing_multi_template(
+    ui.sta.align_all_annealing(
         layer_filt,
-        template_paths=[TEST_DIR / "beta-tubulin.mrc", TEST_DIR / "beta-tubulin.mrc"],
+        template_path=[TEST_DIR / "beta-tubulin.mrc", TEST_DIR / "beta-tubulin.mrc"],
         mask_params=(0.3, 0.8),
         max_shifts=(1.2, 1.2, 1.2),
         rotations=((0, 0), (5, 5), (0, 0)),

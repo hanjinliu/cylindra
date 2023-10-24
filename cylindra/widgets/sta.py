@@ -8,6 +8,7 @@ from typing import (
     Annotated,
 )
 import re
+from enum import Enum
 from scipy.spatial.transform import Rotation
 from magicclass import (
     do_not_record,
@@ -21,7 +22,7 @@ from magicclass import (
     impl_preview,
     abstractapi,
 )
-from magicclass.widgets import HistoryFileEdit, Separator
+from magicclass.widgets import HistoryFileEdit, Separator, Image as ImageWidget
 from magicclass.types import Optional, Path
 from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
@@ -81,11 +82,12 @@ if TYPE_CHECKING:
 
 
 def _get_template_shape(self: "SubtomogramAveraging", size: nm) -> list[str]:
-    if size is None:
-        tmp = self.template
-        size = max(tmp.shape) * tmp.scale.x
-    return size
+    shape = self._get_shape_in_nm(size)
+    return max(shape)
 
+
+_PathOrNone = str | Path | None
+_PathOrPathsOrNone = str | Path | list[str | Path] | None
 
 # annotated types
 _CutoffFreq = Annotated[float, {"min": 0.0, "max": 1.0, "step": 0.05}]
@@ -108,9 +110,6 @@ _SubVolumeSize = Annotated[
         "label": "size (nm)",
         "validator": _get_template_shape,
     },
-]
-_ImagePaths = Annotated[
-    list[Path], {"widget_type": MultiFileEdit, "filter": FileFilter.IMAGE}
 ]
 _DistRangeLon = Annotated[
     tuple[nm, nm],
@@ -149,7 +148,16 @@ def _get_alignment(method: str):
             raise ValueError(f"Method {method!r} is unknown.")
 
 
-MASK_CHOICES = ("No mask", "Blur template", "From file")
+class TemplateChoice(Enum):
+    last_average = "Use last averaged image"
+    from_file = "From file"
+    from_files = "From files"
+
+
+class MaskChoice(Enum):
+    no_mask = "no mask"
+    blur_template = "blur template"
+    from_file = "from file"
 
 
 def _choice_getter(method_name: str, dtype_kind: str = ""):
@@ -240,14 +248,11 @@ class Alignment(MagicTemplate):
     align_averaged = abstractapi()
     align_all = abstractapi()
     align_all_template_free = abstractapi()
-    align_all_multi_template = abstractapi()
 
     @magicmenu
     class Constrained(MagicTemplate):
         align_all_viterbi = abstractapi()
-        align_all_viterbi_multi_template = abstractapi()
         align_all_annealing = abstractapi()
-        align_all_annealing_multi_template = abstractapi()
         save_annealing_scores = abstractapi()
 
 
@@ -264,13 +269,16 @@ class StaParameters(MagicTemplate):
         Select how to create a mask.
     """
 
-    template_path = field(
-        Optional[
-            Annotated[Path.Read[FileFilter.IMAGE], {"widget_type": HistoryFileEdit}]
-        ],
-        label="Template",
-    ).with_options(text="Use last averaged image", value=Path(""))
-    mask_choice = vfield(label="Mask", record=False).with_choices(MASK_CHOICES)
+    template_choice = vfield(TemplateChoice.from_file, label="Template")
+    avg_thumbnail = field(np.zeros((1, 1)), widget_type=ImageWidget).with_options(
+        visible=False
+    )
+    template_path = field(Path.Read[FileFilter.IMAGE], widget_type=HistoryFileEdit)
+    template_paths = field(list[Path], widget_type=MultiFileEdit).with_options(
+        filter=FileFilter.IMAGE, visible=False
+    )
+
+    mask_choice = vfield(MaskChoice.no_mask, label="Mask")
     params = field(MaskParameters, name="Parameters", label="")
     mask_path = field(mask_path)
 
@@ -279,22 +287,34 @@ class StaParameters(MagicTemplate):
 
     def __post_init__(self):
         self._template: ip.ImgArray = None
-        self.mask_choice = MASK_CHOICES[0]
+        self.avg_thumbnail.min_height = 30
+        self.avg_thumbnail.max_height = 30
 
         # load history
-        line: HistoryFileEdit = self.template_path.inner_widget
+        line = self.template_path
         for fp in _config.get_template_path_hist():
             line.append_history(str(fp))
+
+    @template_choice.connect
+    def _on_template_switch(self):
+        v = self.template_choice
+        self.avg_thumbnail.visible = v is TemplateChoice.last_average
+        self.template_path.visible = v is TemplateChoice.from_file
+        self.template_paths.visible = v is TemplateChoice.from_files
 
     @mask_choice.connect
     def _on_mask_switch(self):
         v = self.mask_choice
-        self.params.visible = v == MASK_CHOICES[1]
-        self.mask_path.visible = v == MASK_CHOICES[2]
+        self.params.visible = v is MaskChoice.blur_template
+        self.mask_path.visible = v is MaskChoice.from_file
+
+    def _set_last_average(self, img: ip.ImgArray):
+        StaParameters._last_average = img
+        self.avg_thumbnail.value = img.max(axis=0).value
 
     def _save_history(self):
         try:
-            line: HistoryFileEdit = self.template_path.inner_widget
+            line = self.template_path
             _hist = [str(p) for p in line.get_history()[-20:]]
             _config.set_template_path_hist(_hist)
         except Exception:
@@ -326,23 +346,25 @@ class StaParameters(MagicTemplate):
         return provider
 
     def _get_mask_params(self, params=None) -> str | tuple[nm, nm] | None:
-        v = self.mask_choice
-        if v == MASK_CHOICES[0]:
-            params = None
-        elif v == MASK_CHOICES[1]:
-            params = (self.params.dilate_radius, self.params.sigma)
-        else:
-            params = self.mask_path.mask_path
+        match self.mask_choice:
+            case MaskChoice.no_mask:
+                params = None
+            case MaskChoice.blur_template:
+                params = (self.params.dilate_radius, self.params.sigma)
+            case MaskChoice.from_file:
+                params = self.mask_path.mask_path
+            case v:  # pragma: no cover
+                raise ValueError(f"Unknown mask choice: {v!r}")
         return params
 
     def _set_mask_params(self, params):
         if params is None:
-            self.mask_choice = MASK_CHOICES[0]
+            self.mask_choice = MaskChoice.no_mask
         elif isinstance(params, (tuple, list, np.ndarray)):
-            self.mask_choice = MASK_CHOICES[1]
+            self.mask_choice = MaskChoice.blur_template
             self.params.dilate_radius, self.params.sigma = params
         else:
-            self.mask_choice = MASK_CHOICES[2]
+            self.mask_choice = MaskChoice.from_file
             self.mask_path.mask_path = params
 
     _sentinel = object()
@@ -385,7 +407,8 @@ class StaParameters(MagicTemplate):
         StaParameters._viewer.scale_bar.visible = True
         StaParameters._viewer.scale_bar.unit = "nm"
         if store:
-            StaParameters._last_average = image
+            self._set_last_average(image)
+
         return StaParameters._viewer.add_image(
             image,
             scale=image.scale,
@@ -396,7 +419,7 @@ class StaParameters(MagicTemplate):
         )
 
 
-@magicclass
+@magicclass(widget_type="scrollable")
 @_shared_doc.update_cls
 class SubtomogramAveraging(ChildWidget):
     """Widget for subtomogram averaging."""
@@ -411,11 +434,85 @@ class SubtomogramAveraging(ChildWidget):
         """The napari viewer for subtomogram averaging."""
         return StaParameters._viewer
 
-    def _get_template_path(self, *_):
-        return self.params.template_path.value
+    def _template_param(self, *_):
+        return self._get_template_input(allow_multiple=False)
+
+    def _template_params(self, *_):
+        return self._get_template_input(allow_multiple=True)
+
+    def _norm_template_param(
+        self,
+        path: Path | list[Path] | None = None,
+        allow_none: bool = False,
+        allow_multiple: bool = False,
+    ) -> pipe.ImageProvider:
+        if path is None:
+            if StaParameters._last_average is None:
+                if allow_none:
+                    return None
+                raise ValueError("No average image available.")
+            return pipe.from_array(
+                StaParameters._last_average, StaParameters._last_average.scale.x
+            )
+        elif isinstance(path, Path):
+            self.params._save_history()
+            if path.is_dir():
+                if allow_none:
+                    return None
+                raise ValueError(f"Template image must be a file, got {path}.")
+            return pipe.from_file(path)
+        else:
+            if not allow_multiple:
+                raise ValueError("Cannot provide multiple template images.")
+            return pipe.from_files(path)
+
+    def _get_template_input(
+        self, allow_multiple: bool = False
+    ) -> None | Path | list[Path]:
+        match self.params.template_choice:
+            case TemplateChoice.last_average:
+                return None
+            case TemplateChoice.from_file:
+                return Path(self.params.template_path.value)
+            case TemplateChoice.from_files:
+                if not allow_multiple:
+                    raise ValueError("Cannot provide multiple template images.")
+                out = self.params.template_paths.value
+                if len(out) == 0:
+                    raise ValueError("No template image provided.")
+                elif len(out) == 1:
+                    return Path(out[0])
+                return [Path(f) for f in out]
+            case v:  # pragma: no cover
+                raise ValueError(f"Unknown template choice: {v!r}")
 
     def _get_mask_params(self, *_):
         return self.params._get_mask_params()
+
+    def _get_template_image(self) -> ip.ImgArray:
+        scale = self._get_dummy_loader().scale
+        template = self._norm_template_param(
+            self._template_params(),
+            allow_none=False,
+            allow_multiple=True,
+        ).provide(scale)
+        if isinstance(template, list):
+            template = ip.asarray(np.stack(template, axis=0), axes="zyx")
+        else:
+            template = ip.asarray(template, axes="zyx")
+        return template.set_scale(zyx=scale, unit="nm")
+
+    def _get_mask_image(self) -> ip.ImgArray:
+        loader = self._get_dummy_loader()
+        _, mask = loader.normalize_input(
+            self._norm_template_param(
+                self._template_params(), allow_none=True, allow_multiple=True
+            ),
+            self.params._get_mask(),
+        )
+        if mask is None:
+            raise ValueError("Mask is None.")
+        return ip.asarray(mask, axes="zyx").set_scale(zyx=loader.scale, unit="nm")
 
     @magictoolbar
     class STATools(MagicTemplate):
@@ -427,50 +524,28 @@ class SubtomogramAveraging(ChildWidget):
     @do_not_record
     def show_template(self):
         """Load and show template image in the scale of the tomogram."""
-        template = self.template
-        if template is None:
-            raise ValueError("No template to show.")
+        template = self._get_template_image()
         self._show_rec(template, name="Template image", store=False)
 
     @set_design(icon="material-symbols:view-in-ar", location=STATools)
     @do_not_record
     def show_template_original(self):
         """Load and show template image in the original scale."""
-        path = self.params.template_path.value
-        if path is None:
-            return self.show_template()
-        if path.is_dir():
-            raise TypeError(f"Template image must be a file, got {path}.")
-        template = ip.imread(path)
-        self._show_rec(template, name="Template image", store=False)
+        _input = self._get_template_input(allow_multiple=True)
+        if _input is None:
+            raise ValueError("No template path provided.")
+        elif isinstance(_input, Path):
+            self._show_rec(ip.imread(_input), name="Template image", store=False)
+        else:
+            for fp in _input:
+                self._show_rec(ip.imread(fp), name="Template image", store=False)
 
     @set_design(icon="fluent:shape-organic-20-filled", location=STATools)
     @do_not_record
     def show_mask(self):
         """Load and show mask image in the scale of the tomogram."""
-        mask = self.mask
-        if mask is None:
-            raise ValueError("No mask to show.")
+        mask = self._get_mask_image()
         self._show_rec(mask, name="Mask image", store=False)
-
-    @property
-    def template(self) -> "ip.ImgArray | None":
-        """Template image."""
-        loader = self._get_loader(binsize=1, molecules=Molecules.empty())
-        template, _ = loader.normalize_input(self.params._get_template())
-        scale = loader.scale
-        return ip.asarray(template, axes="zyx").set_scale(zyx=scale, unit="nm")
-
-    @property
-    def mask(self) -> "ip.ImgArray | None":
-        """Mask image."""
-        loader = self._get_loader(binsize=1, molecules=Molecules.empty())
-        _, mask = loader.normalize_input(
-            self.params._get_template(allow_none=True), self.params._get_mask()
-        )
-        if mask is None:
-            return None
-        return ip.asarray(mask, axes="zyx").set_scale(zyx=loader.scale, unit="nm")
 
     @property
     def last_average(self) -> "ip.ImgArray | None":
@@ -479,8 +554,8 @@ class SubtomogramAveraging(ChildWidget):
 
     def _get_shape_in_nm(self, default: int = None) -> tuple[nm, nm, nm]:
         if default is None:
-            tmp = self.template
-            return tuple(np.array(tmp.shape) * tmp.scale.x)
+            tmp = self._get_template_image()
+            return tuple(np.array(tmp.sizesof("zyx")) * tmp.scale.x)
         else:
             return (default,) * 3
 
@@ -508,6 +583,9 @@ class SubtomogramAveraging(ChildWidget):
             order=order,
             output_shape=shape,
         )
+
+    def _get_dummy_loader(self):
+        return self._get_loader(binsize=1, molecules=Molecules.empty())
 
     def _get_available_binsize(self, _=None) -> list[int]:
         parent = self._get_main()
@@ -664,7 +742,7 @@ class SubtomogramAveraging(ChildWidget):
     def align_averaged(
         self,
         layers: MoleculesLayersType,
-        template_path: Annotated[str | Path, {"bind": _get_template_path}],
+        template_path: Annotated[_PathOrNone, {"bind": _template_param}],
         mask_params: Annotated[Any, {"bind": _get_mask_params}],
         max_shifts: Optional[_MaxShifts] = None,
         rotations: _Rotations = ((0.0, 0.0), (15.0, 1.0), (3.0, 1.0)),
@@ -701,7 +779,7 @@ class SubtomogramAveraging(ChildWidget):
         mole = layers[0].molecules
         loader = self._get_loader(bin_size, mole, order=1)
         template, mask = loader.normalize_input(
-            template=self.params._get_template(path=template_path),
+            template=self._norm_template_param(template_path, allow_multiple=False),
             mask=self.params._get_mask(params=mask_params),
         )
         temp_norm = utils.normalize_image(template)
@@ -795,7 +873,7 @@ class SubtomogramAveraging(ChildWidget):
     def align_all(
         self,
         layers: MoleculesLayersType,
-        template_path: Annotated[str | Path, {"bind": _get_template_path}],
+        template_path: Annotated[_PathOrPathsOrNone, {"bind": _template_params}],
         mask_params: Annotated[Any, {"bind": _get_mask_params}],
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
@@ -817,12 +895,13 @@ class SubtomogramAveraging(ChildWidget):
 
         combiner = MoleculesCombiner()
 
-        aligned_loader = self._get_loader(
+        loader = self._get_loader(
             binsize=bin_size,
             molecules=combiner.concat(layer.molecules for layer in layers),
             order=interpolation,
-        ).align(
-            template=self.params._get_template(path=template_path),
+        )
+        template = self._norm_template_param(template_path, allow_multiple=True)
+        shared_kwargs = dict(
             mask=self.params._get_mask(params=mask_params),
             max_shifts=max_shifts,
             rotations=rotations,
@@ -830,6 +909,16 @@ class SubtomogramAveraging(ChildWidget):
             alignment_model=_get_alignment(method),
             tilt=main.tomogram.tilt_model,
         )
+        if isinstance(template_path, (str, Path)) or template_path is None:
+            aligned_loader = loader.align(
+                template=template,
+                **shared_kwargs,
+            )
+        else:
+            aligned_loader = loader.align_multi_templates(
+                templates=template,
+                **shared_kwargs,
+            )
         molecules = combiner.split(aligned_loader.molecules, layers)
         t0.toc()
         return self._align_all_on_return.with_args(molecules, layers)
@@ -885,51 +974,6 @@ class SubtomogramAveraging(ChildWidget):
         t0.toc()
         return self._align_all_on_return.with_args(molecules, layers)
 
-    @set_design(text="Align all (multi-template)", location=Alignment)
-    @dask_worker.with_progress(desc=_pdesc.fmt_layers("Multi-template alignment of {}"))  # fmt: skip
-    def align_all_multi_template(
-        self,
-        layers: MoleculesLayersType,
-        template_paths: _ImagePaths,
-        mask_params: Annotated[Any, {"bind": _get_mask_params}],
-        max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
-        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
-        cutoff: _CutoffFreq = 0.5,
-        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
-        method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
-    ):  # fmt: skip
-        """
-        Align all the input template images to all the molecules.
-
-        Parameters
-        ----------
-        {layers}{template_paths}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}{method}{bin_size}
-        """
-        t0 = timer("align_all_multi_template")
-        layers = assert_list_of_layers(layers, self.parent_viewer)
-        parent = self._get_main()
-        combiner = MoleculesCombiner()
-        molecules = combiner.concat(layer.molecules for layer in layers)
-        templates = pipe.from_files(template_paths)
-
-        aligned_loader = self._get_loader(
-            binsize=bin_size,
-            molecules=molecules,
-            order=interpolation,
-        ).align_multi_templates(
-            templates=templates,
-            mask=self.params._get_mask(params=mask_params),
-            max_shifts=max_shifts,
-            rotations=rotations,
-            cutoff=cutoff,
-            alignment_model=_get_alignment(method),
-            tilt=parent.tomogram.tilt_model,
-        )
-        molecules = combiner.split(aligned_loader.molecules, layers)
-        t0.toc()
-        return self._align_all_on_return.with_args(molecules, layers)
-
     sep1 = field(Separator)
 
     @set_design(text="Viterbi Alignment", location=Alignment.Constrained)
@@ -937,13 +981,13 @@ class SubtomogramAveraging(ChildWidget):
     def align_all_viterbi(
         self,
         layer: MoleculesLayerType,
-        template_path: Annotated[str | Path, {"bind": _get_template_path}],
+        template_path: Annotated[_PathOrPathsOrNone, {"bind": _template_params}],
         mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
-        distance_range: _DistRangeLon = (4.0, 4.28),
+        range_long: _DistRangeLon = (4.0, 4.28),
         angle_max: Optional[float] = 5.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
     ):  # fmt: skip
@@ -959,55 +1003,30 @@ class SubtomogramAveraging(ChildWidget):
         Parameters
         ----------
         {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}
-        distance_range : tuple of float
+        range_long : tuple of float
             Range of allowed distance between monomers.
         {angle_max}{upsample_factor}
         """
-        kwargs = locals()
-        kwargs.pop("self")
         t0 = timer("align_all_viterbi")
-        out = yield from self._align_all_viterbi(**kwargs)
-        t0.toc()
-        return out
+        layer = assert_layer(layer, self.parent_viewer)
+        landscape = self._construct_landscape(
+            layer=layer,
+            template_path=template_path,
+            mask_params=mask_params,
+            max_shifts=max_shifts,
+            rotations=rotations,
+            cutoff=cutoff,
+            interpolation=interpolation,
+            upsample_factor=upsample_factor,
+        )
 
-    @set_design(
-        text="Viterbi Alignment (multi-template)", location=Alignment.Constrained
-    )
-    @dask_worker.with_progress(descs=_pdesc.align_viterbi_fmt)
-    def align_all_viterbi_multi_template(
-        self,
-        layer: MoleculesLayerType,
-        template_paths: _ImagePaths,
-        mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
-        max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
-        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
-        cutoff: _CutoffFreq = 0.5,
-        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
-        distance_range: _DistRangeLon = (4.0, 4.28),
-        angle_max: Optional[float] = 5.0,
-        upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
-    ):  # fmt: skip
-        """
-        Subtomogram alignment using 1D Viterbi alignment.
-
-        1D Viterbi alignment is an alignment algorithm that considers the distance and
-        the skew angle between every longitudinally adjacent monomers. The classical
-        Viterbi algorithm is used to find the global optimal solution of the alignment.
-        Note that Viterbi alignment is data size dependent, i.e. the alignment result
-        of a molecule may vary depending on the total number of molecules in the dataset.
-
-        Parameters
-        ----------
-        {layer}{template_paths}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}
-        distance_range : (float, float)
-            Range of allowed distance between monomers.
-        {angle_max}{upsample_factor}
-        """
-        kwargs = locals()
-        kwargs.setdefault("template_path", kwargs.pop("template_paths"))
-        kwargs.pop("self")
-        t0 = timer("align_all_viterbi_multi_template")
-        out = yield from self._align_all_viterbi(**kwargs)
+        yield
+        out = self._run_viterbi_on_landscape(
+            layer,
+            landscape=landscape,
+            range_long=range_long,
+            angle_max=angle_max,
+        )
         t0.toc()
         return out
 
@@ -1016,14 +1035,14 @@ class SubtomogramAveraging(ChildWidget):
     def align_all_annealing(
         self,
         layer: MoleculesLayerType,
-        template_path: Annotated[str | Path, {"bind": _get_template_path}],
+        template_path: Annotated[_PathOrPathsOrNone, {"bind": _template_params}],
         mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
-        distance_range_long: _DistRangeLon = (4.0, 4.28),
-        distance_range_lat: _DistRangeLat = (5.1, 5.3),
+        range_long: _DistRangeLon = (4.0, 4.28),
+        range_lat: _DistRangeLat = (5.1, 5.3),
         angle_max: _AngleMaxLon = 5.0,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
@@ -1039,60 +1058,34 @@ class SubtomogramAveraging(ChildWidget):
         Parameters
         ----------
         {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}
-        distance_range_long : tuple of float
+        range_long : tuple of float
             Range of allowed distance between longitudianlly consecutive monomers.
-        distance_range_lat : tuple of float
+        range_lat : tuple of float
             Range of allowed distance between laterally consecutive monomers.
         {angle_max}{temperature_time_const}{upsample_factor}{random_seeds}
         """
-        kwargs = locals()
-        kwargs.pop("self")
         t0 = timer("align_all_annealing")
-        out = yield from self._align_all_annealing(**kwargs)
-        t0.toc()
-        return out
-
-    @set_design(
-        text="Simulated annealing (multi-template)", location=Alignment.Constrained
-    )
-    @dask_worker.with_progress(descs=_pdesc.align_annealing_fmt)
-    def align_all_annealing_multi_template(
-        self,
-        layer: MoleculesLayerType,
-        template_paths: _ImagePaths,
-        mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
-        max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
-        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
-        cutoff: _CutoffFreq = 0.5,
-        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
-        distance_range_long: _DistRangeLon = (4.0, 4.28),
-        distance_range_lat: _DistRangeLat = (5.1, 5.3),
-        angle_max: _AngleMaxLon = 5.0,
-        temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
-        upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
-        random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
-    ):  # fmt: skip
-        """
-        2D-constrained subtomogram alignment using simulated annealing.
-
-        This alignment method considers the distance between every adjacent monomers.
-        Two-dimensionally connected optimization can be approximated by the simulated
-        annealing algorithm.
-
-        Parameters
-        ----------
-        {layer}{template_paths}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}
-        distance_range_long : tuple of float
-            Range of allowed distance between longitudianlly consecutive monomers.
-        distance_range_lat : tuple of float
-            Range of allowed distance between laterally consecutive monomers.
-        {angle_max}{temperature_time_const}{upsample_factor}{random_seeds}
-        """
-        kwargs = locals()
-        kwargs.setdefault("template_path", kwargs.pop("template_paths"))
-        kwargs.pop("self")
-        t0 = timer("align_all_annealing_multi_template")
-        out = yield from self._align_all_annealing(**kwargs)
+        layer = assert_layer(layer, self.parent_viewer)
+        landscape = self._construct_landscape(
+            layer=layer,
+            template_path=template_path,
+            mask_params=mask_params,
+            max_shifts=max_shifts,
+            rotations=rotations,
+            cutoff=cutoff,
+            interpolation=interpolation,
+            upsample_factor=upsample_factor,
+        )
+        yield
+        out = self._run_annealing_on_landscape(
+            layer,
+            landscape=landscape,
+            range_long=range_long,
+            range_lat=range_lat,
+            angle_max=angle_max,
+            temperature_time_const=temperature_time_const,
+            random_seeds=random_seeds,
+        )
         t0.toc()
         return out
 
@@ -1101,7 +1094,7 @@ class SubtomogramAveraging(ChildWidget):
     def construct_landscape(
         self,
         layer: MoleculesLayerType,
-        template_path: _ImagePaths,
+        template_path: Annotated[_PathOrPathsOrNone, {"bind": _template_params}],
         mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         max_shifts: tuple[nm, nm, nm] = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
@@ -1150,192 +1143,6 @@ class SubtomogramAveraging(ChildWidget):
 
         return _on_return
 
-    def _construct_landscape(
-        self,
-        layer: MoleculesLayer,
-        template_path: Any,
-        mask_params=None,
-        max_shifts: tuple[nm, nm, nm] = (0.8, 0.8, 0.8),
-        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
-        cutoff: float = 0.5,
-        interpolation: int = 3,
-        upsample_factor: int = 5,
-    ):  # fmt: skip
-        parent = self._get_main()
-        layer = assert_layer(layer, self.parent_viewer)
-        return Landscape.from_loader(
-            loader=parent.tomogram.get_subtomogram_loader(
-                layer.molecules, order=interpolation
-            ),
-            template=template_path,
-            mask=self.params._get_mask(params=mask_params),
-            max_shifts=max_shifts,
-            upsample_factor=upsample_factor,
-            alignment_model=alignment.ZNCCAlignment.with_params(
-                rotations=rotations,
-                cutoff=cutoff,
-                tilt=parent.tomogram.tilt_model,
-            ),
-        ).normed()
-
-    def _align_all_viterbi(
-        self,
-        layer: MoleculesLayer,
-        template_path: "Path | list[Path]",
-        mask_params=None,
-        max_shifts: tuple[nm, nm, nm] = (0.8, 0.8, 0.8),
-        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
-        cutoff: float = 0.5,
-        interpolation: int = 3,
-        distance_range: tuple[nm, nm] = (4.0, 4.28),
-        angle_max: "float | None" = 5.0,
-        upsample_factor: int = 5,
-    ):
-        from cylindra._dask import delayed, compute
-
-        parent = self._get_main()
-        layer = assert_layer(layer, self.parent_viewer)
-        landscape = self._construct_landscape(
-            layer=layer,
-            template_path=template_path,
-            mask_params=mask_params,
-            max_shifts=max_shifts,
-            rotations=rotations,
-            cutoff=cutoff,
-            interpolation=interpolation,
-            upsample_factor=upsample_factor,
-        )
-
-        yield
-        return self._run_viterbi_on_landscape(
-            layer,
-            landscape=landscape,
-            distance_range=distance_range,
-            angle_max=angle_max,
-        )
-
-    def _run_viterbi_on_landscape(
-        self,
-        layer: MoleculesLayer,
-        landscape: Landscape,
-        distance_range: tuple[nm, nm] = (4.0, 4.28),
-        angle_max: "float | None" = 5.0,
-    ):
-        from cylindra._dask import delayed, compute
-
-        mole = layer.molecules
-        npfs: Sequence[int] = mole.features[Mole.pf].unique(maintain_order=True)
-
-        slices = [(mole.features[Mole.pf] == i).to_numpy() for i in npfs]
-        viterbi_tasks = [
-            delayed(landscape[sl].run_viterbi)(distance_range, angle_max)
-            for sl in slices
-        ]
-        vit_out = compute(*viterbi_tasks)
-
-        inds = np.empty((mole.count(), 3), dtype=np.int32)
-        max_shifts_px = (np.array(landscape.energies.shape[1:]) - 1) // 2
-        for i, result in enumerate(vit_out):
-            inds[slices[i], :] = _check_viterbi_shift(result.indices, max_shifts_px, i)
-        molecules_opt = landscape.transform_molecules(mole, inds)
-        if spl := layer.source_spline:
-            molecules_opt = _update_mole_pos(molecules_opt, mole, spl)
-        return self._align_all_on_return.with_args([molecules_opt], [layer])
-
-    def _align_all_annealing(
-        self,
-        layer: MoleculesLayer,
-        template_path: "Path | list[Path]",
-        mask_params=None,
-        max_shifts: tuple[nm, nm, nm] = (0.8, 0.8, 0.8),
-        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
-        cutoff: float = 0.5,
-        interpolation: int = 3,
-        distance_range_long: tuple[nm, nm] = (4.0, 4.28),
-        distance_range_lat: tuple[nm, nm] = (5.1, 5.3),
-        angle_max: float = 5.0,
-        temperature_time_const: float = 1.0,
-        upsample_factor: int = 5,
-        random_seeds: Iterable[int] = range(5),
-    ):
-        layer = assert_layer(layer, self.parent_viewer)
-        landscape = self._construct_landscape(
-            layer=layer,
-            template_path=template_path,
-            mask_params=mask_params,
-            max_shifts=max_shifts,
-            rotations=rotations,
-            cutoff=cutoff,
-            interpolation=interpolation,
-            upsample_factor=upsample_factor,
-        )
-        yield
-        return self._run_annealing_on_landscape(
-            layer,
-            landscape=landscape,
-            distance_range_long=distance_range_long,
-            distance_range_lat=distance_range_lat,
-            angle_max=angle_max,
-            temperature_time_const=temperature_time_const,
-            random_seeds=random_seeds,
-        )
-
-    def _run_annealing_on_landscape(
-        self,
-        layer: MoleculesLayer,
-        landscape: Landscape,
-        distance_range_long: tuple[float, float],
-        distance_range_lat: tuple[float, float],
-        angle_max: float,
-        temperature_time_const: float = 1.0,
-        random_seeds: Iterable[int] = range(5),
-    ):
-        main = self._get_main()
-        results = landscape.run_annealing(
-            layer.source_spline,
-            distance_range_long,
-            distance_range_lat,
-            angle_max,
-            temperature_time_const=temperature_time_const,
-            random_seeds=random_seeds,
-        )
-        if all(result.state == "failed" for result in results):
-            raise RuntimeError(
-                "Failed to optimize for all trials. You may check the distance range."
-            )
-        elif not any(result.state == "converged" for result in results):
-            _Logger.print("Optimization did not converge for any trial.")
-
-        _Logger.print_table(
-            {
-                "Iteration": [r.niter for r in results],
-                "Score": [-float(r.energies[-1]) for r in results],
-                "State": [r.state for r in results],
-            }
-        )
-        results = sorted(results, key=lambda r: r.energies[-1])
-
-        @thread_worker.callback
-        def _on_return():
-            mole_opt = landscape.transform_molecules(
-                layer.molecules, results[0].indices
-            )
-            if spl := layer.source_spline:
-                mole_opt = _update_mole_pos(mole_opt, layer.molecules, spl)
-            points = main.add_molecules(
-                mole_opt,
-                name=_coerce_aligned_name(layer.name, self.parent_viewer),
-                source=layer.source_component,
-                metadata={ANNEALING_RESULT: results[0]},
-            )
-            layer.visible = False
-            with _Logger.set_plt():
-                _annealing.plot_annealing_result(results)
-
-            return self._undo_for_new_layer([layer.name], [points])
-
-        return _on_return
-
     def _get_layers_with_annealing_result(self, *_) -> list[MoleculesLayer]:
         if self.parent_viewer is None:
             return []
@@ -1352,6 +1159,7 @@ class SubtomogramAveraging(ChildWidget):
         layer: Annotated[MoleculesLayer, {"choices": _get_layers_with_annealing_result}],
         path: Path.Save[FileFilter.CSV],
     ):  # fmt: skip
+        """Save RMA scores to a CSV file."""
         layer = assert_layer(layer, self.parent_viewer)
         try:
             result: AnnealingResult = layer.metadata[ANNEALING_RESULT]
@@ -1368,7 +1176,7 @@ class SubtomogramAveraging(ChildWidget):
     def calculate_correlation(
         self,
         layers: MoleculesLayersType,
-        template_paths: _ImagePaths,
+        template_path: Annotated[_PathOrPathsOrNone, {"bind": _template_params}],
         mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         metric: Literal["zncc", "ncc"] = "zncc",
@@ -1394,9 +1202,9 @@ class SubtomogramAveraging(ChildWidget):
         scale = main.tomogram.scale
         tmps = []
         _shapes = set()
-        if isinstance(template_paths, (Path, str)):
-            template_paths = [template_paths]
-        for path in template_paths:
+        if isinstance(template_path, (Path, str)):
+            template_path = [template_path]
+        for path in template_path:
             template_image = pipe.from_file(path).provide(scale)
             tmps.append(template_image)
             _shapes.add(template_image.shape)
@@ -1426,7 +1234,7 @@ class SubtomogramAveraging(ChildWidget):
                 output_shape=output_shape,
             ).apply(
                 funcs,
-                schema=[f"{column_prefix}_{i}" for i in range(len(template_paths))],
+                schema=[f"{column_prefix}_{i}" for i in range(len(template_path))],
             )
             layer.molecules = layer.molecules.with_features(out.cast(pl.Float32))
         return None
@@ -1436,7 +1244,8 @@ class SubtomogramAveraging(ChildWidget):
     def calculate_fsc(
         self,
         layers: MoleculesLayersType,
-        mask_params: Annotated[Any, {"bind": _get_mask_params}],
+        template_path: Annotated[_PathOrNone, {"bind": _template_param}] = None,
+        mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         size: _SubVolumeSize = None,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
@@ -1449,7 +1258,10 @@ class SubtomogramAveraging(ChildWidget):
 
         Parameters
         ----------
-        {layers}{mask_params}{size}
+        {layers}
+        template_path : template input type
+            Used only when soft-Otsu mask parameters are given.
+        {mask_params}{size}
         seed : int, optional
             Random seed used for subtomogram sampling.
         {interpolation}
@@ -1468,7 +1280,7 @@ class SubtomogramAveraging(ChildWidget):
 
         loader = main.tomogram.get_subtomogram_loader(mole, order=interpolation)
         template, mask = loader.normalize_input(
-            template=self.params._get_template(allow_none=True),
+            template=self._norm_template_param(template_path, allow_none=True),
             mask=self.params._get_mask(params=mask_params),
         )
         fsc, avg = loader.reshape(
@@ -1523,7 +1335,8 @@ class SubtomogramAveraging(ChildWidget):
     def classify_pca(
         self,
         layer: MoleculesLayerType,
-        mask_params: Annotated[Any, {"bind": _get_mask_params}],
+        template_path: Annotated[_PathOrNone, {"bind": _template_param}] = None,
+        mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         size: Annotated[Optional[nm], {"text": "Use mask shape", "options": {"value": 12.0, "max": 100.0}, "label": "size (nm)"}] = None,
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
@@ -1537,7 +1350,10 @@ class SubtomogramAveraging(ChildWidget):
 
         Parameters
         ----------
-        {layer}{mask_params}{size}{cutoff}{interpolation}{bin_size}
+        {layer}
+        template_path : template input type
+            Used only when soft-Otsu mask parameters are given.
+        {mask_params}{size}{cutoff}{interpolation}{bin_size}
         n_components : int, default is 2
             The number of PCA dimensions.
         n_clusters : int, default is 2
@@ -1555,7 +1371,7 @@ class SubtomogramAveraging(ChildWidget):
             binsize=bin_size, molecules=layer.molecules, order=interpolation
         )
         _, mask = loader.normalize_input(
-            template=self.params._get_template(allow_none=True),
+            template=self._norm_template_param(template_path, allow_none=True),
             mask=self.params._get_mask(params=mask_params),
         )
         out, pca = loader.reshape(
@@ -1594,7 +1410,7 @@ class SubtomogramAveraging(ChildWidget):
     def seam_search(
         self,
         layer: MoleculesLayerType,
-        template_path: Annotated[str | Path, {"bind": _get_template_path}],
+        template_path: Annotated[_PathOrNone, {"bind": _template_param}],
         mask_params: Annotated[Any, {"bind": _get_mask_params}],
         anti_template_path: Annotated[Optional[Path.Read[FileFilter.IMAGE]], {"text": "Do not use anti-template"}] = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
@@ -1831,6 +1647,117 @@ class SubtomogramAveraging(ChildWidget):
         scale = parent.tomogram.scale
         return _annealing.get_annealing_model(layer, (0, 0, 0), scale)
 
+    def _construct_landscape(
+        self,
+        layer: MoleculesLayer,
+        template_path: Any,
+        mask_params=None,
+        max_shifts: tuple[nm, nm, nm] = (0.8, 0.8, 0.8),
+        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
+        cutoff: float = 0.5,
+        interpolation: int = 3,
+        upsample_factor: int = 5,
+    ):  # fmt: skip
+        parent = self._get_main()
+        layer = assert_layer(layer, self.parent_viewer)
+        return Landscape.from_loader(
+            loader=parent.tomogram.get_subtomogram_loader(
+                layer.molecules, order=interpolation
+            ),
+            template=template_path,
+            mask=self.params._get_mask(params=mask_params),
+            max_shifts=max_shifts,
+            upsample_factor=upsample_factor,
+            alignment_model=alignment.ZNCCAlignment.with_params(
+                rotations=rotations,
+                cutoff=cutoff,
+                tilt=parent.tomogram.tilt_model,
+            ),
+        ).normed()
+
+    def _run_viterbi_on_landscape(
+        self,
+        layer: MoleculesLayer,
+        landscape: Landscape,
+        range_long: tuple[nm, nm] = (4.0, 4.28),
+        angle_max: "float | None" = 5.0,
+    ):
+        from cylindra._dask import delayed, compute
+
+        mole = layer.molecules
+        npfs: Sequence[int] = mole.features[Mole.pf].unique(maintain_order=True)
+
+        slices = [(mole.features[Mole.pf] == i).to_numpy() for i in npfs]
+        viterbi_tasks = [
+            delayed(landscape[sl].run_viterbi)(range_long, angle_max) for sl in slices
+        ]
+        vit_out = compute(*viterbi_tasks)
+
+        inds = np.empty((mole.count(), 3), dtype=np.int32)
+        max_shifts_px = (np.array(landscape.energies.shape[1:]) - 1) // 2
+        for i, result in enumerate(vit_out):
+            inds[slices[i], :] = _check_viterbi_shift(result.indices, max_shifts_px, i)
+        molecules_opt = landscape.transform_molecules(mole, inds)
+        if spl := layer.source_spline:
+            molecules_opt = _update_mole_pos(molecules_opt, mole, spl)
+        return self._align_all_on_return.with_args([molecules_opt], [layer])
+
+    def _run_annealing_on_landscape(
+        self,
+        layer: MoleculesLayer,
+        landscape: Landscape,
+        range_long: tuple[float, float],
+        range_lat: tuple[float, float],
+        angle_max: float,
+        temperature_time_const: float = 1.0,
+        random_seeds: Iterable[int] = range(5),
+    ):
+        main = self._get_main()
+        results = landscape.run_annealing(
+            layer.source_spline,
+            range_long,
+            range_lat,
+            angle_max,
+            temperature_time_const=temperature_time_const,
+            random_seeds=random_seeds,
+        )
+        if all(result.state == "failed" for result in results):
+            raise RuntimeError(
+                "Failed to optimize for all trials. You may check the distance range."
+            )
+        elif not any(result.state == "converged" for result in results):
+            _Logger.print("Optimization did not converge for any trial.")
+
+        _Logger.print_table(
+            {
+                "Iteration": [r.niter for r in results],
+                "Score": [-float(r.energies[-1]) for r in results],
+                "State": [r.state for r in results],
+            }
+        )
+        results = sorted(results, key=lambda r: r.energies[-1])
+
+        @thread_worker.callback
+        def _on_return():
+            mole_opt = landscape.transform_molecules(
+                layer.molecules, results[0].indices
+            )
+            if spl := layer.source_spline:
+                mole_opt = _update_mole_pos(mole_opt, layer.molecules, spl)
+            points = main.add_molecules(
+                mole_opt,
+                name=_coerce_aligned_name(layer.name, self.parent_viewer),
+                source=layer.source_component,
+                metadata={ANNEALING_RESULT: results[0]},
+            )
+            layer.visible = False
+            with _Logger.set_plt():
+                _annealing.plot_annealing_result(results)
+
+            return self._undo_for_new_layer([layer.name], [points])
+
+        return _on_return
+
 
 def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
     num = 1
@@ -1966,8 +1893,3 @@ def _check_viterbi_shift(shift: "NDArray[np.int32]", offset: "NDArray[np.int32]"
 impl_preview(SubtomogramAveraging.align_all_annealing, text="Preview molecule network")(
     _annealing.preview_single
 )
-
-impl_preview(
-    SubtomogramAveraging.align_all_annealing_multi_template,
-    text="Preview molecule network",
-)(_annealing.preview_multiple)

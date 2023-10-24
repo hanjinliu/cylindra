@@ -7,7 +7,7 @@ from .utils import pytest_group
 from ._const import TEST_DIR, PROJECT_DIR_13PF, PROJECT_DIR_14PF
 
 from magicclass.testing import FunctionGuiTester
-from cylindra.widgets.sta import MASK_CHOICES
+from cylindra.widgets.sta import MaskChoice
 
 
 def _load(ui: CylindraMainWidget, name="Loader"):
@@ -85,7 +85,7 @@ def test_average(ui: CylindraMainWidget, binsize: int):
     assert len(ui.sta.sub_viewer.layers) == 2
     template_path = TEST_DIR / "beta-tubulin.mrc"
     ui.batch.sta.params.template_path.value = template_path
-    ui.batch.sta.params.mask_choice = MASK_CHOICES[1]
+    ui.batch.sta.params.mask_choice = MaskChoice.blur_template
     ui.batch.sta.show_template()
     ui.batch.sta.show_template_original()
     ui.batch.sta.show_mask()
