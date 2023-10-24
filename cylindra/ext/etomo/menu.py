@@ -205,9 +205,11 @@ class PEET(ChildWidget):
         prm_path.write_text(txt)
         mol = layer.molecules
         _save_molecules(save_dir=save_dir, mol=mol, scale=self.scale)
-        ip.asarray(template_image).imsave(template_path)
+        ip.asarray(template_image, axes="zyx").set_scale(unit="nm").imsave(
+            template_path
+        )
         if mask_image is not None:
-            ip.asarray(mask_image).imsave(mask_path)
+            ip.asarray(mask_image, axes="zyx").set_scale(unit="nm").imsave(mask_path)
 
         return None
 

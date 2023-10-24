@@ -1003,7 +1003,9 @@ def test_calc_lattice_structures(ui: CylindraMainWidget):
         ui.mole_layers.clear()
         ui.map_monomers(splines=[0], orientation=orientation)
         layer = ui.mole_layers.last()
-        ui.calculate_lattice_structure(layer, ["spacing", "skew", "twist", "rise"])
+        ui.calculate_lattice_structure(
+            layer, ["spacing", "skew_angle", "twist", "rise_angle"]
+        )
         ay_ratio: float = np.sin(np.pi / npf) * npf / np.pi
         with exc_group.merging(f"ori={orientation}, path={path.name}, inv={invert}"):
             # individial parameters must be almost equal to the global ones
