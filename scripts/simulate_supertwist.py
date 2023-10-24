@@ -2,20 +2,17 @@ import tempfile
 
 import napari
 
+from scripts.user_consts import TEMPLATE_A, TEMPLATE_B, TEMPLATE_X, WOBBLE_TEMPLATES
 from cylindra import start  # NOTE: Set ApplicationAttributes
 
 from magicclass.types import Path
 from magicclass.ext.polars import DataFrameView
 import numpy as np
-from acryo import Molecules
 from cylindra.widgets import CylindraMainWidget
-from cylindra.const import MoleculesHeader as Mole
 from cylindra.cylstructure import calc_lateral_interval
 from cylindra.types import MoleculesLayer
 
 import polars as pl
-
-from .user_consts import TEMPLATE_A, TEMPLATE_B, TEMPLATE_X, WOBBLE_TEMPLATES
 
 
 def create_microtubule(ui: CylindraMainWidget):
@@ -23,9 +20,9 @@ def create_microtubule(ui: CylindraMainWidget):
     initialize_molecules(ui)
     layer = ui.mole_layers.last()
     ui.simulator.displace(
-        layer, twist=pl.when(pl.col("isotype-id")).then(-0.02).otherwise(0.02)
+        layer, twist=pl.when(pl.col("isotype-id").eq(1)).then(-0.02).otherwise(0.02)
     )
-    ui.calculate_lattice_structure(layer=layer, props=["twist", "skew"])
+    post_process_layer(ui, layer)
     ui.split_molecules(layer, by="isotype-id")
     return layer.molecules
 
@@ -53,7 +50,7 @@ def save_tilt_series(ui: CylindraMainWidget, path: Path):
 
 
 def post_process_layer(ui: CylindraMainWidget, layer: MoleculesLayer) -> MoleculesLayer:
-    ui.calculate_lattice_structure(layer=layer, props=["twist", "skew"])
+    ui.calculate_lattice_structure(layer=layer, props=["twist", "skew_angle"])
     return layer
 
 
@@ -108,9 +105,9 @@ def run_one(
 def flat_agg(df: pl.DataFrame) -> tuple[float, float, float, float]:
     agg = df.group_by("isotype-id").agg(
         pl.col("twist").filter(pl.col("twist").is_finite()).mean(),
-        pl.col("skew").filter(pl.col("skew").is_finite()).mean(),
+        pl.col("skew_angle").filter(pl.col("skew_angle").is_finite()).mean(),
     )
-    return agg["twist"][0], agg["twist"][1], agg["skew"][0], agg["skew"][1]
+    return agg["twist"][0], agg["twist"][1], agg["skew_angle"][0], agg["skew_angle"][1]
 
 
 def show_dataframe(ui: CylindraMainWidget, df: pl.DataFrame):
@@ -126,7 +123,7 @@ def main():
     df_list = []
     with tempfile.TemporaryDirectory() as tmpdir:
         save_tilt_series(ui, tmpdir)
-        for i in range(10):
+        for i in range(2):
             out = run_one(
                 ui,
                 Path(tmpdir) / "image.mrc",

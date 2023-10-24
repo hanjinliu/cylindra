@@ -1754,6 +1754,7 @@ class CylindraMainWidget(MagicTemplate):
             Name of the feature to split by.
         """
         layer = assert_layer(layer, self.parent_viewer)
+        utils.assert_column_exists(layer.molecules.features, by)
         n_unique = layer.molecules.features[by].n_unique()
         if n_unique > 48:
             raise ValueError(f"Too many groups ({n_unique}).")
@@ -2129,6 +2130,7 @@ class CylindraMainWidget(MagicTemplate):
         from cylindra import cylfilters
 
         layer = assert_layer(layer, self.parent_viewer)
+        utils.assert_column_exists(layer.molecules.features, target)
         feat, cmap_info = layer.molecules.features, layer.colormap_info
         nrise = _assert_source_spline_exists(layer).nrise()
         out = cylfilters.run_filter(
@@ -2166,6 +2168,7 @@ class CylindraMainWidget(MagicTemplate):
         from cylindra import cylfilters
 
         layer = assert_layer(layer, self.parent_viewer)
+        utils.assert_column_exists(layer.molecules.features, target)
         feat, cmap_info = layer.molecules.features, layer.colormap_info
         ser = cylfilters.binarize(layer.molecules.features, threshold, target)
         if not larger_true:
@@ -2198,6 +2201,7 @@ class CylindraMainWidget(MagicTemplate):
         from napari.utils.colormaps import label_colormap
 
         layer = assert_layer(layer, self.parent_viewer)
+        utils.assert_column_exists(layer.molecules.features, target)
         feat, cmap_info = layer.molecules.features, layer.colormap_info
         nrise = _assert_source_spline_exists(layer).nrise()
         out = cylfilters.label(layer.molecules.features, target, nrise).cast(pl.UInt32)
@@ -2236,6 +2240,9 @@ class CylindraMainWidget(MagicTemplate):
         from magicclass.ext.polars import DataFrameView
 
         layer = assert_layer(layer, self.parent_viewer)
+        utils.assert_column_exists(
+            layer.molecules.features, [target, label, Mole.nth, Mole.pf]
+        )
         feat = layer.molecules.features
         nth = feat[Mole.nth].cast(pl.Int32).to_numpy()
         pf = feat[Mole.pf].cast(pl.Int32).to_numpy()

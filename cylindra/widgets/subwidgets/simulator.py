@@ -655,7 +655,7 @@ class Simulator(ChildWidget):
         spl, model = _local_transform(
             CylinderModel.expand, layer, by, yrange, arange, allev
         )
-        layer.molecules = model.to_molecules(spl)
+        layer.molecules = model.to_molecules(spl, layer.molecules.features)
         _set_simulation_model(layer, model)
         return None
 
@@ -688,7 +688,7 @@ class Simulator(ChildWidget):
         spl, model = _local_transform(
             CylinderModel.twist, layer, np.deg2rad(by), yrange, arange, allev
         )
-        layer.molecules = model.to_molecules(spl)
+        layer.molecules = model.to_molecules(spl, layer.molecules.features)
         _set_simulation_model(layer, model)
         return None
 
@@ -721,7 +721,7 @@ class Simulator(ChildWidget):
         spl, model = _local_transform(
             CylinderModel.dilate, layer, by, yrange, arange, allev
         )
-        layer.molecules = model.to_molecules(spl)
+        layer.molecules = model.to_molecules(spl, layer.molecules.features)
         _set_simulation_model(layer, model)
         return None
 
@@ -753,7 +753,9 @@ class Simulator(ChildWidget):
             Displacement from the center (nm).
         """
         new_model = _get_shifted_model(layer, expand, twist, dilate)
-        layer.molecules = new_model.to_molecules(layer.source_spline)
+        layer.molecules = new_model.to_molecules(
+            layer.source_spline, layer.molecules.features
+        )
         return _set_simulation_model(layer, new_model)
 
 

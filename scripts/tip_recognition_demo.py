@@ -4,7 +4,7 @@ from pathlib import Path
 from cylindra import start
 
 import napari
-from .user_consts import TEMPLATE_B
+from scripts.user_consts import TEMPLATE_B
 
 
 def main():

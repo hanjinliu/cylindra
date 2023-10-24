@@ -4,6 +4,7 @@ from cylindra.const import MoleculesHeader as Mole
 import napari
 import polars as pl
 import numpy as np
+from scripts.user_consts import WOBBLE_TEMPLATES
 
 
 def rmsd(x: pl.Series, y: pl.Series) -> float:
@@ -32,12 +33,7 @@ def main(ui: CylindraMainWidget):
     ui.set_source_spline(layer="molecules", spline=0)
     ui.sta.align_all_multi_template(
         layers=["molecules"],
-        template_paths=[
-            r"E:\EMDB\tubulin_spaced\x-tubulin-comp-4_05.mrc",
-            r"E:\EMDB\tubulin_spaced\x-tubulin-comp-4_10.mrc",
-            r"E:\EMDB\tubulin_spaced\x-tubulin-comp-4_15.mrc",
-            r"E:\EMDB\tubulin_spaced\x-tubulin-comp-4_20.mrc",
-        ],
+        template_paths=WOBBLE_TEMPLATES,
         mask_params=(0.3, 0.8),
         max_shifts=(0.8, 0.8, 0.8),
         rotations=((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
@@ -51,12 +47,7 @@ def main(ui: CylindraMainWidget):
     ui.mole_layers["molecules-ALN1"].name = "Conventional"
     ui.sta.align_all_annealing_multi_template(
         layer="molecules",
-        template_paths=[
-            r"E:\EMDB\tubulin_spaced\x-tubulin-comp-4_05.mrc",
-            r"E:\EMDB\tubulin_spaced\x-tubulin-comp-4_10.mrc",
-            r"E:\EMDB\tubulin_spaced\x-tubulin-comp-4_15.mrc",
-            r"E:\EMDB\tubulin_spaced\x-tubulin-comp-4_20.mrc",
-        ],
+        template_paths=WOBBLE_TEMPLATES,
         mask_params=(0.3, 0.8),
         max_shifts=(0.8, 0.8, 0.8),
         rotations=((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),

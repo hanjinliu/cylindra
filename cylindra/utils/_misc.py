@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import numpy as np
 from numpy.typing import NDArray
+import polars as pl
 from scipy import ndimage as ndi
 import impy as ip
 from cylindra._dask import delayed, Delayed, compute
@@ -21,6 +22,18 @@ def ceilint(a: float) -> int:
 
 def floorint(a: float) -> int:
     return int(math.floor(a))
+
+
+def assert_column_exists(df: pl.DataFrame, col: str | list[str]):
+    """Check if column exists in DataFrame, for better error message."""
+    if isinstance(col, str):
+        col = [col]
+    not_exist = [c for c in col if c not in df.columns]
+    if not_exist:
+        raise ValueError(
+            f"Column {not_exist!r} does not exist in the DataFrame. "
+            f"Existing columns are: {df.columns!r}."
+        )
 
 
 @contextmanager

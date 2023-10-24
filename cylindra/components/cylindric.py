@@ -194,7 +194,9 @@ class CylinderModel:
             "offsets": self._offsets,
         }
 
-    def to_molecules(self, spl: Spline) -> Molecules:
+    def to_molecules(
+        self, spl: Spline, features: pl.DataFrame | None = None
+    ) -> Molecules:
         """
         Generate molecules from the coordinates and given spline.
 
@@ -211,7 +213,12 @@ class CylinderModel:
         arange = pl.Series(np.arange(len(mole), dtype=np.int32))
         nth = arange // self._shape[1]
         pf = arange % self._shape[1]
-        mole.features = {Mole.nth: nth, Mole.pf: pf, Mole.position: pos}
+        mole.features = pl.DataFrame({Mole.nth: nth, Mole.pf: pf, Mole.position: pos})
+        if features is not None:
+            for col in [Mole.nth, Mole.pf, Mole.position]:
+                if col in features.columns:
+                    features.drop(col)
+            mole.features = mole.features.with_columns(features)
         return mole
 
     def locate_molecules(self, spl: Spline, coords: NDArray[np.int32]) -> Molecules:

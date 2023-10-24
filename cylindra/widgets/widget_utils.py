@@ -44,7 +44,12 @@ POLARS_NAMESPACE = {
 
 def _validate_expr_or_scalar(expr: str | pl.Expr | int | float) -> str | int | float:
     if isinstance(expr, str):
-        expr = ExprStr(expr, POLARS_NAMESPACE).eval()
+        value = ExprStr(expr, POLARS_NAMESPACE).eval()
+        if isinstance(value, pl.Expr):
+            # NOTE: If a polars Expr is given as a string, it is not needed to check
+            # using `_polars_expr_to_str`. Return here.
+            return value
+        expr = value
     if isinstance(expr, (int, float, np.number)):
         return expr
     elif isinstance(expr, pl.Expr):

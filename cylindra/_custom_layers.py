@@ -11,7 +11,7 @@ from acryo import Molecules
 from napari.layers import Points, Labels
 from napari.utils.status_messages import generate_layer_coords_status
 from cylindra.const import MoleculesHeader as Mole
-from cylindra.utils import str_color
+from cylindra.utils import str_color, assert_column_exists
 
 if TYPE_CHECKING:
     from cylindra.components import BaseComponent, CylSpline
@@ -243,6 +243,7 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
         cmap : Any
             Any object that can be converted to a Colormap object.
         """
+        assert_column_exists(self.molecules.features, by)
         column = self.molecules.features[by]
         if limits is None:
             seq = column.filter(column.is_finite())

@@ -18,7 +18,7 @@ from cylindra.const import PropertyNames as H
 
 import polars as pl
 
-from .user_consts import TEMPLATE_X
+from scripts.user_consts import TEMPLATE_X
 
 POSITIONS = [(0, 15), (15, 30), (30, 45), (45, 60)]
 

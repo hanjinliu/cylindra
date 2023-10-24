@@ -275,9 +275,9 @@ class LatticeParameters(Enum):
     spacing = "spacing"
     elev_angle = "elev_angle"
     twist = "twist"
-    skew = "skew"
+    skew_angle = "skew_angle"
     radius = "radius"
-    rise = "rise"
+    rise_angle = "rise_angle"
     lat_interv = "lat_interv"
 
     def calculate(self, mole: Molecules, spl: CylSpline) -> pl.Series:
@@ -289,11 +289,11 @@ class LatticeParameters(Enum):
                 return calc_elevation_angle(mole, spl)
             case LatticeParameters.twist:
                 return calc_twist(mole, spl)
-            case LatticeParameters.skew:
+            case LatticeParameters.skew_angle:
                 return calc_skew(mole, spl)
             case LatticeParameters.radius:
                 return calc_radius(mole, spl)
-            case LatticeParameters.rise:
+            case LatticeParameters.rise_angle:
                 return calc_rise(mole, spl)
             case LatticeParameters.lat_interv:
                 return calc_lateral_interval(mole, spl)

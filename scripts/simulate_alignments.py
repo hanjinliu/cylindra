@@ -14,7 +14,7 @@ from cylindra.cylstructure import calc_lateral_interval
 from cylindra.types import MoleculesLayer
 
 import polars as pl
-from .user_consts import TEMPLATE_X, WOBBLE_TEMPLATES
+from scripts.user_consts import TEMPLATE_X, WOBBLE_TEMPLATES
 
 SPACING = Mole.spacing
 SPACING_MEAN = f"{Mole.spacing}_mean"
