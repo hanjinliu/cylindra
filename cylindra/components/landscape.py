@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, SupportsIndex, SupportsInt
+from typing import TYPE_CHECKING, NamedTuple, SupportsIndex, SupportsInt
 from pathlib import Path
 from dataclasses import dataclass
 import numpy as np
@@ -8,9 +8,11 @@ from numpy.typing import NDArray
 from scipy.spatial.transform import Rotation
 import polars as pl
 from acryo import Molecules, pipe, alignment
+from skimage.measure import marching_cubes
 
 from cylindra.const import MoleculesHeader as Mole, nm
 from cylindra.components.spline import CylSpline
+from cylindra._dask import delayed, Delayed, compute
 
 if TYPE_CHECKING:
     from acryo.loader._base import LoaderBase, TemplateInputType, MaskInputType
@@ -335,6 +337,82 @@ class Landscape:
         if reject_limit is None:
             reject_limit = nmole * 50
         return time_const, temperature, cooling_rate, reject_limit
+
+    def normed(self, sd: bool = True) -> Landscape:
+        """Return a landscape with normalized mean energy."""
+        each_mean = self.energy_array.mean(axis=(1, 2, 3))
+        all_mean = each_mean.mean()
+        sl = (slice(None), np.newaxis, np.newaxis, np.newaxis)
+        if sd:
+            each_sd = self.energy_array.std(axis=(1, 2, 3))
+            all_sd = each_sd.std()
+            dif = self.energy_array - each_mean
+            new_array = dif * all_sd[sl] / each_sd[sl] + all_mean[sl]
+        else:
+            new_array = self.energy_array + all_mean[sl] - each_mean[sl]
+        return Landscape(
+            new_array,
+            self.molecules,
+            self.argmax,
+            self.alignment_model,
+            self.scale_factor,
+        )
+
+    def create_surface(
+        self,
+        level: float | None = None,
+    ) -> SurfaceData:
+        neg_energy = -self.energy_array
+        if level is None:
+            level = neg_energy.mean()
+        else:
+            level = -level
+        spacing = (self.scale_factor,) * 3
+        center = np.array(neg_energy.shape[1:]) / 2 + 0.5
+        offset = center * spacing
+        n_verts = 0
+        tasks = list[Delayed[SurfaceData]]()
+        for i in range(neg_energy.shape[0]):
+            arr: NDArray[np.float32] = neg_energy[i]
+            tasks.append(delayed_isosurface(arr, level, spacing))
+        surfs = compute(*tasks)
+        for i in range(neg_energy.shape[0]):
+            mole = self.molecules[i]
+            surf = surfs[i]
+            surf = SurfaceData(
+                mole.rotator.apply(surf.vertices - offset) + mole.pos,
+                surf.faces + n_verts,
+                surf.values,
+            )
+            surfs[i] = surf  # update
+            n_verts += len(surf.vertices)
+        vertices = np.concatenate([s.vertices for s in surfs], axis=0)
+        faces = np.concatenate([s.faces for s in surfs], axis=0)
+        values = np.concatenate([s.values for s in surfs], axis=0)
+        return SurfaceData(vertices, faces, values)
+
+
+class SurfaceData(NamedTuple):
+    vertices: NDArray[np.float32]
+    faces: NDArray[np.int32]
+    values: NDArray[np.float32]
+
+
+@delayed
+def delayed_isosurface(
+    arr: NDArray[np.float32],
+    level: float,
+    spacing: tuple[float, float, float],
+) -> SurfaceData:
+    try:
+        verts, faces, _, vals = marching_cubes(
+            arr, level=level, spacing=spacing, gradient_direction="descent"
+        )
+    except (RuntimeError, ValueError):
+        verts = np.zeros((0, 3), dtype=np.float32)
+        faces = np.zeros((0, 3), dtype=np.int32)
+        vals = np.zeros((0,), dtype=np.float32)
+    return SurfaceData(verts, faces, vals)
 
 
 @dataclass
