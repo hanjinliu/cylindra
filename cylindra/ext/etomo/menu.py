@@ -147,16 +147,27 @@ class PEET(ChildWidget):
         layer: MoleculesLayer,
         save_dir: Path.Dir,
         template_path: Annotated[str, {"bind": _get_template_path}],
-        mask_params: Annotated[Any, {"bind": _get_mask_params}],
-        project_name: str = "MyProject",
+        mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
+        project_name: str = "project-0",
     ):
         """
         Export cylindra state as a PEET prm file.
 
+        Molecules and images will be exported to a directory that can be
+        directly used by PEET.
+
         Parameters
         ----------
+        layer : MoleculesLayer
+            Molecules layer to export.
         save_dir : Path
-            Saving path.
+            Directory to save the files needed for a PEET project.
+        template_path : str
+            Path to the template image.
+        mask_params : Any, default is None
+            Mask parameters.
+        project_name : str, default is "project-0"
+            Name of the PEET project.
         """
         save_dir = Path(save_dir)
         main = self._get_main()

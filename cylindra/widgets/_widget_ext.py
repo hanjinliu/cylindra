@@ -405,6 +405,8 @@ class MultiFileEdit(Container):
 
 
 class KernelEdit(Container[Container[CheckBox]]):
+    """Widget for editing convolution kernel."""
+
     _SizeLim = 7
 
     def __init__(self, value=Undefined, nullable=False, **kwargs):
@@ -454,16 +456,16 @@ class KernelEdit(Container[Container[CheckBox]]):
 
     @property
     def value(self) -> list[list[int]]:
-        arr = np.zeros((self._SizeLim, self._SizeLim), dtype=np.bool_)
-        for i, row in enumerate(self._cboxes):
-            for j, item in enumerate(row):
-                arr[i, j] = item.value
+        ny: int = self._ysize.value
+        nx: int = self._xsize.value
+        arr = np.zeros((ny, nx), dtype=np.bool_)
+        nydrop = (self._SizeLim - ny) // 2
+        nxdrop = (self._SizeLim - nx) // 2
+        for i in range(ny):
+            for j in range(nx):
+                arr[i, j] = self._cboxes[i + nydrop][j + nxdrop].value
 
-        proj0 = np.where(arr.max(axis=0))[0]
-        proj1 = np.where(arr.max(axis=1))[0]
-        sl0 = slice(proj0.min(), proj0.max() + 1)
-        sl1 = slice(proj1.min(), proj1.max() + 1)
-        return arr[sl1, sl0].astype(np.uint8).tolist()
+        return arr.astype(np.uint8).tolist()
 
     @value.setter
     def value(self, val):
@@ -471,8 +473,10 @@ class KernelEdit(Container[Container[CheckBox]]):
             val = np.ones((3, 3), dtype=np.bool_)
         else:
             val = np.asarray(val)
-            if sorted(list(np.unique(val))) != [0, 1]:
-                raise ValueError(f"Array must contain only 0s and 1s.")
+            if not set(np.unique(val)) <= {0, 1}:
+                raise ValueError(
+                    f"Array must contain only 0s and 1s, got {set(np.unique(val))!r}."
+                )
             val = val > 0
         if val.ndim != 2 or val.dtype.kind not in "uifb":
             raise ValueError(f"Array must be 2D and numeric.")

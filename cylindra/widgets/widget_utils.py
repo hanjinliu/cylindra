@@ -84,16 +84,15 @@ def _replace_utf8(string: str) -> str:
 
 
 def _polars_expr_to_str(expr: pl.Expr) -> str:
-    expr_str = (
-        str(expr).replace(".when(", "pl.when(").replace(".strict_cast(", ".cast(")
-    )
-    # remove [...]
+    expr_str = str(expr).replace(".when(", "when(").replace(".strict_cast(", ".cast(")
     if "Utf8" in expr_str:
+        # Utf8(xxx) -> "xxx"
         expr_str = _replace_utf8(expr_str)
     if "[" in expr_str:
+        # converting binary expression to str will add brackets so remove them
+        # e.g. [col("a") == (3)] -> col("a") == (3)
         out = _unwrap_rust_expr(mk.parse(expr_str))
         expr_str = str(out)
-        # converting binary expression to str will add brackets so remove them
         if (
             out.head is mk.Head.binop
             and expr_str.startswith("(")

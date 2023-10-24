@@ -26,3 +26,16 @@ def test_check_boxes():
 def test_random_seed_edit():
     widget = _widget_ext.RandomSeedEdit()
     widget._btn.clicked()
+
+
+def test_kernel_edit():
+    widget = _widget_ext.KernelEdit()
+    for value in [
+        [[1, 1, 1], [1, 1, 1], [1, 1, 1]],
+        [[0, 0, 0], [1, 1, 1], [1, 1, 1]],
+        [[1, 1, 1], [1, 1, 1], [0, 0, 0]],
+        [[0, 1, 0], [0, 1, 0], [0, 1, 0]],
+        [[0, 0, 0], [1, 1, 1], [0, 0, 0]],
+    ]:
+        widget.value = value
+        assert widget.value == value

@@ -76,7 +76,7 @@ def post_process_layer(ui: CylindraMainWidget, layer: MoleculesLayer) -> Molecul
         layer=layer,
         target=SPACING,
         method="mean",
-        footprint=[[0, 0, 0], [1, 1, 1], [1, 1, 1]],
+        footprint=[[1, 1, 1], [1, 1, 1], [0, 0, 0]],
     )
     return layer
 
