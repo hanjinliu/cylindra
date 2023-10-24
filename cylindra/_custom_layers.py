@@ -8,13 +8,14 @@ import weakref
 import polars as pl
 import numpy as np
 from acryo import Molecules
-from napari.layers import Points, Labels
+from napari.layers import Points, Labels, Surface
 from napari.utils.status_messages import generate_layer_coords_status
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.utils import str_color, assert_column_exists
 
 if TYPE_CHECKING:
     from cylindra.components import BaseComponent, CylSpline
+    from cylindra.components.landscape import Landscape
     from napari.utils import Colormap
 
 
@@ -301,6 +302,7 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
         self.refresh()
 
     def set_view_ndim(self, ndim: int = 2):
+        """Set the view dimension."""
         if ndim == 2:
             self.shading = "none"
             self.edge_color = "#222222"
@@ -358,6 +360,41 @@ class CylinderLabels(_FeatureBoundLayer, Labels):
     def colormap_info(self) -> ColormapInfo | None:
         """Colormap information."""
         return self._colormap_info
+
+
+class LandscapeSurface(Surface):
+    """Surface layer for an energy landscape."""
+
+    def __init__(self, landscape: Landscape, **kwargs):
+        kwargs.setdefault("colormap", "inferno")
+        kwargs.setdefault("opacity", 0.6)
+        kwargs.setdefault("blending", "translucent_no_depth")
+        level = landscape.energy_array.mean()
+        data = landscape.create_surface(level=level)
+        super().__init__(data, **kwargs)
+        self._energy_level = level
+        self._landscape = landscape
+        self._landscape_min = landscape.energy_array.min()
+        self._landscape_max = landscape.energy_array.max()
+
+    @property
+    def landscape(self):
+        return self._landscape
+
+    @property
+    def level(self):
+        """The threshold level of the energy landscape."""
+        return self._energy_level
+
+    @level.setter
+    def level(self, level: float):
+        if level < self._landscape_min or level > self._landscape_max:
+            raise ValueError(
+                f"level must be in range of ({self._landscape_min}, {self._landscape_max})"
+            )
+        self.data = self._landscape.create_surface(level=level)
+        self._energy_level = level
+        self.refresh()
 
 
 def _normalize_colormap(cmap) -> Colormap:

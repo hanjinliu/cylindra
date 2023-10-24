@@ -422,6 +422,7 @@ class Simulator(ChildWidget):
             Random seed used for the Gaussian noise.
         """
         save_dir = _norm_save_dir(save_dir)
+        _assert_not_empty(components)
         nsr = list(round(float(_nsr), 4) for _nsr in nsr)
         main = self._get_main()
         degrees = np.linspace(*tilt_range, n_tilt)
@@ -556,6 +557,7 @@ class Simulator(ChildWidget):
             Random seed used for the Gaussian noise.
         """
         nsr = round(float(nsr), 4)
+        _assert_not_empty(components)
         main = self._get_main()
         degrees = np.linspace(*tilt_range, n_tilt)
         mole_layers = [main.mole_layers[layer_name] for layer_name, _ in components]
@@ -580,7 +582,6 @@ class Simulator(ChildWidget):
         tomo = CylTomogram.from_image(
             rec, scale=sino.scale.x, tilt=tilt_range, binsize=bin_size
         )
-        main._macro_offset = len(main.macro)
         yield main._send_tomogram_to_viewer.with_args(tomo)
 
         @thread_worker.callback
@@ -617,6 +618,7 @@ class Simulator(ChildWidget):
             Interpolation method used during the simulation.
         """
         save_dir = _norm_save_dir(save_dir)
+        _assert_not_empty(components)
         degrees = np.linspace(*tilt_range, n_tilt)
         sino = self._prep_radon(components, degrees, order=interpolation)
         scale = sino.scale.x
@@ -788,6 +790,11 @@ def _fill_shift(yrange, arange, val: float, shape):
     asl = slice(*arange)
     shift[ysl, asl] = val
     return shift, Idx[ysl, asl]
+
+
+def _assert_not_empty(components: list[tuple[str, Path]]):
+    if not components:
+        raise ValueError("No component is added.")
 
 
 @thread_worker.callback

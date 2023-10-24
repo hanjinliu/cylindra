@@ -36,7 +36,7 @@ def mesh_annealing_demo(
     parent = self._get_main()
     molecules = layer.molecules
 
-    landscape = self.construct_landscape(
+    landscape = self._construct_landscape(
         layer=layer,
         template_path=template_path,
         mask_params=mask_params,

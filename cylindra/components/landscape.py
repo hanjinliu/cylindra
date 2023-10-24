@@ -346,10 +346,10 @@ class Landscape:
         if sd:
             each_sd = self.energy_array.std(axis=(1, 2, 3))
             all_sd = each_sd.std()
-            dif = self.energy_array - each_mean
-            new_array = dif * all_sd[sl] / each_sd[sl] + all_mean[sl]
+            dif = self.energy_array - each_mean[sl]
+            new_array = dif * all_sd / each_sd[sl] + all_mean
         else:
-            new_array = self.energy_array + all_mean[sl] - each_mean[sl]
+            new_array = self.energy_array + all_mean - each_mean[sl]
         return Landscape(
             new_array,
             self.molecules,
@@ -361,12 +361,14 @@ class Landscape:
     def create_surface(
         self,
         level: float | None = None,
+        resolution: nm = 0.25,
     ) -> SurfaceData:
         neg_energy = -self.energy_array
         if level is None:
             level = neg_energy.mean()
         else:
             level = -level
+        step_size = max(int(resolution / self.scale_factor), 1)
         spacing = (self.scale_factor,) * 3
         center = np.array(neg_energy.shape[1:]) / 2 + 0.5
         offset = center * spacing
@@ -374,7 +376,7 @@ class Landscape:
         tasks = list[Delayed[SurfaceData]]()
         for i in range(neg_energy.shape[0]):
             arr: NDArray[np.float32] = neg_energy[i]
-            tasks.append(delayed_isosurface(arr, level, spacing))
+            tasks.append(delayed_isosurface(arr, level, spacing, step_size=step_size))
         surfs = compute(*tasks)
         for i in range(neg_energy.shape[0]):
             mole = self.molecules[i]
@@ -403,11 +405,18 @@ def delayed_isosurface(
     arr: NDArray[np.float32],
     level: float,
     spacing: tuple[float, float, float],
+    step_size: int = 1,
 ) -> SurfaceData:
+    arr_pad = np.pad(arr, step_size, mode="constant", constant_values=arr.min())
     try:
         verts, faces, _, vals = marching_cubes(
-            arr, level=level, spacing=spacing, gradient_direction="descent"
+            arr_pad,
+            level,
+            spacing=spacing,
+            gradient_direction="descent",
+            step_size=step_size,
         )
+        verts -= np.array(spacing)[np.newaxis] * step_size
     except (RuntimeError, ValueError):
         verts = np.zeros((0, 3), dtype=np.float32)
         faces = np.zeros((0, 3), dtype=np.int32)

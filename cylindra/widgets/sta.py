@@ -15,7 +15,6 @@ from magicclass import (
     magicmenu,
     field,
     magictoolbar,
-    nogui,
     vfield,
     MagicTemplate,
     set_design,
@@ -23,7 +22,7 @@ from magicclass import (
     abstractapi,
 )
 from magicclass.widgets import HistoryFileEdit, Separator
-from magicclass.types import Optional, Path, ExprStr
+from magicclass.types import Optional, Path
 from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
 from magicclass.undo import undo_callback
@@ -49,6 +48,7 @@ from cylindra.const import (
     Ori,
     FileFilter,
 )
+from cylindra._custom_layers import LandscapeSurface
 from cylindra.widgets._widget_ext import (
     RotationsEdit,
     RandomSeedEdit,
@@ -228,6 +228,7 @@ class STAnalysis(MagicTemplate):
         seam_search_manually = abstractapi()
         save_seam_search_result = abstractapi()
 
+    construct_landscape = abstractapi()
     sep1 = field(Separator)
     save_last_average = abstractapi()
 
@@ -1099,19 +1100,19 @@ class SubtomogramAveraging(ChildWidget):
         t0.toc()
         return out
 
-    @nogui
-    @do_not_record
+    @set_design(text=capitalize, location=STAnalysis)
+    @dask_worker.with_progress(desc="Constructing landscape ...")
     def construct_landscape(
         self,
-        layer: MoleculesLayer,
-        template_path: Any,
+        layer: MoleculesLayerType,
+        template_path: _ImagePaths,
         mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         max_shifts: tuple[nm, nm, nm] = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
-        cutoff: float = 0.5,
-        interpolation: int = 3,
-        upsample_factor: int = 5,
-    ):  # fmt: skip
+        cutoff: _CutoffFreq = 0.5,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
+    ):
         """
         Construct a landscape for subtomogram alignment.
 
@@ -1133,12 +1134,37 @@ class SubtomogramAveraging(ChildWidget):
             Interpolation order.
         upsample_factor : int, default is 5
             Upsampling factor of the landscape.
-
-        Returns
-        -------
-        Landscape
-            The landscape instance.
         """
+        layer = assert_layer(layer, self.parent_viewer)
+        lnd = self._construct_landscape(
+            layer,
+            template_path,
+            mask_params,
+            max_shifts,
+            rotations,
+            cutoff,
+            interpolation,
+            upsample_factor,
+        )
+        layer = LandscapeSurface(lnd, name=f"[Landscape]{layer.name}")
+
+        @thread_worker.callback
+        def _on_return():
+            return self.parent_viewer.add_layer(layer)
+
+        return _on_return
+
+    def _construct_landscape(
+        self,
+        layer: MoleculesLayer,
+        template_path: Any,
+        mask_params=None,
+        max_shifts: tuple[nm, nm, nm] = (0.8, 0.8, 0.8),
+        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
+        cutoff: float = 0.5,
+        interpolation: int = 3,
+        upsample_factor: int = 5,
+    ):  # fmt: skip
         parent = self._get_main()
         layer = assert_layer(layer, self.parent_viewer)
         return Landscape.from_loader(
@@ -1154,7 +1180,7 @@ class SubtomogramAveraging(ChildWidget):
                 cutoff=cutoff,
                 tilt=parent.tomogram.tilt_model,
             ),
-        )
+        ).normed()  # TODO: is this necessary?
 
     def _align_all_viterbi(
         self,
@@ -1173,7 +1199,7 @@ class SubtomogramAveraging(ChildWidget):
 
         parent = self._get_main()
         layer = assert_layer(layer, self.parent_viewer)
-        landscape = self.construct_landscape(
+        landscape = self._construct_landscape(
             layer=layer,
             template_path=template_path,
             mask_params=mask_params,
@@ -1223,7 +1249,7 @@ class SubtomogramAveraging(ChildWidget):
     ):
         parent = self._get_main()
         layer = assert_layer(layer, self.parent_viewer)
-        landscape = self.construct_landscape(
+        landscape = self._construct_landscape(
             layer=layer,
             template_path=template_path,
             mask_params=mask_params,

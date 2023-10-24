@@ -77,22 +77,14 @@ def run_one(
     layer = ui.mole_layers.last()
     mole_init = post_process_layer(ui, layer).molecules
 
-    # start comparing alignment methods
-    shared_kwargs = dict(
-        template_paths=WOBBLE_TEMPLATES,
-        mask_params=(0.3, 0.8),
-        max_shifts=(0.8, 0.8, 0.8),
-    )
-
-    # conventional alignment
-    ui.sta.align_all_multi_template(layers=[layer], bin_size=1, **shared_kwargs)
-
     # RMA alignment
     interv_mean = finite_mean(calc_lateral_interval(mole_init, ui.splines[0]))
     dx = 0.1
     ui.sta.align_all_annealing_multi_template(
         layer=layer,
-        **shared_kwargs,
+        template_paths=WOBBLE_TEMPLATES,
+        mask_params=(0.3, 0.8),
+        max_shifts=(0.8, 0.8, 0.8),
         distance_range_long=(3.98, 4.28),
         distance_range_lat=(interv_mean - dx, interv_mean + dx),
         angle_max=5.0,
@@ -123,7 +115,7 @@ def main():
     df_list = []
     with tempfile.TemporaryDirectory() as tmpdir:
         save_tilt_series(ui, tmpdir)
-        for i in range(2):
+        for i in range(10):
             out = run_one(
                 ui,
                 Path(tmpdir) / "image.mrc",
