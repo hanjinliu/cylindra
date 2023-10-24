@@ -65,35 +65,17 @@ def main(ui: CylindraMainWidget):
     ui.calculate_lattice_structure(layer="molecules-ALN1", props=["spacing"])
     ui.paint_molecules(
         layer="molecules",
-        color_by="SPACING",
-        cmap={
-            0.0: (0.043, 0.0, 0.0, 1.0),
-            0.3: (0.529, 0.176, 0.616, 1.0),
-            0.68: (1.0, 0.0, 0.0, 1.0),
-            1.0: (1.0, 1.0, 0.0, 1.0),
-        },
+        color_by=SPACING,
         limits=(3.98, 4.28),
     )
     ui.paint_molecules(
         layer="Conventional",
         color_by=SPACING,
-        cmap={
-            0.0: (0.043, 0.0, 0.0, 1.0),
-            0.3: (0.529, 0.176, 0.616, 1.0),
-            0.68: (1.0, 0.0, 0.0, 1.0),
-            1.0: (1.0, 1.0, 0.0, 1.0),
-        },
         limits=(3.98, 4.28),
     )
     ui.paint_molecules(
         layer="molecules-ALN1",
         color_by=SPACING,
-        cmap={
-            0.0: (0.043, 0.0, 0.0, 1.0),
-            0.3: (0.529, 0.176, 0.616, 1.0),
-            0.68: (1.0, 0.0, 0.0, 1.0),
-            1.0: (1.0, 1.0, 0.0, 1.0),
-        },
         limits=(3.98, 4.28),
     )
     ui.set_multiscale(bin_size=2)
@@ -101,13 +83,13 @@ def main(ui: CylindraMainWidget):
         layer="molecules-ALN1",
         target=SPACING,
         method="mean",
-        footprint=[[1, 1, 1], [1, 1, 1]],
+        footprint=[[1, 1, 1], [1, 1, 1], [0, 0, 0]],
     )
     ui.convolve_feature(
         layer="Conventional",
         target=SPACING,
         method="mean",
-        footprint=[[1, 1, 1], [1, 1, 1]],
+        footprint=[[1, 1, 1], [1, 1, 1], [0, 0, 0]],
     )
 
     ans = ui.mole_layers["molecules"].molecules.features[SPACING]

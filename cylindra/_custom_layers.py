@@ -369,16 +369,18 @@ class LandscapeSurface(Surface):
         kwargs.setdefault("colormap", "inferno")
         kwargs.setdefault("opacity", 0.6)
         kwargs.setdefault("blending", "translucent_no_depth")
-        level = landscape.energy_array.mean()
-        data = landscape.create_surface(level=level)
+        self._landscape_min = landscape.energy_array.min()
+        self._landscape_max = landscape.energy_array.max()
+        level = (self._landscape_max + self._landscape_min) / 2
+        data = landscape.create_surface(level=level, resolution=0.25)
         super().__init__(data, **kwargs)
         self._energy_level = level
         self._landscape = landscape
-        self._landscape_min = landscape.energy_array.min()
-        self._landscape_max = landscape.energy_array.max()
+        self._resolution = 0.25
 
     @property
     def landscape(self):
+        """The landscape object."""
         return self._landscape
 
     @property
@@ -392,9 +394,24 @@ class LandscapeSurface(Surface):
             raise ValueError(
                 f"level must be in range of ({self._landscape_min}, {self._landscape_max})"
             )
-        self.data = self._landscape.create_surface(level=level)
+        self.data = self._landscape.create_surface(
+            level=level, resolution=self._resolution
+        )
         self._energy_level = level
         self.refresh()
+
+    def create_slider(self):
+        """Create a slider widget for the energy level."""
+        from magicgui.widgets import FloatSlider
+
+        sl = FloatSlider(
+            min=self._landscape_min,
+            max=self._landscape_max,
+            value=self._energy_level,
+            tracking=False,
+        )
+        sl.changed.connect_setattr(self, "level")
+        return sl
 
 
 def _normalize_colormap(cmap) -> Colormap:
