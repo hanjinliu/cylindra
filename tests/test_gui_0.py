@@ -1198,6 +1198,45 @@ def test_mesh_annealing(ui: CylindraMainWidget):
     ui.macro.redo()
 
 
+def test_landscape(ui: CylindraMainWidget):
+    from cylindra._napari import LandscapeSurface
+
+    ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
+    layer = ui.parent_viewer.layers["Mole-0"]
+    ui.filter_molecules(layer, "pl.col('nth') < 3")
+    layer_filt = ui.mole_layers.last()
+    mole = layer_filt.molecules
+    dist_lon = np.sqrt(np.sum((mole.pos[0] - mole.pos[13]) ** 2))
+    dist_lat = np.sqrt(np.sum((mole.pos[0] - mole.pos[1]) ** 2))
+    assert dist_lon == pytest.approx(4.09, abs=0.2)
+
+    ui.sta.construct_landscape(
+        layer_filt,
+        template_path=TEST_DIR / "beta-tubulin.mrc",
+        mask_params=(0.3, 0.8),
+        max_shifts=(1.2, 1.2, 1.2),
+        upsample_factor=2,
+    )
+    layer_land = ui.parent_viewer.layers[-1]
+    assert isinstance(layer_land, LandscapeSurface)
+    ui.sta.run_align_on_landscape(layer_land)
+    ui.sta.run_viterbi_on_landscape(
+        layer_land,
+        range_long=(dist_lon - 0.1, dist_lon + 0.1),
+        angle_max=10,
+    )
+    # click preview
+    tester = mcls_testing.FunctionGuiTester(ui.sta.run_annealing_on_landscape)
+    tester.click_preview()
+    ui.sta.run_annealing_on_landscape(
+        layer_land,
+        range_long=(dist_lon - 0.1, dist_lon + 0.1),
+        range_lat=(dist_lat - 0.1, dist_lat + 0.1),
+        angle_max=20,
+        random_seeds=[0, 1],
+    )
+
+
 def test_regionprops(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
     for meth in ["mean", "median", "min", "max"]:

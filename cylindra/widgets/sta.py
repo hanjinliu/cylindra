@@ -272,12 +272,10 @@ class Alignment(MagicTemplate):
     align_averaged = abstractapi()
     align_all = abstractapi()
     align_all_template_free = abstractapi()
-
-    @magicmenu
-    class Constrained(MagicTemplate):
-        align_all_viterbi = abstractapi()
-        align_all_annealing = abstractapi()
-        save_annealing_scores = abstractapi()
+    sep0 = field(Separator)
+    align_all_viterbi = abstractapi()
+    align_all_annealing = abstractapi()
+    save_annealing_scores = abstractapi()
 
 
 @magicmenu
@@ -988,7 +986,7 @@ class SubtomogramAveraging(ChildWidget):
 
     sep1 = field(Separator)
 
-    @set_design(text="Viterbi Alignment", location=Alignment.Constrained)
+    @set_design(text="Viterbi Alignment", location=Alignment)
     @dask_worker.with_progress(descs=_pdesc.align_viterbi_fmt)
     def align_all_viterbi(
         self,
@@ -1031,7 +1029,7 @@ class SubtomogramAveraging(ChildWidget):
         )
 
         yield
-        mole = self._run_viterbi_on_landscape(
+        mole = _run_viterbi_on_landscape(
             landscape=landscape,
             spl=layer.source_spline,
             range_long=range_long,
@@ -1040,7 +1038,7 @@ class SubtomogramAveraging(ChildWidget):
         t0.toc()
         return self._align_all_on_return.with_args([mole], [layer])
 
-    @set_design(text="Simulated annealing", location=Alignment.Constrained)
+    @set_design(text="Simulated annealing", location=Alignment)
     @dask_worker.with_progress(descs=_pdesc.align_annealing_fmt)
     def align_all_annealing(
         self,
@@ -1086,7 +1084,7 @@ class SubtomogramAveraging(ChildWidget):
             upsample_factor=upsample_factor,
         )
         yield
-        mole, results = self._run_annealing_on_landscape(
+        mole, results = _run_annealing_on_landscape(
             landscape,
             layer.source_spline,
             range_long=range_long,
@@ -1189,7 +1187,7 @@ class SubtomogramAveraging(ChildWidget):
         t0 = timer()
         landscape_layer = _assert_landscape_layer(landscape_layer, self.parent_viewer)
         spl = landscape_layer.source_spline
-        mole = self._run_viterbi_on_landscape(
+        mole = _run_viterbi_on_landscape(
             landscape_layer.landscape,
             spl=spl,
             range_long=range_long,
@@ -1223,8 +1221,9 @@ class SubtomogramAveraging(ChildWidget):
         spl = landscape_layer.source_spline
         if spl is None:
             raise ValueError("RMA requires a spline.")
-        mole, results = self._run_annealing_on_landscape(
+        mole, results = _run_annealing_on_landscape(
             landscape_layer.landscape,
+            spl=spl,
             range_long=range_long,
             range_lat=range_lat,
             angle_max=angle_max,
@@ -1255,7 +1254,7 @@ class SubtomogramAveraging(ChildWidget):
             if ANNEALING_RESULT in layer.metadata
         ]
 
-    @set_design(text=capitalize, location=Alignment.Constrained)
+    @set_design(text=capitalize, location=Alignment)
     @do_not_record
     def save_annealing_scores(
         self,
@@ -1770,7 +1769,12 @@ class SubtomogramAveraging(ChildWidget):
         # graph construction cannot be separated.
         parent = self._get_main()
         scale = parent.tomogram.scale
-        return _annealing.get_annealing_model(layer, (0, 0, 0), scale)
+        return _annealing.get_annealing_model(
+            layer.molecules,
+            layer.source_spline,
+            (0, 0, 0),
+            scale,
+        )
 
     def _construct_landscape(
         self,
@@ -1800,69 +1804,69 @@ class SubtomogramAveraging(ChildWidget):
             ),
         ).normed()
 
-    def _run_viterbi_on_landscape(
-        self,
-        landscape: Landscape,
-        spl: "CylSpline | None",
-        range_long: tuple[nm, nm] = (4.0, 4.28),
-        angle_max: "float | None" = 5.0,
-    ):
-        from cylindra._dask import delayed, compute
 
-        mole = landscape.molecules
-        npfs: Sequence[int] = mole.features[Mole.pf].unique(maintain_order=True)
-        slices = [(mole.features[Mole.pf] == i).to_numpy() for i in npfs]
-        viterbi_tasks = [
-            delayed(landscape[sl].run_viterbi)(range_long, angle_max) for sl in slices
-        ]
-        vit_out = compute(*viterbi_tasks)
+def _run_viterbi_on_landscape(
+    landscape: Landscape,
+    spl: "CylSpline | None",
+    range_long: tuple[nm, nm] = (4.0, 4.28),
+    angle_max: "float | None" = 5.0,
+):
+    from cylindra._dask import delayed, compute
 
-        inds = np.empty((mole.count(), 3), dtype=np.int32)
-        max_shifts_px = (np.array(landscape.energies.shape[1:]) - 1) // 2
-        for i, result in enumerate(vit_out):
-            inds[slices[i], :] = _check_viterbi_shift(result.indices, max_shifts_px, i)
-        molecules_opt = landscape.transform_molecules(mole, inds)
-        if spl is not None:
-            molecules_opt = _update_mole_pos(molecules_opt, mole, spl)
-        return molecules_opt
+    mole = landscape.molecules
+    npfs: Sequence[int] = mole.features[Mole.pf].unique(maintain_order=True)
+    slices = [(mole.features[Mole.pf] == i).to_numpy() for i in npfs]
+    viterbi_tasks = [
+        delayed(landscape[sl].run_viterbi)(range_long, angle_max) for sl in slices
+    ]
+    vit_out = compute(*viterbi_tasks)
 
-    def _run_annealing_on_landscape(
-        self,
-        landscape: Landscape,
-        spl: "CylSpline",
-        range_long: tuple[float, float],
-        range_lat: tuple[float, float],
-        angle_max: float,
-        temperature_time_const: float = 1.0,
-        random_seeds: Iterable[int] = range(5),
-    ):
-        mole = landscape.molecules
-        results = landscape.run_annealing(
-            spl,
-            range_long,
-            range_lat,
-            angle_max,
-            temperature_time_const=temperature_time_const,
-            random_seeds=random_seeds,
+    inds = np.empty((mole.count(), 3), dtype=np.int32)
+    max_shifts_px = (np.array(landscape.energies.shape[1:]) - 1) // 2
+    for i, result in enumerate(vit_out):
+        inds[slices[i], :] = _check_viterbi_shift(result.indices, max_shifts_px, i)
+    molecules_opt = landscape.transform_molecules(mole, inds)
+    if spl is not None:
+        molecules_opt = _update_mole_pos(molecules_opt, mole, spl)
+    return molecules_opt
+
+
+def _run_annealing_on_landscape(
+    landscape: Landscape,
+    spl: "CylSpline",
+    range_long: tuple[float, float],
+    range_lat: tuple[float, float],
+    angle_max: float,
+    temperature_time_const: float = 1.0,
+    random_seeds: Iterable[int] = range(5),
+):
+    mole = landscape.molecules
+    results = landscape.run_annealing(
+        spl,
+        range_long,
+        range_lat,
+        angle_max,
+        temperature_time_const=temperature_time_const,
+        random_seeds=random_seeds,
+    )
+    if all(result.state == "failed" for result in results):
+        raise RuntimeError(
+            "Failed to optimize for all trials. You may check the distance range."
         )
-        if all(result.state == "failed" for result in results):
-            raise RuntimeError(
-                "Failed to optimize for all trials. You may check the distance range."
-            )
-        elif not any(result.state == "converged" for result in results):
-            _Logger.print("Optimization did not converge for any trial.")
+    elif not any(result.state == "converged" for result in results):
+        _Logger.print("Optimization did not converge for any trial.")
 
-        _Logger.print_table(
-            {
-                "Iteration": [r.niter for r in results],
-                "Score": [-float(r.energies[-1]) for r in results],
-                "State": [r.state for r in results],
-            }
-        )
-        results = sorted(results, key=lambda r: r.energies[-1])
-        mole_opt = landscape.transform_molecules(mole, results[0].indices)
-        mole_opt = _update_mole_pos(mole_opt, mole, spl)
-        return mole_opt, results
+    _Logger.print_table(
+        {
+            "Iteration": [r.niter for r in results],
+            "Score": [-float(r.energies[-1]) for r in results],
+            "State": [r.state for r in results],
+        }
+    )
+    results = sorted(results, key=lambda r: r.energies[-1])
+    mole_opt = landscape.transform_molecules(mole, results[0].indices)
+    mole_opt = _update_mole_pos(mole_opt, mole, spl)
+    return mole_opt, results
 
 
 def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
@@ -2008,3 +2012,6 @@ def _check_viterbi_shift(shift: "NDArray[np.int32]", offset: "NDArray[np.int32]"
 impl_preview(SubtomogramAveraging.align_all_annealing, text="Preview molecule network")(
     _annealing.preview_single
 )
+impl_preview(
+    SubtomogramAveraging.run_annealing_on_landscape, text="Preview molecule network"
+)(_annealing.preview_landscape_function)
