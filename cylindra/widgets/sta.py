@@ -318,7 +318,7 @@ class StaParameters(MagicTemplate):
     _viewer: "napari.Viewer | None" = None
 
     def __post_init__(self):
-        self._template: ip.ImgArray = None
+        self._template: ip.ImgArray | None = None
 
         # load history
         line = self.template_path
@@ -1796,6 +1796,7 @@ class SubtomogramAveraging(ChildWidget):
     ):  # fmt: skip
         parent = self._get_main()
         layer = assert_layer(layer, self.parent_viewer)
+        self._norm_template_param(template_path, allow_multiple=True)
         return Landscape.from_loader(
             loader=parent.tomogram.get_subtomogram_loader(
                 layer.molecules, order=interpolation

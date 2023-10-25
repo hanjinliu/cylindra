@@ -89,11 +89,11 @@ def run_one(
         layer=layer,
         template_path=WOBBLE_TEMPLATES,
         mask_params=(0.3, 0.8),
-        max_shifts=(0.3, 0.3, 0.3),
+        max_shifts=(0.8, 0.8, 0.8),
         range_long=(3.98, 4.28),
         range_lat=(interv_mean - dx, interv_mean + dx),
         angle_max=5.0,
-        upsample_factor=20,
+        upsample_factor=5,
     )
     mole_rma = post_process_layer(ui, ui.mole_layers.last()).molecules
     return pl.concat(
