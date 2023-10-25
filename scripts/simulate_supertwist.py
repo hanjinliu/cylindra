@@ -19,12 +19,11 @@ def create_microtubule(ui: CylindraMainWidget):
     ui.simulator.create_empty_image(size=(60.0, 180.0, 60.0), scale=0.25)
     initialize_molecules(ui)
     layer = ui.mole_layers.last()
-    dtheta = 0.06
+    dtheta = 0.1
     ui.simulator.displace(
         layer, twist=pl.when(pl.col("isotype-id").eq(1)).then(-dtheta).otherwise(dtheta)
     )
     post_process_layer(ui, layer)
-    # ui.split_molecules(layer, by="isotype-id")
     return layer.molecules
 
 
@@ -40,10 +39,6 @@ def save_tilt_series(ui: CylindraMainWidget, path: Path):
     path = Path(path)
     layer_name = ui.mole_layers.first().name
     ui.simulator.simulate_tilt_series(
-        # components=[
-        #     (layer_name + "_0", TEMPLATE_X),
-        #     (layer_name + "_1", TEMPLATE_X),
-        # ],
         components=[(layer_name, TEMPLATE_X)],
         save_dir=path,
         tilt_range=(-60, 60),
@@ -64,7 +59,7 @@ def run_one(
     ui: CylindraMainWidget,
     image_path: Path,
     seed: int = 0,
-) -> tuple[float, float, float, float]:
+) -> pl.DataFrame:
     ui.simulator.simulate_tomogram_from_tilt_series(
         image_path,
         nsr=0.1,
@@ -79,6 +74,14 @@ def run_one(
     layer = ui.mole_layers.last()
     mole_init = post_process_layer(ui, layer).molecules
 
+    ui.sta.align_all(
+        layers=layer,
+        template_path=WOBBLE_TEMPLATES,
+        mask_params=(0.3, 0.8),
+        max_shifts=(0.8, 0.8, 0.8),
+    )
+    mole_cnv = post_process_layer(ui, ui.mole_layers.last()).molecules
+
     # RMA alignment
     interv_mean = finite_mean(calc_lateral_interval(mole_init, ui.splines[0]))
     dx = 0.1
@@ -86,22 +89,30 @@ def run_one(
         layer=layer,
         template_path=WOBBLE_TEMPLATES,
         mask_params=(0.3, 0.8),
-        max_shifts=(0.8, 0.8, 0.8),
+        max_shifts=(0.3, 0.3, 0.3),
         range_long=(3.98, 4.28),
         range_lat=(interv_mean - dx, interv_mean + dx),
         angle_max=5.0,
-        upsample_factor=5,
+        upsample_factor=20,
     )
     mole_rma = post_process_layer(ui, ui.mole_layers.last()).molecules
-    return flat_agg(mole_rma.features)
-
-
-def flat_agg(df: pl.DataFrame) -> tuple[float, float, float, float]:
-    agg = df.group_by("isotype-id").agg(
-        pl.col("twist").filter(pl.col("twist").is_finite()).mean(),
-        pl.col("skew_angle").filter(pl.col("skew_angle").is_finite()).mean(),
+    return pl.concat(
+        [flat_agg(mole_cnv.features, "_conv"), flat_agg(mole_rma.features, "_RMA")],
+        how="horizontal",
     )
-    return agg["twist"][0], agg["twist"][1], agg["skew_angle"][0], agg["skew_angle"][1]
+
+
+def flat_agg(df: pl.DataFrame, suffix: str):
+    agg = (
+        df.group_by("isotype-id")
+        .agg(
+            pl.col("twist").filter(pl.col("twist").is_finite()).mean(),
+        )
+        .sort("isotype-id")
+    )
+    return pl.DataFrame(
+        {f"twist_a{suffix}": agg["twist"][1], f"twist_b{suffix}": agg["twist"][0]}
+    )
 
 
 def show_dataframe(ui: CylindraMainWidget, df: pl.DataFrame):
@@ -113,32 +124,22 @@ def show_dataframe(ui: CylindraMainWidget, df: pl.DataFrame):
 def main():
     ui = start()
     create_microtubule(ui)
-    ans = flat_agg(ui.mole_layers.first().molecules.features)
+    mole_ans = ui.mole_layers.first().molecules
+    ans = flat_agg(mole_ans.features, "_ans")
     df_list = []
     with tempfile.TemporaryDirectory() as tmpdir:
         save_tilt_series(ui, tmpdir)
-        for i in range(3):
+        for i in range(1):
             out = run_one(
                 ui,
                 Path(tmpdir) / "image.mrc",
                 seed=i,
             )
-            df_list.append(ans + out)
+            df_list.append(pl.concat([ans, out], how="horizontal"))
 
-    df = pl.DataFrame(
-        np.array(df_list),
-        schema=[
-            "twist_a_ans",
-            "twist_b_ans",
-            "skew_a_ans",
-            "skew_b_ans",
-            "twist_a",
-            "twist_b",
-            "skew_a",
-            "skew_b",
-        ],
-    )
+    df = pl.concat(df_list, how="vertical")
     show_dataframe(ui, df)
+    ui.add_molecules(mole_ans, name="GT", source=ui.splines[0])
 
 
 if __name__ == "__main__":
