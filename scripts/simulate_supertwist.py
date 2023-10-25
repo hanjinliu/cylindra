@@ -2,7 +2,7 @@ import tempfile
 
 import napari
 
-from scripts.user_consts import TEMPLATE_A, TEMPLATE_B, TEMPLATE_X, WOBBLE_TEMPLATES
+from scripts.user_consts import TEMPLATE_X, WOBBLE_TEMPLATES
 from cylindra import start  # NOTE: Set ApplicationAttributes
 
 from magicclass.types import Path
@@ -19,11 +19,12 @@ def create_microtubule(ui: CylindraMainWidget):
     ui.simulator.create_empty_image(size=(60.0, 180.0, 60.0), scale=0.25)
     initialize_molecules(ui)
     layer = ui.mole_layers.last()
+    dtheta = 0.06
     ui.simulator.displace(
-        layer, twist=pl.when(pl.col("isotype-id").eq(1)).then(-0.02).otherwise(0.02)
+        layer, twist=pl.when(pl.col("isotype-id").eq(1)).then(-dtheta).otherwise(dtheta)
     )
     post_process_layer(ui, layer)
-    ui.split_molecules(layer, by="isotype-id")
+    # ui.split_molecules(layer, by="isotype-id")
     return layer.molecules
 
 
@@ -39,10 +40,11 @@ def save_tilt_series(ui: CylindraMainWidget, path: Path):
     path = Path(path)
     layer_name = ui.mole_layers.first().name
     ui.simulator.simulate_tilt_series(
-        components=[
-            (layer_name + "_0", TEMPLATE_A),
-            (layer_name + "_1", TEMPLATE_B),
-        ],
+        # components=[
+        #     (layer_name + "_0", TEMPLATE_X),
+        #     (layer_name + "_1", TEMPLATE_X),
+        # ],
+        components=[(layer_name, TEMPLATE_X)],
         save_dir=path,
         tilt_range=(-60, 60),
         n_tilt=61,
@@ -65,7 +67,7 @@ def run_one(
 ) -> tuple[float, float, float, float]:
     ui.simulator.simulate_tomogram_from_tilt_series(
         image_path,
-        nsr=2.5,
+        nsr=0.1,
         bin_size=2,
         tilt_range=(-60, 60),
         height=60.0,
@@ -80,13 +82,13 @@ def run_one(
     # RMA alignment
     interv_mean = finite_mean(calc_lateral_interval(mole_init, ui.splines[0]))
     dx = 0.1
-    ui.sta.align_all_annealing_multi_template(
+    ui.sta.align_all_annealing(
         layer=layer,
-        template_paths=WOBBLE_TEMPLATES,
+        template_path=WOBBLE_TEMPLATES,
         mask_params=(0.3, 0.8),
         max_shifts=(0.8, 0.8, 0.8),
-        distance_range_long=(3.98, 4.28),
-        distance_range_lat=(interv_mean - dx, interv_mean + dx),
+        range_long=(3.98, 4.28),
+        range_lat=(interv_mean - dx, interv_mean + dx),
         angle_max=5.0,
         upsample_factor=5,
     )
@@ -115,7 +117,7 @@ def main():
     df_list = []
     with tempfile.TemporaryDirectory() as tmpdir:
         save_tilt_series(ui, tmpdir)
-        for i in range(10):
+        for i in range(3):
             out = run_one(
                 ui,
                 Path(tmpdir) / "image.mrc",

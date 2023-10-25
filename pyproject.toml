@@ -21,12 +21,12 @@ license = { file = "LICENSE" }
 dynamic = ["version"]
 dependencies = [
     "impy-array>=2.3.0",
-    "acryo>=0.4.4",
+    "acryo>=0.4.5",
     "macro-kit>=0.4.6",
-    "magicgui>=0.7.3",
+    "magicgui>=0.8.0",
     "magic-class>=0.7.5",
     "psygnal>=0.9.1",
-    "superqt>=0.5.0",
+    "superqt>=0.6.1[iconify]",
     "pyqtgraph>=0.12.4",
     "pyarrow>=11.0.0",
     "numpy>=1.23.0",

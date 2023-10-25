@@ -31,7 +31,7 @@ def main(ui: CylindraMainWidget):
     )
     ui.load_splines(paths=["D:/simulated_tomograms/230925_two_patches/spline.json"])
     ui.set_source_spline(layer="molecules", spline=0)
-    ui.sta.align_all_multi_template(
+    ui.sta.align_all(
         layers=["molecules"],
         template_paths=WOBBLE_TEMPLATES,
         mask_params=(0.3, 0.8),
@@ -45,16 +45,16 @@ def main(ui: CylindraMainWidget):
     ui.measure_radius(splines=[0], bin_size=2, min_radius=1.6)
     ui.global_ft_analysis(splines=[0], bin_size=2)
     ui.mole_layers["molecules-ALN1"].name = "Conventional"
-    ui.sta.align_all_annealing_multi_template(
+    ui.sta.align_all_annealing(
         layer="molecules",
-        template_paths=WOBBLE_TEMPLATES,
+        template_path=WOBBLE_TEMPLATES,
         mask_params=(0.3, 0.8),
         max_shifts=(0.8, 0.8, 0.8),
         rotations=((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff=0.5,
         interpolation=3,
-        distance_range_long=(3.98, 4.28),
-        distance_range_lat=(5.6, 5.8),
+        range_long=(3.98, 4.28),
+        range_lat=(5.6, 5.8),
         angle_max=5.0,
         upsample_factor=5,
         random_seeds=[0, 1, 2, 3, 4],

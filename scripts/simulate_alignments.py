@@ -108,20 +108,20 @@ def run_one(
 
     # start comparing alignment methods
     shared_kwargs = dict(
-        template_paths=WOBBLE_TEMPLATES,
+        template_path=WOBBLE_TEMPLATES,
         mask_params=(0.3, 0.8),
         max_shifts=(0.8, 0.8, 0.8),
     )
 
     # conventional alignment
-    ui.sta.align_all_multi_template(layers=[layer], bin_size=1, **shared_kwargs)
+    ui.sta.align_all(layers=[layer], bin_size=1, **shared_kwargs)
     mole_cnv = post_process_layer(ui, ui.mole_layers.last()).molecules
 
     # Viterbi alignment
-    ui.sta.align_all_viterbi_multi_template(
+    ui.sta.align_all_viterbi(
         layer=layer,
         **shared_kwargs,
-        distance_range=(3.98, 4.28),
+        range_long=(3.98, 4.28),
         angle_max=5.0,
         upsample_factor=5,
     )
@@ -131,11 +131,11 @@ def run_one(
     intervs = calc_lateral_interval(mole_init, ui.splines[0])
     interv_mean = intervs.filter(intervs.is_finite()).mean()
     dx = 0.1
-    ui.sta.align_all_annealing_multi_template(
+    ui.sta.align_all_annealing(
         layer=layer,
         **shared_kwargs,
-        distance_range_long=(3.98, 4.28),
-        distance_range_lat=(interv_mean - dx, interv_mean + dx),
+        range_long=(3.98, 4.28),
+        range_lat=(interv_mean - dx, interv_mean + dx),
         angle_max=5.0,
         upsample_factor=5,
     )
@@ -202,6 +202,7 @@ def main():
 
     show_dataframe(ui, df_pos)
     show_dataframe(ui, df_spacing)
+    ui.add_molecules(mole_truth, name="truth", source=ui.splines[0])
 
 
 if __name__ == "__main__":
