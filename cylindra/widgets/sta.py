@@ -22,7 +22,7 @@ from magicclass import (
     impl_preview,
     abstractapi,
 )
-from magicclass.widgets import HistoryFileEdit, Separator, Image as ImageWidget
+from magicclass.widgets import HistoryFileEdit, Separator
 from magicclass.types import Optional, Path
 from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
@@ -270,9 +270,7 @@ class StaParameters(MagicTemplate):
     """
 
     template_choice = vfield(TemplateChoice.from_file, label="Template")
-    avg_thumbnail = field(np.zeros((1, 1)), widget_type=ImageWidget).with_options(
-        visible=False
-    )
+    avg_info = field("No image").with_options(visible=False, enabled=False)
     template_path = field(Path.Read[FileFilter.IMAGE], widget_type=HistoryFileEdit)
     template_paths = field(list[Path], widget_type=MultiFileEdit).with_options(
         filter=FileFilter.IMAGE, visible=False
@@ -287,8 +285,6 @@ class StaParameters(MagicTemplate):
 
     def __post_init__(self):
         self._template: ip.ImgArray = None
-        self.avg_thumbnail.min_height = 30
-        self.avg_thumbnail.max_height = 30
 
         # load history
         line = self.template_path
@@ -298,7 +294,7 @@ class StaParameters(MagicTemplate):
     @template_choice.connect
     def _on_template_switch(self):
         v = self.template_choice
-        self.avg_thumbnail.visible = v is TemplateChoice.last_average
+        self.avg_info.visible = v is TemplateChoice.last_average
         self.template_path.visible = v is TemplateChoice.from_file
         self.template_paths.visible = v is TemplateChoice.from_files
 
@@ -309,8 +305,9 @@ class StaParameters(MagicTemplate):
         self.mask_path.visible = v is MaskChoice.from_file
 
     def _set_last_average(self, img: ip.ImgArray):
+        assert img.ndim == 3
         StaParameters._last_average = img
-        self.avg_thumbnail.value = img.max(axis=0).value
+        self.avg_info.value = f"Image of shape {tuple(img.shape)}"
 
     def _save_history(self):
         try:
@@ -735,7 +732,7 @@ class SubtomogramAveraging(ChildWidget):
         img = ip.asarray(loader.average_split(n_set=n_set), axes=axes)
         img.set_scale(zyx=loader.scale)
         t0.toc()
-        return self._show_rec.with_args(img, f"[Split]{_avg_name(layers)}")
+        return self._show_rec.with_args(img, f"[Split]{_avg_name(layers)}", store=False)
 
     @set_design(text="Align average to template", location=Alignment)
     @dask_worker.with_progress(descs=_pdesc.align_averaged_fmt)
@@ -1191,7 +1188,7 @@ class SubtomogramAveraging(ChildWidget):
 
         Parameters
         ----------
-        {layers}{template_paths}{mask_params}{interpolation}
+        {layers}{template_path}{mask_params}{interpolation}
         metric : str, default is "zncc"
             Metric to calculate correlation.
         column_prefix : str, default is "score"

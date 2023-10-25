@@ -344,7 +344,7 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
             self.edge_color = color
         if isinstance(color, str):
             self._colormap_info = color
-        elif np.isscalar(color[0]):
+        elif isinstance(color[0], (int, float, np.number)):
             self._colormap_info = str_color(color)
 
     def regular_shape(self) -> tuple[int, int]:

@@ -63,8 +63,8 @@ def get_distances(layer: MoleculesLayer, scale: nm, upsample_factor: int):
 def preview_single(
     self: SubtomogramAveraging,
     layer: MoleculesLayer,
-    distance_range_long: tuple[nm, nm],
-    distance_range_lat: tuple[nm, nm],
+    range_long: tuple[nm, nm],
+    range_lat: tuple[nm, nm],
     upsample_factor: int,
 ):
     fgui = get_function_gui(self.align_all_annealing)
@@ -72,26 +72,8 @@ def preview_single(
         widget=self,
         fgui=fgui,
         layer=layer,
-        distance_range_long=distance_range_long,
-        distance_range_lat=distance_range_lat,
-        upsample_factor=upsample_factor,
-    )
-
-
-def preview_multiple(
-    self: SubtomogramAveraging,
-    layer: MoleculesLayer,
-    distance_range_long: tuple[nm, nm],
-    distance_range_lat: tuple[nm, nm],
-    upsample_factor: int,
-):
-    fgui = get_function_gui(self.align_all_annealing_multi_template)
-    yield from _preview_function(
-        widget=self,
-        fgui=fgui,
-        layer=layer,
-        distance_range_long=distance_range_long,
-        distance_range_lat=distance_range_lat,
+        range_long=range_long,
+        range_lat=range_lat,
         upsample_factor=upsample_factor,
     )
 
@@ -100,8 +82,8 @@ def _preview_function(
     widget: SubtomogramAveraging,
     fgui: FunctionGui,
     layer: MoleculesLayer,
-    distance_range_long: tuple[nm, nm],
-    distance_range_lat: tuple[nm, nm],
+    range_long: tuple[nm, nm],
+    range_lat: tuple[nm, nm],
     upsample_factor: int,
 ):
     parent = widget._get_main()
@@ -111,21 +93,13 @@ def _preview_function(
     canvas = QtMultiPlotCanvas(ncols=2)
     parent._active_widgets.add(canvas)
     lon_hist = canvas[0].add_hist(data_lon, bins=24, density=False, name="Longitudinal")
-    lon_low = canvas[0].add_infline(
-        (distance_range_long[0], 0), 90, color="yellow", ls=":"
-    )
-    lon_high = canvas[0].add_infline(
-        (distance_range_long[1], 0), 90, color="yellow", ls=":"
-    )
+    lon_low = canvas[0].add_infline((range_long[0], 0), 90, color="yellow", ls=":")
+    lon_high = canvas[0].add_infline((range_long[1], 0), 90, color="yellow", ls=":")
     canvas[0].add_infline((0, 0), 0, color="gray")
     canvas[0].title = "Longitudinal distances"
     lat_hist = canvas[1].add_hist(data_lat, bins=24, density=False, name="Lateral")
-    lat_low = canvas[1].add_infline(
-        (distance_range_lat[0], 0), 90, color="yellow", ls=":"
-    )
-    lat_high = canvas[1].add_infline(
-        (distance_range_lat[1], 0), 90, color="yellow", ls=":"
-    )
+    lat_low = canvas[1].add_infline((range_lat[0], 0), 90, color="yellow", ls=":")
+    lat_high = canvas[1].add_infline((range_lat[1], 0), 90, color="yellow", ls=":")
     canvas[1].add_infline((0, 0), 0, color="gray")
     canvas[1].title = "Lateral distances"
     canvas.native.setParent(parent.native, canvas.native.windowFlags())
@@ -137,12 +111,12 @@ def _preview_function(
         lon_hist.set_hist(data_lon)
         lat_hist.set_hist(data_lat)
 
-    @fgui.distance_range_long.changed.connect
+    @fgui.range_long.changed.connect
     def _long_changed(val: tuple[float, float]):
         lon_low.pos = (val[0], 0)
         lon_high.pos = (val[1], 0)
 
-    @fgui.distance_range_lat.changed.connect
+    @fgui.range_lat.changed.connect
     def _lat_changed(val: tuple[float, float]):
         lat_low.pos = (val[0], 0)
         lat_high.pos = (val[1], 0)
@@ -152,8 +126,8 @@ def _preview_function(
     is_active = yield
     if not is_active:
         fgui.layer.changed.disconnect(_layer_changed)
-        fgui.distance_range_long.changed.disconnect(_long_changed)
-        fgui.distance_range_lat.changed.disconnect(_lat_changed)
+        fgui.range_long.changed.disconnect(_long_changed)
+        fgui.range_lat.changed.disconnect(_lat_changed)
         canvas.close()
     return None
 

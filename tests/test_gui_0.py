@@ -628,7 +628,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
     )
     ui.sta.calculate_correlation(
         layers=["Mole-0-ALN1"],
-        template_paths=template_path,
+        template_path=template_path,
         column_prefix="score",
     )
     assert "score_0" in ui.mole_layers["Mole-0-ALN1"].features
@@ -1116,7 +1116,7 @@ def test_viterbi_alignment(ui: CylindraMainWidget):
         template_path=TEST_DIR / "beta-tubulin.mrc",
         mask_params=(0.3, 0.8),
         max_shifts=(2.3, 2.3, 2.3),
-        distance_range=(4, 4.5),
+        range_long=(4, 4.5),
     )
 
     ui.sta.align_all_viterbi(
@@ -1125,24 +1125,24 @@ def test_viterbi_alignment(ui: CylindraMainWidget):
         mask_params=(0.3, 0.8),
         max_shifts=(1.2, 1.2, 1.2),
         rotations=((0, 0), (5, 5), (0, 0)),
-        distance_range=(4, 4.5),
+        range_long=(4, 4.5),
     )
     # multi-template
     ui.sta.align_all_viterbi(
         layer_filt,
-        template_paths=[TEST_DIR / "beta-tubulin.mrc", TEST_DIR / "beta-tubulin.mrc"],
+        template_path=[TEST_DIR / "beta-tubulin.mrc", TEST_DIR / "beta-tubulin.mrc"],
         mask_params=(0.3, 0.8),
         max_shifts=(2.3, 2.3, 2.3),
-        distance_range=(4, 4.5),
+        range_long=(4, 4.5),
     )
 
     ui.sta.align_all_viterbi(
         layer_filt,
-        template_paths=[TEST_DIR / "beta-tubulin.mrc", TEST_DIR / "beta-tubulin.mrc"],
+        template_path=[TEST_DIR / "beta-tubulin.mrc", TEST_DIR / "beta-tubulin.mrc"],
         mask_params=(0.3, 0.8),
         max_shifts=(1.2, 1.2, 1.2),
         rotations=((0, 0), (5, 5), (0, 0)),
-        distance_range=(4, 4.5),
+        range_long=(4, 4.5),
     )
 
     mole = ui.mole_layers.last().molecules
@@ -1174,8 +1174,8 @@ def test_mesh_annealing(ui: CylindraMainWidget):
         mask_params=(0.3, 0.8),
         max_shifts=(1.2, 1.2, 1.2),
         rotations=((0, 0), (5, 5), (0, 0)),
-        distance_range_long=(dist_lon - 0.1, dist_lon + 0.1),
-        distance_range_lat=(dist_lat - 0.1, dist_lat + 0.1),
+        range_long=(dist_lon - 0.1, dist_lon + 0.1),
+        range_lat=(dist_lat - 0.1, dist_lat + 0.1),
         angle_max=20,
         random_seeds=[0, 1],
     )
@@ -1186,8 +1186,8 @@ def test_mesh_annealing(ui: CylindraMainWidget):
         mask_params=(0.3, 0.8),
         max_shifts=(1.2, 1.2, 1.2),
         rotations=((0, 0), (5, 5), (0, 0)),
-        distance_range_long=(dist_lon - 0.1, dist_lon + 0.1),
-        distance_range_lat=(dist_lat - 0.1, dist_lat + 0.1),
+        range_long=(dist_lon - 0.1, dist_lon + 0.1),
+        range_lat=(dist_lat - 0.1, dist_lat + 0.1),
         angle_max=20,
         random_seeds=[0, 1],
     )

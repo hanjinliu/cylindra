@@ -29,7 +29,6 @@ _PARAMETERS = [
     Parameter(name="layer", type="MoleculesLayer", desc="Points layer of molecules to be used."),
     Parameter(name="layers", type="list of MoleculesLayer", desc="All the points layers of molecules to be used."),
     Parameter(name="template_path", type="Path or str", desc="Path to template image."),
-    Parameter(name="template_paths", type="list of Path or str", desc="Path to all the template images."),
     Parameter(name="mask_params", type="str or (float, float), optional", desc="Mask image path or dilation/Gaussian blur parameters.\nIf a path is given, image must in the same shape as the template."),
     Parameter(name="tilt_range", type="(float, float), optional", desc="Tilt range of tomogram tilt series in degree."),
     Parameter(name="max_shifts", type="int or tuple of int", desc="Maximum shift between subtomograms and template in nm. ZYX order."),

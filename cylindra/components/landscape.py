@@ -28,7 +28,7 @@ class Landscape:
 
     Parameters
     ----------
-    energy_array : NDArray[np.float32]
+    energies : NDArray[np.float32]
         4D array of energy values.
     molecules : Molecules
         Molecules object.
@@ -59,13 +59,13 @@ class Landscape:
         return Landscape(energy, mole, argmax, self.alignment_model, self.scale_factor)
 
     def __repr__(self) -> str:
-        energy_array_repr = f"<{self.energies.shape!r} array>"
+        eng_repr = f"<{self.energies.shape!r} array>"
         mole_repr = f"<{self.molecules.count()} molecules>"
         argmax_repr = (
             f"<{self.argmax.shape!r} array>" if self.argmax is not None else None
         )
         return (
-            f"Landscape(energy_array={energy_array_repr}, molecules={mole_repr}, "
+            f"Landscape(energies={eng_repr}, molecules={mole_repr}, "
             f"argmax={argmax_repr}, alignment_model={self.alignment_model!r}, "
             f"scale_factor={self.scale_factor:.3g})"
         )
@@ -133,7 +133,7 @@ class Landscape:
             alignment_model, score_dsk, multi_templates=multi
         )
         return cls(
-            energy_array=-score,
+            energies=-score,
             molecules=loader.molecules,
             argmax=argmax,
             alignment_model=alignment_model,

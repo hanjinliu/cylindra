@@ -285,7 +285,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
             axes="pzyx",
         ).set_scale(zyx=loader.scale * bin_size, unit="nm")
         t0.toc()
-        return self._show_rec.with_args(img, f"[AVG]{loader_name}")
+        return self._show_rec.with_args(img, f"[AVG]{loader_name}", store=False)
 
     @set_design(text="Align all molecules", location=BatchRefinement)
     @dask_thread_worker.with_progress(desc="Aligning all molecules")
