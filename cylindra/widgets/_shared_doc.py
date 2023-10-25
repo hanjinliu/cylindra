@@ -28,6 +28,7 @@ class Parameter(NamedTuple):
 _PARAMETERS = [
     Parameter(name="layer", type="MoleculesLayer", desc="Points layer of molecules to be used."),
     Parameter(name="layers", type="list of MoleculesLayer", desc="All the points layers of molecules to be used."),
+    Parameter(name="loader_name", type="str", desc="Name of the batch subtomogram loader to be used."),
     Parameter(name="landscape_layer", type="LandscapeSurface", desc="Landscape layer to be used in this algorithm."),
     Parameter(name="template_path", type="Path or str", desc="Path to template image."),
     Parameter(name="mask_params", type="str or (float, float), optional", desc="Mask image path or dilation/Gaussian blur parameters.\nIf a path is given, image must in the same shape as the template."),

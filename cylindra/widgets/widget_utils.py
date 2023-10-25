@@ -117,7 +117,7 @@ def _polars_expr_to_str(expr: pl.Expr) -> str:
 def _validate_expr(expr: str | pl.Expr) -> str:
     if isinstance(expr, str):
         value = ExprStr(expr, POLARS_NAMESPACE).eval()
-        if not isinstance(value, pl.Expr):
+        if not isinstance(value, (pl.Expr, str)):
             raise TypeError(f"Invalid type: {type(value)}")
         return expr
     elif isinstance(expr, pl.Expr):

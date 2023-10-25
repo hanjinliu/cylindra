@@ -6,7 +6,7 @@ import pytest
 from .utils import pytest_group
 from ._const import TEST_DIR, PROJECT_DIR_13PF, PROJECT_DIR_14PF
 
-from magicclass.testing import FunctionGuiTester
+from magicclass import testing as mcls_testing
 from cylindra.widgets.sta import MaskChoice
 
 
@@ -22,6 +22,14 @@ def _load(ui: CylindraMainWidget, name="Loader"):
         predicate="pl.col('nth') < 3",
         name=name,
     )
+
+
+def test_click_buttons(ui: CylindraMainWidget):
+    mcls_testing.check_function_gui_buildable(ui.batch)
+
+
+def test_tooltip(ui: CylindraMainWidget):
+    mcls_testing.check_tooltip(ui.batch)
 
 
 def test_project_io(ui: CylindraMainWidget):
@@ -61,7 +69,7 @@ def test_project_io(ui: CylindraMainWidget):
 
 def test_view(ui: CylindraMainWidget):
     ui.batch.constructor.add_projects_glob(TEST_DIR / "test*" / "project.json")
-    tester = FunctionGuiTester(ui.batch.constructor.add_projects_glob)
+    tester = mcls_testing.FunctionGuiTester(ui.batch.constructor.add_projects_glob)
     tester.update_parameters(pattern=TEST_DIR / "test*" / "project.json")
     tester.click_preview()
     ui.batch.constructor.clear_projects()

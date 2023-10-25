@@ -29,6 +29,7 @@ import polars as pl
 
 from cylindra.const import nm, ALN_SUFFIX, MoleculesHeader as Mole
 from cylindra.utils import roundint
+from cylindra.widgets import _shared_doc
 from cylindra.widgets._widget_ext import RotationsEdit
 from cylindra.widgets._annotated import FSCFreq
 from cylindra.widgets.main import CylindraMainWidget, widget_utils
@@ -77,6 +78,7 @@ _Logger = getLogger("cylindra")
 
 
 @magicclass(name="Batch Subtomogram Analysis")
+@_shared_doc.update_cls
 class BatchSubtomogramAveraging(MagicTemplate):
     def _get_parent(self):
         from .main import CylindraBatchWidget
@@ -235,7 +237,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
         bin_size: _BINSIZE = 1,
     ):
-        t0 = timer("average_all (batch)")
+        t0 = timer()
         loaderlist = self._get_parent()._loaders
         loader = loaderlist[loader_name].loader
         shape = self._get_shape_in_px(size, loader)
@@ -267,12 +269,12 @@ class BatchSubtomogramAveraging(MagicTemplate):
 
         Parameters
         ----------
-        {layer}{size}
+        {loader_name}{size}
         by : str or polars expression
             Expression to group molecules.
         {interpolation}{bin_size}
         """
-        t0 = timer("average_groups")
+        t0 = timer()
         loaderlist = self._get_parent()._loaders
         loader = loaderlist[loader_name].loader
         shape = self._get_shape_in_px(size, loader)
@@ -301,7 +303,15 @@ class BatchSubtomogramAveraging(MagicTemplate):
         method: OneOf[METHOD_CHOICES] = "zncc",
         bin_size: _BINSIZE = 1,
     ):  # fmt: skip
-        t0 = timer("align_all (batch)")
+        """
+        Align all the molecules in the selected loader.
+
+        Parameters
+        ----------
+        {loader_name}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}
+        {interpolation}{method}{bin_size}
+        """
+        t0 = timer()
         loaderlist = self._get_parent()._loaders
         info = loaderlist[loader_name]
         loader = info.loader
@@ -340,20 +350,20 @@ class BatchSubtomogramAveraging(MagicTemplate):
         size: _SubVolumeSize = None,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
-        n_set: Annotated[int, {"min": 1, "label": "number of image pairs"}] = 1,
+        n_pairs: Annotated[int, {"min": 1, "label": "number of image pairs"}] = 1,
         show_average: bool = True,
         dfreq: FSCFreq = None,
     ):
         """
-        Calculate Fourier Shell Correlation using the selected monomer layer.
+        Calculate Fourier Shell Correlation using the selected loader.
 
         Parameters
         ----------
-        {layer}{mask_params}{size}
+        {loader_name}{mask_params}{size}
         seed : int, optional
             Random seed used for subtomogram sampling.
         {interpolation}
-        n_set : int, default is 1
+        n_pairs : int, default is 1
             How many sets of image pairs will be generated to average FSC.
         show_average : bool, default is True
             If true, subtomogram averaging will be shown after FSC calculation.
@@ -361,7 +371,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
             Precision of frequency to calculate FSC. "0.02" means that FSC will be calculated
             at frequency 0.01, 0.03, 0.05, ..., 0.45.
         """
-        t0 = timer("calculate_fsc (batch)")
+        t0 = timer()
         loaderlist = self._get_parent()._loaders
         loader = loaderlist[loader_name].loader
         shape = self._get_shape_in_px(size, loader)
@@ -375,7 +385,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
             )
 
         fsc, avg = loader.reshape(mask=mask, shape=shape).fsc_with_average(
-            mask=mask, seed=seed, n_set=n_set, dfreq=dfreq
+            mask=mask, seed=seed, n_set=n_pairs, dfreq=dfreq
         )
 
         if show_average:
@@ -427,11 +437,11 @@ class BatchSubtomogramAveraging(MagicTemplate):
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
     ):  # fmt: skip
         """
-        Classify molecules in a layer using PCA and K-means clustering.
+        Classify molecules in the loader using PCA and K-means clustering.
 
         Parameters
         ----------
-        {layer}{mask_params}{size}{cutoff}{interpolation}{bin_size}
+        {loader_name}{mask_params}{size}{cutoff}{interpolation}{bin_size}
         n_components : int, default is 2
             The number of PCA dimensions.
         n_clusters : int, default is 2
@@ -441,7 +451,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         """
         from cylindra.widgets.subwidgets import PcaViewer
 
-        t0 = timer("classify_pca (batch)")
+        t0 = timer()
         loaderlist = self._get_parent()._loaders
         loader = loaderlist[loader_name].loader
         shape = self._get_shape_in_px(size, loader)

@@ -300,16 +300,18 @@ class StaParameters(MagicTemplate):
     """
 
     template_choice = vfield(TemplateChoice.from_file, label="Template")
-    avg_info = field("No image", label="").with_options(visible=False, enabled=False)
+    avg_info = field("No image", label="info").with_options(
+        visible=False, enabled=False
+    )
     template_path = field(
-        Path.Read[FileFilter.IMAGE], widget_type=HistoryFileEdit, label=""
+        Path.Read[FileFilter.IMAGE], widget_type=HistoryFileEdit, label="path"
     )
     template_paths = field(
-        list[Path], widget_type=MultiFileEdit, label=""
+        list[Path], widget_type=MultiFileEdit, label="paths"
     ).with_options(filter=FileFilter.IMAGE, visible=False)
 
     mask_choice = vfield(MaskChoice.no_mask, label="Mask")
-    params = field(MaskParameters, name="Parameters", label="")
+    params = field(MaskParameters, name="Parameters")
     mask_path = field(mask_path)
 
     _last_average: ip.ImgArray | None = None  # the global average result
@@ -624,13 +626,16 @@ class SubtomogramAveraging(ChildWidget):
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):
         """
-        Subtomogram averaging using all the molecules in the selected layer.
+        Subtomogram averaging using all the molecules in the selected layer(s).
+
+        If multiple layers are selected, subtomograms around all the molecules will
+        be averaged.
 
         Parameters
         ----------
         {layers}{size}{interpolation}{bin_size}
         """
-        t0 = timer("average_all")
+        t0 = timer()
         layers = assert_list_of_layers(layers, self.parent_viewer)
         parent = self._get_main()
         tomo = parent.tomogram
@@ -656,6 +661,9 @@ class SubtomogramAveraging(ChildWidget):
         """
         Subtomogram averaging using a subset of subvolumes.
 
+        If multiple layers are selected, subtomograms around all the molecules will
+        be concatenated before choosing a subset.
+
         Parameters
         ----------
         {layers}{size}
@@ -669,7 +677,7 @@ class SubtomogramAveraging(ChildWidget):
             Number of subtomograms to use.
         {bin_size}
         """
-        t0 = timer("average_subset")
+        t0 = timer()
         layers = assert_list_of_layers(layers, self.parent_viewer)
         parent = self._get_main()
         molecules = _concat_molecules(layers)
@@ -708,7 +716,7 @@ class SubtomogramAveraging(ChildWidget):
             Expression to group molecules.
         {interpolation}{bin_size}
         """
-        t0 = timer("average_groups")
+        t0 = timer()
         layers = assert_list_of_layers(layers, self.parent_viewer)
         parent = self._get_main()
         tomo = parent.tomogram
@@ -728,7 +736,7 @@ class SubtomogramAveraging(ChildWidget):
     def split_and_average(
         self,
         layers: MoleculesLayersType,
-        n_set: Annotated[int, {"min": 1, "label": "number of image pairs"}] = 1,
+        n_pairs: Annotated[int, {"min": 1, "label": "number of image pairs"}] = 1,
         size: _SubVolumeSize = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
@@ -739,11 +747,11 @@ class SubtomogramAveraging(ChildWidget):
         Parameters
         ----------
         {layers}
-        n_set : int, default is 1
+        n_pairs : int, default is 1
             How many pairs of average will be calculated.
         {size}{interpolation}{bin_size}
         """
-        t0 = timer("split_and_average")
+        t0 = timer()
         layers = assert_list_of_layers(layers, self.parent_viewer)
         parent = self._get_main()
         molecules = _concat_molecules(layers)
@@ -751,8 +759,8 @@ class SubtomogramAveraging(ChildWidget):
         loader = parent.tomogram.get_subtomogram_loader(
             molecules, shape, binsize=bin_size, order=interpolation
         )
-        axes = "ipzyx" if n_set > 1 else "pzyx"
-        img = ip.asarray(loader.average_split(n_set=n_set), axes=axes)
+        axes = "ipzyx" if n_pairs > 1 else "pzyx"
+        img = ip.asarray(loader.average_split(n_set=n_pairs), axes=axes)
         img.set_scale(zyx=loader.scale)
         t0.toc()
         return self._show_rec.with_args(img, f"[Split]{_avg_name(layers)}", store=False)
@@ -779,7 +787,7 @@ class SubtomogramAveraging(ChildWidget):
         ----------
         {layers}{template_path}{mask_params}{max_shifts}{rotations}{bin_size}{method}
         """
-        t0 = timer("align_averaged")
+        t0 = timer()
         layers = assert_list_of_layers(layers, self.parent_viewer)
         parent = self._get_main()
 
@@ -909,7 +917,7 @@ class SubtomogramAveraging(ChildWidget):
         ----------
         {layers}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}{method}{bin_size}
         """
-        t0 = timer("align_all")
+        t0 = timer()
         layers = assert_list_of_layers(layers, self.parent_viewer)
         main = self._get_main()
 
@@ -954,7 +962,7 @@ class SubtomogramAveraging(ChildWidget):
         ----------
         {layers}{mask_params}{size}{max_shifts}{rotations}{cutoff}{interpolation}{method}{bin_size}
         """
-        t0 = timer("align_all_template_free")
+        t0 = timer()
         layers = assert_list_of_layers(layers, self.parent_viewer)
         main = self._get_main()
         combiner = MoleculesCombiner()
@@ -1015,7 +1023,7 @@ class SubtomogramAveraging(ChildWidget):
         {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}
         {range_long}{angle_max}{upsample_factor}
         """
-        t0 = timer("align_all_viterbi")
+        t0 = timer()
         layer = assert_layer(layer, self.parent_viewer)
         landscape = self._construct_landscape(
             layer=layer,
@@ -1068,7 +1076,7 @@ class SubtomogramAveraging(ChildWidget):
         {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}
         {range_long}{range_lat}{angle_max}{temperature_time_const}{upsample_factor}{random_seeds}
         """
-        t0 = timer("align_all_annealing")
+        t0 = timer()
         layer = assert_layer(layer, self.parent_viewer)
         if layer.source_spline is None:
             raise ValueError("RMA requires a spline.")
@@ -1351,7 +1359,7 @@ class SubtomogramAveraging(ChildWidget):
         size: _SubVolumeSize = None,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
-        n_set: Annotated[int, {"min": 1, "label": "number of image pairs"}] = 1,
+        n_pairs: Annotated[int, {"min": 1, "label": "number of image pairs"}] = 1,
         show_average: bool = True,
         dfreq: FSCFreq = None,
     ):
@@ -1367,7 +1375,7 @@ class SubtomogramAveraging(ChildWidget):
         seed : int, optional
             Random seed used for subtomogram sampling.
         {interpolation}
-        n_set : int, default is 1
+        n_pairs : int, default is 1
             How many sets of image pairs will be generated to average FSC.
         show_average : bool, default is True
             If true, subtomogram average will be shown after FSC calculation.
@@ -1375,7 +1383,7 @@ class SubtomogramAveraging(ChildWidget):
             Precision of frequency to calculate FSC. "0.02" means that FSC will be calculated
             at frequency 0.01, 0.03, 0.05, ..., 0.45.
         """
-        t0 = timer("calculate_fsc")
+        t0 = timer()
         layers = assert_list_of_layers(layers, self.parent_viewer)
         main = self._get_main()
         mole = _concat_molecules(layers)
@@ -1389,7 +1397,7 @@ class SubtomogramAveraging(ChildWidget):
             template=template if size is None else None,
             mask=mask,
             shape=None if size is None else (main.tomogram.nm2pixel(size),) * 3,
-        ).fsc_with_average(mask=mask, seed=seed, n_set=n_set, dfreq=dfreq)
+        ).fsc_with_average(mask=mask, seed=seed, n_set=n_pairs, dfreq=dfreq)
 
         if show_average:
             img_avg = ip.asarray(avg, axes="zyx").set_scale(zyx=loader.scale)
@@ -1403,11 +1411,12 @@ class SubtomogramAveraging(ChildWidget):
         crit_0143, crit_0500 = 0.143, 0.500
         res0143 = widget_utils.calc_resolution(freq, fsc_mean, crit_0143, loader.scale)
         res0500 = widget_utils.calc_resolution(freq, fsc_mean, crit_0500, loader.scale)
+        _name = _avg_name(layers)
+        result = widget_utils.FscResult(freq, fsc_mean, fsc_std, res0143, res0500)
         t0.toc()
 
         @thread_worker.callback
         def _calculate_fsc_on_return():
-            _name = _avg_name(layers)
             _Logger.print_html(f"<b>Fourier Shell Correlation of {_name!r}</b>")
             with _Logger.set_plt():
                 widget_utils.plot_fsc(
@@ -1426,9 +1435,7 @@ class SubtomogramAveraging(ChildWidget):
                     img_avg,
                     name=f"[AVG]{_name}",
                 )
-                _rec_layer.metadata["fsc"] = widget_utils.FscResult(
-                    freq, fsc_mean, fsc_std, res0143, res0500
-                )
+                _rec_layer.metadata["fsc"] = result
 
         return _calculate_fsc_on_return
 
@@ -1465,7 +1472,7 @@ class SubtomogramAveraging(ChildWidget):
         """
         from cylindra.widgets.subwidgets import PcaViewer
 
-        t0 = timer("classify_pca")
+        t0 = timer()
         layer = assert_layer(layer, self.parent_viewer)
         parent = self._get_main()
 
@@ -1540,7 +1547,7 @@ class SubtomogramAveraging(ChildWidget):
             If true, all the subtomogram averages will be shown.
         {cutoff}
         """
-        t0 = timer("seam_search")
+        t0 = timer()
         layer = assert_layer(layer, self.parent_viewer)
         loader, npf = self._seam_search_input(layer, npf, interpolation)
         template, mask = loader.normalize_input(
