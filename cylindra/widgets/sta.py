@@ -86,6 +86,24 @@ def _get_template_shape(self: "SubtomogramAveraging", size: nm) -> list[str]:
     return max(shape)
 
 
+def _validate_landscape_layer(self: "SubtomogramAveraging", layer) -> str:
+    if isinstance(layer, LandscapeSurface):
+        return layer.name
+    elif isinstance(layer, str):
+        if layer not in self.parent_viewer.layers:
+            raise ValueError(f"{layer!r} does not exist in the viewer.")
+        return layer
+    else:
+        raise TypeError(f"{layer!r} is not a valid landscape.")
+
+
+def _get_landscape_layers(self: "SubtomogramAveraging", *_) -> list[LandscapeSurface]:
+    viewer = self.parent_viewer
+    if viewer is None:
+        return []
+    return [l for l in viewer.layers if isinstance(l, LandscapeSurface)]
+
+
 _PathOrNone = str | Path | None
 _PathOrPathsOrNone = str | Path | list[str | Path] | None
 
@@ -127,6 +145,13 @@ _DistRangeLat = Annotated[
 ]
 _AngleMaxLon = Annotated[
     float, {"max": 90.0, "step": 0.5, "label": "Maximum angle (deg)"}
+]
+_LandscapeLayer = Annotated[
+    LandscapeSurface,
+    {
+        "choices": _get_landscape_layers,
+        "validator": _validate_landscape_layer,
+    },
 ]
 _RandomSeeds = Annotated[list[int], {"widget_type": RandomSeedEdit}]
 
@@ -236,7 +261,6 @@ class STAnalysis(MagicTemplate):
         seam_search_manually = abstractapi()
         save_seam_search_result = abstractapi()
 
-    construct_landscape = abstractapi()
     sep1 = field(Separator)
     save_last_average = abstractapi()
 
@@ -256,6 +280,14 @@ class Alignment(MagicTemplate):
         save_annealing_scores = abstractapi()
 
 
+@magicmenu
+class LandscapeMenu(MagicTemplate):
+    construct_landscape = abstractapi()
+    run_align_on_landscape = abstractapi()
+    run_viterbi_on_landscape = abstractapi()
+    run_annealing_on_landscape = abstractapi()
+
+
 @magicclass(record=False, properties={"margins": (0, 0, 0, 0)})
 class StaParameters(MagicTemplate):
     """
@@ -270,11 +302,13 @@ class StaParameters(MagicTemplate):
     """
 
     template_choice = vfield(TemplateChoice.from_file, label="Template")
-    avg_info = field("No image").with_options(visible=False, enabled=False)
-    template_path = field(Path.Read[FileFilter.IMAGE], widget_type=HistoryFileEdit)
-    template_paths = field(list[Path], widget_type=MultiFileEdit).with_options(
-        filter=FileFilter.IMAGE, visible=False
+    avg_info = field("No image", label="").with_options(visible=False, enabled=False)
+    template_path = field(
+        Path.Read[FileFilter.IMAGE], widget_type=HistoryFileEdit, label=""
     )
+    template_paths = field(
+        list[Path], widget_type=MultiFileEdit, label=""
+    ).with_options(filter=FileFilter.IMAGE, visible=False)
 
     mask_choice = vfield(MaskChoice.no_mask, label="Mask")
     params = field(MaskParameters, name="Parameters", label="")
@@ -290,6 +324,8 @@ class StaParameters(MagicTemplate):
         line = self.template_path
         for fp in _config.get_template_path_hist():
             line.append_history(str(fp))
+
+        self.min_width = 350
 
     @template_choice.connect
     def _on_template_switch(self):
@@ -354,16 +390,6 @@ class StaParameters(MagicTemplate):
                 raise ValueError(f"Unknown mask choice: {v!r}")
         return params
 
-    def _set_mask_params(self, params):
-        if params is None:
-            self.mask_choice = MaskChoice.no_mask
-        elif isinstance(params, (tuple, list, np.ndarray)):
-            self.mask_choice = MaskChoice.blur_template
-            self.params.dilate_radius, self.params.sigma = params
-        else:
-            self.mask_choice = MaskChoice.from_file
-            self.mask_path.mask_path = params
-
     _sentinel = object()
 
     def _get_mask(self, params: "str | tuple[nm, nm] | None" = _sentinel):
@@ -424,6 +450,7 @@ class SubtomogramAveraging(ChildWidget):
     AveragingMenu = field(Averaging, name="Averaging")
     STAnalysisMenu = field(STAnalysis, name="Analysis")
     AlignmentMenu = field(Alignment, name="Alignment")
+    LandscapeMenu = field(LandscapeMenu, name="Landscape")
     params = field(StaParameters)
 
     @property
@@ -499,11 +526,11 @@ class SubtomogramAveraging(ChildWidget):
             template = ip.asarray(template, axes="zyx")
         return template.set_scale(zyx=scale, unit="nm")
 
-    def _get_mask_image(self) -> ip.ImgArray:
+    def _get_mask_image(self, template_params) -> ip.ImgArray:
         loader = self._get_dummy_loader()
         _, mask = loader.normalize_input(
             self._norm_template_param(
-                self._template_params(), allow_none=True, allow_multiple=True
+                template_params, allow_none=True, allow_multiple=True
             ),
             self.params._get_mask(),
         )
@@ -534,14 +561,15 @@ class SubtomogramAveraging(ChildWidget):
         elif isinstance(_input, Path):
             self._show_rec(ip.imread(_input), name="Template image", store=False)
         else:
-            for fp in _input:
-                self._show_rec(ip.imread(fp), name="Template image", store=False)
+            for i, fp in enumerate(_input):
+                img = ip.imread(fp)
+                self._show_rec(img, name=f"Template image [{i}]", store=False)
 
     @set_design(icon="fluent:shape-organic-20-filled", location=STATools)
     @do_not_record
     def show_mask(self):
         """Load and show mask image in the scale of the tomogram."""
-        mask = self._get_mask_image()
+        mask = self._get_mask_image(self._template_params())
         self._show_rec(mask, name="Mask image", store=False)
 
     @property
@@ -555,9 +583,6 @@ class SubtomogramAveraging(ChildWidget):
             return tuple(np.array(tmp.sizesof("zyx")) * tmp.scale.x)
         else:
             return (default,) * 3
-
-    def _set_mask_params(self, params):
-        return self.params._set_mask_params(params)
 
     @thread_worker.callback
     def _show_rec(self, img: ip.ImgArray, name: str, store: bool = True):
@@ -897,8 +922,8 @@ class SubtomogramAveraging(ChildWidget):
             molecules=combiner.concat(layer.molecules for layer in layers),
             order=interpolation,
         )
-        template = self._norm_template_param(template_path, allow_multiple=True)
-        shared_kwargs = dict(
+        aligned_loader = loader.align(
+            template=self._norm_template_param(template_path, allow_multiple=True),
             mask=self.params._get_mask(params=mask_params),
             max_shifts=max_shifts,
             rotations=rotations,
@@ -906,16 +931,6 @@ class SubtomogramAveraging(ChildWidget):
             alignment_model=_get_alignment(method),
             tilt=main.tomogram.tilt_model,
         )
-        if isinstance(template_path, (str, Path)) or template_path is None:
-            aligned_loader = loader.align(
-                template=template,
-                **shared_kwargs,
-            )
-        else:
-            aligned_loader = loader.align_multi_templates(
-                templates=template,
-                **shared_kwargs,
-            )
         molecules = combiner.split(aligned_loader.molecules, layers)
         t0.toc()
         return self._align_all_on_return.with_args(molecules, layers)
@@ -943,7 +958,7 @@ class SubtomogramAveraging(ChildWidget):
         """
         t0 = timer("align_all_template_free")
         layers = assert_list_of_layers(layers, self.parent_viewer)
-        parent = self._get_main()
+        main = self._get_main()
         combiner = MoleculesCombiner()
         molecules = combiner.concat(layer.molecules for layer in layers)
         mask = self.params._get_mask(params=mask_params)
@@ -952,7 +967,7 @@ class SubtomogramAveraging(ChildWidget):
             raise NotImplementedError("'size' must be given.")
         else:
             shape = tuple(
-                parent.tomogram.nm2pixel(self._get_shape_in_nm(size), binsize=bin_size)
+                main.tomogram.nm2pixel(self._get_shape_in_nm(size), binsize=bin_size)
             )
 
         aligned_loader = (
@@ -964,7 +979,7 @@ class SubtomogramAveraging(ChildWidget):
                 rotations=rotations,
                 cutoff=cutoff,
                 alignment_model=_get_alignment(method),
-                tilt=parent.tomogram.tilt_model,
+                tilt=main.tomogram.tilt_model,
             )
         )
         molecules = combiner.split(aligned_loader.molecules, layers)
@@ -985,7 +1000,7 @@ class SubtomogramAveraging(ChildWidget):
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         range_long: _DistRangeLon = (4.0, 4.28),
-        angle_max: Optional[float] = 5.0,
+        angle_max: _AngleMaxLon = 5.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
     ):  # fmt: skip
         """
@@ -1000,9 +1015,7 @@ class SubtomogramAveraging(ChildWidget):
         Parameters
         ----------
         {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}
-        range_long : tuple of float
-            Range of allowed distance between monomers.
-        {angle_max}{upsample_factor}
+        {range_long}{angle_max}{upsample_factor}
         """
         t0 = timer("align_all_viterbi")
         layer = assert_layer(layer, self.parent_viewer)
@@ -1018,14 +1031,14 @@ class SubtomogramAveraging(ChildWidget):
         )
 
         yield
-        out = self._run_viterbi_on_landscape(
-            layer,
+        mole = self._run_viterbi_on_landscape(
             landscape=landscape,
+            spl=layer.source_spline,
             range_long=range_long,
             angle_max=angle_max,
         )
         t0.toc()
-        return out
+        return self._align_all_on_return.with_args([mole], [layer])
 
     @set_design(text="Simulated annealing", location=Alignment.Constrained)
     @dask_worker.with_progress(descs=_pdesc.align_annealing_fmt)
@@ -1055,14 +1068,13 @@ class SubtomogramAveraging(ChildWidget):
         Parameters
         ----------
         {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}
-        range_long : tuple of float
-            Range of allowed distance between longitudianlly consecutive monomers.
-        range_lat : tuple of float
-            Range of allowed distance between laterally consecutive monomers.
-        {angle_max}{temperature_time_const}{upsample_factor}{random_seeds}
+        {range_long}{range_lat}{angle_max}{temperature_time_const}{upsample_factor}{random_seeds}
         """
         t0 = timer("align_all_annealing")
         layer = assert_layer(layer, self.parent_viewer)
+        if layer.source_spline is None:
+            raise ValueError("RMA requires a spline.")
+        main = self._get_main()
         landscape = self._construct_landscape(
             layer=layer,
             template_path=template_path,
@@ -1074,9 +1086,9 @@ class SubtomogramAveraging(ChildWidget):
             upsample_factor=upsample_factor,
         )
         yield
-        out = self._run_annealing_on_landscape(
-            layer,
-            landscape=landscape,
+        mole, results = self._run_annealing_on_landscape(
+            landscape,
+            layer.source_spline,
             range_long=range_long,
             range_lat=range_lat,
             angle_max=angle_max,
@@ -1084,9 +1096,24 @@ class SubtomogramAveraging(ChildWidget):
             random_seeds=random_seeds,
         )
         t0.toc()
-        return out
 
-    @set_design(text=capitalize, location=STAnalysis)
+        @thread_worker.callback
+        def _on_return():
+            points = main.add_molecules(
+                mole,
+                name=_coerce_aligned_name(layer.name, self.parent_viewer),
+                source=layer.source_component,
+                metadata={ANNEALING_RESULT: results[0]},
+            )
+            layer.visible = False
+            with _Logger.set_plt():
+                _annealing.plot_annealing_result(results)
+
+            return self._undo_for_new_layer([layer.name], [points])
+
+        return _on_return
+
+    @set_design(text=capitalize, location=LandscapeMenu)
     @dask_worker.with_progress(descs=_pdesc.construct_landscape_fmt)
     def construct_landscape(
         self,
@@ -1104,41 +1131,120 @@ class SubtomogramAveraging(ChildWidget):
 
         Parameters
         ----------
-        layer : MoleculesLayer
-            Layer to construct the landscape.
-        template_path : template input type
-            Template(s) used for landscape construction.
-        mask_params : make input type
-            Parameters used to create a mask.
-        max_shifts : (float, float, float), default is (0.8, 0.8, 0.8)
-            Maximum shift in nm.
-        rotations : _Rotations, optional
-            Rotation ranges of the template in degrees.
-        cutoff : float, default is 0.5
-            Cutoff frequency of low-pass filter.
-        interpolation : int, default is 3
-            Interpolation order.
-        upsample_factor : int, default is 5
-            Upsampling factor of the landscape.
+        {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}
+        {interpolation}{upsample_factor}
         """
         layer = assert_layer(layer, self.parent_viewer)
-        lnd = self._construct_landscape(
-            layer,
-            template_path,
-            mask_params,
-            max_shifts,
-            rotations,
-            cutoff,
-            interpolation,
-            upsample_factor,
+        kwargs = dict(
+            template_path=template_path,
+            mask_params=mask_params,
+            max_shifts=max_shifts,
+            rotations=rotations,
+            cutoff=cutoff,
+            interpolation=interpolation,
+            upsample_factor=upsample_factor,
         )
-        layer = LandscapeSurface(lnd, name=f"[Landscape]{layer.name}")
+        lnd = self._construct_landscape(layer, **kwargs)
+        surf = LandscapeSurface(lnd, name=f"[Landscape]{layer.name}")
+        surf.source_component = layer.source_component
 
         @thread_worker.callback
         def _on_return():
-            return self.parent_viewer.add_layer(layer)
+            return self.parent_viewer.add_layer(surf)
 
         return _on_return
+
+    @set_design(text="Run alignment on landscape", location=LandscapeMenu)
+    def run_align_on_landscape(self, landscape_layer: _LandscapeLayer):
+        """Find the optimal displacement for each molecule on the landscape."""
+        landscape_layer = _assert_landscape_layer(landscape_layer, self.parent_viewer)
+        landscape = landscape_layer.landscape
+        mole = landscape.molecules
+        spl = landscape_layer.source_spline
+        result = landscape.run_min_energy()
+        molecules_opt = landscape.transform_molecules(mole, result.indices)
+        if spl is not None:
+            molecules_opt = _update_mole_pos(molecules_opt, mole, spl)
+        return self._align_on_landscape_on_return.with_args(
+            mole,
+            landscape_layer.name,
+            spl,
+        )
+
+    @set_design(text="Run Viterbi alignment on landscape", location=LandscapeMenu)
+    @dask_worker.with_progress(desc="Running Viterbi alignment")
+    def run_viterbi_on_landscape(
+        self,
+        landscape_layer: _LandscapeLayer,
+        range_long: _DistRangeLon = (4.0, 4.28),
+        angle_max: _AngleMaxLon = 5.0,
+    ):
+        """
+        Run Viterbi alignment on the landscape.
+
+        Parameters
+        ----------
+        {landscape_layer}{range_long}{angle_max}
+        """
+        t0 = timer()
+        landscape_layer = _assert_landscape_layer(landscape_layer, self.parent_viewer)
+        spl = landscape_layer.source_spline
+        mole = self._run_viterbi_on_landscape(
+            landscape_layer.landscape,
+            spl=spl,
+            range_long=range_long,
+            angle_max=angle_max,
+        )
+        t0.toc()
+        return self._align_on_landscape_on_return.with_args(
+            mole, landscape_layer.name, spl
+        )
+
+    @set_design(text="Run annealing on landscape", location=LandscapeMenu)
+    @dask_worker.with_progress(desc="Running simulated annealing")
+    def run_annealing_on_landscape(
+        self,
+        landscape_layer: _LandscapeLayer,
+        range_long: _DistRangeLon = (4.0, 4.28),
+        range_lat: _DistRangeLat = (5.1, 5.3),
+        angle_max: _AngleMaxLon = 5.0,
+        temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
+        random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
+    ):
+        """
+        Run simulated annealing on the landscape.
+
+        Parameters
+        ----------
+        {landscape_layer}{range_long}{range_lat}{angle_max}{temperature_time_const}{random_seeds}
+        """
+        t0 = timer()
+        landscape_layer = _assert_landscape_layer(landscape_layer, self.parent_viewer)
+        spl = landscape_layer.source_spline
+        if spl is None:
+            raise ValueError("RMA requires a spline.")
+        mole, results = self._run_annealing_on_landscape(
+            landscape_layer.landscape,
+            range_long=range_long,
+            range_lat=range_lat,
+            angle_max=angle_max,
+            temperature_time_const=temperature_time_const,
+            random_seeds=random_seeds,
+        )
+        t0.toc()
+
+        @thread_worker.callback
+        def _plot_result():
+            with _Logger.set_plt():
+                _annealing.plot_annealing_result(results)
+
+        yield _plot_result
+        return self._align_on_landscape_on_return.with_args(
+            mole,
+            landscape_layer.name,
+            source=spl,
+            metadata={ANNEALING_RESULT: results[0]},
+        )
 
     def _get_layers_with_annealing_result(self, *_) -> list[MoleculesLayer]:
         if self.parent_viewer is None:
@@ -1601,10 +1707,10 @@ class SubtomogramAveraging(ChildWidget):
         self, molecules: list[Molecules], old_layers: list[MoleculesLayer]
     ):
         """The return callback function for alignment methods."""
-        parent = self._get_main()
+        main = self._get_main()
         new_layers = []
         for mole, layer in zip(molecules, old_layers, strict=True):
-            points = parent.add_molecules(
+            points = main.add_molecules(
                 mole,
                 name=_coerce_aligned_name(layer.name, self.parent_viewer),
                 source=layer.source_component,
@@ -1613,6 +1719,28 @@ class SubtomogramAveraging(ChildWidget):
             layer.visible = False
             _Logger.print_html(f"{layer.name!r} &#8594; {points.name!r}")
         return self._undo_for_new_layer([l.name for l in old_layers], new_layers)
+
+    @thread_worker.callback
+    def _align_on_landscape_on_return(
+        self,
+        mole: Molecules,
+        name: str,
+        source=None,
+        metadata: dict[str, Any] = {},
+    ):
+        main = self._get_main()
+        if name.startswith("[Landscape]"):
+            mole_name = name[11:].strip()
+        else:
+            mole_name = name
+        points = main.add_molecules(
+            mole,
+            name=_coerce_aligned_name(mole_name, self.parent_viewer),
+            source=source,
+            metadata=metadata,
+        )
+        _Logger.print_html(f"{name!r} &#8594; {points.name!r}")
+        return mole
 
     def _undo_for_new_layer(
         self,
@@ -1674,16 +1802,15 @@ class SubtomogramAveraging(ChildWidget):
 
     def _run_viterbi_on_landscape(
         self,
-        layer: MoleculesLayer,
         landscape: Landscape,
+        spl: "CylSpline | None",
         range_long: tuple[nm, nm] = (4.0, 4.28),
         angle_max: "float | None" = 5.0,
     ):
         from cylindra._dask import delayed, compute
 
-        mole = layer.molecules
+        mole = landscape.molecules
         npfs: Sequence[int] = mole.features[Mole.pf].unique(maintain_order=True)
-
         slices = [(mole.features[Mole.pf] == i).to_numpy() for i in npfs]
         viterbi_tasks = [
             delayed(landscape[sl].run_viterbi)(range_long, angle_max) for sl in slices
@@ -1695,23 +1822,23 @@ class SubtomogramAveraging(ChildWidget):
         for i, result in enumerate(vit_out):
             inds[slices[i], :] = _check_viterbi_shift(result.indices, max_shifts_px, i)
         molecules_opt = landscape.transform_molecules(mole, inds)
-        if spl := layer.source_spline:
+        if spl is not None:
             molecules_opt = _update_mole_pos(molecules_opt, mole, spl)
-        return self._align_all_on_return.with_args([molecules_opt], [layer])
+        return molecules_opt
 
     def _run_annealing_on_landscape(
         self,
-        layer: MoleculesLayer,
         landscape: Landscape,
+        spl: "CylSpline",
         range_long: tuple[float, float],
         range_lat: tuple[float, float],
         angle_max: float,
         temperature_time_const: float = 1.0,
         random_seeds: Iterable[int] = range(5),
     ):
-        main = self._get_main()
+        mole = landscape.molecules
         results = landscape.run_annealing(
-            layer.source_spline,
+            spl,
             range_long,
             range_lat,
             angle_max,
@@ -1733,27 +1860,9 @@ class SubtomogramAveraging(ChildWidget):
             }
         )
         results = sorted(results, key=lambda r: r.energies[-1])
-
-        @thread_worker.callback
-        def _on_return():
-            mole_opt = landscape.transform_molecules(
-                layer.molecules, results[0].indices
-            )
-            if spl := layer.source_spline:
-                mole_opt = _update_mole_pos(mole_opt, layer.molecules, spl)
-            points = main.add_molecules(
-                mole_opt,
-                name=_coerce_aligned_name(layer.name, self.parent_viewer),
-                source=layer.source_component,
-                metadata={ANNEALING_RESULT: results[0]},
-            )
-            layer.visible = False
-            with _Logger.set_plt():
-                _annealing.plot_annealing_result(results)
-
-            return self._undo_for_new_layer([layer.name], [points])
-
-        return _on_return
+        mole_opt = landscape.transform_molecules(mole, results[0].indices)
+        mole_opt = _update_mole_pos(mole_opt, mole, spl)
+        return mole_opt, results
 
 
 def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
@@ -1802,6 +1911,15 @@ def _get_slice_for_average_subset(method: str, nmole: int, number: int):
         case _:  # pragma: no cover
             raise ValueError(f"method {method!r} not supported.")
     return sl
+
+
+def _assert_landscape_layer(layer, viewer: napari.Viewer) -> LandscapeSurface:
+    if isinstance(layer, str):
+        layer = viewer.layers[layer]
+    if isinstance(layer, LandscapeSurface):
+        return layer
+    else:
+        raise TypeError(f"Layer {layer.name!r} is not a landscape layer.")
 
 
 def _default_align_averaged_shifts(mole: Molecules) -> "NDArray[np.floating]":

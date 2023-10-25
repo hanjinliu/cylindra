@@ -192,10 +192,24 @@ class Landscape:
             pl.Series(Mole.score, opt_score),
         )
 
+    def run_min_energy(self):
+        shape = self.energies.shape[1:]
+        indices = list[NDArray[np.int32]]()
+        engs = list[float]()
+        for i in range(self.energies.shape[0]):
+            eng = self.energies[i]
+            pos = np.unravel_index(np.argmin(eng), shape)
+            indices.append(np.array(pos, dtype=np.int32))
+            engs.append(eng[pos])
+        indices = np.stack(indices, axis=0)
+        engs = np.array(engs, dtype=np.float32)
+        return MinEnergyResult(indices, engs)
+
     def run_viterbi(self, dist_range: tuple[nm, nm], angle_max: float | None = None):
         """Run Viterbi alignment."""
         from cylindra._cylindra_ext import ViterbiGrid
 
+        dist_min, dist_max = dist_range
         if angle_max is not None:
             angle_max = np.deg2rad(angle_max)
         mole = self.molecules.translate_internal(-self.offset_nm)
@@ -204,7 +218,7 @@ class Landscape:
         yvec = mole.y.astype(np.float32)
         xvec = mole.x.astype(np.float32)
         grid = ViterbiGrid(-self.energies, origin, zvec, yvec, xvec)
-        _dist_range = [d / self.scale_factor for d in dist_range]
+        _dist_range = (dist_min / self.scale_factor, dist_max / self.scale_factor)
         result = grid.viterbi(*_dist_range, angle_max)
         return ViterbiResult(result[0], result[1])
 
@@ -419,6 +433,12 @@ def delayed_isosurface(
         faces = np.zeros((0, 3), dtype=np.int32)
         vals = np.zeros((0,), dtype=np.float32)
     return SurfaceData(verts, faces, vals)
+
+
+@dataclass
+class MinEnergyResult:
+    indices: NDArray[np.int32]
+    energies: NDArray[np.float32]
 
 
 @dataclass

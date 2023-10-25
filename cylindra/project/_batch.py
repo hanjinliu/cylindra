@@ -47,17 +47,12 @@ class CylindraBatchProject(BaseProject):
     version: str
     dependency_versions: dict[str, str]
     loaders: list[LoaderInfoModel]
-    template_image: PathLike | None
-    mask_parameters: None | tuple[float, float] | PathLike
     project_path: Path | None = None
 
     def resolve_path(self, file_dir: PathLike):
         """Resolve the path of the project."""
         file_dir = Path(file_dir)
         self.loaders = [ldr.resolve_path(file_dir) for ldr in self.loaders]
-        self.template_image = resolve_path(self.template_image, file_dir)
-        if isinstance(self.mask_parameters, (Path, str)):
-            self.mask_parameters = resolve_path(self.mask_parameters, file_dir)
         return self
 
     @property
@@ -106,8 +101,6 @@ class CylindraBatchProject(BaseProject):
             version=next(iter(_versions.values())),
             dependency_versions=_versions,
             loaders=loaders,
-            template_image=gui.sta.params.template_path.value,
-            mask_parameters=gui.sta.params._get_mask_params(),
             project_path=project_dir,
         )
 
@@ -155,9 +148,5 @@ class CylindraBatchProject(BaseProject):
         txt = self.project_path.joinpath("script.py").read_text()
         macro = mk.parse(txt)
         gui.macro.extend(macro.args)
-
-        # load subtomogram analyzer state
-        gui.sta.params.template_path.value = self.template_image or ""
-        gui.sta.params._set_mask_params(self.mask_parameters)
         gui.reset_choices()
         return None

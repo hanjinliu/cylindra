@@ -56,8 +56,6 @@ class CylindraProject(BaseProject):
     scale: float
     multiscales: list[int]
     molecules_info: list[MoleculesInfo]
-    template_image: PathLike | None
-    mask_parameters: None | tuple[float, float] | PathLike
     missing_wedge: MissingWedge = MissingWedge(params={}, kind="none")
     project_path: Path | None = None
     project_description: str = ""
@@ -66,9 +64,6 @@ class CylindraProject(BaseProject):
         """Resolve the path of the project."""
         file_dir = Path(file_dir)
         self.image = resolve_path(self.image, file_dir)
-        self.template_image = resolve_path(self.template_image, file_dir, default=None)
-        if isinstance(self.mask_parameters, (Path, str)):
-            self.mask_parameters = resolve_path(self.mask_parameters, file_dir)
         return self
 
     @classmethod
@@ -127,8 +122,6 @@ class CylindraProject(BaseProject):
             scale=tomo.scale,
             multiscales=[x[0] for x in tomo.multiscaled],
             molecules_info=mole_infos,
-            template_image=as_relative(gui.sta.params.template_path.value),
-            mask_parameters=gui.sta.params._get_mask_params(),
             missing_wedge=MissingWedge.parse(tomo.tilt_range),
             project_path=project_dir,
         )
@@ -219,8 +212,6 @@ class CylindraProject(BaseProject):
             gui.macro.extend(macro_expr)
 
             # load subtomogram analyzer state
-            gui.sta.params.template_path.value = self.template_image or ""
-            gui.sta._set_mask_params(self.mask_parameters)
             gui.reset_choices()
             gui._need_save = False
 

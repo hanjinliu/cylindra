@@ -28,6 +28,7 @@ class Parameter(NamedTuple):
 _PARAMETERS = [
     Parameter(name="layer", type="MoleculesLayer", desc="Points layer of molecules to be used."),
     Parameter(name="layers", type="list of MoleculesLayer", desc="All the points layers of molecules to be used."),
+    Parameter(name="landscape_layer", type="LandscapeSurface", desc="Landscape layer to be used in this algorithm."),
     Parameter(name="template_path", type="Path or str", desc="Path to template image."),
     Parameter(name="mask_params", type="str or (float, float), optional", desc="Mask image path or dilation/Gaussian blur parameters.\nIf a path is given, image must in the same shape as the template."),
     Parameter(name="tilt_range", type="(float, float), optional", desc="Tilt range of tomogram tilt series in degree."),
@@ -52,6 +53,8 @@ _PARAMETERS = [
     Parameter(name="cmap", type="colormap", desc="Colormap to be used for painting."),
     Parameter(name="limits", type="(float, float)", desc="Lower and upper limits of the colormap."),
     Parameter(name="upsample_factor", type="int", desc="Upsampling factor of ZNCC landscape. Be careful not to set this parameter too large. \nCalculation will take much longer for larger ``upsample_factor``."),
+    Parameter(name="range_long", type="(float, float)", desc="Minimum and maximum allowed distances between longitudinally consecutive monomers"),
+    Parameter(name="range_lat", type="(float, float)", desc="Minimum and maximum allowed distances between laterally consecutive monomers"),
     Parameter(name="angle_max", type="float", desc="Maximum allowed angle between longitudinally consecutive monomers and the Y axis."),
     Parameter(name="temperature_time_const", type="float", desc="Time constant of the temperature decay during annealing. Larger value results in slower annealing. 1.0 is a moderate value."),
     Parameter(name="random_seeds", type="iterable of int", desc="Random seed integers. Number of integers will be the number of trials."),

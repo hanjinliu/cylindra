@@ -118,7 +118,39 @@ class _FeatureBoundLayer:
         return out
 
 
-class MoleculesLayer(_FeatureBoundLayer, Points):
+class _SourceBoundLayer:
+    _source_component: weakref.ReferenceType[BaseComponent] | None = None
+
+    @property
+    def source_component(self) -> BaseComponent | None:
+        """The source tomographic component object."""
+        if self._source_component is None:
+            return None
+        return self._source_component()
+
+    @source_component.setter
+    def source_component(self, obj: BaseComponent | None):
+        from cylindra.components._base import BaseComponent
+
+        if obj is None:
+            self._source_component = None
+        elif not isinstance(obj, BaseComponent):
+            raise TypeError("Must be a CylSpline object")
+        else:
+            self._source_component = weakref.ref(obj)
+
+    @property
+    def source_spline(self) -> CylSpline | None:
+        """The source component but limited to splines."""
+        from cylindra.components import CylSpline
+
+        src = self.source_component
+        if not isinstance(src, CylSpline):
+            return None
+        return src
+
+
+class MoleculesLayer(_FeatureBoundLayer, Points, _SourceBoundLayer):
     """
     An extended version of napari Points layers.
 
@@ -208,34 +240,6 @@ class MoleculesLayer(_FeatureBoundLayer, Points):
     def _rename(self, name: str):
         with self._undo_context():
             self.name = name
-
-    @property
-    def source_component(self) -> BaseComponent | None:
-        """The source tomographic component object."""
-        if self._source_component is None:
-            return None
-        return self._source_component()
-
-    @source_component.setter
-    def source_component(self, obj: BaseComponent | None):
-        from cylindra.components._base import BaseComponent
-
-        if obj is None:
-            self._source_component = None
-        elif not isinstance(obj, BaseComponent):
-            raise TypeError("Must be a CylSpline object")
-        else:
-            self._source_component = weakref.ref(obj)
-
-    @property
-    def source_spline(self) -> CylSpline | None:
-        """The source component but limited to splines."""
-        from cylindra.components import CylSpline
-
-        src = self.source_component
-        if not isinstance(src, CylSpline):
-            return None
-        return src
 
     @property
     def colormap_info(self) -> ColormapInfo | str:
@@ -386,7 +390,7 @@ class CylinderLabels(_FeatureBoundLayer, Labels):
         return self._colormap_info
 
 
-class LandscapeSurface(Surface):
+class LandscapeSurface(Surface, _SourceBoundLayer):
     """Surface layer for an energy landscape."""
 
     _type_string = "surface"
@@ -404,6 +408,7 @@ class LandscapeSurface(Surface):
         self._energy_level = level
         self._landscape = landscape
         self._resolution = 0.25
+        self._source_component: weakref.ReferenceType[BaseComponent] | None = None
 
     @property
     def landscape(self):
