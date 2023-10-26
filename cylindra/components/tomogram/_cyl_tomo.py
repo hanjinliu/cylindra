@@ -32,13 +32,11 @@ from cylindra.components._ftprops import LatticeParams, LatticeAnalyzer, get_pol
 from cylindra.const import nm, PropertyNames as H, Ori, Mode, ExtrapolationMode
 from cylindra.utils import (
     crop_tomograms,
-    centroid,
     map_coordinates_task,
     rotated_auto_zncc,
     roundint,
     set_gpu,
     angle_corr,
-    ceilint,
 )
 
 from ._tomo_base import Tomogram
@@ -1421,22 +1419,6 @@ def _get_radial_prof(
         da.from_delayed(task, shape=coords.shape[1:], dtype=np.float32), axis=(1, 2)
     )
     return prof
-
-
-def _centroid_recursive(prof: NDArray[np.float32], inner: float, outer: float) -> float:
-    imax = np.nanargmax(prof)
-    imax_sub = -1.0
-    count = 0
-    while abs(imax - imax_sub) > 1e-2:
-        if imax_sub > 0:
-            imax = imax_sub
-        imax_sub = centroid(prof, ceilint(imax - inner), int(imax + outer) + 1)
-        count += 1
-        if count > 100:
-            break
-        if imax_sub != imax_sub:
-            raise ValueError(f"Centroid encountered NaN in the {count}-th trial.")
-    return imax_sub
 
 
 def _get_radius_offset(min_radius_px, max_radius_px) -> nm:

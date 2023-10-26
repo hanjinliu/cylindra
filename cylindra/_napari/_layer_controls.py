@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from enum import Enum
 from contextlib import contextmanager
-from qtpy import QtCore
+from qtpy import QtCore, QtWidgets as QtW
 from qtpy.QtCore import Qt
 from superqt import QEnumComboBox, QLabeledDoubleSlider
 from napari._qt.layer_controls.qt_surface_controls import QtSurfaceControls
@@ -74,6 +74,7 @@ class QtMoleculesControls(QtPointsControls):
     def _on_face_color_change(self, value):
         with qt_signals_blocked(self.faceColorEdit):
             self.layer.face_color = value
+            self.layer._update_thumbnail()
 
     def _change_dim(self, value: ViewDimension):
         self.layer.view_ndim = value.value
@@ -95,14 +96,30 @@ class QtLandscapeSurfaceControls(QtSurfaceControls):
         self.layout().addRow("level:", self.levelSlider)
         self.levelSlider.sliderReleased.connect(self._change_level)
         self.levelSlider.setToolTip("Threshold level for surface rendering")
-        self.layer.events.level.connect(self._on_level_change)
+        layer.events.level.connect(self._on_level_change)
+
+        self.resolution = QtW.QDoubleSpinBox()
+        self.layout().addRow("resolution:", self.resolution)
+        self.resolution.setRange(0.1, 10)
+        self.resolution.setSingleStep(0.05)
+        self.resolution.setToolTip("Resolution of the surface")
+        self.resolution.setValue(layer.resolution)
+        self.resolution.valueChanged.connect(self._change_resolution)
+        layer.events.resolution.connect(self._on_resolution_change)
 
     def _on_level_change(self, event):
         with qt_signals_blocked(self.levelSlider):
             self.levelSlider.setValue(event.value)
 
+    def _on_resolution_change(self, event):
+        with qt_signals_blocked(self.resolution):
+            self.resolution.setValue(event.value)
+
     def _change_level(self):
         self.layer.level = self.levelSlider.value()
+
+    def _change_resolution(self):
+        self.layer.resolution = self.resolution.value()
 
 
 def install_custom_layers():

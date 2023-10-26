@@ -173,19 +173,23 @@ def find_peak(
 ) -> NDPeak:
     """Iteratively sample sub-meshes to find the peak of 3D array."""
     if index is None:
-        index = np.argmax(arr, keepdims=True)
+        index = np.unravel_index(np.argmax(arr), arr.shape)
     argmax = index
-    value = 0.0
-    arr_filt = ndi.spline_filter(arr, output=np.float32, mode="reflect")
-    for _ in range(nrepeat):
-        argmax, value = _find_peak_once(arr_filt, argmax, dx=dx, n=n)
-        dx /= n
+    if nrepeat > 0:
+        value = 0.0
+        arr_filt = ndi.spline_filter(arr, output=np.float32, mode="reflect")
+        for _ in range(nrepeat):
+            argmax, value = _find_peak_once(arr_filt, argmax, arr.shape, dx=dx, n=n)
+            dx /= n
+    else:
+        value = arr[tuple(argmax)]
     return NDPeak(tuple(argmax), value)
 
 
 def _find_peak_once(
     arr: NDArray[np.float32],
     index: NDArray[np.float32],
+    shape: tuple[int, ...],
     dx: float = 1.0,
     n: int = 11,
 ):
@@ -209,4 +213,7 @@ def _find_peak_once(
     value = mapped[argmax]
     center = (np.array(mapped.shape) - 1) / 2
     argmax_centered = np.array(argmax, dtype=np.float32) - center
-    return argmax_centered * 2 * dx / (n - 1) + index, value
+    peak = argmax_centered * 2 * dx / (n - 1) + index
+    peak = np.minimum(peak, np.array(shape) - 1)
+    peak = np.maximum(peak, 0.0)
+    return peak, value

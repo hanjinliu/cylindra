@@ -1162,6 +1162,7 @@ class SubtomogramAveraging(ChildWidget):
         return _on_return
 
     @set_design(text="Run alignment on landscape", location=LandscapeMenu)
+    @dask_worker.with_progress(desc="Peak detection on landscape")
     def run_align_on_landscape(self, landscape_layer: _LandscapeLayer):
         """Find the optimal displacement for each molecule on the landscape."""
         landscape_layer = _assert_landscape_layer(landscape_layer, self.parent_viewer)
@@ -1169,10 +1170,12 @@ class SubtomogramAveraging(ChildWidget):
         mole = landscape.molecules
         spl = landscape_layer.source_spline
         result = landscape.run_min_energy()
-        mole_opt = landscape.transform_molecules(mole, result.indices)
+        mole_opt = landscape.transform_molecules(mole, result.indices, detect_peak=True)
         if spl is not None:
             mole_opt = _update_mole_pos(mole_opt, mole, spl)
-        return self._align_on_landscape_on_return(mole_opt, landscape_layer.name, spl)
+        return self._align_on_landscape_on_return.with_args(
+            mole_opt, landscape_layer.name, spl
+        )
 
     @set_design(text="Run Viterbi alignment on landscape", location=LandscapeMenu)
     @dask_worker.with_progress(desc="Running Viterbi alignment")

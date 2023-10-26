@@ -11,6 +11,7 @@ from acryo import Molecules
 from napari.layers import Points, Labels, Surface
 from napari.utils.status_messages import generate_layer_coords_status
 from napari.utils.events import Event
+from napari.utils import Colormap
 
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.utils import str_color, assert_column_exists
@@ -19,7 +20,6 @@ from cylindra._config import get_config
 if TYPE_CHECKING:
     from cylindra.components import BaseComponent, CylSpline
     from cylindra.components.landscape import Landscape
-    from napari.utils import Colormap
 
 
 class ColormapInfo(NamedTuple):
@@ -396,19 +396,25 @@ class LandscapeSurface(Surface, _SourceBoundLayer):
     _type_string = "surface"
 
     def __init__(self, landscape: Landscape, **kwargs):
-        kwargs.setdefault("colormap", "inferno")
-        kwargs.setdefault("opacity", 0.6)
         kwargs.setdefault("blending", "translucent_no_depth")
+        kwargs.setdefault(
+            "wireframe", {"visible": True, "color": "crimson", "width": 0.7}
+        )
+        kwargs.setdefault(
+            "colormap",
+            Colormap([[0, 0, 0, 0], [0, 0, 0, 0]], controls=[0, 1], name="invisible"),
+        )
         self._level_min = landscape.energies.min()
         self._level_max = landscape.energies.max()
         level = (self._level_max + self._level_min) / 2
         data = landscape.create_surface(level=level, resolution=0.25)
         super().__init__(data, **kwargs)
-        self.events.add(level=Event)
-        self._energy_level = level
+        self.events.add(level=Event, resolution=Event)
         self._landscape = landscape
         self._resolution = 0.25
         self._source_component: weakref.ReferenceType[BaseComponent] | None = None
+        self._energy_level = level
+        self.events.level(value=level)
 
     @property
     def landscape(self):
@@ -433,18 +439,21 @@ class LandscapeSurface(Surface, _SourceBoundLayer):
         self.events.level(value=level)
         self.refresh()
 
-    def create_slider(self):
-        """Create a slider widget for the energy level."""
-        from magicgui.widgets import FloatSlider
+    @property
+    def resolution(self) -> float:
+        """The resolution of the surface."""
+        return self._resolution
 
-        sl = FloatSlider(
-            min=self._level_min,
-            max=self._level_max,
-            value=self._energy_level,
-            tracking=False,
+    @resolution.setter
+    def resolution(self, res: float):
+        if res <= 0:
+            raise ValueError("resolution must be positive")
+        self.data = self._landscape.create_surface(
+            level=self._energy_level, resolution=res
         )
-        sl.changed.connect_setattr(self, "level")
-        return sl
+        self._resolution = res
+        self.events.resolution(value=res)
+        self.refresh()
 
 
 def _normalize_colormap(cmap) -> Colormap:

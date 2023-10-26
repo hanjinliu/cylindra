@@ -145,6 +145,7 @@ class Landscape:
         self,
         molecules: Molecules,
         indices: NDArray[np.int32],
+        detect_peak: bool = False,
     ) -> Molecules:
         """
         Transform the input molecules based on the landscape.
@@ -165,9 +166,10 @@ class Landscape:
         indices_sub = indices.astype(np.float32)
         nmole = self.energies.shape[0]
         opt_energy = np.zeros(nmole, dtype=np.float32)
+        nrepeat = 3 if detect_peak else 0
         for i in range(nmole):
             eng = self.energies[i]
-            indices_sub[i], opt_energy[i] = find_peak(eng, indices_sub[i])
+            indices_sub[i], opt_energy[i] = find_peak(eng, indices[i], nrepeat=nrepeat)
         opt_score = -opt_energy
         shifts = ((indices_sub - offset) * self.scale_factor).astype(np.float32)
         molecules_opt = molecules.translate_internal(shifts)
@@ -379,23 +381,28 @@ class Landscape:
         self,
         level: float | None = None,
         resolution: nm = 0.25,
+        show_min: bool = True,
     ) -> SurfaceData:
-        neg_energy = -self.energies
+        """Create a isosurface data from the landscape"""
         if level is None:
-            level = neg_energy.mean()
-        else:
+            level = self.energies.mean()
+        if show_min:
+            intensity = -self.energies
             level = -level
+        else:
+            intensity = self.energies
+
         step_size = max(int(resolution / self.scale_factor), 1)
         spacing = (self.scale_factor,) * 3
-        center = np.array(neg_energy.shape[1:]) / 2 + 0.5
+        center = np.array(intensity.shape[1:]) / 2 + 0.5
         offset = center * spacing
         n_verts = 0
         tasks = list[Delayed[SurfaceData]]()
-        for i in range(neg_energy.shape[0]):
-            arr: NDArray[np.float32] = neg_energy[i]
+        for i in range(intensity.shape[0]):
+            arr: NDArray[np.float32] = intensity[i]
             tasks.append(delayed_isosurface(arr, level, spacing, step_size=step_size))
         surfs = compute(*tasks)
-        for i in range(neg_energy.shape[0]):
+        for i in range(intensity.shape[0]):
             mole = self.molecules[i]
             surf = surfs[i]
             surf = SurfaceData(
