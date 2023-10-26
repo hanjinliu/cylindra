@@ -466,7 +466,7 @@ class SubtomogramAveraging(ChildWidget):
 
     def _norm_template_param(
         self,
-        path: Path | list[Path] | None = None,
+        path: _PathOrPathsOrNone = None,
         allow_none: bool = False,
         allow_multiple: bool = False,
     ) -> pipe.ImageProvider:
@@ -478,7 +478,8 @@ class SubtomogramAveraging(ChildWidget):
             return pipe.from_array(
                 StaParameters._last_average, StaParameters._last_average.scale.x
             )
-        elif isinstance(path, Path):
+        elif isinstance(path, (str, Path)):
+            path = Path(path)
             self.params._save_history()
             if path.is_dir():
                 if allow_none:
@@ -487,7 +488,7 @@ class SubtomogramAveraging(ChildWidget):
             return pipe.from_file(path)
         else:
             if not allow_multiple:
-                raise ValueError("Cannot provide multiple template images.")
+                raise ValueError(f"Cannot provide multiple template images: {path}.")
             return pipe.from_files(path)
 
     def _get_template_input(
@@ -1168,14 +1169,10 @@ class SubtomogramAveraging(ChildWidget):
         mole = landscape.molecules
         spl = landscape_layer.source_spline
         result = landscape.run_min_energy()
-        molecules_opt = landscape.transform_molecules(mole, result.indices)
+        mole_opt = landscape.transform_molecules(mole, result.indices)
         if spl is not None:
-            molecules_opt = _update_mole_pos(molecules_opt, mole, spl)
-        return self._align_on_landscape_on_return.with_args(
-            mole,
-            landscape_layer.name,
-            spl,
-        )
+            mole_opt = _update_mole_pos(mole_opt, mole, spl)
+        return self._align_on_landscape_on_return(mole_opt, landscape_layer.name, spl)
 
     @set_design(text="Run Viterbi alignment on landscape", location=LandscapeMenu)
     @dask_worker.with_progress(desc="Running Viterbi alignment")

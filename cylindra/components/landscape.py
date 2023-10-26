@@ -6,13 +6,13 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 from scipy.spatial.transform import Rotation
-from scipy.interpolate import interpn
 import polars as pl
 from acryo import Molecules, pipe, alignment
 from skimage.measure import marching_cubes
 
 from cylindra.const import MoleculesHeader as Mole, nm
 from cylindra.components.spline import CylSpline
+from cylindra.components._peak import find_peak
 from cylindra._dask import delayed, Delayed, compute
 
 if TYPE_CHECKING:
@@ -164,11 +164,10 @@ class Landscape:
         offset = self.offset
         indices_sub = indices.astype(np.float32)
         nmole = self.energies.shape[0]
-        opt_energy = np.empty(nmole, dtype=np.float32)
-        points = [np.arange(size) for size in self.energies.shape[1:]]
+        opt_energy = np.zeros(nmole, dtype=np.float32)
         for i in range(nmole):
             eng = self.energies[i]
-            indices_sub[i], opt_energy[i] = _find_peak(eng, points, indices_sub[i])
+            indices_sub[i], opt_energy[i] = find_peak(eng, indices_sub[i])
         opt_score = -opt_energy
         shifts = ((indices_sub - offset) * self.scale_factor).astype(np.float32)
         molecules_opt = molecules.translate_internal(shifts)
@@ -535,43 +534,3 @@ def _calc_landscape(
         # NOTE: argmax.shape[0] == n_templates * len(model.quaternion)
         score, argmax = da.compute(tasks, argmax)
     return score, argmax
-
-
-def _find_peak(
-    arr: NDArray[np.float32],
-    points: NDArray[np.int32],
-    index: NDArray[np.float32],
-    nrepeat: int = 4,
-    n: int = 5,
-) -> tuple[tuple[float, float, float], float]:
-    """Iteratively sample sub-meshes to find the peak of 3D array."""
-    argmax = index
-    dx = 1.0
-    value = 0.0
-    for _ in range(nrepeat):
-        argmax, value = _find_peak_once(arr, points, argmax, dx=dx, n=n)
-        dx /= n
-    return tuple(argmax), value
-
-
-def _find_peak_once(
-    arr: NDArray[np.float32],
-    points: NDArray[np.int32],
-    index: NDArray[np.float32],
-    dx: float = 1,
-    n: int = 5,
-):
-    # width of the mesh subpixels is 2 * dx / n
-    mesh = np.stack(
-        np.meshgrid(
-            *[np.linspace(-dx + x, dx + x, n, dtype=np.float32) for x in index],
-            indexing="ij",
-        ),
-        axis=-1,
-    )
-    mapped = interpn(
-        points, arr, mesh, method="cubic", bounds_error=False, fill_value=-1.0
-    )
-    argmax = np.unravel_index(np.argmax(mapped), (n, n, n))
-    value = mapped[argmax]
-    return np.array(argmax, dtype=np.float32) * 2 * dx / n + index - dx, value

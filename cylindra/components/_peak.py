@@ -3,6 +3,8 @@ from __future__ import annotations
 from functools import lru_cache
 from cylindra.utils import ceilint, floorint
 import numpy as np
+from numpy.typing import NDArray
+from scipy import ndimage as ndi
 import impy as ip
 
 
@@ -152,3 +154,47 @@ class PeakInfo:
 def cached_fftfreq(size: int) -> np.ndarray:
     """Cached version of np.fft.fftfreq."""
     return np.fft.fftfreq(size)
+
+
+def find_peak(
+    arr: NDArray[np.float32],
+    index: NDArray[np.float32],
+    nrepeat: int = 3,
+    n: int = 11,
+) -> tuple[tuple[float, ...], float]:
+    """Iteratively sample sub-meshes to find the peak of 3D array."""
+    argmax = index
+    dx = 0.45
+    value = 0.0
+    for _ in range(nrepeat):
+        argmax, value = _find_peak_once(arr, argmax, dx=dx, n=n)
+        dx /= n
+    return tuple(argmax), value
+
+
+def _find_peak_once(
+    arr: NDArray[np.float32],
+    index: NDArray[np.float32],
+    dx: float = 1.0,
+    n: int = 11,
+):
+    # width of the mesh subpixels is 2 * dx / n
+    mesh = np.stack(
+        np.meshgrid(
+            *[np.linspace(-dx + x, dx + x, n, dtype=np.float32) for x in index],
+            indexing="ij",
+        ),
+        axis=0,
+    )
+    mapped = ndi.map_coordinates(
+        arr,
+        mesh,
+        order=3,
+        mode="nearest",
+        prefilter=True,
+    )
+    argmax = np.unravel_index(np.argmax(mapped), mapped.shape)
+    value = mapped[argmax]
+    center = (np.array(mapped.shape) - 1) / 2
+    argmax_centered = np.array(argmax, dtype=np.float32) - center
+    return argmax_centered * 2 * dx / (n - 1) + index, value

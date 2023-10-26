@@ -27,6 +27,7 @@ from acryo.tilt import TiltSeriesModel
 import impy as ip
 
 from cylindra.components.spline import CylSpline
+from cylindra.components._peak import find_peak
 from cylindra.components._ftprops import LatticeParams, LatticeAnalyzer, get_polar_image
 from cylindra.const import nm, PropertyNames as H, Ori, Mode, ExtrapolationMode
 from cylindra.utils import (
@@ -583,9 +584,6 @@ class CylTomogram(Tomogram):
         min_radius_px = min_radius / _scale
         max_radius = spl.config.fit_width / 2
         max_radius_px = max_radius / _scale
-        thick_inner_px = spl.config.thickness_inner / _scale
-        thick_outer_px = spl.config.thickness_outer / _scale
-
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
         tasks = []
         for anc in pos:
@@ -595,7 +593,7 @@ class CylTomogram(Tomogram):
             tasks.append(task)
         profs: list[NDArray[np.float32]] = compute(*tasks)
         prof = np.stack(profs, axis=0).mean(axis=0)
-        imax_sub = _centroid_recursive(prof, thick_inner_px, thick_outer_px)
+        imax_sub = find_peak(prof, (np.argmax(prof),), 2, 15)[0][0]
         offset_px = _get_radius_offset(min_radius_px, max_radius_px)
         radius = (imax_sub + offset_px) * _scale
         if update:
@@ -642,8 +640,6 @@ class CylTomogram(Tomogram):
         max_radius = spl.config.fit_width / 2
         max_radius_px = max_radius / _scale
         offset_px = _get_radius_offset(min_radius_px, max_radius_px)
-        thick_inner_px = spl.config.thickness_inner / _scale
-        thick_outer_px = spl.config.thickness_outer / _scale
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
         tasks = []
         for anc in spl_trans.anchors:
@@ -654,7 +650,7 @@ class CylTomogram(Tomogram):
         profs: list[NDArray[np.float32]] = compute(*tasks)
         radii = list[float]()
         for prof in profs:
-            imax_sub = _centroid_recursive(prof, thick_inner_px, thick_outer_px)
+            imax_sub = find_peak(prof, (np.argmax(prof),), 2, 15)[0][0]
             radii.append((imax_sub + offset_px) * _scale)
 
         out = pl.Series(H.radius, radii, dtype=pl.Float32)
