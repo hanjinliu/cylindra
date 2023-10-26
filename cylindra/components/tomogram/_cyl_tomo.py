@@ -593,7 +593,7 @@ class CylTomogram(Tomogram):
             tasks.append(task)
         profs: list[NDArray[np.float32]] = compute(*tasks)
         prof = np.stack(profs, axis=0).mean(axis=0)
-        imax_sub = find_peak(prof, (np.argmax(prof),), 2, 15)[0][0]
+        imax_sub = find_peak(prof).pos[0]
         offset_px = _get_radius_offset(min_radius_px, max_radius_px)
         radius = (imax_sub + offset_px) * _scale
         if update:
@@ -650,7 +650,7 @@ class CylTomogram(Tomogram):
         profs: list[NDArray[np.float32]] = compute(*tasks)
         radii = list[float]()
         for prof in profs:
-            imax_sub = find_peak(prof, (np.argmax(prof),), 2, 15)[0][0]
+            imax_sub = find_peak(prof).pos[0]
             radii.append((imax_sub + offset_px) * _scale)
 
         out = pl.Series(H.radius, radii, dtype=pl.Float32)

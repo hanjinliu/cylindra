@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import NamedTuple
 from cylindra.utils import ceilint, floorint
 import numpy as np
 from numpy.typing import NDArray
@@ -69,7 +70,7 @@ class PeakDetector:
         """
         ps, y0, a0 = self._local_ps_and_offset(range_y, range_a, up_y, up_a)
         ymax, amax = np.unravel_index(np.argmax(ps), ps.shape)
-        return PeakInfo(
+        return FTPeakInfo(
             ymax + y0,
             amax + a0,
             (self._img.shape.y, self._img.shape.a),
@@ -116,7 +117,7 @@ def _get_boundary(rng: tuple[float, float], up_y: int):
     return y0i, y1i, y_pad0, y_pad1
 
 
-class PeakInfo:
+class FTPeakInfo:
     """Peak info object that will be returned by PeakDetector.get_peak"""
 
     def __init__(
@@ -151,25 +152,35 @@ class PeakInfo:
 
 
 @lru_cache(maxsize=10)
-def cached_fftfreq(size: int) -> np.ndarray:
+def cached_fftfreq(size: int) -> NDArray[np.float64]:
     """Cached version of np.fft.fftfreq."""
     return np.fft.fftfreq(size)
 
 
+class NDPeak(NamedTuple):
+    """A peak in a nD array."""
+
+    pos: tuple[float, ...]
+    value: float
+
+
 def find_peak(
     arr: NDArray[np.float32],
-    index: NDArray[np.float32],
+    index: NDArray[np.float32] | None = None,
     nrepeat: int = 3,
     n: int = 11,
-) -> tuple[tuple[float, ...], float]:
+    dx: float = 0.45,
+) -> NDPeak:
     """Iteratively sample sub-meshes to find the peak of 3D array."""
+    if index is None:
+        index = np.argmax(arr, keepdims=True)
     argmax = index
-    dx = 0.45
     value = 0.0
+    arr_filt = ndi.spline_filter(arr, output=np.float32, mode="reflect")
     for _ in range(nrepeat):
-        argmax, value = _find_peak_once(arr, argmax, dx=dx, n=n)
+        argmax, value = _find_peak_once(arr_filt, argmax, dx=dx, n=n)
         dx /= n
-    return tuple(argmax), value
+    return NDPeak(tuple(argmax), value)
 
 
 def _find_peak_once(
@@ -186,12 +197,13 @@ def _find_peak_once(
         ),
         axis=0,
     )
+
     mapped = ndi.map_coordinates(
         arr,
         mesh,
         order=3,
-        mode="nearest",
-        prefilter=True,
+        mode="reflect",
+        prefilter=False,
     )
     argmax = np.unravel_index(np.argmax(mapped), mapped.shape)
     value = mapped[argmax]

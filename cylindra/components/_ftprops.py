@@ -8,7 +8,7 @@ import impy as ip
 import polars as pl
 from cylindra._dask import delayed, Delayed
 from cylindra.const import nm, PropertyNames as H
-from cylindra.components._peak import PeakDetector, PeakInfo
+from cylindra.components._peak import PeakDetector, FTPeakInfo
 from cylindra.components._boundary import CylindricParameters
 from cylindra.components.spline import SplineConfig
 from cylindra.utils import ceilint, roundint, floorint
@@ -168,8 +168,8 @@ class LatticeAnalyzer:
     def get_params(
         self,
         img: ip.ImgArray,
-        peakh: PeakInfo,
-        peakv: PeakInfo,
+        peakh: FTPeakInfo,
+        peakv: FTPeakInfo,
         radius: nm,
     ) -> CylindricParameters:
         npf_f = peakh.a
@@ -190,7 +190,7 @@ class LatticeAnalyzer:
         )
 
     def get_lattice_params(
-        self, img: ip.ImgArray, peakh: PeakInfo, peakv: PeakInfo, radius: nm
+        self, img: ip.ImgArray, peakh: FTPeakInfo, peakv: FTPeakInfo, radius: nm
     ):
         cparams = self.get_params(img, peakh, peakv, radius)
         return LatticeParams(
