@@ -29,7 +29,7 @@ def create_microtubule(ui: CylindraMainWidget):
 def initialize_molecules(ui: CylindraMainWidget):
     ui.simulator.create_straight_line((30.0, 15.0, 30.0), (30.0, 165.0, 30.0))
     ui.simulator.generate_molecules(
-        spacing=4.08, twist=-0.2, start=3, npf=13, radius=11.0, offsets=(0.0, 0.0)
+        spacing=4.08, twist=0.04, start=3, npf=13, radius=11.0, offsets=(0.0, 0.0)
     )
     ui.sta.seam_search_manually(ui.mole_layers.last(), location=0)
 
@@ -75,7 +75,7 @@ def run_one(
 
     ui.sta.align_all(
         layers=layer,
-        template_path=WOBBLE_TEMPLATES,
+        template_path=TEMPLATE_X,
         mask_params=(0.3, 0.8),
         max_shifts=(0.8, 0.8, 0.8),
     )
@@ -86,7 +86,7 @@ def run_one(
     dx = 0.2
     ui.sta.construct_landscape(
         layer=layer,
-        template_path=WOBBLE_TEMPLATES,
+        template_path=TEMPLATE_X,
         mask_params=(0.3, 0.8),
         max_shifts=(0.8, 0.8, 0.8),
         upsample_factor=5,
@@ -113,8 +113,16 @@ def run_one(
 
 def flat_agg(df: pl.DataFrame, suffix: str):
     agg = (
-        df.group_by("isotype-id")
-        .agg(pl.col("twist").filter(pl.col("twist").is_finite()).mean())
+        df.group_by("isotype-id", maintain_order=True)
+        .agg(
+            pl.col("twist")
+            .filter(pl.col("twist").is_finite())
+            .radians()
+            .tan()
+            .mean()
+            .arctan()
+            .degrees()
+        )
         .sort("isotype-id")
     )
     return pl.DataFrame(
@@ -143,6 +151,7 @@ def main():
                 seed=i,
             )
             df_list.append(pl.concat([ans, out], how="horizontal"))
+            print("Done: ", i)
 
     df = pl.concat(df_list, how="vertical")
     show_dataframe(ui, df)

@@ -105,9 +105,9 @@ class local_skew_14_3(_local_skew_base):
             scale=self.scale, size=(60.0, 240.0, 60.0), length=245.0
         )
         self.ui.simulator.generate_molecules(
-            0, spacing=4.1, twist=-0.25, start=3, radius=12.1, npf=14
+            0, spacing=4.1, twist=-0.0, start=3, radius=12.1, npf=14
         )
-        for sk, yrange in zip([-0.12, -0.04, 0.04, 0.12], POSITIONS):
+        for sk, yrange in zip([-0.37, -0.29, -0.21, -0.13], POSITIONS):
             self.ui.simulator.twist(
                 self.ui.mole_layers.last(),
                 by=sk,
