@@ -407,13 +407,14 @@ class LandscapeSurface(Surface, _SourceBoundLayer):
         self._level_min = landscape.energies.min()
         self._level_max = landscape.energies.max()
         level = (self._level_max + self._level_min) / 2
+        self._resolution = 0.25
+        self._energy_level = level
+        self._show_min = True
         data = landscape.create_surface(level=level, resolution=0.25)
         super().__init__(data, **kwargs)
-        self.events.add(level=Event, resolution=Event)
+        self.events.add(level=Event, resolution=Event, show_min=Event)
         self._landscape = landscape
-        self._resolution = 0.25
         self._source_component: weakref.ReferenceType[BaseComponent] | None = None
-        self._energy_level = level
         self.events.level(value=level)
 
     @property
@@ -432,12 +433,25 @@ class LandscapeSurface(Surface, _SourceBoundLayer):
             raise ValueError(
                 f"level must be in range of ({self._level_min}, {self._level_max})"
             )
-        self.data = self._landscape.create_surface(
-            level=level, resolution=self._resolution
-        )
         self._energy_level = level
+        self._update_surface()
         self.events.level(value=level)
-        self.refresh()
+
+    @property
+    def show_min(self) -> bool:
+        """Whether to show the minimum energy surface."""
+        return self._show_min
+
+    @show_min.setter
+    def show_min(self, show: bool):
+        show = bool(show)
+        self._show_min = show
+        if show:
+            self.wireframe.color = "crimson"
+        else:
+            self.wireframe.color = "darkblue"
+        self._update_surface()
+        self.events.show_min(value=show)
 
     @property
     def resolution(self) -> float:
@@ -448,11 +462,16 @@ class LandscapeSurface(Surface, _SourceBoundLayer):
     def resolution(self, res: float):
         if res <= 0:
             raise ValueError("resolution must be positive")
-        self.data = self._landscape.create_surface(
-            level=self._energy_level, resolution=res
-        )
         self._resolution = res
+        self._update_surface()
         self.events.resolution(value=res)
+
+    def _update_surface(self):
+        self.data = self._landscape.create_surface(
+            level=self._energy_level,
+            resolution=self._resolution,
+            show_min=self._show_min,
+        )
         self.refresh()
 
 

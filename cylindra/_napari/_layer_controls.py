@@ -95,6 +95,7 @@ class QtLandscapeSurfaceControls(QtSurfaceControls):
         self.levelSlider.setRange(layer._level_min, layer._level_max)
         self.layout().addRow("level:", self.levelSlider)
         self.levelSlider.sliderReleased.connect(self._change_level)
+        self.levelSlider.setSingleStep(0.001)
         self.levelSlider.setToolTip("Threshold level for surface rendering")
         layer.events.level.connect(self._on_level_change)
 
@@ -107,6 +108,15 @@ class QtLandscapeSurfaceControls(QtSurfaceControls):
         self.resolution.valueChanged.connect(self._change_resolution)
         layer.events.resolution.connect(self._on_resolution_change)
 
+        self.showMinCheckBox = QtW.QCheckBox("show min")
+        self.layout().addRow(self.showMinCheckBox)
+        self.showMinCheckBox.setChecked(layer.show_min)
+        self.showMinCheckBox.stateChanged.connect(self._change_show_min)
+        self.showMinCheckBox.setToolTip(
+            "Show the surface of the minimum values of the energy"
+        )
+        layer.events.show_min.connect(self._on_show_min_change)
+
     def _on_level_change(self, event):
         with qt_signals_blocked(self.levelSlider):
             self.levelSlider.setValue(event.value)
@@ -115,11 +125,22 @@ class QtLandscapeSurfaceControls(QtSurfaceControls):
         with qt_signals_blocked(self.resolution):
             self.resolution.setValue(event.value)
 
+    def _on_show_min_change(self, event):
+        with qt_signals_blocked(self.showMinCheckBox):
+            if event.value:
+                state = Qt.CheckState.Checked
+            else:
+                state = Qt.CheckState.Unchecked
+            self.showMinCheckBox.setChecked(state)
+
     def _change_level(self):
         self.layer.level = self.levelSlider.value()
 
     def _change_resolution(self):
         self.layer.resolution = self.resolution.value()
+
+    def _change_show_min(self, state):
+        self.layer.show_min = state == Qt.CheckState.Checked
 
 
 def install_custom_layers():

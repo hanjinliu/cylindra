@@ -41,7 +41,7 @@ from cylindra.const import (
     ImageFilter,
     FileFilter,
 )
-from cylindra._napari import MoleculesLayer
+from cylindra._napari import MoleculesLayer, LandscapeSurface
 from cylindra.project import CylindraProject, extract
 
 from cylindra.widgets import _shared_doc, subwidgets as _sw, widget_utils
@@ -521,8 +521,9 @@ class CylindraMainWidget(MagicTemplate):
     @bind_key("Ctrl+K, Ctrl+S")
     def save_project(
         self,
-        save_path: Path.Save,
+        path: Path.Save,
         molecules_ext: Literal[".csv", ".parquet"] = ".csv",
+        save_landscape: Annotated[bool, {"label": "Save landscape layers"}] = False,
     ):
         """
         Save current project state and the results in a directory.
@@ -536,17 +537,17 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        save_path : Path
+        path : Path
             Path of json file.
         molecules_ext : str, default is ".csv"
             Extension of the molecule file. Can be ".csv" or ".parquet".
         """
-        save_path = Path(save_path)
-        dir_posix = save_path.as_posix()
-        CylindraProject.save_gui(self, save_path, molecules_ext)
+        path = Path(path)
+        dir_posix = path.as_posix()
+        CylindraProject.save_gui(self, path, molecules_ext, save_landscape)
         _Logger.print(f"Project saved: {dir_posix}")
         self._need_save = False
-        self._project_dir = save_path
+        self._project_dir = path
         return None
 
     @set_design(text=capitalize, location=_sw.FileMenu)
@@ -2523,7 +2524,7 @@ class CylindraMainWidget(MagicTemplate):
         # remove all the molecules layers
         _layers_to_remove = list[str]()
         for layer in viewer.layers:
-            if isinstance(layer, MoleculesLayer):
+            if isinstance(layer, (MoleculesLayer, LandscapeSurface)):
                 _layers_to_remove.append(layer.name)
             elif layer in (self._reserved_layers.prof, self._reserved_layers.work):
                 _layers_to_remove.append(layer.name)

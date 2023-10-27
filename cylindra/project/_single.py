@@ -72,6 +72,7 @@ class CylindraProject(BaseProject):
         gui: "CylindraMainWidget",
         project_dir: Path,
         mole_ext: str = ".csv",
+        save_landscape: bool = False,
     ) -> "CylindraProject":
         """Construct a project from a widget state."""
         from datetime import datetime
@@ -106,6 +107,16 @@ class CylindraProject(BaseProject):
                 )
             )
 
+        # Save paths of landscape
+        if save_landscape:
+            pass
+            # TODO
+            # from cylindra._napari import LandscapeSurface
+
+            # for layer in gui.parent_viewer.layers:
+            #     if not isinstance(layer, LandscapeSurface):
+            #         continue
+
         def as_relative(p: "Path | None"):
             assert isinstance(p, Path) or p is None
             try:
@@ -132,6 +143,7 @@ class CylindraProject(BaseProject):
         gui: "CylindraMainWidget",
         project_dir: Path,
         mole_ext: str = ".csv",
+        save_landscape: bool = False,
     ) -> None:
         """
         Serialize the GUI state to a json file.
@@ -143,7 +155,7 @@ class CylindraProject(BaseProject):
         project_dir : Path
             The path to the project json file.
         """
-        self = cls.from_gui(gui, project_dir, mole_ext)
+        self = cls.from_gui(gui, project_dir, mole_ext, save_landscape)
 
         tomo = gui.tomogram
         localprops = tomo.splines.collect_localprops(allow_none=True)
