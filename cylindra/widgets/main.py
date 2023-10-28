@@ -472,7 +472,6 @@ class CylindraMainWidget(MagicTemplate):
         self,
         path: Path.Read[FileFilter.PROJECT],
         filter: ImageFilter | None = ImageFilter.Lowpass,
-        paint: bool = False,
         read_image: Annotated[bool, {"label": "read image data"}] = True,
         update_config: bool = False,
     ):
@@ -485,8 +484,6 @@ class CylindraMainWidget(MagicTemplate):
             Path to the project file, or the project directory that contains a project
             file, or a CylindraProject object.
         {filter}
-        paint : bool, default is False
-            Whether to paint cylinder properties if available.
         read_image : bool, default is True
             Whether to read image data from the project directory. If false, image data
             will be memory-mapped and will not be shown in the viewer. Unchecking this
@@ -503,7 +500,7 @@ class CylindraMainWidget(MagicTemplate):
             project_path = project.project_path
         _Logger.print_html(
             f"<code>ui.load_project('{Path(project_path).as_posix()}', "
-            f"filter={str(filter)!r}, {paint=}, {read_image=}, {update_config=})</code>"
+            f"filter={str(filter)!r}, {read_image=}, {update_config=})</code>"
         )
         if project_path is not None:
             _Logger.print(f"Project loaded: {project_path.as_posix()}")
@@ -511,7 +508,6 @@ class CylindraMainWidget(MagicTemplate):
         yield from project._to_gui(
             self,
             filter=filter,
-            paint=paint,
             read_image=read_image,
             update_config=update_config,
         )
@@ -2038,10 +2034,8 @@ class CylindraMainWidget(MagicTemplate):
                 kind = "linear"
             case 3:
                 kind = "cubic"
-            case _:
-                raise ValueError(
-                    f"`interpolation` must be 0, 1 or 3. Got {interpolation}."
-                )
+            case v:
+                raise ValueError(f"`interpolation` must be 0, 1 or 3. Got {v}.")
 
         spl = _assert_source_spline_exists(layer)
         feat = layer.molecules.features

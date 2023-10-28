@@ -186,7 +186,6 @@ class CylindraProject(BaseProject):
         self,
         gui: "CylindraMainWidget | None" = None,
         filter: "ImageFilter | None" = True,
-        paint: bool = True,
         read_image: bool = True,
         update_config: bool = True,
     ):
@@ -198,7 +197,6 @@ class CylindraProject(BaseProject):
         with self.open_project() as project_dir:
             tomogram = self.load_tomogram(project_dir, compute=read_image)
             macro_expr = extract(self.script_py_path(project_dir).read_text()).args
-            need_paint = paint and self.localprops_path(project_dir).exists()
             cfg_path = project_dir / "default_spline_config.json"
             if cfg_path.exists() and update_config:
                 default_config = SplineConfig.from_file(cfg_path)
@@ -229,9 +227,6 @@ class CylindraProject(BaseProject):
 
         yield _update_widget
         _update_widget.await_call()
-
-        if need_paint:
-            yield from gui.paint_cylinders.arun()
 
         # load molecules
         _add_mole = thread_worker.callback(gui.add_molecules)

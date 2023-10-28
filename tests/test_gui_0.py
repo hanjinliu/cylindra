@@ -166,7 +166,7 @@ def test_io_with_different_data(ui: CylindraMainWidget):
     ui.SplineControl.pos = 1
     ui.SplineControl.footer.highlight_subvolume = False
 
-    ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False, read_image=False)
+    ui.load_project(PROJECT_DIR_14PF, filter=None, read_image=False)
     ui.mole_layers.get("Mole-0")
     ui.mole_layers.get("Mole-100", None)
     list(ui.mole_layers.iter())
@@ -246,7 +246,7 @@ def test_workflow_undo_redo(ui: CylindraMainWidget):
 
 
 def test_config(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False)
+    ui.load_project(PROJECT_DIR_14PF, filter=None)
     ui.SplinesMenu.Config.update_default_config(npf_range=(13, 15))
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir = Path(tmpdir)
@@ -272,7 +272,7 @@ def test_reanalysis(ui: CylindraMainWidget):
 
 
 def test_map_molecules(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False)
+    ui.load_project(PROJECT_DIR_14PF, filter=None)
     assert ui.get_loader("Mole-0").molecules is ui.mole_layers["Mole-0"].molecules
     ui.map_monomers_with_extensions(0, {0: (1, 1), 1: (-1, -1)})
     ui.map_along_pf(0, molecule_interval=4.0)
@@ -289,7 +289,7 @@ def test_map_molecules(ui: CylindraMainWidget):
 
 
 def test_napari_operations(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False)
+    ui.load_project(PROJECT_DIR_14PF, filter=None)
     name = ui.mole_layers.last().name
     ui.parent_viewer.layers[name].name = "new-name"
     assert str(ui.macro[-1]) == f"ui.parent_viewer.layers[{name!r}].name = 'new-name'"
@@ -305,7 +305,7 @@ def test_napari_operations(ui: CylindraMainWidget):
 
 
 def test_load_macro(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False)
+    ui.load_project(PROJECT_DIR_14PF, filter=None)
     with tempfile.TemporaryDirectory() as tmpdir:
         fp = Path(tmpdir) / "test_macro.py"
         fp.write_text("print(0)")
@@ -416,7 +416,7 @@ def test_spline_switch(ui: CylindraMainWidget):
 
 
 def test_preview(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     layer = ui.mole_layers["Mole-0"]
     tester = mcls_testing.FunctionGuiTester(ui.translate_molecules)
     tester.gui.layers.value = [ui.mole_layers["Mole-0"]]
@@ -502,7 +502,7 @@ def test_preview(ui: CylindraMainWidget):
 
 
 def test_sub_widgets(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     ui.ImageMenu.open_slicer()
     with thread_worker.blocking_mode():
         ui.spline_slicer.refresh_widget_state()
@@ -557,7 +557,7 @@ def test_sub_widgets(ui: CylindraMainWidget):
 
 @pytest.mark.parametrize("bin_size", [1, 2])
 def test_sta(ui: CylindraMainWidget, bin_size: int):
-    ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     ui.AnalysisMenu.open_subtomogram_analyzer()
     ui.sta.average_all("Mole-0", size=12.0, bin_size=bin_size)
     ui.sta.average_all("Mole-0", size=12.0, bin_size=bin_size)  # check coerce name
@@ -635,7 +635,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
 
 
 def test_seam_search(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     ui.filter_molecules(
         ui.parent_viewer.layers["Mole-0"], predicate="pl.col('nth') < 5"
     )
@@ -662,7 +662,7 @@ def test_seam_search(ui: CylindraMainWidget):
 
 
 def test_classify_pca(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     ui.filter_molecules(
         ui.parent_viewer.layers["Mole-0"], predicate="pl.col('nth') < 3"
     )
@@ -696,7 +696,7 @@ def test_clip_spline(ui: CylindraMainWidget):
 
 
 def test_radius_methods(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False)
+    ui.load_project(PROJECT_DIR_14PF, filter=None)
     mole = ui.mole_layers["Mole-0"].molecules
     shifts = np.zeros((mole.count(), 3), dtype=np.float32)
     shifts[:, 0] = np.linspace(-1, 1, mole.count())
@@ -826,7 +826,7 @@ def test_project_viewer():
 
 
 def test_molecules_methods(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False)
+    ui.load_project(PROJECT_DIR_14PF, filter=None)
     layer0 = ui.mole_layers["Mole-0"]
     layer1 = ui.mole_layers["Mole-1"]
     ui.MoleculesMenu.View.show_orientation(layer0)
@@ -885,7 +885,7 @@ def test_molecules_methods(ui: CylindraMainWidget):
 
 
 def test_transform_molecules(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False)
+    ui.load_project(PROJECT_DIR_14PF, filter=None)
     layer = ui.mole_layers["Mole-0"]
     ui.translate_molecules("Mole-0", [3, -5, 2.2], internal=False)
     new_layer = ui.mole_layers.last()
@@ -916,7 +916,7 @@ def test_transform_molecules(ui: CylindraMainWidget):
 
 
 def test_merge_molecules(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False)
+    ui.load_project(PROJECT_DIR_14PF, filter=None)
     ui.merge_molecule_info(pos="Mole-0", rotation="Mole-1", features="Mole-0")
     assert_allclose(ui.mole_layers.last().data, ui.mole_layers["Mole-0"].data)
 
@@ -924,7 +924,7 @@ def test_merge_molecules(ui: CylindraMainWidget):
 def test_molecule_features(ui: CylindraMainWidget):
     import polars as pl
 
-    ui.load_project(PROJECT_DIR_14PF, filter=None, paint=False)
+    ui.load_project(PROJECT_DIR_14PF, filter=None)
     ui.MoleculesMenu.View.show_molecule_features()
     layer = ui.mole_layers["Mole-0"]
     ui.filter_molecules("Mole-0", predicate='pl.col("position-nm") < 9.2')
@@ -956,7 +956,7 @@ def test_auto_align(ui: CylindraMainWidget):
 
 
 def test_molecules_to_spline(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     assert len(ui.tomogram.splines) == 2
     old_ori = ui.tomogram.splines[0].orientation
     layer_src = ui.mole_layers["Mole-0"]
@@ -992,7 +992,7 @@ def test_calc_lattice_structures(ui: CylindraMainWidget):
         [PROJECT_DIR_13PF, PROJECT_DIR_14PF],
         [True, False],
     ):
-        ui.load_project(path, filter=None, paint=False, read_image=False)
+        ui.load_project(path, filter=None, read_image=False)
         spacing = ui.tomogram.splines[0].props.get_glob(H.spacing)
         skew = ui.tomogram.splines[0].props.get_glob(H.skew)
         twist = ui.tomogram.splines[0].props.get_glob(H.twist)
@@ -1026,7 +1026,7 @@ def test_calc_lattice_structures(ui: CylindraMainWidget):
 
 
 def test_calc_misc(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     ui.mole_layers.clear()
     ui.map_monomers(splines=[0])
     layer = ui.mole_layers.last()
@@ -1039,7 +1039,7 @@ def test_calc_misc(ui: CylindraMainWidget):
     with tempfile.TemporaryDirectory() as dirpath:
         fp = Path(dirpath) / "test-project.tar"
         ui.save_project(fp)
-        ui.load_project(fp, filter=None, paint=False)
+        ui.load_project(fp, filter=None)
     assert_allclose(ui.mole_layers.last().face_color, colors)
 
 
@@ -1107,7 +1107,7 @@ def test_function_menu(make_napari_viewer):
 
 
 def test_viterbi_alignment(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     layer = ui.parent_viewer.layers["Mole-0"]
     ui.filter_molecules(layer, "(pl.col('nth') < 4) & (pl.col('pf-id') < 2)")
     layer_filt = ui.mole_layers.last()
@@ -1155,7 +1155,7 @@ def test_viterbi_alignment(ui: CylindraMainWidget):
 
 
 def test_mesh_annealing(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     layer = ui.parent_viewer.layers["Mole-0"]
     ui.filter_molecules(layer, "pl.col('nth') < 3")
     layer_filt = ui.mole_layers.last()
@@ -1201,7 +1201,7 @@ def test_mesh_annealing(ui: CylindraMainWidget):
 def test_landscape(ui: CylindraMainWidget):
     from cylindra._napari import LandscapeSurface
 
-    ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     layer = ui.parent_viewer.layers["Mole-0"]
     ui.filter_molecules(layer, "pl.col('nth') < 3")
     layer_filt = ui.mole_layers.last()
@@ -1238,7 +1238,7 @@ def test_landscape(ui: CylindraMainWidget):
 
 
 def test_regionprops(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     for meth in ["mean", "median", "min", "max"]:
         ui.convolve_feature(
             layer=ui.parent_viewer.layers["Mole-0"],
@@ -1275,7 +1275,7 @@ def test_regionprops(ui: CylindraMainWidget):
 
 
 def test_showing_widgets(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     ui.OthersMenu.Macro.show_macro()
     ui.OthersMenu.Macro.show_full_macro()
     ui.OthersMenu.Macro.show_native_macro()
@@ -1317,7 +1317,7 @@ def test_workflows_custom(ui: CylindraMainWidget):
 
 
 def test_stash(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=None, paint=False)
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
     with tempfile.TemporaryDirectory() as dirpath, _config.patch_stash_dir(dirpath):
         ui.FileMenu.Stash.stash_project()
         name0 = _config.get_stash_list()[0]
