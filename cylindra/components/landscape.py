@@ -45,7 +45,7 @@ class Landscape:
     energies: NDArray[np.float32]
     molecules: Molecules
     argmax: NDArray[np.int32] | None
-    alignment_model: ParametrizedModel | TomographyInput
+    quaternions: NDArray[np.float32]
     scale_factor: float
 
     def __getitem__(
@@ -57,7 +57,7 @@ class Landscape:
         energy = self.energies[key]
         mole = self.molecules.subset(key)
         argmax = self.argmax[key] if self.argmax is not None else None
-        return Landscape(energy, mole, argmax, self.alignment_model, self.scale_factor)
+        return Landscape(energy, mole, argmax, self.quaternions, self.scale_factor)
 
     def __repr__(self) -> str:
         eng_repr = f"<{self.energies.shape!r} array>"
@@ -67,14 +67,14 @@ class Landscape:
         )
         return (
             f"Landscape(energies={eng_repr}, molecules={mole_repr}, "
-            f"argmax={argmax_repr}, alignment_model={self.alignment_model!r}, "
+            f"argmax={argmax_repr}, quaternion={self.quaternions!r}, "
             f"scale_factor={self.scale_factor:.3g})"
         )
 
     @property
     def offset(self) -> NDArray[np.int32]:
         """Shift from the corner (0, 0, 0) to the center."""
-        shift = (np.array(self.energies.shape[1:]) - 1) / 2
+        shift = (np.array(self.energies.shape[1:], dtype=np.float32) - 1) / 2
         return shift.astype(np.int32)
 
     @property
@@ -90,7 +90,7 @@ class Landscape:
         mask: MaskInputType = None,
         max_shifts: tuple[nm, nm, nm] = (0.8, 0.8, 0.8),
         upsample_factor: int = 5,
-        alignment_model=alignment.ZNCCAlignment,
+        alignment_model: alignment.TomographyInput = alignment.ZNCCAlignment.with_params(),
     ) -> Landscape:
         """
         Construct a landscape from a loader object.
@@ -137,7 +137,7 @@ class Landscape:
             energies=-score,
             molecules=loader.molecules,
             argmax=argmax,
-            alignment_model=alignment_model,
+            quaternion=alignment_model.quaternions,
             scale_factor=loader.scale / upsample_factor,
         )
 
@@ -173,31 +173,22 @@ class Landscape:
         opt_score = -opt_energy
         shifts = ((indices_sub - offset) * self.scale_factor).astype(np.float32)
         molecules_opt = molecules.translate_internal(shifts)
-        if self.alignment_model.has_rotation:
-            nrotation = len(self.alignment_model.quaternions)
+        shift_feat = _as_n_series("align-d{}", shifts)
+        if (nrots := self.quaternions.shape[0]) > 1:
             quats = np.stack(
                 [
-                    self.alignment_model.quaternions[
-                        self.argmax[i, iz, iy, ix] % nrotation
-                    ]
-                    for i, (iz, iy, ix) in enumerate(indices)
+                    self.quaternions[self.argmax[i, *ind] % nrots]
+                    for i, ind in enumerate(indices)
                 ],
                 axis=0,
             )
             molecules_opt = molecules_opt.rotate_by_quaternion(quats)
-
             rotvec = Rotation.from_quat(quats).as_rotvec().astype(np.float32)
-            molecules_opt = molecules_opt.with_features(
-                pl.Series("align-dzrot", rotvec[:, 0]),
-                pl.Series("align-dyrot", rotvec[:, 1]),
-                pl.Series("align-dxrot", rotvec[:, 2]),
-            )
+            rotvec_feat = _as_n_series("align-d{}rot", rotvec)
+            molecules_opt = molecules_opt.with_features(*rotvec_feat)
 
         return molecules_opt.with_features(
-            pl.Series("align-dz", shifts[:, 0]),
-            pl.Series("align-dy", shifts[:, 1]),
-            pl.Series("align-dx", shifts[:, 2]),
-            pl.Series(Mole.score, opt_score),
+            *shift_feat, pl.Series(Mole.score, opt_score)
         )
 
     def run_min_energy(self):
@@ -373,7 +364,7 @@ class Landscape:
             new_array,
             self.molecules,
             self.argmax,
-            self.alignment_model,
+            self.quaternions,
             self.scale_factor,
         )
 
@@ -541,3 +532,11 @@ def _calc_landscape(
         # NOTE: argmax.shape[0] == n_templates * len(model.quaternion)
         score, argmax = da.compute(tasks, argmax)
     return score, argmax
+
+
+def _as_n_series(fmt: str, arr: NDArray[np.floating]) -> list[pl.Series]:
+    return [
+        pl.Series(fmt.format("z"), arr[:, 0]),
+        pl.Series(fmt.format("y"), arr[:, 1]),
+        pl.Series(fmt.format("x"), arr[:, 2]),
+    ]
