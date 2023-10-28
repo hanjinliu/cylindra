@@ -193,22 +193,15 @@ def add_molecules(
     **kwargs,
 ) -> MoleculesLayer:
     """Add Molecules object as a point layer."""
-    app_cfg = get_config()
-    kw = dict(
-        size=app_cfg.point_size,
-        face_color=app_cfg.molecules_color,
-        out_of_slice_display=True,
+    layer = MoleculesLayer.construct(
+        mol,
+        name=name,
+        source=source,
+        metadata=metadata,
+        cmap=cmap,
+        **kwargs,
     )
-    kw.update(**kwargs)
-    layer = MoleculesLayer(mol, name=name, metadata=metadata.copy(), **kw)
-    if source is not None:
-        layer.source_component = source
-    viewer.add_layer(layer)
-    if cmap is not None:
-        layer.set_colormap(**cmap)
-    layer.view_ndim = app_cfg.molecules_ndim
-    layer.editable = False
-    return layer
+    return viewer.add_layer(layer)
 
 
 def change_viewer_focus(

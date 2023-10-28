@@ -9,6 +9,7 @@ from scipy.spatial.transform import Rotation
 import polars as pl
 from acryo import Molecules, pipe, alignment
 from skimage.measure import marching_cubes
+import impy as ip
 
 from cylindra.const import MoleculesHeader as Mole, nm
 from cylindra.components.spline import CylSpline
@@ -34,9 +35,9 @@ class Landscape:
     molecules : Molecules
         Molecules object.
     argmax : NDArray[np.int32], optional
-        Argmax indices to track which template resulted in the best alignment.
-    alignment_model : ParametrizedModel | TomographyInput
-        Alignment model used.
+        Argmax indices to track which rotation resulted in the best alignment.
+    quaternions : NDArray[np.float32]
+        Quaternions used for template rotation.
     scale_factor : float
         Scale factor to convert from pixels to nanometers (upsampling considered).
         ``scale / upsample_factor`` will be passed to this parameter from the GUI.
@@ -133,11 +134,12 @@ class Landscape:
         score, argmax = _calc_landscape(
             alignment_model, score_dsk, multi_templates=multi
         )
+        mole = loader.molecules
         return cls(
             energies=-score,
-            molecules=loader.molecules,
+            molecules=mole.drop_features(mole.features.columns),
             argmax=argmax,
-            quaternion=alignment_model.quaternions,
+            quaternions=alignment_model.quaternions,
             scale_factor=loader.scale / upsample_factor,
         )
 
@@ -407,6 +409,41 @@ class Landscape:
         faces = np.concatenate([s.faces for s in surfs], axis=0)
         values = np.concatenate([s.values for s in surfs], axis=0)
         return SurfaceData(vertices, faces, values)
+
+    @classmethod
+    def from_dir(cls, path: str | Path) -> Landscape:
+        """Load a landscape from a directory."""
+        path = Path(path)
+        if path.suffix != "":
+            raise ValueError(f"Must be a directory, got {path}")
+        energies = ip.imread(path / "landscape.tif")
+        molecules = Molecules.from_parquet(path / "molecules.parquet")
+        argmax = None
+        if (fp := path / "argmax.parquet").exists():
+            argmax = pl.read_parquet(fp).to_series().to_numpy()
+        quaternions = np.loadtxt(
+            path / "quaternions.txt", delimiter=",", dtype=np.float32
+        )
+        scale_factor = energies.scale["x"]
+        return cls(energies.value, molecules, argmax, quaternions, scale_factor)
+
+    def save(self, path: str | Path) -> None:
+        """Save the landscape to a directory."""
+        path = Path(path)
+        if path.suffix != "":
+            raise ValueError(f"Must be a directory, got {path}")
+        path.mkdir(exist_ok=False)
+        arr = ip.asarray(self.energies, axes="tzyx").set_scale(
+            xyz=self.scale_factor, unit="nm"
+        )
+        arr.imsave(path / "landscape.tif")
+        self.molecules.to_parquet(path / "molecules.parquet")
+        if self.argmax is not None:
+            pl.DataFrame({"argmax": self.argmax}).write_parquet(
+                path / "argmax.parquet", compression_level=10
+            )
+        self.quaternions.tofile(path / "quaternions.txt", sep=",")
+        return None
 
 
 class SurfaceData(NamedTuple):

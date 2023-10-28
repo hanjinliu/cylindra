@@ -43,6 +43,7 @@ from cylindra.const import (
     SEAM_SEARCH_RESULT,
     ANNEALING_RESULT,
     INTERPOLATION_CHOICES,
+    LANDSCAPE_PREFIX,
     MoleculesHeader as Mole,
     nm,
     PropertyNames as H,
@@ -1127,7 +1128,7 @@ class SubtomogramAveraging(ChildWidget):
         layer: MoleculesLayerType,
         template_path: Annotated[_PathOrPathsOrNone, {"bind": _template_params}],
         mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
-        max_shifts: tuple[nm, nm, nm] = (0.8, 0.8, 0.8),
+        max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
@@ -1152,12 +1153,13 @@ class SubtomogramAveraging(ChildWidget):
             upsample_factor=upsample_factor,
         )
         lnd = self._construct_landscape(layer, **kwargs)
-        surf = LandscapeSurface(lnd, name=f"[Landscape]{layer.name}")
+        surf = LandscapeSurface(lnd, name=f"{LANDSCAPE_PREFIX}{layer.name}")
         surf.source_component = layer.source_component
 
         @thread_worker.callback
         def _on_return():
-            return self.parent_viewer.add_layer(surf)
+            self.parent_viewer.add_layer(surf)
+            layer.visible = False
 
         return _on_return
 
@@ -1735,8 +1737,9 @@ class SubtomogramAveraging(ChildWidget):
         metadata: dict[str, Any] = {},
     ):
         main = self._get_main()
-        if name.startswith("[Landscape]"):
-            mole_name = name[11:].strip()
+        if name.startswith(LANDSCAPE_PREFIX):
+            nchars = len(LANDSCAPE_PREFIX)
+            mole_name = name[nchars:].strip()
         else:
             mole_name = name
         points = main.add_molecules(

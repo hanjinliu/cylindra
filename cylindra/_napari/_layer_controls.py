@@ -96,6 +96,7 @@ class QtLandscapeSurfaceControls(QtSurfaceControls):
         self.layout().addRow("level:", self.levelSlider)
         self.levelSlider.sliderReleased.connect(self._change_level)
         self.levelSlider.setSingleStep(0.001)
+        self.levelSlider.setValue(layer.level)
         self.levelSlider.setToolTip("Threshold level for surface rendering")
         layer.events.level.connect(self._on_level_change)
 

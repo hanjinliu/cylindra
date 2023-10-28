@@ -4,7 +4,7 @@ from typing import Generator, Iterable, TYPE_CHECKING
 from pathlib import Path
 import json
 import warnings
-from pydantic import BaseModel
+from pydantic import Field
 import polars as pl
 import numpy as np
 
@@ -16,30 +16,12 @@ from cylindra.const import (
 )
 from cylindra.project._base import BaseProject, PathLike, resolve_path, MissingWedge
 from cylindra.project._utils import extract, as_main_function
+from cylindra.project._layer_info import MoleculesInfo, LandscapeInfo, LayerInfo
 
 if TYPE_CHECKING:
     from cylindra.widgets.main import CylindraMainWidget
     from cylindra.components import CylSpline, CylTomogram
     from acryo import Molecules
-
-
-class MoleculeColormap(BaseModel):
-    cmap: list[tuple[float, str]]
-    limits: tuple[float, float]
-    by: str
-
-
-class MoleculesInfo(BaseModel):
-    """Info of molecules layer."""
-
-    name: str = "#unknown"  # including extension
-    source: int | None = None
-    visible: bool = True
-    color: MoleculeColormap | str = "lime"
-
-    @property
-    def stem(self) -> str:
-        return Path(self.name).stem
 
 
 class CylindraProject(BaseProject):
@@ -55,7 +37,8 @@ class CylindraProject(BaseProject):
     image: PathLike | None
     scale: float
     multiscales: list[int]
-    molecules_info: list[MoleculesInfo]
+    molecules_info: list[MoleculesInfo] = Field(default_factory=list)
+    landscape_info: list[LandscapeInfo] = Field(default_factory=list)
     missing_wedge: MissingWedge = MissingWedge(params={}, kind="none")
     project_path: Path | None = None
     project_description: str = ""
@@ -80,47 +63,25 @@ class CylindraProject(BaseProject):
         _versions = get_versions()
         tomo = gui.tomogram
 
-        results_dir = project_dir
-
         # Save path of molecules
         mole_infos = list[MoleculesInfo]()
         for layer in gui.mole_layers:
-            try:
-                _src = gui.tomogram.splines.index(layer.source_component)
-            except ValueError:
-                _src = None
-            info = layer.colormap_info
-            if isinstance(info, str):
-                color = info
-            else:
-                color = MoleculeColormap(
-                    cmap=info.to_list(),
-                    limits=info.clim,
-                    by=info.name,
-                )
-            mole_infos.append(
-                MoleculesInfo(
-                    name=f"{layer.name}{mole_ext}",
-                    source=_src,
-                    visible=layer.visible,
-                    color=color,
-                )
-            )
+            mole_infos.append(MoleculesInfo.from_layer(gui, layer, mole_ext))
 
         # Save paths of landscape
+        landscape_infos = list[LandscapeInfo]()
         if save_landscape:
-            pass
-            # TODO
-            # from cylindra._napari import LandscapeSurface
+            from cylindra._napari import LandscapeSurface
 
-            # for layer in gui.parent_viewer.layers:
-            #     if not isinstance(layer, LandscapeSurface):
-            #         continue
+            for layer in gui.parent_viewer.layers:
+                if not isinstance(layer, LandscapeSurface):
+                    continue
+                landscape_infos.append(LandscapeInfo.from_layer(gui, layer))
 
         def as_relative(p: "Path | None"):
             assert isinstance(p, Path) or p is None
             try:
-                out = p.relative_to(results_dir)
+                out = p.relative_to(project_dir)
             except Exception:
                 out = p
             return out
@@ -133,6 +94,7 @@ class CylindraProject(BaseProject):
             scale=tomo.scale,
             multiscales=[x[0] for x in tomo.multiscaled],
             molecules_info=mole_infos,
+            landscape_info=landscape_infos,
             missing_wedge=MissingWedge.parse(tomo.tilt_range),
             project_path=project_dir,
         )
@@ -168,8 +130,9 @@ class CylindraProject(BaseProject):
                 globalprops.write_csv(self.globalprops_path(results_dir))
             for i, spl in enumerate(gui.tomogram.splines):
                 spl.to_json(results_dir / f"spline-{i}.json")
-            for layer in gui.mole_layers:
-                layer.molecules.to_file(results_dir / f"{layer.name}{mole_ext}")
+            for info in self.molecules_info + self.landscape_info:
+                info.save_layer(gui, results_dir)
+
             js = gui.default_config.asdict()
             with open(self.default_spline_config_path(results_dir), mode="w") as f:
                 json.dump(js, f, indent=4, separators=(", ", ": "))
@@ -202,49 +165,38 @@ class CylindraProject(BaseProject):
                 default_config = SplineConfig.from_file(cfg_path)
             else:
                 default_config = None
-            mole_list = list(self.iter_load_molecules(project_dir))
 
-        cb = gui._send_tomogram_to_viewer.with_args(tomogram, filt=filter)
-        yield cb
-        cb.await_call()
-        gui._macro_offset = len(gui.macro)
-
-        @thread_worker.callback
-        def _update_widget():
-            gui._reserved_layers.image.bounding_box.visible = not read_image
-            if len(tomogram.splines) > 0:
-                gui._update_splines_in_images()
-                with gui.macro.blocked():
-                    gui.sample_subtomograms()
-            if default_config is not None:
-                gui.default_config = default_config
-
-            gui.macro.extend(macro_expr)
-
-            # load subtomogram analyzer state
-            gui.reset_choices()
-            gui._need_save = False
-
-        yield _update_widget
-        _update_widget.await_call()
-
-        # load molecules
-        _add_mole = thread_worker.callback(gui.add_molecules)
-        for info, mole in mole_list:
-            if info.source is not None:
-                src = tomogram.splines[info.source]
-            else:
-                src = None
-            match info.color:
-                case str(color):
-                    kwargs = dict(face_color=color)
-                case cmap:
-                    kwargs = dict(cmap=cmap.dict())
-            cb = _add_mole.with_args(
-                mole, name=info.stem, source=src, visible=info.visible, **kwargs
-            )
+            cb = gui._send_tomogram_to_viewer.with_args(tomogram, filt=filter)
             yield cb
-            cb.await_call(timeout=10)
+            cb.await_call()
+            gui._macro_offset = len(gui.macro)
+
+            @thread_worker.callback
+            def _update_widget():
+                gui._reserved_layers.image.bounding_box.visible = not read_image
+                if len(tomogram.splines) > 0:
+                    gui._update_splines_in_images()
+                    with gui.macro.blocked():
+                        gui.sample_subtomograms()
+                if default_config is not None:
+                    gui.default_config = default_config
+
+                gui.macro.extend(macro_expr)
+
+                # load subtomogram analyzer state
+                gui.reset_choices()
+                gui._need_save = False
+
+            yield _update_widget
+            _update_widget.await_call()
+
+            # load molecules
+            _add_layer = thread_worker.callback(gui.parent_viewer.add_layer)
+            for info in self.molecules_info + self.landscape_info:
+                layer = info.to_layer(gui, project_dir)
+                cb = _add_layer.with_args(layer)
+                yield cb
+                cb.await_call(timeout=10)
 
         @thread_worker.callback
         def out():

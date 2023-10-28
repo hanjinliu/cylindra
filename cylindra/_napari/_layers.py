@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 import warnings
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple, TypedDict
 import weakref
 
 import polars as pl
@@ -38,6 +38,12 @@ class ColormapInfo(NamedTuple):
         for cont, cols in zip(self.cmap.controls, self.cmap.colors):
             out.append((cont, str_color(cols)))
         return out
+
+
+class CmapDict(TypedDict):
+    by: str
+    limits: tuple[float, float]
+    cmap: Any
 
 
 class _FeatureBoundLayer:
@@ -172,10 +178,36 @@ class MoleculesLayer(_FeatureBoundLayer, Points, _SourceBoundLayer):
         self._undo_renaming = False
         self._view_ndim = 3
         super().__init__(data.pos, **kwargs)
+        self.editable = False
         self.events.add(point_size=Event, view_ndim=Event)
         features = data.features
         if features is not None and len(features) > 0:
             self.features = features
+
+    @classmethod
+    def construct(
+        cls,
+        mol: Molecules,
+        name: str,
+        source: BaseComponent | None = None,
+        metadata: dict[str, Any] = {},
+        cmap: CmapDict | None = None,
+        **kwargs,
+    ):
+        app_cfg = get_config()
+        kw = dict(
+            size=app_cfg.point_size,
+            face_color=app_cfg.molecules_color,
+            out_of_slice_display=True,
+        )
+        kw.update(**kwargs)
+        layer = MoleculesLayer(mol, name=name, metadata=metadata.copy(), **kw)
+        if source is not None:
+            layer.source_component = source
+        if cmap is not None:
+            layer.set_colormap(**cmap)
+        layer.view_ndim = app_cfg.molecules_ndim
+        return layer
 
     @property
     def molecules(self) -> Molecules:
@@ -395,7 +427,7 @@ class LandscapeSurface(Surface, _SourceBoundLayer):
 
     _type_string = "surface"
 
-    def __init__(self, landscape: Landscape, **kwargs):
+    def __init__(self, landscape: Landscape, level=None, **kwargs):
         kwargs.setdefault("blending", "translucent_no_depth")
         kwargs.setdefault(
             "wireframe", {"visible": True, "color": "crimson", "width": 0.7}
@@ -406,7 +438,8 @@ class LandscapeSurface(Surface, _SourceBoundLayer):
         )
         self._level_min = landscape.energies.min()
         self._level_max = landscape.energies.max()
-        level = (self._level_max + self._level_min) / 2
+        if level is None:
+            level = (self._level_max + self._level_min) / 2
         self._resolution = 0.25
         self._energy_level = level
         self._show_min = True
