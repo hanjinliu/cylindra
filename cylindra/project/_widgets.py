@@ -68,8 +68,8 @@ class ComponentsViewer(MagicTemplate):
 
     @magicclass(labels=False, widget_type="scrollable", properties={"min_width": 220})
     class components(MagicTemplate):
-        def _add_layer(self, layer: "LayerItem"):
-            visible_btn = ToggleSwitch(value=True, text="")
+        def _add_layer(self, layer: "LayerItem", visible: bool = True):
+            visible_btn = ToggleSwitch(value=visible, text="")
             label = Label(value=layer.name)
             cont = FrameContainer(
                 widgets=[visible_btn, label], layout="horizontal", labels=False
@@ -78,7 +78,7 @@ class ComponentsViewer(MagicTemplate):
             cont.min_width = 200
 
             @visible_btn.changed.connect
-            def _on_visible_change(value):
+            def _on_visible_change(value: bool):
                 layer.visible = value
 
             self.append(cont)
@@ -96,7 +96,7 @@ class ComponentsViewer(MagicTemplate):
 
         for info, mole in project.iter_load_molecules(dir):
             layer = self.canvas.add_points(mole.pos, face_color="lime", name=info.stem)
-            self.components._add_layer(layer)
+            self.components._add_layer(layer, info.visible)
 
         # draw edge
         img = ip.lazy.imread(project.image)
