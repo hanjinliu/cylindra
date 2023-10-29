@@ -135,9 +135,12 @@ class Landscape:
             alignment_model, score_dsk, multi_templates=multi
         )
         mole = loader.molecules
+        to_drop = set(mole.features.columns) - {Mole.nth, Mole.pf, Mole.position}
+        if to_drop:
+            mole = mole.drop_features(*to_drop)
         return cls(
             energies=-score,
-            molecules=mole.drop_features(mole.features.columns),
+            molecules=mole,
             argmax=argmax,
             quaternions=alignment_model.quaternions,
             scale_factor=loader.scale / upsample_factor,

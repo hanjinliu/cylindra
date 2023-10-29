@@ -10,9 +10,9 @@ from magicclass.ext.pyqtgraph import QtMultiPlotCanvas
 import numpy as np
 
 from cylindra.const import MoleculesHeader as Mole, nm
+from cylindra._napari import MoleculesLayer, LandscapeSurface
 
 if TYPE_CHECKING:
-    from cylindra._napari import MoleculesLayer, LandscapeSurface
     from cylindra._cylindra_ext import CylindricAnnealingModel
     from cylindra.widgets.sta import SubtomogramAveraging
     from cylindra.components import CylSpline
@@ -131,7 +131,7 @@ def _preview_function(
 
     # connect value change signals
     @fgui[0].changed.connect
-    def _layer_changed(val: MoleculesLayer):
+    def _layer_changed(val: MoleculesLayer | LandscapeSurface):
         data_lon, data_lat = get_distances(
             val.molecules, val.source_spline, scale_factor
         )

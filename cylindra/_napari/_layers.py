@@ -456,6 +456,11 @@ class LandscapeSurface(Surface, _SourceBoundLayer):
         return self._landscape
 
     @property
+    def molecules(self):
+        """Molecules that represent the center/rotation of the landscape."""
+        return self._landscape.molecules
+
+    @property
     def level(self):
         """The threshold level of the energy landscape."""
         return self._energy_level

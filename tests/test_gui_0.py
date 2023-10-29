@@ -1235,6 +1235,10 @@ def test_landscape(ui: CylindraMainWidget):
         angle_max=20,
         random_seeds=[0, 1],
     )
+    with tempfile.TemporaryDirectory() as dirpath:
+        dirpath = Path(dirpath)
+        ui.save_project(dirpath / "test-project.tar", save_landscape=True)
+        ui.load_project(dirpath / "test-project.tar", filter=None)
 
 
 def test_regionprops(ui: CylindraMainWidget):

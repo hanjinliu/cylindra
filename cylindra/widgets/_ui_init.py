@@ -1,3 +1,4 @@
+"""Implement preview functions for the main widget."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -31,9 +32,6 @@ from cylindra import _config
 if TYPE_CHECKING:
     from napari.layers import Layer
     from magicgui.widgets import FloatSpinBox
-
-
-# Implement preview functions.
 
 
 @impl_preview(CylindraMainWidget.load_molecules)
