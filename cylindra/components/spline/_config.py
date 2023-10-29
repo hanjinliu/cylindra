@@ -124,12 +124,15 @@ class SplineConfig:
 
         if _undef:
             msg = f"Unknown keys, maybe due to version incompatibility: {_undef!r}"
-            if unknown == "error":
-                raise ValueError(msg)
-            elif unknown == "warn":
-                warnings.warn(msg, RuntimeWarning)
-            else:
-                pass
+            match unknown:
+                case "error":
+                    raise ValueError(msg)
+                case "warn":
+                    warnings.warn(msg, RuntimeWarning)
+                case "ignore":
+                    pass
+                case other:  # pragma: no cover
+                    raise ValueError(f"Got invalid case {other!r}")
         return SplineConfig().updated(**cfg_input)
 
     @classmethod

@@ -64,3 +64,24 @@ def rotated_auto_zncc(
     rot = np.array([[cos, sin], [-sin, cos]], dtype=np.float32)
 
     return shift @ rot / (2 * cos)
+
+
+def angle_corr(
+    img: ip.ImgArray, ang_center: float = 0, drot: float = 7, nrots: int = 29
+):
+    # img: 3D
+    img_z = img.mean(axis="z")
+    mask = ip.circular_mask(img_z.shape.y / 2 + 2, img_z.shape)
+    img_mirror: ip.ImgArray = img_z["x=::-1"]
+    angs = np.linspace(ang_center - drot, ang_center + drot, nrots, endpoint=True)
+    corrs = list[float]()
+    f0 = np.sqrt(img_z.power_spectra(dims="yx", zero_norm=True))
+    cval = np.mean(img_z)
+    for ang in angs:
+        img_mirror_rot = img_mirror.rotate(ang * 2, mode="constant", cval=cval)
+        f1 = np.sqrt(img_mirror_rot.power_spectra(dims="yx", zero_norm=True))
+        corr = ip.zncc(f0, f1, mask)
+        corrs.append(corr)
+
+    angle = angs[np.argmax(corrs)]
+    return angle

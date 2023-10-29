@@ -513,12 +513,6 @@ class AnnealingResult:
     niter: int
     state: str
 
-    def with_debug_info(self, **kwargs) -> AnnealingResult:
-        # insider use only
-        for k, v in kwargs.items():
-            setattr(self, k, v)
-        return self
-
 
 def _to_batch_size(time_const: float) -> int:
     return max(int(time_const / 20), 1)

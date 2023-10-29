@@ -1219,6 +1219,7 @@ def test_landscape(ui: CylindraMainWidget):
     )
     layer_land = ui.parent_viewer.layers[-1]
     assert isinstance(layer_land, LandscapeSurface)
+    repr(layer_land.landscape)
     layer_land.level = layer_land.level * 1.01  # test setter
     layer_land.show_min = False
     layer_land.show_min = True

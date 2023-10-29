@@ -1140,12 +1140,12 @@ class CylindraMainWidget(MagicTemplate):
                     tomo.splines.index(_s)  # raise error here if not found
 
         for layer in layers:
-            mole = layer.molecules
             if _s := layer.source_spline:
                 _config = _s.config
             else:
                 _config = self.default_config
-            spl = utils.molecules_to_spline(mole, _config, err_max=err_max)
+            coords = layer.molecules.pos.reshape(layer.regular_shape()).mean(axis=1)
+            spl = CylSpline(config=_config).fit(coords, err_max=err_max)
             try:
                 idx = tomo.splines.index(layer.source_spline)
             except ValueError:

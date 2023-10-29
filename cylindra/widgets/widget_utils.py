@@ -8,7 +8,6 @@ import re
 import numpy as np
 from numpy.typing import NDArray
 from scipy import ndimage as ndi
-from scipy.interpolate import UnivariateSpline
 import polars as pl
 import matplotlib.pyplot as plt
 import macrokit as mk
@@ -275,11 +274,21 @@ class FscResult:
         return cls(freq, fsc_mean, fsc_std, scale)
 
     def get_resolution(self, res: float) -> nm:
-        uni_spl = UnivariateSpline(self.freq, self.mean - res, s=0, k=1)
-        freq_roots = uni_spl.roots()
-        if len(freq_roots) > 0:
-            return self.scale / freq_roots[0]
-        return float("nan")
+        freq0 = None
+        for i, fsc1 in enumerate(self.mean):
+            if fsc1 < res:
+                if i == 0:
+                    resolution = 0
+                    break
+                f0 = self.freq[i - 1]
+                f1 = self.freq[i]
+                fsc0 = self.mean[i - 1]
+                freq0 = (res - fsc1) / (fsc0 - fsc1) * (f0 - f1) + f1
+                resolution = self.scale / freq0
+                break
+        else:
+            resolution = np.nan
+        return resolution
 
     def plot(self, criteria: list[float] = [0.143, 0.5]):
         ind = self.freq <= 0.7

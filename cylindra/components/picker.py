@@ -46,6 +46,8 @@ class PickerIterator:
 
 
 class Picker(ABC):
+    """The abstract picker class."""
+
     @abstractmethod
     def pick_next(
         self,
@@ -75,6 +77,8 @@ class Picker(ABC):
 
 
 class AutoCorrelationPicker(Picker):
+    """Picker using auto-correlation."""
+
     def __init__(
         self,
         interval: nm,
@@ -98,12 +102,12 @@ class AutoCorrelationPicker(Picker):
         interv_nm = self._interval
         angle_pre = self._angle_step
         angle_dev = self._max_angle
-        max_shifts = self._max_shifts
         scale = img.scale.x
+        max_shifts = self._max_shifts / scale
 
         # orientation is point0 -> point1
-        point0: np.ndarray = prevprev / scale  # unit: pixel
-        point1: np.ndarray = prev / scale
+        point0 = prevprev / scale  # unit: pixel
+        point1 = prev / scale
 
         length_px = utils.roundint(self._config.fit_depth / scale)
         width_px = utils.roundint(self._config.fit_width / scale)
@@ -132,10 +136,50 @@ class AutoCorrelationPicker(Picker):
             point2 = point1 - dr
 
         img_next = utils.crop_tomogram(img, point2, shape)
-
-        utils.centering(
-            img_next, point2, angle_deg, drot=5.0, max_shifts=max_shifts / scale
+        new_point = (
+            centering(img_next, point2, angle_deg, max_shifts=max_shifts) * scale
         )
 
-        new_point = point2 * scale
         return self._check_path(img, new_point) or new_point
+
+
+def centering(
+    img: ip.ImgArray,
+    point: np.ndarray,
+    angle: float,
+    drot: float = 5,
+    nrots: int = 7,
+    max_shifts: float | None = None,
+):
+    """
+    Find the center of cylinder using self-correlation.
+
+    Parameters
+    ----------
+    img : ip.ImgArray
+        Target image.
+    point : np.ndarray
+        Current center of cylinder.
+    angle : float
+        The central angle of the cylinder.
+    drot : float, default is 5
+        Deviation of the rotation angle.
+    nrots : int, default is 7
+        Number of rotations to try.
+    max_shifts : float, optional
+        Maximum shift in pixel.
+
+    """
+    angle_deg2 = utils.angle_corr(img, ang_center=angle, drot=drot, nrots=nrots)
+
+    img_next_rot = img.rotate(-angle_deg2, cval=np.mean(img))
+    proj = img_next_rot.mean(axis="y")
+    shift = utils.mirror_zncc(proj, max_shifts=max_shifts)
+
+    shiftz, shiftx = shift / 2
+    shift = np.array([shiftz, 0, shiftx])
+    rad = -np.deg2rad(angle_deg2)
+    cos = np.cos(rad)
+    sin = np.sin(rad)
+    shift = shift @ [[1.0, 0.0, 0.0], [0.0, cos, sin], [0.0, -sin, cos]]
+    return point + shift
