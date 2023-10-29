@@ -134,7 +134,7 @@ class LatticeAnalyzer:
             ),
             range_a=self.get_arange(img),
             up_y=max(int(21600 / img.shape.y), 1),
-            up_a=40,
+            up_a=20,
         )
 
     def get_peak_v(self, peak_det: PeakDetector, img: ip.ImgArray, npf: float):
@@ -162,7 +162,7 @@ class LatticeAnalyzer:
                 ceilint(min(npf / 2, _a_max)) + 1,
             ),
             up_y=max(int(6000 / img.shape.y), 1),
-            up_a=40,
+            up_a=20,
         )
 
     def get_params(

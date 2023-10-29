@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from functools import lru_cache
 from typing import NamedTuple
 from cylindra.utils import ceilint, floorint
 import numpy as np
@@ -70,9 +69,10 @@ class PeakDetector:
         """
         ps, y0, a0 = self._local_ps_and_offset(range_y, range_a, up_y, up_a)
         ymax, amax = np.unravel_index(np.argmax(ps), ps.shape)
+        (ymaxsub, amaxsub), _ = find_peak(ps, index=(ymax, amax), nrepeat=1)
         return FTPeakInfo(
-            ymax + y0,
-            amax + a0,
+            ymaxsub + y0,
+            amaxsub + a0,
             (self._img.shape.y, self._img.shape.a),
             (up_y, up_a),
         )
@@ -121,7 +121,11 @@ class FTPeakInfo:
     """Peak info object that will be returned by PeakDetector.get_peak"""
 
     def __init__(
-        self, y: int, a: int, shape: tuple[int, int], upsampling: tuple[int, int]
+        self,
+        y: float,
+        a: float,
+        shape: tuple[int, int],
+        upsampling: tuple[int, int],
     ):
         self._y_abs = y
         self._a_abs = a
@@ -142,19 +146,22 @@ class FTPeakInfo:
     def yfreq(self) -> float:
         """The y peak frequency."""
         size = self._shape[0] * self._upsampling[0]
-        return cached_fftfreq(size)[self._y_abs]
+        return get_fftfreq(self._y_abs, size)
 
     @property
     def afreq(self) -> float:
         """The a peak frequency."""
         size = self._shape[1] * self._upsampling[1]
-        return cached_fftfreq(size)[self._a_abs]
+        return get_fftfreq(self._a_abs, size)
 
 
-@lru_cache(maxsize=10)
-def cached_fftfreq(size: int) -> NDArray[np.float64]:
-    """Cached version of np.fft.fftfreq."""
-    return np.fft.fftfreq(size)
+def get_fftfreq(f: float, size: int) -> float:
+    """Equivalent to np.fft.fftfreq(size)[f] but allow f to be float."""
+    n = (size - 1) // 2 + 1
+    if f < n:
+        return f / size
+    else:
+        return (f - n - size // 2) / size
 
 
 class NDPeak(NamedTuple):

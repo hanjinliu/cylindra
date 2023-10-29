@@ -22,7 +22,6 @@ from cylindra import utils
 from cylindra.const import nm, PropertyNames as H
 from cylindra.types import MoleculesLayer
 from cylindra.components._base import BaseComponent
-from cylindra._config import get_config
 
 if TYPE_CHECKING:
     from cylindra.components import CylTomogram, CylSpline
@@ -34,6 +33,7 @@ POLARS_NAMESPACE = {
     "pl": pl,
     "col": pl.col,
     "when": pl.when,
+    "format": pl.format,
     "int": int,
     "float": float,
     "str": str,

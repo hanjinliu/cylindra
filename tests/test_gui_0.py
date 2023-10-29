@@ -1020,7 +1020,7 @@ def test_calc_lattice_structures(ui: CylindraMainWidget):
             assert spacing_sm.mean() == pytest.approx(spacing, abs=1e-3)
             assert skew_sm.mean() == pytest.approx(skew, abs=1e-2)
             assert twist_sm.mean() == pytest.approx(twist, abs=1e-2)
-            assert rise_sm.mean() == pytest.approx(rise_angle, abs=1e-2)
+            assert rise_sm.mean() == pytest.approx(rise_angle, abs=2e-2)
 
     exc_group.raise_exceptions()
 

@@ -297,7 +297,7 @@ class Main(MagicTemplate):
                         splines=[0], depth=49.0, interval=None, bin_size=binsize
                     )
                     results.append([_nsr, _rep, *simulator.results()])
-                    print(f"repeat={_rep}, nsr={_nsr} done")
+                    print(f"repeat={_rep}, nsr={_nsr:.4f} done")
 
             columns = ["nsr", "rep"] + simulator.columns()
             results = pl.DataFrame(results, schema=columns).sort(by="nsr")
