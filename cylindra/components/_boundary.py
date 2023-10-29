@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math as m
-from typing import Any, Literal
+from typing import Literal
 from typing_extensions import TypeGuard
 
 from cylindra.utils import roundint
@@ -74,7 +74,7 @@ class CylindricParameters:
     @property
     def twist_rad(self) -> float:
         """Skew angle in radians."""
-        # == m.sin(self.skew_tilt_angle_rad) * self.spacing / self.radius
+        # == m.sin(self.skew_angle_rad) * self.spacing / self.radius
         if self.start != 0:
             tt = self.tan_rise * self.tan_skew
             return 2 * m.pi / self.start * tt / (1 + tt)
@@ -109,7 +109,7 @@ class CylindricParameters:
         start: int | None = None,
         *,
         allow_duplicate: bool = False,
-        rise_sign: Literal[1, -1] = 1,  # TODO: hard-coded for MTs
+        rise_sign: Literal[1, -1] = -1,  # TODO: hard-coded for MTs
     ):
         """Normalize the inputs and return the parameters of the cylinder."""
         if given(twist) and given(skew) and not allow_duplicate:
@@ -130,14 +130,15 @@ class CylindricParameters:
         npf = roundint(npf)
 
         if given(pitch):
-            if given(start):
+            if given(rise_angle):
+                start = roundint(perimeter * m.tan(m.radians(rise_angle)) / pitch)
+                tan_rise = m.tan(m.radians(rise_angle))
+                if given(twist):
+                    skew = _twist_to_skew(start, tan_rise, twist)
+            elif given(start):
                 if _rise_is_known and not allow_duplicate:
                     raise ValueError("Cannot specify both start and rise.")
                 tan_rise = start * pitch / perimeter
-                if given(twist):
-                    skew = _twist_to_skew(start, tan_rise, twist)
-            elif given(rise_angle):
-                start = roundint(perimeter * m.tan(m.radians(rise_angle)) / pitch)
                 if given(twist):
                     skew = _twist_to_skew(start, tan_rise, twist)
             elif given(rise_length):
@@ -148,22 +149,26 @@ class CylindricParameters:
         elif given(spacing):
             if given(twist):
                 skew_rad = m.asin(m.radians(twist) * radius / spacing)
-            skew = m.degrees(skew_rad)
-            if given(start):
+                skew = m.degrees(skew_rad)
+            elif given(skew):
+                skew_rad = m.radians(skew)
+            else:
+                raise ValueError("Not enough information to solve.")
+            if given(rise_angle):
+                start = _rise_to_start(rise_angle, skew_rad, spacing, perimeter)
+            elif given(start):
                 if _rise_is_known and not allow_duplicate:
                     raise ValueError("Cannot specify both start and rise.")
                 if start == 0:
-                    tan_rise = 0
+                    tan_rise = 0.0
                 else:
                     tan_rise = m.cos(skew_rad) / (
                         perimeter / start / spacing - m.sin(skew_rad)
                     )
                 rise_angle = m.degrees(m.atan(tan_rise))
-            elif given(rise_angle):
-                start = _rise_to_start(rise_angle, skew_rad, spacing, perimeter)
             elif given(rise_length):
                 nl = npf * rise_length / perimeter
-                tan_rise = nl / (1 - nl * m.tan(skew_rad))
+                tan_rise = nl / (1.0 - nl * m.tan(skew_rad))
                 rise_angle = m.degrees(m.atan(tan_rise))
                 start = _rise_to_start(rise_angle, skew_rad, spacing, perimeter)
             else:
@@ -177,7 +182,7 @@ class CylindricParameters:
         return CylindricParameters(skew, rise_angle, pitch, radius, npf)
 
 
-def given(s) -> TypeGuard[Any]:
+def given(s) -> TypeGuard[float]:
     return s is not None
 
 

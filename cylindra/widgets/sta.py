@@ -1406,31 +1406,19 @@ class SubtomogramAveraging(ChildWidget):
         else:
             img_avg = None
 
-        freq = fsc["freq"].to_numpy()
-        fsc_all = fsc.select(pl.col("^FSC.*$")).to_numpy()
-        fsc_mean = np.mean(fsc_all, axis=1)
-        fsc_std = np.std(fsc_all, axis=1)
-        crit_0143, crit_0500 = 0.143, 0.500
-        res0143 = widget_utils.calc_resolution(freq, fsc_mean, crit_0143, loader.scale)
-        res0500 = widget_utils.calc_resolution(freq, fsc_mean, crit_0500, loader.scale)
+        result = widget_utils.FscResult.from_dataframe(fsc, loader.scale)
+        criteria = [0.5, 0.143]
         _name = _avg_name(layers)
-        result = widget_utils.FscResult(freq, fsc_mean, fsc_std, res0143, res0500)
         t0.toc()
 
         @thread_worker.callback
         def _calculate_fsc_on_return():
             _Logger.print_html(f"<b>Fourier Shell Correlation of {_name!r}</b>")
             with _Logger.set_plt():
-                widget_utils.plot_fsc(
-                    freq,
-                    fsc_mean,
-                    fsc_std,
-                    [crit_0143, crit_0500],
-                    main.tomogram.scale,
-                )
-
-            _Logger.print_html(f"Resolution at FSC=0.5 ... <b>{res0500:.3f} nm</b>")
-            _Logger.print_html(f"Resolution at FSC=0.143 ... <b>{res0143:.3f} nm</b>")
+                result.plot(criteria)
+            for _c in criteria:
+                _r = result.get_resolution(_c)
+                _Logger.print_html(f"Resolution at FSC={_c:.3f} ... <b>{_r:.3f} nm</b>")
 
             if img_avg is not None:
                 _rec_layer: "Image" = self._show_rec(

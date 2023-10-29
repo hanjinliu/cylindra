@@ -91,9 +91,10 @@ class QtLandscapeSurfaceControls(QtSurfaceControls):
 
     def __init__(self, layer: LandscapeSurface) -> None:
         super().__init__(layer)
+        layout: QFormLayout = self.layout()
         self.levelSlider = QLabeledDoubleSlider(orientation=Qt.Orientation.Horizontal)
         self.levelSlider.setRange(layer._level_min, layer._level_max)
-        self.layout().addRow("level:", self.levelSlider)
+        layout.addRow("level:", self.levelSlider)
         self.levelSlider.sliderReleased.connect(self._change_level)
         self.levelSlider.setSingleStep(0.001)
         self.levelSlider.setValue(layer.level)
@@ -101,7 +102,7 @@ class QtLandscapeSurfaceControls(QtSurfaceControls):
         layer.events.level.connect(self._on_level_change)
 
         self.resolution = QtW.QDoubleSpinBox()
-        self.layout().addRow("resolution:", self.resolution)
+        layout.addRow("resolution:", self.resolution)
         self.resolution.setRange(0.1, 10)
         self.resolution.setSingleStep(0.05)
         self.resolution.setToolTip("Resolution of the surface")
@@ -110,7 +111,7 @@ class QtLandscapeSurfaceControls(QtSurfaceControls):
         layer.events.resolution.connect(self._on_resolution_change)
 
         self.showMinCheckBox = QtW.QCheckBox("show min")
-        self.layout().addRow(self.showMinCheckBox)
+        layout.addRow(self.showMinCheckBox)
         self.showMinCheckBox.setChecked(layer.show_min)
         self.showMinCheckBox.stateChanged.connect(self._change_show_min)
         self.showMinCheckBox.setToolTip(

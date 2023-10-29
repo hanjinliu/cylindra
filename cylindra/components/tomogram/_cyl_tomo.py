@@ -671,7 +671,7 @@ class CylTomogram(Tomogram):
         update_glob: bool = False,
     ) -> pl.DataFrame:
         """
-        Calculate local structural parameters from cylindrical Fourier space.
+        Calculate local lattice parameters from cylindrical Fourier space.
 
         To determine the peaks upsampled discrete Fourier transformation is used
         for every subtomogram.
@@ -832,7 +832,7 @@ class CylTomogram(Tomogram):
         update: bool = True,
     ) -> pl.DataFrame:
         """
-        Calculate global structural parameters.
+        Calculate global lattice parameters.
 
         This function transforms tomogram using cylindrical coordinate system along
         spline. This function calls ``straighten`` beforehand, so that Fourier space is

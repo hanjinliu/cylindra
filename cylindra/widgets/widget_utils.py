@@ -8,6 +8,7 @@ import re
 import numpy as np
 from numpy.typing import NDArray
 from scipy import ndimage as ndi
+from scipy.interpolate import UnivariateSpline
 import polars as pl
 import matplotlib.pyplot as plt
 import macrokit as mk
@@ -17,7 +18,7 @@ from magicclass.widgets import EvalLineEdit
 import napari
 from napari.utils.theme import get_theme
 
-from acryo import Molecules, TomogramSimulator
+from acryo import Molecules
 from cylindra import utils
 from cylindra.const import nm, PropertyNames as H
 from cylindra.types import MoleculesLayer
@@ -164,7 +165,7 @@ class timer:
         if name is None:
             try:
                 name = inspect.stack()[1].function
-            except Exception:
+            except Exception:  # pragma: no cover
                 name = "<unknown>"
         self.name = name
         self.start = default_timer()
@@ -234,61 +235,6 @@ def plot_seam_search_result(score: np.ndarray, npf: int):
     plt.show()
 
 
-def plot_fsc(
-    freq: np.ndarray,
-    fsc_mean: np.ndarray,
-    fsc_std: np.ndarray,
-    crit: list[float],
-    scale: nm,
-):
-    ind = freq <= 0.7
-    plt.axhline(0.0, color="gray", alpha=0.5, ls="--")
-    plt.axhline(1.0, color="gray", alpha=0.5, ls="--")
-    for cr in crit:
-        plt.axhline(cr, color="violet", alpha=0.5, ls="--")
-    plt.plot(freq[ind], fsc_mean[ind], color="gold")
-    plt.fill_between(
-        freq[ind],
-        y1=fsc_mean[ind] - fsc_std[ind],
-        y2=fsc_mean[ind] + fsc_std[ind],
-        color="gold",
-        alpha=0.3,
-    )
-    plt.xlabel("Spatial frequence (1/nm)")
-    plt.ylabel("FSC")
-    plt.ylim(-0.1, 1.1)
-    xticks = np.linspace(0, 0.7, 8)
-    per_nm = [r"$\infty$"] + [f"{x:.2f}" for x in scale / xticks[1:]]
-    plt.xticks(xticks, per_nm)
-    plt.tight_layout()
-    plt.show()
-
-
-def calc_resolution(
-    freq: np.ndarray, fsc: np.ndarray, crit: float = 0.143, scale: nm = 1.0
-) -> nm:
-    """
-    Calculate resolution using arrays of frequency and FSC.
-    This function uses linear interpolation to find the solution.
-    If the inputs are not accepted, 0 will be returned.
-    """
-    freq0 = None
-    for i, fsc1 in enumerate(fsc):
-        if fsc1 < crit:
-            if i == 0:
-                resolution = 0
-                break
-            f0 = freq[i - 1]
-            f1 = freq[i]
-            fsc0 = fsc[i - 1]
-            freq0 = (crit - fsc1) / (fsc0 - fsc1) * (f0 - f1) + f1
-            resolution = scale / freq0
-            break
-    else:
-        resolution = np.nan
-    return resolution
-
-
 def plot_projections(merge: np.ndarray):
     """Projection of the result of `align_averaged`."""
     _, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 3.5))
@@ -318,8 +264,45 @@ class FscResult:
     freq: np.ndarray
     mean: np.ndarray
     std: np.ndarray
-    resolution_0143: nm
-    resolution_0500: nm
+    scale: nm
+
+    @classmethod
+    def from_dataframe(cls, df: pl.DataFrame, scale: nm) -> FscResult:
+        freq = df["freq"].to_numpy()
+        fsc_all = df.select(pl.col("^FSC.*$")).to_numpy()
+        fsc_mean = np.mean(fsc_all, axis=1)
+        fsc_std = np.std(fsc_all, axis=1)
+        return cls(freq, fsc_mean, fsc_std, scale)
+
+    def get_resolution(self, res: float) -> nm:
+        uni_spl = UnivariateSpline(self.freq, self.mean - res, s=0, k=1)
+        freq_roots = uni_spl.roots()
+        if len(freq_roots) > 0:
+            return self.scale / freq_roots[0]
+        return float("nan")
+
+    def plot(self, criteria: list[float] = [0.143, 0.5]):
+        ind = self.freq <= 0.7
+        plt.axhline(0.0, color="gray", alpha=0.5, ls="--")
+        plt.axhline(1.0, color="gray", alpha=0.5, ls="--")
+        for cr in criteria:
+            plt.axhline(cr, color="violet", alpha=0.5, ls="--")
+        plt.plot(self.freq[ind], self.mean[ind], color="gold")
+        plt.fill_between(
+            self.freq[ind],
+            y1=self.mean[ind] - self.std[ind],
+            y2=self.mean[ind] + self.std[ind],
+            color="gold",
+            alpha=0.3,
+        )
+        plt.xlabel("Spatial frequence (1/nm)")
+        plt.ylabel("FSC")
+        plt.ylim(-0.1, 1.1)
+        xticks = np.linspace(0, 0.7, 8)
+        per_nm = [r"$\infty$"] + [f"{x:.2f}" for x in self.scale / xticks[1:]]
+        plt.xticks(xticks, per_nm)
+        plt.tight_layout()
+        plt.show()
 
 
 def coordinates_with_extensions(
@@ -358,17 +341,6 @@ class PaintDevice:
     @property
     def scale(self) -> nm:
         return self._scale
-
-    def paint_molecules(
-        self,
-        template: NDArray[np.float32],
-        molecules: Molecules,
-        colors: NDArray[np.float32],
-    ):
-        simulator = TomogramSimulator(order=1, scale=self._scale)
-        simulator.add_molecules(molecules, template)
-        img = simulator.simulate(self._shape, colormap=colors)
-        return img
 
     def paint_cylinders(self, tomo: CylTomogram, prop: str):
         lbl = np.zeros(self._shape, dtype=np.uint8)

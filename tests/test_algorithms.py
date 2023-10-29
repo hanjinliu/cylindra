@@ -64,7 +64,7 @@ def test_run_all(coords, npf, rise, twist_range):
 
     # check cylinder parameters
     cp = tomo.splines[0].cylinder_params()
-    assert cp.spacing == pytest.approx(spacing_glob, abs=1e-6)
+    assert cp.spacing == pytest.approx(spl.props.get_glob(H.spacing), abs=1e-6)
     assert cp.twist == pytest.approx(spl.props.get_glob(H.twist), abs=1e-6)
     assert cp.skew == pytest.approx(spl.props.get_glob(H.skew), abs=1e-6)
     assert cp.rise_angle == pytest.approx(spl.props.get_glob(H.rise), abs=1e-6)

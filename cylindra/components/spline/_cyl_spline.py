@@ -129,10 +129,11 @@ class CylSpline(Spline):
         """Get the cylinder parameters of the spline."""
         radius = _get_globalprops(self, kwargs, H.radius)
         if radius is None:
-            raise ValueError("Radius is not set.")
+            raise ValueError("Radius is not known.")
         radius += (self.config.thickness_outer - self.config.thickness_inner) / 2
         return CylindricParameters.solve(
             spacing=_get_globalprops(self, kwargs, H.spacing),
+            pitch=_get_globalprops(self, kwargs, H.pitch),
             twist=_get_globalprops(self, kwargs, H.twist),
             skew=_get_globalprops(self, kwargs, H.skew),
             rise_angle=_get_globalprops(self, kwargs, H.rise),
