@@ -1144,7 +1144,9 @@ class CylindraMainWidget(MagicTemplate):
                 _config = _s.config
             else:
                 _config = self.default_config
-            coords = layer.molecules.pos.reshape(layer.regular_shape()).mean(axis=1)
+            coords = layer.molecules.pos.reshape(layer.regular_shape() + (3,)).mean(
+                axis=1
+            )
             spl = CylSpline(config=_config).fit(coords, err_max=err_max)
             try:
                 idx = tomo.splines.index(layer.source_spline)
