@@ -105,7 +105,7 @@ class local_skew_14_3(_local_skew_base):
             scale=self.scale, size=(60.0, 240.0, 60.0), length=245.0
         )
         self.ui.simulator.generate_molecules(
-            0, spacing=4.1, twist=-0.0, start=3, radius=12.1, npf=14
+            0, spacing=4.1, twist=0.0, start=3, radius=12.1, npf=14
         )
         for sk, yrange in zip([-0.37, -0.29, -0.21, -0.13], POSITIONS):
             self.ui.simulator.twist(
@@ -282,6 +282,7 @@ class Main(MagicTemplate):
             )
             for _rep in range(nrepeat):
                 for _idx, _nsr in enumerate(nsr):
+                    t1 = timer(name=f"repeat={_rep}, nsr={_nsr:.2f} done")
                     ui.simulator.simulate_tomogram_from_tilt_series(
                         path=Path(tmpdir) / "image.mrc",
                         nsr=_nsr,
@@ -294,10 +295,10 @@ class Main(MagicTemplate):
                     ui.measure_radius(splines=[0])
                     ui.tomogram.splines[0].anchors = simulator.anchors()
                     ui.local_ft_analysis(
-                        splines=[0], depth=49.0, interval=None, bin_size=binsize
+                        [0], depth=49.0, interval=None, bin_size=binsize
                     )
                     results.append([_nsr, _rep, *simulator.results()])
-                    print(f"repeat={_rep}, nsr={_nsr:.4f} done")
+                    t1.toc(log=False)
 
             columns = ["nsr", "rep"] + simulator.columns()
             results = pl.DataFrame(results, schema=columns).sort(by="nsr")

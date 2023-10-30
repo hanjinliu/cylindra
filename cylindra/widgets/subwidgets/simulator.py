@@ -31,6 +31,7 @@ from magicclass.ext.dask import dask_thread_worker
 from acryo import TomogramSimulator, pipe
 
 from cylindra._napari import MoleculesLayer
+from cylindra.widgets._annotated import MoleculesLayerType, _as_layer_name, assert_layer
 from cylindra.widgets.widget_utils import capitalize, POLARS_NAMESPACE
 from cylindra.const import (
     FileFilter,
@@ -177,9 +178,6 @@ class Simulator(ChildWidget):
         tilt_series = ip.asarray(tilt_series, axes=["degree", "y", "x"])
         return tilt_series.set_scale(y=scale, x=scale)
 
-    def _get_molecules_layers(self, *_):
-        return list(self._get_main().mole_layers)
-
     def _get_proper_molecules_layers(self, *_):
         out = list[MoleculesLayer]()
         for layer in self._get_main().mole_layers:
@@ -191,11 +189,16 @@ class Simulator(ChildWidget):
                 out.append(layer)
         return out
 
+    _ModeledMoleculesLayer = Annotated[
+        MoleculesLayer,
+        {"choices": _get_proper_molecules_layers, "validator": _as_layer_name},
+    ]
+
     @set_design(icon="fluent:cloud-add-16-filled", location=SimulatorTools)
     @do_not_record
     def add_component(
         self,
-        layer: Annotated[MoleculesLayer, {"choices": _get_molecules_layers}],
+        layer: MoleculesLayerType,
         template_path: Path.Read[FileFilter.IMAGE],
     ):
         """Add a new component"""
@@ -244,6 +247,16 @@ class Simulator(ChildWidget):
         start: _Point3D,
         end: _Point3D,
     ):
+        """
+        Create a straight line as a spline.
+
+        Parameters
+        ----------
+        start : (nm, nm, nm)
+            Start point of the line.
+        end : (nm, nm, nm)
+            End point of the line.
+        """
         spl = CylSpline.line(start, end)
         main = self._get_main()
         main.tomogram.splines.append(spl)
@@ -631,7 +644,7 @@ class Simulator(ChildWidget):
     @set_design(icon="iconoir:expand-lines", location=SimulatorTools)
     def expand(
         self,
-        layer: Annotated[MoleculesLayer, {"choices": _get_proper_molecules_layers}],
+        layer: _ModeledMoleculesLayer,
         by: Annotated[float, {"min": -100, "max": 100}] = 0.0,
         yrange: Annotated[tuple[int, int], {"widget_type": RangeSlider}] = (0, 1),
         arange: Annotated[tuple[int, int], {"widget_type": RangeSlider}] = (0, 1),
@@ -654,6 +667,7 @@ class Simulator(ChildWidget):
             Alleviation of the local expansion. If true, the surrounding molecules
             will be shifted to alleviate the local expansion.
         """
+        layer = assert_layer(layer, self.parent_viewer)
         spl, model = _local_transform(
             CylinderModel.expand, layer, by, yrange, arange, allev
         )
@@ -664,7 +678,7 @@ class Simulator(ChildWidget):
     @set_design(icon="mingcute:rotate-x-line", location=SimulatorTools)
     def twist(
         self,
-        layer: Annotated[MoleculesLayer, {"choices": _get_proper_molecules_layers}],
+        layer: _ModeledMoleculesLayer,
         by: Annotated[float, {"min": -100, "max": 100}] = 0.0,
         yrange: Annotated[tuple[int, int], {"widget_type": RangeSlider}] = (0, 1),
         arange: Annotated[tuple[int, int], {"widget_type": RangeSlider}] = (0, 1),
@@ -687,6 +701,7 @@ class Simulator(ChildWidget):
             Alleviation of the local expansion. If true, the surrounding molecules
             will be shifted to alleviate the local expansion.
         """
+        layer = assert_layer(layer, self.parent_viewer)
         spl, model = _local_transform(
             CylinderModel.twist, layer, np.deg2rad(by), yrange, arange, allev
         )
@@ -697,7 +712,7 @@ class Simulator(ChildWidget):
     @set_design(icon="iconoir:scale-frame-enlarge", location=SimulatorTools)
     def dilate(
         self,
-        layer: Annotated[MoleculesLayer, {"choices": _get_proper_molecules_layers}],
+        layer: _ModeledMoleculesLayer,
         by: Annotated[float, {"min": -100, "max": 100}] = 0.0,
         yrange: Annotated[tuple[int, int], {"widget_type": RangeSlider}] = (0, 1),
         arange: Annotated[tuple[int, int], {"widget_type": RangeSlider}] = (0, 1),
@@ -720,6 +735,7 @@ class Simulator(ChildWidget):
             Alleviation of the local expansion. If true, the surrounding molecules
             will be shifted to alleviate the local expansion.
         """
+        layer = assert_layer(layer, self.parent_viewer)
         spl, model = _local_transform(
             CylinderModel.dilate, layer, by, yrange, arange, allev
         )
@@ -730,7 +746,7 @@ class Simulator(ChildWidget):
     @set_design(icon="fluent:arrow-move-20-filled", location=SimulatorTools)
     def displace(
         self,
-        layer: Annotated[MoleculesLayer, {"choices": _get_proper_molecules_layers}],
+        layer: _ModeledMoleculesLayer,
         expand: ExprStr.In[POLARS_NAMESPACE] = 0.0,
         twist: ExprStr.In[POLARS_NAMESPACE] = 0.0,
         dilate: ExprStr.In[POLARS_NAMESPACE] = 0.0,
@@ -754,6 +770,7 @@ class Simulator(ChildWidget):
         dilate : str, pl.Expr or constant
             Displacement from the center (nm).
         """
+        layer = assert_layer(layer, self.parent_viewer)
         new_model = _get_shifted_model(layer, expand, twist, dilate)
         layer.molecules = new_model.to_molecules(
             layer.source_spline, layer.molecules.features

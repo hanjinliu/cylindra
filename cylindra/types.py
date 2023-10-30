@@ -1,8 +1,7 @@
 from typing import TYPE_CHECKING, NewType
-import re
 import numpy as np
 import magicgui
-from napari.utils._magicgui import find_viewer_ancestor
+import napari
 from napari.layers import Layer
 from cylindra._napari import MoleculesLayer, CylinderLabels
 from cylindra.const import PREVIEW_LAYER_NAME
@@ -11,9 +10,18 @@ if TYPE_CHECKING:
     from magicgui.widgets._bases import CategoricalWidget
 
 
+def _viewer_ancestor(gui: "CategoricalWidget") -> "napari.Viewer | None":
+    widget = gui
+    while widget is not None:
+        widget = widget.parent
+        if hasattr(widget, "__magicclass_parent__"):
+            return widget.__magicclass_parent__.parent_viewer
+    return None
+
+
 # This function will be called by magicgui to find all the available monomer layers.
 def get_monomer_layers(gui: "CategoricalWidget") -> list[MoleculesLayer]:
-    viewer = find_viewer_ancestor(gui.native)
+    viewer = _viewer_ancestor(gui)
     if not viewer:
         return []
     return [
@@ -26,7 +34,7 @@ def get_monomer_layers(gui: "CategoricalWidget") -> list[MoleculesLayer]:
 def get_colored_layers(
     gui: "CategoricalWidget",
 ) -> "list[MoleculesLayer | CylinderLabels]":
-    viewer = find_viewer_ancestor(gui.native)
+    viewer = _viewer_ancestor(gui)
     if not viewer:
         return []
     return [
