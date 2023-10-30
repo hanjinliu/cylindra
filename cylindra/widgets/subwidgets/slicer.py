@@ -445,10 +445,9 @@ class SplineSlicer(ChildWidget):
         idx = self.controller.spline_id
         if idx is None:
             return ValueError("No spline exists.")
-        spl = self._get_main().tomogram.splines[idx]
         ya_ratio = img_cyl.scale.y / img_cyl.scale.a
         vy = img_cyl.scale.y / cp.pitch
-        vx = spl.config.rise_sign * vy * cp.tan_rise / ya_ratio
+        vx = vy * cp.tan_rise_raw / ya_ratio
         hx = img_cyl.scale.a / cp.lat_spacing_proj
         hy = hx * cp.tan_skew / ya_ratio
         v = np.array([vy, vx]) / vsub

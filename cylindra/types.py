@@ -10,18 +10,19 @@ if TYPE_CHECKING:
     from magicgui.widgets._bases import CategoricalWidget
 
 
-def _viewer_ancestor(gui: "CategoricalWidget") -> "napari.Viewer | None":
-    widget = gui
-    while widget is not None:
-        widget = widget.parent
-        if hasattr(widget, "__magicclass_parent__"):
-            return widget.__magicclass_parent__.parent_viewer
-    return None
+def _viewer_ancestor() -> "napari.Viewer | None":
+    from cylindra.core import instance
+
+    match instance():
+        case None:
+            return None
+        case ui:
+            return ui.parent_viewer
 
 
 # This function will be called by magicgui to find all the available monomer layers.
 def get_monomer_layers(gui: "CategoricalWidget") -> list[MoleculesLayer]:
-    viewer = _viewer_ancestor(gui)
+    viewer = _viewer_ancestor()
     if not viewer:
         return []
     return [
@@ -34,7 +35,7 @@ def get_monomer_layers(gui: "CategoricalWidget") -> list[MoleculesLayer]:
 def get_colored_layers(
     gui: "CategoricalWidget",
 ) -> "list[MoleculesLayer | CylinderLabels]":
-    viewer = _viewer_ancestor(gui)
+    viewer = _viewer_ancestor()
     if not viewer:
         return []
     return [

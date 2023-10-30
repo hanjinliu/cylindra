@@ -12,7 +12,7 @@ from cylindra.const import (
 )
 from cylindra.utils import roundint
 from cylindra.components.cylindric import CylinderModel
-from cylindra.components._boundary import CylindricParameters
+from cylindra.components._cylinder_params import CylinderParameters
 
 
 class CylSpline(Spline):
@@ -125,13 +125,13 @@ class CylSpline(Spline):
     def nrise(self, **kwargs):
         return self.cylinder_params(**kwargs).start
 
-    def cylinder_params(self, **kwargs) -> CylindricParameters:
+    def cylinder_params(self, **kwargs) -> CylinderParameters:
         """Get the cylinder parameters of the spline."""
         radius = _get_globalprops(self, kwargs, H.radius)
         if radius is None:
             raise ValueError("Radius is not known.")
         radius += (self.config.thickness_outer - self.config.thickness_inner) / 2
-        return CylindricParameters.solve(
+        return CylinderParameters.solve(
             spacing=_get_globalprops(self, kwargs, H.spacing),
             pitch=_get_globalprops(self, kwargs, H.pitch),
             twist=_get_globalprops(self, kwargs, H.twist),
@@ -176,7 +176,7 @@ class CylSpline(Spline):
             shape=(ny, cp.npf),
             tilts=(
                 cp.tan_skew * factor,
-                cp.tan_rise / factor * self.config.rise_sign,
+                cp.tan_rise_raw / factor,
             ),
             intervals=(ly, la / cp.perimeter * 2 * np.pi),
             radius=cp.radius,

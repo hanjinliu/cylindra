@@ -9,19 +9,20 @@ from cylindra.utils import roundint
 
 
 @dataclass(frozen=True)
-class CylindricParameters:
+class CylinderParameters:
     skew: float
-    rise_angle: float
+    rise_angle_raw: float
     pitch: float
     radius: float
     npf: int
+    rise_sign: Literal[1, -1] = -1
 
     @property
     def spacing(self) -> float:
         """Longitudinal spacing in nm."""
-        _r = self.rise_angle_rad
+        _r = m.radians(self.rise_angle_raw)
         _s = self.skew_rad
-        return self.pitch * m.cos(_r) / m.cos(_r - _s)
+        return self.pitch * m.cos(_r) / m.cos(_r + _s)
 
     @property
     def spacing_proj(self) -> float:
@@ -31,15 +32,15 @@ class CylindricParameters:
     @property
     def lat_spacing(self) -> float:
         """Lateral spacing in nm."""
-        if self.tan_rise != 0:
-            return self.rise_length / m.sin(self.rise_angle_rad)
+        if self.rise_angle_raw != 0:
+            return self.rise_length / m.sin(m.radians(self.rise_angle))
         return self.perimeter / self.npf
 
     @property
     def lat_spacing_proj(self) -> float:
         """The θ-projection of the lateral spacing."""
-        if self.tan_rise != 0:
-            return self.rise_length / self.tan_rise
+        if self.tan_rise_raw != 0:
+            return self.rise_length / self.tan_rise_raw * self.rise_sign
         return self.perimeter / self.npf
 
     @property
@@ -53,14 +54,24 @@ class CylindricParameters:
         return m.tan(self.skew_rad)
 
     @property
-    def tan_rise(self) -> float:
+    def rise_angle(self) -> float:
+        """Rise angle in degrees."""
+        return self.rise_angle_raw * self.rise_sign
+
+    @property
+    def tan_rise_raw(self) -> float:
         """Tangent of the rise angle."""
         return m.tan(self.rise_angle_rad)
 
     @property
     def start(self) -> int:
         """The start number."""
-        return roundint(self.perimeter * self.tan_rise / self.pitch)
+        return self._start_raw * self.rise_sign
+
+    @property
+    def _start_raw(self) -> int:
+        """The start number before applying rise_sign."""
+        return roundint(self.perimeter * self.tan_rise_raw / self.pitch)
 
     @property
     def twist(self) -> float:
@@ -76,24 +87,21 @@ class CylindricParameters:
         """Skew angle in radians."""
         # == m.sin(self.skew_angle_rad) * self.spacing / self.radius
         if self.start != 0:
-            tt = self.tan_rise * self.tan_skew
-            return 2 * m.pi / self.start * tt / (1 + tt)
+            tt = self.tan_rise_raw * self.tan_skew
+            return 2 * m.pi / self._start_raw * tt / (1 - tt)
         return m.tan(self.skew_rad) * self.pitch / self.radius
 
     @property
     def rise_angle_rad(self) -> float:
         """Rise angle in radians."""
-        return m.radians(self.rise_angle)
+        return m.radians(self.rise_angle_raw)
 
     @property
     def rise_length(self) -> float:
         """Rise length in nm."""
-        return (
-            self.perimeter
-            / self.npf
-            * self.tan_rise
-            / (1 + self.tan_rise * self.tan_skew)
-        )
+        lat_pitch = self.perimeter / self.npf
+        tt = self.tan_rise_raw * self.tan_skew
+        return lat_pitch * self.tan_rise_raw / (1 + tt) * self.rise_sign
 
     @classmethod
     def solve(
@@ -109,7 +117,7 @@ class CylindricParameters:
         start: int | None = None,
         *,
         allow_duplicate: bool = False,
-        rise_sign: Literal[1, -1] = -1,  # TODO: hard-coded for MTs
+        rise_sign: Literal[1, -1] = -1,
     ):
         """Normalize the inputs and return the parameters of the cylinder."""
         if given(twist) and given(skew) and not allow_duplicate:
@@ -118,6 +126,8 @@ class CylindricParameters:
             raise ValueError("Cannot specify both rise_angle and rise_length.")
         if given(spacing) and given(pitch) and not allow_duplicate:
             raise ValueError("Cannot specify both spacing and pitch.")
+        if rise_sign not in (1, -1):
+            raise ValueError("rise_sign must be either 1 or -1.")
 
         _skew_is_known = given(twist) or given(skew)
         _rise_is_known = given(rise_angle) or given(rise_length)
@@ -131,11 +141,13 @@ class CylindricParameters:
 
         if given(pitch):
             if given(rise_angle):
+                rise_angle *= rise_sign
                 start = roundint(perimeter * m.tan(m.radians(rise_angle)) / pitch)
                 tan_rise = m.tan(m.radians(rise_angle))
                 if given(twist):
                     skew = _twist_to_skew(start, tan_rise, twist)
             elif given(start):
+                start *= rise_sign
                 if _rise_is_known and not allow_duplicate:
                     raise ValueError("Cannot specify both start and rise.")
                 tan_rise = start * pitch / perimeter
@@ -155,8 +167,10 @@ class CylindricParameters:
             else:
                 raise ValueError("Not enough information to solve.")
             if given(rise_angle):
+                rise_angle *= rise_sign
                 start = _rise_to_start(rise_angle, skew_rad, spacing, perimeter)
             elif given(start):
+                start *= rise_sign
                 if _rise_is_known and not allow_duplicate:
                     raise ValueError("Cannot specify both start and rise.")
                 if start == 0:
@@ -167,10 +181,9 @@ class CylindricParameters:
                     )
                 rise_angle = m.degrees(m.atan(tan_rise))
             elif given(rise_length):
-                nl = npf * rise_length / perimeter
+                nl = npf * rise_length / perimeter * rise_sign
                 tan_rise = nl / (1.0 - nl * m.tan(skew_rad))
                 rise_angle = m.degrees(m.atan(tan_rise))
-                start = _rise_to_start(rise_angle, skew_rad, spacing, perimeter)
             else:
                 raise ValueError("Not enough information to solve.")
             pitch = (
@@ -179,7 +192,7 @@ class CylindricParameters:
                 / m.cos(m.radians(rise_angle))
             )
 
-        return CylindricParameters(skew, rise_angle, pitch, radius, npf)
+        return CylinderParameters(skew, rise_angle, pitch, radius, npf, rise_sign)
 
 
 def given(s) -> TypeGuard[float]:
@@ -188,12 +201,12 @@ def given(s) -> TypeGuard[float]:
 
 def _twist_to_skew(start: int, tan_rise: float, twist: float) -> float:
     _s_sk = start * m.radians(twist)
-    tan_skew = _s_sk / tan_rise / (2 * m.pi - _s_sk)
+    tan_skew = _s_sk / tan_rise / (2 * m.pi + _s_sk)
     return m.degrees(m.atan(tan_skew))
 
 
 def _rise_to_start(rise_angle, skew_rad, spacing, perimeter):
     tan_rise = m.tan(m.radians(rise_angle))
     return roundint(
-        perimeter / spacing / (m.cos(skew_rad) / tan_rise - m.sin(skew_rad))
+        perimeter / spacing / (m.cos(skew_rad) / tan_rise + m.sin(skew_rad))
     )

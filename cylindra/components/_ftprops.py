@@ -9,7 +9,7 @@ import polars as pl
 from cylindra._dask import delayed, Delayed
 from cylindra.const import nm, PropertyNames as H
 from cylindra.components._peak import PeakDetector, FTPeakInfo
-from cylindra.components._boundary import CylindricParameters
+from cylindra.components._cylinder_params import CylinderParameters
 from cylindra.components.spline import SplineConfig
 from cylindra.utils import ceilint, roundint, floorint
 from cylindra.cyltransform import get_polar_image, get_polar_image_task
@@ -95,7 +95,7 @@ class LatticeAnalyzer:
 
     def estimate_params_polar(
         self, img: ip.ImgArray, radius: nm, nsamples: int = 8
-    ) -> CylindricParameters:
+    ) -> CylinderParameters:
         """Estimate cylindric parameter object from a cylindric input."""
         img = img - float(img.mean())  # normalize.
         peak_det = PeakDetector(img, nsamples=nsamples)
@@ -171,22 +171,23 @@ class LatticeAnalyzer:
         peakh: FTPeakInfo,
         peakv: FTPeakInfo,
         radius: nm,
-    ) -> CylindricParameters:
+    ) -> CylinderParameters:
         npf_f = peakh.a
         npf = roundint(npf_f)
         ya_scale_ratio = img.scale.y / img.scale.a
 
-        tan_rise = peakv.afreq / peakv.yfreq * ya_scale_ratio * self._cfg.rise_sign
+        tan_rise = peakv.afreq / peakv.yfreq * ya_scale_ratio
         tan_skew = peakh.yfreq / peakh.afreq / ya_scale_ratio
 
         # NOTE: Values dependent on peak{x}.afreq are not stable against radius change.
         # peak{x}.afreq * radius is stable. r-dependent ones are marked as "f(r)" here.
-        return CylindricParameters(
+        return CylinderParameters(
             skew=math.degrees(math.atan(tan_skew)),  # f(r)
-            rise_angle=math.degrees(math.atan(tan_rise)),  # f(r)
+            rise_angle_raw=math.degrees(math.atan(tan_rise)),  # f(r)
             pitch=img.scale.y / peakv.yfreq,
             radius=radius,
             npf=npf,
+            rise_sign=self._cfg.rise_sign,
         )
 
     def get_lattice_params(
