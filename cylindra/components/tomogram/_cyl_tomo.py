@@ -463,7 +463,7 @@ class CylTomogram(Tomogram):
                     update=False,
                 )
             with spl.props.temp_glob(radius=radius):
-                gprops = self.global_ft_params(
+                gprops = self.global_cft_params(
                     i=i, binsize=binsize, nsamples=1, update=False
                 )
         else:
@@ -659,7 +659,7 @@ class CylTomogram(Tomogram):
         return out
 
     @batch_process
-    def local_ft_params(
+    def local_cft_params(
         self,
         *,
         i: int = None,
@@ -703,7 +703,7 @@ class CylTomogram(Tomogram):
         polars.DataFrame
             Local properties.
         """
-        LOGGER.info(f"Running: {self.__class__.__name__}.local_ft_params, i={i}")
+        LOGGER.info(f"Running: {self.__class__.__name__}.local_cft_params, i={i}")
         spl = self.splines[i]
         radii = _prepare_radii(spl, radius)
         input_img = self._get_multiscale_or_original(binsize)
@@ -749,6 +749,8 @@ class CylTomogram(Tomogram):
     ) -> ip.ImgArray:
         """
         Calculate non-upsampled local cylindric Fourier transormation along spline.
+
+        This function does not up-sample.
 
         Parameters
         ----------
@@ -823,7 +825,7 @@ class CylTomogram(Tomogram):
         return cft.real**2 + cft.imag**2
 
     @batch_process
-    def global_ft_params(
+    def global_cft_params(
         self,
         *,
         i: int = None,
@@ -849,13 +851,15 @@ class CylTomogram(Tomogram):
             Multiple samplings are needed because up-sampled discrete Fourier
             transformation does not return exactly the same power spectra with shifted
             inputs, unlike FFT. Larger ``nsamples`` reduces the error but is slower.
+        update : bool, default is True
+            If True, spline properties will be updated.
 
         Returns
         -------
         pl.DataFrame
             Global properties.
         """
-        LOGGER.info(f"Running: {self.__class__.__name__}.global_ft_params, i={i}")
+        LOGGER.info(f"Running: {self.__class__.__name__}.global_cft_params, i={i}")
         spl = self.splines[i]
         rmin, rmax = spl.radius_range()
         img_st = self.straighten_cylindric(i, radii=(rmin, rmax), binsize=binsize)
@@ -1071,7 +1075,7 @@ class CylTomogram(Tomogram):
         """
         spl = self.splines[i]
         if spl.props.has_glob([H.spacing, H.twist]):
-            self.global_ft_params(i=i)
+            self.global_cft_params(i=i)
 
         spacing = spl.props.get_glob(H.spacing)
         twist = spl.props.get_glob(H.twist) / 2
@@ -1216,7 +1220,7 @@ class CylTomogram(Tomogram):
         """
         spl = self.splines[i]
         if not spl.props.has_glob([H.spacing, H.twist]):
-            self.global_ft_params(i=i, nsamples=1)
+            self.global_cft_params(i=i, nsamples=1)
         spacing = spl.props.get_glob(H.spacing)
         twist = spl.props.get_glob(H.twist) / 2
 

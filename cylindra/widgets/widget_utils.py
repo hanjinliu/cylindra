@@ -169,12 +169,9 @@ class timer:
         self.name = name
         self.start = default_timer()
 
-    def toc(self, log: bool = True):
+    def toc(self):
         dt = default_timer() - self.start
-        if log:
-            _Logger.print_html(f"<code>{self.name}</code> ({dt:.1f} sec)")
-        else:
-            print(f"{self.name} ({dt:.1f} sec)")
+        _Logger.info(f"`{self.name}` ({dt:.1f} sec)")
 
 
 class CmapDict(TypedDict):

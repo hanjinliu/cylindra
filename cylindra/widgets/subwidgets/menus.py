@@ -720,8 +720,8 @@ class AnalysisMenu(ChildWidget):
         measure_local_radius = abstractapi()
         measure_radius_by_molecules = abstractapi()
 
-    local_ft_analysis = abstractapi()
-    global_ft_analysis = abstractapi()
+    local_cft_analysis = abstractapi()
+    global_cft_analysis = abstractapi()
     sep1 = field(Separator)
     reanalyze_image = abstractapi()
     load_project_for_reanalysis = abstractapi()

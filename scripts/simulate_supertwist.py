@@ -68,7 +68,7 @@ def run_one(
         seed=seed,
     )
     initialize_molecules(ui)
-    ui.global_ft_analysis(splines=[0], bin_size=2)
+    ui.global_cft_analysis(splines=[0], bin_size=2)
 
     layer = ui.mole_layers.last()
     mole_init = post_process_layer(ui, layer).molecules

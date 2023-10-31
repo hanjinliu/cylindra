@@ -43,7 +43,7 @@ def main(ui: CylindraMainWidget):
         bin_size=1,
     )
     ui.measure_radius(splines=[0], bin_size=2, min_radius=1.6)
-    ui.global_ft_analysis(splines=[0], bin_size=2)
+    ui.global_cft_analysis(splines=[0], bin_size=2)
     ui.mole_layers["molecules-ALN1"].name = "Conventional"
     ui.sta.align_all_annealing(
         layer="molecules",

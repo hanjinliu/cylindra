@@ -170,7 +170,7 @@ class Runner(ChildWidget):
         yield from main.measure_radius.arun(splines=splines, bin_size=bin_size)
         yield
         if local_props:
-            yield from main.local_ft_analysis.arun(
+            yield from main.local_cft_analysis.arun(
                 splines=splines, interval=interval, depth=depth, bin_size=bin_size
             )
             yield
@@ -178,7 +178,7 @@ class Runner(ChildWidget):
             yield from main.infer_polarity.arun(bin_size=bin_size)
             yield
         if global_props:
-            yield from main.global_ft_analysis.arun(splines=splines, bin_size=bin_size)
+            yield from main.global_cft_analysis.arun(splines=splines, bin_size=bin_size)
             yield
         if local_props and paint:
             cfg = main.splines[splines[0]].config

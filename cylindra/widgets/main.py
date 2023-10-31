@@ -1238,10 +1238,19 @@ class CylindraMainWidget(MagicTemplate):
             properties of the spline as the context.
         """
         radius_expr = widget_utils.norm_scalar_expr(radius)
+        rdict = dict[int, float]()
+        for i in splines:
+            _radius = self.splines[i].props.get_glob(radius_expr)
+            if not isinstance(_radius, (int, float)):
+                raise ValueError(
+                    f"Radius must be converted into a number, got {_radius!r}."
+                )
+            if _radius <= 0:
+                raise ValueError(f"Radius must be positive, got {_radius}.")
+            rdict[i] = _radius
         with SplineTracker(widget=self, indices=splines, sample=True) as tracker:
             for i in splines:
-                spl = self.tomogram.splines[i]
-                spl.radius = spl.props.glob.select(radius_expr).to_series()[0]
+                self.splines[i].radius = rdict[i]
         return tracker.as_undo_callback()
 
     @set_design(text=capitalize, location=_sw.AnalysisMenu.Radius)
@@ -1343,9 +1352,11 @@ class CylindraMainWidget(MagicTemplate):
         self._update_local_properties_in_widget(replot=True)
         return tracker.as_undo_callback()
 
-    @set_design(text="Local FT analysis", location=_sw.AnalysisMenu)
-    @thread_worker.with_progress(desc="Local Fourier transform", total=_NSPLINES)
-    def local_ft_analysis(
+    @set_design(text="Local CFT analysis", location=_sw.AnalysisMenu)
+    @thread_worker.with_progress(
+        desc="Local Cylindric Fourier transform", total=_NSPLINES
+    )
+    def local_cft_analysis(
         self,
         splines: _Splines = None,
         interval: _Interval = None,
@@ -1373,7 +1384,7 @@ class CylindraMainWidget(MagicTemplate):
         tomo = self.tomogram
 
         @thread_worker.callback
-        def _local_ft_analysis_on_yield(i: int):
+        def _local_cft_analysis_on_yield(i: int):
             self._update_splines_in_images()
             if i == self.SplineControl.num:
                 self.sample_subtomograms()
@@ -1387,19 +1398,21 @@ class CylindraMainWidget(MagicTemplate):
                             "`radius='global'` or `interval=None`."
                         )
                     tomo.make_anchors(i=i, interval=interval)
-                tomo.local_ft_params(
+                tomo.local_cft_params(
                     i=i,
                     depth=depth,
                     binsize=bin_size,
                     radius=radius,
                     update_glob=update_glob,
                 )
-                yield _local_ft_analysis_on_yield.with_args(i)
+                yield _local_cft_analysis_on_yield.with_args(i)
         return tracker.as_undo_callback()
 
-    @set_design(text="Global FT analysis", location=_sw.AnalysisMenu)
-    @thread_worker.with_progress(desc="Global Fourier transform", total=_NSPLINES)
-    def global_ft_analysis(
+    @set_design(text="Global CFT analysis", location=_sw.AnalysisMenu)
+    @thread_worker.with_progress(
+        desc="Global Cylindric Fourier transform", total=_NSPLINES
+    )
+    def global_cft_analysis(
         self,
         splines: _Splines = None,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
@@ -1418,7 +1431,7 @@ class CylindraMainWidget(MagicTemplate):
                 spl = tomo.splines[i]
                 if spl.radius is None:
                     tomo.measure_radius(i=i)
-                tomo.global_ft_params(i=i, binsize=bin_size)
+                tomo.global_cft_params(i=i, binsize=bin_size)
                 yield
 
         # show all in a table
@@ -1615,7 +1628,7 @@ class CylindraMainWidget(MagicTemplate):
         _added_layers = []
         for idx in splines:
             spl = tomo.splines[idx]
-            interv = spl.props.glob.select(interv_expr).to_series()[0]
+            interv = spl.props.get_glob(interv_expr)
             mole = tomo.map_centers(i=idx, interval=interv, orientation=orientation)
             _name = f"{prefix}-{idx}"
             layer = self.add_molecules(mole, _name, source=spl)
@@ -1645,7 +1658,7 @@ class CylindraMainWidget(MagicTemplate):
         _Logger.print_html("<code>map_along_PF</code>")
         mol = tomo.map_pf_line(
             i=spline,
-            interval=spl.props.glob.select(interv_expr).to_series()[0],
+            interval=spl.props.get_glob(interv_expr),
             offsets=normalize_offsets(offsets, spl),
             orientation=orientation,
         )

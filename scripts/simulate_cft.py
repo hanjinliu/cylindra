@@ -294,11 +294,11 @@ class Main(MagicTemplate):
                     ui.register_path(coords, err_max=1e-8)
                     ui.measure_radius(splines=[0])
                     ui.tomogram.splines[0].anchors = simulator.anchors()
-                    ui.local_ft_analysis(
+                    ui.local_cft_analysis(
                         [0], depth=49.0, interval=None, bin_size=binsize
                     )
                     results.append([_nsr, _rep, *simulator.results()])
-                    t1.toc(log=False)
+                    t1.toc()
 
             columns = ["nsr", "rep"] + simulator.columns()
             results = pl.DataFrame(results, schema=columns).sort(by="nsr")
@@ -309,7 +309,7 @@ class Main(MagicTemplate):
             ui.parent_viewer.window.add_dock_widget(view)
         else:
             results.write_csv(output)
-        t0.toc(log=False)
+        t0.toc()
         return
 
     def preview(
@@ -356,10 +356,10 @@ class Main(MagicTemplate):
             ui.register_path(coords, err_max=1e-8)
             ui.measure_radius(splines=[0])
             ui.tomogram.splines[0].anchors = simulator.anchors()
-            ui.local_ft_analysis(
+            ui.local_cft_analysis(
                 splines=[0], depth=49.0, interval=None, bin_size=binsize
             )
-        t0.toc(log=False)
+        t0.toc()
 
 
 if __name__ == "__main__":

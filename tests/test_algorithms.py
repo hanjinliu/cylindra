@@ -35,7 +35,7 @@ def test_run_all(coords, npf, rise, twist_range):
     assert H.radius in tomo.splines.collect_globalprops(allow_none=False).columns
     assert H.spacing not in tomo.splines.collect_globalprops(allow_none=False).columns
 
-    tomo.local_ft_params(i=0)
+    tomo.local_cft_params(i=0)
     assert tomo.splines.collect_localprops() is not None
     assert H.radius in tomo.splines.collect_globalprops(allow_none=False).columns
     assert H.spacing not in tomo.splines.collect_globalprops(allow_none=False).columns
@@ -45,7 +45,7 @@ def test_run_all(coords, npf, rise, twist_range):
     assert H.radius in tomo.splines.collect_globalprops(allow_none=False).columns
     assert H.spacing not in tomo.splines.collect_globalprops(allow_none=False).columns
 
-    tomo.global_ft_params(i=0)
+    tomo.global_cft_params(i=0)
     assert tomo.splines.collect_localprops() is not None
     assert H.radius in tomo.splines.collect_globalprops(allow_none=False).columns
     assert H.spacing in tomo.splines.collect_globalprops(allow_none=False).columns
@@ -70,8 +70,8 @@ def test_run_all(coords, npf, rise, twist_range):
     assert cp.rise_angle == pytest.approx(spl.props.get_glob(H.rise), abs=1e-6)
 
     tomo.local_radii()
-    tomo.local_ft_params(radius="local")
-    tomo.local_ft_params(radius=10.2)
+    tomo.local_cft_params(radius="local")
+    tomo.local_cft_params(radius=10.2)
 
     repr(tomo.splines[0].props)
     tomo.splines[0].props[H.spacing]
@@ -123,7 +123,7 @@ def test_mapping(orientation):
     tomo.fit()
     tomo.splines[0].radius = 9
     tomo.splines[0].orientation = "PlusToMinus"
-    tomo.global_ft_params(nsamples=2)
+    tomo.global_cft_params(nsamples=2)
     tomo.map_monomers(orientation=orientation)
     tomo.map_centers(orientation=orientation)
     tomo.map_pf_line(orientation=orientation)

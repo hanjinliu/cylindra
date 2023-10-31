@@ -183,28 +183,42 @@ class SplineProps:
         default : any, optional
             Default value to return if key is not found, raise error by default.
         """
-        if key in self.loc.columns:
-            return self.loc[key]
-        elif default is _void:
-            raise KeyError(f"Key {key!r} not found in localprops.")
-        return default
+        if isinstance(key, str):
+            if key in self.loc.columns:
+                return self.loc[key]
+            elif default is _void:
+                raise KeyError(f"Key {key!r} not found in localprops.")
+            return default
+        elif isinstance(key, pl.Expr):
+            if default is not _void:
+                raise ValueError("Cannot specify default value for polars.Expr input.")
+            return self.loc.select(key).to_series()
+        else:
+            raise TypeError("Key must be either str or polars.Expr.")
 
-    def get_glob(self, key: str, default=_void) -> Any:
+    def get_glob(self, key: str | pl.Expr, default=_void) -> Any:
         """
         Get a global property of the spline, similar to ``dict.get`` method.
 
         Parameters
         ----------
-        key : str
+        key : str or Expr
             Global property key.
         default : any, optional
             Default value to return if key is not found, raise error by default.
         """
-        if key in self.glob.columns:
-            return self.glob[key][0]
-        elif default is _void:
-            raise KeyError(f"Key {key!r} not found in globalprops.")
-        return default
+        if isinstance(key, str):
+            if key in self.glob.columns:
+                return self.glob[key][0]
+            elif default is _void:
+                raise KeyError(f"Key {key!r} not found in globalprops.")
+            return default
+        elif isinstance(key, pl.Expr):
+            if default is not _void:
+                raise ValueError("Cannot specify default value for polars.Expr input.")
+            return self.glob.select(key).to_series()[0]
+        else:
+            raise TypeError("Key must be either str or polars.Expr.")
 
     def has_loc(self, keys: str | Iterable[str]) -> bool:
         """Check if *all* the keys are in local properties."""

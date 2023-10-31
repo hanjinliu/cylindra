@@ -24,7 +24,7 @@ def main():
     )
     ui.clip_spline(0, (24.5, 24.5))
     ui.measure_radius([0], bin_size=2)
-    ui.local_ft_analysis([0], depth=49, bin_size=2, interval=8.16)
+    ui.local_cft_analysis([0], depth=49, bin_size=2, interval=8.16)
 
 
 if __name__ == "__main__":

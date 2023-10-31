@@ -716,6 +716,13 @@ def test_radius_methods(ui: CylindraMainWidget):
     ui.set_radius([0], "pl.col('npf') * 0.9")
     assert spl.radius == pytest.approx(spl.props.get_glob("npf") * 0.9, abs=1e-6)
 
+    # Expr returns a non-numeric value
+    with pytest.raises(ValueError):
+        ui.set_radius([0], "pl.col('npf').map_dict({100: 13})")
+    # Expr returns a negative value
+    with pytest.raises(ValueError):
+        ui.set_radius([0], "pl.col('npf').cast(pl.Float32) * -1")
+
 
 def test_simulator(ui: CylindraMainWidget):
     ui.simulator.create_empty_image(size=(50.0, 100.0, 50.0), scale=0.5)
