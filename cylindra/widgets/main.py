@@ -1184,6 +1184,15 @@ class CylindraMainWidget(MagicTemplate):
         ids: list[int] = (),
         config: Annotated[dict[str, Any] | SplineConfig, {"validator": _get_default_config}] = None,
     ):  # fmt: skip
+        """
+        Convert protofilaments to splines.
+
+        Parameters
+        ----------
+        {layer}{err_max}
+        ids : list of int, default is ()
+            Protofilament IDs to be converted.
+        """
         if len(ids) == 0:
             raise ValueError("No protofilament ID is given.")
         layer = assert_layer(layer, self.parent_viewer)

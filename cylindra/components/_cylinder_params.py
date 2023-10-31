@@ -10,6 +10,14 @@ from cylindra.utils import roundint
 
 @dataclass(frozen=True)
 class CylinderParameters:
+    """
+    Data structure that represents the parameters of a cylinder.
+
+    There are several parameters that are mutually dependent. This class
+    provides a way to normalize the parameters and calculate parameters
+    easily.
+    """
+
     skew: float
     rise_angle_raw: float
     pitch: float
@@ -75,6 +83,7 @@ class CylinderParameters:
 
     @property
     def twist(self) -> float:
+        """Twist angle in degrees."""
         return m.degrees(self.twist_rad)
 
     @property
