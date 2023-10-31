@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import Annotated, Any
 import tempfile
+from timeit import default_timer
 
 from cylindra import start  # NOTE: Set ApplicationAttributes
 
@@ -13,7 +14,6 @@ import napari
 
 from cylindra.components import CylSpline
 from cylindra.widgets import CylindraMainWidget
-from cylindra.widgets.widget_utils import timer
 from cylindra.const import PropertyNames as H
 
 import polars as pl
@@ -21,6 +21,16 @@ import polars as pl
 from scripts.user_consts import TEMPLATE_X
 
 POSITIONS = [(0, 15), (15, 30), (30, 45), (45, 60)]
+
+
+class timer:
+    def __init__(self, name: str):
+        self.name = name
+        self.start = default_timer()
+
+    def toc(self):
+        dt = default_timer() - self.start
+        print(f"{self.name} ({dt:.1f} sec)")
 
 
 class Simulator:

@@ -1453,14 +1453,14 @@ class CylindraMainWidget(MagicTemplate):
         df.columns = [f"Spline-{i}" for i in range(len(df.columns))]
 
         @thread_worker.callback
-        def _global_ft_analysis_on_return():
+        def _global_cft_analysis_on_return():
             self.sample_subtomograms()
             _Logger.print_table(df, precision=3)
             self._update_global_properties_in_widget()
 
             return tracker.as_undo_callback()
 
-        return _global_ft_analysis_on_return
+        return _global_cft_analysis_on_return
 
     def _get_reanalysis_macro(self, path: Path):
         """Get the macro expression for reanalysis in the given project path."""

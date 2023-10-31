@@ -977,23 +977,11 @@ class OthersMenu(ChildWidget):
         """Open the command palette widget."""
         from magicclass.command_palette import exec_command_palette
 
-        def _title_fmt(parent, widget):
-            qn = str(type(parent).__qualname__)
-            if qn.startswith("CylindraMainWidget."):
-                return qn[len("CylindraMainWidget.") :]
-            return qn
-
-        def _filter(parent, widget):
-            qn = str(type(parent).__qualname__)
-            if qn.startswith("_") or "._" in qn:
-                return False
-            return True
-
         return exec_command_palette(
             self._get_main(),
             alignment="screen",
-            title=_title_fmt,
-            filter=_filter,
+            title=_command_palette_title_fmt,
+            filter=_command_palette_filter,
         )
 
     @set_design(text=capitalize)
@@ -1158,3 +1146,21 @@ def _(self: OthersMenu.Workflows, gui: "FunctionGui"):
         gui.workflow.value = _config.workflow_path(filename).read_text()
 
     _on_name_change(gui.filename.value)
+
+
+def _command_palette_title_fmt(ui: ChildWidget, widget):
+    names: list[str] = []
+    while ui is not None:
+        names.append(ui.name)
+        ui = getattr(ui, "__magicclass_parent__", None)
+    qn = " > ".join(reversed(names))
+    if qn.startswith("cylindra > "):
+        return qn[len("cylindra > ") :]
+    return qn
+
+
+def _command_palette_filter(ui: ChildWidget, widget):
+    qn = str(type(ui).__qualname__)
+    if qn.startswith("_") or "._" in qn:
+        return False
+    return True
