@@ -27,7 +27,7 @@ from acryo.tilt import TiltSeriesModel
 import impy as ip
 
 from cylindra.components.spline import CylSpline
-from cylindra.components._peak import find_peak
+from cylindra.components._peak import find_centroid_peak
 from cylindra.components._ftprops import LatticeParams, LatticeAnalyzer, get_polar_image
 from cylindra.const import nm, PropertyNames as H, Ori, Mode, ExtrapolationMode
 from cylindra.utils import (
@@ -583,15 +583,13 @@ class CylTomogram(Tomogram):
         max_radius = spl.config.fit_width / 2
         max_radius_px = max_radius / _scale
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
-        tasks = []
-        for anc in pos:
-            task = _get_radial_prof(
-                input_img, spl_trans, anc, (min_radius, max_radius), depth
-            )
-            tasks.append(task)
+        tasks = [
+            _get_radial_prof(input_img, spl_trans, anc, (min_radius, max_radius), depth)
+            for anc in pos
+        ]
         profs: list[NDArray[np.float32]] = compute(*tasks)
         prof = np.stack(profs, axis=0).mean(axis=0)
-        imax_sub = find_peak(prof).pos[0]
+        imax_sub = find_centroid_peak(prof, *_get_thickness(spl, _scale))
         offset_px = _get_radius_offset(min_radius_px, max_radius_px)
         radius = (imax_sub + offset_px) * _scale
         if update:
@@ -634,6 +632,7 @@ class CylTomogram(Tomogram):
 
         depth = spl.config.fit_depth
         _scale = input_img.scale.x
+        thickness = _get_thickness(spl, _scale)
         min_radius_px = min_radius / _scale
         max_radius = spl.config.fit_width / 2
         max_radius_px = max_radius / _scale
@@ -648,7 +647,7 @@ class CylTomogram(Tomogram):
         profs: list[NDArray[np.float32]] = compute(*tasks)
         radii = list[float]()
         for prof in profs:
-            imax_sub = find_peak(prof).pos[0]
+            imax_sub = find_centroid_peak(prof, *thickness)
             radii.append((imax_sub + offset_px) * _scale)
 
         out = pl.Series(H.radius, radii, dtype=pl.Float32)
@@ -1408,6 +1407,12 @@ def _mask_missing_wedge(
     mask3d = tilt_model.create_mask(Rotation(quat), shape)
     mask = mask3d[:, 0, :]
     return ip.asarray(ifft2(fft2(img.value) * mask).real, like=img)
+
+
+def _get_thickness(spl: CylSpline, scale: nm) -> tuple[nm, nm]:
+    thick_inner_px = spl.config.thickness_inner / scale
+    thick_outer_px = spl.config.thickness_outer / scale
+    return thick_inner_px, thick_outer_px
 
 
 def _get_radial_prof(

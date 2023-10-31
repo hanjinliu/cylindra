@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import NamedTuple
-from cylindra.utils import ceilint, floorint
+from cylindra.utils import ceilint, floorint, centroid
 import numpy as np
 from numpy.typing import NDArray
 from scipy import ndimage as ndi
@@ -224,3 +224,19 @@ def _find_peak_once(
     peak = np.minimum(peak, np.array(shape) - 1)
     peak = np.maximum(peak, 0.0)
     return peak, value
+
+
+def find_centroid_peak(prof: NDArray[np.float32], inner: float, outer: float) -> float:
+    imax = np.nanargmax(prof)
+    imax_sub = -1.0
+    count = 0
+    while abs(imax - imax_sub) > 1e-2:
+        if imax_sub > 0:
+            imax = imax_sub
+        imax_sub = centroid(prof, ceilint(imax - inner), int(imax + outer) + 1)
+        count += 1
+        if count > 100:
+            break
+        if imax_sub != imax_sub:
+            raise ValueError(f"Centroid encountered NaN in the {count}-th trial.")
+    return imax_sub
