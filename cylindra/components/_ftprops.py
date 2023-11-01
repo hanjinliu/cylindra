@@ -121,16 +121,16 @@ class LatticeAnalyzer:
         return peak_det.get_local_power_spectrum(**self._params_h(img, radius))
 
     def _params_h(self, img: ip.ImgArray, radius: nm):
-        spacing_arr = np.array(self._cfg.spacing_range.aslist())[np.newaxis]
-        y_factor = np.abs(radius / spacing_arr / img.shape.a * img.shape.y / 2)
-        tan_skew_min, tan_skew_max = (
+        spacing_arr = self._cfg.spacing_range.asarray()[np.newaxis]
+        y_factor = np.abs(radius / spacing_arr / img.shape.a * img.shape.y)
+        tan_twist_min, tan_twist_max = (
             math.tan(math.radians(s)) for s in self._cfg.twist_range.aslist()
         )
-        npf_min_max = np.array(self._cfg.npf_range.aslist())
+        npf_min_max = self._cfg.npf_range.asarray()
         return dict(
             range_y=(
-                np.min(tan_skew_min * y_factor * npf_min_max),
-                np.max(tan_skew_max * y_factor * npf_min_max),
+                np.min(tan_twist_min * y_factor * npf_min_max),
+                np.max(tan_twist_max * y_factor * npf_min_max),
             ),
             range_a=self.get_arange(img),
             up_y=max(int(21600 / img.shape.y), 1),

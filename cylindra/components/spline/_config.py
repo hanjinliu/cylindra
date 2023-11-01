@@ -4,6 +4,7 @@ import json
 from typing import Any, Generic, Literal, Sequence, TypeVar
 from dataclasses import dataclass
 import warnings
+import numpy as np
 from cylindra.const import nm
 
 _T = TypeVar("_T")
@@ -38,6 +39,9 @@ class Range(Generic[_T]):
 
     def aslist(self) -> list[_T]:
         return [self.min, self.max]
+
+    def asarray(self):
+        return np.array([self.min, self.max])
 
     def asslice(self) -> slice:
         return slice(self.min, self.max + 1)
