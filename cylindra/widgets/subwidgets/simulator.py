@@ -201,7 +201,22 @@ class Simulator(ChildWidget):
         layer: MoleculesLayerType,
         template_path: Path.Read[FileFilter.IMAGE],
     ):
-        """Add a new component"""
+        """
+        Add a set of template and a molecules as a simulation component.
+
+        A component defines which molecules corresponds to what template image.
+        Multiple components can be added to simulate a tomogram with different
+        materials.
+
+        Parameters
+        ----------
+        layer : MoleculesLayer
+            Layer to be used for simulation.
+        template_path : Path
+            Path to the template image that will be used to simulate the
+            corresponding molecules layer.
+        """
+        layer = assert_layer(layer, self.parent_viewer)
         self.component_list.append(Component(template_path, layer))
 
     @set_design(text=capitalize, location=CreateMenu)
