@@ -284,6 +284,8 @@ class Main(MagicTemplate):
         output: Annotated[str, {"bind": output}] = None,
         seed: Annotated[int, {"bind": seed}] = 12345,
     ):
+        if isinstance(function, str):
+            function = getattr(Funcs, function)
         func: type[Simulator] = Funcs(function).value
         if output is not None:
             assert Path(output).parent.exists()
