@@ -1,9 +1,10 @@
 import tempfile
+from matplotlib import pyplot as plt
 
 import napari
 
 from cylindra import start  # NOTE: Set ApplicationAttributes
-
+from timeit import default_timer
 from magicclass.types import Path
 from magicclass.ext.polars import DataFrameView
 import numpy as np
@@ -14,7 +15,7 @@ from cylindra.cylstructure import calc_lateral_interval
 from cylindra.types import MoleculesLayer
 
 import polars as pl
-from scripts.user_consts import TEMPLATE_X, WOBBLE_TEMPLATES
+from scripts.user_consts import TEMPLATE_X
 
 SPACING = Mole.spacing
 SPACING_MEAN = f"{Mole.spacing}_mean"
@@ -105,40 +106,40 @@ def run_one(
         allev=True,
     )
     mole_init = post_process_layer(ui, layer).molecules
-
-    # start comparing alignment methods
-    shared_kwargs = dict(
-        template_path=WOBBLE_TEMPLATES,
+    t0 = default_timer()
+    ui.sta.construct_landscape(
+        layer=layer,
+        template_path=TEMPLATE_X,
         mask_params=(0.3, 0.8),
         max_shifts=(0.8, 0.8, 0.8),
     )
+    t0 = default_timer() - t0
+    land_layer = ui.parent_viewer.layers[-1]
 
     # conventional alignment
-    ui.sta.align_all(layers=[layer], bin_size=1, **shared_kwargs)
+    t1 = default_timer()
+    ui.sta.run_align_on_landscape(land_layer)
+    t1 = default_timer() - t1
     mole_cnv = post_process_layer(ui, ui.mole_layers.last()).molecules
 
     # Viterbi alignment
-    ui.sta.align_all_viterbi(
-        layer=layer,
-        **shared_kwargs,
-        range_long=(3.98, 4.28),
-        angle_max=5.0,
-        upsample_factor=5,
-    )
+    t2 = default_timer()
+    ui.sta.run_viterbi_on_landscape(land_layer, range_long=(3.98, 4.28), angle_max=5.0)
+    t2 = default_timer() - t2
     mole_vit = post_process_layer(ui, ui.mole_layers.last()).molecules
 
     # RMA alignment
     intervs = calc_lateral_interval(mole_init, ui.splines[0])
     interv_mean = intervs.filter(intervs.is_finite()).mean()
     dx = 0.1
-    ui.sta.align_all_annealing(
-        layer=layer,
-        **shared_kwargs,
+    t3 = default_timer()
+    ui.sta.run_annealing_on_landscape(
+        land_layer,
         range_long=(3.98, 4.28),
         range_lat=(interv_mean - dx, interv_mean + dx),
         angle_max=5.0,
-        upsample_factor=5,
     )
+    t3 = default_timer() - t3
     mole_rma = post_process_layer(ui, ui.mole_layers.last()).molecules
 
     pos_values = [
@@ -158,7 +159,9 @@ def run_one(
         rmsd_spacing_mean(mole_rma, mole_truth),
     ]
 
-    return pos_values, spacing_values
+    time_values = [t0 + t1, t0 + t2, t0 + t3]
+
+    return pos_values, spacing_values, time_values
 
 
 def show_dataframe(ui: CylindraMainWidget, df: pl.DataFrame):
@@ -172,10 +175,11 @@ def main():
     mole_truth = create_microtubule(ui)
     pos_list = []
     spacing_list = []
+    time_list = []
     with tempfile.TemporaryDirectory() as tmpdir:
         save_tilt_series(ui, tmpdir)
         for i in range(10):
-            pos, spacing = run_one(
+            pos, spacing, times = run_one(
                 ui,
                 Path(tmpdir) / "image.mrc",
                 mole_truth,
@@ -183,6 +187,8 @@ def main():
             )
             pos_list.append(pos)
             spacing_list.append(spacing)
+            time_list.append(times)
+            print("Done:", i)
 
     df_pos = pl.DataFrame(
         np.array(pos_list), schema=["initial", "conventional", "viterbi", "rma"]
@@ -199,10 +205,28 @@ def main():
             "rma_mean",
         ],
     )
+    df_time = pl.DataFrame(
+        np.array(time_list), schema=["conventional", "viterbi", "rma"]
+    )
 
     show_dataframe(ui, df_pos)
     show_dataframe(ui, df_spacing)
+    show_dataframe(ui, df_time)
+    for i in [-3, -2, -1]:
+        layer = ui.mole_layers.nth(i)
+        ui.sta.calculate_fsc(layer, template_path=TEMPLATE_X, mask_params=(0.8, 0.8))
+        ui.paint_molecules(layer, "spacing", limits=(4.0, 4.28))
+        ui.MoleculesMenu.View.plot_molecule_feature(layer)
+        plt.show()
+        ui.paint_molecules(layer, "spacing_mean", limits=(4.0, 4.28))
+        ui.MoleculesMenu.View.plot_molecule_feature(layer)
+        plt.show()
     ui.add_molecules(mole_truth, name="truth", source=ui.splines[0])
+    ui.calculate_lattice_structure(layer="truth", props=["spacing"])
+    ui.paint_molecules("truth", "spacing", limits=(4.0, 4.28))
+    ui.MoleculesMenu.View.plot_molecule_feature("truth")
+    plt.show()
+    ui.parent_viewer.show(block=True)
 
 
 if __name__ == "__main__":

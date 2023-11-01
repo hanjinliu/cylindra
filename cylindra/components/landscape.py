@@ -139,7 +139,7 @@ class Landscape:
         if to_drop:
             mole = mole.drop_features(*to_drop)
         return cls(
-            energies=-score,
+            energies=-np.ascontiguousarray(score),
             molecules=mole,
             argmax=argmax,
             quaternions=alignment_model.quaternions,

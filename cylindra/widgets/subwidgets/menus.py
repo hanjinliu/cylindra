@@ -593,8 +593,8 @@ class MoleculesMenu(ChildWidget):
             layer = assert_layer(layer, main.parent_viewer)
             match backend:
                 case "inline":
-                    plt.figure()
-                    ax: Axes = plt.gca()
+                    _, ax = plt.subplots()
+                    ax: Axes
                 case "qt":
                     from magicclass.widgets import Figure
 
