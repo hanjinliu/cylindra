@@ -30,7 +30,7 @@ class CylinderParameters:
         """Longitudinal spacing in nm."""
         _r = m.radians(self.rise_angle_raw)
         _s = self.skew_rad
-        return self.pitch * m.cos(_r) / m.cos(_r + _s)
+        return self.pitch * m.cos(_r - _s) / m.cos(_r)
 
     @property
     def spacing_proj(self) -> float:
@@ -197,8 +197,8 @@ class CylinderParameters:
                 raise ValueError("Not enough information to solve.")
             pitch = (
                 spacing
-                * m.cos(m.radians(rise_angle - skew))
-                / m.cos(m.radians(rise_angle))
+                * m.cos(m.radians(rise_angle))
+                / m.cos(m.radians(rise_angle - skew))
             )
 
         return CylinderParameters(skew, rise_angle, pitch, radius, npf, rise_sign)
