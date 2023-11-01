@@ -75,19 +75,26 @@ class local_expansion(Simulator):
         return self.ui.tomogram.splines[0].props.loc[H.spacing]
 
     def columns(self) -> list[str]:
-        return [f"spacing{i}" for i in range(4)]
+        return ["4.05", "4.10", "4.15", "4.20"]
 
 
 class _local_skew_base(Simulator):
+    _VALUES: list[str]
+
     def results(self):
         return self.ui.tomogram.splines[0].props.loc[H.twist]
 
     def columns(self) -> list[str]:
-        return [f"twist{i}" for i in range(4)]
+        return self._VALUES
+
+    def values(self) -> list[float]:
+        return [float(v) for v in self._VALUES]
 
 
 class local_skew_13_3(_local_skew_base):
     """Vertical MT with twists."""
+
+    _VALUES = ["-0.12", "-0.04", "0.04", "0.12"]
 
     def prepare(self):
         self.ui.simulator.create_image_with_straight_line(
@@ -96,7 +103,7 @@ class local_skew_13_3(_local_skew_base):
         self.ui.simulator.generate_molecules(
             0, spacing=4.1, twist=0.0, start=3, radius=11.2, npf=13
         )
-        for sk, yrange in zip([-0.12, -0.04, 0.04, 0.12], POSITIONS):
+        for sk, yrange in zip(self.values(), POSITIONS):
             self.ui.simulator.twist(
                 self.ui.mole_layers.last(),
                 by=sk,
@@ -110,6 +117,8 @@ class local_skew_13_3(_local_skew_base):
 class local_skew_14_3(_local_skew_base):
     """Vertical MT with twists."""
 
+    _VALUES = ["-0.37", "-0.29", "-0.21", "-0.13"]
+
     def prepare(self):
         self.ui.simulator.create_image_with_straight_line(
             scale=self.scale, size=(60.0, 240.0, 60.0), length=245.0
@@ -117,7 +126,7 @@ class local_skew_14_3(_local_skew_base):
         self.ui.simulator.generate_molecules(
             0, spacing=4.1, twist=0.0, start=3, radius=12.1, npf=14
         )
-        for sk, yrange in zip([-0.37, -0.29, -0.21, -0.13], POSITIONS):
+        for sk, yrange in zip(self.values(), POSITIONS):
             self.ui.simulator.twist(
                 self.ui.mole_layers.last(),
                 by=sk,
@@ -255,8 +264,9 @@ class Main(MagicTemplate):
     output = vfield(Optional[Path.Save["*.csv"]])
     seed = vfield(12345).with_options(max=1e8)
 
-    def __init__(self):
+    def __post_init__(self):
         self._ui = start()
+        self.min_width = 320
         self._ui.parent_viewer.window.add_dock_widget(
             self,
             area="left",
@@ -266,9 +276,9 @@ class Main(MagicTemplate):
     def simulate(
         self,
         function: Annotated[Funcs, {"bind": function}] = Funcs.local_expansion,
-        n_tilt: Annotated[int, {"bind": n_tilt}] = 61,
-        nsr: Annotated[Any, {"bind": nsr}] = [0.1, 2.5],
-        nrepeat: Annotated[int, {"bind": nrepeat}] = 5,
+        n_tilt: Annotated[int, {"bind": n_tilt}] = 21,
+        nsr: Annotated[Any, {"bind": nsr}] = [0.1],
+        nrepeat: Annotated[int, {"bind": nrepeat}] = 1,
         scale: Annotated[float, {"bind": scale}] = 0.5,
         binsize: Annotated[int, {"bind": binsize}] = 1,
         output: Annotated[str, {"bind": output}] = None,
@@ -373,5 +383,15 @@ class Main(MagicTemplate):
 
 
 if __name__ == "__main__":
+    import sys, inspect
+
+    if args := sys.argv[1:]:
+        code = f"dict({args[0]})"
+        kwargs = eval(code, {}, {})
+        inspect.signature(Main.simulate).bind(dict(self=None, **kwargs))
+    else:
+        kwargs = None
     ui = Main()
+    if kwargs is not None:
+        ui.simulate(**kwargs)
     napari.run()
