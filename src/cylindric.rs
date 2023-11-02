@@ -248,9 +248,8 @@ impl CylinderGeometry {
         let mut unique_neighbors: HashSet<Index> = HashSet::new();
         // add all the neighbor candidates
         for index in indices.iter() {
-            let new_neighbors = self.get_neighbor(index.y, index.a)?;
-            for neighbor in new_neighbors.iter() {
-                unique_neighbors.insert(neighbor.clone());
+            for neighbor in self.get_neighbor(index.y, index.a)?.iter() {
+                unique_neighbors.insert(neighbor);
             }
         }
 

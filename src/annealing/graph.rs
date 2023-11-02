@@ -260,26 +260,16 @@ impl CylindricGraph {
         let coord1 = &self.coords[&node_state0.index];
         let coord2 = &self.coords[&node_state1.index];
         let dr = coord1.at_vec(vec1.into()) - coord2.at_vec(vec2.into());
-        // let ey1 = coord1.ey;
-        // let ey2 = coord2.ey;
-        // let ey = (ey1 + ey2) / 2.0;
         // ey is required for the angle constraint.
         let ey = coord2.origin - coord1.origin;
         self.binding_potential.calculate(&dr, &ey, typ)
-    }
-
-    /// Return a random node state based on the input node state.
-    pub fn random_local_state(&self, node_state: &NodeState, rng: &mut RandomNumberGenerator) -> NodeState {
-        let idx = node_state.index.clone();
-        let shift_new = rng.uniform_vec(&self.local_shape);
-        NodeState { index: idx, shift: shift_new }
     }
 
     /// Return a random neighbor state of a given node state.
     pub fn random_local_neighbor_state(&self, node_state: &NodeState, rng: &mut RandomNumberGenerator) -> NodeState {
         let idx = node_state.index.clone();
         let shift = node_state.shift;
-        let shift_new = rng.rand_shift(&shift, &self.local_shape);
+        let shift_new = rng.rand_shift(&shift);
         NodeState { index: idx, shift: shift_new }
     }
 

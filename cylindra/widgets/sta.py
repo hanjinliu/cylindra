@@ -1834,7 +1834,7 @@ def _run_annealing_on_landscape(
     landscape: Landscape,
     spl: "CylSpline",
     range_long: tuple[float, float],
-    range_lat: tuple[float, float],
+    range_lat: tuple[float | str, float | str],
     angle_max: float,
     temperature_time_const: float = 1.0,
     random_seeds: Iterable[int] = range(5),

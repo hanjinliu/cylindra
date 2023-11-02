@@ -230,7 +230,7 @@ class Landscape:
         self,
         spl: CylSpline,
         distance_range_long: tuple[nm, nm],
-        distance_range_lat: tuple[nm, nm],
+        distance_range_lat: tuple[nm | str, nm | str],
         angle_max: float | None = None,
         temperature_time_const: float = 1.4,
         temperature: float | None = None,
@@ -251,16 +251,16 @@ class Landscape:
             temperature_time_const, temperature, cooling_rate, reject_limit
         )
 
+        model = CylindricAnnealingModel().construct_graph(
+            indices=molecules.features.select([Mole.nth, Mole.pf])
+            .to_numpy()
+            .astype(np.int32),
+            npf=_npf,
+            nrise=_nrise,
+        )
+
         return (
-            CylindricAnnealingModel()
-            .construct_graph(
-                indices=molecules.features.select([Mole.nth, Mole.pf])
-                .to_numpy()
-                .astype(np.int32),
-                npf=_npf,
-                nrise=_nrise,
-            )
-            .set_graph_coordinates(
+            model.set_graph_coordinates(
                 origin=mole.pos,
                 zvec=mole.z.astype(np.float32) * self.scale_factor,
                 yvec=mole.y.astype(np.float32) * self.scale_factor,
@@ -272,8 +272,8 @@ class Landscape:
                 time_constant=time_const,
             )
             .set_box_potential(
-                *distance_range_long,
-                *distance_range_lat,
+                *self._norm_distance_range_long(distance_range_long, model),
+                *self._norm_distance_range_lat(distance_range_lat, model),
                 float(np.deg2rad(angle_max)),
                 cooling_rate=cooling_rate,
             )
@@ -447,6 +447,53 @@ class Landscape:
             )
         self.quaternions.tofile(path / "quaternions.txt", sep=",")
         return None
+
+    def _norm_distance_range_long(
+        self,
+        rng: tuple[nm | str, nm | str],
+        model: CylindricAnnealingModel,
+    ) -> tuple[nm, nm]:
+        rng0, rng1 = rng
+        if isinstance(rng0, str) or isinstance(rng1, str):
+            long_dist = model.longitudinal_distances().mean()
+            if isinstance(rng0, str):
+                rng0 = _norm_distance(rng0, long_dist)
+            if isinstance(rng1, str):
+                rng1 = _norm_distance(rng1, long_dist)
+        if not rng0 < rng1:
+            raise ValueError(f"Lower is larger than the upper: {(rng0, rng1)}")
+        return rng0, rng1
+
+    def _norm_distance_range_lat(
+        self,
+        rng: tuple[nm | str, nm | str],
+        model: CylindricAnnealingModel,
+    ) -> tuple[nm, nm]:
+        rng0, rng1 = rng
+        if isinstance(rng0, str) or isinstance(rng1, str):
+            lat_dist = model.lateral_distances().mean()
+            if isinstance(rng0, str):
+                rng0 = _norm_distance(rng0, lat_dist)
+            if isinstance(rng1, str):
+                rng1 = _norm_distance(rng1, lat_dist)
+        if not rng0 < rng1:
+            raise ValueError(f"Lower is larger than the upper: {(rng0, rng1)}")
+        return rng0, rng1
+
+
+def _norm_distance(v: str, ref: nm) -> nm:
+    if v.startswith(("x", "*")):
+        ntimes = float(v[1:])
+        if ntimes < 0.0:
+            raise ValueError(f"Invalid bound: {v}")
+        v = float(v[1:]) * ref
+    elif v.startswith("-"):
+        v = ref - float(v[1:])
+    elif v.startswith("+"):
+        v = ref + float(v[1:])
+    else:
+        raise ValueError(f"Invalid bound: {v}")
+    return v
 
 
 class SurfaceData(NamedTuple):

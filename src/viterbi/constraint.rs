@@ -2,9 +2,9 @@ use super::super::coordinates::{CoordinateSystem, Vector3D};
 
 /// Struct that represents longitudinal constraints.
 pub struct Constraint {
-    nz: usize,
-    ny: usize,
-    nx: usize,
+    zmax: f32,
+    ymax: f32,
+    xmax: f32,
     dist_min2: f32,
     dist_max2: f32,
 }
@@ -17,22 +17,27 @@ pub enum CheckResult {
 }
 
 impl Constraint {
-    pub fn new(nz: usize, ny: usize, nx: usize, dist_min2: f32, dist_max2: f32) -> Self {
-        Self {nz, ny, nx, dist_min2, dist_max2}
+    pub fn new(nz: f32, ny: f32, nx: f32, dist_min2: f32, dist_max2: f32) -> Self {
+        Self {
+            zmax: nz - 1.0,
+            ymax: ny - 1.0,
+            xmax: nx - 1.0,
+            dist_min2,
+            dist_max2,
+        }
     }
 
     pub fn fast_check_longitudinal(
         &self,
         coord: &CoordinateSystem<f32>,
-        end_point: &Vector3D<f32>,
+        end: &Vector3D<f32>,
         y0: f32,
     ) -> CheckResult {
         let point_0y0 = coord.at(0.0, y0, 0.0);
-        let end = end_point.clone();
         let dist2_00 = (point_0y0 - end).length2();
-        let dist2_01 = (coord.at(0.0, y0, (self.nx - 1) as f32) - end).length2();
-        let dist2_10 = (coord.at((self.nz - 1) as f32, y0, 0.0) - end).length2();
-        let dist2_11 = (coord.at((self.nz - 1) as f32, y0, (self.nx - 1) as f32) - end).length2();
+        let dist2_01 = (coord.at(0.0, y0, self.xmax) - end).length2();
+        let dist2_10 = (coord.at(self.zmax, y0, 0.0) - end).length2();
+        let dist2_11 = (coord.at(self.zmax, y0, self.xmax) - end).length2();
         if dist2_00 < self.dist_min2 && dist2_01 < self.dist_min2
             && dist2_10 < self.dist_min2 && dist2_11 < self.dist_min2
         {
@@ -42,7 +47,7 @@ impl Constraint {
         // If the length of perpendicular line drawn from point (x1, y1, z1) to the
         // plane of (_, y0, _) is longer than dist_max, then any point in the plane
         // is invalid.
-        if point_0y0.point_to_plane_distance2(&coord.ey, end_point) > self.dist_max2 {
+        if point_0y0.point_to_plane_distance2(&coord.ey, end) > self.dist_max2 {
             return CheckResult::LARGE;
         }
         return CheckResult::OK;
@@ -51,23 +56,20 @@ impl Constraint {
     pub fn fast_check_lateral(
         &self,
         coord: &CoordinateSystem<f32>,
-        end_point: &Vector3D<f32>,
-        x0: usize,
+        end: &Vector3D<f32>,
+        x0: f32,
     ) -> CheckResult {
-        let point_00x = coord.at(0.0, 0.0, x0 as f32);
-        let end = end_point.clone();
+        let point_00x = coord.at(0.0, 0.0, x0);
         let dist2_00 = (point_00x - end).length2();
-        let dist2_01 = (coord.at(0.0, (self.ny - 1) as f32, x0 as f32) - end).length2();
-        let dist2_10 = (coord.at((self.nz - 1) as f32, 0.0, x0 as f32) - end).length2();
-        let dist2_11 =
-            (coord.at((self.nz - 1) as f32, (self.ny - 1) as f32, x0 as f32) - end)
-                .length2();
+        let dist2_01 = (coord.at(0.0, self.ymax, x0) - end).length2();
+        let dist2_10 = (coord.at(self.zmax, 0.0, x0) - end).length2();
+        let dist2_11 = (coord.at(self.zmax, self.ymax, x0) - end).length2();
         if dist2_00 < self.dist_min2 && dist2_01 < self.dist_min2
             && dist2_10 < self.dist_min2 && dist2_11 < self.dist_min2
         {
             return CheckResult::SMALL;
         }
-        if point_00x.point_to_plane_distance2(&coord.ex, end_point) > self.dist_max2 {
+        if point_00x.point_to_plane_distance2(&coord.ex, end) > self.dist_max2 {
             return CheckResult::LARGE;
         }
         return CheckResult::OK;
@@ -87,9 +89,9 @@ impl Constraint {
 }
 
 pub struct AngleConstraint {
-    nz: usize,
-    ny: usize,
-    nx: usize,
+    zmax: f32,
+    ymax: f32,
+    xmax: f32,
     dist_min2: f32,
     dist_max2: f32,
     cos_max: f32,
@@ -97,28 +99,34 @@ pub struct AngleConstraint {
 
 impl AngleConstraint {
     pub fn new(
-        nz: usize,
-        ny: usize,
-        nx: usize,
+        nz: f32,
+        ny: f32,
+        nx: f32,
         dist_min2: f32,
         dist_max2: f32,
         cos_max: f32,
     ) -> Self {
-        Self { nz, ny, nx, dist_min2, dist_max2, cos_max }
+        Self {
+            zmax: nz - 1.0,
+            ymax: ny - 1.0,
+            xmax: nx - 1.0,
+            dist_min2,
+            dist_max2,
+            cos_max,
+        }
     }
 
     pub fn fast_check_longitudinal(
         &self,
         coord: &CoordinateSystem<f32>,
-        end_point: &Vector3D<f32>,
+        end: &Vector3D<f32>,
         y0: f32,
     ) -> CheckResult {
         let point_0y0 = coord.at(0.0, y0, 0.0);
-        let end = end_point.clone();
         let dist2_00 = (point_0y0 - end).length2();
-        let dist2_01 = (coord.at(0.0, y0, (self.nx - 1) as f32) - end).length2();
-        let dist2_10 = (coord.at((self.nz - 1) as f32, y0, 0.0) - end).length2();
-        let dist2_11 = (coord.at((self.nz - 1) as f32, y0, (self.nx - 1) as f32) - end).length2();
+        let dist2_01 = (coord.at(0.0, y0, self.xmax) - end).length2();
+        let dist2_10 = (coord.at(self.zmax, y0, 0.0) - end).length2();
+        let dist2_11 = (coord.at(self.zmax, y0, self.xmax) - end).length2();
         if dist2_00 < self.dist_min2 && dist2_01 < self.dist_min2
             && dist2_10 < self.dist_min2 && dist2_11 < self.dist_min2
         {
@@ -128,7 +136,7 @@ impl AngleConstraint {
         // If the length of perpendicular line drawn from point (x1, y1, z1) to the
         // plane of (_, y0, _) is longer than dist_max, then any point in the plane
         // is invalid.
-        if point_0y0.point_to_plane_distance2(&coord.ey, end_point) > self.dist_max2 {
+        if point_0y0.point_to_plane_distance2(&coord.ey, end) > self.dist_max2 {
             return CheckResult::LARGE;
         }
         return CheckResult::OK;
@@ -136,23 +144,22 @@ impl AngleConstraint {
     pub fn fast_check_lateral(
         &self,
         coord: &CoordinateSystem<f32>,
-        end_point: &Vector3D<f32>,
-        x0: usize,
+        end: &Vector3D<f32>,
+        x0: f32,
     ) -> CheckResult {
-        let point_00x = coord.at(0.0, 0.0, x0 as f32);
-        let end = end_point.clone();
+        let point_00x = coord.at(0.0, 0.0, x0);
         let dist2_00 = (point_00x - end).length2();
-        let dist2_01 = (coord.at(0.0, (self.ny - 1) as f32, x0 as f32) - end).length2();
-        let dist2_10 = (coord.at((self.nz - 1) as f32, 0.0, x0 as f32) - end).length2();
+        let dist2_01 = (coord.at(0.0, self.ymax, x0) - end).length2();
+        let dist2_10 = (coord.at(self.zmax, 0.0, x0) - end).length2();
         let dist2_11 =
-            (coord.at((self.nz - 1) as f32, (self.ny - 1) as f32, x0 as f32) - end)
+            (coord.at(self.zmax, self.ymax, x0) - end)
                 .length2();
         if dist2_00 < self.dist_min2 && dist2_01 < self.dist_min2
             && dist2_10 < self.dist_min2 && dist2_11 < self.dist_min2
         {
             return CheckResult::SMALL;
         }
-        if point_00x.point_to_plane_distance2(&coord.ex, end_point) > self.dist_max2 {
+        if point_00x.point_to_plane_distance2(&coord.ex, end) > self.dist_max2 {
             return CheckResult::LARGE;
         }
         return CheckResult::OK;

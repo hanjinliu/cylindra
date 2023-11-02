@@ -53,9 +53,8 @@ impl CylindricAnnealingModel {
     #[pyo3(signature = (seed))]
     /// Return a new instance with different random seed.
     pub fn with_seed<'py>(&self, py: Python<'py>, seed: u64) -> Py<Self> {
-        let rng = RandomNumberGenerator::new(seed);
         let mut out = Self {
-            rng,
+            rng: self.rng.with_seed(seed),
             optimization_state: self.optimization_state.clone(),
             graph: self.graph.clone(),
             reservoir: self.reservoir.clone(),
@@ -176,6 +175,8 @@ impl CylindricAnnealingModel {
         mut slf: PyRefMut<'py, Self>,
         energy: PyReadonlyArray4<f32>,
     ) -> PyResult<PyRefMut<'py, Self>> {
+        let shape = energy.shape();
+        slf.rng.set_shape((shape[1], shape[2], shape[3]));
         let energy = energy.as_array().to_shared();
         slf.graph.set_energy_landscape(energy)?;
         Ok(slf)

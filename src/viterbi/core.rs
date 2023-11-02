@@ -149,7 +149,13 @@ impl ViterbiGrid {
         let mut viterbi_lattice = Array::zeros((self.nmole, self.nz, self.ny, self.nx));
         viterbi_lattice.slice_mut(s![0, .., .., ..]).assign(&self.score.slice(s![0, .., .., ..]));
         let mut state_sequence = Array::zeros((self.nmole, 3));
-        let constraint = Constraint::new(self.nz, self.ny, self.nx, dist_min2, dist_max2);
+        let constraint = Constraint::new(
+            self.nz as f32,
+            self.ny as f32,
+            self.nx as f32,
+            dist_min2,
+            dist_max2,
+        );
 
         for t in 1..self.nmole {
             let coord_prev = &self.coords[t - 1];
@@ -256,7 +262,14 @@ impl ViterbiGrid {
         let mut viterbi_lattice = Array::zeros((self.nmole, self.nz, self.ny, self.nx));
         viterbi_lattice.slice_mut(s![0, .., .., ..]).assign(&self.score.slice(s![0, .., .., ..]));
         let mut state_sequence = Array::zeros((self.nmole, 3));
-        let constraint = AngleConstraint::new(self.nz, self.ny, self.nx, dist_min2, dist_max2, cos_angle_max);
+        let constraint = AngleConstraint::new(
+            self.nz as f32,
+            self.ny as f32,
+            self.nx as f32,
+            dist_min2,
+            dist_max2,
+            cos_angle_max,
+        );
 
         for t in 1..self.nmole {
             let coord_prev = &self.coords[t - 1];

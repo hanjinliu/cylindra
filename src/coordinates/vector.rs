@@ -186,6 +186,14 @@ impl<T: Real> std::ops::Sub<Vector3D<T>> for Vector3D<T> {
     }
 }
 
+impl<T: Real> std::ops::Sub<&Vector3D<T>> for Vector3D<T> {
+    type Output = Vector3D<T>;
+
+    fn sub(self, other: &Vector3D<T>) -> Vector3D<T> {
+        Vector3D::new(self.z - other.z, self.y - other.y, self.x - other.x)
+    }
+}
+
 impl<T: Real> std::ops::Sub<&Vector3D<T>> for &Vector3D<T> {
     type Output = Vector3D<T>;
 
