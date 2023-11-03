@@ -232,7 +232,7 @@ class Landscape:
         distance_range_long: tuple[nm, nm],
         distance_range_lat: tuple[nm | str, nm | str],
         angle_max: float | None = None,
-        temperature_time_const: float = 1.4,
+        temperature_time_const: float = 1.0,
         temperature: float | None = None,
         cooling_rate: float | None = None,
         reject_limit: int | None = None,
@@ -286,7 +286,7 @@ class Landscape:
         distance_range_long: tuple[nm, nm],
         distance_range_lat: tuple[nm, nm],
         angle_max: float | None = None,
-        temperature_time_const: float = 1.4,
+        temperature_time_const: float = 1.0,
         temperature: float | None = None,
         cooling_rate: float | None = None,
         reject_limit: int | None = None,
@@ -318,7 +318,7 @@ class Landscape:
             _model.init_shift_random()
             energies = [_model.energy()]
             while (
-                _model.temperature() > temp0 * 1e-6
+                _model.temperature() > temp0 * 1e-4
                 and _model.optimization_state() == "not_converged"
             ):
                 _model.simulate(batch_size)
