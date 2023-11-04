@@ -11,7 +11,8 @@ from magicclass.types import Optional
 from magicclass.ext.dask import dask_thread_worker
 import impy as ip
 from cylindra.const import FileFilter
-from cylindra.widgets._previews import view_image
+from cylindra.core import ACTIVE_WIDGETS
+from cylindra._previews import view_image
 from cylindra.widgets._widget_ext import CheckBoxes
 from cylindra._config import get_config
 
@@ -158,8 +159,7 @@ class ImageProcessor(ChildWidget):
         if "*" in str(input):
             input = glob(str(input), recursive=True)
         prev = view_image(input, self)
-        main = self._get_main()
-        main._active_widgets.add(prev)
+        ACTIVE_WIDGETS.add(prev)
         return None
 
     def _imread(self, path) -> "ip.LazyImgArray | ip.DataList[ip.LazyImgArray]":

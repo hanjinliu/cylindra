@@ -12,7 +12,7 @@ from magicclass import (
 )
 from magicclass.utils import thread_worker
 from ._child_widget import ChildWidget
-from cylindra.widgets._previews import view_image
+from cylindra._previews import view_image
 from cylindra.project import ProjectSequence, CylindraProject
 from cylindra.widgets.subwidgets import LocalPropertiesWidget
 

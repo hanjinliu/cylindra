@@ -28,11 +28,12 @@ import impy as ip
 import polars as pl
 
 from cylindra.const import nm, ALN_SUFFIX, MoleculesHeader as Mole
+from cylindra.core import ACTIVE_WIDGETS
 from cylindra.utils import roundint
 from cylindra.widgets import _shared_doc
 from cylindra.widgets._widget_ext import RotationsEdit
 from cylindra.widgets._annotated import FSCFreq
-from cylindra.widgets.main import CylindraMainWidget, widget_utils
+from cylindra.widgets.main import widget_utils
 from cylindra.widgets.sta import StaParameters
 from cylindra.widgets.widget_utils import timer, PolarsExprStr, norm_expr
 from cylindra.widgets.sta import (
@@ -479,7 +480,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
             pca_viewer.show()
             self._show_rec(avgs, name=f"[PCA]{loader_name}", store=False)
 
-            CylindraMainWidget._active_widgets.add(pca_viewer)
+            ACTIVE_WIDGETS.add(pca_viewer)
 
         return _on_return
 

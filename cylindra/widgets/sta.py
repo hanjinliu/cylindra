@@ -51,6 +51,7 @@ from cylindra.const import (
     FileFilter,
 )
 from cylindra._napari import LandscapeSurface
+from cylindra.core import ACTIVE_WIDGETS
 from cylindra.widgets._widget_ext import (
     RotationsEdit,
     RandomSeedEdit,
@@ -1500,7 +1501,7 @@ class SubtomogramAveraging(ChildWidget):
             pca_viewer.native.setParent(self.native, pca_viewer.native.windowFlags())
             pca_viewer.show()
             self._show_rec(avgs, name=f"[PCA]{layer.name}", store=False)
-            parent._active_widgets.add(pca_viewer)
+            ACTIVE_WIDGETS.add(pca_viewer)
 
         return _on_return
 

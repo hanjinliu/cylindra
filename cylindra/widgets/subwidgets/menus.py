@@ -34,6 +34,7 @@ from cylindra.utils import roundint, str_color
 from cylindra.types import get_monomer_layers, ColoredLayer
 from cylindra.ext.etomo import PEET
 from cylindra.const import nm, get_versions, ImageFilter, FileFilter
+from cylindra.core import ACTIVE_WIDGETS
 from cylindra.project import CylindraProject, extract
 from cylindra.widgets._annotated import assert_layer
 from cylindra.widgets.widget_utils import get_code_theme, capitalize
@@ -184,7 +185,7 @@ class FileMenu(ChildWidget):
         main = self._get_main()
         pviewer = CylindraProject.from_file(path).make_project_viewer()
         pviewer.native.setParent(main.native, pviewer.native.windowFlags())
-        main._active_widgets.add(pviewer)
+        ACTIVE_WIDGETS.add(pviewer)
         return pviewer.show()
 
     PEET = PEET
@@ -589,8 +590,7 @@ class MoleculesMenu(ChildWidget):
             from cylindra.components.visualize import flat_view
             from matplotlib.axes import Axes
 
-            main = self._get_main()
-            layer = assert_layer(layer, main.parent_viewer)
+            layer = assert_layer(layer, self._get_main().parent_viewer)
             match backend:
                 case "inline":
                     _, ax = plt.subplots()
@@ -601,7 +601,7 @@ class MoleculesMenu(ChildWidget):
                     fig = Figure()
                     ax = fig.ax
                     fig.show()
-                    main._active_widgets.add(fig)
+                    ACTIVE_WIDGETS.add(fig)
                 case _:
                     raise ValueError(f"Unknown backend: {backend!r}")
 
@@ -756,7 +756,7 @@ class AnalysisMenu(ChildWidget):
         uibatch.native.setParent(main.native, uibatch.native.windowFlags())
         main._batch = uibatch
         uibatch.show()
-        main._active_widgets.add(uibatch)
+        ACTIVE_WIDGETS.add(uibatch)
         return uibatch
 
     sep2 = field(Separator)
@@ -785,7 +785,7 @@ class OthersMenu(ChildWidget):
                 main = self._get_main()
                 new = main.macro.widget.new_window(tabname=tabname)
                 self._macro_window = new
-                main._active_widgets.add(new)
+                ACTIVE_WIDGETS.add(new)
                 new.textedit.value = text
             else:
                 new = self._macro_window
@@ -817,7 +817,7 @@ class OthersMenu(ChildWidget):
             """
             main = self._get_main()
             main.macro.widget.show()
-            main._active_widgets.add(main.macro.widget)
+            ACTIVE_WIDGETS.add(main.macro.widget)
             return None
 
         sep0 = field(Separator)
@@ -830,7 +830,7 @@ class OthersMenu(ChildWidget):
 
             edit = main.macro.widget.new_window(path.name)
             edit.textedit.value = str(extract(Path(path).read_text()))
-            main._active_widgets.add(edit)
+            ACTIVE_WIDGETS.add(edit)
             return None
 
     @magicmenu(record=False)
@@ -1034,7 +1034,7 @@ class OthersMenu(ChildWidget):
         w.read_only = True
         w.native.setParent(main.native, w.native.windowFlags())
         w.show()
-        main._active_widgets.add(w)
+        ACTIVE_WIDGETS.add(w)
         return None
 
     def _get_list_of_cfg(self, *_):

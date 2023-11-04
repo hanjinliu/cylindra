@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from magicgui.widgets import Slider
-from magicclass.widgets import TabbedContainer, ConsoleTextEdit
+from magicclass.widgets import TabbedContainer
 from magicclass import (
     magicclass,
     MagicTemplate,
@@ -11,8 +11,9 @@ from magicclass import (
 )
 from magicclass.utils import thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
-from magicclass.ext.vispy import Vispy3DCanvas
 from magicclass.ext.polars import DataFrameView
+
+from cylindra.core import ACTIVE_WIDGETS
 
 import numpy as np
 import impy as ip
@@ -127,16 +128,22 @@ class ImagePreview(MagicTemplate):
 
 
 def view_tables(
-    paths: list[str], parent: MagicTemplate = None, **kwargs
+    paths: str | list[str], parent: MagicTemplate = None, **kwargs
 ) -> TabbedContainer:
     """Preview a list of tables."""
-    container = TabbedContainer(labels=False)
-    for i, path in enumerate(paths):
-        df = pl.read_csv(path, **kwargs)
-        view = DataFrameView(value=df, name=Path(path).name)
-        container.append(view)
-    container.native.setParent(parent.native, container.native.windowFlags())
+    if isinstance(paths, (str, Path)):
+        df = pl.read_csv(paths, **kwargs)
+        container = DataFrameView(value=df, name=Path(paths).name)
+    else:
+        container = TabbedContainer(labels=False)
+        for i, path in enumerate(paths):
+            df = pl.read_csv(path, **kwargs)
+            view = DataFrameView(value=df, name=Path(path).name)
+            container.append(view)
+    if parent is not None:
+        container.native.setParent(parent.native, container.native.windowFlags())
     container.show()
+    ACTIVE_WIDGETS.add(container)
     return container
 
 
@@ -147,6 +154,8 @@ def view_image(path: str | list[str], parent: MagicTemplate = None) -> ImagePrev
         prev._load_images(path)
     else:
         prev._load_image(path)
-    prev.native.setParent(parent.native, prev.native.windowFlags())
+    if parent is not None:
+        prev.native.setParent(parent.native, prev.native.windowFlags())
     prev.show()
+    ACTIVE_WIDGETS.add(prev)
     return prev

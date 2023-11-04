@@ -14,7 +14,7 @@ from magicclass.widgets import ConsoleTextEdit
 from magicclass.types import Optional, Path
 import impy as ip
 from acryo.tilt import NoWedge, SingleAxis
-from cylindra.widgets._previews import view_image
+from cylindra._previews import view_image
 
 from cylindra.utils import ceilint
 from cylindra.components import CylTomogram

@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 PathLike = str | Path
 _CURRENT_INSTANCE: CylindraMainWidget | None = None
-_ACTIVE_WIDGETS: WeakSet[Widget] = WeakSet()
+ACTIVE_WIDGETS: WeakSet[Widget] = WeakSet()
 
 
 def start(
@@ -25,6 +25,7 @@ def start(
     viewer: napari.Viewer | None = None,
     *,
     log_level: int | str = "INFO",
+    headless: bool = False,
 ) -> CylindraMainWidget:
     """
     Start napari viewer and dock cylindra widget as a dock widget.
@@ -50,13 +51,13 @@ def start(
     global _CURRENT_INSTANCE
 
     if viewer is None:
-        viewer = napari.Viewer()
+        viewer = napari.Viewer(show=not headless)
     elif not isinstance(viewer, napari.Viewer):
         raise TypeError(f"viewer must be a napari.Viewer object, got {type(viewer)}")
 
     ui = CylindraMainWidget()
     ui.macro.options.max_undo = 16
-    _ACTIVE_WIDGETS.add(ui)
+    ACTIVE_WIDGETS.add(ui)
 
     # set logger
     logger = logging.getLogger("cylindra")
@@ -145,7 +146,7 @@ def view_project(project_file: PathLike, run: bool = False):
 
     widget = CylindraProject.from_file(project_file).make_project_viewer()
     widget.show(run=run)
-    _ACTIVE_WIDGETS.add(widget)
+    ACTIVE_WIDGETS.add(widget)
     return widget
 
 

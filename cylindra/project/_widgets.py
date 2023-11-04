@@ -166,7 +166,6 @@ class ProjectViewer(MagicTemplate):
         self,
         path: Annotated[str, {"bind": _get_project_path}],
         filter: ImageFilter | None = ImageFilter.Lowpass,
-        paint: bool = False,
         read_image: Annotated[bool, {"label": "read image data"}] = True,
         update_config: bool = False,
     ):
@@ -186,13 +185,13 @@ class ProjectViewer(MagicTemplate):
 
         if ui is None:
             raise RuntimeError("Main window is not running.")
-        yield from ui.load_project.arun(path, filter, paint, read_image, update_config)
+        yield from ui.load_project.arun(path, filter, read_image, update_config)
         return thread_worker.callback(self.close)
 
     @set_design(text="Preview image", location=Menu)
     def preview_image(self):
         """Preview the tomogram image."""
-        from cylindra.widgets._previews import view_image
+        from cylindra._previews import view_image
 
         return view_image(self._project.image, parent=self)
 

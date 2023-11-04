@@ -1,5 +1,4 @@
 from typing import Annotated, TYPE_CHECKING, Literal, Any, Sequence
-from weakref import WeakSet
 
 import impy as ip
 import macrokit as mk
@@ -161,9 +160,6 @@ def _choice_getter(method_name: str, dtype_kind: str = ""):
 @_shared_doc.update_cls
 class CylindraMainWidget(MagicTemplate):
     # Main GUI class.
-
-    # Weak references of active widgets. Useful for test session teardown.
-    _active_widgets = WeakSet[Widget]()
 
     # Widget for manual spline fitting
     spline_fitter = field(_sw.SplineFitter, name="_Spline fitter")

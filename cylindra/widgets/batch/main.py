@@ -20,7 +20,7 @@ from cylindra.const import (
     PropertyNames as H,
     FileFilter,
 )
-from cylindra.widgets import CylindraMainWidget
+from cylindra.core import ACTIVE_WIDGETS
 from cylindra.widgets.widget_utils import POLARS_NAMESPACE
 from cylindra.project import CylindraProject, CylindraBatchProject
 from cylindra._config import get_config
@@ -158,14 +158,14 @@ class CylindraBatchWidget(MagicTemplate):
         win = ui.macro.widget.new_window("Batch")
         win.textedit.value = macro_str
         win.show()
-        CylindraMainWidget._active_widgets.add(win)
+        ACTIVE_WIDGETS.add(win)
         return None
 
     @set_design(text="Show native macro", location=ProjectSequenceEdit.MacroMenu)
     @do_not_record
     def show_native_macro(self):
         self.macro.widget.show()
-        CylindraMainWidget._active_widgets.add(self.macro.widget)
+        ACTIVE_WIDGETS.add(self.macro.widget)
         return None
 
     @set_design(text="Load batch analysis project", location=ProjectSequenceEdit.File)

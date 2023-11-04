@@ -25,7 +25,7 @@ import polars as pl
 
 from cylindra.project import CylindraProject, get_project_file
 from cylindra.const import MoleculesHeader as Mole, FileFilter
-from cylindra.widgets import CylindraMainWidget
+from cylindra.core import ACTIVE_WIDGETS
 from cylindra.widgets.widget_utils import POLARS_NAMESPACE
 from cylindra._config import get_config
 
@@ -367,7 +367,7 @@ class ProjectSequenceEdit(MagicTemplate):
 
         cont = Container(widgets=[cbox, comp_viewer], labels=False)
         _set_parent(cont, self)
-        CylindraMainWidget._active_widgets.add(cont)
+        ACTIVE_WIDGETS.add(cont)
         cont.show()
         cbox.changed.emit(cbox.value)
         return None
@@ -388,7 +388,7 @@ class ProjectSequenceEdit(MagicTemplate):
         )
         cont = Container(widgets=[cbox, comp_viewer], labels=False)
         _set_parent(cont, self)
-        CylindraMainWidget._active_widgets.add(cont)
+        ACTIVE_WIDGETS.add(cont)
         cont.show()
         cbox.changed.emit(cbox.value)
         return cont
@@ -402,7 +402,7 @@ class ProjectSequenceEdit(MagicTemplate):
         if df.shape[0] == 0:
             raise ValueError("All molecules were filtered out.")
         table = DataFrameView(value=df)
-        CylindraMainWidget._active_widgets.add(table)
+        ACTIVE_WIDGETS.add(table)
         _set_parent(table, self)
         table.show()
         return None
@@ -416,7 +416,7 @@ class ProjectSequenceEdit(MagicTemplate):
         if df.shape[0] == 0:
             raise ValueError("All molecules were filtered out.")
         table = DataFrameView(value=df)
-        CylindraMainWidget._active_widgets.add(table)
+        ACTIVE_WIDGETS.add(table)
         _set_parent(table, self)
         table.show()
         return None
@@ -478,5 +478,5 @@ def _(self: ProjectSequenceEdit, pattern: str):
         paths.append(Path(path).as_posix())
     wdt = ConsoleTextEdit(value="\n".join(paths))
     _set_parent(wdt, self)
-    CylindraMainWidget._active_widgets.add(wdt)
+    ACTIVE_WIDGETS.add(wdt)
     wdt.show()

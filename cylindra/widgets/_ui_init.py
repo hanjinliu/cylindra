@@ -20,11 +20,12 @@ from cylindra.const import (
     MoleculesHeader as Mole,
 )
 from cylindra.project import CylindraProject
+from cylindra.core import ACTIVE_WIDGETS
+from cylindra._previews import view_tables
 from cylindra import utils
 from cylindra.widgets import widget_utils
 from cylindra.widgets.main import CylindraMainWidget
 from cylindra.widgets.sta import SubtomogramAveraging
-from cylindra.widgets._previews import view_tables
 from cylindra.widgets._main_utils import normalize_offsets, rotvec_from_axis_and_degree
 from cylindra._napari import MoleculesLayer
 from cylindra import _config
@@ -37,14 +38,14 @@ if TYPE_CHECKING:
 @impl_preview(CylindraMainWidget.load_molecules)
 def _preview_load_molecules(self: CylindraMainWidget, paths: list[str]):
     w = view_tables(paths, parent=self)
-    self._active_widgets.add(w)
+    ACTIVE_WIDGETS.add(w)
 
 
 @impl_preview(CylindraMainWidget.load_project)
 def _preview_load_project(self: CylindraMainWidget, path: str):
     pviewer = CylindraProject.from_file(path).make_project_viewer()
     pviewer.native.setParent(self.native, pviewer.native.windowFlags())
-    self._active_widgets.add(pviewer)
+    ACTIVE_WIDGETS.add(pviewer)
     return pviewer.show()
 
 
@@ -86,7 +87,7 @@ def _preview_load_project_for_reanalysis(self: CylindraMainWidget, path: Path):
     w.read_only = True
     w.native.setParent(self.native, w.native.windowFlags())
     w.show()
-    self._active_widgets.add(w)
+    ACTIVE_WIDGETS.add(w)
 
 
 @impl_preview(CylindraMainWidget.map_along_pf, auto_call=True)

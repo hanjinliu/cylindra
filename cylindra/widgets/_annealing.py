@@ -10,6 +10,7 @@ from magicclass.ext.pyqtgraph import QtMultiPlotCanvas
 import numpy as np
 
 from cylindra.const import MoleculesHeader as Mole, nm
+from cylindra.core import ACTIVE_WIDGETS
 from cylindra._napari import MoleculesLayer, LandscapeSurface
 
 if TYPE_CHECKING:
@@ -116,7 +117,7 @@ def _preview_function(
     data_lon, data_lat = get_distances(molecules, spline, scale_factor)
 
     canvas = QtMultiPlotCanvas(ncols=2)
-    parent._active_widgets.add(canvas)
+    ACTIVE_WIDGETS.add(canvas)
     lon_hist = canvas[0].add_hist(data_lon, bins=24, density=False, name="Longitudinal")
     lon_low = canvas[0].add_infline((range_long[0], 0), 90, color="yellow", ls=":")
     lon_high = canvas[0].add_infline((range_long[1], 0), 90, color="yellow", ls=":")
