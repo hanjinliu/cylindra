@@ -1,3 +1,4 @@
+use core::slice::Iter;
 use std::{sync::Arc, collections::HashMap};
 use numpy::{
     ndarray::{Array1, Array2, Array, s, ArcArray, ArcArray2}, Ix3, Ix4
@@ -91,8 +92,8 @@ impl<Sn, Se> GraphComponents<Sn, Se> {
     }
 
     /// Return all the edge IDs connected to node i.
-    pub fn connected_edge_indices(&self, i: usize) -> &Vec<usize> {
-        &self.edges[i]
+    pub fn connected_edge_indices(&self, i: usize) -> Iter<'_, usize> {
+        self.edges[i].iter()
     }
 
     pub fn edge_end(&self, i: usize) -> (usize, usize) {
@@ -348,9 +349,8 @@ impl CylindricGraph {
         let graph = self.components();
         let mut angles = Array1::<f32>::zeros(graph.node_count());
         for i in 0..graph.node_count() {
-            let edge_indices = graph.connected_edge_indices(i);
             let mut neighbors = Vec::new();
-            for k in edge_indices.iter() {
+            for k in graph.connected_edge_indices(i) {
                 if graph.edge_state(*k) != typ {
                     continue;
                 }
@@ -461,8 +461,7 @@ impl CylindricGraph {
         let graph = self.components();
         let mut e_old = self.internal(&state_old);
         let mut e_new = self.internal(&state_new);
-        let connected_edges = graph.connected_edge_indices(idx);
-        for edge_id in connected_edges {
+        for edge_id in graph.connected_edge_indices(idx) {
             let edge_id = *edge_id;
             let ends = graph.edge_end(edge_id);
             let other_idx = if ends.0 == idx { ends.1 } else { ends.0 };

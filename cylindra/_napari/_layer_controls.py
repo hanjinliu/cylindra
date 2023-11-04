@@ -50,6 +50,7 @@ class QtMoleculesControls(QtPointsControls):
 
         self.dimComboBox = QEnumComboBox(enum_class=ViewDimension)
         self.dimComboBox.currentEnumChanged.connect(self._change_dim)
+        self.dimComboBox.setCurrentEnum(ViewDimension(layer.view_ndim))
 
         layout: QFormLayout = self.layout()
         layout.addRow("point size:", self.pointSizeSlider)

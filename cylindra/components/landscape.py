@@ -22,6 +22,8 @@ if TYPE_CHECKING:
     from dask import array as da
     from cylindra._cylindra_ext import CylindricAnnealingModel
 
+    _DistLike = nm | str
+
 
 @dataclass
 class Landscape:
@@ -209,7 +211,9 @@ class Landscape:
         engs = np.array(engs, dtype=np.float32)
         return MinEnergyResult(indices, engs)
 
-    def run_viterbi(self, dist_range: tuple[nm, nm], angle_max: float | None = None):
+    def run_viterbi(
+        self, dist_range: tuple[_DistLike, _DistLike], angle_max: float | None = None
+    ):
         """Run Viterbi alignment."""
         from cylindra._cylindra_ext import ViterbiGrid
 
@@ -221,6 +225,14 @@ class Landscape:
         zvec = mole.z.astype(np.float32)
         yvec = mole.y.astype(np.float32)
         xvec = mole.x.astype(np.float32)
+
+        # normalize distance limits
+        dist_mean = np.mean(
+            np.sqrt(np.sum(np.diff(self.molecules.pos, axis=0) ** 2, axis=1))
+        )
+        dist_min = _norm_distance(dist_min, dist_mean)
+        dist_max = _norm_distance(dist_max, dist_mean)
+
         grid = ViterbiGrid(-self.energies, origin, zvec, yvec, xvec)
         _dist_range = (dist_min / self.scale_factor, dist_max / self.scale_factor)
         result = grid.viterbi(*_dist_range, angle_max)
@@ -229,8 +241,8 @@ class Landscape:
     def annealing_model(
         self,
         spl: CylSpline,
-        distance_range_long: tuple[nm, nm],
-        distance_range_lat: tuple[nm | str, nm | str],
+        distance_range_long: tuple[_DistLike, _DistLike],
+        distance_range_lat: tuple[_DistLike, _DistLike],
         angle_max: float | None = None,
         temperature_time_const: float = 1.4,
         temperature: float | None = None,
@@ -283,10 +295,10 @@ class Landscape:
     def run_annealing(
         self,
         spl: CylSpline,
-        distance_range_long: tuple[nm, nm],
-        distance_range_lat: tuple[nm, nm],
+        distance_range_long: tuple[_DistLike, _DistLike],
+        distance_range_lat: tuple[_DistLike, _DistLike],
         angle_max: float | None = None,
-        temperature_time_const: float = 1.4,
+        temperature_time_const: float = 1.0,
         temperature: float | None = None,
         cooling_rate: float | None = None,
         reject_limit: int | None = None,
@@ -481,7 +493,9 @@ class Landscape:
         return rng0, rng1
 
 
-def _norm_distance(v: str, ref: nm) -> nm:
+def _norm_distance(v: str | nm, ref: nm) -> nm:
+    if not isinstance(v, str):
+        return v
     if v.startswith(("x", "*")):
         ntimes = float(v[1:])
         if ntimes < 0.0:

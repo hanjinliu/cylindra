@@ -309,18 +309,34 @@ class CylindraMainWidget(MagicTemplate):
             raise TypeError(f"Invalid config type: {type(config)}")
         return config
 
-    def _get_all_spline_ids(self, splines: list[int] = None) -> list[int]:
-        nspl = len(self.tomogram.splines)
+    def _splines_validator(self, splines) -> list[int] | Literal["all"]:
+        """Validate list input, or 'all' if all splines are selected."""
+        nspl = self.splines.count()
         if splines is None:
             splines = list(range(nspl))
+        elif isinstance(splines, str):
+            if splines == "all":
+                return splines
+            raise TypeError("Only 'all' is allow for a string input")
+        elif splines is all:
+            return "all"
         elif not hasattr(splines, "__iter__"):
             splines = [int(splines)]
         else:
             for i in splines:
                 if i >= nspl:
                     raise ValueError(f"Spline index {i} is out of range.")
+            splines = sorted(splines)
         if len(splines) == 0:
             raise ValueError("No spline is selected.")
+        if splines == list(range(nspl)):
+            # For better reusabiligy, recording as 'all' is better.
+            return "all"
+        return splines
+
+    def _norm_splines(self, splines: list[int] | Literal["all"]) -> list[int]:
+        if isinstance(splines, str) and splines == "all":
+            return list(range(self.splines.count()))
         return splines
 
     _Splines = Annotated[
@@ -328,7 +344,7 @@ class CylindraMainWidget(MagicTemplate):
         {
             "choices": _get_splines,
             "widget_type": CheckBoxes,
-            "validator": _get_all_spline_ids,
+            "validator": _splines_validator,
         },
     ]
 
@@ -537,6 +553,9 @@ class CylindraMainWidget(MagicTemplate):
             Path of json file.
         molecules_ext : str, default is ".csv"
             Extension of the molecule file. Can be ".csv" or ".parquet".
+        save_landscape : bool, default is False
+            Save landscape layers if any. False by default because landscape layers are
+            usually large.
         """
         path = Path(path)
         dir_posix = path.as_posix()
@@ -805,7 +824,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         tomo = self.tomogram
         _old_orientations = [spl.orientation for spl in self.tomogram.splines]
-        for i in splines:
+        for i in self._norm_splines(splines):
             tomo.infer_polarity(i=i, binsize=bin_size, depth=depth, update=True)
             yield
         _new_orientations = [spl.orientation for spl in self.tomogram.splines]
@@ -963,6 +982,7 @@ class CylindraMainWidget(MagicTemplate):
             Maximum shift to be applied to each point of splines.
         """
         tomo = self.tomogram
+        splines = self._norm_splines(splines)
         with SplineTracker(widget=self, indices=splines) as tracker:
             for i in splines:
                 tomo.fit(
@@ -1004,6 +1024,7 @@ class CylindraMainWidget(MagicTemplate):
               and the end point of splines. Actual intervals will be smaller.
         """
         tomo = self.tomogram
+        splines = self._norm_splines(splines)
         with SplineTracker(widget=self, indices=splines) as tracker:
             match how:
                 case "pack":
@@ -1038,6 +1059,7 @@ class CylindraMainWidget(MagicTemplate):
         {bin_size}
         """
         tomo = self.tomogram
+        splines = self._norm_splines(splines)
         with SplineTracker(widget=self, indices=splines) as tracker:
             for i in splines:
                 tomo.refine(
@@ -1222,6 +1244,7 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         {splines}{bin_size}{min_radius}
         """
+        splines = self._norm_splines(splines)
         with SplineTracker(widget=self, indices=splines, sample=True) as tracker:
             for i in splines:
                 self.tomogram.measure_radius(i, binsize=bin_size, min_radius=min_radius)
@@ -1247,6 +1270,7 @@ class CylindraMainWidget(MagicTemplate):
             properties of the spline as the context.
         """
         radius_expr = widget_utils.norm_scalar_expr(radius)
+        splines = self._norm_splines(splines)
         rdict = dict[int, float]()
         for i in splines:
             _radius = self.splines[i].props.get_glob(radius_expr)
@@ -1281,6 +1305,7 @@ class CylindraMainWidget(MagicTemplate):
         {splines}{interval}{depth}{bin_size}{min_radius}{update_glob}
         """
         tomo = self.tomogram
+        splines = self._norm_splines(splines)
 
         @thread_worker.callback
         def _on_yield():
@@ -1391,6 +1416,7 @@ class CylindraMainWidget(MagicTemplate):
         {update_glob}
         """
         tomo = self.tomogram
+        splines = self._norm_splines(splines)
 
         @thread_worker.callback
         def _local_cft_analysis_on_yield(i: int):
@@ -1434,6 +1460,7 @@ class CylindraMainWidget(MagicTemplate):
         {splines}{bin_size}
         """
         tomo = self.tomogram
+        splines = self._norm_splines(splines)
 
         with SplineTracker(widget=self, indices=splines, sample=True) as tracker:
             for i in splines:
@@ -1543,7 +1570,7 @@ class CylindraMainWidget(MagicTemplate):
             _added_layers.append(layer)
             _Logger.print(f"{name!r}: n = {len(mol)}")
 
-        for i in splines:
+        for i in self._norm_splines(splines):
             spl = tomo.splines[i]
             mol = tomo.map_monomers(
                 i=i,
@@ -1631,8 +1658,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         tomo = self.tomogram
         interv_expr = widget_utils.norm_scalar_expr(molecule_interval)
-        if len(splines) == 0 and len(tomo.splines) > 0:
-            splines = tuple(range(len(tomo.splines)))
+        splines = self._norm_splines(splines)
         _Logger.print_html("<code>map_centers</code>")
         _added_layers = []
         for idx in splines:
