@@ -541,6 +541,7 @@ def test_sub_widgets(ui: CylindraMainWidget):
         ui.spectra_inspector._click_at((10, 20))
 
         # file iterator
+        ui.FileMenu.open_file_iterator()
         ui._file_iterator.set_pattern(f"{TEST_DIR.as_posix()}/*.tif")
         ui._file_iterator.last_file()
         ui._file_iterator.first_file()
@@ -725,6 +726,7 @@ def test_radius_methods(ui: CylindraMainWidget):
 
 
 def test_simulator(ui: CylindraMainWidget):
+    ui.FileMenu.open_simulator()
     ui.simulator.create_empty_image(size=(50.0, 100.0, 50.0), scale=0.5)
     ui.register_path(coords=[[25.375, 83.644, 18.063], [25.375, 23.154, 28.607]])
     tester = mcls_testing.FunctionGuiTester(ui.simulator.generate_molecules)
@@ -881,7 +883,8 @@ def test_molecules_methods(ui: CylindraMainWidget):
     ui.paint_molecules("Mole-0", "nth", {0: "blue", 1: "yellow"}, (0, 10))
     ui.macro.undo()
     ui.macro.redo()
-    ui.ImageMenu.show_colorbar(ui.mole_layers["Mole-0"])
+    ui.ImageMenu.show_colorbar(ui.mole_layers["Mole-0"], orientation="horizontal")
+    ui.ImageMenu.show_colorbar(ui.mole_layers["Mole-0"], orientation="vertical")
 
     ui.MoleculesMenu.View.change_dimensionality([ui.mole_layers["Mole-0"]], 2)
 
@@ -1308,6 +1311,7 @@ def test_showing_widgets(ui: CylindraMainWidget):
 
 def test_image_processor(ui: CylindraMainWidget):
     input_path = TEST_DIR / "13pf_MT.tif"
+    ui.FileMenu.open_image_processor()
     ui.image_processor.input_image = input_path
     with tempfile.TemporaryDirectory() as dirpath:
         output_path = Path(dirpath) / "output.tif"

@@ -176,7 +176,7 @@ class PEET(ChildWidget):
             binsize=1,
         )
         template_image, mask_image = loader.normalize_input(
-            template=main.sta.params._get_template(path=template_path),
+            template=main.sta.params._norm_template_param(template_path),
             mask=main.sta.params._get_mask(params=mask_params),
         )
 

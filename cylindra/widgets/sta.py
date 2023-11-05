@@ -355,30 +355,32 @@ class StaParameters(MagicTemplate):
         except Exception:
             pass
 
-    def _get_template(self, path: Path | None = None, allow_none: bool = False):
-        if path is None:
-            path = self.template_path.value
-        self._save_history()
-
+    def _norm_template_param(
+        self,
+        path: _PathOrPathsOrNone = None,
+        allow_none: bool = False,
+        allow_multiple: bool = False,
+    ) -> pipe.ImageProvider:
         if path is None:
             if StaParameters._last_average is None:
                 if allow_none:
                     return None
-                raise ValueError(
-                    "No average image found. You can uncheck 'Use last averaged image' and select "
-                    "a template image from a file."
-                )
-            provider = pipe.from_array(
+                raise ValueError("No average image available.")
+            return pipe.from_array(
                 StaParameters._last_average, StaParameters._last_average.scale.x
             )
-        else:
+        elif isinstance(path, (str, Path)):
             path = Path(path)
+            self._save_history()
             if path.is_dir():
                 if allow_none:
                     return None
-                raise TypeError(f"Template image must be a file, got {path}.")
-            provider = pipe.from_file(path)
-        return provider
+                raise ValueError(f"Template image must be a file, got {path}.")
+            return pipe.from_file(path)
+        else:
+            if not allow_multiple:
+                raise ValueError(f"Cannot provide multiple template images: {path}.")
+            return pipe.from_files(path)
 
     def _get_mask_params(self, params=None) -> str | tuple[nm, nm] | None:
         match self.mask_choice:
@@ -466,33 +468,6 @@ class SubtomogramAveraging(ChildWidget):
     def _template_params(self, *_):
         return self._get_template_input(allow_multiple=True)
 
-    def _norm_template_param(
-        self,
-        path: _PathOrPathsOrNone = None,
-        allow_none: bool = False,
-        allow_multiple: bool = False,
-    ) -> pipe.ImageProvider:
-        if path is None:
-            if StaParameters._last_average is None:
-                if allow_none:
-                    return None
-                raise ValueError("No average image available.")
-            return pipe.from_array(
-                StaParameters._last_average, StaParameters._last_average.scale.x
-            )
-        elif isinstance(path, (str, Path)):
-            path = Path(path)
-            self.params._save_history()
-            if path.is_dir():
-                if allow_none:
-                    return None
-                raise ValueError(f"Template image must be a file, got {path}.")
-            return pipe.from_file(path)
-        else:
-            if not allow_multiple:
-                raise ValueError(f"Cannot provide multiple template images: {path}.")
-            return pipe.from_files(path)
-
     def _get_template_input(
         self, allow_multiple: bool = False
     ) -> None | Path | list[Path]:
@@ -518,7 +493,7 @@ class SubtomogramAveraging(ChildWidget):
 
     def _get_template_image(self) -> ip.ImgArray:
         scale = self._get_dummy_loader().scale
-        template = self._norm_template_param(
+        template = self.params._norm_template_param(
             self._template_params(),
             allow_none=False,
             allow_multiple=True,
@@ -532,7 +507,7 @@ class SubtomogramAveraging(ChildWidget):
     def _get_mask_image(self, template_params) -> ip.ImgArray:
         loader = self._get_dummy_loader()
         _, mask = loader.normalize_input(
-            self._norm_template_param(
+            self.params._norm_template_param(
                 template_params, allow_none=True, allow_multiple=True
             ),
             self.params._get_mask(),
@@ -810,7 +785,9 @@ class SubtomogramAveraging(ChildWidget):
         mole = layers[0].molecules
         loader = self._get_loader(bin_size, mole, order=1)
         template, mask = loader.normalize_input(
-            template=self._norm_template_param(template_path, allow_multiple=False),
+            template=self.params._norm_template_param(
+                template_path, allow_multiple=False
+            ),
             mask=self.params._get_mask(params=mask_params),
         )
         temp_norm = utils.normalize_image(template)
@@ -932,7 +909,9 @@ class SubtomogramAveraging(ChildWidget):
             order=interpolation,
         )
         aligned_loader = loader.align(
-            template=self._norm_template_param(template_path, allow_multiple=True),
+            template=self.params._norm_template_param(
+                template_path, allow_multiple=True
+            ),
             mask=self.params._get_mask(params=mask_params),
             max_shifts=max_shifts,
             rotations=rotations,
@@ -1393,7 +1372,7 @@ class SubtomogramAveraging(ChildWidget):
 
         loader = main.tomogram.get_subtomogram_loader(mole, order=interpolation)
         template, mask = loader.normalize_input(
-            template=self._norm_template_param(template_path, allow_none=True),
+            template=self.params._norm_template_param(template_path, allow_none=True),
             mask=self.params._get_mask(params=mask_params),
         )
         fsc, avg = loader.reshape(
@@ -1471,7 +1450,7 @@ class SubtomogramAveraging(ChildWidget):
             binsize=bin_size, molecules=layer.molecules, order=interpolation
         )
         _, mask = loader.normalize_input(
-            template=self._norm_template_param(template_path, allow_none=True),
+            template=self.params._norm_template_param(template_path, allow_none=True),
             mask=self.params._get_mask(params=mask_params),
         )
         out, pca = loader.reshape(
@@ -1542,7 +1521,7 @@ class SubtomogramAveraging(ChildWidget):
         layer = assert_layer(layer, self.parent_viewer)
         loader, npf = self._seam_search_input(layer, npf, interpolation)
         template, mask = loader.normalize_input(
-            template=self.params._get_template(path=template_path),
+            template=self.params._norm_template_param(template_path),
             mask=self.params._get_mask(params=mask_params),
         )
         if anti_template_path is not None:
@@ -1788,7 +1767,7 @@ class SubtomogramAveraging(ChildWidget):
     ):  # fmt: skip
         parent = self._get_main()
         layer = assert_layer(layer, self.parent_viewer)
-        self._norm_template_param(template_path, allow_multiple=True)
+        self.params._norm_template_param(template_path, allow_multiple=True)
         return Landscape.from_loader(
             loader=parent.tomogram.get_subtomogram_loader(
                 layer.molecules, order=interpolation

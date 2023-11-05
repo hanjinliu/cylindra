@@ -317,7 +317,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         info = loaderlist[loader_name]
         loader = info.loader
         template, mask = loader.normalize_input(
-            template=self.params._get_template(path=template_path),
+            template=self.params._norm_template_param(template_path),
             mask=self.params._get_mask(params=mask_params),
         )
         aligned = (
@@ -381,7 +381,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
             mask = None
         else:
             _, mask = loader.normalize_input(
-                template=self.params._get_template(allow_none=True),
+                template=self.params._norm_template_param(allow_none=True),
                 mask=self.params._get_mask(params=mask_params),
             )
 
@@ -448,7 +448,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         shape = self._get_shape_in_px(size, loader)
 
         _, mask = loader.normalize_input(
-            template=self.params._get_template(allow_none=True),
+            template=self.params._norm_template_param(allow_none=True),
             mask=self.params._get_mask(params=mask_params),
         )
         out, pca = (
@@ -494,9 +494,13 @@ class BatchSubtomogramAveraging(MagicTemplate):
     @do_not_record
     def show_template(self):
         """Load and show template image in the scale of the tomogram."""
-        template = self.template
+        loader = self._get_parent()._loaders[self.loader_name].loader
+        template, _ = loader.normalize_input(self.params._norm_template_param())
         if template is None:
             raise ValueError("No template to show.")
+        template = ip.asarray(template, axes="zyx").set_scale(
+            zyx=loader.scale, unit="nm"
+        )
         self._show_rec(template, name="Template image", store=False)
 
     @set_design(icon="material-symbols:view-in-ar", location=STATools)
@@ -515,36 +519,24 @@ class BatchSubtomogramAveraging(MagicTemplate):
     @do_not_record
     def show_mask(self):
         """Load and show mask image in the scale of the tomogram."""
-        mask = self.mask
+        loader = self._get_parent()._loaders[self.loader_name].loader
+        _, mask = loader.normalize_input(
+            self.params._norm_template_param(allow_none=True), self.params._get_mask()
+        )
         if mask is None:
             raise ValueError("No mask to show.")
+        mask = ip.asarray(mask, axes="zyx").set_scale(zyx=loader.scale, unit="nm")
         self._show_rec(mask, name="Mask image", store=False)
 
     @thread_worker.callback
     def _show_rec(self, img: ip.ImgArray, name: str, store: bool = True):
         return self.params._show_reconstruction(img, name, store)
 
-    @property
-    def template(self) -> "ip.ImgArray | None":
-        """Template image."""
-        loader = self._get_parent()._loaders[self.loader_name].loader
-        template, _ = loader.normalize_input(self.params._get_template())
-        return ip.asarray(template, axes="zyx").set_scale(zyx=loader.scale, unit="nm")
-
-    @property
-    def mask(self) -> "ip.ImgArray | None":
-        """Mask image."""
-        loader = self._get_parent()._loaders[self.loader_name].loader
-        _, mask = loader.normalize_input(
-            self.params._get_template(allow_none=True), self.params._get_mask()
-        )
-        return ip.asarray(mask, axes="zyx").set_scale(zyx=loader.scale, unit="nm")
-
     def _get_shape_in_px(
         self, default: "nm | None", loader: BatchLoader
     ) -> tuple[int, ...]:
         if default is None:
-            tmp = loader.normalize_template(self.params._get_template())
+            tmp = loader.normalize_template(self.params._norm_template_param())
             return tmp.shape
         else:
             return (roundint(default / loader.scale),) * 3

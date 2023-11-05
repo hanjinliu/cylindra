@@ -602,7 +602,7 @@ class MoleculesMenu(ChildWidget):
                     ax = fig.ax
                     fig.show()
                     ACTIVE_WIDGETS.add(fig)
-                case _:
+                case _:  # pragma: no cover
                     raise ValueError(f"Unknown backend: {backend!r}")
 
             flat_view(
