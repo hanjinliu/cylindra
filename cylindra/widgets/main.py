@@ -2518,6 +2518,8 @@ class CylindraMainWidget(MagicTemplate):
     def _on_layer_removing(self, event: "Event"):
         # NOTE: To make recorded macro completely reproducible, removing molecules
         # from the viewer layer list must always be monitored.
+        if self.parent_viewer is None:
+            return  # may happen during cleanup
         layer: Layer = self.parent_viewer.layers[event.index]
         if (
             isinstance(layer, MoleculesLayer)

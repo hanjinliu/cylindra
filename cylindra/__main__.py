@@ -16,23 +16,25 @@ class SubCommand(Enum):
     PROCESS = "process"
 
 
-class Namespace(argparse.Namespace):
-    arg: Any | None
-    init_config: bool
-    subcommand: SubCommand
-    file: str
+class ParserBase(argparse.ArgumentParser):
+    viewer: Any
+
+    def parse(self, args=None):
+        ns = self.parse_args(args)
+        return self.run_action(**vars(ns))
+
+    def run_action(self, *args, **kwargs):
+        """The subcommand actions."""
+        raise NotImplementedError
 
 
-class InfoAction(argparse.Action):
-    def __call__(self, *args, **kwargs):
-        ...
-
-
-class Args(argparse.ArgumentParser):
-    def __init__(self, prog=None):
+class ParserNone(ParserBase):
+    def __init__(self):
         from cylindra import __version__
 
-        super().__init__(prog=prog, description="Command line interface of cylindra.")
+        super().__init__(
+            prog="cylindra", description="Command line interface of cylindra."
+        )
         self.add_argument(
             "--init-config",
             action="store_true",
@@ -46,35 +48,90 @@ class Args(argparse.ArgumentParser):
             help="Show version.",
         )
 
-    def prep_subcommands(self):
-        subparsers = self.add_subparsers()
-        sub_open = subparsers.add_parser("open")
-        sub_open.set_defaults(subcommand=SubCommand.OPEN)
-        subparsers.add_parser("view").set_defaults(subcommand=SubCommand.VIEW)
-        sub = subparsers.add_parser("process")
-        sub.set_defaults(subcommand=SubCommand.PROCESS)
-        sub.add_argument(
-            "-f",
-            "--file",
-            help="Python file containing the processing pipeline.",
+    def run_action(self, init_config: bool):
+        if init_config:
+            from cylindra._config import init_config
+
+            return init_config(force=True)
+        else:
+            ui = start(viewer=self.viewer)
+            ui.parent_viewer.show(block=self.viewer is None)
+            return None
+
+
+class ParserOpen(ParserBase):
+    """cylindra open <path>"""
+
+    def __init__(self):
+        super().__init__(prog="cylindra open", description="Open a project.")
+        self.add_argument("path", type=str, help="path to the project file.")
+
+    def run_action(self, path: str):
+        read_project(path)  # check if the project is valid
+        ui = start(path, viewer=self.viewer)
+        ui.parent_viewer.show(block=self.viewer is None)
+
+
+class ParserView(ParserBase):
+    """cylindra view <path>"""
+
+    def __init__(self):
+        super().__init__(
+            prog="cylindra view", description="View a project, image or others."
+        )
+        self.add_argument("path", type=str, help="path to the file to view.")
+
+    def run_action(self, path: str):
+        _path = Path(path)
+        if not _path.exists():
+            raise FileNotFoundError(f"file not found: {_path}")
+        match _path.suffix:
+            case "" | ".tar" | ".zip" | ".json":
+                view_project(_path)
+            case ".tif" | ".tiff" | ".mrc" | ".map":
+                view_image(_path).show()
+            case ".csv" | ".parquet":
+                view_csv(_path).show()
+            case _:
+                raise ValueError(f"unknown file type: {_path.suffix}")
+        if self.viewer is None:
+            from magicgui.application import use_app
+
+            use_app().run()
+
+
+class ParserRun(ParserBase):
+    """cylindra run <path>"""
+
+    def __init__(self):
+        super().__init__(prog="cylindra run", description="Run a script.")
+        self.add_argument("path", type=str)
+        self.add_argument(
+            "--headless", action="store_true", help="Run in headless mode."
         )
 
-    @classmethod
-    def from_args(cls) -> Namespace:
-        self = cls()
-        self.prep_subcommands()
-        ns, argv = self.parse_known_args()
-        ns: Namespace
-        nargv = len(argv)
-        if nargv == 0:
-            ns.arg = None
-        elif nargv == 1:
-            ns.arg = argv[0]
-        else:
-            raise ValueError(f"too many arguments: {argv}")
-        if not hasattr(ns, "subcommand"):
-            ns.subcommand = SubCommand.NONE
-        return ns
+    def run_action(self, path: str, headless: bool):
+        from runpy import run_path
+
+        ui = start(viewer=self.viewer, headless=headless)
+        out_globs = run_path(path, {"ui": ui})
+        if callable(main := out_globs.get("main")):
+            main(ui)  # script.py style
+        ui.overwrite_project()
+
+
+def main(viewer=None):
+    argv = sys.argv[1:]
+    ParserBase.viewer = viewer
+    match argv:
+        case ("open", *args):
+            ParserOpen().parse(args)
+        case ("view", *args):
+            ParserView().parse(args)
+        case ("run", *args):
+            ParserRun().parse(args)
+        case args:
+            ParserNone().parse(args)
 
 
 def view_csv(path: Path):
@@ -95,55 +152,6 @@ def view_image(path: Path):
         return view_image(path)
 
 
-def main(viewer=None):  # "viewer" is used for testing only
-    """The main function of the CLI."""
-    args = Args.from_args()
-    block = viewer is None
-
-    if args.init_config:
-        if args.subcommand is not SubCommand.NONE:
-            raise ValueError("cannot use --init-config with subcommands.")
-        from cylindra._config import init_config
-
-        return init_config(force=True)
-
-    match args.subcommand:
-        case SubCommand.NONE:
-            ui = start(args.arg, viewer=viewer)
-            ui.parent_viewer.show(block=block)
-        case SubCommand.OPEN:
-            read_project(args.arg)  # check if the project is valid
-            ui = start(args.arg, viewer=viewer)
-            ui.parent_viewer.show(block=block)
-        case SubCommand.VIEW:
-            path = Path(args.arg)
-            if not path.exists():
-                raise FileNotFoundError(f"file not found: {path}")
-            match path.suffix:
-                case "" | ".tar" | ".zip":
-                    view_project(path)
-                case ".tif" | ".tiff" | ".mrc" | ".map":
-                    view_image(path).show()
-                case ".csv" | ".parquet":
-                    view_csv(path).show()
-                case _:
-                    raise ValueError(f"unknown file type: {path.suffix}")
-            if block:
-                from magicgui.application import use_app
-
-                use_app().run()
-        case SubCommand.PROCESS:
-            from runpy import run_path
-
-            ui = start(args.arg, viewer=viewer, headless=True)
-            out_globs = run_path(args.file, {"ui": ui})
-            if callable(main := out_globs.get("main")):
-                main(ui)  # script.py style
-            ui.overwrite_project()
-        case _:
-            raise ValueError(f"unknown subcommand: {args.subcommand}")
-    sys.exit()
-
-
 if __name__ == "__main__":
     main()
+    sys.exit()
