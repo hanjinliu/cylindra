@@ -726,7 +726,7 @@ def test_radius_methods(ui: CylindraMainWidget):
 
 
 def test_simulator(ui: CylindraMainWidget):
-    ui.FileMenu.open_simulator()
+    ui.ImageMenu.open_simulator()
     ui.simulator.create_empty_image(size=(50.0, 100.0, 50.0), scale=0.5)
     ui.register_path(coords=[[25.375, 83.644, 18.063], [25.375, 23.154, 28.607]])
     tester = mcls_testing.FunctionGuiTester(ui.simulator.generate_molecules)

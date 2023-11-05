@@ -23,9 +23,7 @@ from magicclass.widgets import ConsoleTextEdit
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.polars import DataFrameView
 
-import numpy as np
 import impy as ip
-import polars as pl
 
 from cylindra.const import nm, ALN_SUFFIX, MoleculesHeader as Mole
 from cylindra.core import ACTIVE_WIDGETS
