@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 from pathlib import Path
-from magicgui.widgets import Slider
+from magicgui.widgets import Slider, FloatSlider, Container
 from magicclass.widgets import TabbedContainer
 from magicclass import (
     magicclass,
+    magicmenu,
     MagicTemplate,
     field,
+    set_design,
     vfield,
+    abstractapi,
 )
 from magicclass.utils import thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
@@ -20,9 +23,14 @@ import impy as ip
 import polars as pl
 
 
-@magicclass(record=False)
+@magicclass(record=False, name="Image Preview")
 class ImagePreview(MagicTemplate):
     """A widget to preview 3D image by 2D slices."""
+
+    @magicmenu
+    class Menu(MagicTemplate):
+        show_in_3d = abstractapi()
+        close_this = abstractapi()
 
     def _get_image_choices(self, w=None) -> list[tuple[str, ip.LazyImgArray]]:
         lst = []
@@ -44,6 +52,15 @@ class ImagePreview(MagicTemplate):
         self.canvas.text_overlay.color = "lime"
         self.canvas.text_overlay.visible = True
 
+    @set_design(text="Show in 3D", location=Menu)
+    def show_in_3d(self):
+        img = self.image.value.compute()
+        view_image_3d(img, parent=self)
+
+    @set_design(text="Close", location=Menu)
+    def close_this(self):
+        self.close()
+
     @magicclass(widget_type="frame", layout="horizontal")
     class Filter(MagicTemplate):
         """
@@ -60,8 +77,8 @@ class ImagePreview(MagicTemplate):
         """
 
         bin_size = vfield(1).with_options(min=1, max=10, step=1)
-        apply_filter = vfield(True)
-        cutoff = vfield(0.05).with_options(min=0.05, max=0.85, step=0.05)
+        apply_filter = vfield(False)
+        cutoff = vfield(0.05).with_options(min=0.05, max=0.85, step=0.05, enabled=False)
 
         @apply_filter.connect
         def _toggle(self):
@@ -106,7 +123,15 @@ class ImagePreview(MagicTemplate):
         if self.Filter.bin_size > 1:
             im = im.binning(self.Filter.bin_size, check_edges=False)
         if self.Filter.apply_filter:
-            img_slice = im.tiled().lowpass_filter(cutoff=self.Filter.cutoff).compute()
+            if im.size < 4e4:
+                img_slice = im.compute().lowpass_filter(cutoff=self.Filter.cutoff)
+            else:
+                overlap = (min(32, s) for s in im.shape)
+                img_slice = (
+                    im.tiled(overlap=overlap)
+                    .lowpass_filter(cutoff=self.Filter.cutoff)
+                    .compute()
+                )
         else:
             img_slice = im.compute()
         yield self._set_canvas_image.with_args(np.asarray(img_slice))
@@ -124,7 +149,10 @@ class ImagePreview(MagicTemplate):
     @Filter.apply_filter.connect_async(timeout=0.1)
     def _update_canvas_and_auto_contrast(self):
         yield from self._update_canvas.arun()
-        self.canvas.auto_range()
+        img = self.canvas.image
+        if img is None:
+            return
+        self.canvas.contrast_limits = np.percentile(img, (0.5, 99.5))
 
 
 def view_tables(
@@ -157,5 +185,26 @@ def view_image(path: str | list[str], parent: MagicTemplate = None) -> ImagePrev
     if parent is not None:
         prev.native.setParent(parent.native, prev.native.windowFlags())
     prev.show()
+    prev.width, prev.height = 320, 440
     ACTIVE_WIDGETS.add(prev)
     return prev
+
+
+def view_image_3d(img: ip.ImgArray, parent: MagicTemplate = None):
+    from magicclass.ext.vispy import Vispy3DCanvas
+
+    canvas = Vispy3DCanvas()
+    img_min, img_max = img.min(), img.max()
+    img = (img - img_min) / (img_max - img_min)
+    layer = canvas.add_image(img.value, rendering="iso", iso_threshold=0.5)
+    slider = FloatSlider(
+        value=0.5, min=0, max=1, step=0.01, tooltip="Relative threashold value"
+    )
+    slider.changed.connect_setattr(layer, "iso_threshold")
+    container = Container(widgets=[canvas, slider])
+    if parent is not None:
+        container.native.setParent(parent.native, container.native.windowFlags())
+    container.show()
+    container.width, container.height = 280, 300
+    ACTIVE_WIDGETS.add(container)
+    return container

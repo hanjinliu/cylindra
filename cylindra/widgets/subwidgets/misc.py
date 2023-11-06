@@ -1,4 +1,3 @@
-import os
 from qtpy.QtCore import Qt
 from magicgui.widgets import TextEdit
 
@@ -74,8 +73,8 @@ class ImageLoader(MagicTemplate):
     @set_design(text="Scan header", max_width=90, location=scale)
     def scan_header(self):
         """Scan scale from image header and set the optimal bin size."""
-        path = self.path
-        if not os.path.exists(path) or not os.path.isfile(path):
+        path = Path(self.path)
+        if not path.exists() or not path.is_file():
             return
         img = ip.lazy.imread(path, chunks=get_config().dask_chunk)
         scale = img.scale.x

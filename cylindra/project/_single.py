@@ -1,12 +1,12 @@
 from contextlib import contextmanager
 import tempfile
+from datetime import datetime
 from typing import Generator, Iterable, TYPE_CHECKING
 from pathlib import Path
 import json
 import warnings
 from pydantic import Field
 import polars as pl
-import numpy as np
 
 from cylindra.const import (
     PropertyNames as H,
@@ -16,7 +16,7 @@ from cylindra.const import (
 )
 from cylindra.project._base import BaseProject, PathLike, resolve_path, MissingWedge
 from cylindra.project._utils import extract, as_main_function
-from cylindra.project._layer_info import MoleculesInfo, LandscapeInfo, LayerInfo
+from cylindra.project._layer_info import MoleculesInfo, LandscapeInfo
 
 if TYPE_CHECKING:
     from cylindra.widgets.main import CylindraMainWidget
@@ -50,6 +50,46 @@ class CylindraProject(BaseProject):
         return self
 
     @classmethod
+    def new(
+        cls,
+        image: PathLike,
+        scale: float,
+        multiscales: list[int],
+        missing_wedge: tuple[float, float] | None = None,
+        project_path: Path | None = None,
+    ):
+        """Create a new project."""
+        _versions = get_versions()
+        if image is None:
+            raise ValueError("image must not be None.")
+        return CylindraProject(
+            datetime=datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
+            version=_versions.pop("cylindra", "unknown"),
+            dependency_versions=_versions,
+            image=image,
+            scale=scale,
+            multiscales=multiscales,
+            missing_wedge=MissingWedge.parse(missing_wedge),
+            project_path=project_path,
+        )
+
+    def save(self, project_dir: Path):
+        from macrokit import parse
+
+        path = Path(self.image).as_posix()
+        scale = self.scale
+        bin_size = self.multiscales
+        tilt_range = self.missing_wedge.as_param()
+        with _prep_save_dir(project_dir) as results_dir:
+            expr_open = parse(
+                f"ui.open_image({path=}, {scale=:.4f}, {bin_size=}, {tilt_range=})",
+                squeeze=False,
+            )
+            expr = as_main_function(expr_open)
+            self.script_py_path(results_dir).write_text(expr)
+            self.to_json(self.project_json_path(results_dir))
+
+    @classmethod
     def from_gui(
         cls,
         gui: "CylindraMainWidget",
@@ -58,7 +98,6 @@ class CylindraProject(BaseProject):
         save_landscape: bool = False,
     ) -> "CylindraProject":
         """Construct a project from a widget state."""
-        from datetime import datetime
 
         _versions = get_versions()
         tomo = gui.tomogram
@@ -226,7 +265,7 @@ class CylindraProject(BaseProject):
         if H.spl_dist in _loc.columns:
             _loc = _loc.drop(H.spl_dist)
         if H.spl_pos in _loc.columns:
-            spl._anchors = np.asarray(_loc[H.spl_pos])
+            spl._anchors = _loc[H.spl_pos].to_numpy()
             _loc = _loc.drop(H.spl_pos)
         for c in [H.spline_id, H.pos_id]:
             if c in _loc.columns:
@@ -288,7 +327,7 @@ class CylindraProject(BaseProject):
             if H.spl_dist in _loc.columns and drop_columns:
                 _loc = _loc.drop(H.spl_dist)
             if H.spl_pos in _loc.columns:
-                spl._anchors = np.asarray(_loc[H.spl_pos])
+                spl._anchors = _loc[H.spl_pos].to_numpy()
                 if drop_columns:
                     _loc = _loc.drop(H.spl_pos)
             for c in [H.spline_id, H.pos_id]:

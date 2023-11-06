@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import glob
+import re
 from pathlib import Path
 from weakref import WeakSet
 from typing import TYPE_CHECKING, Iterable, Literal, Sequence, overload
@@ -39,6 +40,7 @@ def start(
     viewer : napari.Viewer
         Give a viewer object and this viewer will be used as the parent.
     """
+    from cylindra import _config
     from cylindra.widgets import CylindraMainWidget
     import numpy as np
     import impy as ip
@@ -99,7 +101,7 @@ def start(
             }
         )
 
-    try:
+    with suppress(Exception):  # This block uses private API.
         # napari viewer does not disconnect layer events when the viewer is closed,
         # so we need to do it manually
         @viewer.window._qt_window.destroyed.connect
@@ -109,10 +111,6 @@ def start(
 
         # napari-console disables calltips by default. It's better to enable it.
         viewer.window._qt_viewer.console.enable_calltips = True
-
-    except Exception:
-        # since it uses private API, it may break in the future
-        pass
 
     # Programmatically run `%matplotlib inline` magic
     ipy = get_ipython()
