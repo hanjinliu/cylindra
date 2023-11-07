@@ -141,7 +141,7 @@ class local_orientation(Simulator):
     """Cureved MT with orientation=60, 40, 20, 0 deg."""
 
     def get_coords(self):
-        length = 52.0
+        length = 60.0
         curve_length = 16.0
 
         def get_vec(l: float, deg: float, dup: int = 1) -> np.ndarray:
@@ -168,7 +168,7 @@ class local_orientation(Simulator):
 
     def prepare(self):
         coords = self.get_coords()
-        self.ui.simulator.create_empty_image(size=(60, 228, 144), scale=self.scale)
+        self.ui.simulator.create_empty_image(size=(60, 256, 152), scale=self.scale)
         self.ui.register_path(coords, err_max=1e-8)
         self.ui.simulator.generate_molecules(
             0, spacing=4.1, twist=0.0, start=3, radius=11.2, npf=13
@@ -343,45 +343,6 @@ class Main(MagicTemplate):
         ui = self._ui
         simulator: Simulator = func(ui, scale)
         simulator.prepare()
-
-    def show_example(
-        self,
-        function: Annotated[Funcs, {"bind": function}] = Funcs.local_expansion,
-        n_tilt: Annotated[int, {"bind": n_tilt}] = 61,
-        nsr: Annotated[Any, {"bind": nsr}] = [0.1, 2.5],
-        scale: Annotated[float, {"bind": scale}] = 0.5,
-        binsize: Annotated[int, {"bind": binsize}] = 1,
-        seed: Annotated[int, {"bind": seed}] = 12345,
-    ):
-        func: type[Simulator] = Funcs(function).value
-        ui = self._ui
-        t0 = timer(name=func.__name__)
-        simulator: Simulator = func(ui, scale)  # simulate cylinder
-        coords = simulator.prepare()
-        _nsr = max(nsr)
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmpfile = Path(tmpdir) / "image.mrc"
-            ui.simulator.simulate_tilt_series(
-                components=[(ui.mole_layers.last().name, TEMPLATE_X)],
-                save_path=tmpfile,
-                n_tilt=n_tilt,
-                scale=scale,
-            )
-            ui.simulator.simulate_tomogram_from_tilt_series(
-                path=tmpfile,
-                nsr=_nsr,
-                bin_size=binsize,
-                tilt_range=(-60, 60),
-                height=60.0,
-                seed=seed,
-            )
-            ui.register_path(coords, err_max=1e-8)
-            ui.measure_radius(splines=[0])
-            ui.tomogram.splines[0].anchors = simulator.anchors()
-            ui.local_cft_analysis(
-                splines=[0], depth=49.0, interval=None, bin_size=binsize
-            )
-        t0.toc()
 
 
 if __name__ == "__main__":
