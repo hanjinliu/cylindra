@@ -77,6 +77,10 @@ class AppConfig:
         """List up all the available configs."""
         return list(VAR_PATH.glob("*.json"))
 
+    def list_workflow_paths(self) -> list[Path]:
+        """List up all the available workflows."""
+        return list(WORKFLOWS_DIR.glob("*.py"))
+
 
 _APP_CONFIG: AppConfig | None = None
 

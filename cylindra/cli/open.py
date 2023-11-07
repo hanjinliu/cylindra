@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
 import math
 import warnings
-from cylindra.core import collect_projects, read_project, start
+from cylindra.core import read_project, start
 from cylindra.cli._base import _ParserBase
 
 
@@ -71,5 +70,5 @@ class ParserOpen(_ParserBase):
                     )
                 ui = start(fp, viewer=self.viewer)
             case _:
-                raise ValueError(f"unknown file type: {fp.suffix}")
+                raise ValueError(f"invalid file type: {fp.suffix}")
         ui.parent_viewer.show(block=self.viewer is None)

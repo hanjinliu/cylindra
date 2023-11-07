@@ -10,11 +10,40 @@ from cylindra.cli._base import _ParserBase, get_polars_expr
 class ParserFind(_ParserBase):
     def __init__(self):
         super().__init__(prog="cylindra find", description="Find projects.")
-        self.add_argument("pattern", type=str, default="*", nargs="?")
-        self.add_argument("--date-before", type=int, default=999999)
-        self.add_argument("--date-after", type=int, default=0)
-        self.add_argument("--called", type=str, default=None)
-        self.add_argument("--props", type=str, default=None)
+        self.add_argument(
+            "pattern",
+            type=str,
+            default="*",
+            nargs="?",
+            help="glob pattern for project files",
+        )
+        self.add_argument(
+            "--date-before",
+            type=int,
+            default=999999,
+            help="Date in YYMMDD format. date < date-before will be shown.",
+        )
+        self.add_argument(
+            "--date-after",
+            type=int,
+            default=0,
+            help="Date in YYMMDD format. date > date-after will be shown.",
+        )
+        self.add_argument(
+            "--called",
+            type=str,
+            default=None,
+            help="Projects that called the method will be shown.",
+        )
+        self.add_argument(
+            "--props",
+            type=str,
+            default=None,
+            help="Polars expression for spline global properties to filter output.",
+        )
+        self.add_argument(
+            "--absolute", "--abs", action="store_true", help="Show absolute path."
+        )
 
     def run_action(
         self,
@@ -23,11 +52,12 @@ class ParserFind(_ParserBase):
         date_after: int = 0,
         called: str | None = None,
         props: str | None = None,
+        absolute: bool = False,
     ):
         if called is not None:
             if called.startswith("ui."):
                 called = called[3:]
-            ptn = re.compile(rf".*ui\.{called}\(.*\).*")
+            ptn = re.compile(rf".*ui\.{called}\(.*\).*", flags=re.DOTALL)
         if props:
             pl_props = get_polars_expr(props)
 
@@ -59,6 +89,8 @@ class ParserFind(_ParserBase):
                     else:
                         continue
 
+            if absolute:
+                path = path.absolute()
             if path.name == "project.json":
                 print(path.parent.as_posix())
             else:
@@ -66,4 +98,7 @@ class ParserFind(_ParserBase):
 
 
 def get_date(s: str) -> int:
-    return int(s[2:4] + s[5:7] + s[8:10])
+    try:
+        return int(s[2:4] + s[5:7] + s[8:10])
+    except ValueError:
+        raise ValueError(f"invalid date format: {s}, must be YY/MM/DD")

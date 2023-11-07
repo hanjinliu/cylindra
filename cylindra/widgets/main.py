@@ -231,7 +231,7 @@ class CylindraMainWidget(MagicTemplate):
         )
 
         # load all the workflows
-        for file in _config.WORKFLOWS_DIR.glob("*.py"):
+        for file in _config.get_config().list_workflow_paths():
             try:
                 self.OthersMenu.Workflows.append_workflow(file)
             except Exception as e:

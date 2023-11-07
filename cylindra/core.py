@@ -39,6 +39,7 @@ def start(
     viewer : napari.Viewer
         Give a viewer object and this viewer will be used as the parent.
     """
+    from cylindra._config import init_config
     from cylindra.widgets import CylindraMainWidget
     import numpy as np
     import impy as ip
@@ -55,6 +56,7 @@ def start(
     elif not isinstance(viewer, napari.Viewer):
         raise TypeError(f"viewer must be a napari.Viewer object, got {type(viewer)}")
 
+    init_config()
     ui = CylindraMainWidget()
     ui.macro.options.max_undo = 16
     ACTIVE_WIDGETS.add(ui)

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 from cylindra.core import start
 from cylindra.cli._base import _ParserBase
 
@@ -29,6 +28,7 @@ class ParserNone(_ParserBase):
     Commands:
         open       Open a project or an image.
         preview    View a project, image or others.
+        find       Find cylindra projects by patterns and contents.
         run        Run a script.
         config     Edit/view the configuration.
         average    Average images.

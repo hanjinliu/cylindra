@@ -838,7 +838,7 @@ class OthersMenu(ChildWidget):
         """Custom analysis workflow."""
 
         def _get_workflow_names(self, *_) -> list[str]:
-            return [file.stem for file in _config.WORKFLOWS_DIR.glob("*.py")]
+            return [file.stem for file in _config.get_config().list_workflow_paths()]
 
         def _make_method_name(self, path: Path) -> str:
             abs_path = _config.workflow_path(path)

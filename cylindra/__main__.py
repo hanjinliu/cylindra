@@ -23,6 +23,8 @@ def main(viewer=None, ignore_sys_exit: bool = False):
                 cli.ParserConfig().parse(args)
             case ("find", *args):
                 cli.ParserFind().parse(args)
+            case ("workflow", *args):
+                cli.ParserWorkflow().parse(args)
             case args:
                 cli.ParserNone().parse(args)
     except SystemExit as e:

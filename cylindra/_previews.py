@@ -29,7 +29,6 @@ class ImagePreview(MagicTemplate):
 
     @magicmenu
     class Menu(MagicTemplate):
-        show_in_3d = abstractapi()
         close_this = abstractapi()
 
     def _get_image_choices(self, w=None) -> list[tuple[str, ip.LazyImgArray]]:
@@ -51,11 +50,6 @@ class ImagePreview(MagicTemplate):
     def __post_init__(self):
         self.canvas.text_overlay.color = "lime"
         self.canvas.text_overlay.visible = True
-
-    @set_design(text="Show in 3D", location=Menu)
-    def show_in_3d(self):
-        img = self.image.value.compute()
-        view_image_3d(img, parent=self)
 
     @set_design(text="Close", location=Menu)
     def close_this(self):
@@ -188,23 +182,3 @@ def view_image(path: str | list[str], parent: MagicTemplate = None) -> ImagePrev
     prev.width, prev.height = 320, 440
     ACTIVE_WIDGETS.add(prev)
     return prev
-
-
-def view_image_3d(img: ip.ImgArray, parent: MagicTemplate = None):
-    from magicclass.ext.vispy import Vispy3DCanvas
-
-    canvas = Vispy3DCanvas()
-    img_min, img_max = img.min(), img.max()
-    img = (img - img_min) / (img_max - img_min)
-    layer = canvas.add_image(img.value, rendering="iso", iso_threshold=0.5)
-    slider = FloatSlider(
-        value=0.5, min=0, max=1, step=0.01, tooltip="Relative threashold value"
-    )
-    slider.changed.connect_setattr(layer, "iso_threshold")
-    container = Container(widgets=[canvas, slider])
-    if parent is not None:
-        container.native.setParent(parent.native, container.native.windowFlags())
-    container.show()
-    container.width, container.height = 280, 300
-    ACTIVE_WIDGETS.add(container)
-    return container

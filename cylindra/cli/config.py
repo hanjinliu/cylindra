@@ -36,6 +36,27 @@ class ListAction(argparse.Action):
         parser.exit()
 
 
+class ImportAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        path = Path(namespace.path)
+        if not path.exists():
+            raise FileNotFoundError(path)
+        from cylindra._config import get_config
+
+        save_path = get_config().spline_config_path(path.stem)
+        if save_path.exists():
+            raise FileExistsError(f"{save_path.as_posix()} already exists.")
+        with open(path) as f:
+            js = json.load(f)
+        assert isinstance(js, dict)
+        from cylindra.components import SplineConfig
+
+        cfg = SplineConfig().updated(**js)
+        with open(save_path, mode="w") as f:
+            json.dump(cfg.asdict(), f, indent=4, separators=(", ", ": "))
+        print(f"Config file imported: {save_path.as_posix()}")
+
+
 class ParserConfig(_ParserBase):
     def __init__(self):
         super().__init__(prog="cylindra config", description="Configure cylindra.")
@@ -54,6 +75,7 @@ class ParserConfig(_ParserBase):
             help="Initialize the default configuration directory. This operation will not remove the user-defined files",
         )
         self.add_argument("--list", "-l", action=ListAction, nargs=0)
+        self.add_argument("--import", action=ImportAction, nargs=0)
 
     def run_action(self, path: str, remove: bool = False, **kwargs):
         _path = Path(path)

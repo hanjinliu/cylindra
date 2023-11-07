@@ -7,32 +7,30 @@ from pathlib import Path
 from cylindra.core import read_project, view_project
 
 
-class ParserPreview(_ParserBase):
-    """cylindra preview <path>"""
-
-    class ShowScriptAction(argparse.Action):
-        def __call__(self, parser, namespace, values, option_string=None):
-            ln = True
-            if _path := getattr(namespace, "path", None):
-                prj = read_project(_path)
-                with prj.open_project() as dir:
-                    txt = prj.script_py_path(dir).read_text()
-                    self.print_rich(txt, line_numbers=ln)
-            else:
-                raise ValueError("path is not given.")
-            return parser.exit()
-
-        def print_rich(self, txt: str, line_numbers: bool = True):
+class ShowScriptAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        if _path := getattr(namespace, "path", None):
             import rich
             from rich.syntax import Syntax
 
-            syntax = Syntax(
-                txt,
-                "python",
-                theme="monokai",
-                line_numbers=line_numbers,
-            )
-            rich.print(syntax)
+            prj = read_project(_path)
+            with prj.open_project() as dir:
+                txt = prj.script_py_path(dir).read_text()
+                syntax = Syntax(
+                    txt,
+                    "python",
+                    theme="monokai",
+                    line_numbers=True,
+                    word_wrap=getattr(namespace, "wrap", False),
+                )
+                rich.print(syntax)
+        else:
+            raise ValueError("path is not given.")
+        return parser.exit()
+
+
+class ParserPreview(_ParserBase):
+    """cylindra preview <path>"""
 
     def __init__(self):
         super().__init__(
@@ -43,9 +41,10 @@ class ParserPreview(_ParserBase):
             "--script",
             "-s",
             nargs="*",
-            action=self.ShowScriptAction,
+            action=ShowScriptAction,
             help="Only preview script.py content.",
         )
+        self.add_argument("--wrap", action="store_true", help="Enable word wrap.")
 
     def run_action(self, path: str, **kwargs):
         from cylindra._previews import view_tables, view_image
