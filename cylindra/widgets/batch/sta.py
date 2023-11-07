@@ -31,9 +31,8 @@ from cylindra.utils import roundint
 from cylindra.widgets import _shared_doc
 from cylindra.widgets._widget_ext import RotationsEdit
 from cylindra.widgets._annotated import FSCFreq
-from cylindra.widgets.main import widget_utils
 from cylindra.widgets.sta import StaParameters
-from cylindra.widgets.widget_utils import timer, PolarsExprStr, norm_expr
+from cylindra.widget_utils import timer, PolarsExprStr, norm_expr, FscResult
 from cylindra.widgets.sta import (
     INTERPOLATION_CHOICES,
     METHOD_CHOICES,
@@ -392,7 +391,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         else:
             img_avg = None
 
-        result = widget_utils.FscResult.from_dataframe(fsc, loader.scale)
+        result = FscResult.from_dataframe(fsc, loader.scale)
         criteria = [0.5, 0.143]
         t0.toc()
 

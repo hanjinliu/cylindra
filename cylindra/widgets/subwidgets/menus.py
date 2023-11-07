@@ -36,8 +36,8 @@ from cylindra.ext.etomo import PEET
 from cylindra.const import nm, get_versions, ImageFilter, FileFilter
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.project import CylindraProject, extract
+from cylindra.widget_utils import get_code_theme, capitalize
 from cylindra.widgets._annotated import assert_layer
-from cylindra.widgets.widget_utils import get_code_theme, capitalize
 from cylindra.widgets._widget_ext import CheckBoxes
 from cylindra.components.spline import SplineConfig
 from cylindra import _config

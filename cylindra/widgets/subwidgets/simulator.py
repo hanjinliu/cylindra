@@ -31,8 +31,8 @@ from magicclass.ext.dask import dask_thread_worker
 from acryo import TomogramSimulator, pipe
 
 from cylindra._napari import MoleculesLayer
+from cylindra.widget_utils import capitalize, POLARS_NAMESPACE
 from cylindra.widgets._annotated import MoleculesLayerType, _as_layer_name, assert_layer
-from cylindra.widgets.widget_utils import capitalize, POLARS_NAMESPACE
 from cylindra.const import (
     FileFilter,
     MoleculesHeader as Mole,

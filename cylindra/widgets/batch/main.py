@@ -21,7 +21,7 @@ from cylindra.const import (
     FileFilter,
 )
 from cylindra.core import ACTIVE_WIDGETS
-from cylindra.widgets.widget_utils import POLARS_NAMESPACE
+from cylindra.widget_utils import POLARS_NAMESPACE
 from cylindra.project import CylindraProject, CylindraBatchProject
 from cylindra._config import get_config
 from .sta import BatchSubtomogramAveraging

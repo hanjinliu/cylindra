@@ -7,15 +7,12 @@ import re
 
 import numpy as np
 from numpy.typing import NDArray
-from scipy import ndimage as ndi
 import polars as pl
-import matplotlib.pyplot as plt
 import macrokit as mk
 from magicclass.logging import getLogger
 from magicclass.types import ExprStr
 from magicclass.widgets import EvalLineEdit
 import napari
-from napari.utils.theme import get_theme
 
 from acryo import Molecules
 from cylindra import utils
@@ -217,6 +214,8 @@ def change_viewer_focus(
 
 
 def plot_seam_search_result(score: np.ndarray, npf: int):
+    import matplotlib.pyplot as plt
+
     imax = np.argmax(score)
     # plot the score
     plt.figure(figsize=(6, 2.4))
@@ -233,6 +232,8 @@ def plot_seam_search_result(score: np.ndarray, npf: int):
 
 def plot_projections(merge: np.ndarray):
     """Projection of the result of `align_averaged`."""
+    import matplotlib.pyplot as plt
+
     _, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 3.5))
     axes: Sequence[plt.Axes]
     # normalize
@@ -288,6 +289,8 @@ class FscResult:
         return resolution
 
     def plot(self, criteria: list[float] = [0.143, 0.5]):
+        import matplotlib.pyplot as plt
+
         ind = self.freq <= 0.7
         plt.axhline(0.0, color="gray", alpha=0.5, ls="--")
         plt.axhline(1.0, color="gray", alpha=0.5, ls="--")
@@ -349,6 +352,8 @@ class PaintDevice:
         return self._scale
 
     def paint_cylinders(self, tomo: CylTomogram, prop: str):
+        from scipy import ndimage as ndi
+
         lbl = np.zeros(self._shape, dtype=np.uint8)
         all_df = tomo.splines.collect_localprops()
         if all_df is None:
@@ -436,6 +441,8 @@ class PaintDevice:
 
 def get_code_theme(self: MagicTemplate) -> str:
     """Get the theme for CodeEdit using the napari theme."""
+    from napari.utils.theme import get_theme
+
     try:
         theme = get_theme(self.parent_viewer.theme, as_dict=True)["syntax_style"]
     except Exception:

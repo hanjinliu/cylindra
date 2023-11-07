@@ -26,7 +26,7 @@ import polars as pl
 from cylindra.project import CylindraProject, get_project_file
 from cylindra.const import MoleculesHeader as Mole, FileFilter
 from cylindra.core import ACTIVE_WIDGETS
-from cylindra.widgets.widget_utils import POLARS_NAMESPACE
+from cylindra.widget_utils import POLARS_NAMESPACE
 from cylindra._config import get_config
 
 

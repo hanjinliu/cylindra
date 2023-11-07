@@ -55,6 +55,6 @@ magicgui.register_type(MoleculesLayer, choices=get_monomer_layers)
 magicgui.register_type(ColoredLayer, choices=get_colored_layers)
 
 # Record 1D numpy array as a list of floats.
-from macrokit import register_type, parse
+from macrokit import register_type
 
 register_type(np.ndarray, lambda arr: str(arr.tolist()))

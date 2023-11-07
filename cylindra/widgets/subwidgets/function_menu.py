@@ -19,7 +19,7 @@ from napari.layers import Image, Labels, Layer
 
 from cylindra.utils import set_gpu
 from cylindra.const import PREVIEW_LAYER_NAME
-from cylindra.widgets.widget_utils import capitalize
+from cylindra.widget_utils import capitalize
 
 
 def _convert_array(arr: np.ndarray, scale: float) -> ip.ImgArray:

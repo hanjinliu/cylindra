@@ -28,7 +28,7 @@ from magicclass.undo import undo_callback
 
 from napari.layers import Layer
 
-from cylindra import utils, _config, cylstructure
+from cylindra import utils, _config, cylstructure, widget_utils
 from cylindra.components import CylSpline, CylTomogram, SplineConfig
 from cylindra.const import (
     PREVIEW_LAYER_NAME,
@@ -43,16 +43,16 @@ from cylindra.const import (
 from cylindra._napari import MoleculesLayer, LandscapeSurface
 from cylindra.project import CylindraProject, extract
 
-from cylindra.widgets import _shared_doc, subwidgets as _sw, widget_utils
-from cylindra.widgets.sta import SubtomogramAveraging
-
-from cylindra.widgets.widget_utils import (
+from cylindra.widget_utils import (
     add_molecules,
     change_viewer_focus,
     PolarsExprStrOrScalar,
     PolarsExprStr,
     capitalize,
 )
+from cylindra.widgets import _shared_doc, subwidgets as _sw
+from cylindra.widgets.sta import SubtomogramAveraging
+
 from cylindra.widgets._accessors import MoleculesLayerAccessor
 from cylindra.widgets._widget_ext import (
     ProtofilamentEdit,

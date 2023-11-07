@@ -34,7 +34,7 @@ class TextInfo(MagicTemplate):
         macro_script = field(ConsoleTextEdit)
 
     def _from_project(self, project: "CylindraProject", dir: Path):
-        from cylindra.widgets.widget_utils import get_code_theme
+        from cylindra.widget_utils import get_code_theme
 
         theme = get_code_theme(self)
         path = dir / "project.json"

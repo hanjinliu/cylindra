@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import glob
-import re
 from pathlib import Path
 from weakref import WeakSet
 from typing import TYPE_CHECKING, Iterable, Literal, Sequence, overload

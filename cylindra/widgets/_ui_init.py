@@ -22,8 +22,7 @@ from cylindra.const import (
 from cylindra.project import CylindraProject
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra._previews import view_tables
-from cylindra import utils
-from cylindra.widgets import widget_utils
+from cylindra import utils, widget_utils
 from cylindra.widgets.main import CylindraMainWidget
 from cylindra.widgets.sta import SubtomogramAveraging
 from cylindra.widgets._main_utils import normalize_offsets, rotvec_from_axis_and_degree

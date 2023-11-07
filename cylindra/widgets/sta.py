@@ -36,7 +36,7 @@ import impy as ip
 import polars as pl
 import napari
 
-from cylindra import utils, _config, cylstructure
+from cylindra import utils, _config, cylstructure, widget_utils
 from cylindra.types import MoleculesLayer
 from cylindra.const import (
     ALN_SUFFIX,
@@ -57,6 +57,7 @@ from cylindra.widgets._widget_ext import (
     RandomSeedEdit,
     MultiFileEdit,
 )
+from cylindra.widget_utils import capitalize, timer, PolarsExprStr
 from cylindra.components.landscape import Landscape
 from cylindra.components.seam_search import (
     CorrelationSeamSearcher,
@@ -72,9 +73,8 @@ from ._annotated import (
     assert_layer,
     assert_list_of_layers,
 )
-from .widget_utils import capitalize, timer, PolarsExprStr
 from .subwidgets._child_widget import ChildWidget
-from . import widget_utils, _shared_doc, _progress_desc as _pdesc, _annealing
+from . import _shared_doc, _progress_desc as _pdesc, _annealing
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray

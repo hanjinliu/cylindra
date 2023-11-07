@@ -9,7 +9,7 @@ import impy as ip
 
 from cylindra.types import get_monomer_layers, MoleculesLayer
 from cylindra.const import FileFilter
-from cylindra.widgets.widget_utils import add_molecules
+from cylindra.widget_utils import add_molecules
 from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 
