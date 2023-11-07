@@ -38,6 +38,7 @@ dependencies = [
     "qtpy>=2.3.1",
     "qt-command-palette>=0.0.7",
     "matplotlib",
+    "rich",
 ]
 authors = [
     { email = "liuhanjin-sc@g.ecc.u-tokyo.ac.jp" },

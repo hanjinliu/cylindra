@@ -3,12 +3,16 @@ from __future__ import annotations
 import argparse
 import sys
 import warnings
+import json
 from glob import glob
 from fnmatch import fnmatch
 from pathlib import Path
-from typing import Any
+from typing import Any, TYPE_CHECKING
 import math
 from cylindra import start, view_project, read_project, collect_projects
+
+if TYPE_CHECKING:
+    from cylindra.project import CylindraProject
 
 
 class HelpAction(argparse.Action):
@@ -56,11 +60,6 @@ class ParserNone(ParserBase):
             add_help=False,
         )
         self.add_argument(
-            "--init-config",
-            action="store_true",
-            help="Initialize the configuration file.",
-        )
-        self.add_argument(
             "-v",
             "--version",
             action="version",
@@ -74,15 +73,10 @@ class ParserNone(ParserBase):
             action=HelpAction,
         )
 
-    def run_action(self, init_config: bool, **kwargs):
-        if init_config:
-            from cylindra._config import init_config
-
-            return init_config(force=True)
-        else:
-            ui = start(viewer=self.viewer)
-            ui.parent_viewer.show(block=self.viewer is None)
-            return None
+    def run_action(self, **kwargs):
+        ui = start(viewer=self.viewer)
+        ui.parent_viewer.show(block=self.viewer is None)
+        return None
 
 
 class ParserOpen(ParserBase):
@@ -209,13 +203,44 @@ class ParserNew(ParserBase):
 class ParserPreview(ParserBase):
     """cylindra preview <path>"""
 
+    class ShowScriptAction(argparse.Action):
+        def __call__(self, parser, namespace, values, option_string=None):
+            ln = True
+            if _path := getattr(namespace, "path", None):
+                prj = read_project(_path)
+                with prj.open_project() as dir:
+                    txt = prj.script_py_path(dir).read_text()
+                    self.print_rich(txt, line_numbers=ln)
+            else:
+                raise ValueError("path is not given.")
+            return parser.exit()
+
+        def print_rich(self, txt: str, line_numbers: bool = True):
+            import rich
+            from rich.syntax import Syntax
+
+            syntax = Syntax(
+                txt,
+                "python",
+                theme="monokai",
+                line_numbers=line_numbers,
+            )
+            rich.print(syntax)
+
     def __init__(self):
         super().__init__(
             prog="cylindra view", description="View a project, image or others."
         )
         self.add_argument("path", type=str, help="path to the file to view.")
+        self.add_argument(
+            "--script",
+            "-s",
+            nargs="*",
+            action=self.ShowScriptAction,
+            help="Only preview script.py content.",
+        )
 
-    def run_action(self, path: str):
+    def run_action(self, path: str, **kwargs):
         from cylindra._previews import view_tables, view_image
         from magicgui.application import use_app
 
@@ -323,22 +348,123 @@ class ParserAverage(ParserBase):
         print(f"Average image saved at: {output}")
 
 
-def main(viewer=None):
+class ParserConfig(ParserBase):
+    class InitAction(argparse.Action):
+        def __call__(self, parser, namespace, values, option_string=None):
+            from cylindra._config import init_config
+
+            init_config(force=True)
+            parser.exit()
+
+    class ListAction(argparse.Action):
+        def __call__(self, parser, namespace, values, option_string=None):
+            from cylindra._config import get_config
+            import rich
+
+            for path in get_config().list_config_paths():
+                with open(path) as f:
+                    js = json.load(f)
+                assert isinstance(js, dict)
+
+                rich.print(f"[bold green]{path.stem}[/bold green]:")
+                for k, v in js.items():
+                    print(f"    {k} = {v!r}")
+            parser.exit()
+
+    def __init__(self):
+        super().__init__(prog="cylindra config", description="Configure cylindra.")
+        self.add_argument("path")
+        self.add_argument(
+            "--remove",
+            "-r",
+            action="store_true",
+            help="Remove the configuration specific keyword arguments.",
+        )
+        self.add_argument(
+            "--init",
+            "-i",
+            action=self.InitAction,
+            nargs=0,
+            help="Initialize the default configuration.",
+        )
+        self.add_argument("--list", "-l", action=self.ListAction, nargs=0)
+
+    def run_action(self, path: str, remove: bool = False, **kwargs):
+        _path = Path(path)
+        if remove:
+            if _path.suffix == ".py":
+                if "*" in str(_path):
+                    for py_path in glob(_path.as_posix()):
+                        self.remove_project_config_kwargs(Path(py_path))
+                else:
+                    self.remove_project_config_kwargs(_path)
+            else:
+                for prj in collect_projects(path):
+                    with prj.open_project() as dir:
+                        py_path = prj.script_py_path(dir)
+        else:
+            for prj in collect_projects(path):
+                self.show_project_default_config(prj)
+
+    def show_project_default_config(self, prj: CylindraProject):
+        import rich
+
+        with prj.open_project() as dir:
+            if project_path := prj.project_path:
+                _p = Path(project_path).as_posix()
+                rich.print(f"[bold green]{_p}[/bold green]:")
+            with open(prj.default_spline_config_path(dir)) as f:
+                js = json.load(f)
+            assert isinstance(js, dict)
+            for k, v in js.items():
+                print(f"    {k} = {v!r}")
+
+    def remove_project_config_kwargs(self, py_path: Path):
+        import re
+
+        ptn = re.compile(r", config=\{.*\}")
+        _edit_prefix = (
+            "ui.register_path(",
+            "ui.protofilaments_to_spline(",
+            "ui.molecules_to_spline(",
+        )
+        original = py_path.read_text()
+        lines = original.splitlines()
+        for i, line in enumerate(lines):
+            line_stripped = line.strip()
+            if not line_stripped.startswith(_edit_prefix):
+                continue
+            lines[i] = ptn.sub("", line)
+
+        edited = "\n".join(lines)
+        if original != edited:
+            py_path.write_text(edited)
+
+
+def main(viewer=None, ignore_sys_exit: bool = False):
     argv = sys.argv[1:]
     ParserBase.viewer = viewer
-    match argv:
-        case ("open", *args):
-            ParserOpen().parse(args)
-        case ("preview", *args):
-            ParserPreview().parse(args)
-        case ("run", *args):
-            ParserRun().parse(args)
-        case ("average", *args):
-            ParserAverage().parse(args)
-        case ("new", *args):
-            ParserNew().parse(args)
-        case args:
-            ParserNone().parse(args)
+    try:
+        match argv:
+            case ("open", *args):
+                ParserOpen().parse(args)
+            case ("preview", *args):
+                ParserPreview().parse(args)
+            case ("run", *args):
+                ParserRun().parse(args)
+            case ("average", *args):
+                ParserAverage().parse(args)
+            case ("new", *args):
+                ParserNew().parse(args)
+            case ("config", *args):
+                ParserConfig().parse(args)
+            case args:
+                ParserNone().parse(args)
+    except SystemExit as e:
+        if ignore_sys_exit:
+            return
+        else:
+            raise e
 
 
 if __name__ == "__main__":

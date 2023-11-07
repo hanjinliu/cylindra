@@ -1078,11 +1078,25 @@ def test_cli(make_napari_viewer):
 
     viewer: napari.Viewer = make_napari_viewer()
     sys.argv = ["cylindra"]
-    main(viewer)
+    main(viewer, ignore_sys_exit=True)
     sys.argv = ["cylindra", "open", str(PROJECT_DIR_14PF / "project.json")]
-    main(viewer)
-    sys.argv = ["cylindra", "view", str(PROJECT_DIR_14PF / "project.json")]
-    main(viewer)
+    main(viewer, ignore_sys_exit=True)
+    sys.argv = ["cylindra", "preview", str(PROJECT_DIR_14PF / "project.json")]
+    main(viewer, ignore_sys_exit=True)
+    sys.argv = ["cylindra", "preview", str(PROJECT_DIR_14PF / "project.json"), "-s"]
+    main(viewer, ignore_sys_exit=True)
+    with tempfile.TemporaryDirectory() as dirpath:
+        sys.argv = [
+            "cylindra", "new",
+            str(Path(dirpath) / "test-project"),
+            "--image", str(TEST_DIR / "14pf_MT.tif"),
+            "--multiscales", "1", "2",
+            "--missing_wedge", "-60", "50",
+            "--molecules", str(PROJECT_DIR_14PF / "Mole-*"),
+        ]  # fmt: skip
+        main(viewer, ignore_sys_exit=True)
+    sys.argv = ["cylindra", "config", str(PROJECT_DIR_14PF / "project.json"), "--list"]
+    main(viewer, ignore_sys_exit=True)
     for widget in ACTIVE_WIDGETS:
         widget.close()
     ACTIVE_WIDGETS.clear()

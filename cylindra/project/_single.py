@@ -53,7 +53,7 @@ class CylindraProject(BaseProject):
     def new(
         cls,
         image: PathLike,
-        scale: float,
+        scale: float | None,
         multiscales: list[int],
         missing_wedge: tuple[float, float] | None = None,
         project_path: Path | None = None,
@@ -62,6 +62,11 @@ class CylindraProject(BaseProject):
         _versions = get_versions()
         if image is None:
             raise ValueError("image must not be None.")
+        if scale is None:
+            import impy as ip
+
+            img = ip.lazy.imread(image)
+            scale = img.scale.x
         return CylindraProject(
             datetime=datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
             version=_versions.pop("cylindra", "unknown"),
