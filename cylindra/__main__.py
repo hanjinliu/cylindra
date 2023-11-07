@@ -278,15 +278,33 @@ class ParserRun(ParserBase):
         self.add_argument(
             "--headless", action="store_true", help="Run in headless mode."
         )
+        self.add_argument(
+            "--output", "-o", type=str, help="Output file name.", default=None
+        )
 
-    def run_action(self, path: str, headless: bool):
+    def run_action(self, path: str, headless: bool = False, output: str = None):
         from runpy import run_path
 
         ui = start(viewer=self.viewer, headless=headless)
-        out_globs = run_path(path, {"ui": ui})
+        if Path(path).suffix in ("", ".tar", ".zip", ".json"):
+            prj = read_project(path)
+            with prj.open_project() as d:
+                py_path = str(prj.script_py_path(d))
+                out_globs = run_path(py_path, {"ui": ui})
+            is_project = True
+        else:
+            out_globs = run_path(path, {"ui": ui})
+            is_project = False
         if callable(main := out_globs.get("main")):
             main(ui)  # script.py style
-        ui.overwrite_project()
+        if output is None:
+            if is_project:
+                ui.overwrite_project()
+            else:
+                output = _coerce_output_filename("output", ext="")
+                ui.save_project(output, molecules_ext=".parquet")
+        else:
+            ui.save_project(output, molecules_ext=".parquet")
 
 
 class ParserAverage(ParserBase):
@@ -337,13 +355,7 @@ class ParserAverage(ParserBase):
         avg = loader.average(output_shape=shape)
         avg = ip.asarray(avg, axes="zyx").set_scale(xyz=loader.scale, unit="nm")
         if output is None:
-            cwd = Path.cwd()
-            save_path = cwd / "AVG.tif"
-            suffix = 0
-            while save_path.exists():
-                save_path = cwd / f"AVG-{suffix}.tif"
-                suffix += 1
-            output = save_path
+            output = _coerce_output_filename("AVG", ext=".tif")
         avg.imsave(output)
         print(f"Average image saved at: {output}")
 
@@ -378,14 +390,14 @@ class ParserConfig(ParserBase):
             "--remove",
             "-r",
             action="store_true",
-            help="Remove the configuration specific keyword arguments.",
+            help="Remove the configuration specific keyword arguments. If a project path is given, also remove the default configuration file.",
         )
         self.add_argument(
             "--init",
             "-i",
             action=self.InitAction,
             nargs=0,
-            help="Initialize the default configuration.",
+            help="Initialize the default configuration directory. This operation will not remove the user-defined files",
         )
         self.add_argument("--list", "-l", action=self.ListAction, nargs=0)
 
@@ -402,6 +414,11 @@ class ParserConfig(ParserBase):
                 for prj in collect_projects(path):
                     with prj.open_project() as dir:
                         py_path = prj.script_py_path(dir)
+                        self.remove_project_config_kwargs(Path(py_path))
+                        cfg_path = prj.default_spline_config_path(dir)
+                        if cfg_path.exists():
+                            cfg_path.unlink()
+                            print(f"Removed: {cfg_path.as_posix()}")
         else:
             for prj in collect_projects(path):
                 self.show_project_default_config(prj)
@@ -439,6 +456,17 @@ class ParserConfig(ParserBase):
         edited = "\n".join(lines)
         if original != edited:
             py_path.write_text(edited)
+            print(f"Processed: {py_path.as_posix()}")
+
+
+def _coerce_output_filename(name: str, ext: str = ".tif"):
+    cwd = Path.cwd()
+    save_path = cwd / f"{name}{ext}"
+    suffix = 0
+    while save_path.exists():
+        save_path = cwd / f"{name}-{suffix}{ext}"
+        suffix += 1
+    return save_path
 
 
 def main(viewer=None, ignore_sys_exit: bool = False):
