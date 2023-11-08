@@ -39,8 +39,8 @@ def start(
     viewer : napari.Viewer
         Give a viewer object and this viewer will be used as the parent.
     """
-    from cylindra._config import init_config
     from cylindra.widgets import CylindraMainWidget
+    from cylindra._config import init_config
     import numpy as np
     import impy as ip
     import polars as pl

@@ -1,17 +1,15 @@
 import tempfile
 
-import napari
-
-from scripts.user_consts import TEMPLATE_X, WOBBLE_TEMPLATES
-from cylindra import start  # NOTE: Set ApplicationAttributes
+import polars as pl
 
 from magicclass.types import Path
 from magicclass.ext.polars import DataFrameView
+from cylindra import start
 from cylindra.widgets import CylindraMainWidget
-from cylindra.cylstructure import calc_lateral_interval
 from cylindra.types import MoleculesLayer
+import napari
 
-import polars as pl
+from scripts.user_consts import TEMPLATE_X
 
 
 def create_microtubule(ui: CylindraMainWidget):
@@ -46,6 +44,7 @@ def save_tilt_series(ui: CylindraMainWidget, path: Path):
 
 
 def post_process_layer(ui: CylindraMainWidget, layer: MoleculesLayer) -> MoleculesLayer:
+    ui.sta.seam_search_manually(layer, location=0)
     ui.calculate_lattice_structure(layer=layer, props=["twist", "skew_angle"])
     return layer
 
@@ -71,19 +70,9 @@ def run_one(
     ui.global_cft_analysis(splines=[0], bin_size=2)
 
     layer = ui.mole_layers.last()
-    mole_init = post_process_layer(ui, layer).molecules
-
-    ui.sta.align_all(
-        layers=layer,
-        template_path=TEMPLATE_X,
-        mask_params=(0.3, 0.8),
-        max_shifts=(0.8, 0.8, 0.8),
-    )
-    mole_cnv = post_process_layer(ui, ui.mole_layers.last()).molecules
+    post_process_layer(ui, layer)
 
     # RMA alignment
-    interv_mean = finite_mean(calc_lateral_interval(mole_init, ui.splines[0]))
-    dx = 0.2
     ui.sta.construct_landscape(
         layer=layer,
         template_path=TEMPLATE_X,
@@ -93,18 +82,17 @@ def run_one(
     )
     landscape_layer = ui.parent_viewer.layers[-1]
     ui.sta.run_align_on_landscape(landscape_layer)
-    mole_cnv2 = post_process_layer(ui, ui.mole_layers.last()).molecules
+    mole_cnv = post_process_layer(ui, ui.mole_layers.last()).molecules
     ui.sta.run_annealing_on_landscape(
         landscape_layer,
         range_long=(3.98, 4.28),
-        range_lat=(interv_mean - dx, interv_mean + dx),
+        range_lat=("-0.1", "+0.1"),
         angle_max=5.0,
     )
     mole_rma = post_process_layer(ui, ui.mole_layers.last()).molecules
     return pl.concat(
         [
             flat_agg(mole_cnv.features, "_conv"),
-            flat_agg(mole_cnv2.features, "_conv2"),
             flat_agg(mole_rma.features, "_RMA"),
         ],
         how="horizontal",
@@ -138,6 +126,7 @@ def show_dataframe(ui: CylindraMainWidget, df: pl.DataFrame):
 
 def main():
     ui = start()
+    ui.OthersMenu.configure_dask(num_workers=6)
     create_microtubule(ui)
     mole_ans = ui.mole_layers.first().molecules
     ans = flat_agg(mole_ans.features, "_ans")

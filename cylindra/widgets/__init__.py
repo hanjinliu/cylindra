@@ -1,8 +1,4 @@
 import sys
-from .main import CylindraMainWidget
-from . import _ui_init  # initialize main widget  # noqa: F401
-
-del _ui_init
 
 
 def dont_use_native_menu_bar():  # pragma: no cover
@@ -29,5 +25,11 @@ if sys.platform == "darwin":
 init_opengl_and_dpi()
 
 del dont_use_native_menu_bar, init_opengl_and_dpi
+
+from .main import CylindraMainWidget
+
+from . import _ui_init  # initialize main widget  # noqa: F401
+
+del _ui_init
 
 __all__ = ["CylindraMainWidget"]
