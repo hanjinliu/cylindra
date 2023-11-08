@@ -19,8 +19,6 @@ from scipy.spatial.transform import Rotation
 from acryo import Molecules
 from acryo.molecules import axes_to_rotator
 
-import polars as pl
-
 from cylindra.utils import ceilint, interval_divmod, roundint
 from cylindra.const import Mode, nm, ExtrapolationMode
 from cylindra.components._base import BaseComponent
@@ -408,21 +406,29 @@ class Spline(BaseComponent):
 
         fit_results = list[SplineFitResult]()
         new = self.__class__(order=k, extrapolate=self.extrapolate, config=self.config)
-        for std in std_list:
-            _tck, _u = splprep(crds.T, k=k, s=std**2 * npoints)
-            new._set_params(_tck, _u)
-            _crds_at_u = new.map(_u)
-            res: NDArray[np.float32] = np.sqrt(np.sum((_crds_at_u - crds) ** 2, axis=1))
-            _knots = _tck[0][new.order : -new.order]
-            nedge = _knots.size - 1
-            assert nedge > 0
-            nanc = nedge * 20 + 1
-            anc = np.interp(
-                np.linspace(0, 1, nanc), np.linspace(0, 1, nedge + 1), _knots
-            )
-            max_curvature = new.curvature(anc).max()
-            success = res.max() <= err_max
-            fit_results.append(SplineFitResult((_tck, _u), max_curvature, res, success))
+        with warnings.catch_warnings():
+            warnings.simplefilter(
+                "ignore", RuntimeWarning
+            )  # fitting may fail for some std
+            for std in std_list:
+                _tck, _u = splprep(crds.T, k=k, s=std**2 * npoints)
+                new._set_params(_tck, _u)
+                _crds_at_u = new.map(_u)
+                res: NDArray[np.float32] = np.sqrt(
+                    np.sum((_crds_at_u - crds) ** 2, axis=1)
+                )
+                _knots = _tck[0][new.order : -new.order]
+                nedge = _knots.size - 1
+                assert nedge > 0
+                nanc = nedge * 20 + 1
+                anc = np.interp(
+                    np.linspace(0, 1, nanc), np.linspace(0, 1, nedge + 1), _knots
+                )
+                max_curvature = new.curvature(anc).max()
+                success = res.max() <= err_max
+                fit_results.append(
+                    SplineFitResult((_tck, _u), max_curvature, res, success)
+                )
 
         fit_results_filt = list(filter(lambda x: x.success, fit_results))
         if len(fit_results_filt) == 0:

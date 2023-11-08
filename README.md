@@ -4,6 +4,10 @@
 
 ![](resources/fig.png)
 
+## Documentation
+
+TODO
+
 ## Installation
 
 In `cylindra`, computationally-intensive part is implemented in Rust. You have to install Rust first to run `cylindra`. See the [Rust installation guide](https://www.rust-lang.org/tools/install).
@@ -23,6 +27,8 @@ pip install -e .
 
 ## Usage
 
+#### Launch GUI
+
 - From shell
 
   ```shell
@@ -37,6 +43,14 @@ pip install -e .
   # launch a napari viewer with a cylindra dock widget.
   ui = start()
   ```
+
+#### Command line interface
+
+`cylindra` is implemented with some basic command line interface (CLI).
+
+```shell
+cylindra --help
+```
 
 ## Implemented Functions
 
@@ -63,7 +77,7 @@ For better reproducibility, please copy your environments from `Others > cylindr
 
 ## Citation
 
-If you find `cylindra` useful in your work, please consider citing the following paper.
+If you find `cylindra` useful in your work, please consider citing our paper.
 
 ```
 TODO

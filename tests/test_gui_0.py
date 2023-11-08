@@ -1077,26 +1077,43 @@ def test_cli(make_napari_viewer):
     from cylindra.core import ACTIVE_WIDGETS
 
     viewer: napari.Viewer = make_napari_viewer()
-    sys.argv = ["cylindra"]
-    main(viewer, ignore_sys_exit=True)
-    sys.argv = ["cylindra", "open", str(PROJECT_DIR_14PF / "project.json")]
-    main(viewer, ignore_sys_exit=True)
-    sys.argv = ["cylindra", "preview", str(PROJECT_DIR_14PF / "project.json")]
-    main(viewer, ignore_sys_exit=True)
-    sys.argv = ["cylindra", "preview", str(PROJECT_DIR_14PF / "project.json"), "-s"]
-    main(viewer, ignore_sys_exit=True)
-    with tempfile.TemporaryDirectory() as dirpath:
-        sys.argv = [
-            "cylindra", "new",
-            str(Path(dirpath) / "test-project"),
-            "--image", str(TEST_DIR / "14pf_MT.tif"),
-            "--multiscales", "1", "2",
-            "--missing_wedge", "-60", "50",
-            "--molecules", str(PROJECT_DIR_14PF / "Mole-*"),
-        ]  # fmt: skip
+
+    def run_cli(*args):
+        sys.argv = list(str(a) for a in args)
         main(viewer, ignore_sys_exit=True)
-    sys.argv = ["cylindra", "config", str(PROJECT_DIR_14PF / "project.json"), "--list"]
-    main(viewer, ignore_sys_exit=True)
+
+    with thread_worker.blocking_mode():
+        run_cli("cylindra")
+        run_cli("cylindra", "open", PROJECT_DIR_14PF / "project.json")
+        run_cli("cylindra", "preview", PROJECT_DIR_14PF / "project.json")
+        run_cli("cylindra", "preview", PROJECT_DIR_14PF / "project.json", "-s")
+        run_cli("cylindra", "preview", TEST_DIR / "14pf_MT.tif")
+        run_cli("cylindra", "preview", PROJECT_DIR_14PF / "globalprops.csv")
+        with tempfile.TemporaryDirectory() as dirpath:
+            run_cli(
+                "cylindra", "new",
+                Path(dirpath) / "test-project",
+                "--image", TEST_DIR / "14pf_MT.tif",
+                "--multiscales", "1", "2",
+                "--missing_wedge", "-60", "50",
+                "--molecules", PROJECT_DIR_14PF / "Mole-*",
+            )  # fmt: skip
+        run_cli("cylindra", "config", "--list")
+        run_cli("cylindra", "config", PROJECT_DIR_14PF, "--remove")
+        run_cli("cylindra", "workflow", "--list")
+        with tempfile.TemporaryDirectory() as dirpath:
+            run_cli(
+                "cylindra", "average",
+                TEST_DIR / "test_project_*",
+                "--molecules", "Mole-*",
+                "--size", "10.0",
+                "--output", Path(dirpath) / "test.tif",
+                "--filter", "col('nth') % 2 == 0",
+                "--split", "--seed", "123",
+            )  # fmt: skip
+        run_cli("cylindra", "find", "**/*.zip")
+        run_cli("cylindra", "find", "**/*.zip", "--called", "register_path")
+
     for widget in ACTIVE_WIDGETS:
         widget.close()
     ACTIVE_WIDGETS.clear()

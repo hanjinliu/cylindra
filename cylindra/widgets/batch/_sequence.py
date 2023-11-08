@@ -352,7 +352,7 @@ class ProjectSequenceEdit(MagicTemplate):
     @do_not_record
     def view_components(self):
         """View all the splines and molecules that exist in this project."""
-        from cylindra.project import ComponentsViewer
+        from cylindra.project._widgets import ComponentsViewer
 
         cbox = ComboBox(choices=self._get_project_paths)
         comp_viewer = ComponentsViewer()
@@ -375,7 +375,7 @@ class ProjectSequenceEdit(MagicTemplate):
     @set_design(text="View selected components in 3D", location=View)
     def view_selected_components(self):
         """View selected components in a 3D viewer."""
-        from cylindra.project import ComponentsViewer
+        from cylindra.project._widgets import ComponentsViewer
 
         cbox = ComboBox(choices=self._get_selected_project_paths)
         comp_viewer = ComponentsViewer()

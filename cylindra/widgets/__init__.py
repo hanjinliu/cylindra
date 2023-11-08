@@ -5,7 +5,7 @@ from . import _ui_init  # initialize main widget  # noqa: F401
 del _ui_init
 
 
-def dont_use_native_menu_bar():
+def dont_use_native_menu_bar():  # pragma: no cover
     # cylindra has menu bars in sub widgets.
     from qtpy.QtCore import QCoreApplication, Qt
 

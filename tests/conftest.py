@@ -24,6 +24,7 @@ def ui(make_napari_viewer):
             batch.constructor.close()
             batch.close()
             # batch.constructor.native.deleteLater()
+    del _ui.tomogram._image
     _ui.close()
     if sv := StaParameters._viewer:
         with suppress(RuntimeError):
