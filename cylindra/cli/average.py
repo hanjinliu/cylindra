@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from fnmatch import fnmatch
-from cylindra.cli._base import _ParserBase, coerce_output_filename, get_polars_expr
+from cylindra.cli._base import ParserBase, coerce_output_filename, get_polars_expr
 from cylindra.core import collect_projects
 
 
-class ParserAverage(_ParserBase):
+class ParserAverage(ParserBase):
     def __init__(self):
         super().__init__(prog="cylindra average", description="Average images.")
         self.add_argument(

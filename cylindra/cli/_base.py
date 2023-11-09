@@ -3,7 +3,7 @@ from typing import Any
 from pathlib import Path
 
 
-class _ParserBase(argparse.ArgumentParser):
+class ParserBase(argparse.ArgumentParser):
     viewer: Any
 
     def parse(self, args=None):
@@ -45,3 +45,24 @@ def get_polars_expr(expr: str):
     if not isinstance(out, pl.Expr):
         raise TypeError(f"{expr!r} did not return an expression, got {type(out)}")
     return out
+
+
+class HelpAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        import rich
+        from rich.panel import Panel
+
+        doc = parser.__doc__
+        assert doc is not None
+        lines = doc.splitlines()
+        while lines[0].strip() == "":
+            lines.pop(0)
+        line0 = lines.pop(0)
+        nindents = len(line0) - len(line0.lstrip())
+        rich.print(Panel(line0[nindents:]))
+        for line in lines:
+            if "[" in line:
+                rich.print(line[nindents:])
+            else:
+                print(line[nindents:])
+        parser.exit()

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 import glob
-from cylindra.cli._base import _ParserBase
+from cylindra.cli._base import ParserBase
 from pathlib import Path
 from cylindra.core import read_project, view_project
 
@@ -29,7 +29,7 @@ class ShowScriptAction(argparse.Action):
         return parser.exit()
 
 
-class ParserPreview(_ParserBase):
+class ParserPreview(ParserBase):
     """cylindra preview <path>"""
 
     def __init__(self):

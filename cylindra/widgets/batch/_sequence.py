@@ -226,7 +226,7 @@ class Project(MagicTemplate):
     widget_type="scrollable",
     labels=False,
     record=False,
-    properties={"min_height": 20, "min_width": 250},
+    properties={"min_height": 200, "min_width": 250},
 )
 class ProjectPaths(MagicTemplate):
     def _add(self, path: Path) -> Project:
@@ -247,6 +247,8 @@ class ProjectSequenceEdit(MagicTemplate):
     """
     Attributes
     ----------
+    scale : nm
+        The common scale of images.
     filter_expression : str
         A `polars` expression to filter molecules. e.g. `pl.col("score") > 0.5`.
         Spline global properties are also available during filtering, with suffix

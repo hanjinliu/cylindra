@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from cylindra.cli._base import _ParserBase
+from cylindra.cli._base import ParserBase
 from pathlib import Path
 
 
-class ParserNew(_ParserBase):
+class ParserNew(ParserBase):
     def __init__(self):
         super().__init__(prog="cylindra new", description="Create a new project.")
         self.add_argument("output", type=str, help="The project file")

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from cylindra.cli._base import _ParserBase, coerce_output_filename
+from cylindra.cli._base import ParserBase, coerce_output_filename
 from cylindra.core import start, read_project
 
 
-class ParserRun(_ParserBase):
+class ParserRun(ParserBase):
     """cylindra run <path>"""
 
     def __init__(self):

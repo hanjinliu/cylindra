@@ -4,10 +4,10 @@ from pathlib import Path
 import math
 import warnings
 from cylindra.core import read_project, start
-from cylindra.cli._base import _ParserBase
+from cylindra.cli._base import ParserBase
 
 
-class ParserOpen(_ParserBase):
+class ParserOpen(ParserBase):
     """cylindra open <path>"""
 
     def __init__(self):

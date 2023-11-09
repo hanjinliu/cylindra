@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
-from cylindra.cli._base import _ParserBase
+from cylindra.cli._base import ParserBase
 
 
 def list_all_workflows():
@@ -28,7 +28,7 @@ class ImportAction(argparse.Action):
         return parser.exit()
 
 
-class ParserWorkflow(_ParserBase):
+class ParserWorkflow(ParserBase):
     def __init__(self):
         super().__init__(
             prog="cylindra workflow", description="View, run and import workflows."

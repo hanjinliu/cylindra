@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from pathlib import Path
 from glob import glob
 from cylindra.core import collect_projects
-from cylindra.cli._base import _ParserBase
+from cylindra.cli._base import ParserBase
 
 if TYPE_CHECKING:
     from cylindra.project import CylindraProject
@@ -57,7 +57,7 @@ class ImportAction(argparse.Action):
         print(f"Config file imported: {save_path.as_posix()}")
 
 
-class ParserConfig(_ParserBase):
+class ParserConfig(ParserBase):
     def __init__(self):
         super().__init__(prog="cylindra config", description="Configure cylindra.")
         self.add_argument("path")
