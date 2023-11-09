@@ -1,4 +1,6 @@
+from fnmatch import fnmatch
 from typing import Annotated, Literal, NamedTuple, Any, TYPE_CHECKING
+import glob
 import impy as ip
 import polars as pl
 
@@ -21,7 +23,7 @@ from cylindra.const import (
     FileFilter,
 )
 from cylindra.core import ACTIVE_WIDGETS
-from cylindra.widget_utils import POLARS_NAMESPACE
+from cylindra.widget_utils import POLARS_NAMESPACE, capitalize
 from cylindra.project import CylindraProject, CylindraBatchProject
 from cylindra._config import get_config
 from .sta import BatchSubtomogramAveraging
@@ -65,7 +67,7 @@ class CylindraBatchWidget(MagicTemplate):
     def _get_expression(self, *_):
         return self.constructor._get_expression()
 
-    @set_design(text="Construct loader", location=constructor)
+    @set_design(text=capitalize, location=constructor)
     @thread_worker
     def construct_loader(
         self,
@@ -145,10 +147,23 @@ class CylindraBatchWidget(MagicTemplate):
         btn = get_button(self.construct_loader, cache=True)
         btn.text = "Construct loader"
 
+    @set_design(text=capitalize, location=ProjectSequenceEdit.File)
+    def construct_loader_by_pattern(
+        self,
+        path_pattern: str,
+        mole_pattern: str = "*",
+        predicate: Annotated[str | pl.Expr | None, {"bind": _get_expression}] = None,
+        name: str = "Loader",
+    ):
+        self.constructor.add_projects_glob(path_pattern, clear=True)
+        self.constructor.select_molecules_by_pattern(mole_pattern)
+        self.construct_loader(self._get_loader_paths(), predicate=predicate, name=name)
+        return None
+
     def _add_loader(self, loader: BatchLoader, name: str, image_paths: dict[int, Path]):
         self._loaders.append(LoaderInfo(loader, name=name, image_paths=image_paths))
 
-    @set_design(text="Show macro", location=ProjectSequenceEdit.MacroMenu)
+    @set_design(text=capitalize, location=ProjectSequenceEdit.MacroMenu)
     @do_not_record
     def show_macro(self):
         from cylindra import instance
@@ -161,7 +176,7 @@ class CylindraBatchWidget(MagicTemplate):
         ACTIVE_WIDGETS.add(win)
         return None
 
-    @set_design(text="Show native macro", location=ProjectSequenceEdit.MacroMenu)
+    @set_design(text=capitalize, location=ProjectSequenceEdit.MacroMenu)
     @do_not_record
     def show_native_macro(self):
         self.macro.widget.show()

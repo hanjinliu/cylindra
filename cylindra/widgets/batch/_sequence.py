@@ -204,6 +204,7 @@ class Project(MagicTemplate):
         )
 
     def _get_loader_paths(self) -> tuple[Path, list[str], Path]:
+        """Return (image, molecules, project) paths."""
         project = CylindraProject.from_file(self.path)
         img_path = Path(project.image)
         prj_path = Path(self.path)
@@ -260,6 +261,8 @@ class ProjectSequenceEdit(MagicTemplate):
         sep0 = field(Separator)
         load_batch_project = abstractapi()
         save_batch_project = abstractapi()
+        sep1 = field(Separator)
+        construct_loader_by_pattern = abstractapi()
 
     @magicmenu
     class Select(MagicTemplate):
