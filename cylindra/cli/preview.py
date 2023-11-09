@@ -47,7 +47,6 @@ class ParserPreview(_ParserBase):
         self.add_argument("--wrap", action="store_true", help="Enable word wrap.")
 
     def run_action(self, path: str, **kwargs):
-        from cylindra._previews import view_tables, view_image
         from magicgui.application import use_app
 
         _path = Path(path)
@@ -58,12 +57,16 @@ class ParserPreview(_ParserBase):
                 print(f"Previewing project: {_path.as_posix()}")
                 view_project(_path)
             case ".tif" | ".tiff" | ".mrc" | ".map":
+                from cylindra._previews import view_image
+
                 print(f"Previewing image: {_path.as_posix()}")
                 if "*" in _path.as_posix():
                     view_image(glob(_path.as_posix()))
                 else:
                     view_image(_path)
             case ".csv" | ".parquet":
+                from cylindra._previews import view_tables
+
                 print(f"Previewing table: {_path.as_posix()}")
                 if "*" in _path.as_posix():
                     view_tables(glob(_path.as_posix()))
