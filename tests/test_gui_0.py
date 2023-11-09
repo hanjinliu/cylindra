@@ -886,8 +886,6 @@ def test_molecules_methods(ui: CylindraMainWidget):
     ui.ImageMenu.show_colorbar(ui.mole_layers["Mole-0"], orientation="horizontal")
     ui.ImageMenu.show_colorbar(ui.mole_layers["Mole-0"], orientation="vertical")
 
-    ui.MoleculesMenu.View.change_dimensionality([ui.mole_layers["Mole-0"]], 2)
-
     tester = mcls_testing.FunctionGuiTester(ui.rename_molecules)
     tester.update_parameters(old="Mole", new="XYZ")
     tester = mcls_testing.FunctionGuiTester(ui.delete_molecules)
@@ -935,7 +933,6 @@ def test_molecule_features(ui: CylindraMainWidget):
     import polars as pl
 
     ui.load_project(PROJECT_DIR_14PF, filter=None)
-    ui.MoleculesMenu.View.show_molecule_features()
     layer = ui.mole_layers["Mole-0"]
     ui.filter_molecules("Mole-0", predicate='pl.col("position-nm") < 9.2')
     assert ui.mole_layers.last().features["position-nm"].max() < 9.2

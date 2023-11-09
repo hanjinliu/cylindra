@@ -544,27 +544,6 @@ class MoleculesMenu(ChildWidget):
             )
             return main._undo_callback_for_layer(layer)
 
-        @set_design(text=capitalize)
-        @do_not_record
-        def show_molecule_features(self):
-            """Show molecules features in a table widget."""
-            from magicgui.widgets import Container, ComboBox
-
-            cbox = ComboBox(choices=get_monomer_layers)
-            table = DataFrameView(value={})
-
-            @cbox.changed.connect
-            def _update_table(layer: MoleculesLayer):
-                if layer is not None:
-                    table.value = layer.features
-
-            container = Container(widgets=[cbox, table], labels=False)
-            self.parent_viewer.window.add_dock_widget(
-                container, area="left", name="Molecule Features"
-            ).setFloating(True)
-            cbox.changed.emit(cbox.value)
-            return None
-
         paint_molecules = abstractapi()
 
         @set_design(text="Show molecule feature in flat view")
@@ -684,26 +663,6 @@ class MoleculesMenu(ChildWidget):
                 shading="smooth",
                 name=f"Rendered {layer.name}",
             )
-            return None
-
-        @set_design(text=capitalize)
-        def change_dimensionality(
-            self,
-            layers: Annotated[list[MoleculesLayer], {"widget_type": CheckBoxes}],
-            ndim: Literal[2, 3] = 3,
-        ):
-            """
-            Change the dimensionality to display molecules layers.
-
-            Parameters
-            ----------
-            layers : MoleculesLayer
-                Layers to change dimensionality.
-            ndim : 2 or 3
-                Dimensionality. 2 for flat view and 3 for spherical shading.
-            """
-            for layer in layers:
-                layer.view_ndim = ndim
             return None
 
 
