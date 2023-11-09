@@ -63,6 +63,13 @@ class CylindricArray:
         return cls(_CylindricArray(nth, npf, value, nrise))
 
     @classmethod
+    def zeros_like(self, df: pl.DataFrame, nrise: int) -> Self:
+        nth = df[Mole.nth].to_numpy()
+        npf = df[Mole.pf].to_numpy()
+        value = np.zeros(len(df), dtype=np.float32)
+        return CylindricArray.from_sequences(nth, npf, value, nrise)
+
+    @classmethod
     def from_dataframe(self, df: pl.DataFrame, target: str, nrise: int) -> Self:
         nth = df[Mole.nth].to_numpy()
         npf = df[Mole.pf].to_numpy()
@@ -76,6 +83,10 @@ class CylindricArray:
     def mean_filter(self, kernel: ArrayLike) -> Self:
         ker = np.asarray(kernel, dtype=np.bool_)
         return CylindricArray(self._rust_obj.mean_filter(ker))
+
+    def count_neighbors(self, kernel: ArrayLike) -> Self:
+        ker = np.asarray(kernel, dtype=np.bool_)
+        return CylindricArray(self._rust_obj.count_neighbors(ker))
 
     def max_filter(self, kernel: ArrayLike) -> Self:
         ker = np.asarray(kernel, dtype=np.bool_)
@@ -194,13 +205,33 @@ def run_filter(
     return _filter_func(df, kernel, target, nrise)
 
 
+def count_neighbors(
+    df: pl.DataFrame,
+    kernel: ArrayLike,
+    nrise: int,
+) -> pl.Series:
+    return (
+        CylindricArray.zeros_like(df, nrise)
+        .count_neighbors(kernel)
+        .as_series(name="neighbor")
+        .round()
+        .cast(pl.UInt32)
+    )
+
+
 def binarize(df: pl.DataFrame, threshold: float, target: str) -> pl.Series:
     return (
         CylindricArray.from_dataframe(df, target, 0)
         .binarize(threshold)
-        .as_series(target)
+        .as_series(name=target)
     )
 
 
 def label(df: pl.DataFrame, target: str, nrise: int) -> pl.Series:
-    return CylindricArray.from_dataframe(df, target, nrise).label().as_series(target)
+    return (
+        CylindricArray.from_dataframe(df, target, nrise)
+        .label()
+        .as_series(target)
+        .round()
+        .cast(pl.UInt32)
+    )

@@ -104,6 +104,18 @@ impl CylindricArray {
         Ok(self.new_like(out))
     }
 
+    pub fn count_neighbors(
+        &self,
+        footprint: PyReadonlyArray2<bool>,
+    ) -> PyResult<Self> {
+        let kernel = Kernel::new(footprint.as_array().to_owned());
+        if kernel[[0, 0]] {
+            return value_error!("The center of the kernel must be 0.");
+        }
+        let out = self.count_neighbors_(&kernel);
+        Ok(self.new_like(out))
+    }
+
     /// Mean filter on the cylinder surface.
     pub fn mean_filter(
         &self,
@@ -284,6 +296,31 @@ impl CylindricArray {
                 } else {
                     f32::NAN
                 };
+            }
+        }
+        out
+    }
+
+    fn count_neighbors_(&self, kernel: &Kernel<bool>) -> Array2<f32> {
+        let (ny, na) = (self.array.shape()[0], self.array.shape()[1]);
+        let mut out = Array2::<f32>::zeros((ny, na));
+        for i in 0..ny {
+            for j in 0..na {
+                if self[[i as isize, j as isize]].is_nan() {
+                    continue;
+                }
+                let mut n_neighbors = 0.0;
+                for ind in kernel.iter_indices() {
+                    if !kernel[ind] {
+                        continue
+                    }
+                    let value = self[[i as isize + ind[0], j as isize + ind[1]]];
+                    if !value.is_nan() {
+                        n_neighbors += 1.0;
+                    }
+
+                }
+                out[[i, j]] = n_neighbors;
             }
         }
         out

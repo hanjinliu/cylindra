@@ -345,9 +345,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
     def calculate_fsc(
         self,
         loader_name: Annotated[str, {"bind": _get_current_loader_name}],
-        template_path: Annotated[
-            str | Path | None, {"bind": _get_template_path}
-        ] = None,
+        template_path: Annotated[str | Path | None, {"bind": _get_template_path}] = None,
         mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         size: _SubVolumeSize = None,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
@@ -355,7 +353,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         n_pairs: Annotated[int, {"min": 1, "label": "number of image pairs"}] = 1,
         show_average: bool = True,
         dfreq: FSCFreq = None,
-    ):
+    ):  # fmt: skip
         """
         Calculate Fourier Shell Correlation using the selected loader.
 
@@ -383,7 +381,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         )
 
         fsc, avg = loader.reshape(
-            template=template,
+            template=template if size is None else None,
             mask=mask,
             shape=None if size is None else self._get_shape_in_px(size, loader),
         ).fsc_with_average(mask=mask, seed=seed, n_set=n_pairs, dfreq=dfreq)

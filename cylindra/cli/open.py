@@ -39,12 +39,19 @@ class ParserOpen(_ParserBase):
             help="Min/max tilt angles. This parameter will be ignored if a project is given.",
             default=None,
         )
+        self.add_argument(
+            "--no-reference",
+            "--nr",
+            action="store_true",
+            help="Do not calculate the reference image.",
+        )
 
     def run_action(
         self,
         path: str,
         scale: float | None = None,
         missing_wedge: tuple[float, float] | None = None,
+        no_reference: bool = False,
     ):
         fp = Path(path)
         match fp.suffix:
@@ -68,7 +75,8 @@ class ParserOpen(_ParserBase):
                         RuntimeWarning,
                         stacklevel=2,
                     )
-                ui = start(fp, viewer=self.viewer)
+                ui = start(viewer=self.viewer)
+                ui.load_project(fp, read_image=not no_reference)
             case _:
                 raise ValueError(f"invalid file type: {fp.suffix}")
         ui.parent_viewer.show(block=self.viewer is None)

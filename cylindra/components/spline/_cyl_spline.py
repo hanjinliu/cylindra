@@ -122,8 +122,10 @@ class CylSpline(Spline):
             original.orientation = self.orientation
         return original
 
-    def nrise(self, **kwargs):
-        return self.cylinder_params(**kwargs).start
+    def nrise(self, **kwargs) -> int:
+        """Raw start number (minus for microtubule)"""
+        cp = self.cylinder_params(**kwargs)
+        return cp.start * cp.rise_sign
 
     def cylinder_params(self, **kwargs) -> CylinderParameters:
         """Get the cylinder parameters of the spline."""

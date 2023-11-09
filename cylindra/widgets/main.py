@@ -2133,7 +2133,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         layer: MoleculesLayerType,
         target: Annotated[str, {"choices": _choice_getter("convolve_feature", dtype_kind="uifb")}],
-        method: Literal["mean", "max", "min", "median"],
+        method: Literal["mean", "max", "min", "median"] = "mean",
         footprint: Annotated[Any, {"widget_type": KernelEdit}] = [[0, 1, 0], [1, 1, 1], [0, 1, 0]],
     ):  # fmt: skip
         """
@@ -2168,6 +2168,37 @@ class CylindraMainWidget(MagicTemplate):
                 layer.face_color = color
             case info:
                 layer.set_colormap(feature_name, info.clim, info.cmap)
+        return undo_callback(layer.feature_setter(feat, cmap_info))
+
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
+    def count_neighbors(
+        self,
+        layer: MoleculesLayerType,
+        footprint: Annotated[Any, {"widget_type": KernelEdit}] = [[0, 1, 0], [1, 0, 1], [0, 1, 0]],
+        column_name: str = "neighbor_count",
+    ):  # fmt: skip
+        """
+        Count the number of neighbors for each molecules.
+
+        Parameters
+        ----------
+        {layer}{footprint}
+        column_name : str
+            Name of the new column that stores the number of counts.
+        """
+        from cylindra import cylfilters
+
+        layer = assert_layer(layer, self.parent_viewer)
+        feat, cmap_info = layer.molecules.features, layer.colormap_info
+        nrise = _assert_source_spline_exists(layer).nrise()
+        out = cylfilters.count_neighbors(layer.molecules.features, footprint, nrise)
+        layer.molecules = layer.molecules.with_features(out.alias(column_name))
+        self.reset_choices()
+        match layer.colormap_info:
+            case str(color):
+                layer.face_color = color
+            case info:
+                layer.set_colormap(column_name, info.clim, info.cmap)
         return undo_callback(layer.feature_setter(feat, cmap_info))
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
@@ -2228,7 +2259,7 @@ class CylindraMainWidget(MagicTemplate):
         utils.assert_column_exists(layer.molecules.features, target)
         feat, cmap_info = layer.molecules.features, layer.colormap_info
         nrise = _assert_source_spline_exists(layer).nrise()
-        out = cylfilters.label(layer.molecules.features, target, nrise).cast(pl.UInt32)
+        out = cylfilters.label(layer.molecules.features, target, nrise)
         feature_name = f"{target}_label"
         layer.molecules = layer.molecules.with_features(out.alias(feature_name))
         self.reset_choices()

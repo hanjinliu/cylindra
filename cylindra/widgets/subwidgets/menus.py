@@ -490,6 +490,7 @@ class MoleculesMenu(ChildWidget):
         calculate_curve_index = abstractapi()
         sep0 = field(Separator)
         convolve_feature = abstractapi()
+        count_neighbors = abstractapi()
         binarize_feature = abstractapi()
         label_feature_clusters = abstractapi()
         regionprops_features = abstractapi()
