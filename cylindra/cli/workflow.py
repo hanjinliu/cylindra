@@ -6,11 +6,15 @@ from cylindra.cli._base import ParserBase
 
 
 def list_all_workflows():
+    import rich
+    from rich.panel import Panel
     from cylindra._config import get_config
 
-    print("List of workflows\n-----------------")
+    _list = list[str]()
     for path in get_config().list_workflow_paths():
-        print(f"{path.stem}")
+        _list.append(f" - {path.stem}")
+
+    rich.print(Panel("\n".join(_list), title="List of workflows", title_align="center"))
 
 
 class ListAction(argparse.Action):
@@ -29,25 +33,34 @@ class ImportAction(argparse.Action):
 
 
 class ParserWorkflow(ParserBase):
+    """
+    cylindra workflow [bold green]path[/bold green] [bold cyan]options[/bold cyan]
+
+    [u bold green]path[/u bold green]
+        Path to the workflow file.
+        e.g. Show the workflow file named my_workflow.py
+            `cylindra workflow my_workflow`
+
+    [u bold cyan]options[/u bold cyan]
+        [bold]--list, -l[/bold]
+            List up all the available workflows.
+
+        [bold]--import[/bold]
+            Import a workflow from a python file.
+            e.g. `cylindra workflow 3rd-party-file.py --import`
+
+        [bold]--wrap, -w[/bold]
+            Enable word wrap.
+    """
+
     def __init__(self):
         super().__init__(
             prog="cylindra workflow", description="View, run and import workflows."
         )
         self.add_argument("path", nargs="?")
-        self.add_argument(
-            "--list",
-            "-l",
-            action=ListAction,
-            nargs=0,
-            help="List up all the available workflows.",
-        )
-        self.add_argument(
-            "--import",
-            action=ImportAction,
-            nargs=0,
-            help="Import a workflow from a file.",
-        )
-        self.add_argument("--wrap", "-w", action="store_true", help="Enable word wrap.")
+        self.add_argument("--list", "-l", action=ListAction, nargs=0)
+        self.add_argument("--import", action=ImportAction, nargs=0)
+        self.add_argument("--wrap", "-w", action="store_true")
 
     def run_action(self, path: str | None, wrap: bool = False, **kwargs):
         from cylindra._config import workflow_path
@@ -58,6 +71,8 @@ class ParserWorkflow(ParserBase):
             return list_all_workflows()
         wpath = workflow_path(path)
         if not wpath.exists():
+            if path == "list":  # just support `cylindra workflow list`
+                return list_all_workflows()
             raise FileNotFoundError(wpath)
         code = Syntax(
             wpath.read_text(),

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from cylindra.core import start
-from cylindra.cli._base import ParserBase, HelpAction
+from cylindra.cli._base import ParserBase
 
 
 class ParserNone(ParserBase):
@@ -29,7 +29,6 @@ class ParserNone(ParserBase):
         super().__init__(
             prog="cylindra",
             description="Command line interface of cylindra.",
-            add_help=False,
         )
         self.add_argument(
             "-v",
@@ -37,12 +36,6 @@ class ParserNone(ParserBase):
             action="version",
             version=f"cylindra version {__version__}",
             help="Show version.",
-        )
-        self.add_argument(
-            "-h",
-            "--help",
-            nargs=0,
-            action=HelpAction,
         )
 
     def run_action(self, **kwargs):

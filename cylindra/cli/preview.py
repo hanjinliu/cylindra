@@ -30,7 +30,19 @@ class ShowScriptAction(argparse.Action):
 
 
 class ParserPreview(ParserBase):
-    """cylindra preview <path>"""
+    """
+    cylindra preview [bold green]path[/bold green] [bold cyan]options[/bold cyan]
+
+    [u bold green]path[/u bold green]
+        Path to the project/image file.
+
+    [u bold cyan]options[/u bold cyan]
+        [bold]--script, -s[/bold]
+            Only preview script.py content.
+
+        [bold]--wrap[/bold]
+            Enable word wrap.
+    """
 
     def __init__(self):
         super().__init__(
@@ -42,9 +54,8 @@ class ParserPreview(ParserBase):
             "-s",
             nargs="*",
             action=ShowScriptAction,
-            help="Only preview script.py content.",
         )
-        self.add_argument("--wrap", action="store_true", help="Enable word wrap.")
+        self.add_argument("--wrap", action="store_true")
 
     def run_action(self, path: str, **kwargs):
         from magicgui.application import use_app

@@ -8,35 +8,32 @@ from cylindra.cli._base import ParserBase
 
 
 class ParserOpen(ParserBase):
-    """cylindra open <path>"""
+    """
+    cylindra open [bold green]path[/bold green] [bold cyan]options[/bold cyan]
+
+    [u bold green]path[/u bold green]
+        Path to the project/image file.
+
+    [u bold cyan]options[/u bold cyan]
+        [bold]--scale, -s[/bold]
+            Scale (nm/pixel) of the image, if an image file is given as the first argument. If not given, it will be read from the image file. This parameter will be ignored if a project is given.
+
+        [bold]--missing_wedge, --mw[/bold]
+            Min/max tilt angles. This parameter will be ignored if a project is given.
+    """
 
     def __init__(self):
         super().__init__(
             prog="cylindra open",
             description="Open a project or an image file.",
         )
-        self.add_argument(
-            "path",
-            type=str,
-            help="path to the project/image file.",
-        )
-        self.add_argument(
-            "--scale",
-            "-s",
-            type=float,
-            help=(
-                "Scale (nm/pixel) of the image, if an image file is given as the "
-                "first argument. If not given, it will be read from the image "
-                "file. This parameter will be ignored if a project is given."
-            ),
-            default=None,
-        )
+        self.add_argument("path", type=str)
+        self.add_argument("--scale", "-s", type=float, default=None)
         self.add_argument(
             "--missing_wedge",
             "--mw",
             nargs=2,
             type=float,
-            help="Min/max tilt angles. This parameter will be ignored if a project is given.",
             default=None,
         )
 
@@ -45,6 +42,7 @@ class ParserOpen(ParserBase):
         path: str,
         scale: float | None = None,
         missing_wedge: tuple[float, float] | None = None,
+        **kwargs,
     ):
         fp = Path(path)
         match fp.suffix:

@@ -5,7 +5,7 @@ import json
 from glob import glob
 from pathlib import Path
 from cylindra.core import read_project
-from cylindra.cli._base import ParserBase, get_polars_expr, HelpAction
+from cylindra.cli._base import ParserBase, get_polars_expr
 
 
 class ParserFind(ParserBase):
@@ -20,34 +20,36 @@ class ParserFind(ParserBase):
         --date-before, --lt [grey50]DATE[/grey50]
             Date in YYMMDD format.
             DATE < date-before will be shown.
+
         --date-after, --gt [grey50]DATE[/grey50]
             Date in YYMMDD format.
             DATE > date-after will be shown.
+
         --called [grey50]METHOD[/grey50]
             Projects that called METHOD will be shown.
             e.g. `cylindra find --called filter_molecules`
+
         --props, -p [grey50]EXPR0, EXPR1, ...[grey50]
             Polars expression to filter.
             e.g. `cylindra find --props "col('npf')==13"`
             e.g. `cylindra find --props "col('npf')==13" "col('start')==3"`
 
     [u bold cyan]flags[/u bold cyan]
-        -h, --help
-            Show this message and exit.
         --absolute, --abs
             Show absolute path.
+
         --image
             Show image path.
+
         --config
             Show config content.
+
         --description, --desc
             Show project description.
     """
 
     def __init__(self):
-        super().__init__(
-            prog="cylindra find", description="Find projects.", add_help=False
-        )
+        super().__init__(prog="cylindra find", description="Find projects.")
         self.add_argument(
             "pattern",
             type=str,
@@ -60,20 +62,17 @@ class ParserFind(ParserBase):
             "--lt",
             type=int,
             default=999999,
-            help="Date in YYMMDD format. date < date-before will be shown.",
         )
         self.add_argument(
             "--date-after",
             "--gt",
             type=int,
             default=0,
-            help="Date in YYMMDD format. date > date-after will be shown.",
         )
         self.add_argument(
             "--called",
             type=str,
             default=None,
-            help="Projects that called the given method will be shown.",
         )
         self.add_argument(
             "--props",
@@ -81,20 +80,15 @@ class ParserFind(ParserBase):
             type=str,
             default=None,
             nargs="*",
-            help="Polars expression for spline global properties to filter output. If multiple expressions are given, they will be combined with `&`.",
         )
-        self.add_argument(
-            "--absolute", "--abs", action="store_true", help="Show absolute path."
-        )
-        self.add_argument("--image", action="store_true", help="Show image path.")
-        self.add_argument("--config", action="store_true", help="Show config content.")
+        self.add_argument("--absolute", "--abs", action="store_true")
+        self.add_argument("--image", action="store_true")
+        self.add_argument("--config", action="store_true")
         self.add_argument(
             "--description",
             "--desc",
             action="store_true",
-            help="Show project description.",
         )
-        self.add_argument("-h", "--help", nargs=0, action=HelpAction)
 
     def run_action(
         self,

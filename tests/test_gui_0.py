@@ -1079,9 +1079,20 @@ def test_cli(make_napari_viewer):
         sys.argv = list(str(a) for a in args)
         main(viewer, ignore_sys_exit=True)
 
+    # test help
+    for cmd in [
+        "average",
+        "config",
+        "find",
+        "new",
+        "open",
+        "preview",
+        "run",
+        "workflow",
+    ]:
+        run_cli("cylindra", cmd, "--help")
     with thread_worker.blocking_mode():
         run_cli("cylindra")
-        run_cli("cylindra", "open", PROJECT_DIR_14PF / "project.json")
         run_cli("cylindra", "preview", PROJECT_DIR_14PF / "project.json")
         run_cli("cylindra", "preview", PROJECT_DIR_14PF / "project.json", "-s")
         run_cli("cylindra", "preview", TEST_DIR / "14pf_MT.tif")
@@ -1095,6 +1106,7 @@ def test_cli(make_napari_viewer):
                 "--missing_wedge", "-60", "50",
                 "--molecules", PROJECT_DIR_14PF / "Mole-*",
             )  # fmt: skip
+            run_cli("cylindra", "open", Path(dirpath) / "test-project")
         run_cli("cylindra", "config", "--list")
         run_cli("cylindra", "config", PROJECT_DIR_14PF, "--remove")
         run_cli("cylindra", "workflow", "--list")
