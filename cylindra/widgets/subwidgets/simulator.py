@@ -84,6 +84,11 @@ def _simulate_tomogram_iter(nsr):
         yield f"({i + 1}/{n + 1}) Back-projection of {i}-th image"
 
 
+def _simulate_tomogram_from_tilt_iter():
+    yield f"(0/2) Reading tilt series"
+    yield f"(1/2) Back-projection"
+
+
 @magicclass(labels=False, record=False, layout="horizontal")
 class Component(ChildWidget):
     layer_name = vfield(str).with_options(enabled=False)
@@ -480,7 +485,7 @@ class Simulator(ChildWidget):
         return None
 
     @set_design(text=capitalize, location=SimulateMenu)
-    @dask_thread_worker.with_progress(desc="Simulating tomogram from tilt series...")
+    @dask_thread_worker.with_progress(descs=_simulate_tomogram_from_tilt_iter)
     @confirm(
         text="You have an opened image. Run anyway?",
         condition="not self._get_main().tomogram.is_dummy",
@@ -528,6 +533,7 @@ class Simulator(ChildWidget):
         sino_noise = sino + rng.normal(
             scale=imax * nsr, size=sino.shape, axes=sino.axes
         )
+        yield thread_worker.callback()
         rec = sino_noise.iradon(
             degrees,
             central_axis="y",
@@ -535,7 +541,6 @@ class Simulator(ChildWidget):
             order=interpolation,
         ).set_scale(zyx=scale, unit="nm")
         yield _on_iradon_finished.with_args(rec.mean("z"), f"N/S = {nsr:.1f}")
-
         rec.name = SIMULATED_IMAGE_NAME
         tomo = CylTomogram.from_image(
             rec, scale=scale, tilt=tilt_range, binsize=bin_size

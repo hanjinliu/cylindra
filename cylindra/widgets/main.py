@@ -1582,29 +1582,13 @@ class CylindraMainWidget(MagicTemplate):
 
         return self._undo_callback_for_layer(_added_layers)
 
-    def _offsets_validator(
-        self, offsets: _OffsetType, args: dict[str, Any]
-    ) -> tuple[nm, float]:
-        idx = args["spline"]
-        spl = self.tomogram.splines[idx]
-        return normalize_offsets(offsets, spl)
-
-    _NormalizedOffsetType = Annotated[
-        Optional[tuple[nm, float]],
-        {
-            "text": "Infer offsets from spline global properties",
-            "options": {"widget_type": OffsetEdit},
-            "validator": _offsets_validator,
-        },
-    ]
-
     @set_design(text=capitalize, location=_sw.MoleculesMenu.FromToSpline)
     def map_monomers_with_extensions(
         self,
         spline: Annotated[int, {"choices": _get_splines}],
         n_extend: Annotated[dict[int, tuple[int, int]], {"label": "prepend/append", "widget_type": ProtofilamentEdit}] = {},
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
-        offsets: _NormalizedOffsetType = None,
+        offsets: _OffsetType = None,
         radius: Optional[nm] = None,
         prefix: str = "Mole",
     ):  # fmt: skip
@@ -1672,7 +1656,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         spline: Annotated[int, {"choices": _get_splines}],
         molecule_interval: PolarsExprStrOrScalar = "col('spacing')",
-        offsets: _NormalizedOffsetType = None,
+        offsets: _OffsetType = None,
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
         prefix: str = "PF",
     ):  # fmt: skip

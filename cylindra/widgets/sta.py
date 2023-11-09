@@ -83,7 +83,7 @@ if TYPE_CHECKING:
     from cylindra.components.landscape import AnnealingResult
 
 
-def _get_template_shape(self: "SubtomogramAveraging", size: nm) -> list[str]:
+def _get_template_shape(self: "SubtomogramAveraging", size: nm) -> nm:
     shape = self._get_shape_in_nm(size)
     return max(shape)
 
@@ -382,6 +382,26 @@ class StaParameters(MagicTemplate):
                 raise ValueError(f"Cannot provide multiple template images: {path}.")
             return pipe.from_files(path)
 
+    def _get_template_input(
+        self, allow_multiple: bool = False
+    ) -> None | Path | list[Path]:
+        match self.template_choice:
+            case TemplateChoice.last_average:
+                return None
+            case TemplateChoice.from_file:
+                return Path(self.template_path.value)
+            case TemplateChoice.from_files:
+                if not allow_multiple:
+                    raise ValueError("Cannot provide multiple template images.")
+                out = self.template_paths.value
+                if len(out) == 0:
+                    raise ValueError("No template image provided.")
+                elif len(out) == 1:
+                    return Path(out[0])
+                return [Path(f) for f in out]
+            case v:  # pragma: no cover
+                raise ValueError(f"Unknown template choice: {v!r}")
+
     def _get_mask_params(self, params=None) -> str | tuple[nm, nm] | None:
         match self.mask_choice:
             case MaskChoice.no_mask:
@@ -462,33 +482,13 @@ class SubtomogramAveraging(ChildWidget):
         """The napari viewer for subtomogram averaging."""
         return StaParameters._viewer
 
-    def _template_param(self, *_):
-        return self._get_template_input(allow_multiple=False)
+    def _template_param(self, *_):  # for bind
+        return self.params._get_template_input(allow_multiple=False)
 
-    def _template_params(self, *_):
-        return self._get_template_input(allow_multiple=True)
+    def _template_params(self, *_):  # for bind
+        return self.params._get_template_input(allow_multiple=True)
 
-    def _get_template_input(
-        self, allow_multiple: bool = False
-    ) -> None | Path | list[Path]:
-        match self.params.template_choice:
-            case TemplateChoice.last_average:
-                return None
-            case TemplateChoice.from_file:
-                return Path(self.params.template_path.value)
-            case TemplateChoice.from_files:
-                if not allow_multiple:
-                    raise ValueError("Cannot provide multiple template images.")
-                out = self.params.template_paths.value
-                if len(out) == 0:
-                    raise ValueError("No template image provided.")
-                elif len(out) == 1:
-                    return Path(out[0])
-                return [Path(f) for f in out]
-            case v:  # pragma: no cover
-                raise ValueError(f"Unknown template choice: {v!r}")
-
-    def _get_mask_params(self, *_):
+    def _get_mask_params(self, *_):  # for bind
         return self.params._get_mask_params()
 
     def _get_template_image(self) -> ip.ImgArray:
@@ -533,7 +533,7 @@ class SubtomogramAveraging(ChildWidget):
     @do_not_record
     def show_template_original(self):
         """Load and show template image in the original scale."""
-        _input = self._get_template_input(allow_multiple=True)
+        _input = self._template_params()
         if _input is None:
             raise ValueError("No template path provided.")
         elif isinstance(_input, Path):

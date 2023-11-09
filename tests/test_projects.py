@@ -34,6 +34,7 @@ def test_mutable_sequence_methods():
 
 def test_sequence_methods():
     seq = collect_projects([PROJECT_DIR_13PF, PROJECT_DIR_14PF])
-    seq.sta_loader()
+    mole = seq.collect_molecules(curvature=True)
+    assert mole.count() > 500
     for (i, s), mole in seq.iter_molecules():
         pass

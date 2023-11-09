@@ -172,7 +172,9 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         return self
 
     def sta_loader(
-        self, name_filter: Callable[[str], bool] | None = None
+        self,
+        name_filter: Callable[[str], bool] | None = None,
+        curvature: bool = False,
     ) -> BatchLoader:
         """Construct a STA loader from all the projects."""
         import impy as ip
@@ -187,6 +189,17 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                 for info, mole in prj.iter_load_molecules(dir):
                     if not name_filter(info.stem):
                         continue
+                    if (
+                        curvature
+                        and (_spl_i := info.source) is not None
+                        and Mole.position in mole.features.columns
+                    ):
+                        _spl = prj.load_spline(dir, _spl_i, props=False)
+                        _u = _spl.y_to_position(mole.features[Mole.position])
+                        cv = _spl.curvature(_u)
+                        mole.features = mole.features.with_columns(
+                            pl.Series(cv, dtype=pl.Float32).alias("spline_curvature")
+                        )
                     mole.features = mole.features.with_columns(
                         pl.repeat(info.stem, pl.count()).alias(Mole.id)
                     )
@@ -378,7 +391,9 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         return self._normalize_id(out, id)
 
     def collect_molecules(
-        self, name_filter: Callable[[str], bool] | None = None
+        self,
+        name_filter: Callable[[str], bool] | None = None,
+        curvature: bool = False,
     ) -> Molecules:
         """
         Collect all the molecules in this project sequence.
@@ -389,8 +404,10 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             Function that takes a molecule file name (without extension) and
             returns True if the molecule should be collected. Collect all the
             molecules by default.
+        curvature : bool, default is False
+            If True, the spline curvature will be added to the molecule features.
         """
-        mole = self.sta_loader(name_filter).molecules
+        mole = self.sta_loader(name_filter, curvature).molecules
         return mole
 
     def iter_splines(self) -> Iterable[tuple[SplineKey, CylSpline]]:

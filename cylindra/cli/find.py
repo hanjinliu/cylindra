@@ -19,12 +19,14 @@ class ParserFind(_ParserBase):
         )
         self.add_argument(
             "--date-before",
+            "--lt",
             type=int,
             default=999999,
             help="Date in YYMMDD format. date < date-before will be shown.",
         )
         self.add_argument(
             "--date-after",
+            "--gt",
             type=int,
             default=0,
             help="Date in YYMMDD format. date > date-after will be shown.",
@@ -33,17 +35,20 @@ class ParserFind(_ParserBase):
             "--called",
             type=str,
             default=None,
-            help="Projects that called the method will be shown.",
+            help="Projects that called the given method will be shown.",
         )
         self.add_argument(
             "--props",
+            "-p",
             type=str,
             default=None,
-            help="Polars expression for spline global properties to filter output.",
+            nargs="*",
+            help="Polars expression for spline global properties to filter output. If multiple expressions are given, they will be combined with `&`.",
         )
         self.add_argument(
             "--absolute", "--abs", action="store_true", help="Show absolute path."
         )
+        self.add_argument("--image", action="store_true", help="Show image path.")
 
     def run_action(
         self,
@@ -51,15 +56,21 @@ class ParserFind(_ParserBase):
         date_before: int = 999999,
         date_after: int = 0,
         called: str | None = None,
-        props: str | None = None,
+        props: list[str] = [],
         absolute: bool = False,
+        image: bool = False,
     ):
+        import rich
+
         if called is not None:
             if called.startswith("ui."):
                 called = called[3:]
             ptn = re.compile(rf".*ui\.{called}\(.*\).*", flags=re.DOTALL)
         if props:
-            pl_props = get_polars_expr(props)
+            pl_props = get_polars_expr(props[0])
+            if len(props) > 1:
+                for p in props[1:]:
+                    pl_props = pl_props & get_polars_expr(p)
 
         for fp in glob(pattern, recursive=True):
             path = Path(fp)
@@ -92,9 +103,11 @@ class ParserFind(_ParserBase):
             if absolute:
                 path = path.absolute()
             if path.name == "project.json":
-                print(path.parent.as_posix())
+                rich.print(f"[cyan]{path.parent.as_posix()}[/cyan]")
             else:
-                print(path.as_posix())
+                rich.print(f"[cyan]{path.as_posix()}[/cyan]")
+            if image and (img_path := prj.image) is not None:
+                print(f"[image] {Path(img_path).as_posix()}")
 
 
 def get_date(s: str) -> int:

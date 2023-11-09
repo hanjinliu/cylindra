@@ -23,6 +23,7 @@ from magicclass.widgets import ConsoleTextEdit
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.polars import DataFrameView
 
+import numpy as np
 import impy as ip
 
 from cylindra.const import nm, ALN_SUFFIX, MoleculesHeader as Mole
@@ -147,7 +148,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
             return []
 
     def _get_template_path(self, _=None):
-        return self.params.template_path
+        return self.params.template_path.value
 
     def _get_mask_params(self, _=None):
         return self.params._get_mask_params()
@@ -344,7 +345,10 @@ class BatchSubtomogramAveraging(MagicTemplate):
     def calculate_fsc(
         self,
         loader_name: Annotated[str, {"bind": _get_current_loader_name}],
-        mask_params: Annotated[Any, {"bind": _get_mask_params}],
+        template_path: Annotated[
+            str | Path | None, {"bind": _get_template_path}
+        ] = None,
+        mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         size: _SubVolumeSize = None,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
@@ -370,21 +374,19 @@ class BatchSubtomogramAveraging(MagicTemplate):
             at frequency 0.01, 0.03, 0.05, ..., 0.45.
         """
         t0 = timer()
-        loaderlist = self._get_parent()._loaders
-        loader = loaderlist[loader_name].loader
-        shape = self._get_shape_in_px(size, loader)
-        loader = loader.replace(output_shape=shape, order=interpolation)
-        if mask_params is None:
-            mask = None
-        else:
-            _, mask = loader.normalize_input(
-                template=self.params._norm_template_param(allow_none=True),
-                mask=self.params._get_mask(params=mask_params),
-            )
+        loader = self._get_parent()._loaders[loader_name].loader
+        loader = loader.replace(order=interpolation)
 
-        fsc, avg = loader.reshape(mask=mask, shape=shape).fsc_with_average(
-            mask=mask, seed=seed, n_set=n_pairs, dfreq=dfreq
+        template, mask = loader.normalize_input(
+            template=self.params._norm_template_param(template_path, allow_none=True),
+            mask=self.params._get_mask(params=mask_params),
         )
+
+        fsc, avg = loader.reshape(
+            template=template,
+            mask=mask,
+            shape=None if size is None else self._get_shape_in_px(size, loader),
+        ).fsc_with_average(mask=mask, seed=seed, n_set=n_pairs, dfreq=dfreq)
 
         if show_average:
             img_avg = ip.asarray(avg, axes="zyx").set_scale(zyx=loader.scale)
@@ -491,26 +493,22 @@ class BatchSubtomogramAveraging(MagicTemplate):
     @do_not_record
     def show_template(self):
         """Load and show template image in the scale of the tomogram."""
-        loader = self._get_parent()._loaders[self.loader_name].loader
-        template, _ = loader.normalize_input(self.params._norm_template_param())
-        if template is None:
-            raise ValueError("No template to show.")
-        template = ip.asarray(template, axes="zyx").set_scale(
-            zyx=loader.scale, unit="nm"
-        )
+        template = self._get_template_image()
         self._show_rec(template, name="Template image", store=False)
 
     @set_design(icon="material-symbols:view-in-ar", location=STATools)
     @do_not_record
     def show_template_original(self):
         """Load and show template image in the original scale."""
-        path = self.params.template_path.value
-        if path is None:
-            return self.show_template()
-        if path.is_dir():
-            raise TypeError(f"Template image must be a file, got {path}.")
-        template = ip.imread(path)
-        self._show_rec(template, name="Template image", store=False)
+        _input = self.params._get_template_input(allow_multiple=True)
+        if _input is None:
+            raise ValueError("No template path provided.")
+        elif isinstance(_input, Path):
+            self._show_rec(ip.imread(_input), name="Template image", store=False)
+        else:
+            for i, fp in enumerate(_input):
+                img = ip.imread(fp)
+                self._show_rec(img, name=f"Template image [{i}]", store=False)
 
     @set_design(icon="fluent:shape-organic-20-filled", location=STATools)
     @do_not_record
@@ -533,10 +531,24 @@ class BatchSubtomogramAveraging(MagicTemplate):
         self, default: "nm | None", loader: BatchLoader
     ) -> tuple[int, ...]:
         if default is None:
-            tmp = loader.normalize_template(self.params._norm_template_param())
-            return tmp.shape
+            tmp = self._get_template_image()
+            return tmp.sizesof("zyx")
         else:
             return (roundint(default / loader.scale),) * 3
+
+    def _get_template_image(self) -> ip.ImgArray:
+        scale = self._get_parent()._loaders[self.loader_name].loader.scale
+
+        template = self.params._norm_template_param(
+            self.params._get_template_input(allow_multiple=True),
+            allow_none=False,
+            allow_multiple=True,
+        ).provide(scale)
+        if isinstance(template, list):
+            template = ip.asarray(np.stack(template, axis=0), axes="zyx")
+        else:
+            template = ip.asarray(template, axes="zyx")
+        return template.set_scale(zyx=scale, unit="nm")
 
     @setup_function_gui(split_loader)
     def _(self, gui):

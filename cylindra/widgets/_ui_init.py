@@ -143,6 +143,7 @@ def _preview_map_monomers_with_extensions(
         layer.molecules = out
     else:
         layer = self.add_molecules(out, name=PREVIEW_LAYER_NAME)
+        layer.view_ndim = 2
         layer.text = {"string": "{pf-id}"}
     layer.face_color = "crimson"
     is_active = yield
