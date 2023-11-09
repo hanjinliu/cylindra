@@ -16,7 +16,7 @@ def create_microtubule(ui: CylindraMainWidget):
     ui.simulator.create_empty_image(size=(60.0, 180.0, 60.0), scale=0.25)
     initialize_molecules(ui)
     layer = ui.mole_layers.last()
-    dtheta = 0.1
+    dtheta = 0.04
     ui.simulator.displace(
         layer, twist=pl.when(pl.col("isotype-id").eq(1)).then(-dtheta).otherwise(dtheta)
     )

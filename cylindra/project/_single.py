@@ -249,11 +249,13 @@ class CylindraProject(BaseProject):
 
         return out
 
-    def load_spline(self, dir: Path, idx: int) -> "CylSpline":
+    def load_spline(self, dir: Path, idx: int, props: bool = True) -> "CylSpline":
         """Load the spline with the given index."""
         from cylindra.components import CylSpline
 
         spl = CylSpline.from_json(dir / f"spline-{idx}.json")
+        if not props:
+            return spl
         localprops_path = self.localprops_path(dir)
         globalprops_path = self.globalprops_path(dir)
         if localprops_path.exists():
