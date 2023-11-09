@@ -9,21 +9,21 @@ def main(viewer=None, ignore_sys_exit: bool = False):
     cli.set_current_viewer(viewer)
     try:
         match argv:
-            case ("open", *args):
+            case "open", *args:
                 cli.ParserOpen().parse(args)
-            case ("preview", *args):
+            case "preview", *args:
                 cli.ParserPreview().parse(args)
-            case ("run", *args):
+            case "run", *args:
                 cli.ParserRun().parse(args)
-            case ("average", *args):
+            case "average", *args:
                 cli.ParserAverage().parse(args)
-            case ("new", *args):
+            case "new", *args:
                 cli.ParserNew().parse(args)
-            case ("config", *args):
+            case "config", *args:
                 cli.ParserConfig().parse(args)
-            case ("find", *args):
+            case "find", *args:
                 cli.ParserFind().parse(args)
-            case ("workflow", *args):
+            case "workflow", *args:
                 cli.ParserWorkflow().parse(args)
             case args:
                 cli.ParserNone().parse(args)
