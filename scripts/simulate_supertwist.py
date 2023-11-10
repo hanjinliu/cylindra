@@ -1,12 +1,10 @@
-import tempfile
-
-import polars as pl
-
-from magicclass.types import Path
-from magicclass.ext.polars import DataFrameView
 from cylindra import start
 from cylindra.widgets import CylindraMainWidget
 from cylindra.types import MoleculesLayer
+import tempfile
+import polars as pl
+from magicclass.types import Path
+from magicclass.ext.polars import DataFrameView
 import napari
 
 from scripts.user_consts import TEMPLATE_X
@@ -16,7 +14,7 @@ def create_microtubule(ui: CylindraMainWidget):
     ui.simulator.create_empty_image(size=(60.0, 180.0, 60.0), scale=0.25)
     initialize_molecules(ui)
     layer = ui.mole_layers.last()
-    dtheta = 0.04
+    dtheta = 0.02
     ui.simulator.displace(
         layer, twist=pl.when(pl.col("isotype-id").eq(1)).then(-dtheta).otherwise(dtheta)
     )
@@ -126,7 +124,6 @@ def show_dataframe(ui: CylindraMainWidget, df: pl.DataFrame):
 
 def main():
     ui = start()
-    ui.OthersMenu.configure_dask(num_workers=6)
     create_microtubule(ui)
     mole_ans = ui.mole_layers.first().molecules
     ans = flat_agg(mole_ans.features, "_ans")
