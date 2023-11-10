@@ -10,7 +10,7 @@ import polars as pl
 from magicclass import testing as mcls_testing, get_function_gui
 from magicclass.utils import thread_worker
 
-from cylindra import view_project, _config, cylstructure
+from cylindra import view_project, _config, cylmeasure
 from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets.sta import MaskChoice
 from cylindra.const import (
@@ -1037,7 +1037,7 @@ def test_calc_misc(ui: CylindraMainWidget):
     ui.mole_layers.clear()
     ui.map_monomers(splines=[0])
     layer = ui.mole_layers.last()
-    all_props = cylstructure.LatticeParameters.choices()
+    all_props = cylmeasure.LatticeParameters.choices()
     ui.calculate_lattice_structure(layer=layer, props=all_props)
     assert layer.features[Mole.radius].std() < 0.1
     ui.paint_molecules(layer, color_by=Mole.nth, limits=(0, 10))

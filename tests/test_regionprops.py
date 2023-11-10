@@ -1,6 +1,8 @@
 import numpy as np
 from numpy.testing import assert_allclose
-from cylindra._cylindra_ext import RegionProfiler
+from cylindra.cylmeasure import RegionProfiler
+from acryo import Molecules
+from cylindra.components import CylSpline
 
 
 def test_length_and_width():
@@ -34,22 +36,16 @@ def test_length_and_width_at_boundary():
 
 
 def test_length_and_width_non_regular():
-    nth = (
-        np.array(
-            [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5],
-            dtype=np.int32,
-        )
-        - 1
-    )
-    npf = np.array(
-        [0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0],
-        dtype=np.int32,
-    )
-    values = np.zeros(21, dtype=np.float32)
-    labels = np.array(
-        [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 2, 2, 2, 2, 0], dtype=np.uint32
-    )
-    reg = RegionProfiler.from_features(nth, npf, values, labels, 4, 1)
+    features = {
+        "nth": [-1, -1, -1, -1, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4],
+        "pf-id": [0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0],
+        "values": [0] * 21,
+        "labels": [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 2, 2, 2, 2, 0],
+    }
+    mole = Molecules(np.zeros((21, 3), dtype=np.float32), features=features)
+    spl = CylSpline(config={"rise_sign": 1})
+    spl.props.update_glob(npf=4, start=1, radius=1)
+    reg = RegionProfiler.from_components(mole, spl, "values", "labels")
     result = reg.calculate(["length", "width"])
     assert_allclose(result["length"], [2, 1])
     assert_allclose(result["width"], [3, 4])

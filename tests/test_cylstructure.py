@@ -1,6 +1,6 @@
 import numpy as np
 from numpy.testing import assert_allclose
-from cylindra.cylstructure import LatticeParameters
+from cylindra.cylmeasure import LatticeParameters
 from cylindra.components import CylSpline, CylinderModel, indexer as Idx
 
 

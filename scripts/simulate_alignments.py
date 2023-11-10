@@ -11,7 +11,7 @@ import numpy as np
 from acryo import Molecules
 from cylindra.widgets import CylindraMainWidget
 from cylindra.const import MoleculesHeader as Mole
-from cylindra.cylstructure import calc_lateral_interval
+from cylindra.cylmeasure import calc_lateral_interval
 from cylindra.types import MoleculesLayer
 
 import polars as pl

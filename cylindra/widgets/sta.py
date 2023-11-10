@@ -36,7 +36,7 @@ import impy as ip
 import polars as pl
 import napari
 
-from cylindra import utils, _config, cylstructure, widget_utils
+from cylindra import utils, _config, cylmeasure, widget_utils
 from cylindra.types import MoleculesLayer
 from cylindra.const import (
     ALN_SUFFIX,
@@ -820,7 +820,7 @@ class SubtomogramAveraging(ChildWidget):
             if spl := layer.source_spline:
                 _mole_trans = _update_mole_pos(_mole_trans, mole, spl)
                 if spl.radius is None:
-                    _radius: nm = cylstructure.calc_radius(mole, spl).mean()
+                    _radius: nm = cylmeasure.calc_radius(mole, spl).mean()
                 else:
                     _radius = spl.radius
                 _dz, _dy, _dx = rotator.apply(svec)

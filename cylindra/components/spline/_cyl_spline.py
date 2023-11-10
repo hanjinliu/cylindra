@@ -124,8 +124,13 @@ class CylSpline(Spline):
 
     def nrise(self, **kwargs) -> int:
         """Raw start number (minus for microtubule)"""
-        cp = self.cylinder_params(**kwargs)
-        return cp.start * cp.rise_sign
+        if H.start in kwargs:
+            start = kwargs[H.start]
+        elif H.start in self.props.glob.columns:
+            start = self.props.get_glob(H.start)
+        else:
+            start = self.cylinder_params(**kwargs).start
+        return start * self.config.rise_sign
 
     def cylinder_params(self, **kwargs) -> CylinderParameters:
         """Get the cylinder parameters of the spline."""

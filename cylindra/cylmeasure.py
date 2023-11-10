@@ -1,13 +1,14 @@
 from __future__ import annotations
 from enum import Enum
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable
 import numpy as np
 from numpy.typing import NDArray
 import polars as pl
 from acryo import Molecules
 
 from cylindra.const import MoleculesHeader as Mole, PropertyNames as H
+from cylindra._cylindra_ext import RegionProfiler as _RegionProfiler
 
 if TYPE_CHECKING:
     from cylindra.components import CylSpline
@@ -269,6 +270,109 @@ class CylinderSurface:
 def _arcsin(x: NDArray[np.float32]) -> NDArray[np.float32]:
     """arcsin with clipping."""
     return np.arcsin(x.clip(-1, 1))
+
+
+class RegionProfiler:
+    CHOICES = [
+        "area", "length", "width", "sum", "mean", "median", "max", "min", "std",
+    ]  # fmt: skip
+
+    def __init__(self, rust_obj: _RegionProfiler) -> None:
+        self._rust_obj = rust_obj
+
+    @classmethod
+    def from_arrays(
+        cls,
+        image: NDArray[np.float32],
+        label_image: NDArray[np.uint32],
+        nrise: int,
+    ) -> RegionProfiler:
+        return cls(_RegionProfiler.from_arrays(image, label_image, nrise))
+
+    @classmethod
+    def from_components(
+        cls,
+        mole: Molecules,
+        spl: CylSpline,
+        target: str = "nth",
+        label: str = "pf-id",
+    ) -> RegionProfiler:
+        """
+        Construct a region profiler from molecules and splines.
+
+        Parameters
+        ----------
+        mole : Molecules
+            Molecules to be profiled. Must have features "nth", "pf-id".
+        spl : CylSpline
+            Spline from which the molecules are generated.
+        target : str, optional
+            Column name of the target values. This is not needed if properties that
+            do not require target values are to be calculated.
+        label : str
+            Column name of the label values. Must be an integer column.
+
+        Returns
+        -------
+        RegionProfiler
+            _description_
+        """
+        feat = mole.features
+        if feat[label].dtype not in [pl.UInt8, pl.UInt16, pl.UInt32, pl.UInt64]:
+            raise TypeError(
+                f"label must be an unsigned integer column, got {feat[label].dtype}."
+            )
+        nth = feat[Mole.nth].cast(pl.Int32).to_numpy()
+        pf = feat[Mole.pf].cast(pl.Int32).to_numpy()
+        values = feat[target].cast(pl.Float32).to_numpy()
+        labels = feat[label].cast(pl.UInt32).to_numpy()
+        nrise = spl.nrise()
+        npf = spl.props.get_glob(H.npf)
+
+        reg = _RegionProfiler.from_features(nth, pf, values, labels, npf, nrise)
+
+        return cls(reg)
+
+    def calculate(self, props: Iterable[str], *more_props: str) -> pl.DataFrame:
+        """
+        Calculate properties for each region.
+
+        Parameters
+        ----------
+        props : str or list of str
+            Property names. Must be chosen from following:
+            - area: total number of molecules.
+            - length: longitudinal length of the region.
+            - width: lateral width of the region.
+            - sum: sum of target values.
+            - mean: mean of target values.
+            - median: median of target values.
+            - max: max of target values.
+            - min: min of target values.
+            - std: standard deviation of target values.
+
+        Returns
+        -------
+        pl.DataFrame
+            DataFrame with columns corresponding to the given property names.
+        """
+        if isinstance(props, str):
+            all_props = [props, *more_props]
+        else:
+            if more_props:
+                raise TypeError(
+                    "Must be calculate(str, str, ...) or calculate([str, str, ...])"
+                )
+            all_props = list(props)
+        props = list(props)
+        # NOTE: output dict is not sorted
+        out = self._rust_obj.calculate(all_props)
+        return pl.DataFrame({k: out[k] for k in all_props})
+
+    def n_regions(self) -> int:
+        """Number of regions."""
+        _area = "area"
+        return self._rust_obj.calculate([_area])[_area].size
 
 
 class LatticeParameters(Enum):

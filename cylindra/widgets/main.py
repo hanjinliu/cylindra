@@ -28,7 +28,7 @@ from magicclass.undo import undo_callback
 
 from napari.layers import Layer
 
-from cylindra import utils, _config, cylstructure, widget_utils
+from cylindra import utils, _config, cylmeasure, widget_utils
 from cylindra.components import CylSpline, CylTomogram, SplineConfig
 from cylindra.const import (
     PREVIEW_LAYER_NAME,
@@ -1357,7 +1357,7 @@ class CylindraMainWidget(MagicTemplate):
             _splines.append(spl)
             mole = layer.molecules
             df = mole.features
-            _radius_df.append(df.with_columns(cylstructure.calc_radius(mole, spl)))
+            _radius_df.append(df.with_columns(cylmeasure.calc_radius(mole, spl)))
 
         if _duplicated:
             _layer_names = ", ".join(repr(l.name) for l in layers)
@@ -2084,7 +2084,7 @@ class CylindraMainWidget(MagicTemplate):
     def calculate_lattice_structure(
         self,
         layer: MoleculesLayerType,
-        props: Annotated[list[str], {"widget_type": CheckBoxes, "choices": cylstructure.LatticeParameters.choices()}] = ("spacing",),
+        props: Annotated[list[str], {"widget_type": CheckBoxes, "choices": cylmeasure.LatticeParameters.choices()}] = ("spacing",),
     ):  # fmt: skip
         """
         Calculate lattice structures and store the results as new feature columns.
@@ -2101,7 +2101,7 @@ class CylindraMainWidget(MagicTemplate):
         feat = mole.features
 
         def _calculate(p: str):
-            return cylstructure.LatticeParameters(p).calculate(mole, spl)
+            return cylmeasure.LatticeParameters(p).calculate(mole, spl)
 
         layer.molecules = layer.molecules.with_features([_calculate(p) for p in props])
         self.reset_choices()  # choices regarding of features need update
@@ -2123,7 +2123,7 @@ class CylindraMainWidget(MagicTemplate):
         spl = _assert_source_spline_exists(layer)
         mole = layer.molecules
         feat = mole.features
-        new_feat_col = cylstructure.calc_curve_index(mole, spl)
+        new_feat_col = cylmeasure.calc_curve_index(mole, spl)
         layer.molecules = layer.molecules.with_features(new_feat_col)
         self.reset_choices()
         return undo_callback(layer.feature_setter(feat))
@@ -2274,7 +2274,7 @@ class CylindraMainWidget(MagicTemplate):
         layer: MoleculesLayerType,
         target: Annotated[str, {"choices": _choice_getter("regionprops_features", dtype_kind="uif")}],
         label: Annotated[str, {"choices": _choice_getter("regionprops_features", dtype_kind="ui")}],
-        properties: Annotated[list[str], {"choices": REGIONPROPS_CHOICES, "widget_type": CheckBoxes}] = ("area", "mean"),
+        properties: Annotated[list[str], {"choices": cylmeasure.RegionProfiler.CHOICES, "widget_type": CheckBoxes}] = ("area", "mean"),
     ):  # fmt: skip
         """
         Analyze region properties using another feature column as the labels.
@@ -2291,23 +2291,17 @@ class CylindraMainWidget(MagicTemplate):
         properties : list of str
             Properties to calculate.
         """
-        from cylindra._cylindra_ext import RegionProfiler
         from magicclass.ext.polars import DataFrameView
 
         layer = assert_layer(layer, self.parent_viewer)
         utils.assert_column_exists(
             layer.molecules.features, [target, label, Mole.nth, Mole.pf]
         )
-        feat = layer.molecules.features
-        nth = feat[Mole.nth].cast(pl.Int32).to_numpy()
-        pf = feat[Mole.pf].cast(pl.Int32).to_numpy()
-        values = feat[target].cast(pl.Float32).to_numpy()
-        labels = feat[label].cast(pl.UInt32).to_numpy()
-        nrise = _assert_source_spline_exists(layer).nrise()
-        npf = _assert_source_spline_exists(layer).props.get_glob(H.npf)
-
-        reg = RegionProfiler.from_features(nth, pf, values, labels, npf, nrise)
-        df = pl.DataFrame(reg.calculate(properties))
+        spl = _assert_source_spline_exists(layer)
+        reg = cylmeasure.RegionProfiler.from_components(
+            layer.molecules, spl, target, label
+        )
+        df = reg.calculate(properties)
         view = DataFrameView(value=df)
         dock = self.parent_viewer.window.add_dock_widget(view, name="Region properties")
         dock.setFloating(True)
