@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 import warnings
-from typing import TYPE_CHECKING, Any, NamedTuple, TypedDict
+from typing import TYPE_CHECKING, Any, Callable, NamedTuple, TypedDict
 import weakref
 
 import polars as pl
@@ -47,6 +47,8 @@ class CmapDict(TypedDict):
 
 
 class _FeatureBoundLayer:
+    _property_filter: Callable[[str], bool]
+
     def get_status(
         self,
         position: tuple | None = None,
@@ -111,7 +113,7 @@ class _FeatureBoundLayer:
 
         out = []
         for k, col in self.features.items():
-            if k == "index" or len(col) <= value:
+            if k == "index" or len(col) <= value or not self._property_filter(k):
                 continue
             val = col[value]
             if isinstance(val, np.floating) and not np.isnan(val):
@@ -174,6 +176,7 @@ class MoleculesLayer(_FeatureBoundLayer, Points, _SourceBoundLayer):
         if isinstance(col := kwargs.get("face_color"), str):
             self._colormap_info = col
         self._source_component: weakref.ReferenceType[BaseComponent] | None = None
+        self._property_filter = lambda _: True
         self._old_name: str | None = None  # for undo/redo
         self._undo_renaming = False
         self._view_ndim = 3
@@ -399,6 +402,7 @@ class CylinderLabels(_FeatureBoundLayer, Labels):
 
     def __init__(self, data, **kwargs):
         self._colormap_info: ColormapInfo | None = None
+        self._property_filter = lambda _: True
         super().__init__(data, **kwargs)
 
     def set_colormap(self, by: str, limits: tuple[float, float], cmap: Any):

@@ -1,13 +1,53 @@
 from __future__ import annotations
 
 import re
+import json
 from glob import glob
 from pathlib import Path
 from cylindra.core import read_project
-from cylindra.cli._base import _ParserBase, get_polars_expr
+from cylindra.cli._base import ParserBase, get_polars_expr
 
 
-class ParserFind(_ParserBase):
+class ParserFind(ParserBase):
+    """
+    cylindra find [bold green]pattern[/bold green] [bold yellow]options[/bold yellow] [bold cyan]flags[/bold cyan]
+
+    [u bold green]pattern[/u bold green] (positional)
+        File pattern to match projects.
+        e.g. `cylindra find **/*.tar`
+
+    [u bold yellow]options[/u bold yellow]
+        --date-before, --lt [grey50]DATE[/grey50]
+            Date in YYMMDD format.
+            DATE < date-before will be shown.
+
+        --date-after, --gt [grey50]DATE[/grey50]
+            Date in YYMMDD format.
+            DATE > date-after will be shown.
+
+        --called [grey50]METHOD[/grey50]
+            Projects that called METHOD will be shown.
+            e.g. `cylindra find --called filter_molecules`
+
+        --props, -p [grey50]EXPR0, EXPR1, ...[grey50]
+            Polars expression to filter.
+            e.g. `cylindra find --props "col('npf')==13"`
+            e.g. `cylindra find --props "col('npf')==13" "col('start')==3"`
+
+    [u bold cyan]flags[/u bold cyan]
+        --absolute, --abs
+            Show absolute path.
+
+        --image
+            Show image path.
+
+        --config
+            Show config content.
+
+        --description, --desc
+            Show project description.
+    """
+
     def __init__(self):
         super().__init__(prog="cylindra find", description="Find projects.")
         self.add_argument(
@@ -22,20 +62,17 @@ class ParserFind(_ParserBase):
             "--lt",
             type=int,
             default=999999,
-            help="Date in YYMMDD format. date < date-before will be shown.",
         )
         self.add_argument(
             "--date-after",
             "--gt",
             type=int,
             default=0,
-            help="Date in YYMMDD format. date > date-after will be shown.",
         )
         self.add_argument(
             "--called",
             type=str,
             default=None,
-            help="Projects that called the given method will be shown.",
         )
         self.add_argument(
             "--props",
@@ -43,12 +80,15 @@ class ParserFind(_ParserBase):
             type=str,
             default=None,
             nargs="*",
-            help="Polars expression for spline global properties to filter output. If multiple expressions are given, they will be combined with `&`.",
         )
+        self.add_argument("--absolute", "--abs", action="store_true")
+        self.add_argument("--image", action="store_true")
+        self.add_argument("--config", action="store_true")
         self.add_argument(
-            "--absolute", "--abs", action="store_true", help="Show absolute path."
+            "--description",
+            "--desc",
+            action="store_true",
         )
-        self.add_argument("--image", action="store_true", help="Show image path.")
 
     def run_action(
         self,
@@ -59,6 +99,9 @@ class ParserFind(_ParserBase):
         props: list[str] = [],
         absolute: bool = False,
         image: bool = False,
+        config: bool = False,
+        description: bool = False,
+        **kwargs,
     ):
         import rich
 
@@ -100,14 +143,22 @@ class ParserFind(_ParserBase):
                     else:
                         continue
 
-            if absolute:
-                path = path.absolute()
-            if path.name == "project.json":
-                rich.print(f"[cyan]{path.parent.as_posix()}[/cyan]")
-            else:
-                rich.print(f"[cyan]{path.as_posix()}[/cyan]")
-            if image and (img_path := prj.image) is not None:
-                print(f"[image] {Path(img_path).as_posix()}")
+                if absolute:
+                    path = path.absolute()
+                if path.name == "project.json":
+                    rich.print(f"[bold cyan]{path.parent.as_posix()}[/bold cyan]")
+                else:
+                    rich.print(f"[bold cyan]{path.as_posix()}[/bold cyan]")
+                if image and (img_path := prj.image) is not None:
+                    print(f"[image] {Path(img_path).as_posix()}")
+                if config and (cpath := prj.default_spline_config_path(d)).exists():
+                    txt = json.loads(cpath.read_text().strip())
+                    print(f"[config] {txt}")
+                if description:
+                    if prj.project_description:
+                        print(rf"\[description] [gray]{prj.project_description}[/gray]")
+                    else:
+                        rich.print(r"\[description] [italic]no description[/italic]")
 
 
 def get_date(s: str) -> int:

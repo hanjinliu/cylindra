@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 import glob
-from cylindra.cli._base import _ParserBase
+from cylindra.cli._base import ParserBase
 from pathlib import Path
 from cylindra.core import read_project, view_project
 
@@ -29,8 +29,20 @@ class ShowScriptAction(argparse.Action):
         return parser.exit()
 
 
-class ParserPreview(_ParserBase):
-    """cylindra preview <path>"""
+class ParserPreview(ParserBase):
+    """
+    cylindra preview [bold green]path[/bold green] [bold cyan]options[/bold cyan]
+
+    [u bold green]path[/u bold green]
+        Path to the project/image file.
+
+    [u bold cyan]options[/u bold cyan]
+        [bold]--script, -s[/bold]
+            Only preview script.py content.
+
+        [bold]--wrap[/bold]
+            Enable word wrap.
+    """
 
     def __init__(self):
         super().__init__(
@@ -42,12 +54,10 @@ class ParserPreview(_ParserBase):
             "-s",
             nargs="*",
             action=ShowScriptAction,
-            help="Only preview script.py content.",
         )
-        self.add_argument("--wrap", action="store_true", help="Enable word wrap.")
+        self.add_argument("--wrap", action="store_true")
 
     def run_action(self, path: str, **kwargs):
-        from cylindra._previews import view_tables, view_image
         from magicgui.application import use_app
 
         _path = Path(path)
@@ -58,12 +68,16 @@ class ParserPreview(_ParserBase):
                 print(f"Previewing project: {_path.as_posix()}")
                 view_project(_path)
             case ".tif" | ".tiff" | ".mrc" | ".map":
+                from cylindra._previews import view_image
+
                 print(f"Previewing image: {_path.as_posix()}")
                 if "*" in _path.as_posix():
                     view_image(glob(_path.as_posix()))
                 else:
                     view_image(_path)
             case ".csv" | ".parquet":
+                from cylindra._previews import view_tables
+
                 print(f"Previewing table: {_path.as_posix()}")
                 if "*" in _path.as_posix():
                     view_tables(glob(_path.as_posix()))

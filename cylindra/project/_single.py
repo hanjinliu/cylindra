@@ -78,7 +78,12 @@ class CylindraProject(BaseProject):
             project_path=project_path,
         )
 
-    def save(self, project_dir: Path):
+    def save(
+        self,
+        project_dir: Path,
+        molecules: "dict[str, Molecules]" = {},
+    ) -> None:
+        """Save this project."""
         from macrokit import parse
 
         path = Path(self.image).as_posix()
@@ -92,7 +97,15 @@ class CylindraProject(BaseProject):
             )
             expr = as_main_function(expr_open)
             self.script_py_path(results_dir).write_text(expr)
-            self.to_json(self.project_json_path(results_dir))
+            self_copy = self.copy()
+            for name, mole in molecules.items():
+                save_path = results_dir / name
+                if save_path.suffix == "":
+                    save_path = save_path.with_suffix(".csv")
+                self_copy.molecules_info.append(MoleculesInfo(name=save_path.name))
+                mole.to_file(save_path)
+            self_copy.to_json(self.project_json_path(results_dir))
+        return None
 
     @classmethod
     def from_gui(

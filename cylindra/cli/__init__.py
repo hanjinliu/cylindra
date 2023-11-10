@@ -9,7 +9,7 @@ from .open import ParserOpen
 from .preview import ParserPreview
 from .run import ParserRun
 from .workflow import ParserWorkflow
-from ._base import _ParserBase
+from ._base import ParserBase
 
 __all__ = [
     "ParserAverage",
@@ -26,4 +26,4 @@ __all__ = [
 
 
 def set_current_viewer(viewer):
-    _ParserBase.viewer = viewer
+    ParserBase.viewer = viewer

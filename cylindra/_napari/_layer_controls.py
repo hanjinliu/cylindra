@@ -3,11 +3,16 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from enum import Enum
 from contextlib import contextmanager
+from fnmatch import fnmatch
 from qtpy import QtCore, QtWidgets as QtW
 from qtpy.QtCore import Qt
 from superqt import QEnumComboBox, QLabeledDoubleSlider
+
+import napari
 from napari._qt.layer_controls.qt_surface_controls import QtSurfaceControls
 from napari._qt.layer_controls.qt_points_controls import QtPointsControls
+
+from magicclass.ext.polars import DataFrameView
 
 if TYPE_CHECKING:
     from qtpy.QtWidgets import QFormLayout
@@ -33,7 +38,9 @@ class QtMoleculesControls(QtPointsControls):
 
     def __init__(self, layer: MoleculesLayer) -> None:
         super().__init__(layer)
-        # hide unnecessary buttons to avoid mutable operations
+        # hide buttons to avoid mutable operations
+        self.panzoom_button.hide()
+        self.select_button.hide()
         self.addition_button.hide()
         self.delete_button.hide()
 
@@ -41,7 +48,7 @@ class QtMoleculesControls(QtPointsControls):
         self.faceColorEdit.color_changed.connect(self._change_face_color)
 
         slider = QLabeledDoubleSlider(orientation=Qt.Orientation.Horizontal)
-        slider.setRange(0.1, 12)
+        slider.setRange(0.1, 12.0)
         slider.setSingleStep(0.02)
         slider.setValue(layer.point_size)
         slider.setToolTip("Point size of all the molecules")
@@ -55,6 +62,27 @@ class QtMoleculesControls(QtPointsControls):
         layout: QFormLayout = self.layout()
         layout.addRow("point size:", self.pointSizeSlider)
         layout.addRow("view mode:", self.dimComboBox)
+
+        btns = QtW.QHBoxLayout()
+        self.showFeatureButton = QtW.QPushButton("show", self)
+        self.showFeatureButton.setToolTip("Show features of the molecules in a table")
+        self.showFeatureButton.clicked.connect(self._show_features)
+        btns.addWidget(self.showFeatureButton)
+        self.copyFeatureButton = QtW.QPushButton("copy", self)
+        self.copyFeatureButton.setToolTip("Copy features of the molecules to clipboard")
+        self.copyFeatureButton.clicked.connect(self._copy_features)
+        btns.addWidget(self.copyFeatureButton)
+        layout.addRow("features:", btns)
+
+        self.propertyFilter = QtW.QLineEdit()
+        self.propertyFilter.setPlaceholderText("Filter status tip ...")
+        self.propertyFilter.setToolTip(
+            "Filter the mouse-hover status tip by the column name.\n"
+            "e.g. 'align-* will match all columns starting with 'align-'\n"
+        )
+        self.propertyFilter.editingFinished.connect(self._set_property_filter)
+        layout.addRow("filter status:", self.propertyFilter)
+
         layout.removeRow(self.sizeSlider)
         layout.removeRow(self.symbolComboBox)
         layout.removeRow(self.edgeColorEdit)
@@ -85,6 +113,25 @@ class QtMoleculesControls(QtPointsControls):
 
     def _on_current_face_color_change(self):
         pass
+
+    def _show_features(self):
+        df = self.layer.molecules.features
+        table = DataFrameView(value=df)
+
+        napari.current_viewer().window.add_dock_widget(
+            table, area="left", name="Molecule Features"
+        ).setFloating(True)
+
+    def _copy_features(self):
+        df = self.layer.features
+        df.to_clipboard(index=False)
+
+    def _set_property_filter(self):
+        text = self.propertyFilter.text()
+        if text:
+            self.layer._property_filter = lambda x: fnmatch(x, text)
+        else:
+            self.layer._property_filter = lambda _: True
 
 
 class QtLandscapeSurfaceControls(QtSurfaceControls):

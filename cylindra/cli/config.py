@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from pathlib import Path
 from glob import glob
 from cylindra.core import collect_projects
-from cylindra.cli._base import _ParserBase
+from cylindra.cli._base import ParserBase
 
 if TYPE_CHECKING:
     from cylindra.project import CylindraProject
@@ -20,19 +20,26 @@ class InitAction(argparse.Action):
         parser.exit()
 
 
+def list_all_configs():
+    import rich
+    from rich.panel import Panel
+    from cylindra._config import get_config
+
+    for path in get_config().list_config_paths():
+        with open(path) as f:
+            js = json.load(f)
+        assert isinstance(js, dict)
+
+        vals = list[str]()
+        for k, v in js.items():
+            vals.append(f" {k} = {v!r}")
+        title = f"[bold green]{path.stem}[/bold green]"
+        rich.print(Panel("\n".join(vals), title=title, border_style="green"))
+
+
 class ListAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        from cylindra._config import get_config
-        import rich
-
-        for path in get_config().list_config_paths():
-            with open(path) as f:
-                js = json.load(f)
-            assert isinstance(js, dict)
-
-            rich.print(f"[bold green]{path.stem}[/bold green]:")
-            for k, v in js.items():
-                print(f"    {k} = {v!r}")
+        list_all_configs()
         parser.exit()
 
 
@@ -57,28 +64,39 @@ class ImportAction(argparse.Action):
         print(f"Config file imported: {save_path.as_posix()}")
 
 
-class ParserConfig(_ParserBase):
+class ParserConfig(ParserBase):
+    """
+    cylindra config [bold green]path[/bold green] [bold cyan]options[/bold cyan]
+
+    [u bold green]path[/u bold green]
+        Path to the project/image file.
+
+    [u bold cyan]options[/u bold cyan]
+        [bold]--remove, -r[/bold]
+            Remove the configuration specific keyword arguments. If a project path is given, also remove the default configuration file.
+
+        [bold]--init, -i[/bold]
+            Initialize the default configuration directory. This operation will not remove the user-defined files
+
+        [bold]--list, -l[/bold]
+            List up all the available configurations.
+
+        [bold]--import[/bold]
+            Import a configuration from a file.
+    """
+
     def __init__(self):
         super().__init__(prog="cylindra config", description="Configure cylindra.")
         self.add_argument("path")
-        self.add_argument(
-            "--remove",
-            "-r",
-            action="store_true",
-            help="Remove the configuration specific keyword arguments. If a project path is given, also remove the default configuration file.",
-        )
-        self.add_argument(
-            "--init",
-            "-i",
-            action=InitAction,
-            nargs=0,
-            help="Initialize the default configuration directory. This operation will not remove the user-defined files",
-        )
+        self.add_argument("--remove", "-r", action="store_true")
+        self.add_argument("--init", "-i", action=InitAction, nargs=0)
         self.add_argument("--list", "-l", action=ListAction, nargs=0)
         self.add_argument("--import", action=ImportAction, nargs=0)
 
     def run_action(self, path: str, remove: bool = False, **kwargs):
         _path = Path(path)
+        if path == "list" and not _path.exists():
+            return list_all_configs()
         if remove:
             if _path.suffix == ".py":
                 if "*" in str(_path):

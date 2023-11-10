@@ -886,8 +886,6 @@ def test_molecules_methods(ui: CylindraMainWidget):
     ui.ImageMenu.show_colorbar(ui.mole_layers["Mole-0"], orientation="horizontal")
     ui.ImageMenu.show_colorbar(ui.mole_layers["Mole-0"], orientation="vertical")
 
-    ui.MoleculesMenu.View.change_dimensionality([ui.mole_layers["Mole-0"]], 2)
-
     tester = mcls_testing.FunctionGuiTester(ui.rename_molecules)
     tester.update_parameters(old="Mole", new="XYZ")
     tester = mcls_testing.FunctionGuiTester(ui.delete_molecules)
@@ -935,7 +933,6 @@ def test_molecule_features(ui: CylindraMainWidget):
     import polars as pl
 
     ui.load_project(PROJECT_DIR_14PF, filter=None)
-    ui.MoleculesMenu.View.show_molecule_features()
     layer = ui.mole_layers["Mole-0"]
     ui.filter_molecules("Mole-0", predicate='pl.col("position-nm") < 9.2')
     assert ui.mole_layers.last().features["position-nm"].max() < 9.2
@@ -1082,9 +1079,20 @@ def test_cli(make_napari_viewer):
         sys.argv = list(str(a) for a in args)
         main(viewer, ignore_sys_exit=True)
 
+    # test help
+    for cmd in [
+        "average",
+        "config",
+        "find",
+        "new",
+        "open",
+        "preview",
+        "run",
+        "workflow",
+    ]:
+        run_cli("cylindra", cmd, "--help")
     with thread_worker.blocking_mode():
         run_cli("cylindra")
-        run_cli("cylindra", "open", PROJECT_DIR_14PF / "project.json")
         run_cli("cylindra", "preview", PROJECT_DIR_14PF / "project.json")
         run_cli("cylindra", "preview", PROJECT_DIR_14PF / "project.json", "-s")
         run_cli("cylindra", "preview", TEST_DIR / "14pf_MT.tif")
@@ -1098,6 +1106,7 @@ def test_cli(make_napari_viewer):
                 "--missing_wedge", "-60", "50",
                 "--molecules", PROJECT_DIR_14PF / "Mole-*",
             )  # fmt: skip
+            run_cli("cylindra", "open", Path(dirpath) / "test-project")
         run_cli("cylindra", "config", "--list")
         run_cli("cylindra", "config", PROJECT_DIR_14PF, "--remove")
         run_cli("cylindra", "workflow", "--list")

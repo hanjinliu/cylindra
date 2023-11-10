@@ -1,56 +1,53 @@
 from __future__ import annotations
 
 from fnmatch import fnmatch
-from cylindra.cli._base import _ParserBase, coerce_output_filename, get_polars_expr
+from cylindra.cli._base import ParserBase, coerce_output_filename, get_polars_expr
 from cylindra.core import collect_projects
 
 
-class ParserAverage(_ParserBase):
+class ParserAverage(ParserBase):
+    """
+    cylindra average [bold green]project[/bold green] [bold cyan]options[/bold cyan]
+
+    [u bold green]project[/u bold green]
+        Path to the project file. Can be a pattern containing `*`.
+
+    [u bold cyan]options[/u bold cyan]
+        [bold]--molecules, -m[/bold]
+            File name pattern of molecules.
+
+        [bold]--size, -s[/bold]
+            Size of subtomograms in nm.
+
+        [bold]--output, -o[/bold]
+            Output file name for the averaged image.
+
+        [bold]--filter, -f[/bold]
+            Polars-style filter to apply to molecules.
+
+        [bold]--order[/bold]
+            Order of interpolation.
+
+        [bold]--split[/bold]
+            Split the averaging into two.
+
+        [bold]--seed[/bold]
+            Random seed used to determine the split.
+    """
+
     def __init__(self):
         super().__init__(prog="cylindra average", description="Average images.")
         self.add_argument(
             "project",
             type=str,
-            help="Path to the project file. Can be a pattern containing `*`.",
         )
-        self.add_argument(
-            "--molecules",
-            "-m",
-            type=str,
-            help="File name pattern of molecules.",
-        )
-        self.add_argument(
-            "--size",
-            "-s",
-            type=float,
-            help="Size of subtomograms in nm.",
-        )
-        self.add_argument(
-            "--output",
-            "-o",
-            type=str,
-            help="Output file name for the averaged image.",
-            default=None,
-        )
-        self.add_argument(
-            "--filter",
-            "-f",
-            type=str,
-            help="Polars-style filter to apply to molecules.",
-            default=None,
-        )
-        self.add_argument(
-            "--order", type=int, help="Order of interpolation.", default=1
-        )
-        self.add_argument(
-            "--split", action="store_true", help="Split the averaging into two."
-        )
-        self.add_argument(
-            "--seed",
-            type=int,
-            help="Random seed used to determine the split.",
-            default=None,
-        )
+        self.add_argument("--molecules", "-m", type=str)
+        self.add_argument("--size", "-s", type=float)
+        self.add_argument("--output", "-o", type=str, default=None)
+        self.add_argument("--filter", "-f", type=str, default=None)
+        self.add_argument("--order", type=int, default=1)
+        self.add_argument("--split", action="store_true")
+        self.add_argument("--seed", type=int, default=None)
 
     def run_action(
         self,
@@ -62,6 +59,7 @@ class ParserAverage(_ParserBase):
         order: int = 3,
         split: bool = False,
         seed: int | None = None,
+        **kwargs,
     ):
         import impy as ip
 

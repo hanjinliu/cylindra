@@ -2,14 +2,14 @@ from typing import Annotated, Any
 import numpy as np
 import pandas as pd
 
-from magicclass import magicmenu
+from magicclass import magicmenu, set_design
 from magicclass.types import Path
 from acryo import Molecules
 import impy as ip
 
 from cylindra.types import get_monomer_layers, MoleculesLayer
 from cylindra.const import FileFilter
-from cylindra.widget_utils import add_molecules
+from cylindra.widget_utils import add_molecules, capitalize
 from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 
@@ -17,6 +17,7 @@ from cylindra.widgets.subwidgets._child_widget import ChildWidget
 class PEET(ChildWidget):
     """File IO for PEET software."""
 
+    @set_design(text=capitalize)
     def read_monomers(
         self,
         mod_path: Annotated[Path.Read[FileFilter.MOD], {"label": "Path to MOD file"}],
@@ -49,6 +50,7 @@ class PEET(ChildWidget):
             self.parent_viewer, mol, "Molecules from PEET", source=None
         )
 
+    @set_design(text=capitalize)
     def save_monomers(self, save_dir: Path.Dir, layer: MoleculesLayer):
         """
         Save monomer positions and angles in the PEET format.
@@ -64,6 +66,7 @@ class PEET(ChildWidget):
         mol = layer.molecules
         return _save_molecules(save_dir=save_dir, mol=mol, scale=self.scale)
 
+    @set_design(text=capitalize)
     def save_all_monomers(self, save_dir: Path.Dir):
         """
         Save monomer angles in PEET format.
@@ -80,6 +83,7 @@ class PEET(ChildWidget):
         mol = Molecules.concat([l.molecules for l in layers])
         return _save_molecules(save_dir=save_dir, mol=mol, scale=self.scale)
 
+    @set_design(text=capitalize)
     def shift_monomers(
         self,
         ang_path: Annotated[Path.Read[FileFilter.CSV], {"label": "Path to csv file"}],
@@ -142,6 +146,7 @@ class PEET(ChildWidget):
     def _get_mask_params(self, *_):
         return self._get_main().sta._get_mask_params()
 
+    @set_design(text=capitalize)
     def export_project(
         self,
         layer: MoleculesLayer,

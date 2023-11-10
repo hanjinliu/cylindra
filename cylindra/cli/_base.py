@@ -1,10 +1,19 @@
+import os
 import argparse
 from typing import Any
 from pathlib import Path
 
 
-class _ParserBase(argparse.ArgumentParser):
+class ParserBase(argparse.ArgumentParser):
     viewer: Any
+
+    def __init__(self, prog: str, description: str, add_help: bool = False):
+        super().__init__(
+            prog=prog,
+            description=description,
+            add_help=add_help,
+        )
+        self.add_argument("-h", "--help", nargs=0, action=HelpAction)
 
     def parse(self, args=None):
         ns = self.parse_args(args)
@@ -45,3 +54,44 @@ def get_polars_expr(expr: str):
     if not isinstance(out, pl.Expr):
         raise TypeError(f"{expr!r} did not return an expression, got {type(out)}")
     return out
+
+
+class HelpAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        import rich
+        from rich.panel import Panel
+
+        doc = parser.__doc__
+        assert doc is not None
+        try:
+            ncols = os.get_terminal_size().columns
+        except OSError:
+            # during testing
+            ncols = 50
+        lines = doc.splitlines()
+        while lines[0].strip() == "":
+            lines.pop(0)
+        line0 = lines.pop(0)
+        nindents = count_indent(line0)
+        rich.print(Panel(line0[nindents:]))
+        for line in lines:
+            if "[" in line:
+                rich.print(line[nindents:])
+            else:
+                indent_ = " " * count_indent(line[nindents:])
+                # print considering the terminal size
+                c = len(indent_)
+                print(indent_, end="")
+                for word in line.lstrip().split(" "):
+                    if c + len(word) > ncols:
+                        print()
+                        print(indent_, end="")
+                        c = len(indent_)
+                    print(" " + word, end="")
+                    c += len(word) + 1
+                print()
+        parser.exit()
+
+
+def count_indent(line: str) -> int:
+    return len(line) - len(line.lstrip())
