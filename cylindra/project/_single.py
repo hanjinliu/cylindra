@@ -440,6 +440,36 @@ class CylindraProject(BaseProject):
 
         return None
 
+    def resave(self, dir: Path):
+        if self.project_path is None:
+            raise ValueError("Project path is not set.")
+
+        ext = self.project_path.suffix
+        if ext == "":
+            return
+
+        elif ext in (".tar",):
+            import tarfile
+
+            self.project_path.unlink()
+
+            with tarfile.open(self.project_path, mode="w") as tar:
+                for file in Path(dir).glob("*"):
+                    tar.add(file, arcname=file.name)
+
+        elif ext in (".zip",):
+            import zipfile
+
+            self.project_path.unlink()
+            with zipfile.ZipFile(self.project_path, mode="w") as zip:
+                for file in Path(dir).glob("*"):
+                    zip.write(file, arcname=file.name)
+
+        else:
+            raise ValueError(f"Unsupported extension {ext}.")
+
+        return None
+
     def localprops_path(self, dir: Path) -> Path:
         """Path to the spline local properties file."""
         return dir / "localprops.csv"

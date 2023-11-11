@@ -106,6 +106,7 @@ class ParserConfig(ParserBase):
                     self.remove_project_config_kwargs(_path)
             else:
                 for prj in collect_projects(path):
+                    assert prj.project_path is not None
                     with prj.open_project() as dir:
                         py_path = prj.script_py_path(dir)
                         self.remove_project_config_kwargs(Path(py_path))
@@ -113,6 +114,10 @@ class ParserConfig(ParserBase):
                         if cfg_path.exists():
                             cfg_path.unlink()
                             print(f"Removed: {cfg_path.as_posix()}")
+
+                        if prj.project_path.suffix:
+                            prj.resave(dir)
+
         else:
             for prj in collect_projects(path):
                 self.show_project_default_config(prj)
@@ -151,4 +156,5 @@ class ParserConfig(ParserBase):
         edited = "\n".join(lines)
         if original != edited:
             py_path.write_text(edited)
+
             print(f"Processed: {py_path.as_posix()}")
