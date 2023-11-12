@@ -318,14 +318,14 @@ class RegionProfiler:
             _description_
         """
         feat = mole.features
-        if feat[label].dtype not in [pl.UInt8, pl.UInt16, pl.UInt32, pl.UInt64]:
-            raise TypeError(
-                f"label must be an unsigned integer column, got {feat[label].dtype}."
-            )
+        feat_label = feat[label]
+
+        if (dtype := feat_label.dtype) not in pl.INTEGER_DTYPES:
+            raise TypeError(f"label must be an integer column, got {dtype}.")
         nth = feat[Mole.nth].cast(pl.Int32).to_numpy()
         pf = feat[Mole.pf].cast(pl.Int32).to_numpy()
         values = feat[target].cast(pl.Float32).to_numpy()
-        labels = feat[label].cast(pl.UInt32).to_numpy()
+        labels = feat_label.cast(pl.UInt32).to_numpy()
         nrise = spl.nrise()
         npf = spl.props.get_glob(H.npf)
 

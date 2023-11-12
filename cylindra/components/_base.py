@@ -21,7 +21,7 @@ class BaseComponent(ABC):
         """Convert a component to a dictionary."""
         raise NotImplementedError
 
-    def to_json(self, file_path: str | Path | io.IOBase) -> None:
+    def to_json(self, file_path: str | Path | io.IOBase, *, cls=None) -> None:
         """
         Save spline model in a json format.
 
@@ -29,16 +29,18 @@ class BaseComponent(ABC):
         ----------
         file_path : str
             Path to the file.
+        cls : JSONEncoder, optional
+            Custom JSON encoder, by default None
         """
         if isinstance(file_path, io.IOBase):
-            return self._dump(file_path)
+            return self._dump(file_path, cls)
         with open(str(file_path).strip("'").strip('"'), mode="w") as f:
-            self._dump(f)
+            self._dump(f, cls)
         return None
 
-    def _dump(self, f: io.IOBase) -> None:
+    def _dump(self, f: io.IOBase, cls) -> None:
         """Dump the project to a file."""
-        return json.dump(self.to_dict(), f, indent=4, separators=(",", ": "))
+        return json.dump(self.to_dict(), f, indent=4, separators=(",", ": "), cls=cls)
 
     @classmethod
     def from_json(cls, file_path: str | Path | io.IOBase) -> Self:

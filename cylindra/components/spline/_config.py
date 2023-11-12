@@ -106,6 +106,15 @@ class SplineConfig:
             "fit_width": self.fit_width,
         }
 
+    def json_dumps(self) -> str:
+        strings = list[str]()
+        for k, v in self.asdict().items():
+            if isinstance(v, tuple):
+                strings.append(f'"{k}": {list(v)!r}'.replace("'", '"'))
+            else:
+                strings.append(f'"{k}": {v!r}'.replace("'", '"'))
+        return "{\n    " + ",\n    ".join(strings) + "\n}"
+
     @classmethod
     def construct(cls, **kwargs) -> SplineConfig:
         """Construct a SplineConfig with argument check."""

@@ -113,11 +113,7 @@ class ParserConfig(ParserBase):
                         cfg_path = prj.default_spline_config_path(dir)
                         if cfg_path.exists():
                             cfg_path.unlink()
-                            print(f"Removed: {cfg_path.as_posix()}")
-
-                        if prj.project_path.suffix:
-                            prj.resave(dir)
-
+                        prj.rewrite(dir)
         else:
             for prj in collect_projects(path):
                 self.show_project_default_config(prj)

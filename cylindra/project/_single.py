@@ -190,9 +190,9 @@ class CylindraProject(BaseProject):
             for info in self.molecules_info + self.landscape_info:
                 info.save_layer(gui, results_dir)
 
-            js = gui.default_config.asdict()
-            with open(self.default_spline_config_path(results_dir), mode="w") as f:
-                json.dump(js, f, indent=4, separators=(", ", ": "))
+            self.default_spline_config_path(results_dir).write_text(
+                gui.default_config.json_dumps()
+            )
 
             # save macro
             expr = as_main_function(gui._format_macro(gui.macro[gui._macro_offset :]))
@@ -311,11 +311,16 @@ class CylindraProject(BaseProject):
 
     def iter_load_splines(
         self,
-        dir: Path,
+        dir: Path | None = None,
         drop_columns: bool = True,
     ) -> "Iterable[CylSpline]":
         """Load all splines including its properties iteratively."""
         from cylindra.components import CylSpline
+
+        if dir is None:
+            with self.open_project() as dir:
+                yield from self.iter_load_splines(dir, drop_columns)
+            return
 
         localprops_path = self.localprops_path(dir)
         globalprops_path = self.globalprops_path(dir)
@@ -358,10 +363,15 @@ class CylindraProject(BaseProject):
             yield spl
 
     def iter_load_molecules(
-        self, dir: Path
+        self, dir: Path | None = None
     ) -> "Iterable[tuple[MoleculesInfo, Molecules]]":
         """Load all molecules iteratively."""
         from acryo import Molecules
+
+        if dir is None:
+            with self.open_project() as dir:
+                yield from self.iter_load_molecules(dir)
+            return
 
         for info in self.molecules_info:
             path = dir / info.name
@@ -373,8 +383,21 @@ class CylindraProject(BaseProject):
             mole = Molecules.from_file(path)
             yield info, mole
 
-    def load_tomogram(self, dir: Path, compute: bool = True) -> "CylTomogram":
-        """Load the tomogram object of the project."""
+    def load_tomogram(
+        self,
+        dir: Path | None = None,
+        compute: bool = True,
+    ) -> "CylTomogram":
+        """
+        Load the tomogram object of the project.
+
+        Parameters
+        ----------
+        dir : Path, optional
+            Can be given if the project is already opened.
+        compute : bool, optional
+            Whether to compute the binned tomograms.
+        """
         from cylindra.components import CylTomogram
 
         if self.image is not None:
@@ -440,7 +463,13 @@ class CylindraProject(BaseProject):
 
         return None
 
-    def resave(self, dir: Path):
+    def rewrite(self, dir: Path):
+        """
+        Rewrite tar/zip file using given temporary directory.
+
+        This method is only used after some mutable operation on the
+        project directory.
+        """
         if self.project_path is None:
             raise ValueError("Project path is not set.")
 

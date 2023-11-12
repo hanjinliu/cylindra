@@ -1094,9 +1094,12 @@ def test_cli(make_napari_viewer):
     with thread_worker.blocking_mode():
         run_cli("cylindra")
         run_cli("cylindra", "preview", PROJECT_DIR_14PF / "project.json")
-        run_cli("cylindra", "preview", PROJECT_DIR_14PF / "project.json", "-s")
-        run_cli("cylindra", "preview", TEST_DIR / "14pf_MT.tif")
-        run_cli("cylindra", "preview", PROJECT_DIR_14PF / "globalprops.csv")
+        run_cli("cylindra", "preview", PROJECT_DIR_14PF / "project.json", "--gui")
+        run_cli("cylindra", "preview", PROJECT_DIR_14PF / "test_tar.tar")
+        run_cli("cylindra", "preview", PROJECT_DIR_14PF / "test_zip.zip")
+        run_cli("cylindra", "preview", PROJECT_DIR_14PF / "test_tar.tar::project.json")
+        run_cli("cylindra", "preview", PROJECT_DIR_14PF / "test_tar.tar::Mole-0.csv")
+
         with tempfile.TemporaryDirectory() as dirpath:
             run_cli(
                 "cylindra", "new",
