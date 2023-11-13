@@ -140,9 +140,9 @@ def _choice_getter(method_name: str, dtype_kind: str = ""):
     def _get_choice(self: "CylindraMainWidget", w=None) -> list[str]:
         # don't use get_function_gui. It causes RecursionError.
         gui = self[method_name].mgui
-        if gui is None or gui.layer.value is None:
+        if gui is None or gui[0].value is None:
             return []
-        features = gui.layer.value.features
+        features = gui[0].value.features
         if dtype_kind == "":
             return features.columns
         return [c for c in features.columns if features[c].dtype.kind in dtype_kind]
@@ -1763,6 +1763,40 @@ class CylindraMainWidget(MagicTemplate):
             mole, name="Mole-merged", source=pos.source_component
         )
         return self._undo_callback_for_layer(layer)
+
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.Combine)
+    def copy_molecules_features(
+        self,
+        source: MoleculesLayerType,
+        destinations: MoleculesLayersType,
+        column: Annotated[str, {"choices": _choice_getter("copy_molecules_features")}],
+        alias: str = "",
+    ):  # fmt: skip
+        """
+        Copy molecules features from one layer to another.
+
+        This method is useful when a layer feature (such as seam search result) should be
+        shared by multiple molecules layers that were aligned in a different parameters.
+
+        Parameters
+        ----------
+        layer : MoleculesLayer
+            Layer whose features will be copied.
+        destinations : MoleculesLayersType
+            To which layers the features should be copied.
+        column : str
+            Column name of the feature to be copied.
+        alias : str, optional
+            If given, the copied feature will be renamed to this name.
+        """
+        source = assert_layer(source, self.parent_viewer)
+        destinations = assert_list_of_layers(destinations, self.parent_viewer)
+        series = source.molecules.features[column]
+        if alias:
+            series = series.alias(alias)
+        for dest in destinations:
+            dest.molecules = dest.molecules.with_features([series])
+        return None
 
     @set_design(text="Split molecules by feature", location=_sw.MoleculesMenu)
     def split_molecules(

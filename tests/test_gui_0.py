@@ -927,6 +927,16 @@ def test_merge_molecules(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=None)
     ui.merge_molecule_info(pos="Mole-0", rotation="Mole-1", features="Mole-0")
     assert_allclose(ui.mole_layers.last().data, ui.mole_layers["Mole-0"].data)
+    ui.copy_molecules_features(
+        source="Mole-0",
+        destinations=["Mole-1"],
+        columns=["position-nm"],
+        alias="new",
+    )
+    assert_allclose(
+        ui.mole_layers["Mole-1"].molecules.features["new"].to_numpy(),
+        ui.mole_layers["Mole-0"].molecules.features["position-nm"].to_numpy(),
+    )
 
 
 def test_molecule_features(ui: CylindraMainWidget):

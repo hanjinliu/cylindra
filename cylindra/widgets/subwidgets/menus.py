@@ -479,6 +479,7 @@ class MoleculesMenu(ChildWidget):
 
         concatenate_molecules = abstractapi()
         merge_molecule_info = abstractapi()
+        copy_molecules_features = abstractapi()
 
     @magicmenu(name="Features")
     class Features(MagicTemplate):

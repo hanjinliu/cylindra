@@ -119,7 +119,7 @@ class QtMoleculesControls(QtPointsControls):
         table = DataFrameView(value=df)
 
         napari.current_viewer().window.add_dock_widget(
-            table, area="left", name="Molecule Features"
+            table, area="left", name=f"Features of {self.layer.name!r}"
         ).setFloating(True)
 
     def _copy_features(self):

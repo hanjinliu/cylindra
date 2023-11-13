@@ -17,6 +17,7 @@ from magicclass.ext.vispy import Vispy3DCanvas
 from magicclass.ext.polars import DataFrameView
 
 from cylindra.const import ImageFilter
+from cylindra.widget_utils import capitalize
 
 if TYPE_CHECKING:
     from ._single import CylindraProject
@@ -161,7 +162,7 @@ class ProjectViewer(MagicTemplate):
         return self._project.project_path
 
     @thread_worker
-    @set_design(text="Load this project", location=Menu)
+    @set_design(text=capitalize, location=Menu)
     def load_this_project(
         self,
         path: Annotated[str, {"bind": _get_project_path}],
@@ -188,7 +189,7 @@ class ProjectViewer(MagicTemplate):
         yield from ui.load_project.arun(path, filter, read_image, update_config)
         return thread_worker.callback(self.close)
 
-    @set_design(text="Preview image", location=Menu)
+    @set_design(text=capitalize, location=Menu)
     def preview_image(self):
         """Preview the tomogram image."""
         from cylindra._previews import view_image
