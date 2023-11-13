@@ -6,7 +6,6 @@ import numpy as np
 import polars as pl
 from acryo import Molecules, SubtomogramLoader
 
-from magicgui.widgets import Widget
 from magicclass import (
     MagicTemplate,
     box,
@@ -87,17 +86,6 @@ DEFAULT_COLORMAP = {
     0.68: "#FF0000",  # red
     1.00: "#FFFF00",  # yellow
 }
-REGIONPROPS_CHOICES = [
-    "area",
-    "length",
-    "width",
-    "sum",
-    "mean",
-    "median",
-    "max",
-    "min",
-    "std",
-]
 _Logger = getLogger("cylindra")  # The GUI logger
 
 # annotated types
@@ -1780,7 +1768,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        layer : MoleculesLayer
+        source : MoleculesLayer
             Layer whose features will be copied.
         destinations : MoleculesLayersType
             To which layers the features should be copied.

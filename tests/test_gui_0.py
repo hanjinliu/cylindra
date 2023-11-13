@@ -930,7 +930,7 @@ def test_merge_molecules(ui: CylindraMainWidget):
     ui.copy_molecules_features(
         source="Mole-0",
         destinations=["Mole-1"],
-        columns=["position-nm"],
+        column="position-nm",
         alias="new",
     )
     assert_allclose(
