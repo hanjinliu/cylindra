@@ -1112,7 +1112,7 @@ def _(self: OthersMenu.Workflows, gui: "FunctionGui"):
 def _command_palette_title_fmt(ui: ChildWidget, widget):
     names: list[str] = []
     while ui is not None:
-        names.append(ui.name)
+        names.append(ui.name.lstrip("_"))
         ui = getattr(ui, "__magicclass_parent__", None)
     qn = " > ".join(reversed(names))
     if qn.startswith("cylindra > "):

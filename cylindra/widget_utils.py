@@ -443,9 +443,9 @@ def get_code_theme(self: MagicTemplate) -> str:
     """Get the theme for CodeEdit using the napari theme."""
     from napari.utils.theme import get_theme
 
-    try:
-        theme = get_theme(self.parent_viewer.theme, as_dict=True)["syntax_style"]
-    except Exception:
+    if (viewer := self.parent_viewer) or (viewer := napari.current_viewer()):
+        theme = get_theme(viewer.theme, as_dict=True)["syntax_style"]
+    else:
         bg_color = self.native.palette().color(self.native.backgroundRole())
         if bg_color.lightness() > 128:
             theme = "default"

@@ -570,6 +570,9 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
             bin_size=bin_size,
         )
     ui.sta.average_groups("Mole-0", size=12.0, bin_size=bin_size, by=pl.col("pf-id"))
+    ui.sta.average_filtered(
+        "Mole-0", size=12.0, bin_size=bin_size, predicate=pl.col("pf-id") < 5
+    )
     ui.sta.calculate_fsc(
         "Mole-0",
         mask_params=None,

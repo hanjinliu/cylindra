@@ -265,36 +265,39 @@ class PlaneClip(MagicTemplate):
             self.y = ymin, ymax
             self.z = zmin, zmax
             ndim = layer.ndim
+            if ndim < 3:
+                return
+            extra_dim = (0,) * (ndim - 3)
 
             self.layer.experimental_clipping_planes = [
                 {
                     "position": (0,) * (ndim - 1) + (xmin,),
-                    "normal": (0, 0, 1),
+                    "normal": extra_dim + (0, 0, 1),
                     "enabled": True,
                 },
                 {
                     "position": (0,) * (ndim - 1) + (xmax,),
-                    "normal": (0, 0, -1),
+                    "normal": extra_dim + (0, 0, -1),
                     "enabled": True,
                 },
                 {
                     "position": (0,) * (ndim - 2) + (ymin, 0),
-                    "normal": (0, 1, 0),
+                    "normal": extra_dim + (0, 1, 0),
                     "enabled": True,
                 },
                 {
                     "position": (0,) * (ndim - 2) + (ymax, 0),
-                    "normal": (0, -1, 0),
+                    "normal": extra_dim + (0, -1, 0),
                     "enabled": True,
                 },
                 {
                     "position": (0,) * (ndim - 3) + (zmin, 0, 0),
-                    "normal": (1, 0, 0),
+                    "normal": extra_dim + (1, 0, 0),
                     "enabled": True,
                 },
                 {
                     "position": (0,) * (ndim - 3) + (zmax, 0, 0),
-                    "normal": (-1, 0, 0),
+                    "normal": extra_dim + (-1, 0, 0),
                     "enabled": True,
                 },
             ]

@@ -244,6 +244,7 @@ class Averaging(MagicTemplate):
     average_all = abstractapi()
     average_subset = abstractapi()
     average_groups = abstractapi()
+    average_filtered = abstractapi()
     split_and_average = abstractapi()
 
 
@@ -703,11 +704,49 @@ class SubtomogramAveraging(ChildWidget):
             _concat_molecules(layers), shape, binsize=bin_size, order=interpolation
         )
         expr = widget_utils.norm_expr(by)
-        avgs = np.stack(list(loader.groupby(expr).average().values()), axis=0)
+        avg_dict = loader.groupby(expr).average()
+        avgs = np.stack([avg_dict[k] for k in sorted(avg_dict.keys())], axis=0)
         img = ip.asarray(avgs, axes="pzyx")
         img.set_scale(zyx=loader.scale, unit="nm")
         t0.toc()
         return self._show_rec.with_args(img, f"[AVG]{_avg_name(layers)}", store=False)
+
+    @set_design(text="Average filtered", location=Averaging)
+    @dask_worker.with_progress(desc=_pdesc.fmt_layers("Filtered subtomogram averaging of {!r}"))  # fmt: skip
+    def average_filtered(
+        self,
+        layers: MoleculesLayersType,
+        size: _SubVolumeSize = None,
+        predicate: PolarsExprStr = "col('pf-id') == 0",
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+    ):
+        """
+        Subtomogram averaging using molecules filtered by the given expression.
+
+        This method first concatenate molecules in the selected layers, and then filter them
+        by the predicate.
+
+        Parameters
+        ----------
+        {layers}{size}
+        predicate : str or polars expression
+            Filter expression to select molecules.
+        {interpolation}{bin_size}
+        """
+        t0 = timer()
+        layers = assert_list_of_layers(layers, self.parent_viewer)
+        parent = self._get_main()
+        tomo = parent.tomogram
+        shape = self._get_shape_in_nm(size)
+        loader = tomo.get_subtomogram_loader(
+            _concat_molecules(layers), shape, binsize=bin_size, order=interpolation
+        )
+        avg = loader.filter(widget_utils.norm_expr(predicate)).average()
+        img = ip.asarray(avg, axes="zyx")
+        img.set_scale(zyx=loader.scale, unit="nm")
+        t0.toc()
+        return self._show_rec.with_args(img, f"[AVG]{_avg_name(layers)}")
 
     @set_design(text="Split and average molecules", location=Averaging)
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Split-and-averaging of {!r}"))  # fmt: skip
