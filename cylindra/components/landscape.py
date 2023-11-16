@@ -330,7 +330,7 @@ class Landscape:
             _model.init_shift_random()
             energies = [_model.energy()]
             while (
-                _model.temperature() > temp0 * 1e-4
+                _model.temperature() > temp0 * 1e-5
                 and _model.optimization_state() == "not_converged"
             ):
                 _model.simulate(batch_size)
