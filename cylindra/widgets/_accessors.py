@@ -110,7 +110,9 @@ class MoleculesLayerAccessor(Accessor[MoleculesLayer]):
         return self.names()
 
     def __iter__(self) -> Iterator[MoleculesLayer]:
-        for layer in self.viewer().layers:
+        # adding layers during iteration causes RecursionError
+        _layers = list(self.viewer().layers)
+        for layer in _layers:
             if isinstance(layer, MoleculesLayer):
                 yield layer
 
