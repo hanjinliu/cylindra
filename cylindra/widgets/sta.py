@@ -1300,7 +1300,7 @@ class SubtomogramAveraging(ChildWidget):
             ) from None
         x = result.batch_size * np.arange(result.energies.size)
         df = pl.DataFrame({"iteration": x, "score": -result.energies})
-        return df.write_csv(path, has_header=False)
+        return df.write_csv(path, include_header=False)
 
     @set_design(text=capitalize, location=STAnalysis)
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Calculating correlations of {!r}"))  # fmt: skip

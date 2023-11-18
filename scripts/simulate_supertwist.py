@@ -14,7 +14,7 @@ def create_microtubule(ui: CylindraMainWidget):
     ui.simulator.create_empty_image(size=(60.0, 180.0, 60.0), scale=0.25)
     initialize_molecules(ui)
     layer = ui.mole_layers.last()
-    dtheta = 0.02
+    dtheta = 0.025
     ui.simulator.displace(
         layer, twist=pl.when(pl.col("isotype-id").eq(1)).then(-dtheta).otherwise(dtheta)
     )
@@ -25,7 +25,7 @@ def create_microtubule(ui: CylindraMainWidget):
 def initialize_molecules(ui: CylindraMainWidget):
     ui.simulator.create_straight_line((30.0, 15.0, 30.0), (30.0, 165.0, 30.0))
     ui.simulator.generate_molecules(
-        spacing=4.08, twist=0.04, start=3, npf=13, radius=11.0, offsets=(0.0, 0.0)
+        spacing=4.08, twist=0.05, start=3, npf=13, radius=10.5, offsets=(0.0, 0.0)
     )
     ui.sta.seam_search_manually(ui.mole_layers.last(), location=0)
 
