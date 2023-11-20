@@ -2230,6 +2230,7 @@ class CylindraMainWidget(MagicTemplate):
         target: Annotated[str, {"choices": _choice_getter("binarize_feature", dtype_kind="uif")}],
         threshold: Annotated[float, {"widget_type": "FloatSlider"}] = 0.0,
         larger_true: bool = True,
+        suffix: str = "_binarize",
     ):  # fmt: skip
         """
         Binarization of a layer feature by thresholding.
@@ -2241,16 +2242,20 @@ class CylindraMainWidget(MagicTemplate):
             Threshold value used for binarization.
         larger_true : bool, optional
             If true, values larger than `threshold` will be True.
+        suffix : str, default is "_binarize"
+            Suffix of the new feature column name.
         """
         from cylindra import cylfilters
 
         layer = assert_layer(layer, self.parent_viewer)
         utils.assert_column_exists(layer.molecules.features, target)
+        if suffix == "":
+            raise ValueError("`suffix` cannot be empty.")
         feat, cmap_info = layer.molecules.features, layer.colormap_info
         ser = cylfilters.binarize(layer.molecules.features, threshold, target)
         if not larger_true:
             ser = -ser
-        feature_name = f"{target}_binarize"
+        feature_name = f"{target}{suffix}"
         layer.molecules = layer.molecules.with_features(
             ser.alias(feature_name).cast(pl.Boolean)
         )
@@ -2263,6 +2268,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         layer: MoleculesLayerType,
         target: Annotated[str, {"choices": _choice_getter("label_feature_clusters", dtype_kind="b")}],
+        suffix: str = "_label",
     ):  # fmt: skip
         """
         Label a binarized feature column based on the molecules structure.
@@ -2273,16 +2279,20 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {layer}{target}
+        suffix : str, default is "_binarize"
+            Suffix of the new feature column name.
         """
         from cylindra import cylfilters
         from napari.utils.colormaps import label_colormap
 
         layer = assert_layer(layer, self.parent_viewer)
         utils.assert_column_exists(layer.molecules.features, target)
+        if suffix == "":
+            raise ValueError("`suffix` cannot be empty.")
         feat, cmap_info = layer.molecules.features, layer.colormap_info
         nrise = _assert_source_spline_exists(layer).nrise()
         out = cylfilters.label(layer.molecules.features, target, nrise)
-        feature_name = f"{target}_label"
+        feature_name = f"{target}{suffix}"
         layer.molecules = layer.molecules.with_features(out.alias(feature_name))
         self.reset_choices()
         label_max = int(out.max())

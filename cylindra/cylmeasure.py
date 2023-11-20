@@ -8,6 +8,7 @@ import polars as pl
 from acryo import Molecules
 
 from cylindra.const import MoleculesHeader as Mole, PropertyNames as H
+from cylindra.utils import assert_column_exists
 from cylindra._cylindra_ext import RegionProfiler as _RegionProfiler
 
 if TYPE_CHECKING:
@@ -318,6 +319,7 @@ class RegionProfiler:
             _description_
         """
         feat = mole.features
+        assert_column_exists(feat, [target, label])
         feat_label = feat[label]
 
         if (dtype := feat_label.dtype) not in pl.INTEGER_DTYPES:
