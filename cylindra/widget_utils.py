@@ -40,17 +40,18 @@ POLARS_NAMESPACE = {
 
 
 def _validate_expr_or_scalar(expr: str | pl.Expr | int | float) -> str | int | float:
-    if isinstance(expr, str):
-        value = ExprStr(expr, POLARS_NAMESPACE).eval()
-        if isinstance(value, pl.Expr):
-            # NOTE: If a polars Expr is given as a string, it is not needed to check
-            # using `_polars_expr_to_str`. Return here.
-            return value
-        expr = value
-    if isinstance(expr, (int, float, np.number)):
+    if isinstance(expr, (str, pl.Expr)):
+        if isinstance(expr, str):
+            value = ExprStr(expr, POLARS_NAMESPACE).eval()
+            if not isinstance(value, (int, float, np.number, pl.Expr)):
+                raise TypeError(f"Invalid type: {type(value)}")
+            return expr
+        elif isinstance(expr, pl.Expr):
+            return _polars_expr_to_str(expr)
+        else:
+            raise TypeError(f"Input must be string or polars.Expr type.")
+    elif isinstance(expr, (int, float, np.number)):
         return expr
-    elif isinstance(expr, pl.Expr):
-        return _polars_expr_to_str(expr)
     else:
         raise TypeError(f"Got invalid type: {type(expr)}")
 

@@ -312,11 +312,6 @@ class RegionProfiler:
             do not require target values are to be calculated.
         label : str
             Column name of the label values. Must be an integer column.
-
-        Returns
-        -------
-        RegionProfiler
-            _description_
         """
         feat = mole.features
         assert_column_exists(feat, [target, label])
