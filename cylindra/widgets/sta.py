@@ -16,6 +16,7 @@ from magicclass import (
     magicmenu,
     field,
     magictoolbar,
+    nogui,
     vfield,
     MagicTemplate,
     set_design,
@@ -79,6 +80,7 @@ from . import _shared_doc, _progress_desc as _pdesc, _annealing
 if TYPE_CHECKING:
     from numpy.typing import NDArray
     from napari.layers import Image
+    from dask.array.core import Array
     from cylindra.components import CylSpline
     from cylindra.components.landscape import AnnealingResult
 
@@ -1779,6 +1781,42 @@ class SubtomogramAveraging(ChildWidget):
                 main.parent_viewer.add_layer(points)
 
         return out
+
+    @nogui
+    @do_not_record
+    def get_subtomograms(
+        self,
+        layers: str | MoleculesLayer | list[str | MoleculesLayer],
+        shape: tuple[nm, nm, nm],
+        bin_size: int = 1,
+        order: int = 3,
+    ) -> "Array":
+        """
+        A non-GUI method to get all the subtomograms as a dask array.
+
+        Parameters
+        ----------
+        layers : str, MoleculesLayer or list of them
+            All the layers that will be used to construct the subtomogram array.
+        shape : (nm, nm, nm)
+            Shape of output subtomograms.
+        bin_size : int, default is 1
+            Bin size of the subtomograms.
+        order : int, default is 3
+            Interpolation order.
+
+        Returns
+        -------
+        Array
+            4D Dask array.
+        """
+        layers = assert_list_of_layers(layers, self.parent_viewer)
+        parent = self._get_main()
+        tomo = parent.tomogram
+        loader = tomo.get_subtomogram_loader(
+            _concat_molecules(layers), shape, binsize=bin_size, order=order
+        )
+        return loader.construct_dask()
 
     def _get_simple_annealing_model(self, layer: MoleculesLayer):
         # TODO: This method should finally be moved to some utils module since

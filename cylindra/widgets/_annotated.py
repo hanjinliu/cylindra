@@ -60,10 +60,10 @@ def assert_layer(layer: Any, viewer: "napari.Viewer") -> MoleculesLayer:
 
 
 def assert_list_of_layers(layers: Any, viewer: "napari.Viewer") -> list[MoleculesLayer]:
-    if len(layers) == 0:
-        raise ValueError("No layer selected.")
     if isinstance(layers, (MoleculesLayer, str)):
         layers = [layers]
+    if len(layers) == 0:
+        raise ValueError("No layer selected.")
     elif not hasattr(layers, "__iter__"):
         raise TypeError(f"Expected iterable, got {type(layers)}")
     layer_normed: list[MoleculesLayer] = []
