@@ -1784,6 +1784,42 @@ class SubtomogramAveraging(ChildWidget):
 
     @nogui
     @do_not_record
+    def get_template(
+        self, template_path: str | Path, scale: float | None = None
+    ) -> ip.ImgArray:
+        """A non-GUI method to get the template"""
+        if scale is None:
+            scale = self._get_main().tomogram.scale
+        img = self.params._norm_template_param(template_path).provide(scale)
+        return ip.asarray(img, axes="zyx").set_scale(zyx=scale)
+
+    @nogui
+    @do_not_record
+    def get_mask(
+        self,
+        mask_params: Any,
+        scale: float | None = None,
+        template_path: str | Path | None = None,
+    ) -> ip.ImgArray:
+        """A non-GUI method to get the mask."""
+        if scale is None:
+            scale = self._get_main().tomogram.scale
+        if isinstance(mask_params, tuple):
+            if template_path is None:
+                raise ValueError("Template path is required when using soft-Otsu mask.")
+            template = self.params._norm_template_param(template_path).provide(scale)
+            radius, sigma = mask_params
+            mask = pipe.soft_otsu(radius=radius, sigma=sigma).convert(template, scale)
+        elif isinstance(mask_params, (str, Path)):
+            mask = pipe.from_file(mask_params).provide(scale)
+        else:
+            raise TypeError(
+                f"Cannot create mask image using parameter: {mask_params!r}"
+            )
+        return ip.asarray(mask, axes="zyx").set_scale(zyx=scale)
+
+    @nogui
+    @do_not_record
     def get_subtomograms(
         self,
         layers: str | MoleculesLayer | list[str | MoleculesLayer],

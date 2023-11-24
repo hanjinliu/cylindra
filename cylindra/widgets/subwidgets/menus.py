@@ -713,12 +713,13 @@ class AnalysisMenu(ChildWidget):
         from cylindra.widgets.batch import CylindraBatchWidget
 
         main = self._get_main()
-        uibatch = CylindraBatchWidget()
-        uibatch.native.setParent(main.native, uibatch.native.windowFlags())
-        main._batch = uibatch
-        uibatch.show()
-        ACTIVE_WIDGETS.add(uibatch)
-        return uibatch
+        if main._batch is None:
+            uibatch = CylindraBatchWidget()
+            uibatch.native.setParent(main.native, uibatch.native.windowFlags())
+            main._batch = uibatch
+            uibatch.show()
+            ACTIVE_WIDGETS.add(uibatch)
+        return main._batch
 
     sep2 = field(Separator)
 
@@ -1079,6 +1080,7 @@ def _(self: OthersMenu.Workflows, gui: "FunctionGui"):
     txt.syntax_highlight("python", theme=get_code_theme(self))
     txt.read_only = True
     gui.insert(1, txt)
+    gui.min_width, gui.min_height = 600, 400
 
     @gui.filename.changed.connect
     def _on_name_change(filename: str | None):
@@ -1094,6 +1096,7 @@ def _(self: OthersMenu.Workflows, gui: "FunctionGui"):
     gui.workflow.syntax_highlight("python", theme=get_code_theme(self))
     gui.workflow.value = _config.WORKFLOW_TEMPLATE.format("# Write your workflow here")
     gui.called.connect(self.reset_choices)
+    gui.min_width, gui.min_height = 600, 400
 
 
 @setup_function_gui(OthersMenu.Workflows.edit_workflow)
@@ -1107,6 +1110,7 @@ def _(self: OthersMenu.Workflows, gui: "FunctionGui"):
         gui.workflow.value = _config.workflow_path(filename).read_text()
 
     _on_name_change(gui.filename.value)
+    gui.min_width, gui.min_height = 600, 400
 
 
 def _command_palette_title_fmt(ui: ChildWidget, widget):

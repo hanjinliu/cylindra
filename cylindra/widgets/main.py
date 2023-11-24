@@ -169,9 +169,7 @@ class CylindraMainWidget(MagicTemplate):
     @property
     def batch(self) -> "CylindraBatchWidget":
         """Return the batch analyzer."""
-        if self._batch is None:
-            self.AnalysisMenu.open_project_batch_analyzer()
-        return self._batch
+        return self.AnalysisMenu.open_project_batch_analyzer()
 
     # Menu bar
     FileMenu = field(_sw.FileMenu, name="File")
@@ -405,7 +403,12 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record(recursive=False)
     @nogui
     def run_workflow(self, filename: str, *args, **kwargs):
-        """Run workflow of a python file."""
+        """
+        Run a user-defined workflow.
+
+        This method will run a .py file that was defined by the user from `Workflow > Define workflow`.
+        *args and **kwargs follow the signature of the main function of the workflow.
+        """
         main = _config.get_main_function(filename)
         out = main(self, *args, **kwargs)
         return out

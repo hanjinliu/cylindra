@@ -172,9 +172,8 @@ def get_main_function(filename: str | Path) -> Callable:
 
         @wraps(main)
         def _main(*args, **kwargs):
-            _logger = logging.getLogger("cylindra")
-            with _logger.set_stdout():
-                out = main(*args, **kwargs)
+            # TODO: stream the output to the logger optionally.
+            out = main(*args, **kwargs)
             return out
 
         return _main
