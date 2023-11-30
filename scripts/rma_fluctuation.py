@@ -16,7 +16,7 @@ SPACING_MEAN = f"{Mole.spacing}_mean"
 
 
 def create_microtubule(ui: CylindraMainWidget, spacing: float = 4.08):
-    ui.simulator.create_empty_image(size=(60.0, 180.0, 60.0), scale=0.25)
+    ui.simulator.create_empty_image(size=(60.0, 180.0, 60.0), scale=0.2625)
     prep_molecules(ui, spacing)
     layer = ui.mole_layers.last()
     ui.calculate_lattice_structure(layer=layer, props=["spacing"])
@@ -46,7 +46,7 @@ def simulate_and_save_tilt_series(ui: CylindraMainWidget, path: Path):
 def run_one(ui: CylindraMainWidget, image_path: Path, seed: int = 0):
     ui.simulator.simulate_tomogram_from_tilt_series(
         image_path,
-        nsr=2.5,
+        nsr=3.5,
         bin_size=2,
         tilt_range=(-60, 60),
         height=60.0,

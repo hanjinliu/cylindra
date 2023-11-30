@@ -20,7 +20,7 @@ SPACING_MEAN = f"{Mole.spacing}_mean"
 def main(ui: CylindraMainWidget):
     ui.open_image(
         path=r"D:\simulated_tomograms\230925_two_patches\image-2.mrc",
-        scale=0.25,
+        scale=0.2625,
         tilt_range=(-60.0, 60.0),
         bin_size=[2, 4],
         filter="Lowpass",

@@ -29,7 +29,7 @@ def initialize_molecules(ui: CylindraMainWidget):
 
 
 def create_microtubule(ui: CylindraMainWidget):
-    ui.simulator.create_empty_image(size=(60.0, 180.0, 60.0), scale=0.25)
+    ui.simulator.create_empty_image(size=(60.0, 180.0, 60.0), scale=0.2624)
     initialize_molecules(ui)
     layer = ui.mole_layers.last()
     ui.simulator.expand(layer=layer, by=0.1, yrange=(6, 16), arange=(0, 6), allev=True)
@@ -87,7 +87,7 @@ def run_one(
 ):
     ui.simulator.simulate_tomogram_from_tilt_series(
         image_path,
-        nsr=2.5,
+        nsr=3.5,
         bin_size=2,
         tilt_range=(-60, 60),
         height=60.0,
@@ -164,10 +164,10 @@ def run_one(
     return pos_values, spacing_values, time_values
 
 
-def show_dataframe(ui: CylindraMainWidget, df: pl.DataFrame):
+def show_dataframe(ui: CylindraMainWidget, df: pl.DataFrame, name=""):
     view = DataFrameView()
     view.value = df
-    ui.parent_viewer.window.add_dock_widget(view)
+    ui.parent_viewer.window.add_dock_widget(view, name=name)
 
 
 def main():
@@ -209,9 +209,9 @@ def main():
         np.array(time_list), schema=["conventional", "viterbi", "rma"]
     )
 
-    show_dataframe(ui, df_pos)
-    show_dataframe(ui, df_spacing)
-    show_dataframe(ui, df_time)
+    show_dataframe(ui, df_pos, name="pos")
+    show_dataframe(ui, df_spacing, name="spacing")
+    show_dataframe(ui, df_time, name="time")
     for i in [-3, -2, -1]:
         layer = ui.mole_layers.nth(i)
         ui.sta.calculate_fsc(layer, template_path=TEMPLATE_X, mask_params=(0.8, 0.8))
@@ -226,6 +226,14 @@ def main():
     ui.paint_molecules("truth", "spacing", limits=(4.0, 4.28))
     ui.MoleculesMenu.View.plot_molecule_feature("truth")
     plt.show()
+    names = ["conventional", "viterbi", "RMA"]
+    dfs = {}
+    for n, layer in zip(names, ui.sta.sub_viewer.layers):
+        fsc = layer.metadata["fsc"]
+        dfs["freq"] = fsc.freq
+        dfs[n] = fsc.mean
+    df = pl.DataFrame(dfs)
+    show_dataframe(ui, df, name="FSC")
     ui.parent_viewer.show(block=True)
 
 

@@ -257,7 +257,7 @@ class Funcs(Enum):
 class Main(MagicTemplate):
     function = vfield(Funcs)
     n_tilt = vfield(61).with_options(min=1)
-    nsr = vfield([0.1, 2.5])
+    nsr = vfield([0.1, 3.5])
     nrepeat = vfield(5)
     scale = vfield(0.5)
     binsize = vfield(1).with_options(min=1)
@@ -346,6 +346,13 @@ class Main(MagicTemplate):
 
 
 if __name__ == "__main__":
+    # Example
+    # -------
+    # $ python .\scripts\simulate_cft.py "function='local_expansion', n_tilt=61, nsr=[0.1, 3.0, 3.5, 4.0], nrepeat=20, scale=0.2624, binsize=2, output=r'C:\Users\Uemura-Lab\Desktop\simulate_CFT_results\cft_expansion.csv', seed=111"
+    # $ python .\scripts\simulate_cft.py "function='local_skew_13_3', n_tilt=61, nsr=[0.1, 3.0, 3.5, 4.0], nrepeat=20, scale=0.2624, binsize=2, output=r'C:\Users\Uemura-Lab\Desktop\simulate_CFT_results\cft_twist_13_3.csv', seed=222"
+    # $ python .\scripts\simulate_cft.py "function='local_skew_14_3', n_tilt=61, nsr=[0.1, 3.0, 3.5, 4.0], nrepeat=20, scale=0.2624, binsize=2, output=r'C:\Users\Uemura-Lab\Desktop\simulate_CFT_results\cft_twist_14_3.csv', seed=333"
+    # $ python .\scripts\simulate_cft.py "function='local_orientation', n_tilt=61, nsr=[0.1, 3.0, 3.5, 4.0], nrepeat=20, scale=0.2624, binsize=2, output=r'C:\Users\Uemura-Lab\Desktop\simulate_CFT_results\cft_orientation.csv', seed=444"
+    # $ python .\scripts\simulate_cft.py "function='local_curvature', n_tilt=61, nsr=[0.1, 3.0, 3.5, 4.0], nrepeat=20, scale=0.2624, binsize=2, output=r'C:\Users\Uemura-Lab\Desktop\simulate_CFT_results\cft_curvature.csv', seed=555"
     import sys, inspect
 
     if args := sys.argv[1:]:
@@ -357,4 +364,5 @@ if __name__ == "__main__":
     ui = Main()
     if kwargs is not None:
         ui.simulate(**kwargs)
-    napari.run()
+    else:
+        napari.run()

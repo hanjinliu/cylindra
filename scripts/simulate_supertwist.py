@@ -11,7 +11,7 @@ from scripts.user_consts import TEMPLATE_X
 
 
 def create_microtubule(ui: CylindraMainWidget):
-    ui.simulator.create_empty_image(size=(60.0, 180.0, 60.0), scale=0.25)
+    ui.simulator.create_empty_image(size=(60.0, 180.0, 60.0), scale=0.2625)
     initialize_molecules(ui)
     layer = ui.mole_layers.last()
     dtheta = 0.025
@@ -58,7 +58,7 @@ def run_one(
 ) -> pl.DataFrame:
     ui.simulator.simulate_tomogram_from_tilt_series(
         image_path,
-        nsr=2.5,
+        nsr=3.5,
         bin_size=2,
         tilt_range=(-60, 60),
         height=60.0,
@@ -130,7 +130,7 @@ def main():
     df_list = []
     with tempfile.TemporaryDirectory() as tmpdir:
         save_tilt_series(ui, tmpdir)
-        for i in range(10):
+        for i in range(20):
             out = run_one(
                 ui,
                 Path(tmpdir) / "image.mrc",

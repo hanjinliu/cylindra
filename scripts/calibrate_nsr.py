@@ -72,7 +72,7 @@ def main():
     results = []
     with tempfile.TemporaryDirectory() as tmpdir:
         save_tilt_series(ui, tmpdir)
-        for nsr in [2.5, 3.0, 3.5]:
+        for nsr in [3.0, 3.5, 4.0]:
             for i in range(10):
                 nsr3d = run_one(
                     ui,
