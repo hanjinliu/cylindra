@@ -7,7 +7,7 @@ from cylindra._napari import MoleculesLayer, CylinderLabels
 from cylindra.const import PREVIEW_LAYER_NAME
 
 if TYPE_CHECKING:
-    from magicgui.widgets._bases import CategoricalWidget
+    from magicgui.widgets.bases import CategoricalWidget
 
 
 def _viewer_ancestor() -> "napari.Viewer | None":

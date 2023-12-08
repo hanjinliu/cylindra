@@ -2033,7 +2033,8 @@ def _define_correlation_function(
     temp = ip.asarray(temp, axes="zyx")
 
     def _fn(img: "NDArray[np.float32]") -> float:
-        return func(ip.asarray(img * mask, axes="zyx"), temp * mask)
+        corr = float(func(ip.asarray(img * mask, axes="zyx"), temp * mask))
+        return corr
 
     return _fn
 

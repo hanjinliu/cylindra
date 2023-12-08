@@ -164,7 +164,7 @@ class CylindraMainWidget(MagicTemplate):
     # Widget for subtomogram analysis
     sta = field(SubtomogramAveraging, name="_Subtomogram averaging")
 
-    mole_layers = MoleculesLayerAccessor.field()
+    mole_layers = MoleculesLayerAccessor()
 
     @property
     def batch(self) -> "CylindraBatchWidget":

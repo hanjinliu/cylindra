@@ -9,7 +9,6 @@ from typing import (
     TypeVar,
     MutableSequence,
 )
-from typing_extensions import Self
 import weakref
 from fnmatch import fnmatch
 
@@ -19,36 +18,26 @@ import napari
 from cylindra.types import MoleculesLayer
 
 if TYPE_CHECKING:
+    from magicclass import MagicTemplate
     from cylindra.widgets.main import CylindraMainWidget
+    from cylindra.widgets.batch import CylindraBatchWidget
+    from cylindra.widgets.batch._loaderlist import LoaderInfo
     from acryo import Molecules
+    from typing_extensions import Self
 
-_T = TypeVar("_T", bound="Accessor")
 _V = TypeVar("_V")
+_W = TypeVar("_W", bound="MagicTemplate")
 
 
-class AccessorField(Generic[_T]):
-    def __init__(self, constructor: type[_T]):
-        self._instances = dict[int, _T]()
-        self._constructor = constructor
+class Accessor(MutableSequence[_V], Generic[_V, _W]):
+    def __init__(self, widget: _W | None = None):
+        if widget is not None:
+            self._widget = weakref.ref(widget)
+        else:
+            self._widget = lambda: None
+        self._instances = dict[int, "Self"]()
 
-    def __get__(self, instance: Any, owner: type) -> _T:
-        if instance is None:
-            return self
-        _id = id(instance)
-        if _id not in self._instances:
-            self._instances[_id] = self._constructor(instance)
-        return self._instances[_id]
-
-
-class Accessor(MutableSequence[_V]):
-    def __init__(self, widget: CylindraMainWidget):
-        self._widget = weakref.ref(widget)
-
-    @classmethod
-    def field(cls) -> AccessorField[Self]:
-        return AccessorField(cls)
-
-    def widget(self) -> CylindraMainWidget:
+    def widget(self) -> _W:
         widget = self._widget()
         if widget is None:
             raise RuntimeError("Widget is already deleted.")
@@ -60,11 +49,22 @@ class Accessor(MutableSequence[_V]):
             raise RuntimeError("Viewer not found.")
         return viewer
 
+    def __get__(self, instance: Any, owner: type) -> Self:
+        if instance is None:
+            return self
+        _id = id(instance)
+        if _id not in self._instances:
+            self._instances[_id] = self.__class__(instance)
+        return self._instances[_id]
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({list(self)!r})"
+
 
 _Condition = Callable[[MoleculesLayer], bool]
 
 
-class MoleculesLayerAccessor(Accessor[MoleculesLayer]):
+class MoleculesLayerAccessor(Accessor[MoleculesLayer, "CylindraMainWidget"]):
     """Accessor to the molecules layers of the viewer."""
 
     def __getitem__(self, name: str) -> MoleculesLayer:
@@ -106,7 +106,7 @@ class MoleculesLayerAccessor(Accessor[MoleculesLayer]):
         return len(self)
 
     def _ipython_key_completions_(self) -> list[str]:
-        """Just for autocompletion."""
+        """Just for autocompletion."""  # BUG: not working
         return self.names()
 
     def __iter__(self) -> Iterator[MoleculesLayer]:
@@ -253,3 +253,41 @@ def _get_monomer_layer(viewer: napari.Viewer, name: str) -> MoleculesLayer:
     if not isinstance(layer, MoleculesLayer):
         raise TypeError(f"Layer {name} is not a MoleculesLayer.")
     return layer
+
+
+class BatchLoaderAccessor(Accessor["LoaderInfo", "CylindraBatchWidget"]):
+    def __getitem__(self, name: str) -> LoaderInfo:
+        return self.widget()._loaders[name]
+
+    def __setitem__(self, name: str, layer: LoaderInfo) -> None:
+        if name in self:
+            raise ValueError(f"Layer {name} already exists.")
+        return self.append(layer)
+
+    def __delitem__(self, name: str) -> None:
+        for i, info in enumerate(self.widget()._loaders):
+            if info.name == name:
+                self.widget()._loaders.pop(i)
+                return
+        raise KeyError(f"Loader {name} not found.")
+
+    def insert(self, index: int, info: LoaderInfo) -> None:
+        return self.widget()._loaders.insert(index, info)
+
+    def __iter__(self) -> Iterator[LoaderInfo]:
+        return iter(self.widget()._loaders)
+
+    def __len__(self) -> int:
+        return len(self.widget()._loaders)
+
+    def names(self) -> list[str]:
+        """All molecules layer names."""
+        return list(layer.name for layer in self)
+
+    def count(self) -> int:
+        """Number of molecules layers."""
+        return len(self)
+
+    def _ipython_key_completions_(self) -> list[str]:
+        """Just for autocompletion."""
+        return self.names()

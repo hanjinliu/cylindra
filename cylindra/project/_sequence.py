@@ -501,7 +501,9 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                 _map[i] = label
                 _appeared.add(label)
             out = out.with_columns(
-                pl.col(Mole.image).map_dict(_map, return_dtype=pl.Categorical)
+                pl.col(Mole.image).replace(
+                    _map, default=None, return_dtype=pl.Categorical
+                )
             )
         else:
             raise ValueError(f"Invalid id type {id!r}.")

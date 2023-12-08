@@ -24,6 +24,7 @@ from cylindra.const import (
 )
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.widget_utils import POLARS_NAMESPACE, capitalize
+from cylindra.widgets._accessors import BatchLoaderAccessor
 from cylindra.project import CylindraProject, CylindraBatchProject
 from cylindra._config import get_config
 from .sta import BatchSubtomogramAveraging
@@ -54,6 +55,7 @@ _SPLINE_FEATURES = [
 class CylindraBatchWidget(MagicTemplate):
     constructor = field(ProjectSequenceEdit)
     sta = field(BatchSubtomogramAveraging)
+    loaders = BatchLoaderAccessor()
 
     def __init__(self):
         self._loaders = LoaderList()

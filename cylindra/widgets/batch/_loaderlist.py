@@ -52,6 +52,8 @@ class LoaderList(EventedList[LoaderInfo]):
         return -1
 
     def insert(self, index: int, value: LoaderInfo) -> None:
+        if not isinstance(value, LoaderInfo):
+            raise TypeError(f"Expected LoaderInfo, got {type(value)}")
         name = value.name
         if self.find(name, default=-1) >= 0:
             if re.match(r".+-\d+$", name):

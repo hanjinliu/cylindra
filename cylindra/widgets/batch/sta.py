@@ -89,7 +89,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
             parent = self._get_parent()
         except Exception:
             return []
-        return [info.name for info in parent._loaders]
+        return parent.loaders.names()
 
     # Menus
     BatchSubtomogramAnalysis = field(
@@ -113,8 +113,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
     @do_not_record
     def show_loader_info(self):
         """Show information about this loader"""
-        loaderlist = self._get_parent()._loaders
-        info = loaderlist[self.loader_name]
+        info = self._get_parent().loaders[self.loader_name]
         loader = info.loader
         img_info = "\n" + "\n".join(
             f"{img_id}: {img_path}" for img_id, img_path in info.image_paths.items()
@@ -135,8 +134,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         self, loader_name: Annotated[str, {"bind": _get_current_loader_name}]
     ):
         """Remove this loader"""
-        loaderlist = self._get_parent()._loaders
-        del loaderlist[loader_name]
+        del self._get_parent().loaders[loader_name]
 
     params = field(StaParameters)
 
@@ -161,14 +159,14 @@ class BatchSubtomogramAveraging(MagicTemplate):
         delete_old: bool = False,
     ):
         parent = self._get_parent()
-        batch_info = parent._loaders[loader_name]
+        loaders = parent._loaders
+        batch_info = loaders[loader_name]
         batch_loader = batch_info.loader
         n_unique = batch_loader.molecules.features[by].n_unique()
         if n_unique > 48:
             raise ValueError(
                 f"Too many groups ({n_unique}). Did you choose a float column?"
             )
-        loaders = parent._loaders
         for _key, loader in batch_loader.groupby(by):
             existing_id = set(loader.features[Mole.image])
             image_paths = {
@@ -224,8 +222,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
     @nogui
     def get_loader(self, name: str) -> BatchLoader:
         """Return the acryo.BatchLoader object with the given name"""
-        info = self._get_parent()._loaders[name]
-        return info.loader
+        return self._get_parent().loaders[name].loader
 
     @set_design(text="Average all molecules", location=BatchSubtomogramAnalysis)
     @dask_thread_worker.with_progress(desc="Averaging all molecules in projects")
@@ -237,8 +234,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         bin_size: _BINSIZE = 1,
     ):
         t0 = timer()
-        loaderlist = self._get_parent()._loaders
-        loader = loaderlist[loader_name].loader
+        loader = self._get_parent().loaders[loader_name].loader
         shape = self._get_shape_in_px(size, loader)
         img = ip.asarray(
             loader.replace(output_shape=shape, order=interpolation)
@@ -274,8 +270,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         {interpolation}{bin_size}
         """
         t0 = timer()
-        loaderlist = self._get_parent()._loaders
-        loader = loaderlist[loader_name].loader
+        loader = self._get_parent().loaders[loader_name].loader
         shape = self._get_shape_in_px(size, loader)
         img = ip.asarray(
             loader.replace(output_shape=shape, order=interpolation)
@@ -372,8 +367,9 @@ class BatchSubtomogramAveraging(MagicTemplate):
             at frequency 0.01, 0.03, 0.05, ..., 0.45.
         """
         t0 = timer()
-        loader = self._get_parent()._loaders[loader_name].loader
-        loader = loader.replace(order=interpolation)
+        loader = (
+            self._get_parent().loaders[loader_name].loader.replace(order=interpolation)
+        )
 
         template, mask = loader.normalize_input(
             template=self.params._norm_template_param(template_path, allow_none=True),
@@ -440,8 +436,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         from cylindra.widgets.subwidgets import PcaViewer
 
         t0 = timer()
-        loaderlist = self._get_parent()._loaders
-        loader = loaderlist[loader_name].loader
+        loader = self._get_parent().loaders[loader_name].loader
         shape = self._get_shape_in_px(size, loader)
 
         _, mask = loader.normalize_input(
@@ -512,7 +507,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
     @do_not_record
     def show_mask(self):
         """Load and show mask image in the scale of the tomogram."""
-        loader = self._get_parent()._loaders[self.loader_name].loader
+        loader = self._get_parent().loaders[self.loader_name].loader
         _, mask = loader.normalize_input(
             self.params._norm_template_param(allow_none=True), self.params._get_mask()
         )
@@ -535,7 +530,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
             return (roundint(default / loader.scale),) * 3
 
     def _get_template_image(self) -> ip.ImgArray:
-        scale = self._get_parent()._loaders[self.loader_name].loader.scale
+        scale = self._get_parent().loaders[self.loader_name].loader.scale
 
         template = self.params._norm_template_param(
             self.params._get_template_input(allow_multiple=True),
