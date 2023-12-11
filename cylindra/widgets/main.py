@@ -5,7 +5,6 @@ import macrokit as mk
 import numpy as np
 import polars as pl
 from acryo import Molecules, SubtomogramLoader
-
 from magicclass import (
     MagicTemplate,
     box,
@@ -71,6 +70,7 @@ from cylindra.widgets._main_utils import (
     normalize_offsets,
     normalize_radius,
     rotvec_from_axis_and_degree,
+    AutoSaver,
 )
 from cylindra.widgets._reserved_layers import ReservedLayers
 from cylindra.widgets import _progress_desc as _pdesc
@@ -217,25 +217,28 @@ class CylindraMainWidget(MagicTemplate):
         )
 
         # load all the workflows
-        for file in _config.get_config().list_workflow_paths():
+        cfg = _config.get_config()
+        for file in cfg.list_workflow_paths():
             try:
                 self.OthersMenu.Workflows.append_workflow(file)
             except Exception as e:
                 _Logger.exception(f"Failed to load workflow {file.stem}: {e}")
 
+        self._auto_saver = AutoSaver(self, sec=cfg.autosave_interval)
+
         @self.macro.on_appended.append
         def _on_appended(expr: mk.Expr):
             self._need_save = not str(expr).startswith("ui.open_image(")
+            self._auto_saver.save()
 
         @self.macro.on_popped.append
         def _on_popped(*_):
             self._need_save = len(self.macro) >= self._macro_offset and not str(
                 self.macro[-1]
             ).startswith("ui.open_image(")
+            self._auto_saver.save()
 
-        self.default_config = SplineConfig.from_file(
-            _config.get_config().default_spline_config_path
-        )
+        self.default_config = SplineConfig.from_file(cfg.default_spline_config_path)
         return None
 
     @property
@@ -545,11 +548,16 @@ class CylindraMainWidget(MagicTemplate):
             usually large.
         """
         path = Path(path)
-        dir_posix = path.as_posix()
         CylindraProject.save_gui(self, path, molecules_ext, save_landscape)
-        _Logger.print(f"Project saved: {dir_posix}")
+        _Logger.print(f"Project saved: {path.as_posix()}")
         self._need_save = False
         self._project_dir = path
+        autosave_path = _config.autosave_path()
+        if autosave_path.exists():
+            try:
+                autosave_path.unlink()
+            except Exception:
+                pass
         return None
 
     @set_design(text=capitalize, location=_sw.FileMenu)

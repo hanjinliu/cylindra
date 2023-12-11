@@ -75,6 +75,17 @@ class FileMenu(ChildWidget):
     save_molecules = abstractapi()
     sep1 = field(Separator)
 
+    @set_design(text=capitalize)
+    @do_not_record
+    def recover_last_project(self):
+        """Recover last project if possible"""
+        if path := _config.autosave_path():
+            prj = CylindraProject.from_file(path)
+            self._get_main().load_project(prj)
+            _Logger.print(f"Recovered last project (saved on {prj.datetime})")
+            return
+        raise FileNotFoundError("No autosave file found.")
+
     @magicmenu(record=False)
     class Stash(ChildWidget):
         """Stashing projects for later use."""

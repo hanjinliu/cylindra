@@ -337,7 +337,7 @@ class ProjectSequenceEdit(MagicTemplate):
         for img_id, prj_wdt in enumerate(iter(self.projects)):
             if not prj_wdt.check:
                 continue
-            path_info = PathInfo(prj_wdt._get_loader_paths())
+            path_info = PathInfo(*prj_wdt._get_loader_paths())
             img = ip.lazy.imread(path_info.image, chunks=get_config().dask_chunk)
             image_paths[img_id] = Path(path_info.image)
             prj = CylindraProject.from_file(path_info.project)

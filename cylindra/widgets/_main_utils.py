@@ -2,11 +2,14 @@ from __future__ import annotations
 from types import TracebackType
 
 import weakref
+from timeit import default_timer
 from typing import TYPE_CHECKING, ContextManager, Iterable, Literal
 import numpy as np
 
 from magicclass.undo import undo_callback
 from cylindra.const import PropertyNames as H
+from cylindra.project import CylindraProject
+from cylindra import _config
 
 if TYPE_CHECKING:
     from cylindra.components import CylSpline
@@ -128,3 +131,29 @@ def rotvec_from_axis_and_degree(axis: Literal["z", "y", "x"], deg: float):
     else:  # pragma: no cover
         raise ValueError(f"Unknown axis: {axis!r}")
     return unit_vec * np.deg2rad(deg)
+
+
+class AutoSaver:
+    def __init__(self, ui: CylindraMainWidget, sec: float = 30.0):
+        self._last_saved = default_timer()
+        self._ui = weakref.ref(ui)
+        self._timeout = sec
+
+    def save(self):
+        if default_timer() - self._last_saved < self._timeout:
+            return
+        ui = self._ui()
+        if ui is None:
+            return
+        if not ui._need_save:
+            return
+        try:
+            path = _config.autosave_path()
+            CylindraProject.save_gui(
+                ui, path, mole_ext=".parquet", save_landscape=False
+            )
+            if viewer := ui.parent_viewer:
+                viewer.status = "Project autosaved."
+        except Exception as e:
+            print("AutosaveError: ", e)
+        self._last_saved = default_timer()

@@ -15,8 +15,8 @@ VAR_PATH = Path(user_config_dir("variables", "cylindra"))
 SETTINGS_DIR = Path(user_config_dir("settings", "cylindra"))
 WORKFLOWS_DIR = Path(user_config_dir("workflows", "cylindra"))
 STASH_DIR = Path(user_config_dir("stash", "cylindra"))
-TEMPLATE_PATH_HIST = "template_path_hist.txt"
-DEFAULT_SPLINE_CONFIG = "default_spline_config"
+TEMPLATE_PATH_HIST = SETTINGS_DIR / "template_path_hist.txt"
+RECOVERY_PATH = SETTINGS_DIR / "last_project.zip"
 
 USER_SETTINGS = SETTINGS_DIR / "user-settings.json"
 
@@ -41,6 +41,7 @@ class AppConfig:
     point_size: float = 4.2
     molecules_color: str = "#00EA00"
     molecules_ndim: int = 3
+    autosave_interval: float = 30.0
     use_gpu: bool = True
 
     @classmethod
@@ -92,6 +93,10 @@ def _save_config():  # pragma: no cover
             _APP_CONFIG.to_user_dir()
         except Exception as e:
             print(f"Failed to save user settings: {e}")
+
+
+def autosave_path() -> Path:
+    return RECOVERY_PATH
 
 
 def get_config() -> AppConfig:
@@ -246,10 +251,9 @@ def _is_empty(path: Path) -> bool:
 
 
 def get_template_path_hist() -> list[Path]:
-    path = Path(SETTINGS_DIR / TEMPLATE_PATH_HIST)
-    if path.exists():
+    if TEMPLATE_PATH_HIST.exists():
         out = list[Path]()
-        for line in path.read_text().splitlines():
+        for line in TEMPLATE_PATH_HIST.read_text().splitlines():
             if line.strip() == "":
                 continue
             try:
@@ -261,7 +265,7 @@ def get_template_path_hist() -> list[Path]:
 
 
 def set_template_path_hist(paths: list[str]):
-    path = Path(SETTINGS_DIR / TEMPLATE_PATH_HIST)
+    path = TEMPLATE_PATH_HIST
     try:
         if not path.parent.exists():
             path.parent.mkdir(parents=True)

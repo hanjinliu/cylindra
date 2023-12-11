@@ -438,7 +438,9 @@ class BatchSubtomogramAveraging(MagicTemplate):
             mask=self.params._get_mask(params=mask_params),
         )
         out, pca = (
-            loader.reshape(template=template, mask=mask, shape=shape)
+            loader.reshape(
+                template=template if mask is None else None, mask=mask, shape=shape
+            )
             .replace(order=interpolation)
             .binning(binsize=bin_size, compute=False)
             .classify(
