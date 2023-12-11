@@ -41,7 +41,7 @@ from cylindra.widgets.sta import (
 )
 
 from .menus import BatchLoaderMenu, BatchSubtomogramAnalysis, BatchRefinement
-from ._loaderlist import LoaderList, LoaderInfo
+from ._loaderlist import LoaderList
 
 
 def _classify_pca_fmt():
@@ -208,14 +208,10 @@ class BatchSubtomogramAveraging(MagicTemplate):
         loader = info.loader
         new = loader.filter(norm_expr(expression))
         existing_id = set(new.features[Mole.image])
-        loaderlist.append(
-            LoaderInfo(
-                new,
-                name=f"{info.name}-Filt",
-                image_paths={
-                    k: v for k, v in info.image_paths.items() if v in existing_id
-                },
-            )
+        loaderlist.add_loader(
+            new,
+            name=f"{info.name}-Filt",
+            image_paths={k: v for k, v in info.image_paths.items() if v in existing_id},
         )
         return None
 
@@ -325,12 +321,10 @@ class BatchSubtomogramAveraging(MagicTemplate):
                 alignment_model=_get_alignment(method),
             )
         )
-        loaderlist.append(
-            LoaderInfo(
-                aligned,
-                name=_coerce_aligned_name(info.name, loaderlist),
-                image_paths=info.image_paths,
-            )
+        loaderlist.add_loader(
+            aligned,
+            name=_coerce_aligned_name(info.name, loaderlist),
+            image_paths=info.image_paths,
         )
         t0.toc()
         return None
@@ -439,12 +433,12 @@ class BatchSubtomogramAveraging(MagicTemplate):
         loader = self._get_parent().loaders[loader_name].loader
         shape = self._get_shape_in_px(size, loader)
 
-        _, mask = loader.normalize_input(
+        template, mask = loader.normalize_input(
             template=self.params._norm_template_param(allow_none=True),
             mask=self.params._get_mask(params=mask_params),
         )
         out, pca = (
-            loader.reshape(mask=mask, shape=shape)
+            loader.reshape(template=template, mask=mask, shape=shape)
             .replace(order=interpolation)
             .binning(binsize=bin_size, compute=False)
             .classify(
@@ -462,11 +456,11 @@ class BatchSubtomogramAveraging(MagicTemplate):
             axes=["cluster", "z", "y", "x"],
         ).set_scale(zyx=loader.scale, unit="nm")
 
-        loader.molecules.features = out.molecules.features
         t0.toc()
 
         @thread_worker.callback
         def _on_return():
+            loader.molecules.features = out.molecules.features
             pca_viewer = PcaViewer(pca)
             pca_viewer.native.setParent(self.native, pca_viewer.native.windowFlags())
             pca_viewer.show()

@@ -1,10 +1,8 @@
-from fnmatch import fnmatch
-from typing import Annotated, Literal, NamedTuple, Any, TYPE_CHECKING
-import glob
+from typing import Annotated, Literal, Any
 import impy as ip
 import polars as pl
 
-from acryo import BatchLoader, Molecules
+from acryo import BatchLoader
 from macrokit import Symbol, Expr
 from magicclass import (
     confirm,
@@ -17,32 +15,16 @@ from magicclass import (
 )
 from magicclass.types import Path
 from magicclass.utils import thread_worker
-from cylindra.const import (
-    MoleculesHeader as Mole,
-    PropertyNames as H,
-    FileFilter,
-)
+from cylindra.const import FileFilter
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.widget_utils import POLARS_NAMESPACE, capitalize
 from cylindra.widgets._accessors import BatchLoaderAccessor
 from cylindra.project import CylindraProject, CylindraBatchProject
 from cylindra._config import get_config
 from .sta import BatchSubtomogramAveraging
-from ._sequence import ProjectSequenceEdit
-from ._loaderlist import LoaderList, LoaderInfo
-
-if TYPE_CHECKING:
-    from cylindra.components import CylSpline
-
-_SPLINE_FEATURES = [
-    H.spacing,
-    H.twist,
-    H.npf,
-    H.start,
-    H.rise,
-    H.radius,
-    H.orientation,
-]
+from ._sequence import ProjectSequenceEdit, PathInfo
+from ._loaderlist import LoaderList
+from ._utils import TempFeatures, LoaderInfo
 
 
 @magicclass(
@@ -63,7 +45,7 @@ class CylindraBatchWidget(MagicTemplate):
         self._loaders.events.removed.connect(self.reset_choices)
         self._loaders.events.moved.connect(self.reset_choices)
 
-    def _get_loader_paths(self, *_):
+    def _get_loader_paths(self, *_) -> list[PathInfo]:
         return [prj._get_loader_paths() for prj in self.constructor.projects]
 
     def _get_expression(self, *_):
@@ -92,36 +74,18 @@ class CylindraBatchWidget(MagicTemplate):
         yield 0.0, 0.0
         loader = BatchLoader()
         image_paths: dict[int, Path] = {}
-        to_drop = set[str]()
-        _total = len(paths)
-        for img_id, _path_info in enumerate(paths):
-            path_info = PathInfo(*_path_info)
+        _temp_features = TempFeatures()
+        for img_id, path_info in enumerate(paths):
+            path_info = PathInfo(*path_info)
             img = ip.lazy.imread(path_info.image, chunks=get_config().dask_chunk)
             image_paths[img_id] = Path(path_info.image)
             prj = CylindraProject.from_file(path_info.project)
             with prj.open_project() as dir:
-                _total_sub = len(path_info.molecules)
                 for molecule_id, mole_path in enumerate(path_info.molecules):
-                    mole_abs_path = dir / mole_path
-                    mole = Molecules.from_file(mole_abs_path)
-                    spl = _find_source(prj, dir, mole_path)
-                    features = [
-                        pl.repeat(mole_abs_path.stem, pl.count()).alias(Mole.id)
-                    ]
-                    if spl is not None:
-                        for propname in _SPLINE_FEATURES:
-                            prop = spl.props.get_glob(propname, None)
-                            if prop is None:
-                                continue
-                            propname_glob = propname + "_glob"
-                            features.append(
-                                pl.repeat(prop, pl.count()).alias(propname_glob)
-                            )
-                            to_drop.add(propname_glob)
-                    mole = mole.with_features(features)
+                    mole = _temp_features.read_molecules(prj, dir / mole_path)
                     loader.add_tomogram(img.value, mole, img_id)
-                    yield img_id / _total, molecule_id / _total_sub
-                yield (img_id + 1) / _total, 0.0
+                    yield img_id / len(paths), molecule_id / len(path_info.molecules)
+                yield (img_id + 1) / len(paths), 0.0
         yield 1.0, 1.0
 
         if predicate is not None:
@@ -129,7 +93,7 @@ class CylindraBatchWidget(MagicTemplate):
                 predicate = eval(predicate, POLARS_NAMESPACE, {})
             loader = loader.filter(predicate)
         new = loader.replace(
-            molecules=loader.molecules.drop_features(to_drop),
+            molecules=loader.molecules.drop_features(_temp_features.to_drop),
             scale=self.constructor.scale.value,
         )
 
@@ -164,6 +128,10 @@ class CylindraBatchWidget(MagicTemplate):
 
     def _add_loader(self, loader: BatchLoader, name: str, image_paths: dict[int, Path]):
         self._loaders.append(LoaderInfo(loader, name=name, image_paths=image_paths))
+        try:
+            self.sta["loader_name"].value = self.sta["loader_name"].choices[-1]
+        except Exception:
+            pass  # Updating the value is not important. Silence just in case.
 
     @set_design(text=capitalize, location=ProjectSequenceEdit.MacroMenu)
     @do_not_record
@@ -171,11 +139,9 @@ class CylindraBatchWidget(MagicTemplate):
         from cylindra import instance
 
         ui = instance()
+        assert ui is not None
         macro_str = self.macro.widget.textedit.value
-        win = ui.macro.widget.new_window("Batch")
-        win.textedit.value = macro_str
-        win.show()
-        ACTIVE_WIDGETS.add(win)
+        ui.OthersMenu.Macro._get_macro_window(macro_str, "Batch")
         return None
 
     @set_design(text=capitalize, location=ProjectSequenceEdit.MacroMenu)
@@ -220,19 +186,3 @@ class CylindraBatchWidget(MagicTemplate):
             Extension of the molecule files.
         """
         return CylindraBatchProject.save_gui(self, Path(save_path), molecules_ext)
-
-
-class PathInfo(NamedTuple):
-    image: Path
-    molecules: list[str]
-    project: Path
-
-
-def _find_source(prj: CylindraProject, dir: Path, mole_path: str) -> "CylSpline | None":
-    for info in prj.molecules_info:
-        if info.name == mole_path:
-            source = info.source
-            if source is None:
-                return None
-            return prj.load_spline(dir, source)
-    return None

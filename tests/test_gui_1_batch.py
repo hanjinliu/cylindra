@@ -60,7 +60,7 @@ def test_project_io(ui: CylindraMainWidget):
     )
 
     loader = ui.batch.sta.get_loader("Loader2")
-    assert loader.features["pf-id"].max() == 12
+    assert loader.features["pf-id"].max() == 12  # only 13-PF
 
     ui.batch.constructor.select_all_projects()
     ui.batch.constructor.select_molecules_by_pattern("Mole-0*")
@@ -77,6 +77,10 @@ def test_view(ui: CylindraMainWidget):
     ui.batch.constructor.view_components()
     ui.batch.constructor.view_molecules()
     ui.batch.constructor.view_filtered_molecules()
+    # retry with filter
+    ui.batch.constructor.filter_expression.value = "pl.col('npf_glob') == 13"
+    ui.batch.constructor.view_filtered_molecules()
+
     ui.batch.constructor.view_selected_components().close()
     ui.batch.close()
 

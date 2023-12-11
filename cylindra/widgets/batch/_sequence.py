@@ -28,6 +28,7 @@ from cylindra.const import MoleculesHeader as Mole, FileFilter
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.widget_utils import POLARS_NAMESPACE
 from cylindra._config import get_config
+from ._utils import PathInfo, TempFeatures
 
 
 @magicclass(
@@ -329,14 +330,27 @@ class ProjectSequenceEdit(MagicTemplate):
     def _get_batch_loader(
         self, order: int = 3, output_shape=None, predicate=None
     ) -> BatchLoader:
-        batch_loader = BatchLoader()
-        for i, prj in enumerate(iter(self.projects)):
-            if not prj.check:
+        batch_loader = BatchLoader(order=order)
+        ###
+        image_paths: dict[int, Path] = {}
+        _temp_features = TempFeatures(enabled=predicate is not None)
+        for img_id, prj_wdt in enumerate(iter(self.projects)):
+            if not prj_wdt.check:
                 continue
-            loader = prj.get_loader(order=order)
-            batch_loader.add_tomogram(loader.image, loader.molecules, image_id=i)
+            path_info = PathInfo(prj_wdt._get_loader_paths())
+            img = ip.lazy.imread(path_info.image, chunks=get_config().dask_chunk)
+            image_paths[img_id] = Path(path_info.image)
+            prj = CylindraProject.from_file(path_info.project)
+            with prj.open_project() as dir:
+                for mole_wdt in prj_wdt.molecules:
+                    if not mole_wdt.check:
+                        continue
+                    mole = _temp_features.read_molecules(prj, dir / mole_wdt.line.value)
+                    batch_loader.add_tomogram(img.value, mole, img_id)
 
         if predicate is not None:
+            if isinstance(predicate, str):
+                predicate = eval(predicate, POLARS_NAMESPACE, {})
             batch_loader = batch_loader.filter(predicate)
         if output_shape is not None:
             batch_loader = batch_loader.replace(output_shape=output_shape)

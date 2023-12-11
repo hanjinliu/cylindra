@@ -174,9 +174,21 @@ class ProjectSequence(MutableSequence[CylindraProject]):
     def sta_loader(
         self,
         name_filter: Callable[[str], bool] | None = None,
+        *,
         curvature: bool = False,
     ) -> BatchLoader:
-        """Construct a STA loader from all the projects."""
+        """
+        Construct a STA loader from all the projects.
+
+        Parameters
+        ----------
+        name_filter : callable, default is None
+            Function that takes a molecule file name (without extension) and
+            returns True if the molecule should be collected. Collect all the
+            molecules by default.
+        curvature : bool, default is False
+            If True, the spline curvature will be added to the molecule features.
+        """
         import impy as ip
         from acryo import BatchLoader
 
@@ -393,6 +405,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
     def collect_molecules(
         self,
         name_filter: Callable[[str], bool] | None = None,
+        *,
         curvature: bool = False,
     ) -> Molecules:
         """
@@ -407,7 +420,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         curvature : bool, default is False
             If True, the spline curvature will be added to the molecule features.
         """
-        mole = self.sta_loader(name_filter, curvature).molecules
+        mole = self.sta_loader(name_filter, curvature=curvature).molecules
         return mole
 
     def iter_splines(self) -> Iterable[tuple[SplineKey, CylSpline]]:

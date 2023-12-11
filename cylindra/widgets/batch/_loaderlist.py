@@ -7,16 +7,7 @@ from pathlib import Path
 from psygnal.containers import EventedList
 
 from acryo import BatchLoader
-
-
-@dataclasses.dataclass(frozen=True)
-class LoaderInfo:
-    loader: BatchLoader
-    name: str
-    image_paths: dict[int, Path]
-
-    def rename(self, name: str):
-        return LoaderInfo(self.loader, name, self.image_paths)
+from ._utils import LoaderInfo
 
 
 class LoaderList(EventedList[LoaderInfo]):
@@ -65,3 +56,8 @@ class LoaderList(EventedList[LoaderInfo]):
                 suffix += 1
             value = value.rename(f"{prefix}-{suffix}")
         return super().insert(index, value)
+
+    def add_loader(self, loader: BatchLoader, name: str, image_paths: dict[int, Path]):
+        """Add a new loader to the list."""
+        self.append(LoaderInfo(loader, name, image_paths))
+        return None

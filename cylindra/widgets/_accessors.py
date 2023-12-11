@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from magicclass import MagicTemplate
     from cylindra.widgets.main import CylindraMainWidget
     from cylindra.widgets.batch import CylindraBatchWidget
-    from cylindra.widgets.batch._loaderlist import LoaderInfo
+    from cylindra.widgets.batch._utils import LoaderInfo
     from acryo import Molecules
     from typing_extensions import Self
 

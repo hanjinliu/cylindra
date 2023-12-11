@@ -1485,20 +1485,19 @@ class SubtomogramAveraging(ChildWidget):
 
         t0 = timer()
         layer = assert_layer(layer, self.parent_viewer)
-        parent = self._get_main()
-
+        tomo = self._get_main().tomogram
         loader = self._get_loader(
             binsize=bin_size, molecules=layer.molecules, order=interpolation
         )
-        _, mask = loader.normalize_input(
+        template, mask = loader.normalize_input(
             template=self.params._norm_template_param(template_path, allow_none=True),
             mask=self.params._get_mask(params=mask_params),
         )
+        shape = None if size is None else (tomo.nm2pixel(size, binsize=bin_size),) * 3
         out, pca = loader.reshape(
+            template=template,
             mask=mask,
-            shape=None
-            if size is None
-            else (parent.tomogram.nm2pixel(size, binsize=bin_size),) * 3,
+            shape=shape,
         ).classify(
             mask=mask,
             seed=seed,
@@ -1512,11 +1511,11 @@ class SubtomogramAveraging(ChildWidget):
         avgs = ip.asarray(
             np.stack(list(avgs_dict.values()), axis=0), axes=["cluster", "z", "y", "x"]
         ).set_scale(zyx=loader.scale, unit="nm")
-        layer.molecules = out.molecules  # update features
         t0.toc()
 
         @thread_worker.callback
         def _on_return():
+            layer.molecules = out.molecules  # update features
             pca_viewer = PcaViewer(pca)
             pca_viewer.native.setParent(self.native, pca_viewer.native.windowFlags())
             pca_viewer.show()
@@ -1582,14 +1581,13 @@ class SubtomogramAveraging(ChildWidget):
             cutoff=cutoff,
         )
 
-        new_feat = result.as_series(loader.molecules.count())
-        layer.features = layer.molecules.features.with_columns(new_feat)
-        layer.metadata[SEAM_SEARCH_RESULT] = result
-
         t0.toc()
 
         @thread_worker.callback
         def _seam_search_on_return():
+            new_feat = result.as_series(loader.molecules.count())
+            layer.features = layer.molecules.features.with_columns(new_feat)
+            layer.metadata[SEAM_SEARCH_RESULT] = result
             if show_average is not None:
                 if show_average == "Filtered":
                     sigma = 0.25 / loader.scale
