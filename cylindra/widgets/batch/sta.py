@@ -431,15 +431,18 @@ class BatchSubtomogramAveraging(MagicTemplate):
 
         t0 = timer()
         loader = self._get_parent().loaders[loader_name].loader
-        shape = self._get_shape_in_px(size, loader)
-
         template, mask = loader.normalize_input(
             template=self.params._norm_template_param(allow_none=True),
             mask=self.params._get_mask(params=mask_params),
         )
+        shape = None
+        if mask is None:
+            shape = self._get_shape_in_px(size, loader)
         out, pca = (
             loader.reshape(
-                template=template if mask is None else None, mask=mask, shape=shape
+                template=template if mask is None and shape is None else None,
+                mask=mask,
+                shape=shape,
             )
             .replace(order=interpolation)
             .binning(binsize=bin_size, compute=False)

@@ -1,8 +1,10 @@
 from typing import Annotated, Any
 import numpy as np
 import pandas as pd
+import polars as pl
 
-from magicclass import magicmenu, set_design
+from magicclass import field, magicmenu, set_design
+from magicclass.widgets import Separator
 from magicclass.types import Path
 from acryo import Molecules
 import impy as ip
@@ -14,8 +16,8 @@ from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 
 @magicmenu
-class PEET(ChildWidget):
-    """File IO for PEET software."""
+class IMOD(ChildWidget):
+    """File IO for IMOD softwares."""
 
     @set_design(text=capitalize)
     def read_monomers(
@@ -39,7 +41,8 @@ class PEET(ChildWidget):
         """
         from .cmd import read_mod
 
-        mod = read_mod(mod_path).values
+        df = read_mod(mod_path)
+        mod = df.select("z", "y", "x").to_numpy()
         mod[:, 1:] -= 0.5  # shift to center of voxel
         shifts, angs = _read_shift_and_angle(ang_path)
         mol = Molecules.from_euler(pos=mod * self.scale, angles=angs, degrees=True)
@@ -49,6 +52,22 @@ class PEET(ChildWidget):
         return add_molecules(
             self.parent_viewer, mol, "Molecules from PEET", source=None
         )
+
+    @set_design(text=capitalize)
+    def read_lines_as_splines(
+        self,
+        mod_path: Annotated[Path.Read[FileFilter.MOD], {"label": "Path to MOD file"}],
+    ):
+        """Read a mod file and register all the contours as splines."""
+        from .cmd import read_mod
+
+        df = read_mod(mod_path)
+        main = self._get_main()
+        for _, sub in df.group_by("object_id", "contour_id", maintain_order=True):
+            coords = sub.select("z", "y", "x").to_numpy()
+            main.register_path(coords * self.scale, err_max=1e-8)
+
+    sep0 = field(Separator)
 
     @set_design(text=capitalize)
     def save_monomers(self, save_dir: Path.Dir, layer: MoleculesLayer):
@@ -82,6 +101,48 @@ class PEET(ChildWidget):
             raise ValueError("No monomer found.")
         mol = Molecules.concat([l.molecules for l in layers])
         return _save_molecules(save_dir=save_dir, mol=mol, scale=self.scale)
+
+    @set_design(text=capitalize)
+    def save_splines(
+        self,
+        save_path: Path.Save[FileFilter.MOD],
+        interval: Annotated[float, {"min": 0.01, "max": 1000.0, "label": "Sampling interval (nm)"}] = 10.0,
+    ):  # fmt: skip
+        """
+        Save splines as a mod file.
+
+        This function will sample coordinates along the splines and save the coordinates as a mod file.
+        The mod file will be labeled with object_id=1 and contour_id=i+1, where i is the index of the spline.
+
+        Parameters
+        ----------
+        save_path : Path
+            Saving path.
+        interval : float, default is 10.0
+            Sampling interval along the splines. For example, if interval=10.0 and the length of a spline
+            is 100.0, 11 points will be sampled.
+        """
+        from .cmd import save_mod
+
+        if interval <= 1e-4:
+            raise ValueError("Interval must be larger than 1e-4.")
+        main = self._get_main()
+        data_list = []
+        for i, spl in enumerate(main.splines):
+            num = int(spl.length() / interval)
+            coords = spl.partition(num) / self.scale
+            df = pl.DataFrame(
+                {
+                    "object_id": 1,
+                    "contour_id": i + 1,
+                    "x": coords[:, 2],
+                    "y": coords[:, 1],
+                    "z": coords[:, 0],
+                }
+            )
+            data_list.append(df)
+        data_all = pl.concat(data_list, how="vertical")
+        save_mod(save_path, data_all)
 
     @set_design(text=capitalize)
     def shift_monomers(
@@ -175,6 +236,8 @@ class PEET(ChildWidget):
             Name of the PEET project.
         """
         save_dir = Path(save_dir)
+        if not save_dir.exists():
+            save_dir.mkdir()
         main = self._get_main()
         loader = main.tomogram.get_subtomogram_loader(
             Molecules.empty(),
@@ -189,10 +252,10 @@ class PEET(ChildWidget):
             raise ValueError("Template image is not loaded.")
 
         # paths
-        coordinates_path = save_dir / "coordinates.mod"
-        angles_path = save_dir / "angles.csv"
-        template_path = save_dir / "template-image.mrc"
-        mask_path = save_dir / "mask-image.mrc"
+        coordinates_path = "./coordinates.mod"
+        angles_path = "./angles.csv"
+        template_path = "./template-image.mrc"
+        mask_path = "./mask-image.mrc"
         prm_path = save_dir / f"{project_name}.prm"
 
         txt = PEET_TEMPLATE.format(
@@ -212,11 +275,11 @@ class PEET(ChildWidget):
         _save_molecules(save_dir=save_dir, mol=mol, scale=self.scale)
         ip.asarray(template_image, axes="zyx").set_scale(
             zyx=self.scale, unit="nm"
-        ).imsave(template_path)
+        ).imsave(save_dir / template_path)
         if mask_image is not None:
             ip.asarray(mask_image, axes="zyx").set_scale(
                 zyx=self.scale, unit="nm"
-            ).imsave(mask_path)
+            ).imsave(save_dir / mask_path)
 
         return None
 
@@ -281,7 +344,10 @@ def _save_molecules(
 
     pos = mol.pos[:, ::-1] / scale
     pos[:, 1:] += 0.5
-    save_mod(save_dir / mod_name, pos)
+    save_mod(
+        save_dir / mod_name,
+        pl.DataFrame({"z": pos[:, 0], "y": pos[:, 1], "x": pos[:, 2]}),
+    )
     save_angles(save_dir / csv_name, mol.euler_angle("ZXZ", degrees=True))
     return None
 

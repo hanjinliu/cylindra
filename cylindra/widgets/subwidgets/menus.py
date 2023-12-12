@@ -32,7 +32,7 @@ from magicclass.ext.polars import DataFrameView
 from cylindra._napari import MoleculesLayer
 from cylindra.utils import roundint, str_color
 from cylindra.types import get_monomer_layers, ColoredLayer
-from cylindra.ext.etomo import PEET
+from cylindra.ext.etomo import IMOD
 from cylindra.const import nm, get_versions, ImageFilter, FileFilter
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.project import CylindraProject, extract
@@ -199,7 +199,8 @@ class FileMenu(ChildWidget):
         ACTIVE_WIDGETS.add(pviewer)
         return pviewer.show()
 
-    PEET = PEET
+    sep2 = field(Separator)
+    IMOD = IMOD
 
 
 @magicmenu

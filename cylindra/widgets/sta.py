@@ -1493,9 +1493,11 @@ class SubtomogramAveraging(ChildWidget):
             template=self.params._norm_template_param(template_path, allow_none=True),
             mask=self.params._get_mask(params=mask_params),
         )
-        shape = None if size is None else (tomo.nm2pixel(size, binsize=bin_size),) * 3
+        shape = None
+        if size is not None and mask is None:
+            shape = (tomo.nm2pixel(size, binsize=bin_size),) * 3
         out, pca = loader.reshape(
-            template=template if mask is None else None,
+            template=template if mask is None and shape is None else None,
             mask=mask,
             shape=shape,
         ).classify(
