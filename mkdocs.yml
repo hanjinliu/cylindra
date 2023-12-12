@@ -1,0 +1,11 @@
+site_name: Cylindra
+site_description: Cryo-ET image analysis tool for cylindric periodic structures such as microtubules.
+repo_name: cylindra
+repo_url: https://github.com/hanjinliu/cylindra
+
+copyright: Copyright (c) 2023 - 2024 Hanjin Liu
+theme: readthedocs
+
+plugins:
+  - search
+  - autorefs

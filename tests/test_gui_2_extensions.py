@@ -6,16 +6,16 @@ from cylindra.widgets import CylindraMainWidget
 from ._const import PROJECT_DIR_14PF, TEST_DIR
 
 
-def test_PEET(ui: CylindraMainWidget):
+def test_IMOD(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF)
-    peet = ui.FileMenu.PEET
+    imod = ui.FileMenu.IMOD
     with tempfile.TemporaryDirectory() as tmpdir:
         with suppress(CommandNotFound):
-            peet.save_monomers(Path(tmpdir), ui.mole_layers.nth(0))
+            imod.save_monomers(Path(tmpdir), ui.mole_layers.nth(0))
         with suppress(CommandNotFound):
-            peet.save_all_monomers(Path(tmpdir))
+            imod.save_all_monomers(Path(tmpdir))
         with suppress(CommandNotFound):
-            peet.export_project(
+            imod.export_project(
                 ui.mole_layers.nth(0),
                 Path(tmpdir),
                 template_path=TEST_DIR / "beta-tubulin.mrc",
