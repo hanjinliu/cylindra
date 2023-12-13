@@ -266,7 +266,7 @@ class CylTomogram(Tomogram):
 
         Parameters
         ----------
-        orientation : Ori or str, default is Ori.MinusToPlus
+        orientation : Ori or str, default Ori.MinusToPlus
             To which direction splines will be aligned.
 
         Returns
@@ -312,20 +312,20 @@ class CylTomogram(Tomogram):
         ----------
         i : int or iterable of int, optional
             Spline ID that you want to fit.
-        max_interval : nm, default is 30.0
+        max_interval : nm, default 30.0
             Maximum interval of sampling points in nm unit.
-        degree_precision : float, default is 0.5
+        degree_precision : float, default 0.5
             Precision of xy-tilt degree in angular correlation.
-        binsize : int, default is 1
+        binsize : int, default 1
             Multiscale bin size used for fitting.
-        edge_sigma : nm, default is 2.0
+        edge_sigma : nm, default 2.0
             Sharpness of mask at the edges. If not None, fitting will be executed after regions
             outside the cylinder are masked. Soft mask is important for precision because sharp
             changes in intensity cause strong correlation at the edges.
-        max_shift: nm, default is 5.0
+        max_shift: nm, default 5.0
             Maximum shift from the true center of the cylinder. This parameter is used in phase
             cross correlation.
-        n_rotations : int, default is 5
+        n_rotations : int, default 5
             Number of rotations to be tested during finding the cylinder center.
 
         Returns
@@ -433,17 +433,17 @@ class CylTomogram(Tomogram):
         ----------
         i : int or iterable of int, optional
             Spline ID that you want to fit.
-        max_interval : nm, default is 24.0
+        max_interval : nm, default 24.0
             Maximum interval of sampling points in nm unit.
-        binsize : int, default is 1
+        binsize : int, default 1
             Multiscale bin size used for refining.
         corr_allowed : float, defaul is 0.9
             How many images will be used to make template for alignment. If 0.9, then top
             90% will be used.
-        max_shift: nm, default is 2.0
+        max_shift: nm, default 2.0
             Maximum shift from the true center of the cylinder. This parameter is used in
             phase cross correlation.
-        n_rotations : int, default is 3
+        n_rotations : int, default 3
             Number of rotations to be tested during finding the cylinder center.
 
         Returns
@@ -548,15 +548,15 @@ class CylTomogram(Tomogram):
         ----------
         i : int or iterable of int, optional
             Spline ID that you want to measure.
-        binsize : int, default is 1
+        binsize : int, default 1
             Multiscale bin size used for radius calculation.
-        positions : array-like or "auto" or "anchor", default is "auto"
+        positions : array-like or "auto" or "anchor", default "auto"
             Sampling positions (between 0 and 1) to calculate radius. If "anchor"
             is given, anchors of the spline will be used. If "auto" is given,
             three positions along the spline will be used.
-        min_radius : nm, default is 1.0
+        min_radius : nm, default 1.0
             Minimum radius of the cylinder.
-        update : bool, default is True
+        update : bool, default True
             If True, global radius property will be updated.
 
         Returns
@@ -615,9 +615,9 @@ class CylTomogram(Tomogram):
         ----------
         i : int or iterable of int, optional
             Spline ID that you want to analyze.
-        size : nm, default is 50.0
+        size : nm, default 50.0
             Longitudinal length of subtomograms for calculation.
-        binsize : int, default is 1
+        binsize : int, default 1
             Multiscale binsize to be used.
 
         Returns
@@ -679,21 +679,21 @@ class CylTomogram(Tomogram):
         ----------
         i : int or iterable of int, optional
             Spline ID that you want to analyze.
-        depth : nm, default is 50.0
+        depth : nm, default 50.0
             Length of subtomogram for calculation of local parameters.
-        binsize : int, default is 1
+        binsize : int, default 1
             Multiscale bin size used for calculation.
-        radius : str, default is "global"
+        radius : str, default "global"
             If "local", use the local radius for the analysis. If "global", use the
             global radius. If a float, use the given radius.
-        nsamples : int, default is 8
+        nsamples : int, default 8
             Number of cylindrical coordinate samplings for Fourier transformation. Multiple
             samplings are needed because up-sampled discrete Fourier transformation does not
             return exactly the same power spectra with shifted inputs, unlike FFT. Larger
             ``nsamples`` reduces the error but is slower.
-        update : bool, default is True
+        update : bool, default True
             If True, spline properties will be updated.
-        update_glob : bool, default is False
+        update_glob : bool, default False
             If True, global properties will be updated using the mean or mode of the local
             properties.
 
@@ -755,11 +755,11 @@ class CylTomogram(Tomogram):
         ----------
         i : int or iterable of int, optional
             Spline ID that you want to analyze.
-        depth : nm, default is 50.0
+        depth : nm, default 50.0
             Length of subtomogram for calculation of local parameters.
         pos : int, optional
             Only calculate at ``pos``-th anchor if given.
-        binsize : int, default is 1
+        binsize : int, default 1
             Multiscale bin size used for calculation.
 
         Returns
@@ -808,11 +808,11 @@ class CylTomogram(Tomogram):
         ----------
         i : int or iterable of int, optional
             Spline ID that you want to analyze.
-        depth : nm, default is 50.0
+        depth : nm, default 50.0
             Length of subtomogram for calculation of local parameters.
         pos : int, optional
             Only calculate at ``pos``-th anchor if given.
-        binsize : int, default is 1
+        binsize : int, default 1
             Multiscale bin size used for calculation.
 
         Returns
@@ -843,14 +843,14 @@ class CylTomogram(Tomogram):
         ----------
         i : int or iterable of int, optional
             Spline ID that you want to analyze.
-        binsize : int, default is 1
+        binsize : int, default 1
             Multiscale bin size used for calculation.
-        nsamples : int, default is 8
+        nsamples : int, default 8
             Number of cylindrical coordinate samplings for Fourier transformation.
             Multiple samplings are needed because up-sampled discrete Fourier
             transformation does not return exactly the same power spectra with shifted
             inputs, unlike FFT. Larger ``nsamples`` reduces the error but is slower.
-        update : bool, default is True
+        update : bool, default True
             If True, spline properties will be updated.
 
         Returns
@@ -880,7 +880,7 @@ class CylTomogram(Tomogram):
         ----------
         i : int or iterable of int, optional
             Spline ID that you want to analyze.
-        binsize : int, default is 1
+        binsize : int, default 1
             Multiscale bin size used for calculation.
 
         Returns
@@ -909,9 +909,9 @@ class CylTomogram(Tomogram):
         ----------
         i : int or iterable of int, optional
             Spline ID that you want to analyze.
-        binsize : int, default is 1
+        binsize : int, default 1
             Multiscale bin size used for calculation.
-        depth : nm, default is 40.0
+        depth : nm, default 40.0
             Depth of images used to infer polarities.
 
         Returns
@@ -991,13 +991,13 @@ class CylTomogram(Tomogram):
             Spline ID that you want to straighten.
         size : float (nm), optional
             Vertical/horizontal box size.
-        range_ : tuple[float, float], default is (0.0, 1.0)
+        range_ : tuple[float, float], default (0.0, 1.0)
             Range of spline domain.
         chunk_length : nm, optional
             If spline is longer than this, it will be first split into chunks,
             straightened respectively and all the straightened images are concatenated
             afterward, to avoid loading entire image into memory.
-        binsize : int, default is 1
+        binsize : int, default 1
             Multiscale bin size used for calculation.
 
         Returns
@@ -1030,13 +1030,13 @@ class CylTomogram(Tomogram):
             Spline ID that you want to straighten.
         radii : tuple of float (nm), optional
             Lower/upper limit of radius.
-        range_ : tuple[float, float], default is (0.0, 1.0)
+        range_ : tuple[float, float], default (0.0, 1.0)
             Range of spline domain.
         chunk_length : nm, optional
             If spline is longer than this, it will be first split into chunks,
             straightened respectively and all the straightened images are concatenated
             afterward, to avoid loading entire image into memory.
-        binsize : int, default is 1
+        binsize : int, default 1
             Multiscale bin size used for calculation.
 
         Returns
@@ -1209,7 +1209,7 @@ class CylTomogram(Tomogram):
         ----------
         i : int or iterable of int, optional
             Spline ID that mapping will be calculated.
-        offsets : (float, float), default is (0.0, 0.0)
+        offsets : (float, float), default (0.0, 0.0)
             Axial offset in nm and angular offset in degree.
 
         Returns

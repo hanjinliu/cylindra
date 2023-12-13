@@ -126,7 +126,7 @@ class FileMenu(ChildWidget):
             ----------
             name : str
                 Name of the stashed project.
-            filter : ImageFilter, default is ImageFilter.Lowpass
+            filter : ImageFilter, default ImageFilter.Lowpass
                 Image filter to apply to the loaded images.
             """
             yield from self._get_main().load_project.arun(
@@ -147,7 +147,7 @@ class FileMenu(ChildWidget):
             ----------
             name : str
                 Name of the stashed project.
-            filter : ImageFilter, default is ImageFilter.Lowpass
+            filter : ImageFilter, default ImageFilter.Lowpass
                 Image filter to apply to the loaded images.
             """
             self.load_stash_project(name, filter=filter)
@@ -247,9 +247,9 @@ class ImageMenu(ChildWidget):
         ----------
         layer : Layer
             The layer to show the colorbar of.
-        length : int, default is 256
+        length : int, default 256
             Length of the colorbar.
-        orientation : 'vertical' or 'horizontal', default is 'horizontal'
+        orientation : 'vertical' or 'horizontal', default 'horizontal'
             Orientation of the colorbar.
         """
         info = layer.colormap_info
@@ -366,25 +366,25 @@ class SplinesMenu(ChildWidget):
 
             Parameters
             ----------
-            npf_range : (int, int), default is (11, 17)
+            npf_range : (int, int), default (11, 17)
                 Range of protofilament number.
-            spacing_range : (float, float), default is (3.9, 4.3)
+            spacing_range : (float, float), default
                 Range of longitudinal lattice spacing.
-            twist_range : (float, float), default is (-1.0, 1.0)
+            twist_range : (float, float), default (-1.0, 1.0)
                 Range of twist angle in degree.
-            rise_range : (float, float), default is (0.0, 45.0)
+            rise_range : (float, float), default (0.0, 45.0)
                 Range of rise angle in degree.
-            rise_sign : -1 or 1, default is -1
+            rise_sign : -1 or 1, default -1
                 Sign of the rise angle.
-            clockwise : "PlusToMinus" or "MinusToPlus", default is "MinusToPlus"
+            clockwise : "PlusToMinus" or "MinusToPlus", default "MinusToPlus"
                 Closewise rotation of the y-project corresponds to which orientation.
-            thickness_inner : float, default is 2.0
+            thickness_inner : float, default 2.0
                 Cylinder thickness inside the radial peak.
-            thickness_outer : float, default is 3.0
+            thickness_outer : float, default 3.0
                 Cylinder thickness outside the radial peak.
-            fit_depth : float, default is 48.0
+            fit_depth : float, default 48.0
                 Depth in nm used during spline fitting.
-            fit_width : float, default is 44.0
+            fit_width : float, default.0
                 Width in nm used during spline fitting.
             """
             loc = locals()
@@ -420,21 +420,13 @@ class SplinesMenu(ChildWidget):
         @set_design(text=capitalize)
         @do_not_record
         @bind_key("Ctrl+K, Ctrl+/")
-        def fit_splines_manually(
-            self, max_interval: Annotated[nm, {"label": "Max interval (nm)"}] = 50.0
-        ):
-            """
-            Open a spline fitter window and fit cylinder with spline manually.
-
-            Parameters
-            ----------
-            max_interval : nm, default is 50.0
-                Maximum interval (nm) between spline anchors that will be used to
-                sample subtomogram projections.
-            """
+        def fit_splines_manually(self):
+            """Open a spline fitter window and fit cylinder with spline manually."""
             main = self._get_main()
-            main.spline_fitter._load_parent_state(max_interval=max_interval)
-            return main.spline_fitter.show()
+            main.spline_fitter.resample_volumes()
+            main.spline_fitter.show()
+            if parent := main.spline_fitter.native.parent():
+                parent.resize(380, 220)
 
         refine_splines = abstractapi()
 
@@ -528,11 +520,11 @@ class MoleculesMenu(ChildWidget):
             ----------
             layer : MolecularLayer
                 The layer to show the orientation of.
-            x_color : Color, default is "crimson"
+            x_color : Color, defaultrimson"
                 Vector color of the x direction.
-            y_color : Color, default is "cyan"
+            y_color : Color, default "cyan"
                 Vector color of the y direction.
-            z_color : Color, default is "orange"
+            z_color : Color, default "orange"
                 Vector color of the z direction.
             """
             main = self._get_main()
@@ -628,7 +620,7 @@ class MoleculesMenu(ChildWidget):
                 The layer used to render.
             template_path : Path
                 Path to the template image.
-            scale : nm, default is 1.5
+            scale : nm, default 1.5
                 Scale to resize the template image.
             """
             from skimage.measure import marching_cubes
@@ -989,7 +981,7 @@ class OthersMenu(ChildWidget):
         num_workers : int, optional
             Number of workers to use. If not specified, the maximum number of workers
             will be used.
-        scheduler : str, default is 'threads'
+        scheduler : str, default 'threads'
             The scheduler to use.
         """
         import dask.config

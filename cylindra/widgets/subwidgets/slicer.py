@@ -344,12 +344,12 @@ class SplineSlicer(ChildWidget):
         pos : nm
             Position of the center of the image. `pos` nm from the spline start
             point will be used.
-        depth : nm, default is 50.0
+        depth : nm, default 50.0
             Depth of the output image. Depth corresponds to the length of the
             direction parallel to the spline vector at the given position.
-        binsize : int, default is 1
+        binsize : int, default
             Image bin size to use.
-        order : int, default is 3
+        order : int, default 3
             Interpolation order.
         half_width : nm, optional
             Half width size of the image. (depth, 2 * half_width, 2 * half_width)
@@ -400,12 +400,12 @@ class SplineSlicer(ChildWidget):
         pos : nm
             Position of the center of the image. `pos` nm from the spline start
             point will be used.
-        depth : nm, default is 50.0
+        depth : nm, default 50.0
             Depth of the output image. Depth corresponds to the length of the
             direction parallel to the spline vector at the given position.
-        binsize : int, default is 1
+        binsize : int, default 1
             Image bin size to use.
-        order : int, default is 3
+        order : int, default 3
             Interpolation order.
         radius : nm, optional
             Radius peak of the cylinder.

@@ -26,10 +26,10 @@ from magicclass.ext.polars import DataFrameView
 import numpy as np
 import impy as ip
 
+from cylindra import _shared_doc
 from cylindra.const import nm, ALN_SUFFIX, MoleculesHeader as Mole
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.utils import roundint
-from cylindra.widgets import _shared_doc
 from cylindra.widgets._widget_ext import RotationsEdit
 from cylindra.widgets._annotated import FSCFreq
 from cylindra.widgets.sta import StaParameters
@@ -352,11 +352,11 @@ class BatchSubtomogramAveraging(MagicTemplate):
         seed : int, optional
             Random seed used for subtomogram sampling.
         {interpolation}
-        n_pairs : int, default is 1
+        n_pairs : int, default 1
             How many sets of image pairs will be generated to average FSC.
-        show_average : bool, default is True
+        show_average : bool, default True
             If true, subtomogram averaging will be shown after FSC calculation.
-        dfreq : float, default is 0.02
+        dfreq : float, default 0.02
             Precision of frequency to calculate FSC. "0.02" means that FSC will be calculated
             at frequency 0.01, 0.03, 0.05, ..., 0.45.
         """
@@ -420,11 +420,11 @@ class BatchSubtomogramAveraging(MagicTemplate):
         Parameters
         ----------
         {loader_name}{mask_params}{size}{cutoff}{interpolation}{bin_size}
-        n_components : int, default is 2
+        n_components : int, default 2
             The number of PCA dimensions.
-        n_clusters : int, default is 2
+        n_clusters : int, default 2
             The number of clusters.
-        seed : int, default is 0
+        seed : int, default
             Random seed.
         """
         from cylindra.widgets.subwidgets import PcaViewer

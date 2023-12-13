@@ -182,7 +182,7 @@ class CylindraBatchWidget(MagicTemplate):
         ----------
         save_path : path-like
             Path to the JSON file.
-        molecules_ext : str, default is ".csv"
+        molecules_ext : str, default ".csv"
             Extension of the molecule files.
         """
         return CylindraBatchProject.save_gui(self, Path(save_path), molecules_ext)

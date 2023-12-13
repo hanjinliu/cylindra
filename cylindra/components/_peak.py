@@ -57,9 +57,9 @@ class PeakDetector:
             Range of power spectrum analysis in y-direction.
         range_a : (float, float)
             Range of power spectrum analysis in a-direction.
-        up_y : int, default is 1
+        up_y : int, default 1
             Upsampling factor in y-direction.
-        up_a : int, default is 1
+        up_a : int, default 1
             Upsampling factor in a-direction.
 
         Returns

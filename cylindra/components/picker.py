@@ -162,9 +162,9 @@ def centering(
         Current center of cylinder.
     angle : float
         The central angle of the cylinder.
-    drot : float, default is 5
+    drot : float, default 5
         Deviation of the rotation angle.
-    nrots : int, default is 7
+    nrots : int, default 7
         Number of rotations to try.
     max_shifts : float, optional
         Maximum shift in pixel.

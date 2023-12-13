@@ -182,11 +182,11 @@ class ProjectSequence(MutableSequence[CylindraProject]):
 
         Parameters
         ----------
-        name_filter : callable, default is None
+        name_filter : callable, default None
             Function that takes a molecule file name (without extension) and
             returns True if the molecule should be collected. Collect all the
             molecules by default.
-        curvature : bool, default is False
+        curvature : bool, default False
             If True, the spline curvature will be added to the molecule features.
         """
         import impy as ip
@@ -229,14 +229,14 @@ class ProjectSequence(MutableSequence[CylindraProject]):
 
         Parameters
         ----------
-        allow_none : bool, default is True
+        allow_none : bool, default True
             Continue data collection even if property table data file was not
             found in any project. Raise error otherwise.
-        id : str, default is "int"
+        id : str, default "int"
             How to describe the source tomogram. If "int", each tomogram will
             be labeled with ascending integers. If "path", each tomogram will
             be labeled with the name of the project directory.
-        spline_details : bool, default is False
+        spline_details : bool, default False
             If True, spline coordinates, its derivatives and the curvature
             will also be collected as well. This will take more memory and time.
 
@@ -298,13 +298,13 @@ class ProjectSequence(MutableSequence[CylindraProject]):
 
         Parameters
         ----------
-        allow_none : bool, default is True
+        allow_none : bool, default True
             Continue data collection even if property table data file was not
             found in any project. Raise error otherwise.
-        suffix : str, default is ""
+        suffix : str, default ""
             Suffix to add to the column names that may be collide with the local
             properties.
-        id : str, default is "int"
+        id : str, default "int"
             How to describe the source tomogram. If "int", each tomogram will
             be labeled with ascending integers. If "path", each tomogram will
             be labeled with the name of the project directory.
@@ -375,10 +375,10 @@ class ProjectSequence(MutableSequence[CylindraProject]):
 
         Parameters
         ----------
-        allow_none : bool, default is True
+        allow_none : bool, default True
             Continue data collection even if property table data file was not
             found in any project. Raise error otherwise.
-        id : str, default is "int"
+        id : str, default "int"
             How to describe the source tomogram. If "int", each tomogram will
             be labeled with ascending integers. If "path", each tomogram will
             be labeled with the name of the project directory.
@@ -413,11 +413,11 @@ class ProjectSequence(MutableSequence[CylindraProject]):
 
         Parameters
         ----------
-        name_filter : callable, default is None
+        name_filter : callable, optional
             Function that takes a molecule file name (without extension) and
             returns True if the molecule should be collected. Collect all the
             molecules by default.
-        curvature : bool, default is False
+        curvature : bool, default False
             If True, the spline curvature will be added to the molecule features.
         """
         mole = self.sta_loader(name_filter, curvature=curvature).molecules
@@ -439,10 +439,10 @@ class ProjectSequence(MutableSequence[CylindraProject]):
 
         Parameters
         ----------
-        spline_props : str or sequence of str
-            Spline global properties to be concatenated to the molecules features.
-        suffix : str, default is ""
-            Suffix that will be added to the spline global property names.
+        name_filter : callable, optional
+            Function that takes a molecule file name (without extension) and
+            returns True if the molecule should be collected. Collect all the
+            molecules by default.
         """
         for sl, (mole, _) in self.iter_molecules_with_splines(name_filter):
             yield sl, mole
@@ -472,7 +472,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
 
         Parameters
         ----------
-        ders : int or iterable of int, default is 0
+        ders : int or iterable of int, default 0
             Derivative order(s) to collect. If multiple values are given, all the
             derivatives will be concatenated in a single dataframe.
         """

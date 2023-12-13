@@ -26,7 +26,7 @@ from magicclass.undo import undo_callback
 
 from napari.layers import Layer
 
-from cylindra import utils, _config, cylmeasure, widget_utils
+from cylindra import utils, _config, cylmeasure, widget_utils, _shared_doc
 from cylindra.components import CylSpline, CylTomogram, SplineConfig
 from cylindra.const import (
     PREVIEW_LAYER_NAME,
@@ -48,7 +48,7 @@ from cylindra.widget_utils import (
     PolarsExprStr,
     capitalize,
 )
-from cylindra.widgets import _shared_doc, subwidgets as _sw
+from cylindra.widgets import subwidgets as _sw
 from cylindra.widgets.sta import SubtomogramAveraging
 
 from cylindra.widgets._accessors import MoleculesLayerAccessor
@@ -435,9 +435,9 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         path : Path
             Path to the tomogram. Must be 3-D image.
-        scale : float, default is 1.0
+        scale : float, default 1.0
             Pixel size in nm/pixel unit.
-        bin_size : int or list of int, default is [1]
+        bin_size : int or list of int, default [1]
             Initial bin size of image. Binned image will be used for visualization in the viewer.
             You can use both binned and non-binned image for analysis.
         {filter}
@@ -490,11 +490,11 @@ class CylindraMainWidget(MagicTemplate):
             Path to the project file, or the project directory that contains a project
             file, or a CylindraProject object.
         {filter}
-        read_image : bool, default is True
+        read_image : bool, default True
             Whether to read image data from the project directory. If false, image data
             will be memory-mapped and will not be shown in the viewer. Unchecking this
             is useful to decrease loading time.
-        update_config : bool, default is False
+        update_config : bool, default False
             Whether to update the default spline configuration with the one described
             in the project.
         """
@@ -541,9 +541,9 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         path : Path
             Path of json file.
-        molecules_ext : str, default is ".csv"
+        molecules_ext : str, default ".csv"
             Extension of the molecule file. Can be ".csv" or ".parquet".
-        save_landscape : bool, default is False
+        save_landscape : bool, default False
             Save landscape layers if any. False by default because landscape layers are
             usually large.
         """
@@ -683,7 +683,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        bin_size : int, default is 4
+        bin_size : int, default 4
             Bin size of the new image
         """
         tomo = self.tomogram
@@ -776,7 +776,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        orientation : Ori, default is Ori.MinusToPlus
+        orientation : Ori, default Ori.MinusToPlus
             To which direction splines will be aligned.
         """
         need_resample = self.SplineControl.need_resample
@@ -864,8 +864,8 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         spline : int
-           The ID of spline to be clipped.
-        lengths : tuple of float, default is (0., 0.)
+            The ID of spline to be clipped.
+        lengths : tuple of float, default (0., 0.)
             The length in nm to be clipped at the start and end of the spline.
         """
         if spline is None:
@@ -968,12 +968,12 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {splines}{max_interval}{bin_size}{err_max}
-        degree_precision : float, default is 0.5
+        degree_precision : float, default 0.5
             Precision of xy-tilt degree in angular correlation.
-        edge_sigma : bool, default is False
+        edge_sigma : bool, default False
             Check if cylindric structures are densely packed. Initial spline position must
             be "almost" fitted in dense mode.
-        max_shift : nm, default is 5.0
+        max_shift : nm, default 5.0
             Maximum shift to be applied to each point of splines.
         """
         tomo = self.tomogram
@@ -1012,8 +1012,9 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {splines}{interval}
-        how : str, default is "pack"
+        how : str, default "pack"
             How to add anchors.
+
             - "pack": (x---x---x-) Pack anchors from the starting point of splines.
             - "equal": (x--x--x--x) Equally distribute anchors between the starting point
               and the end point of splines. Actual intervals will be smaller.
@@ -1048,7 +1049,7 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {splines}{max_interval}{err_max}
-        corr_allowed : float, defaul is 0.9
+        corr_allowed : float, default 0.9
             How many images will be used to make template for alignment. If 0.9, then top 90%
             will be used.
         {bin_size}
@@ -1091,7 +1092,8 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        npf : int , optional
+        npf : int, optional
+            If given, update the number of protofilaments.
         orientation : str, optional
             If given, update the spline orientation.
         """
@@ -1131,16 +1133,16 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {layers}{err_max}
-        delete_old : bool, default is True
+        delete_old : bool, default True
             If True, delete the old spline if the molecules has one. For instance, if
             "Mole-0" has the spline "Spline-0" as the source, and a spline "Spline-1" is
             created from "Mole-0", then "Spline-0" will be deleted from the list.
         inherits : bool, optional
             Which global properties to be copied to the new one. If None, all the properties
             will be copied.
-        missing_ok : bool, default is False
+        missing_ok : bool, default False
             If False, raise an error if the source spline is not found in the tomogram.
-        update_sources : bool, default is True
+        update_sources : bool, default True
             If True, all the molecules with the out-of-date source spline will be updated
             to the newly created splines. For instance, if "Mole-0" and "Mole-1" have the
             spline "Spline-0" as the source, and a spline "Spline-1" is created from
@@ -1207,7 +1209,7 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {layer}{err_max}
-        ids : list of int, default is ()
+        ids : list of int, default ()
             Protofilament IDs to be converted.
         """
         if len(ids) == 0:
@@ -1405,7 +1407,7 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {splines}{interval}{depth}{bin_size}
-        radius : str, default is "global"
+        radius : str, default "global"
             If "local", use the local radius for the analysis. If "global", use the
             global radius.
         {update_glob}
@@ -1549,7 +1551,7 @@ class CylindraMainWidget(MagicTemplate):
         {splines}{orientation}{offsets}
         radius : nm, optional
             Radius of the cylinder to position monomers.
-        extensions : (int, int), default is (0, 0)
+        extensions : (int, int), default (0, 0)
             Number of molecules to extend. Should be a tuple of (prepend, append).
             Negative values will remove molecules.
         {prefix}
@@ -1845,7 +1847,7 @@ class CylindraMainWidget(MagicTemplate):
             Translation (nm) of the molecules in (Z, Y, X) order. Whether the world
             coordinate or the internal coordinate is used depends on the ``internal``
             argument.
-        internal : bool, default is True
+        internal : bool, default True
             If true, the translation is applied to the internal coordinates, i.e. molecules
             with different rotations are translated differently.
         {inherit_source}
@@ -2047,12 +2049,9 @@ class CylindraMainWidget(MagicTemplate):
 
         This method is identical to running ``with_columns`` on the features dataframe
         as a ``polars.DataFrame``. For example,
-
-        >>> ui.calculate_molecule_features(layer, "Y", "pl.col('X') + 1")
-
+        `ui.calculate_molecule_features(layer, "Y", "pl.col('X') + 1")`
         is equivalent to
-
-        >>> layer.features = layer.features.with_columns([(pl.col("X") + 1).alias("Y")])
+        `layer.features = layer.features.with_columns([(pl.col("X") + 1).alias("Y")])`
 
         Parameters
         ----------
@@ -2083,7 +2082,7 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {layer}{interpolation}
-        suffix : str, default is "_spl"
+        suffix : str, default "_spl"
             Suffix of the new feature column names.
         """
         from scipy.interpolate import interp1d
@@ -2253,7 +2252,7 @@ class CylindraMainWidget(MagicTemplate):
             Threshold value used for binarization.
         larger_true : bool, optional
             If true, values larger than `threshold` will be True.
-        suffix : str, default is "_binarize"
+        suffix : str, default "_binarize"
             Suffix of the new feature column name.
         """
         from cylindra import cylfilters
@@ -2290,7 +2289,7 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {layer}{target}
-        suffix : str, default is "_binarize"
+        suffix : str, default "_binarize"
             Suffix of the new feature column name.
         """
         from cylindra import cylfilters
@@ -2450,7 +2449,7 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         name : str, optional
             Name of the molecules layer.
-        order : int, default is 1
+        order : int, default 1
             Interpolation order of the subtomogram loader.
         """
         mole = self.mole_layers[name].molecules

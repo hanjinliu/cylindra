@@ -32,7 +32,7 @@ def read_mod(path: str) -> pl.DataFrame:
     ----------
     path : str
         Path to mod file.
-    order : str, default is "zyx"
+    order : str, default "zyx"
         The order of dimension of output data frame.
 
     Returns

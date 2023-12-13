@@ -7,7 +7,7 @@ nm = float  # type alias for nanometer
 pf = float  # type alias for protofilament numbering
 
 # Constant strings for layer names and metadata keys
-WORKING_LAYER_NAME = "Working Layer"
+WORKING_LAYER_NAME = "Drawing Layer"
 SELECTION_LAYER_NAME = "Splines"
 ALN_SUFFIX = "ALN"
 PREVIEW_LAYER_NAME = "<Preview>"
@@ -46,7 +46,7 @@ class Ori(strEnum):
         ----------
         ori : Ori
             Ori object to be inverted.
-        allow_none : bool, default is True
+        allow_none : bool, default True
             If true, convert ``Ori.none`` into ``Ori.none``. Raise an error
             otherwise.
 

@@ -113,7 +113,7 @@ class Tomogram:
             Tilt model.
         binsize : int or iterable of int, optional
             Binsize to generate multiscale images. If not given, will not generate.
-        compute : bool, default is True
+        compute : bool, default True
             Whether to compute the binned images.
 
         Returns
@@ -172,7 +172,7 @@ class Tomogram:
             Tilt model.
         binsize : int or iterable of int, optional
             Binsize to generate multiscale images. If not given, will not generate.
-        eager : bool, default is False
+        eager : bool, default False
             Whether to read the image lazily. If True, the entire image will be read
             into the memory.
 

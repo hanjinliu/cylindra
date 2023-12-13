@@ -34,10 +34,12 @@ def start(
     ----------
     project_file : path-like, optional
         If given, load the project file.
-    globals_file : path-like, optional
-        If given, load the global variable file.
     viewer : napari.Viewer
         Give a viewer object and this viewer will be used as the parent.
+    log_level : int or str, default "INFO"
+        Log level. See `logging` module for details.
+    headless : bool, default False
+        If True, do not show the viewer.
     """
     from cylindra.widgets import CylindraMainWidget
     from cylindra._config import init_config
@@ -167,12 +169,10 @@ def read_molecules(
     ----------
     file : PathLike
         File path.
-    pos_cols : sequence of str, default is ("z", "y", "x")
+    pos_cols : sequence of str, default ("z", "y", "x")
         Column names for the molecule positions.
-    rot_cols : sequence of str, default is ("zvec", "yvec", "xvec")
+    rot_cols : sequence of str, default ("zvec", "yvec", "xvec")
         Column names for the molecule rotation vectors.
-    **kwargs
-        Keyword arguments to be passed to `pd.read_csv`.
 
     Returns
     -------

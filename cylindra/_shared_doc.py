@@ -48,7 +48,7 @@ _PARAMETERS = [
     Parameter(name="molecule_interval", type="nm", desc="Interval (nm) between molecules."),
     Parameter(name="orientation", type="None, 'PlusToMinus', 'MinusToPlus'", desc="Orientation of molecules' y-axis. If none, use the\ncurrent spline orientation as is."),
     Parameter(name="offsets", type="(float, float), optional", desc="Offset values that will be used to define molecule positions."),
-    Parameter(name="filter", type="ImageFilter", desc="Filter to be applied to the reference image. This does not affect the image data itself.\n- Lowpass: butterworth low-pass filter.\n- Gaussian: Gaussian blur.\n- DoG: difference of Gaussian.\n- LoG: Laplacian of Gaussian."),
+    Parameter(name="filter", type="ImageFilter", desc="Filter to be applied to the reference image. This does not affect the image data itself.\n\n- Lowpass: butterworth low-pass filter.\n- Gaussian: Gaussian blur.\n- DoG: difference of Gaussian.\n- LoG: Laplacian of Gaussian."),
     Parameter(name="inherit_source", type="bool", desc="If True and the input molecules layer has its spline source, the new layer will inherit it."),
     Parameter(name="color_by", type="str", desc="Name of the feature to paint by."),
     Parameter(name="cmap", type="colormap", desc="Colormap to be used for painting."),
@@ -73,12 +73,20 @@ _TRANSLATION_MAP = {param.name: param.to_string() for param in _PARAMETERS}
 assert len(_TRANSLATION_MAP) == len(_PARAMETERS)  # check duplication
 
 
-def update_doc(f: Callable):
+def update_doc(doc: str, indent: int = 2) -> str:
+    """Update docstring"""
+    ind = "    " * indent
+    doc = doc.replace("}{", "}\n" + ind + "{")
+    out = doc.format(**_TRANSLATION_MAP)
+    if indent < 2:  # only used for mkdocs
+        out = out.replace("\n" + (2 - indent) * "    ", "\n")
+    return out
+
+
+def update_func(f: Callable):
     """Update the __doc__ of a function."""
-    doc = f.__doc__
-    if doc:
-        doc = doc.replace("}{", "}\n        {")
-        f.__doc__ = doc.format(**_TRANSLATION_MAP)
+    if doc := f.__doc__:
+        f.__doc__ = update_doc(doc)
     return f
 
 
@@ -86,5 +94,5 @@ def update_cls(cls: _T) -> _T:
     """Update the __doc__ of all methods in a class."""
     for attr in cls.__dict__.values():
         if callable(attr) and hasattr(attr, "__doc__"):
-            update_doc(attr)
+            update_func(attr)
     return cls

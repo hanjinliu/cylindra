@@ -1,5 +1,0 @@
-# Components of Tomograms
-
-
-
-###

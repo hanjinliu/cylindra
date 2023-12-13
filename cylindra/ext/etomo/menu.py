@@ -35,7 +35,7 @@ class IMOD(ChildWidget):
             Path to the mod file that contains monomer coordinates.
         ang_path : Path
             Path to the text file that contains monomer angles in Euler angles.
-        shift_mol : bool, default is True
+        shift_mol : bool, default True
             In PEET output csv there may be xOffset, yOffset, zOffset columns that can be directly applied to
             the molecule coordinates.
         """
@@ -118,7 +118,7 @@ class IMOD(ChildWidget):
         ----------
         save_path : Path
             Saving path.
-        interval : float, default is 10.0
+        interval : float, default 10.0
             Sampling interval along the splines. For example, if interval=10.0 and the length of a spline
             is 100.0, 11 points will be sampled.
         """
@@ -160,7 +160,7 @@ class IMOD(ChildWidget):
             Path of offset file.
         layer : MoleculesLayer
             Points layer of target monomers.
-        update : bool, default is False
+        update : bool, default False
             Check if update monomer coordinates in place.
         """
         mol = layer.molecules
@@ -230,9 +230,9 @@ class IMOD(ChildWidget):
             Directory to save the files needed for a PEET project.
         template_path : str
             Path to the template image.
-        mask_params : Any, default is None
+        mask_params : Any, default None
             Mask parameters.
-        project_name : str, default is "project-0"
+        project_name : str, default "project-0"
             Name of the PEET project.
         """
         save_dir = Path(save_dir)

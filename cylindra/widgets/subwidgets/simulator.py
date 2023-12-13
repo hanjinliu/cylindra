@@ -240,9 +240,9 @@ class Simulator(ChildWidget):
 
         Parameters
         ----------
-        size : (nm, nm, nm), default is (100., 200., 100.)
+        size : (nm, nm, nm), default (100., 200., 100.)
             Size of the image in nm, of (Z, Y, X).
-        scale : nm, default is 0.25
+        scale : nm, default 0.25
             Pixel size of the image.
         """
         main = self._get_main()
@@ -302,11 +302,11 @@ class Simulator(ChildWidget):
 
         Parameters
         ----------
-        length : nm, default is 150.0
+        length : nm, default 150.0
             Length if the straight line in nm.
         size : (nm, nm, nm), (60.0, 200.0, 60.0)
             Size of the tomogram in which the spline will reside.
-        scale : nm, default is 0.25
+        scale : nm, default 0.25
             Scale of pixel in nm/pixel.
         yxrotation : float, optional
             Rotation in YX plane. This rotation will be applied before ZX rotation.

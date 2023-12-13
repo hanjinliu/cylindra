@@ -31,7 +31,7 @@ class ImageLoader(MagicTemplate):
     ----------
     path : Path
         Path to the tomogram. Must be 3-D image.
-    bin_size : int or list of int, default is [1]
+    bin_size : int or list of int, default [1]
         Initial bin size of image. Binned image will be used for visualization in the viewer.
         You can use both binned and non-binned image for analysis.
     filter : ImageFilter

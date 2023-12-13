@@ -88,7 +88,7 @@ class Spline(BaseComponent):
 
         Parameters
         ----------
-        copy_props : bool, default is True
+        copy_props : bool, default True
             Also copy local/global properties if true.
 
         Returns
@@ -345,9 +345,9 @@ class Spline(BaseComponent):
 
         Parameters
         ----------
-        max_interval : nm, default is 1.0
+        max_interval : nm, default 1.0
             Maximum interval between resampling points.
-        variance : float, default is 0.0
+        variance : float, default 0.0
             Spline fitting variance.
 
         Returns
@@ -374,7 +374,7 @@ class Spline(BaseComponent):
         ----------
         coords : np.ndarray
             Coordinates. Must be (N, 3).
-        err_max : float, default is 1.0
+        err_max : float, default 1.0
             Error allowed for fitting. Several upper limit of residual values will be used and
             the fit that results in error lower than this value and minimize the maximum
             curvature will be chosen.
@@ -453,7 +453,7 @@ class Spline(BaseComponent):
             Positions. Between 0 and 1. If not given, anchors are used instead.
         shifts : np.ndarray
             Shift from center in nm. Must be (N, 2).
-        err_max : float, default is 1.0
+        err_max : float, default 1.0
             Error allowed for fitting. See ``Spline.fit``.
 
         Returns
@@ -514,7 +514,7 @@ class Spline(BaseComponent):
         ----------
         positions : np.ndarray or float, optional
             Positions. Between 0 and 1. If not given, anchors are used instead.
-        der : int, default is 0
+        der : int, default 0
             ``der``-th derivative will be calculated.
 
         Returns
@@ -737,7 +737,7 @@ class Spline(BaseComponent):
             If not provided, rotation will be executed around the origin. If an array is provided,
             it will be considered as the coordinates of rotation center. This is useful for
             rotating images.
-        inverse : bool, default is False
+        inverse : bool, default False
             If True, rotation matrix will be inversed.
 
         Returns
@@ -799,7 +799,7 @@ class Spline(BaseComponent):
         ----------
         positions : array-like, (N,)
             Positions. Between 0 and 1.
-        inverse : bool, default is False
+        inverse : bool, default False
             If True, rotation matrix will be inversed.
 
         Returns
@@ -836,7 +836,7 @@ class Spline(BaseComponent):
             Length of y axis in nm.
         u : float, optional
             Position on the spline at which local Cartesian coordinates will be built.
-        scale: nm, default is 1.0
+        scale: nm, default 1.0
             Scale of coordinates, i.e. spacing of the grid.
 
         Returns
@@ -871,7 +871,7 @@ class Spline(BaseComponent):
             Length of y axis in nm.
         u : float
             Position on the spline at which local cylindrical coordinates will be built.
-        scale: nm, default is 1.0
+        scale: nm, default 1.0
             Scale of coordinates, i.e. spacing of the grid.
 
         Returns
@@ -911,10 +911,10 @@ class Spline(BaseComponent):
         shape : (float, float)
             The ZX-shape of output coordinate system. Center of the array will be
             spline curve itself after coodinate transformation.
-        s_range : tuple[float, float], default is (0, 1)
+        s_range : tuple[float, float], default (0, 1)
             Range of spline. Spline coordinate system will be built between
             ``spl[s_range[0]]`` and ``spl[s_range[1]]``.
-        scale: nm, default is 1.0
+        scale: nm, default 1.0
             Scale of coordinates, i.e. spacing of the grid.
 
         Returns
@@ -943,10 +943,10 @@ class Spline(BaseComponent):
         r_range : (nm, nm)
             Range of radius in nm. r=0 will be spline curve itself after coodinate
             transformation.
-        s_range : tuple[float, float], default is (0, 1)
+        s_range : tuple[float, float], default (0, 1)
             Range of spline. Spline coordinate system will be built between
             ``spl[s_range[0]]`` and ``spl[s_range[1]]``.
-        scale: nm, default is 1.0
+        scale: nm, default 1.0
             Scale of coordinates, i.e. spacing of the grid.
 
         Returns

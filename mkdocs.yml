@@ -4,8 +4,89 @@ repo_name: cylindra
 repo_url: https://github.com/hanjinliu/cylindra
 
 copyright: Copyright (c) 2023 - 2024 Hanjin Liu
-theme: readthedocs
+
+theme:
+  name: material
+  palette:
+    - scheme: slate
+      primary: lime
+      accent: light-green
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - scheme: default
+      primary: lime
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+  features:
+    - content.code.annotate
+    - navigation.sections
+    - navigation.indexes
+    - toc.follow
+    - search.suggest
+    - search.share
+
+nav:
+  - Overview: index.md
+  - Installation: installation.md
+  - Basics: basics.md
+  - Usage:
+    - open_image.md
+    - fit_splines.md
+    - cft.md
+    - configure.md
+    - project_io.md
+    - Alignment:
+      - Overview: alignment/index.md
+      - alignment/place_mole.md
+      - alignment/conventional.md
+      - alignment/landscape.md
+      - alignment/viterbi.md
+      - alignment/rma.md
+    - simulate.md
+    - seam_search.md
+  - API References:
+    - api/core.md
+    - api/project.md
+    - api/widgets/main.md
+    - api/widgets/sta.md
+    - api/cylmeasure.md
+    - api/cylfilters.md
+
+hooks:
+  - docs/scripts/_dynamic_doc.py
 
 plugins:
   - search
   - autorefs
+  - gen-files:
+      scripts:
+        - docs/scripts/_generate_images.py
+  - mkdocstrings:
+      handlers:
+        python:
+          import:
+            - https://docs.python.org/3/objects.inv
+          options:
+            docstring_style: numpy
+            show_source: true
+            show_bases: false
+            show_signature_annotations: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.keys
+  - pymdownx.arithmatex:
+      generic: true
+  - attr_list
+  - md_in_html
+
+extra_javascript:
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+watch:
+  - cylindra

@@ -37,7 +37,7 @@ import impy as ip
 import polars as pl
 import napari
 
-from cylindra import utils, _config, cylmeasure, widget_utils
+from cylindra import utils, _config, cylmeasure, widget_utils, _shared_doc
 from cylindra.types import MoleculesLayer
 from cylindra.const import (
     ALN_SUFFIX,
@@ -75,7 +75,7 @@ from ._annotated import (
     assert_list_of_layers,
 )
 from .subwidgets._child_widget import ChildWidget
-from . import _shared_doc, _progress_desc as _pdesc, _annealing
+from . import _progress_desc as _pdesc, _annealing
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -654,7 +654,7 @@ class SubtomogramAveraging(ChildWidget):
             (2) first: First subtomograms.
             (3) last: Last subtomograms.
             (4) random: choose randomly.
-        number : int, default is 64
+        number : int, default
             Number of subtomograms to use.
         {bin_size}
         """
@@ -766,7 +766,7 @@ class SubtomogramAveraging(ChildWidget):
         Parameters
         ----------
         {layers}
-        n_pairs : int, default is 1
+        n_pairs : int, default 1
             How many pairs of average will be calculated.
         {size}{interpolation}{bin_size}
         """
@@ -1325,9 +1325,9 @@ class SubtomogramAveraging(ChildWidget):
         Parameters
         ----------
         {layers}{template_path}{mask_params}{interpolation}
-        metric : str, default is "zncc"
+        metric : str, default "zncc"
             Metric to calculate correlation.
-        column_prefix : str, default is "score"
+        column_prefix : str, default "score"
             Prefix of the column names of the calculated correlations.
         """
         layers = assert_list_of_layers(layers, self.parent_viewer)
@@ -1398,11 +1398,11 @@ class SubtomogramAveraging(ChildWidget):
         seed : int, optional
             Random seed used for subtomogram sampling.
         {interpolation}
-        n_pairs : int, default is 1
+        n_pairs : int, default 1
             How many sets of image pairs will be generated to average FSC.
-        show_average : bool, default is True
+        show_average : bool, default True
             If true, subtomogram average will be shown after FSC calculation.
-        dfreq : float, default is 0.02
+        dfreq : float, default 0.02
             Precision of frequency to calculate FSC. "0.02" means that FSC will be calculated
             at frequency 0.01, 0.03, 0.05, ..., 0.45.
         """
@@ -1474,11 +1474,11 @@ class SubtomogramAveraging(ChildWidget):
         template_path : template input type
             Used only when soft-Otsu mask parameters are given.
         {mask_params}{size}{cutoff}{interpolation}{bin_size}
-        n_components : int, default is 2
+        n_components : int, default 2
             The number of PCA dimensions.
-        n_clusters : int, default is 2
+        n_clusters : int, default
             The number of clusters.
-        seed : int, default is 0
+        seed : int, default 0
             Random seed.
         """
         from cylindra.widgets.subwidgets import PcaViewer
@@ -1555,7 +1555,7 @@ class SubtomogramAveraging(ChildWidget):
         npf : int, optional
             Number of protofilaments. By default the global properties stored in the
             corresponding spline will be used.
-        show_average : bool, default is True
+        show_average : bool, default True
             If true, all the subtomogram averages will be shown.
         {cutoff}
         """
@@ -1836,9 +1836,9 @@ class SubtomogramAveraging(ChildWidget):
             All the layers that will be used to construct the subtomogram array.
         shape : (nm, nm, nm)
             Shape of output subtomograms.
-        bin_size : int, default is 1
+        bin_size : int, default
             Bin size of the subtomograms.
-        order : int, default is 3
+        order : int, default 3
             Interpolation order.
 
         Returns
