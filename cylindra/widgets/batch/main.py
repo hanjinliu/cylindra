@@ -37,7 +37,7 @@ from ._utils import TempFeatures, LoaderInfo
 class CylindraBatchWidget(MagicTemplate):
     constructor = field(ProjectSequenceEdit)
     sta = field(BatchSubtomogramAveraging)
-    loaders = BatchLoaderAccessor()
+    loader_infos = BatchLoaderAccessor()
 
     def __init__(self):
         self._loaders = LoaderList()

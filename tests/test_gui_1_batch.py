@@ -38,9 +38,9 @@ def test_project_io(ui: CylindraMainWidget):
         root = Path(tmpdir)
         path = root / "test"
         ui.batch.save_batch_project(path)
-        assert len(ui.batch._loaders) == 1
+        assert len(ui.batch.loader_infos) == 1
         ui.batch.load_batch_project(path)
-        assert len(ui.batch._loaders) == 1
+        assert len(ui.batch.loader_infos) == 1
 
     ui.batch.construct_loader(
         paths=[
@@ -65,6 +65,12 @@ def test_project_io(ui: CylindraMainWidget):
     ui.batch.constructor.select_all_projects()
     ui.batch.constructor.select_molecules_by_pattern("Mole-0*")
     ui.batch.constructor.select_projects_by_pattern("*13*")
+
+    # test loader property
+    assert ui.batch.loader_infos[0].name == "Loader"
+    assert ui.batch.loader_infos[1].name == "Loader2"
+    ui.batch.loader_infos["Loader"]
+    del ui.batch.loader_infos["Loader2"]
 
 
 def test_view(ui: CylindraMainWidget):
