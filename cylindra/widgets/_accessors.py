@@ -256,13 +256,13 @@ def _get_monomer_layer(viewer: napari.Viewer, name: str) -> MoleculesLayer:
 
 
 class BatchLoaderAccessor(Accessor["LoaderInfo", "CylindraBatchWidget"]):
-    def __getitem__(self, name: str) -> LoaderInfo:
+    def __getitem__(self, name: int | str) -> LoaderInfo:
         return self.widget()._loaders[name]
 
     def __setitem__(self, name: str, layer: LoaderInfo) -> None:
         if name in self:
             raise ValueError(f"Layer {name} already exists.")
-        return self.append(layer)
+        self.widget()._loaders[name] = layer
 
     def __delitem__(self, name: str) -> None:
         for i, info in enumerate(self.widget()._loaders):

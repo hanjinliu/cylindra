@@ -279,6 +279,40 @@ class BatchSubtomogramAveraging(MagicTemplate):
         t0.toc()
         return self._show_rec.with_args(img, f"[AVG]{loader_name}", store=False)
 
+    @set_design(text="Split and average molecules", location=BatchSubtomogramAnalysis)
+    @dask_thread_worker.with_progress(desc="Split-and-average")
+    def split_and_average(
+        self,
+        loader_name: Annotated[str, {"bind": _get_current_loader_name}],
+        n_pairs: Annotated[int, {"min": 1, "label": "number of image pairs"}] = 1,
+        size: _SubVolumeSize = None,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
+        bin_size: _BINSIZE = 1,
+    ):
+        """
+        Split molecules into two groups and average separately.
+
+        Parameters
+        ----------
+        {loader_name}{size}
+        n_pairs : int, default is 1
+            How many pairs of average will be calculated.
+        {size}{interpolation}{bin_size}
+        """
+        t0 = timer()
+        loader = self._get_parent().loader_infos[loader_name].loader
+        shape = self._get_shape_in_px(size, loader)
+
+        axes = "ipzyx" if n_pairs > 1 else "pzyx"
+        img = ip.asarray(
+            loader.replace(output_shape=shape, order=interpolation)
+            .binning(bin_size, compute=False)
+            .average_split(n_pairs),
+            axes=axes,
+        ).set_scale(zyx=loader.scale * bin_size, unit="nm")
+        t0.toc()
+        return self._show_rec.with_args(img, f"[Split]{loader_name}", store=False)
+
     @set_design(text="Align all molecules", location=BatchRefinement)
     @dask_thread_worker.with_progress(desc="Aligning all molecules")
     def align_all(
@@ -348,7 +382,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
 
         Parameters
         ----------
-        {loader_name}{mask_params}{size}
+        {loader_name}{template_path}{mask_params}{size}
         seed : int, optional
             Random seed used for subtomogram sampling.
         {interpolation}
@@ -407,7 +441,8 @@ class BatchSubtomogramAveraging(MagicTemplate):
     def classify_pca(
         self,
         loader_name: Annotated[str, {"bind": _get_current_loader_name}],
-        mask_params: Annotated[Any, {"bind": _get_mask_params}],
+        template_path: Annotated[str | Path | None, {"bind": _get_template_path}] = None,
+        mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         size: Annotated[Optional[nm], {"text": "Use mask shape", "options": {"value": 12.0, "max": 100.0}, "label": "size (nm)"}] = None,
         cutoff: _CutoffFreq = 0.5,
         interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
@@ -421,7 +456,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
 
         Parameters
         ----------
-        {loader_name}{mask_params}{size}{cutoff}{interpolation}{bin_size}
+        {loader_name}{template_path}{mask_params}{size}{cutoff}{interpolation}{bin_size}
         n_components : int, default is 2
             The number of PCA dimensions.
         n_clusters : int, default is 2
@@ -434,7 +469,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         t0 = timer()
         loader = self._get_parent().loader_infos[loader_name].loader
         template, mask = loader.normalize_input(
-            template=self.params._norm_template_param(allow_none=True),
+            template=self.params._norm_template_param(template_path, allow_none=True),
             mask=self.params._get_mask(params=mask_params),
         )
         shape = None
@@ -510,7 +545,11 @@ class BatchSubtomogramAveraging(MagicTemplate):
         """Load and show mask image in the scale of the tomogram."""
         loader = self._get_parent().loader_infos[self.loader_name].loader
         _, mask = loader.normalize_input(
-            self.params._norm_template_param(allow_none=True), self.params._get_mask()
+            self.params._norm_template_param(
+                self.params._get_template_input(allow_multiple=False),
+                allow_none=True,
+            ),
+            self.params._get_mask(),
         )
         if mask is None:
             raise ValueError("No mask to show.")

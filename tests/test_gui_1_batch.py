@@ -104,6 +104,7 @@ def test_average(ui: CylindraMainWidget, binsize: int):
     template_path = TEST_DIR / "beta-tubulin.mrc"
     ui.batch.sta.params.template_path.value = template_path
     ui.batch.sta.params.mask_choice = MaskChoice.blur_template
+    ui.batch.sta.split_and_average("Loader", size=6.0, bin_size=binsize)
     ui.batch.sta.show_template()
     ui.batch.sta.show_template_original()
     ui.batch.sta.show_mask()

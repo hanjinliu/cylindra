@@ -481,7 +481,7 @@ class SubtomogramAveraging(ChildWidget):
     params = field(StaParameters)
 
     @property
-    def sub_viewer(self):
+    def sub_viewer(self) -> "napari.Viewer | None":
         """The napari viewer for subtomogram averaging."""
         return StaParameters._viewer
 
