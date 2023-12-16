@@ -1,1 +1,1 @@
-# Configure Parameters for Variable Cylindric Structures
+# Configure Parameters

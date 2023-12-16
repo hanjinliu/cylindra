@@ -34,9 +34,9 @@ nav:
   - Usage:
     - open_image.md
     - fit_splines.md
-    - cft.md
-    - configure.md
+    - lattice_params.md
     - project_io.md
+    - workflows.md
     - Alignment:
       - Overview: alignment/index.md
       - alignment/place_mole.md
@@ -44,9 +44,18 @@ nav:
       - alignment/landscape.md
       - alignment/viterbi.md
       - alignment/rma.md
+    - Molecules:
+      - Overview: molecules/index.md
+      - molecules/features.md
+      - molecules/expressions.md
+      - molecules/split_and_combine.md
+      - molecules/filter_molecules.md
+    - configure.md
     - simulate.md
     - seam_search.md
+    - cli.md
   - API References:
+    - api/components.md
     - api/core.md
     - api/project.md
     - api/widgets/main.md
@@ -60,9 +69,6 @@ hooks:
 plugins:
   - search
   - autorefs
-  - gen-files:
-      scripts:
-        - docs/scripts/_generate_images.py
   - mkdocstrings:
       handlers:
         python:
@@ -73,6 +79,9 @@ plugins:
             show_source: true
             show_bases: false
             show_signature_annotations: true
+  - gen-files:
+      scripts:
+        - docs/scripts/_screenshots.py
 
 markdown_extensions:
   - admonition
@@ -83,6 +92,9 @@ markdown_extensions:
       generic: true
   - attr_list
   - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
 extra_javascript:
   - https://polyfill.io/v3/polyfill.min.js?features=es6

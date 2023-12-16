@@ -339,7 +339,7 @@ class Spline(BaseComponent):
             config=self.config,
         )._set_params(self._tck, self._u)
 
-    def resample(self, max_interval: nm = 1.0, std_max: nm = 0.1) -> Self:
+    def resample(self, max_interval: nm = 1.0, err_max: nm = 0.1) -> Self:
         """
         Resample a new spline along the original spline.
 
@@ -347,8 +347,8 @@ class Spline(BaseComponent):
         ----------
         max_interval : nm, default 1.0
             Maximum interval between resampling points.
-        variance : float, default 0.0
-            Spline fitting variance.
+        err_max : float, default 0.1
+            Spline fitting maximum error.
 
         Returns
         -------
@@ -357,7 +357,7 @@ class Spline(BaseComponent):
         """
         l = self.length()
         points = self.map(np.linspace(0, 1, ceilint(l / max_interval)))
-        return self.fit(points, err_max=std_max)
+        return self.fit(points, err_max=err_max)
 
     def fit(
         self,
@@ -696,7 +696,7 @@ class Spline(BaseComponent):
         Parameters
         ----------
         d: dict
-            Dictionary with keys {"t", "c", "k", "u", "lims"}.
+            Dictionary with keys "t", "c", "k", "u" and "lims".
 
         Returns
         -------

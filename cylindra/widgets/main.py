@@ -796,7 +796,7 @@ class CylindraMainWidget(MagicTemplate):
             .with_redo(lambda: self._set_orientations(_new_orientations))
         )
 
-    @set_design(text="Auto-detect polarity", location=_sw.SplinesMenu.Orientation)
+    @set_design(text=capitalize, location=_sw.SplinesMenu.Orientation)
     @thread_worker.with_progress(desc="Auto-detecting polarities...", total=_NSPLINES)
     def infer_polarity(
         self,
@@ -955,11 +955,11 @@ class CylindraMainWidget(MagicTemplate):
     def fit_splines(
         self,
         splines: _Splines = None,
-        max_interval: Annotated[nm, {"label": "Max interval (nm)"}] = 30,
+        max_interval: Annotated[nm, {"label": "max interval (nm)"}] = 30,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1.0,
-        err_max: Annotated[nm, {"label": "Max fit error (nm)", "step": 0.1}] = 1.0,
+        err_max: Annotated[nm, {"label": "max fit error (nm)", "step": 0.1}] = 1.0,
         degree_precision: float = 0.5,
-        edge_sigma: Annotated[Optional[nm], {"text": "Do not mask image"}] = 2.0,
+        edge_sigma: Annotated[Optional[nm], {"text": "Do not mask image", "label": "edge σ"}] = 2.0,
         max_shift: nm = 5.0,
     ):  # fmt: skip
         """
@@ -970,9 +970,9 @@ class CylindraMainWidget(MagicTemplate):
         {splines}{max_interval}{bin_size}{err_max}
         degree_precision : float, default 0.5
             Precision of xy-tilt degree in angular correlation.
-        edge_sigma : bool, default False
-            Check if cylindric structures are densely packed. Initial spline position must
-            be "almost" fitted in dense mode.
+        edge_sigma : bool, default 2.0
+            Check if cylindric structures are densely packed. Initial spline position
+            must be "almost" fitted in dense mode.
         max_shift : nm, default 5.0
             Maximum shift to be applied to each point of splines.
         """
@@ -1015,8 +1015,8 @@ class CylindraMainWidget(MagicTemplate):
         how : str, default "pack"
             How to add anchors.
 
-            - "pack": (x---x---x-) Pack anchors from the starting point of splines.
-            - "equal": (x--x--x--x) Equally distribute anchors between the starting point
+            - "pack": (x———x———x—) Pack anchors from the starting point of splines.
+            - "equal": (x——x——x——x) Equally distribute anchors between the starting point
               and the end point of splines. Actual intervals will be smaller.
         """
         tomo = self.tomogram
@@ -1038,9 +1038,9 @@ class CylindraMainWidget(MagicTemplate):
     def refine_splines(
         self,
         splines: _Splines = None,
-        max_interval: Annotated[nm, {"label": "Maximum interval (nm)"}] = 30,
-        err_max: Annotated[nm, {"label": "Max fit error (nm)", "step": 0.1}] = 0.8,
-        corr_allowed: Annotated[float, {"label": "Correlation allowed", "max": 1.0, "step": 0.1}] = 0.9,
+        max_interval: Annotated[nm, {"label": "maximum interval (nm)"}] = 30,
+        err_max: Annotated[nm, {"label": "max fit error (nm)", "step": 0.1}] = 0.8,
+        corr_allowed: Annotated[float, {"label": "correlation allowed", "max": 1.0, "step": 0.1}] = 0.9,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
         """

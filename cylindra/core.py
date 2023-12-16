@@ -78,6 +78,9 @@ def start(
             raise ValueError(f"Invalid log level: {log_level}")
     logger.setLevel(log_level)
 
+    # set polars display options
+    pl.Config().set_tbl_width_chars(120)
+
     dock = viewer.window.add_dock_widget(
         ui, area="right", allowed_areas=["right"], name="cylindra"
     )

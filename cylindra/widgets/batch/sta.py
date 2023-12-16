@@ -104,7 +104,9 @@ class BatchSubtomogramAveraging(MagicTemplate):
         show_loader_info = abstractapi()
         remove_loader = abstractapi()
 
-    loader_name = vfield(str, location=Header).with_choices(choices=_get_loader_names)
+    loader_name = vfield(str, location=Header, record=False).with_choices(
+        choices=_get_loader_names
+    )
 
     def _get_current_loader_name(self, _=None) -> str:
         return self.loader_name
