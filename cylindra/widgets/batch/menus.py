@@ -4,8 +4,11 @@ from magicclass.widgets import Separator
 
 @magicmenu
 class BatchSubtomogramAnalysis(MagicTemplate):
+    """Subtomogram analysis over multiple projects."""
+
     average_all = abstractapi()
     average_groups = abstractapi()
+    split_and_average = abstractapi()
     calculate_fsc = abstractapi()
     sep0 = field(Separator)
     classify_pca = abstractapi()
@@ -28,7 +31,7 @@ class BatchLoaderMenu(MagicTemplate):
 
 @magicmenu(name="Macro")
 class Macro(MagicTemplate):
-    """Macro operations."""
+    """Show macro of batch analyzer."""
 
     show_macro = abstractapi()
     show_native_macro = abstractapi()

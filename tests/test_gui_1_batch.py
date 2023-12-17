@@ -38,9 +38,9 @@ def test_project_io(ui: CylindraMainWidget):
         root = Path(tmpdir)
         path = root / "test"
         ui.batch.save_batch_project(path)
-        assert len(ui.batch._loaders) == 1
+        assert len(ui.batch.loader_infos) == 1
         ui.batch.load_batch_project(path)
-        assert len(ui.batch._loaders) == 1
+        assert len(ui.batch.loader_infos) == 1
 
     ui.batch.construct_loader(
         paths=[
@@ -65,6 +65,12 @@ def test_project_io(ui: CylindraMainWidget):
     ui.batch.constructor.select_all_projects()
     ui.batch.constructor.select_molecules_by_pattern("Mole-0*")
     ui.batch.constructor.select_projects_by_pattern("*13*")
+
+    # test loader property
+    assert ui.batch.loader_infos[0].name == "Loader"
+    assert ui.batch.loader_infos[1].name == "Loader2"
+    ui.batch.loader_infos["Loader"]
+    del ui.batch.loader_infos["Loader2"]
 
 
 def test_view(ui: CylindraMainWidget):
@@ -98,6 +104,7 @@ def test_average(ui: CylindraMainWidget, binsize: int):
     template_path = TEST_DIR / "beta-tubulin.mrc"
     ui.batch.sta.params.template_path.value = template_path
     ui.batch.sta.params.mask_choice = MaskChoice.blur_template
+    ui.batch.sta.split_and_average("Loader", size=6.0, bin_size=binsize)
     ui.batch.sta.show_template()
     ui.batch.sta.show_template_original()
     ui.batch.sta.show_mask()

@@ -721,8 +721,8 @@ class AnalysisMenu(ChildWidget):
             uibatch = CylindraBatchWidget()
             uibatch.native.setParent(main.native, uibatch.native.windowFlags())
             main._batch = uibatch
-            uibatch.show()
             ACTIVE_WIDGETS.add(uibatch)
+        main._batch.show()
         return main._batch
 
     sep2 = field(Separator)
