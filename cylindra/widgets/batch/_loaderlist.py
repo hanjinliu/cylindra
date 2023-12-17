@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import overload
-import dataclasses
 import re
 from pathlib import Path
 from psygnal.containers import EventedList
@@ -40,7 +39,7 @@ class LoaderList(EventedList[LoaderInfo]):
                 return i
         if default is None:
             raise ValueError(f"Loader {name!r} not found")
-        return -1
+        return default
 
     def insert(self, index: int, value: LoaderInfo) -> None:
         if not isinstance(value, LoaderInfo):
