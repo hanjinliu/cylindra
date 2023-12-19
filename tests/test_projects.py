@@ -12,12 +12,14 @@ def test_io():
 def test_concat():
     seq = collect_projects([PROJECT_DIR_13PF, PROJECT_DIR_14PF])
     seq.collect_localprops(id="int")
-    seq.collect_localprops(id="path")
+    seq.collect_localprops(id="path", spline_details=True)
     seq.collect_globalprops(id="int")
     seq.collect_globalprops(id="path")
     seq.collect_globalprops(suffix="_g")
-    seq.collect_joinedprops()
+    seq.collect_joinedprops(spline_details=True)
     seq.collect_spline_coords(ders=(0, 1))
+
+    collect_projects([PROJECT_DIR_13PF]) + collect_projects([PROJECT_DIR_14PF])
 
 
 def test_mutable_sequence_methods():

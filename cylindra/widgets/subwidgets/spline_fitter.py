@@ -3,6 +3,7 @@ import numpy as np
 import impy as ip
 
 from magicclass import (
+    do_not_record,
     magicclass,
     field,
     MagicTemplate,
@@ -22,6 +23,19 @@ _FILP_X = ip.slicer.x[::-1]
 
 @magicclass(layout="horizontal")
 class SplineFitter(ChildWidget):
+    """
+    Manually fit splines with longitudinal projections.
+
+    Attributes
+    ----------
+    num : int
+        Spline number in current tomogram.
+    pos : int
+        Position along the spline.
+    err_max : float
+        Maximum allowed error (nm) for spline fitting.
+    """
+
     # Manually fit cylinders with spline curve using longitudinal projections
 
     canvas = field(QtImageCanvas).with_options(lock_contrast_limits=True)
@@ -55,18 +69,7 @@ class SplineFitter(ChildWidget):
 
     @magicclass(record=False)
     class footer(MagicTemplate):
-        """
-        Select and fit splines.
-
-        Attributes
-        ----------
-        num : int
-            Spline number in current tomogram.
-        pos : int
-            Position along the spline.
-        err_max : float
-            Maximum allowed error (nm) for spline fitting.
-        """
+        """Select and fit splines."""
 
         num = abstractapi()
         pos = abstractapi()
@@ -112,6 +115,7 @@ class SplineFitter(ChildWidget):
         return self._max_interval
 
     @set_design(text="Resample", location=footer)
+    @do_not_record
     def resample_volumes(
         self,
         interval: Annotated[nm, {"label": "Max interval (nm)"}] = 50.0,

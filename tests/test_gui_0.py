@@ -496,6 +496,8 @@ def test_preview(ui: CylindraMainWidget):
     tester.click_preview()
     tester = mcls_testing.FunctionGuiTester(ui.binarize_feature)
     tester.click_preview()
+    tester = mcls_testing.FunctionGuiTester(ui.sta.seam_search_manually)
+    tester.click_preview()
     ui.binarize_feature(ui.mole_layers["Mole-0"], "nth", threshold=3)
     tester = mcls_testing.FunctionGuiTester(ui.label_feature_clusters)
     tester.click_preview()
@@ -600,6 +602,8 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
     ui.sta.show_template()
     ui.sta.show_template_original()
     ui.sta.show_mask()
+    ui.sta.get_template(TEST_DIR / "beta-tubulin.mrc")
+    ui.sta.get_mask((0.3, 0.5), template_path=TEST_DIR / "beta-tubulin.mrc")
     ui.sta.align_averaged(
         layers=["Mole-0"],
         template_path=template_path,
@@ -635,6 +639,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
         template_path=template_path,
         column_prefix="score",
     )
+    ui.sta.get_subtomograms("Mole-0", shape=(5, 5, 5), bin_size=bin_size, order=1)
     assert "score_0" in ui.mole_layers["Mole-0-ALN1"].features
 
 
@@ -960,6 +965,7 @@ def test_molecule_features(ui: CylindraMainWidget):
     assert "new" == layer.features.columns[-1]
     ui.macro.undo()
     ui.macro.redo()
+    ui.mole_layers.last().point_size = 3.5
 
 
 def test_auto_align(ui: CylindraMainWidget):
@@ -1071,9 +1077,15 @@ def test_spline_fitter(ui: CylindraMainWidget):
         bin_size=[1],
         filter=None,
     )
-    ui.register_path(coords=[[21.974, 117.148, 34.873], [21.974, 36.449, 58.084]])
-    ui.SplinesMenu.Fitting.fit_splines_manually(30)
-    ui.spline_fitter.controller.pos.value = 1
+    ui.register_path(coords=[[22, 117, 35], [22, 36, 58]])
+    ui.register_path(coords=[[22, 117, 35], [22, 36, 58]])
+    ui.SplinesMenu.Fitting.fit_splines_manually()
+    ui.spline_fitter._next_pos()
+    ui.spline_fitter._prev_pos()
+    ui.spline_fitter._next_num()
+    ui.spline_fitter._prev_num()
+    ui.spline_fitter.pos.value = 1
+    ui.spline_fitter.resample_volumes(30)
     ui.spline_fitter.fit(
         shifts=[[1.094, 0.797], [1.094, 0.797], [1.094, 0.698]], i=0, max_interval=50.0
     )
@@ -1296,7 +1308,7 @@ def test_landscape(ui: CylindraMainWidget):
     ui.sta.run_align_on_landscape(layer_land)
     ui.sta.run_viterbi_on_landscape(
         layer_land,
-        range_long=(dist_lon - 0.1, dist_lon + 0.1),
+        range_long=("-0.1", "+0.1"),
         angle_max=10,
     )
     # click preview
@@ -1304,8 +1316,8 @@ def test_landscape(ui: CylindraMainWidget):
     tester.click_preview()
     ui.sta.run_annealing_on_landscape(
         layer_land,
-        range_long=(dist_lon - 0.1, dist_lon + 0.1),
-        range_lat=(dist_lat - 0.1, dist_lat + 0.1),
+        range_long=("-0.1", "+0.1"),
+        range_lat=("-0.1", "+0.1"),
         angle_max=20,
         random_seeds=[0, 1],
     )
@@ -1338,18 +1350,12 @@ def test_regionprops(ui: CylindraMainWidget):
         target="nth",
         label="pf-id_binarize_label",
         properties=[
-            "area",
-            "length",
-            "width",
-            "sum",
-            "mean",
-            "median",
-            "max",
-            "min",
-            "std",
+            "area", "length", "width", "sum", "mean", "median",
+            "max", "min", "std",
         ],
-    )
+    )  # fmt: skip
     ui.calculate_curve_index("Mole-0")
+    ui.count_neighbors("Mole-0")
 
 
 def test_showing_widgets(ui: CylindraMainWidget):
