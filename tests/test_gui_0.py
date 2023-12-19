@@ -1354,7 +1354,6 @@ def test_regionprops(ui: CylindraMainWidget):
             "max", "min", "std",
         ],
     )  # fmt: skip
-    ui.calculate_curve_index("Mole-0")
     ui.count_neighbors("Mole-0")
 
 

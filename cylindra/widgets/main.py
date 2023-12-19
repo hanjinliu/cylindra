@@ -2140,25 +2140,25 @@ class CylindraMainWidget(MagicTemplate):
         return undo_callback(layer.feature_setter(feat))
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
-    def calculate_curve_index(self, layer: MoleculesLayerType):
+    def calculate_local_vectors(self, layers: MoleculesLayersType):
         """
-        Calculate the curve index for each molecule.
-
-        The "curve index" is 1 if the molecule is inside the curve. Outside will
-        be -1, and a straight line will be 0.
+        Calculate local vectors and store them as new feature columns.
 
         Parameters
         ----------
-        {layer}
+        {layers}
         """
-        layer = assert_layer(layer, self.parent_viewer)
-        spl = _assert_source_spline_exists(layer)
-        mole = layer.molecules
-        feat = mole.features
-        new_feat_col = cylmeasure.calc_curve_index(mole, spl)
-        layer.molecules = layer.molecules.with_features(new_feat_col)
-        self.reset_choices()
-        return undo_callback(layer.feature_setter(feat))
+        layers = assert_list_of_layers(layers, self.parent_viewer)
+        for layer in layers:
+            spl = _assert_source_spline_exists(layer)
+            mole = layer.molecules
+            vec_lon = cylmeasure.calc_localvec_long(mole, spl)
+            vec_lat = cylmeasure.calc_localvec_lat(mole, spl)
+            layer.molecules = layer.molecules.with_features(
+                *vec_lon.iter_columns(), *vec_lat.iter_columns()
+            )
+        self.reset_choices()  # choices regarding of features need update
+        return
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
     def convolve_feature(

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from enum import Enum
 
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING, Iterable, overload
 import numpy as np
 from numpy.typing import NDArray
 import polars as pl
@@ -13,72 +13,64 @@ from cylindra._cylindra_ext import RegionProfiler as _RegionProfiler
 
 if TYPE_CHECKING:
     from cylindra.components import CylSpline
+    from cylindra._napari import MoleculesLayer
 
 
-def calc_spacing(mole: Molecules, spl: CylSpline, projective: bool = True) -> pl.Series:
+def calc_spacing(mole: Molecules, spl: CylSpline) -> pl.Series:
     """Calculate the interval of each molecule to the next one."""
-    subsets = list[Molecules]()
-    for _, sub in _groupby_with_index(mole, Mole.pf):
-        surf = CylinderSurface(spl)
-        _interv_vec = np.diff(sub.pos, axis=0, append=0)
-        if projective:
-            _start = _mole_to_coords(sub)
-            _interv_vec = surf.project_vector(_interv_vec, _start)
-        _y_interv = np.sqrt(np.sum(_interv_vec**2, axis=1))
-        _y_interv[-1] = -np.inf  # fill invalid values with 0
-        new_feat = pl.Series(Mole.spacing, _y_interv).cast(pl.Float32)
-        subsets.append(sub.with_features(new_feat))
-    return _concat_groups(subsets).features[Mole.spacing]
+    return (
+        calc_localvec_long(mole, spl, fill=np.nan)
+        .select(
+            (pl.col(Mole.localvec_long.y) ** 2 + pl.col(Mole.localvec_long.a) ** 2)
+            .sqrt()
+            .fill_nan(-float("inf"))
+            .alias(Mole.spacing)
+        )
+        .to_series()
+    )
 
 
 def calc_elevation_angle(mole: Molecules, spl: CylSpline) -> pl.Series:
     """Calculate the elevation angle of the longitudinal neighbors."""
-    subsets = list[Molecules]()
-    for _, sub in _groupby_with_index(mole, Mole.pf):
-        surf = CylinderSurface(spl)
-        _spl_vec_norm = surf.spline_vec_norm(sub.features[Mole.position])
-        _interv_vec_norm = _norm(np.diff(sub.pos, axis=0, append=0))
-        _cos: NDArray[np.float32] = _dot(_interv_vec_norm, _spl_vec_norm)
-        _deg = np.rad2deg(np.arccos(_cos.clip(-1, 1)))
-        _deg[-1] = -np.inf  # fill invalid values with 0
-        subsets.append(
-            sub.with_features(pl.Series(Mole.elev_angle, _deg).cast(pl.Float32))
+    return (
+        calc_localvec_long(mole, spl, fill=np.nan)
+        .select(
+            pl.arctan2d(Mole.localvec_long.r, Mole.localvec_long.y)
+            .fill_nan(-float("inf"))
+            .alias(Mole.elev_angle)
         )
-    return _concat_groups(subsets).features[Mole.elev_angle]
+        .to_series()
+    )
 
 
 def calc_skew(mole: Molecules, spl: CylSpline) -> pl.Series:
     """Calculate the skew of each molecule to the next one."""
-    subsets = list[Molecules]()
-    for _, sub in _groupby_with_index(mole, Mole.pf):
-        surf = CylinderSurface(spl)
-        _interv_vec = np.diff(sub.pos, axis=0, append=0)
-        _start = _mole_to_coords(sub)
-        _interv_proj = surf.project_vector(_interv_vec, _start)
-        _ang = surf.long_angle(_interv_proj, _start)
-        _ang[-1] = -np.inf
-        new_feat = pl.Series(Mole.skew, _ang, dtype=pl.Float32)
-        subsets.append(sub.with_features(new_feat))
-    return _concat_groups(subsets).features[Mole.skew]
+    return (
+        calc_localvec_long(mole, spl, fill=np.nan)
+        .select(
+            pl.arctan2d(Mole.localvec_long.a, Mole.localvec_long.y)
+            .fill_nan(-float("inf"))
+            .alias(Mole.skew)
+        )
+        .to_series()
+    )
 
 
 def calc_twist(mole: Molecules, spl: CylSpline) -> pl.Series:
     """Calculate the twist of each molecule to the next one."""
-    subsets = list[Molecules]()
     radius = calc_radius(mole, spl).mean()
-    for _, sub in _groupby_with_index(mole, Mole.pf):
-        surf = CylinderSurface(spl)
-        _interv_vec = np.diff(sub.pos, axis=0, append=0)
-        _start = _mole_to_coords(sub)
-        _interv_proj = surf.project_vector(_interv_vec, _start)
-        _spacing = np.sqrt(np.sum(_interv_proj**2, axis=1))
-        _twist_sin = _spacing * surf.long_sin(_interv_proj, _start) / radius
-        _twist = np.rad2deg(_arcsin(_twist_sin))
-        _twist[-1] = -np.inf
-        new_feat = pl.Series(Mole.twist, _twist, dtype=pl.Float32)
-        subsets.append(sub.with_features(new_feat))
-
-    return _concat_groups(subsets).features[Mole.twist]
+    return (
+        calc_localvec_long(mole, spl, fill=np.nan)
+        .select(
+            (pl.col(Mole.localvec_long.a) / 2 / radius)
+            .arcsin()
+            .degrees()
+            .fill_nan(-float("inf"))
+            .alias(Mole.twist)
+            * 2
+        )
+        .to_series()
+    )
 
 
 def calc_radius(mole: Molecules, spl: CylSpline) -> pl.Series:
@@ -95,51 +87,34 @@ def calc_radius(mole: Molecules, spl: CylSpline) -> pl.Series:
 def calc_rise(mole: Molecules, spl: CylSpline) -> pl.Series:
     """Add a column of rise angles of each molecule."""
     # NOTE: molecules must be in the canonical arrangement.
-    subsets = list[Molecules]()
-    mole_ext, new_pf_id = _seam_molecules(mole, spl)
-    for i, sub in _groupby_with_index(mole.concat_with(mole_ext), Mole.nth):
-        sub = sub.sort(Mole.pf)
-        surf = CylinderSurface(spl)
-        _interv_vec = np.diff(sub.pos, axis=0, append=np.nan)
-        _start = _mole_to_coords(sub)
-        interv_proj = surf.project_vector(_interv_vec, _start)
-        rise_angles = 90 - surf.long_angle(interv_proj, _start)
-        if sub.features[Mole.pf][-1] == new_pf_id:
-            rise_angles = rise_angles[:-1]
-            sub = sub.subset(slice(None, -1))
-        new_feat = pl.Series(Mole.rise, rise_angles).fill_nan(-np.inf).cast(pl.Float32)
-        subsets.append(sub.with_features(new_feat))
-    return _concat_groups(subsets).features[Mole.rise]
-
-
-def calc_lateral_interval(
-    mole: Molecules, spl: CylSpline, projective: bool = True
-) -> pl.Series:
-    # NOTE: molecules must be in the canonical arrangement.
-    subsets = list[Molecules]()
-    mole_ext, new_pf_id = _seam_molecules(mole, spl)
-    for _, sub in _groupby_with_index(mole.concat_with(mole_ext), Mole.nth):
-        sub = sub.sort(Mole.pf)
-        _interv_vec = np.diff(sub.pos, axis=0, append=np.nan)
-        if projective:
-            surf = CylinderSurface(spl)
-            _interv_vec = surf.project_vector(_interv_vec, _mole_to_coords(sub))
-        _interv_abs = np.sqrt(_dot(_interv_vec, _interv_vec))
-
-        if sub.features[Mole.pf][-1] == new_pf_id:
-            _interv_abs = _interv_abs[:-1]
-            sub = sub.subset(slice(None, -1))
-        subsets.append(
-            sub.with_features(
-                pl.Series(Mole.lateral_interval, _interv_abs)
-                .fill_nan(-np.inf)
-                .cast(pl.Float32)
-            )
+    sign = spl.config.rise_sign
+    return (
+        calc_localvec_lat(mole, spl, fill=np.nan)
+        .select(
+            pl.arctan2d(Mole.localvec_lat.y, Mole.localvec_lat.a)
+            .fill_nan(-float("inf"))
+            .alias(Mole.rise)
         )
-    return _concat_groups(subsets).features[Mole.lateral_interval]
+        .to_series()
+        * sign
+    )
 
 
-def _seam_molecules(mole: Molecules, spl: CylSpline) -> tuple[Molecules, int]:
+def calc_lateral_interval(mole: Molecules, spl: CylSpline) -> pl.Series:
+    # NOTE: molecules must be in the canonical arrangement.
+    return (
+        calc_localvec_lat(mole, spl, fill=np.nan)
+        .select(
+            (pl.col(Mole.localvec_lat.y) ** 2 + pl.col(Mole.localvec_lat.a) ** 2)
+            .sqrt()
+            .fill_nan(-float("inf"))
+            .alias(Mole.lateral_interval)
+        )
+        .to_series()
+    )
+
+
+def _pad_molecules_at_seam(mole: Molecules, spl: CylSpline) -> tuple[Molecules, int]:
     """
     Molecules at the seam boundary.
 
@@ -177,6 +152,54 @@ def calc_curve_index(mole: Molecules, spl: CylSpline):
     der2_normed = _norm(der2, fill=0.0)
     _cos = _dot(mole_vec_normed, der2_normed)
     return pl.Series(Mole.curve_index, _cos).cast(pl.Float32)
+
+
+def calc_localvec_long(
+    mole: Molecules, spl: CylSpline, fill: float = 0.0
+) -> pl.DataFrame:
+    subsets = list[Molecules]()
+    surf = CylinderSurface(spl)
+    ns = Mole.localvec_long  # the namespace
+    for _, sub in _groupby_with_index(mole, Mole.pf):
+        _interv_vec = np.diff(sub.pos, axis=0, append=0)
+        _start = _mole_to_coords(sub)
+        _vec_tr = surf.transform_vector(_interv_vec, _start)
+        _vec_tr[-1, :] = fill
+        subsets.append(
+            sub.with_features(
+                pl.Series(ns.r, _vec_tr[:, 0], dtype=pl.Float32),
+                pl.Series(ns.y, _vec_tr[:, 1], dtype=pl.Float32),
+                pl.Series(ns.a, _vec_tr[:, 2], dtype=pl.Float32),
+            )
+        )
+    return _concat_groups(subsets).features.select(ns.r, ns.y, ns.a)
+
+
+def calc_localvec_lat(
+    mole: Molecules, spl: CylSpline, fill: float = 0.0
+) -> pl.DataFrame:
+    subsets = list[Molecules]()
+    mole_ext, new_pf_id = _pad_molecules_at_seam(mole, spl)
+    surf = CylinderSurface(spl)
+    ns = Mole.localvec_lat  # the namespace
+    for _, sub in _groupby_with_index(mole.concat_with(mole_ext), Mole.nth):
+        sub = sub.sort(Mole.pf)
+        _interv_vec = np.diff(sub.pos, axis=0, append=np.nan)
+        _start = _mole_to_coords(sub)
+        _vec_tr = surf.transform_vector(_interv_vec, _start)
+        if sub.features[Mole.pf][-1] == new_pf_id:
+            _vec_tr = _vec_tr[:-1, :]
+            sub = sub.subset(slice(None, -1))
+        else:
+            _vec_tr[:-1, :] = fill
+        subsets.append(
+            sub.with_features(
+                pl.Series(ns.r, _vec_tr[:, 0]),
+                pl.Series(ns.y, _vec_tr[:, 1]),
+                pl.Series(ns.a, _vec_tr[:, 2]),
+            )
+        )
+    return _concat_groups(subsets).features.select(ns.r, ns.y, ns.a)
 
 
 class CylinderSurface:
@@ -220,6 +243,17 @@ class CylinderSurface:
         """Project vector(s) to the cylinder surface."""
         norm = self._get_vector_surface_norm(vec, start)
         return _cancel_component(vec, norm)
+
+    def transform_vector(
+        self,
+        vec: NDArray[np.float32],  # (N, 3)
+        start: NDArray[np.float32],  # (N, 4)
+    ) -> NDArray[np.float32]:
+        """Transform vector(s) to (r, y, a)."""
+        er = self._get_vector_surface_norm(vec, start)
+        ey = self.spline_vec_norm(start[:, 3])
+        ea = -np.cross(er, ey, axis=1)
+        return np.stack([_dot(vec, er), _dot(vec, ey), _dot(vec, ea)], axis=1)
 
     def _get_vector_surface_norm(
         self,
@@ -380,9 +414,26 @@ class LatticeParameters(Enum):
     radius = "radius"
     rise_angle = "rise_angle"
     lat_interv = "lat_interv"
+    curve_index = "curve_index"
 
+    @overload
     def calculate(self, mole: Molecules, spl: CylSpline) -> pl.Series:
+        ...
+
+    @overload
+    def calculate(self, layer: MoleculesLayer) -> pl.Series:
+        ...
+
+    def calculate(self, mole, spl=None):
         """Calculate this lattice parameter for the given molecule."""
+        if spl is None:
+            from cylindra._napari import MoleculesLayer
+
+            if not isinstance(mole, MoleculesLayer):
+                raise TypeError("mole must be a MoleculesLayer.")
+            mole, spl = mole.molecules, mole.source_spline
+            if spl is None:
+                raise ValueError("The source spline is not defined.")
         match self:
             case LatticeParameters.spacing:
                 return calc_spacing(mole, spl)
@@ -398,6 +449,8 @@ class LatticeParameters(Enum):
                 return calc_rise(mole, spl)
             case LatticeParameters.lat_interv:
                 return calc_lateral_interval(mole, spl)
+            case LatticeParameters.curve_index:
+                return calc_curve_index(mole, spl)
             case _:  # pragma: no cover
                 raise ValueError(f"Unknown lattice parameter {self!r}.")
 
