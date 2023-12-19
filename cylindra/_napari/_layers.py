@@ -15,7 +15,6 @@ from napari.utils import Colormap
 
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.utils import str_color, assert_column_exists
-from cylindra.cylmeasure import LatticeParameters, calc_localvec_long, calc_localvec_lat
 from cylindra._config import get_config
 
 if TYPE_CHECKING:
@@ -396,17 +395,6 @@ class MoleculesLayer(_FeatureBoundLayer, Points, _SourceBoundLayer):
         if nlon * nlat != mole.count():
             raise ValueError("Molecules are not regularly arranged")
         return nlon, nlat
-
-    def calculate_lattice_structure(
-        self, props: Sequence[str] = ("spacing",)
-    ) -> pl.DataFrame:
-        out = [LatticeParameters(p).calculate(self) for p in props]
-        return pl.DataFrame(out)
-
-    def calculate_local_vectors(self) -> pl.DataFrame:
-        out_long = calc_localvec_long(self.molecules, self.source_spline)
-        out_lat = calc_localvec_lat(self.molecules, self.source_spline)
-        return pl.concat([out_long, out_lat], how="horizontal")
 
 
 class CylinderLabels(_FeatureBoundLayer, Labels):

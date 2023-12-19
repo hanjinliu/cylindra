@@ -56,7 +56,7 @@ class BaseProject(BaseModel):
     @classmethod
     def from_file(cls, path: "str | Path") -> Self:
         """Construct a project from a file."""
-        path = Path(path)
+        path = Path(path).absolute()
         if path.is_dir():
             return cls.from_json(get_project_file(path))
         elif path.suffix == ".json":

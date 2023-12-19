@@ -65,6 +65,26 @@ PolarsExprStrOrScalar = Annotated[
     },
 ]
 
+_FLOAT_NAMESPACE = {"__builtins__": {}, "inf": float("inf"), "nan": float("nan")}
+
+
+def _validate_float(x):
+    if isinstance(x, str):
+        x = eval(x, _FLOAT_NAMESPACE)
+    if not isinstance(x, (int, float, np.number)):
+        raise TypeError(f"Invalid type: {type(x)}")
+    return x
+
+
+FloatInfNan = Annotated[
+    float,
+    {
+        "widget_type": EvalLineEdit,
+        "namespace": _FLOAT_NAMESPACE,
+        "validator": _validate_float,
+    },
+]
+
 
 def _unwrap_rust_expr(expr: mk.Symbol | mk.Expr) -> mk.Symbol | mk.Expr:
     """The str of pl.Expr use brackets for binary expressions."""

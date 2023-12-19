@@ -28,12 +28,14 @@ from cylindra.const import (
 )
 from cylindra.project._single import CylindraProject
 from cylindra._config import get_config
+from cylindra.cylmeasure import LatticeParameters, calc_localvec_long, calc_localvec_lat
 
 if TYPE_CHECKING:
     from typing_extensions import Self
     from cylindra.components import CylSpline
     from acryo import BatchLoader, Molecules
-    from cylindra._napari import MoleculesLayer
+    import numpy as np
+    from numpy.typing import NDArray
 
 _V = TypeVar("_V")
 _Null = object()
@@ -331,15 +333,9 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         out = cast_dataframe(pl.concat(dataframes, how="diagonal"))
         if suffix:
             need_rename = [
-                H.spacing,
-                H.twist,
-                H.npf,
-                H.rise,
-                H.skew,
-                H.rise_length,
-                H.radius,
-                H.start,
-            ]
+                H.spacing, H.twist, H.npf, H.rise, H.skew,
+                H.rise_length, H.radius, H.start,
+            ]  # fmt: skip
             out = out.rename(
                 {col: col + suffix for col in need_rename if col in out.columns}
             )
@@ -450,7 +446,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
 
     def iter_molecules_with_splines(
         self, name_filter: Callable[[str], bool] | None = None
-    ) -> Iterator[tuple[MoleculesKey, tuple[Molecules, CylSpline | None]]]:
+    ) -> Iterator[MoleculesItem]:
         """Iterate over all the molecules and its source spline."""
         if name_filter is None:
             name_filter = lambda _: True
@@ -462,19 +458,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                     if (src := info.source) is None:
                         continue
                     spl = prj.load_spline(dir, src)
-                    yield MoleculesKey(i_prj, info.stem), (mole, spl)
-
-    def iter_molecules_layers(
-        self, name_filter: Callable[[str], bool] | None = None
-    ) -> Iterator[MoleculesLayer]:
-        from cylindra._napari import MoleculesLayer
-
-        for sl, (mole, spl) in self.iter_molecules_with_splines(name_filter):
-            kwargs = dict(
-                name=sl.name,
-                source=spl,
-            )
-            yield MoleculesLayer.construct(mole, **kwargs)
+                    yield MoleculesItem(MoleculesKey(i_prj, info.stem), (mole, spl))
 
     def collect_spline_coords(self, ders: int | Iterable[int] = 0) -> pl.DataFrame:
         """
@@ -563,3 +547,47 @@ class SplineKey(NamedTuple):
     """Index of the project in the project sequence."""
     spline_id: int
     """Index of the spline in the project."""
+
+
+class MoleculesItem(NamedTuple):
+    key: MoleculesKey
+    value: tuple[Molecules, CylSpline | None]
+
+    def __repr__(self) -> str:
+        return (
+            f"MoleculesItem(key={self.key!r}, molecules={self.molecules!r}, "
+            f"spline={self.spline!r})"
+        )
+
+    def _repr_pretty_(self, p, cycle):
+        p.text(
+            f"MoleculesItem(\n\tkey={self.key!r},\n\tmolecules={self.molecules!r},"
+            f"\n\tspline={self.spline!r}\n)"
+        )
+
+    @property
+    def molecules(self) -> Molecules:
+        """The molecules object"""
+        return self.value[0]
+
+    @property
+    def spline(self) -> CylSpline | None:
+        """The source spline if exists."""
+        return self.value[1]
+
+    def lattice_structure(self, props: Sequence[str] = ("spacing",)) -> pl.DataFrame:
+        return pl.DataFrame(
+            [LatticeParameters(p).calculate(*self.value) for p in props]
+        )
+
+    def local_vectors_longitudinal(
+        self, fill_value: float = 0.0
+    ) -> NDArray[np.float32]:
+        """Return the local vectors in the longitudinal direction."""
+        df = calc_localvec_long(self.molecules, self.spline, fill=fill_value)
+        return df.to_numpy()
+
+    def local_vectors_lateral(self, fill_value: float = 0.0) -> NDArray[np.float32]:
+        """Return the local vectors in the lateral direction."""
+        df = calc_localvec_lat(self.molecules, self.spline, fill=fill_value)
+        return df.to_numpy()
