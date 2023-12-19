@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from typing_extensions import Self
     from cylindra.components import CylSpline
     from acryo import BatchLoader, Molecules
+    from cylindra._napari import MoleculesLayer
 
 _V = TypeVar("_V")
 _Null = object()
@@ -449,7 +450,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
 
     def iter_molecules_with_splines(
         self, name_filter: Callable[[str], bool] | None = None
-    ) -> Iterable[tuple[MoleculesKey, tuple[Molecules, CylSpline | None]]]:
+    ) -> Iterator[tuple[MoleculesKey, tuple[Molecules, CylSpline | None]]]:
         """Iterate over all the molecules and its source spline."""
         if name_filter is None:
             name_filter = lambda _: True
@@ -462,6 +463,18 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                         continue
                     spl = prj.load_spline(dir, src)
                     yield MoleculesKey(i_prj, info.stem), (mole, spl)
+
+    def iter_molecules_layers(
+        self, name_filter: Callable[[str], bool] | None = None
+    ) -> Iterator[MoleculesLayer]:
+        from cylindra._napari import MoleculesLayer
+
+        for sl, (mole, spl) in self.iter_molecules_with_splines(name_filter):
+            kwargs = dict(
+                name=sl.name,
+                source=spl,
+            )
+            yield MoleculesLayer.construct(mole, **kwargs)
 
     def collect_spline_coords(self, ders: int | Iterable[int] = 0) -> pl.DataFrame:
         """
