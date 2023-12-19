@@ -42,9 +42,11 @@ variables are pushed to the console global namespace:
 
 ### Open Images
 
-API: [`open_image`][cylindra.widgets.main.CylindraMainWidget.open_image].
+:material-arrow-right-thin-circle-outline: API: [`open_image`][cylindra.widgets.main.CylindraMainWidget.open_image].
 
-To open an tomogram image, either use the menu item `File > Open image` or the shortcut ++ctrl+k++ &rarr; ++ctrl+o++.
+:material-arrow-right-thin-circle-outline: GUI: `File > Open image` or ++ctrl+k++ &rarr; ++ctrl+o++.
+
+In GUI, an open-image dialog is shown.
 
 ![open image dialog](images/open_image_dialog.png){ loading=lazy, width=400px }
 

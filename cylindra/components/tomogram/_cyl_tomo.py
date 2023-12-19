@@ -615,10 +615,17 @@ class CylTomogram(Tomogram):
         ----------
         i : int or iterable of int, optional
             Spline ID that you want to analyze.
-        size : nm, default 50.0
+        depth : nm, default 50.0
             Longitudinal length of subtomograms for calculation.
         binsize : int, default 1
             Multiscale binsize to be used.
+        min_radius : nm, default 1.0
+            Minimum radius of the cylinder.
+        update : bool, default True
+            If True, spline properties will be updated.
+        update_glob : bool, default True
+            If True, global properties will be updated using the mean of the local
+            radii.
 
         Returns
         -------

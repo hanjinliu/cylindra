@@ -285,6 +285,8 @@ class Alignment(MagicTemplate):
 
 @magicmenu
 class LandscapeMenu(MagicTemplate):
+    """Construct and analyze correlation landscape."""
+
     construct_landscape = abstractapi()
     run_align_on_landscape = abstractapi()
     run_viterbi_on_landscape = abstractapi()

@@ -23,7 +23,7 @@ class BaseComponent(ABC):
 
     def to_json(self, file_path: str | Path | io.IOBase, *, cls=None) -> None:
         """
-        Save spline model in a json format.
+        Save the model in a json format.
 
         Parameters
         ----------
@@ -54,8 +54,8 @@ class BaseComponent(ABC):
 
         Returns
         -------
-        Spline
-            Spline object constructed from the json file.
+        BaseComponent
+            Object constructed from the json file.
         """
         if isinstance(file_path, io.IOBase):
             return cls.from_dict(json.load(file_path))

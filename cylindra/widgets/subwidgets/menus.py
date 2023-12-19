@@ -817,6 +817,7 @@ class OthersMenu(ChildWidget):
             self,
             filename: Annotated[str, {"choices": _get_workflow_names}],
         ):
+            """Run a workflow script."""
             # close this magicgui before running whole workflow
             get_function_gui(self.run_workflow).close()
             fname = self._make_method_name(filename)
@@ -872,6 +873,7 @@ class OthersMenu(ChildWidget):
 
         @set_design(text="View/Edit workflow")
         @set_options(call_button="Overwrite", labels=False)
+        @bind_key("Ctrl+K, Ctrl+Shift+E")
         def edit_workflow(
             self,
             filename: Annotated[str, {"choices": _get_workflow_names}],

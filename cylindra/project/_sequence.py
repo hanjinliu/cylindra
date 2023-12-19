@@ -515,7 +515,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                 _appeared.add(label)
             out = out.with_columns(
                 pl.col(Mole.image).replace(
-                    _map, default=None, return_dtype=pl.Categorical
+                    _map, default=None, return_dtype=pl.Enum(list(_map.values()))
                 )
             )
         else:
