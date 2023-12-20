@@ -51,6 +51,7 @@ def main():
     _imsave(ui.spline_fitter.native, "fit_splines_manually")
 
     for method in [
+        "load_project",
         "fit_splines",
         "refine_splines",
         "measure_radius",

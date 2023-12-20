@@ -338,12 +338,13 @@ class Simulator(ChildWidget):
         npf: Annotated[int, {"min": 1, "label": "number of PF"}] = 2,
         radius: Annotated[nm, {"min": 0.5, "max": 50.0, "step": 0.5, "label": "radius (nm)"}] = 10.0,
         offsets: tuple[float, float] = (0.0, 0.0),
+        update_glob: Annotated[bool, {"label": "update spline global properties"}] = True,
     ):  # fmt: skip
         """
         Update cylinder model with new parameters.
 
-        Local structural displacement will be deleted because this function may change the number
-        of molecules. This function should be called first.
+        Local structural displacement will be deleted because this function may change
+        the number of molecules. This function should be called first.
 
         Parameters
         ----------
@@ -365,6 +366,11 @@ class Simulator(ChildWidget):
         mole = model.to_molecules(spl)
         layer = main.add_molecules(mole, name=f"Mole(Sim)-{spline}", source=spl)
         _set_simulation_model(layer, model)
+        if update_glob:
+            cparams = spl.cylinder_params(
+                spacing=spacing, twist=twist, start=start, npf=npf, radius=radius
+            )
+            spl.update_glob_by_cylinder_params(cparams)
 
     @impl_preview(generate_molecules, auto_call=True)
     def _preview_generate_molecules(

@@ -56,7 +56,11 @@ shows how to define a workflow with input parameters.
 from pathlib import Path
 from cylindra.widgets import CylindraMainWidget
 
-def main(ui: "CylindraMainWidget", path: Path, tilt_range: tuple[float, float]):
+def main(
+    ui: "CylindraMainWidget",
+    path: Path,
+    tilt_range: tuple[float, float] = (-60, 60),
+):
     ui.open_image(path, tilt_range=tilt_range)
 
 ```
@@ -83,3 +87,8 @@ application.
 :material-arrow-right-thin-circle-outline: API: [`run_workflow`][cylindra.widgets.main.CylindraMainWidget.run_workflow]
 
 :material-arrow-right-thin-circle-outline: GUI: `Others > Workflows > Run workflow` or ++ctrl+k++ &rarr; ++ctrl+shift+r++
+
+Defined workflows show up in the `Others > Workflows` menu. You can also open the dialog
+at `Others > Workflows > Run workflow` and select the workflow to run. If the workflow
+does not have any input arguments, it will be run immediately. If it has, a new dialog
+will be opened to ask for the input arguments.

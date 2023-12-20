@@ -441,23 +441,39 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             returns True if the molecule should be collected. Collect all the
             molecules by default.
         """
-        for sl, (mole, _) in self.iter_molecules_with_splines(name_filter):
+        for sl, (mole, _) in self.iter_molecules_with_splines(
+            name_filter, skip_no_spline=False
+        ):
             yield sl, mole
 
     def iter_molecules_with_splines(
-        self, name_filter: Callable[[str], bool] | None = None
+        self,
+        name_filter: Callable[[str], bool] | None = None,
+        *,
+        skip_no_spline: bool = True,
     ) -> Iterator[MoleculesItem]:
-        """Iterate over all the molecules and its source spline."""
+        """
+        Iterate over all the molecules and its source spline.
+
+        Parameters
+        ----------
+        name_filter : callable, optional
+            Function that takes a molecule file name (without extension) and
+            returns True if the molecule should be collected. Collect all the
+            molecules by default.
+        skip_no_spline : bool, default True
+            If True, molecules without a source spline will be skipped.
+        """
         if name_filter is None:
             name_filter = lambda _: True
         for i_prj, prj in enumerate(self._projects):
-            with prj.open_project() as dir:
-                for info, mole in prj.iter_load_molecules(dir):
+            with prj.open_project() as dir_:
+                for info, mole in prj.iter_load_molecules():
                     if not name_filter(info.name):
                         continue
-                    if (src := info.source) is None:
+                    if (src := info.source) is None and skip_no_spline:
                         continue
-                    spl = prj.load_spline(dir, src)
+                    spl = prj.load_spline(dir_, src)
                     yield MoleculesItem(MoleculesKey(i_prj, info.stem), (mole, spl))
 
     def collect_spline_coords(self, ders: int | Iterable[int] = 0) -> pl.DataFrame:

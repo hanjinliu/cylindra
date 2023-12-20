@@ -2,7 +2,7 @@
 
 In `cylindra`, a project is managed by a `CylindraProject` instance.
 
-## Save the Session as a Project
+## Save the Current Session as a Project
 
 :material-arrow-right-thin-circle-outline: API: [`save_project`][cylindra.widgets.main.CylindraMainWidget.save_project]
 
@@ -27,6 +27,12 @@ the current state.
 
 :material-arrow-right-thin-circle-outline: GUI: `File > Load Project` or ++ctrl+k++ &rarr; ++ctrl+p++
 
+Saved projects can be loaded to the GUI. Loading a project does not rerun the script.
+It uses the saved files to reproduce the session.
+
+![Load Project](../images/load_project.png)
+
+
 ## Stash the Session
 
 :material-arrow-right-thin-circle-outline: GUI: `File > Stash`
@@ -37,3 +43,13 @@ readily loaded from the GUI.
 
 !!! note
     If you already know the `git stash` command, you should be familiar with this.
+
+# Reuse the Existing Projects
+
+:material-arrow-right-thin-circle-outline: API: [`load_project_for_reanalysis`][cylindra.widgets.main.CylindraMainWidget.load_project_for_reanalysis]
+
+:material-arrow-right-thin-circle-outline: GUI: `Analysis > Load Project for Reanalysis`
+
+Drawing splines is a most time-consuming step. `cylindra` is implemented with a method
+that automatically filter the script in a project file and only run until it reaches
+any non-manual line.

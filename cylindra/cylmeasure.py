@@ -207,13 +207,34 @@ class CylinderSurface:
 
     def __init__(self, spl: CylSpline):
         self._spl = spl
+        self._radius = spl.radius
+        if self._radius is None:
+            raise ValueError("The spline must have a radius.")
 
-    def surface_norm(
+    def transform_vector(
+        self,
+        vec: NDArray[np.float32],  # (N, 3)
+        start: NDArray[np.float32],  # (N, 4)
+    ) -> NDArray[np.float32]:
+        """Transform vector(s) to (r, y, a)."""
+        er0, er1 = self._surface_norm_for_vec(vec, start)
+        er = _norm(er0 + er1)
+        ey = self._spline_vec_norm(start[:, 3])
+        eang = -np.cross(er, ey, axis=1)
+        cos2a = _dot(er0, er1) / np.sqrt(_dot(er0, er0) * _dot(er1, er1))
+        # sin^2(a) = (1 - cos(2a)) / 2, when 0 < a < pi
+        sina = np.sqrt((1 - np.clip(cos2a, 0, 1)) / 2)
+        v_ang_len = 2 * self._radius * sina
+        _factor = _dot(_norm(er0 - er1), eang)
+        v_ang = v_ang_len * _factor
+        return np.stack([_dot(vec, er), _dot(vec, ey), v_ang], axis=1)
+
+    def _surface_vec(
         self,
         coords: NDArray[np.float32],
     ) -> NDArray[np.float32]:
         """
-        Get the surface normal vector at the given coordinates.
+        Get the surface vector at the given coordinates.
 
         Parameters
         ----------
@@ -229,79 +250,38 @@ class CylinderSurface:
         _mole_to_spl_vec = _spl_coords - zyx
         return _norm(_cancel_component(_mole_to_spl_vec, _spl_vec_norm))
 
-    def spline_vec_norm(self, pos: NDArray[np.float32]) -> NDArray[np.float32]:
+    def _spline_vec_norm(self, pos: NDArray[np.float32]) -> NDArray[np.float32]:
         """Normalized spline tangent vector for given positions (nm)."""
         u = self._spl.y_to_position(pos)
         _spl_vec = self._spl.map(u, der=1)
         return _norm(_spl_vec)
 
-    def transform_vector(
-        self,
-        vec: NDArray[np.float32],  # (N, 3)
-        start: NDArray[np.float32],  # (N, 4)
-    ) -> NDArray[np.float32]:
-        """Transform vector(s) to (r, y, a)."""
-        er = self._get_vector_surface_norm(vec, start)
-        ey = self.spline_vec_norm(start[:, 3])
-        ea = -np.cross(er, ey, axis=1)
-        return np.stack([_dot(vec, er), _dot(vec, ey), _dot(vec, ea)], axis=1)
-
-    def _get_vector_surface_norm(
+    def _surface_norm_for_vec(
         self,
         vec: NDArray[np.float32],
         start: NDArray[np.float32],
-    ) -> NDArray[np.float32]:
+    ) -> tuple[NDArray[np.float32], NDArray[np.float32]]:
         start = np.atleast_2d(start)
         start_zyx = start[:, :3]
         start_pos = start[:, 3]
-        dpos = _dot(self.spline_vec_norm(start_pos), vec)
-        return self.surface_norm(_concat(start_zyx + vec / 2, start_pos + dpos / 2))
-
-    def _parallel_to_norm_sign(
-        self,
-        vec: NDArray[np.float32],
-        start: NDArray[np.float32],
-    ) -> NDArray[np.float32]:
-        return np.sign(_dot(vec, self._get_vector_surface_norm(vec, start)))
-
-    def long_sin(
-        self,
-        vec: NDArray[np.float32],
-        start: NDArray[np.float32],
-    ) -> NDArray[np.float32]:
-        """Sine of the longitudinal angle between the vector and the spline."""
-        start = np.atleast_2d(start)
-        vec_norm = _norm(vec)
-
-        start_pos = start[:, 3]
-        dpos = _dot(self.spline_vec_norm(start_pos), vec)
-        spl_vec_norm = self.spline_vec_norm(start_pos + dpos / 2)
-        _cross = np.cross(vec_norm, spl_vec_norm, axis=1)
-        _cross_len = np.linalg.norm(_cross, axis=1)
-        return _cross_len * self._parallel_to_norm_sign(_cross, start)
-
-    def long_angle(
-        self,
-        vec: NDArray[np.float32],
-        start: NDArray[np.float32],
-        degree: bool = True,
-    ) -> NDArray[np.float32]:
-        """Longitudinal angle between the vector and the spline."""
-        angs = _arcsin(self.long_sin(vec, start))
-        if degree:
-            angs = np.rad2deg(angs)
-        return angs
-
-
-def _arcsin(x: NDArray[np.float32]) -> NDArray[np.float32]:
-    """arcsin with clipping."""
-    return np.arcsin(x.clip(-1, 1))
+        dpos = _dot(self._spline_vec_norm(start_pos), vec)
+        v0 = self._surface_vec(_concat(start_zyx, start_pos))
+        v1 = self._surface_vec(_concat(start_zyx + vec, start_pos + dpos))
+        return v0, v1
 
 
 class RegionProfiler:
     CHOICES = [
-        "area", "length", "width", "sum", "mean", "median", "max", "min", "std",
-    ]  # fmt: skip
+        "area",
+        "length",
+        "width",
+        "sum",
+        "mean",
+        "median",
+        "max",
+        "min",
+        "std",
+    ]
 
     def __init__(self, rust_obj: _RegionProfiler) -> None:
         self._rust_obj = rust_obj

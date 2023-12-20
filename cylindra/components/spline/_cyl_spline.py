@@ -195,7 +195,7 @@ class CylSpline(Spline):
         *,
         npf: int | None = None,
         orientation: Ori | str | None = None,
-    ):
+    ) -> CylSpline:
         """Update the npf or orientation parameters in place."""
         loc = list[pl.Expr]()
         glob = list[pl.Series]()
@@ -212,6 +212,22 @@ class CylSpline(Spline):
 
         self.props.loc = ldf
         self.props.glob = gdf
+        return self
+
+    def update_glob_by_cylinder_params(self, cparams: CylinderParameters) -> CylSpline:
+        """Update the global properties using a CylinderParameters object."""
+        props = {
+            H.rise: cparams.rise_angle,
+            H.rise_length: cparams.rise_length,
+            H.pitch: cparams.pitch,
+            H.spacing: cparams.spacing,
+            H.skew: cparams.skew,
+            H.twist: cparams.twist,
+            H.npf: cparams.npf,
+            H.start: cparams.start,
+            H.radius: cparams.radius,
+        }
+        self.props.update_glob(props)
         return self
 
     def _need_rotation(self, orientation: Ori | str | None) -> bool:
