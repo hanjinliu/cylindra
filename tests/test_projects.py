@@ -40,3 +40,13 @@ def test_sequence_methods():
     assert mole.count() > 500
     for (i, s), mole in seq.iter_molecules():
         pass
+
+
+def test_molecules_items():
+    seq = collect_projects([PROJECT_DIR_13PF, PROJECT_DIR_14PF])
+    for item in seq.iter_molecules_with_splines(name_filter=lambda name: True):
+        assert item.molecules.count() > 0
+        assert item.spline is not None
+        item.lattice_structure(("spacing",))
+        item.local_vectors_longitudinal()
+        item.local_vectors_lateral()

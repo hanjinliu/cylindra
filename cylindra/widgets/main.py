@@ -2141,33 +2141,6 @@ class CylindraMainWidget(MagicTemplate):
         return undo_callback(layer.feature_setter(feat))
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
-    def calculate_local_vectors(
-        self,
-        layers: MoleculesLayersType,
-        fill_value: FloatInfNan = 0.0,
-    ):
-        """
-        Calculate local vectors and store them as new feature columns.
-
-        Parameters
-        ----------
-        {layers}
-        fill_value : float, default 0.0
-            Value to fill when the local vector is not defined.
-        """
-        layers = assert_list_of_layers(layers, self.parent_viewer)
-        for layer in layers:
-            spl = _assert_source_spline_exists(layer)
-            mole = layer.molecules
-            vec_lon = cylmeasure.calc_localvec_long(mole, spl, fill_value)
-            vec_lat = cylmeasure.calc_localvec_lat(mole, spl, fill_value)
-            layer.molecules = layer.molecules.with_features(
-                *vec_lon.iter_columns(), *vec_lat.iter_columns()
-            )
-        self.reset_choices()  # choices regarding of features need update
-        return
-
-    @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
     def convolve_feature(
         self,
         layer: MoleculesLayerType,
