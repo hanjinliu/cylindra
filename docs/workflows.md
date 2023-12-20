@@ -22,7 +22,8 @@ aware of all the files in the user directory, you don't have to keep them by you
 The `main` function defined in the workflow will be called when the workflow is run.
 The first argument is always `ui`, the GUI object.
 
-Following workflow is a simple example that measure the local properties of all the splines and summarize the results in a histogram.
+Following workflow is a simple example that measure the local properties of all the
+splines and summarize the results in a histogram.
 
 ```python
 from cylindra.widgets import CylindraMainWidget
@@ -70,7 +71,8 @@ The resulting dialog will be like this.
 ![Workflow with args](images/workflow_with_args.png){ loading=lazy, width=400px }
 
 The `path` argument, which is annotated with `Path` type, will be converted into a file
-input box. The `tilt_range` argument, which is annotated with `tuple[float, float]` type, will be converted into two float input boxes.
+input box. The `tilt_range` argument, which is annotated with `tuple[float, float]`
+type, will be converted into two float input boxes.
 
 ## View & Edit Workflows
 
@@ -92,3 +94,7 @@ Defined workflows show up in the `Others > Workflows` menu. You can also open th
 at `Others > Workflows > Run workflow` and select the workflow to run. If the workflow
 does not have any input arguments, it will be run immediately. If it has, a new dialog
 will be opened to ask for the input arguments.
+
+!!! note
+    The defined workflows can also be found in the command palette (++ctrl+p++) labeled
+    as the file name.

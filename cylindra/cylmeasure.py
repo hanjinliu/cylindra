@@ -21,7 +21,7 @@ def calc_spacing(mole: Molecules, spl: CylSpline) -> pl.Series:
     return (
         calc_localvec_long(mole, spl, fill=np.nan)
         .select(
-            (pl.col(Mole.localvec_long.y) ** 2 + pl.col(Mole.localvec_long.a) ** 2)
+            (pl.col("vecy") ** 2 + pl.col("veca") ** 2)
             .sqrt()
             .fill_nan(-float("inf"))
             .alias(Mole.spacing)
@@ -35,9 +35,7 @@ def calc_elevation_angle(mole: Molecules, spl: CylSpline) -> pl.Series:
     return (
         calc_localvec_long(mole, spl, fill=np.nan)
         .select(
-            pl.arctan2d(Mole.localvec_long.r, Mole.localvec_long.y)
-            .fill_nan(-float("inf"))
-            .alias(Mole.elev_angle)
+            pl.arctan2d("vecr", "vecy").fill_nan(-float("inf")).alias(Mole.elev_angle)
         )
         .to_series()
     )
@@ -47,22 +45,17 @@ def calc_skew(mole: Molecules, spl: CylSpline) -> pl.Series:
     """Calculate the skew of each molecule to the next one."""
     return (
         calc_localvec_long(mole, spl, fill=np.nan)
-        .select(
-            pl.arctan2d(Mole.localvec_long.a, Mole.localvec_long.y)
-            .fill_nan(-float("inf"))
-            .alias(Mole.skew)
-        )
+        .select(pl.arctan2d("veca", "vecy").fill_nan(-float("inf")).alias(Mole.skew))
         .to_series()
     )
 
 
 def calc_twist(mole: Molecules, spl: CylSpline) -> pl.Series:
     """Calculate the twist of each molecule to the next one."""
-    radius = calc_radius(mole, spl).mean()
     return (
         calc_localvec_long(mole, spl, fill=np.nan)
         .select(
-            (pl.col(Mole.localvec_long.a) / 2 / radius)
+            (pl.col("veca") / 2 / spl.radius)
             .arcsin()
             .degrees()
             .fill_nan(-float("inf"))
@@ -90,11 +83,7 @@ def calc_rise(mole: Molecules, spl: CylSpline) -> pl.Series:
     sign = spl.config.rise_sign
     return (
         calc_localvec_lat(mole, spl, fill=np.nan)
-        .select(
-            pl.arctan2d(Mole.localvec_lat.y, Mole.localvec_lat.a)
-            .fill_nan(-float("inf"))
-            .alias(Mole.rise)
-        )
+        .select(pl.arctan2d("vecy", "veca").fill_nan(-float("inf")).alias(Mole.rise))
         .to_series()
         * sign
     )
@@ -105,7 +94,7 @@ def calc_lateral_interval(mole: Molecules, spl: CylSpline) -> pl.Series:
     return (
         calc_localvec_lat(mole, spl, fill=np.nan)
         .select(
-            (pl.col(Mole.localvec_lat.y) ** 2 + pl.col(Mole.localvec_lat.a) ** 2)
+            (pl.col("vecy") ** 2 + pl.col("veca") ** 2)
             .sqrt()
             .fill_nan(-float("inf"))
             .alias(Mole.lateral_interval)
@@ -159,7 +148,6 @@ def calc_localvec_long(
 ) -> pl.DataFrame:
     subsets = list["Molecules"]()
     surf = CylinderSurface(spl)
-    ns = Mole.localvec_long  # the namespace
     for _, sub in _groupby_with_index(mole, Mole.pf):
         _interv_vec = np.diff(sub.pos, axis=0, append=0)
         _start = _mole_to_coords(sub)
@@ -167,12 +155,12 @@ def calc_localvec_long(
         _vec_tr[-1, :] = fill
         subsets.append(
             sub.with_features(
-                pl.Series(ns.r, _vec_tr[:, 0], dtype=pl.Float32),
-                pl.Series(ns.y, _vec_tr[:, 1], dtype=pl.Float32),
-                pl.Series(ns.a, _vec_tr[:, 2], dtype=pl.Float32),
+                pl.Series("vecr", _vec_tr[:, 0], dtype=pl.Float32),
+                pl.Series("vecy", _vec_tr[:, 1], dtype=pl.Float32),
+                pl.Series("veca", _vec_tr[:, 2], dtype=pl.Float32),
             )
         )
-    return _concat_groups(subsets).features.select(ns.r, ns.y, ns.a)
+    return _concat_groups(subsets).features.select("vecr", "vecy", "veca")
 
 
 def calc_localvec_lat(
@@ -181,7 +169,6 @@ def calc_localvec_lat(
     subsets = list["Molecules"]()
     mole_ext, new_pf_id = _pad_molecules_at_seam(mole, spl)
     surf = CylinderSurface(spl)
-    ns = Mole.localvec_lat  # the namespace
     for _, sub in _groupby_with_index(mole.concat_with(mole_ext), Mole.nth):
         sub = sub.sort(Mole.pf)
         _interv_vec = np.diff(sub.pos, axis=0, append=np.nan)
@@ -194,12 +181,12 @@ def calc_localvec_lat(
             _vec_tr[:-1, :] = fill
         subsets.append(
             sub.with_features(
-                pl.Series(ns.r, _vec_tr[:, 0], dtype=pl.Float32),
-                pl.Series(ns.y, _vec_tr[:, 1], dtype=pl.Float32),
-                pl.Series(ns.a, _vec_tr[:, 2], dtype=pl.Float32),
+                pl.Series("vecr", _vec_tr[:, 0], dtype=pl.Float32),
+                pl.Series("vecy", _vec_tr[:, 1], dtype=pl.Float32),
+                pl.Series("veca", _vec_tr[:, 2], dtype=pl.Float32),
             )
         )
-    return _concat_groups(subsets).features.select(ns.r, ns.y, ns.a)
+    return _concat_groups(subsets).features.select("vecr", "vecy", "veca")
 
 
 class CylinderSurface:
@@ -217,15 +204,25 @@ class CylinderSurface:
         start: NDArray[np.float32],  # (N, 4)
     ) -> NDArray[np.float32]:
         """Transform vector(s) to (r, y, a)."""
-        er0, er1 = self._surface_norm_for_vec(vec, start)
+        start = np.atleast_2d(start)
+        start_zyx = start[:, :3]
+        start_pos = start[:, 3]
+
+        # the displacement in the spline coordinate
+        dpos = self._integrate_dpos(start_pos, vec)
+
+        # surface normal vectors at the start and end points
+        er0 = self._surface_vec(_concat(start_zyx, start_pos))
+        er1 = self._surface_vec(_concat(start_zyx + vec, start_pos + dpos))
+
         er = _norm(er0 + er1)
-        ey = self._spline_vec_norm(start[:, 3])
-        eang = -np.cross(er, ey, axis=1)
-        cos2a = _dot(er0, er1) / np.sqrt(_dot(er0, er0) * _dot(er1, er1))
-        # sin^2(a) = (1 - cos(2a)) / 2, when 0 < a < pi
-        sina = np.sqrt((1 - np.clip(cos2a, 0, 1)) / 2)
-        v_ang_len = 2 * self._radius * sina
-        _factor = _dot(_norm(er0 - er1), eang)
+        ey = self._spline_vec_norm(start_pos + dpos / 2)
+        ea = -np.cross(er, ey, axis=1)
+
+        er0y = _norm(_cancel_component(er0, ey))
+        er1y = _norm(_cancel_component(er1, ey))
+        v_ang_len = 2 * self._radius * _half_sin(er0y, er1y)
+        _factor = _dot(_norm(er0y - er1y), ea)
         v_ang = v_ang_len * _factor
         return np.stack([_dot(vec, er), _dot(vec, ey), v_ang], axis=1)
 
@@ -256,32 +253,18 @@ class CylinderSurface:
         _spl_vec = self._spl.map(u, der=1)
         return _norm(_spl_vec)
 
-    def _surface_norm_for_vec(
-        self,
-        vec: NDArray[np.float32],
-        start: NDArray[np.float32],
-    ) -> tuple[NDArray[np.float32], NDArray[np.float32]]:
-        start = np.atleast_2d(start)
-        start_zyx = start[:, :3]
-        start_pos = start[:, 3]
-        dpos = _dot(self._spline_vec_norm(start_pos), vec)
-        v0 = self._surface_vec(_concat(start_zyx, start_pos))
-        v1 = self._surface_vec(_concat(start_zyx + vec, start_pos + dpos))
-        return v0, v1
+    def _integrate_dpos(self, start_pos: NDArray[np.float32], vec: NDArray[np.float32]):
+        ds0 = _dot(self._spline_vec_norm(start_pos) / 4, vec)
+        ds1 = _dot(self._spline_vec_norm(start_pos + ds0) / 4, vec)
+        ds2 = _dot(self._spline_vec_norm(start_pos + ds0 + ds1) / 4, vec)
+        ds3 = _dot(self._spline_vec_norm(start_pos + ds0 + ds1 + ds2) / 4, vec)
+        return ds0 + ds1 + ds2 + ds3
 
 
 class RegionProfiler:
     CHOICES = [
-        "area",
-        "length",
-        "width",
-        "sum",
-        "mean",
-        "median",
-        "max",
-        "min",
-        "std",
-    ]
+        "area", "length", "width", "sum", "mean", "median", "max", "min", "std",
+    ]  # fmt: skip
 
     def __init__(self, rust_obj: _RegionProfiler) -> None:
         self._rust_obj = rust_obj
@@ -484,3 +467,10 @@ def _concat_groups(subsets: list[Molecules]) -> Molecules:
     from acryo import Molecules
 
     return Molecules.concat(subsets).sort(_INDEX_KEY).drop_features(_INDEX_KEY)
+
+
+def _half_sin(er0y, er1y):
+    # sin^2(a) = (1 - cos(2a)) / 2, when 0 < a < pi
+    cos2a = _dot(er0y, er1y) / np.sqrt(_dot(er0y, er0y) * _dot(er1y, er1y))
+    sina = np.sqrt((1 - np.clip(cos2a, 0, 1)) / 2)
+    return sina

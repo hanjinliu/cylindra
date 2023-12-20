@@ -1067,9 +1067,6 @@ def test_calc_misc(ui: CylindraMainWidget):
         ui.save_project(fp)
         ui.load_project(fp, filter=None)
     assert_allclose(ui.mole_layers.last().face_color, colors)
-    ui.calculate_local_vectors(layer, fill_value=0.0)
-    ui.calculate_local_vectors(layer, fill_value=float("inf"))
-    ui.calculate_local_vectors(layer, fill_value=float("nan"))
 
 
 def test_spline_fitter(ui: CylindraMainWidget):

@@ -145,20 +145,6 @@ class MoleculesHeader(SimpleNamespace):
     yvec = "yvec"
     xvec = "xvec"
 
-    class localvec_long(SimpleNamespace):
-        """Local coordinate system for longitudinal axis"""
-
-        r = "localvec-long_r"
-        y = "localvec-long_y"
-        a = "localvec-long_a"
-
-    class localvec_lat(SimpleNamespace):
-        """Local coordinate system for lateral axis"""
-
-        r = "localvec-lat_r"
-        y = "localvec-lat_y"
-        a = "localvec-lat_a"
-
 
 class EulerAxes(strEnum):
     """Sequence of Euler angles."""
