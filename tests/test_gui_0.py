@@ -759,6 +759,7 @@ def test_simulator(ui: CylindraMainWidget):
         radius=6,
         offsets=(0.0, 0.18),
     )
+    ui.simulator._get_components()
     ui.simulator.expand(layer, by=0.1, yrange=(11, 15), arange=(0, 14), allev=True)
     ui.simulator.twist(layer, by=0.3, yrange=(11, 15), arange=(0, 14), allev=True)
     ui.simulator.dilate(layer, by=-0.5, yrange=(11, 15), arange=(0, 14), allev=True)
@@ -1067,6 +1068,30 @@ def test_calc_misc(ui: CylindraMainWidget):
         ui.save_project(fp)
         ui.load_project(fp, filter=None)
     assert_allclose(ui.mole_layers.last().face_color, colors)
+
+
+def test_lattice_structure_of_curved_microtubule(ui: CylindraMainWidget):
+    ui.simulator.create_empty_image(size=(60.0, 200.0, 90.0), scale=1.0)
+    ui.register_path(coords=[[35.0, 27.8, 22.0], [35.0, 106, 25.3], [35.0, 179, 55.5]])
+
+    def _get_mean(p: str):
+        s = ui.mole_layers.last().molecules.features[p]
+        s0 = s.filter(s.is_finite())
+        return s0.mean()
+
+    ui.simulator.generate_molecules(
+        spline=0,
+        spacing=4.1,
+        twist=-0.25,
+        start=3,
+        npf=14,
+        radius=11.0,
+    )
+    ui.calculate_lattice_structure(
+        layer="Mole(Sim)-0", props=["spacing", "twist", "skew_angle", "rise_angle"]
+    )
+    assert _get_mean("spacing") == pytest.approx(4.1, abs=3e-3)
+    assert _get_mean("twist") == pytest.approx(-0.25, abs=1e-4)
 
 
 def test_spline_fitter(ui: CylindraMainWidget):
@@ -1386,7 +1411,7 @@ def test_image_processor(ui: CylindraMainWidget):
 
 def test_workflows_custom(ui: CylindraMainWidget):
     name = "Test"
-    code = "import numpy as np\n" "def main(ui):\n" "    print(ui.default_config)\n"
+    code = "import numpy as np\ndef main(ui):\n    print(ui.default_config)\n"
     with tempfile.TemporaryDirectory() as dirpath, _config.patch_workflow_path(dirpath):
         ui.OthersMenu.Workflows.define_workflow(name, code)
         ui.OthersMenu.Workflows.edit_workflow(name, code)
@@ -1398,6 +1423,18 @@ def test_workflows_custom(ui: CylindraMainWidget):
         )
         ui.OthersMenu.Workflows.delete_workflow([name])
         ui.OthersMenu.Workflows.copy_workflow_directory()
+
+        # test invalid code
+        with pytest.raises(Exception):
+            # attribute error
+            ui.OthersMenu.Workflows.define_workflow(
+                "Test-2", "def main(ui):\n    ui.bad_method_name()\n"
+            )
+        with pytest.raises(Exception):
+            # not enough arguments
+            ui.OthersMenu.Workflows.define_workflow(
+                "Test-2", "def main(ui):\n    ui.open_image()\n"
+            )
 
 
 def test_stash(ui: CylindraMainWidget):
