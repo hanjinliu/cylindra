@@ -1,0 +1,131 @@
+# Spline to Molecules
+
+[Analysis of tomograms](../alignment/index.md) usually starts with placing molecules
+around densities. What method to be used for this initialization step largely depend on
+your target; if you have a plausible model of placing and orienting molecules, the task
+can be solve more efficiently and accurately.
+
+As mentioned in [the previous sections](../lattice_params.md#running-cft), `cylindra`
+can precisely determine the cylindric lattice parameters. These parameters are very
+useful for this purpose. For example, lattice spacing tells you in what interval you
+should place molecules, and the twist angle indicates how much you should rotate the
+coordinates for every molecule.
+
+## Molecules on the Cylinder Surface
+
+:material-arrow-right-thin-circle-outline: API: [`map_monomers`][cylindra.widgets.main.CylindraMainWidget.map_monomers]
+
+:material-arrow-right-thin-circle-outline: GUI: `Molecules > From/To Splines > Map monomers`
+
+This method places molecules on the surface of a cylinder. In most cases, this method
+will be used to determine the coodinates of monomers, such as:
+
+- Tubulin monomers in microtubules
+- G-actin in actin filaments
+
+![Map monomers](../images/map_monomers.png){ loading=lazy, width=400px }
+
+??? info "List of parameters"
+
+    1. In "splines", select which splines you will use for placing molecules.
+    2. "orientation" defines in which direction the molecules will face. The y axis of
+       the molecule local coordinates will be either parallel or anti-parallel to the
+       spline tangent vector. If the `"orientation"` of the spline is `"MinusToPlus"`
+       and this parameter is set to `"MinusToPlus"`, the y axis will be parallel to the
+       spline.
+    3. "offsets" defines the starting point of the first molecule. If the spline has
+       global properties `"offset_axial"` and `"offset_angular"`, they will be used by
+       default. You don't have to set this parameter in most cases, as you can use
+       [`align_averaged`](../alignment/conventional.md#align-averaged-image) to shift
+       the molecules.
+    4. "radius" defines the radius of the cylinder. If the spline has global property
+       `"radius"`, it will be used by default. If the spline has global property
+       `"offset_radial"`, it will be added to the radius.
+    5. "extensions" is the number of molecules to be prepended and appended. The spline
+       will be linearly extrapolated to calculate the positions of these molecules.
+    6. You can use any molecules-layer name prefix you like by providing the `"prefix"`
+       parameter.
+
+Following image shows an example of the result of this operation.
+
+![Map monomers result](../images/viewer_01_monomer_mapped.png){ loading=lazy, width=320px }
+
+## Molecules along the Spline
+
+:material-arrow-right-thin-circle-outline: API: [`map_centers`][cylindra.widgets.main.CylindraMainWidget.map_centers]
+
+:material-arrow-right-thin-circle-outline: GUI: `Molecules > From/To Splines > Map centers`
+
+This method places molecules along the spline. Each molecule will be rotated by the
+twist angle of the spline. This method will be used for sampling fragments along
+filaments.
+
+![Map centers](../images/map_centers.png){ loading=lazy, width=400px }
+
+??? info "List of parameters"
+
+    1. In "splines", select which splines you will use for placing molecules.
+    2. "molecule interval" defines the distance between molecules. This box evaluates
+       Python literals and the spline global properties are available using the `col`
+       function of `polars`. For example, if the `"spacing"` property is `4.05` and you
+       set this parameter to `col("spacing") * 2`, this input will be evaluated to
+       `8.1`.
+    3. "orientation" defines in which direction the molecules will face. The y axis of
+       the molecule local coordinates will be either parallel or anti-parallel to the
+       spline tangent vector. If the `"orientation"` of the spline is `"MinusToPlus"`
+       and this parameter is set to `"MinusToPlus"`, the y axis will be parallel to the
+       spline.
+    4. You can use any molecules-layer name prefix you like by providing the `"prefix"`
+       parameter.
+
+## Molecules along a Protofilament
+
+:material-arrow-right-thin-circle-outline: API: [`map_along_pf`][cylindra.widgets.main.CylindraMainWidget.map_along_pf]
+
+:material-arrow-right-thin-circle-outline: GUI: `Molecules > From/To Splines > Map along PF`
+
+This method will place a subset of molecules that would be placed by [`map_monomers`](#molecules-on-the-cylinder-surface). This method will be useful for, for example,
+placing molecules along the interface between A- and B-tubules of cilia.
+
+![Map along PF](../images/map_along_pf.png){ loading=lazy, width=400px }
+
+## Molecules in the Viewer
+
+All the molecules are added to the `napari` viewer as a `MoleculesLayer`, a subclass
+of the `Points` layer. In the layer controls, you can adjust how the layer looks, e.g.
+color, size, and opacity.
+
+!!! note
+    The layer control for `MoleculesLayer` is different from that of `Points` layer.
+
+## Programmatic Access
+
+All the layers in `napari` are stored in the `layers` attribute. For example, you can
+get the layer named "Mole-0" by following code.
+
+```python
+# `viewer` is the napari viewer object.
+viewer.layers["Mole-0"]
+
+# The `parent_viewer` is the parent napari viewer of the `cylindra` GUI, thun points to
+# the same viewer object.
+ui.parent_viewer.layers["Mole-0"]
+```
+
+However, the cylindra GUI has another convenient accessor `mole_layers` that only
+considers the `MoleculesLayer` objects.
+
+```python
+layer = ui.mole_layers["Mole-0"]  # get the layer named "Mole-0"
+
+# iterate over all the molecules-layer
+for layer in ui.mole_layers:
+    print(layer.name)
+```
+
+!!! note
+    Unlike `Points` layers, `MoleculesLayer` stores additional components.
+    - `layer.molecules`: `Molecules` object of `acryo`.
+    - `layer.source_spline`: The source spline object which was used to generate the
+      molecules (if exists). This is a weak reference, so this spline object will be
+      deleted if you deleted or updated the spline.

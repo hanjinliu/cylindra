@@ -3,14 +3,17 @@ from pathlib import Path
 import mkdocs_gen_files
 from pathlib import Path
 from magicgui import magicgui
-from magicclass import get_function_gui, get_button
+from magicclass import get_function_gui, get_button, logging
 from qtpy import QtWidgets as QtW
+from cylindra import instance
 
 DOCS = Path(__file__).parent.parent
 PATH_13_3 = DOCS.parent / "tests" / "13pf_MT.tif"
 PATH_TEMP = DOCS.parent / "tests" / "beta-tubulin.tif"
 
 assert PATH_13_3.exists()
+
+_Logger = logging.getLogger("cylindra")
 
 
 def _imsave(widget: QtW.QWidget, name: str):
@@ -24,10 +27,14 @@ def _viewer_screenshot(ui, name: str, canvas_only: bool = True):
 
 
 def main():
-    from cylindra import start
-    from contextlib import suppress
+    # `instance` will get the existing GUI created in `_dynamic_doc.py`
+    ui = instance()
+    if ui is None:
+        return
 
-    ui = start()
+    ui.clear_all()
+    _Logger.widget.clear()
+
     # Image loader
     _imsave(ui.FileMenu.open_image_loader().native, "open_image_dialog")
 
@@ -39,13 +46,12 @@ def main():
         _imsave(btn, f"toolbutton_{action.name}")
 
     # Open image -> screenshot viewer state
-    ui.open_image(PATH_13_3)
     ui.GeneralInfo.image_info.value = ""  # hide
     ui.parent_viewer.window.resize(1200, 600)
+    QtW.QApplication.processEvents()
     _viewer_screenshot(ui, "viewer_00_open_image", canvas_only=False)
 
     # Fit splines manually window
-    ui.open_image(PATH_13_3)
     ui.register_path(coords=[[18.0, 192.6, 24.3], [18.0, 34.2, 83.8]])
     ui.SplinesMenu.Fitting.fit_splines_manually()
     _imsave(ui.spline_fitter.native, "fit_splines_manually")
@@ -59,6 +65,8 @@ def main():
         "local_cft_analysis",
         "global_cft_analysis",
         "map_monomers",
+        "map_centers",
+        "map_along_pf",
     ]:
         meth = getattr(ui, method)
         get_button(meth).changed.emit()
@@ -76,27 +84,35 @@ def main():
         _imsave(gui.native, method)
         gui.close()
 
-    @magicgui
-    def _workflow_gui(path: Path, tilt_range: tuple[float, float] = (-60, 60)):
-        pass
+    if (dock := ui.parent_viewer.window._dock_widgets.get("workflow_gui")) is None:
 
-    dock = ui.parent_viewer.window.add_dock_widget(_workflow_gui)
+        @magicgui
+        def _workflow_gui(path: Path, tilt_range: tuple[float, float] = (-60, 60)):
+            pass
+
+        dock = ui.parent_viewer.window.add_dock_widget(
+            _workflow_gui, name="workflow_gui"
+        )
     dock.setFloating(True)
-    _imsave(_workflow_gui.native, "workflow_with_args")
+    _imsave(dock.widget(), "workflow_with_args")
 
     ui.sta.show()
     _imsave(ui.sta.native, "sta_widget")
     ui.sta.close()
 
-    ui._runner.run(interval=12, map_monomers=True)
-
+    ui._runner.run(interval=12, n_refine=0, map_monomers=True)
+    ui.parent_viewer.dims.ndisplay = 3
     _viewer_screenshot(ui, "viewer_01_monomer_mapped", canvas_only=True)
+    ui.parent_viewer.dims.ndisplay = 2
 
     for method in [
         "average_all",
         "calculate_fsc",
         "align_averaged",
+        "classify_pca",
         "align_all",
+        "align_all_viterbi",
+        "align_all_annealing",
         "construct_landscape",
         "run_align_on_landscape",
         "run_viterbi_on_landscape",
@@ -116,10 +132,7 @@ def main():
     # Local props
     _imsave(ui.LocalProperties.native, "local_props_gui")
 
-    # Make sure windows are closed
-    with suppress(RuntimeError):
-        ui.parent_viewer.close()
-        ui.close()
+    QtW.QApplication.processEvents()
 
 
 main()

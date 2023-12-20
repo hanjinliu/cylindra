@@ -163,7 +163,7 @@ class CylindraMainWidget(MagicTemplate):
     # Widget for measuring FFT parameters from a 2D power spectra
     spectra_inspector = field(_sw.SpectraInspector, name="_SpectraInspector")
     # Widget for subtomogram analysis
-    sta = field(SubtomogramAveraging, name="_Subtomogram averaging")
+    sta = field(SubtomogramAveraging, name="_STA widget")
 
     mole_layers = MoleculesLayerAccessor()
 

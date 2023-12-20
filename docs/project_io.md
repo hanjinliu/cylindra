@@ -30,7 +30,7 @@ the current state.
 Saved projects can be loaded to the GUI. Loading a project does not rerun the script.
 It uses the saved files to reproduce the session.
 
-![Load Project](../images/load_project.png)
+![Load Project](images/load_project.png)
 
 
 ## Stash the Session

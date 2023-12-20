@@ -37,19 +37,19 @@ nav:
     - lattice_params.md
     - project_io.md
     - workflows.md
-    - Alignment:
-      - Overview: alignment/index.md
-      - alignment/place_mole.md
-      - alignment/conventional.md
-      - alignment/landscape.md
-      - alignment/viterbi.md
-      - alignment/rma.md
     - Molecules:
       - Overview: molecules/index.md
+      - molecules/spline_to_molecules.md
       - molecules/features.md
       - molecules/expressions.md
       - molecules/split_and_combine.md
       - molecules/filter_molecules.md
+    - Alignment:
+      - Overview: alignment/index.md
+      - alignment/conventional.md
+      - alignment/landscape.md
+      - alignment/viterbi.md
+      - alignment/rma.md
     - configure.md
     - simulate.md
     - seam_search.md
@@ -58,10 +58,11 @@ nav:
     - api/components.md
     - api/core.md
     - api/project.md
-    - api/widgets/main.md
-    - api/widgets/sta.md
     - api/cylmeasure.md
     - api/cylfilters.md
+    - Widgets:
+      - api/widgets/main.md
+      - api/widgets/sta.md
 
 hooks:
   - docs/scripts/_dynamic_doc.py

@@ -705,7 +705,7 @@ class AnalysisMenu(ChildWidget):
     @set_design(text=capitalize)
     @do_not_record
     @bind_key("Ctrl+K, S")
-    def open_subtomogram_analyzer(self):
+    def open_STA_widget(self):
         """Open the subtomogram analyzer dock widget."""
         return self._get_main().sta.show()
 
