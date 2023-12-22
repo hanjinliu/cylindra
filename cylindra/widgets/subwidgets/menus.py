@@ -701,10 +701,10 @@ class AnalysisMenu(ChildWidget):
             main.spectra_inspector.load_spline(main.SplineControl.num, binsize)
         return main.spectra_inspector.show()
 
-    @set_design(text=capitalize)
+    @set_design(text="Open STA widget")
     @do_not_record
     @bind_key("Ctrl+K, S")
-    def open_STA_widget(self):
+    def open_sta_widget(self):
         """Open the subtomogram analyzer dock widget."""
         return self._get_main().sta.show()
 

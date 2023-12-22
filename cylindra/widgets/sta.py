@@ -121,7 +121,7 @@ _MaxShifts = Annotated[
     tuple[nm, nm, nm],
     {
         "options": {"max": 10.0, "step": 0.1},
-        "label": "Max shifts (nm)",
+        "label": "max shifts (nm)",
     },
 ]
 _SubVolumeSize = Annotated[
@@ -137,18 +137,18 @@ _DistRangeLon = Annotated[
     tuple[nm, nm],
     {
         "options": {"min": 0.1, "max": 1000.0, "step": 0.05},
-        "label": "Longitudinal range (nm)",
+        "label": "longitudinal range (nm)",
     },
 ]
 _DistRangeLat = Annotated[
     tuple[nm, nm],
     {
         "options": {"min": 0.1, "max": 1000.0, "step": 0.05},
-        "label": "Lateral range (nm)",
+        "label": "lateral range (nm)",
     },
 ]
 _AngleMaxLon = Annotated[
-    float, {"max": 90.0, "step": 0.5, "label": "Maximum angle (deg)"}
+    float, {"max": 90.0, "step": 0.5, "label": "maximum angle (deg)"}
 ]
 _LandscapeLayer = Annotated[
     LandscapeSurface,
@@ -1528,17 +1528,17 @@ class SubtomogramAveraging(ChildWidget):
 
         return _on_return
 
-    @set_design(text=capitalize, location=STAnalysis.SeamSearch)
+    @set_design(text="Seam search by correlation", location=STAnalysis.SeamSearch)
     @dask_worker.with_progress(desc=_pdesc.fmt_layer("Seam search of {!r}"))
     def seam_search(
         self,
         layer: MoleculesLayerType,
         template_path: Annotated[_PathOrNone, {"bind": _template_param}],
         mask_params: Annotated[Any, {"bind": _get_mask_params}],
-        anti_template_path: Annotated[Optional[Path.Read[FileFilter.IMAGE]], {"text": "Do not use anti-template"}] = None,
+        anti_template_path: Annotated[Optional[Path.Read[FileFilter.IMAGE]], {"text": "Do not use anti-template", "label": "anti-template path"}] = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
-        npf: Annotated[Optional[int], {"text": "Use global properties"}] = None,
-        show_average: Annotated[str, {"label": "Show averages as", "choices": [None, "Raw", "Filtered"]}] = "Filtered",
+        npf: Annotated[Optional[int], {"text": "use global properties"}] = None,
+        show_average: Annotated[str, {"label": "show averages as", "choices": [None, "Raw", "Filtered"]}] = "Filtered",
         cutoff: _CutoffFreq = 0.25,
     ):  # fmt: skip
         """

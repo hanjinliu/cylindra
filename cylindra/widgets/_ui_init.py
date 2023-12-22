@@ -270,7 +270,7 @@ def _preview_filter_molecules(
     except Exception:
         yield
         return
-    out = layer.molecules.features.select(expr)
+    out = layer.molecules.to_dataframe().select(expr)
     out = out[out.columns[0]].to_numpy()
     with _temp_layer_colors(layer):
         face_color = layer.face_color

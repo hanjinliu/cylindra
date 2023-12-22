@@ -7,5 +7,5 @@ analyze molecules.
 - [Spline to Molecules](spline_to_molecules.md)
 - [Molecule Features](features.md)
 - [Expressions](expressions.md)
-- [Filter](filter_molecules.md)
+- [Filter molecules](filter_molecules.md)
 - [Split & Combine](split_and_combine.md)

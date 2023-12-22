@@ -56,22 +56,28 @@ def main():
     ui.SplinesMenu.Fitting.fit_splines_manually()
     _imsave(ui.spline_fitter.native, "fit_splines_manually")
 
-    for method in [
-        "load_project",
-        "fit_splines",
-        "refine_splines",
-        "measure_radius",
-        "measure_local_radius",
-        "local_cft_analysis",
-        "global_cft_analysis",
-        "map_monomers",
-        "map_centers",
-        "map_along_pf",
+    for meth in [
+        ui.load_project,
+        # fit, CFT, etc.
+        ui.fit_splines,
+        ui.refine_splines,
+        ui.measure_radius,
+        ui.measure_local_radius,
+        ui.local_cft_analysis,
+        ui.global_cft_analysis,
+        # spline -> molecules
+        ui.map_monomers,
+        ui.map_centers,
+        ui.map_along_pf,
+        # molecules
+        ui.filter_molecules,
+        ui.paint_molecules,
+        ui.split_molecules,
+        ui.concatenate_molecules,
     ]:
-        meth = getattr(ui, method)
         get_button(meth).changed.emit()
         gui = get_function_gui(meth)
-        _imsave(gui.native, method)
+        _imsave(gui.native, meth.__name__)
         gui.close()
 
     for method in [
@@ -105,23 +111,26 @@ def main():
     _viewer_screenshot(ui, "viewer_01_monomer_mapped", canvas_only=True)
     ui.parent_viewer.dims.ndisplay = 2
 
-    for method in [
-        "average_all",
-        "calculate_fsc",
-        "align_averaged",
-        "classify_pca",
-        "align_all",
-        "align_all_viterbi",
-        "align_all_annealing",
-        "construct_landscape",
-        "run_align_on_landscape",
-        "run_viterbi_on_landscape",
-        "run_annealing_on_landscape",
+    for meth in [
+        ui.sta.average_all,
+        ui.sta.calculate_fsc,
+        ui.sta.align_averaged,
+        ui.sta.classify_pca,
+        # align
+        ui.sta.align_all,
+        ui.sta.align_all_viterbi,
+        ui.sta.align_all_annealing,
+        # seam search
+        ui.sta.seam_search,
+        # landscape
+        ui.sta.construct_landscape,
+        ui.sta.run_align_on_landscape,
+        ui.sta.run_viterbi_on_landscape,
+        ui.sta.run_annealing_on_landscape,
     ]:
-        meth = getattr(ui.sta, method)
         get_button(meth).changed.emit()
         gui = get_function_gui(meth)
-        _imsave(gui.native, method)
+        _imsave(gui.native, meth.__name__)
         gui.close()
 
     # Runner

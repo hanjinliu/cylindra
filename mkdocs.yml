@@ -26,6 +26,9 @@ theme:
     - toc.follow
     - search.suggest
     - search.share
+  font:
+    text: Roboto
+    code: Roboto Mono
 
 nav:
   - Overview: index.md
