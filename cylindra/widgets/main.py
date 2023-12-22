@@ -2329,65 +2329,6 @@ class CylindraMainWidget(MagicTemplate):
         dock.setFloating(True)
         return undo_callback(dock.close).with_redo(dock.show)
 
-    @set_design(text=capitalize, location=_sw.ImageMenu)
-    @thread_worker.with_progress(desc="Paint cylinders ...")
-    def paint_cylinders(
-        self,
-        color_by: Annotated[str, {"choices": [H.spacing, H.twist, H.rise, H.npf]}] = H.spacing,
-        cmap: _CmapType = DEFAULT_COLORMAP,
-        limits: Optional[tuple[float, float]] = (3.95, 4.28),
-    ):  # fmt: skip
-        """
-        Paint cylinder fragments by its local properties.
-
-        Parameters
-        ----------
-        {color_by}{cmap}{limits}
-        """
-        tomo = self.tomogram
-        all_df = tomo.splines.collect_localprops()
-        if color_by not in all_df.columns:
-            raise ValueError(f"Column {color_by} does not exist.")
-
-        paint_device = widget_utils.PaintDevice(
-            self._reserved_layers.image.data.shape,
-            self._reserved_layers.image.scale[-1],
-        )
-        lbl = yield from paint_device.paint_cylinders(self.tomogram, color_by)
-
-        # Labels layer properties
-        _id = "ID"
-        _str = "structure"
-        columns = [_id, H.rise, H.spacing, H.twist, _str]
-        df = (
-            all_df.select([H.spline_id, H.pos_id, H.rise, H.spacing, H.twist, H.npf, H.start])
-            .with_columns(
-                pl.format("{}-{}", pl.col(H.spline_id), pl.col(H.pos_id)).alias(_id),
-                pl.format("{}_{}", pl.col(H.npf), pl.col(H.start)).alias(_str),
-                pl.col(H.rise),
-                pl.col(H.spacing),
-                pl.col(H.twist),
-            )
-        )  # fmt: skip
-        back = pl.DataFrame([pl.Series(_id, [None], dtype=pl.Utf8)])
-        props = pl.concat([back, df[columns]], how="diagonal")
-        if limits is None:
-            limits = float(all_df[color_by].min()), float(all_df[color_by].max())
-
-        @thread_worker.callback
-        def _on_return():
-            # Add labels layer
-            self._reserved_layers.add_paint(lbl, props)
-            if self._reserved_layers.paint not in self.parent_viewer.layers:
-                self.parent_viewer.add_layer(self._reserved_layers.paint)
-            self._reserved_layers.paint.set_colormap(color_by, limits, cmap)
-            # TODO: undo paint
-            return undo_callback(
-                lambda: _Logger.print("undoing paint_cylinders do nothing.")
-            )
-
-        return _on_return
-
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #   Non-GUI methods
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -2707,9 +2648,6 @@ class CylindraMainWidget(MagicTemplate):
         fgui.twist.value = cfg.twist_range.center
         fgui.npf.min, fgui.npf.max = cfg.npf_range.astuple()
         fgui.npf.value = int(cfg.npf_range.center)
-
-        fgui = get_function_gui(self.paint_cylinders)
-        fgui.limits.value = cfg.spacing_range.astuple()
 
         for method in [self.map_monomers, self.map_monomers_with_extensions, self.map_along_pf, self.map_centers]:  # fmt: skip
             get_function_gui(method)["orientation"].value = cfg.clockwise

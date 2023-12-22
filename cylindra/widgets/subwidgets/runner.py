@@ -180,9 +180,6 @@ class Runner(ChildWidget):
         if global_props:
             yield from main.global_cft_analysis.arun(splines=splines, bin_size=bin_size)
             yield
-        if local_props and paint:
-            cfg = main.splines[splines[0]].config
-            yield from main.paint_cylinders.arun(limits=cfg.spacing_range.astuple())
         if map_monomers:
             yield from main.map_monomers.arun(splines, orientation="MinusToPlus")
             yield

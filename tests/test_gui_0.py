@@ -89,7 +89,7 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     ui.set_multiscale(1)
     ui.register_path(coords=coords[npf])
     ui.register_path(coords=coords[npf][::-1])
-    ui._runner.run(interval=24.0, paint=True)
+    ui._runner.run(interval=24.0)
     ui.infer_polarity()
     ui.map_monomers(splines=[0, 1])
     ui.measure_local_radius(splines=[0, 1])
@@ -220,7 +220,7 @@ def test_workflow_with_many_input(ui: CylindraMainWidget):
     with exc_group.merging():
         ui._runner.run([0], max_shift=-1, n_refine=0)  # no fit/refine
     with exc_group.merging():
-        ui._runner.run([0], local_props=False, paint=False)  # no localprops
+        ui._runner.run([0], local_props=False)  # no localprops
     with exc_group.merging():
         ui._runner.run([0], global_props=False, map_monomers=False)  # no globalprops
 
@@ -1312,7 +1312,6 @@ def test_landscape(ui: CylindraMainWidget):
     layer_filt = ui.mole_layers.last()
     mole = layer_filt.molecules
     dist_lon = np.sqrt(np.sum((mole.pos[0] - mole.pos[13]) ** 2))
-    dist_lat = np.sqrt(np.sum((mole.pos[0] - mole.pos[1]) ** 2))
     assert dist_lon == pytest.approx(4.09, abs=0.2)
 
     ui.sta.construct_landscape(

@@ -230,7 +230,6 @@ class ImageMenu(ChildWidget):
 
     sep1 = field(Separator)
     sample_subtomograms = abstractapi()
-    paint_cylinders = abstractapi()
 
     @set_design(text=capitalize)
     @do_not_record
@@ -294,15 +293,17 @@ class SplinesMenu(ChildWidget):
         @set_design(text=capitalize)
         def show_splines_as_meshes(self):
             """Show 3D spline cylinder as a surface layer."""
+            # TODO: after napari supports features in surface layer, add spline
+            # properties
             main = self._get_main()
             nodes = []
             vertices = []
             n_nodes = 0
             for i, spl in enumerate(main.tomogram.splines):
-                n, v = spl.cylinder_model().to_mesh(spl)
-                nodes.append(n)
-                vertices.append(v + i * n_nodes)
-                n_nodes += n.shape[0]
+                node, vert = spl.cylinder_model().to_mesh(spl)
+                nodes.append(node)
+                vertices.append(vert + i * n_nodes)
+                n_nodes += node.shape[0]
             nodes = np.concatenate(nodes, axis=0)
             vertices = np.concatenate(vertices, axis=0)
             return main.parent_viewer.add_surface([nodes, vertices], shading="smooth")
