@@ -232,7 +232,12 @@ class CylinderModel:
         return mole
 
     def to_mesh(self, spl: Spline):
-        """Create a mesh data for cylinder visualization."""
+        """
+        Create a mesh data for cylinder visualization.
+
+        Returned mesh is a tuple of (nodes, vertices). Nodes is a (N, 3) array, where
+        N is the y-shape of this object.
+        """
         nodes = spl.cylindrical_to_world(
             self.replace(tilts=(0, 0))._get_regular_mesh().reshape(-1, 3)
         )

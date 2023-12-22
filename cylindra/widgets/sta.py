@@ -127,7 +127,7 @@ _MaxShifts = Annotated[
 _SubVolumeSize = Annotated[
     Optional[nm],
     {
-        "text": "Use template shape",
+        "text": "use template or mask shape",
         "options": {"value": 12.0, "max": 100.0},
         "label": "size (nm)",
         "validator": _get_template_shape,
@@ -985,7 +985,8 @@ class SubtomogramAveraging(ChildWidget):
 
         Parameters
         ----------
-        {layers}{mask_params}{size}{max_shifts}{rotations}{cutoff}{interpolation}{method}{bin_size}
+        {layers}{mask_params}{size}{max_shifts}{rotations}{cutoff}{interpolation}
+        {method}{bin_size}
         """
         t0 = timer()
         layers = assert_list_of_layers(layers, self.parent_viewer)
@@ -994,7 +995,6 @@ class SubtomogramAveraging(ChildWidget):
         molecules = combiner.concat(layer.molecules for layer in layers)
         mask = self.params._get_mask(params=mask_params)
         if size is None:
-            shape = None
             raise NotImplementedError("'size' must be given.")
         else:
             shape = tuple(
@@ -1098,8 +1098,9 @@ class SubtomogramAveraging(ChildWidget):
 
         Parameters
         ----------
-        {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}
-        {range_long}{range_lat}{angle_max}{temperature_time_const}{upsample_factor}{random_seeds}
+        {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}
+        {interpolation}{range_long}{range_lat}{angle_max}{temperature_time_const}
+        {upsample_factor}{random_seeds}
         """
         t0 = timer()
         layer = assert_layer(layer, self.parent_viewer)
@@ -1247,7 +1248,8 @@ class SubtomogramAveraging(ChildWidget):
 
         Parameters
         ----------
-        {landscape_layer}{range_long}{range_lat}{angle_max}{temperature_time_const}{random_seeds}
+        {landscape_layer}{range_long}{range_lat}{angle_max}{temperature_time_const}
+        {random_seeds}
         """
         t0 = timer()
         landscape_layer = _assert_landscape_layer(landscape_layer, self.parent_viewer)
@@ -1405,8 +1407,8 @@ class SubtomogramAveraging(ChildWidget):
         show_average : bool, default True
             If true, subtomogram average will be shown after FSC calculation.
         dfreq : float, default 0.02
-            Precision of frequency to calculate FSC. "0.02" means that FSC will be calculated
-            at frequency 0.01, 0.03, 0.05, ..., 0.45.
+            Precision of frequency to calculate FSC. "0.02" means that FSC will be
+            calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.
         """
         t0 = timer()
         layers = assert_list_of_layers(layers, self.parent_viewer)
@@ -1459,7 +1461,7 @@ class SubtomogramAveraging(ChildWidget):
         layer: MoleculesLayerType,
         template_path: Annotated[_PathOrNone, {"bind": _template_param}] = None,
         mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
-        size: Annotated[Optional[nm], {"text": "Use mask shape", "options": {"value": 12.0, "max": 100.0}, "label": "size (nm)"}] = None,
+        size: _SubVolumeSize = None,
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
@@ -1538,14 +1540,14 @@ class SubtomogramAveraging(ChildWidget):
         anti_template_path: Annotated[Optional[Path.Read[FileFilter.IMAGE]], {"text": "Do not use anti-template"}] = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         npf: Annotated[Optional[int], {"text": "Use global properties"}] = None,
-        show_average: Annotated[str, {"label": "Show averages as", "choices": [None, "Raw", "Filtered"]}] = "Filtered",
+        show_average: Annotated[str, {"label": "show averages as", "choices": [None, "Raw", "Filtered"]}] = "Filtered",
         cutoff: _CutoffFreq = 0.25,
     ):  # fmt: skip
         """
         Search for the best seam position.
 
-        Try all patterns of seam positions and compare cross correlation values. If molecule
-        assembly has 13 protofilaments, this method will try 26 patterns.
+        Try all patterns of seam positions and compare cross correlation values. If
+        molecule assembly has 13 protofilaments, this method will try 26 patterns.
 
         Parameters
         ----------

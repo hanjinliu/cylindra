@@ -209,22 +209,27 @@ class CylinderSurface:
         start_pos = start[:, 3]
 
         # the displacement in the spline coordinate
-        dpos = self._integrate_dpos(start_pos, vec)
+        dy = self._integrate_yvec(start_pos, vec)
+        end_pos = start_pos + dy
 
         # surface normal vectors at the start and end points
         er0 = self._surface_vec(_concat(start_zyx, start_pos))
-        er1 = self._surface_vec(_concat(start_zyx + vec, start_pos + dpos))
+        er1 = self._surface_vec(_concat(start_zyx + vec, end_pos))
+        ey0 = self._spline_vec_norm(start_pos)
+        ey1 = self._spline_vec_norm(end_pos)
 
+        # the "mean" unit vectors
+        ey = _norm(ey0 + ey1)
         er = _norm(er0 + er1)
-        ey = self._spline_vec_norm(start_pos + dpos / 2)
-        ea = -np.cross(er, ey, axis=1)
+        ea = np.cross(er, ey, axis=1)
 
         er0y = _norm(_cancel_component(er0, ey))
         er1y = _norm(_cancel_component(er1, ey))
         v_ang_len = 2 * self._radius * _half_sin(er0y, er1y)
-        _factor = _dot(_norm(er0y - er1y), ea)
-        v_ang = v_ang_len * _factor
-        return np.stack([_dot(vec, er), _dot(vec, ey), v_ang], axis=1)
+        _sign = np.sign(_dot(_norm(er1y - er0y), ea))
+        v_ang = v_ang_len * _sign
+        v_ang[np.isnan(v_ang)] = 0.0
+        return np.stack([_dot(vec, er), dy, v_ang], axis=1)
 
     def _surface_vec(
         self,
@@ -253,12 +258,19 @@ class CylinderSurface:
         _spl_vec = self._spl.map(u, der=1)
         return _norm(_spl_vec)
 
-    def _integrate_dpos(self, start_pos: NDArray[np.float32], vec: NDArray[np.float32]):
-        ds0 = _dot(self._spline_vec_norm(start_pos) / 4, vec)
-        ds1 = _dot(self._spline_vec_norm(start_pos + ds0) / 4, vec)
-        ds2 = _dot(self._spline_vec_norm(start_pos + ds0 + ds1) / 4, vec)
-        ds3 = _dot(self._spline_vec_norm(start_pos + ds0 + ds1 + ds2) / 4, vec)
-        return ds0 + ds1 + ds2 + ds3
+    def _integrate_yvec(
+        self,
+        start_pos: NDArray[np.float32],
+        vec: NDArray[np.float32],
+        num: int = 4,
+    ):
+        """Nonlinear dot product of vec and spline tangent vector."""
+        cur_pos = start_pos.copy()
+        for _ in range(num):
+            norm = self._spline_vec_norm(cur_pos) / num
+            ds0 = _dot(norm, vec)
+            cur_pos += ds0
+        return cur_pos - start_pos
 
 
 class RegionProfiler:
@@ -470,7 +482,8 @@ def _concat_groups(subsets: list[Molecules]) -> Molecules:
 
 
 def _half_sin(er0y, er1y):
+    """Calculate sin(a/2) from two vectors, where a is the angle between them."""
     # sin^2(a) = (1 - cos(2a)) / 2, when 0 < a < pi
     cos2a = _dot(er0y, er1y) / np.sqrt(_dot(er0y, er0y) * _dot(er1y, er1y))
-    sina = np.sqrt((1 - np.clip(cos2a, 0, 1)) / 2)
+    sina = np.sqrt((1 - np.clip(cos2a, -1, 1)) / 2)
     return sina
