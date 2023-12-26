@@ -11,7 +11,7 @@ from scripts.user_consts import TEMPLATE_X
 
 
 def create_microtubule(ui: CylindraMainWidget):
-    ui.simulator.create_empty_image(size=(60.0, 180.0, 60.0), scale=0.2625)
+    ui.simulator.create_empty_image(size=(60.0, 180.0, 60.0), scale=0.2615)
     initialize_molecules(ui)
     layer = ui.mole_layers.last()
     dtheta = 0.025

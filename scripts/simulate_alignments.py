@@ -29,7 +29,7 @@ def initialize_molecules(ui: CylindraMainWidget):
 
 
 def create_microtubule(ui: CylindraMainWidget):
-    ui.simulator.create_empty_image(size=(60.0, 180.0, 60.0), scale=0.2624)
+    ui.simulator.create_empty_image(size=(60.0, 180.0, 60.0), scale=0.2615)
     initialize_molecules(ui)
     layer = ui.mole_layers.last()
     ui.simulator.expand(layer=layer, by=0.1, yrange=(6, 16), arange=(0, 6), allev=True)

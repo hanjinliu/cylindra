@@ -98,10 +98,8 @@ def mesh_annealing_demo(
             layer0.pos = (x, 0)
             layer1.pos = (x, 0)
             mole_layer.molecules = result.molecules[x]
-            parent.calculate_intervals(mole_layer)
-            parent.paint_molecules(
-                mole_layer, color_by="interval-nm", limits=(3.95, 4.28)
-            )
+            parent.calculate_lattice_structure(mole_layer)
+            parent.paint_molecules(mole_layer, color_by="spacing", limits=(3.95, 4.28))
             mole_layer.edge_color = "black"
 
     viewer.window.add_dock_widget(fn, area="right")

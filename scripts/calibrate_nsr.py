@@ -17,7 +17,7 @@ SPACING_MEAN = f"{Mole.spacing}_mean"
 
 def save_tilt_series(ui: CylindraMainWidget, path: Path):
     path = Path(path)
-    ui.simulator.create_empty_image(size=(60.0, 240.0, 60.0), scale=0.2625)
+    ui.simulator.create_empty_image(size=(60.0, 240.0, 60.0), scale=0.2615)
     ui.simulator.create_straight_line((30.0, 0.0, 30.0), (30.0, 240.0, 30.0))
     ui.simulator.generate_molecules(
         spacing=4.08, twist=0.04, start=3, npf=13, radius=10.5, offsets=(0.0, 0.4)

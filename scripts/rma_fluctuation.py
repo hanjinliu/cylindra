@@ -16,7 +16,7 @@ SPACING_MEAN = f"{Mole.spacing}_mean"
 
 
 def create_microtubule(ui: CylindraMainWidget, spacing: float = 4.08):
-    ui.simulator.create_empty_image(size=(60.0, 180.0, 60.0), scale=0.2625)
+    ui.simulator.create_empty_image(size=(60.0, 180.0, 60.0), scale=0.2615)
     prep_molecules(ui, spacing)
     layer = ui.mole_layers.last()
     ui.calculate_lattice_structure(layer=layer, props=["spacing"])
