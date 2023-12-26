@@ -5,7 +5,7 @@ cryo-ET analysis workflows. `cylindra` provides methods to perform the analyses.
 GUI, these methods are all in a separate dock widget titled "STA widget". You can open
 via `Analysis > Open STA widget` (++ctrl+k++ &rarr; ++s++).
 
-![STA widget](../images/sta_widget.png)
+![STA widget](../images/sta_widget.png){ loading=lazy, width=480px }
 
 Since many methods share the same parameters, the STA widget uses the same widget for
 these parameters.

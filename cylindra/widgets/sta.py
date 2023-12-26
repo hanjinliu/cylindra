@@ -200,7 +200,7 @@ def _choice_getter(method_name: str, dtype_kind: str = ""):
             return features.columns
         return [c for c in features.columns if features[c].dtype.kind in dtype_kind]
 
-    _get_choice.__qualname__ = "CylindraMainWidget.sta._get_choice"
+    _get_choice.__qualname__ = "SubtomogramAveraging._get_choice"
     return _get_choice
 
 
@@ -1629,7 +1629,7 @@ class SubtomogramAveraging(ChildWidget):
             Name of the feature that will be used for seam search.
         """
         layer = assert_layer(layer, self.parent_viewer)
-        feat = layer.features
+        feat = layer.molecules.features
         if by not in feat.columns:
             raise ValueError(f"Column {by} does not exist.")
         npf = utils.roundint(layer.molecules.features[Mole.pf].max() + 1)
@@ -1648,6 +1648,8 @@ class SubtomogramAveraging(ChildWidget):
         """
         Search for seams manually.
 
+        Seam location is represented by a number in the range [0, 2 * npf - 1].
+
         Parameters
         ----------
         {layer}
@@ -1655,7 +1657,7 @@ class SubtomogramAveraging(ChildWidget):
             Seam location.
         """
         layer = assert_layer(layer, self.parent_viewer)
-        feat = layer.features
+        feat = layer.molecules.features
         npf = utils.roundint(layer.molecules.features[Mole.pf].max() + 1)
         seam_searcher = ManualSeamSearcher(npf)
         result = seam_searcher.search(location)

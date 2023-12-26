@@ -220,6 +220,8 @@ class BatchSubtomogramAveraging(MagicTemplate):
     @nogui
     def get_loader(self, name: str) -> BatchLoader:
         """Return the acryo.BatchLoader object with the given name"""
+        if not isinstance(name, str):
+            raise TypeError(f"Name must be a string, got {type(name).__name__}")
         return self._get_parent().loader_infos[name].loader
 
     @set_design(text="Average all molecules", location=BatchSubtomogramAnalysis)
@@ -545,7 +547,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
     @do_not_record
     def show_mask(self):
         """Load and show mask image in the scale of the tomogram."""
-        loader = self._get_parent().loader_infos[self.loader_name].loader
+        loader = self.get_loader(self.loader_name)
         _, mask = loader.normalize_input(
             self.params._norm_template_param(
                 self.params._get_template_input(allow_multiple=False),
@@ -572,7 +574,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
             return (roundint(default / loader.scale),) * 3
 
     def _get_template_image(self) -> ip.ImgArray:
-        scale = self._get_parent().loader_infos[self.loader_name].loader.scale
+        scale = self.get_loader(self.loader_name).scale
 
         template = self.params._norm_template_param(
             self.params._get_template_input(allow_multiple=True),

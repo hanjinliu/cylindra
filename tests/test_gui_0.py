@@ -57,11 +57,14 @@ def assert_orientation(ui: CylindraMainWidget, ori: str):
 
 def test_click_buttons(ui: CylindraMainWidget):
     mcls_testing.check_function_gui_buildable(ui)
+    mcls_testing.check_function_gui_buildable(ui.sta)
     mcls_testing.check_function_gui_buildable(ui.simulator)
 
 
 def test_tooltip(ui: CylindraMainWidget):
     mcls_testing.check_tooltip(ui)
+    mcls_testing.check_tooltip(ui.sta)
+    mcls_testing.check_tooltip(ui.simulator)
 
 
 def test_misc_actions(ui: CylindraMainWidget):
@@ -561,7 +564,7 @@ def test_sub_widgets(ui: CylindraMainWidget):
 @pytest.mark.parametrize("bin_size", [1, 2])
 def test_sta(ui: CylindraMainWidget, bin_size: int):
     ui.load_project(PROJECT_DIR_13PF, filter=None)
-    ui.AnalysisMenu.open_subtomogram_analyzer()
+    ui.AnalysisMenu.open_sta_widget()
     ui.sta.average_all("Mole-0", size=12.0, bin_size=bin_size)
     ui.sta.average_all("Mole-0", size=12.0, bin_size=bin_size)  # check coerce name
     for method in ["steps", "first", "last", "random"]:
