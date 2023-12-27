@@ -53,10 +53,10 @@ def run_one(
     ui.refine_splines(max_interval=24.0, bin_size=2, err_max=0.8)
     ui.measure_radius(bin_size=2, min_radius=8.0)
     ui.global_cft_analysis(bin_size=2)
-    ui.infer_polarity()
-    assert ui.splines[0].props.get_glob("npf") == 13
-    assert ui.splines[0].props.get_glob("start") == 3
-    assert ui.splines[0].props.get_glob("orientation") == "MinusToPlus"
+    ui.infer_polarity(bin_size=2)
+    assert (npf := ui.splines[0].props.get_glob("npf")) == 13, npf
+    assert (st := ui.splines[0].props.get_glob("start")) == 3, st
+    assert (ori := ui.splines[0].props.get_glob("orientation")) == "MinusToPlus", ori
     out = ui.run_workflow("07-estimate_nsr", i=0)
     return out
 
@@ -78,7 +78,7 @@ def main():
                     ui,
                     Path(tmpdir) / "image.mrc",
                     nsr=nsr,
-                    seed=i + int(nsr * 100),
+                    seed=i + int(nsr * 1000),
                 )
                 results.append((nsr, nsr3d))
 
