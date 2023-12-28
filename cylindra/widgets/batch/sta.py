@@ -594,11 +594,10 @@ class BatchSubtomogramAveraging(MagicTemplate):
 
 def _coerce_aligned_name(name: str, loaders: LoaderList):
     num = 1
-    if re.match(rf".*-{ALN_SUFFIX}(\d)+", name):
+    if re.match(rf".*-{ALN_SUFFIX}(\d)+$", name):
         try:
-            *pre, suf = name.split(f"-{ALN_SUFFIX}")
+            name, suf = name.rsplit(f"-{ALN_SUFFIX}", 1)
             num = int(suf) + 1
-            name = "".join(pre)
         except Exception:
             num = 1
 
