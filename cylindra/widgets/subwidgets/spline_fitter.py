@@ -97,9 +97,9 @@ class SplineFitter(ChildWidget):
         self.num.value = max(self.num.value - 1, self.num.min)
         self._focus_me()
 
-    num = field(int, label="Spline No.", location=footer).with_options(max=0)
-    pos = field(int, label="Position", location=footer).with_options(max=0)
-    err_max = field(0.5, label="Max. error", location=footer).with_options(step=0.05)
+    num = field(int, label="Spline No.", location=footer, record=False).with_options(max=0)  # fmt: skip
+    pos = field(int, label="Position", location=footer, record=False).with_options(max=0)  # fmt: skip
+    err_max = field(0.5, label="Max. error", location=footer, record=False).with_options(step=0.05)  # fmt: skip
 
     def _get_shifts(self, _=None):
         if self.shifts is None:
@@ -144,8 +144,7 @@ class SplineFitter(ChildWidget):
     def fit(
         self,
         i: Annotated[int, {"bind": num}],
-        shifts: Annotated[nm, {"bind": _get_shifts}],
-        max_interval: Annotated[nm, {"bind": _get_max_interval}] = 50.0,
+        shifts: Annotated[np.ndarray, {"bind": _get_shifts}],
         err_max: Annotated[nm, {"bind": err_max}] = 0.5,
     ):
         """Fit current spline."""
@@ -154,7 +153,7 @@ class SplineFitter(ChildWidget):
         _scale = parent.tomogram.scale
         old_spl = parent.tomogram.splines[i]
         parent.tomogram.splines[i] = new_spl = old_spl.shift(
-            positions=old_spl.prep_anchor_positions(max_interval=max_interval),
+            positions=old_spl.prep_anchor_positions(n=shifts.shape[0]),
             shifts=shifts * self._get_binsize() * _scale,
             err_max=err_max,
         )
