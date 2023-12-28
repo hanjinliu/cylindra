@@ -77,3 +77,12 @@ combine many softwares together. Currently, `cylindra` provides functions to rea
 supported, please open an issue or submit a pull request to the [repository](https://github.com/hanjinliu/cylindra).
 
 Next step: [Start `cylindra`](open_image.md)
+
+## Configure Global Variables
+
+:material-arrow-right-thin-circle-outline: GUI: `Others > Configure cylindra`
+
+![Configure cylindra](images/configure_cylindra.png)
+
+Parameters in this dialog will be used across different sessions, but does not affect
+the calculation results.

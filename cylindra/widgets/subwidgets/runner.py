@@ -47,13 +47,10 @@ class runner_params2:
     depth: nm
         Longitudinal length of local discrete Fourier transformation used
         for structural analysis.
-    paint : bool
-        Check if paint the tomogram with the local properties.
     """
 
     interval = vfield(50.0, label="Interval (nm)").with_options(min=1.0, max=200.0)
     depth = vfield(50.0, label="FT window size (nm)").with_options(min=1.0, max=200.0)
-    paint = vfield(False)
 
 
 @magicclass(name="_Run cylindrical fitting", record=False)
@@ -138,7 +135,6 @@ class Runner(ChildWidget):
         interval: Annotated[nm, {"bind": params2.interval}] = 50.0,
         depth: Annotated[nm, {"bind": params2.depth}] = 50.0,
         global_props: Annotated[bool, {"bind": global_props}] = True,
-        paint: Annotated[bool, {"bind": params2.paint}] = False,
         infer_polarity: Annotated[bool, {"bind": infer_polarity}] = True,
         map_monomers: Annotated[bool, {"bind": map_monomers}] = False,
     ):

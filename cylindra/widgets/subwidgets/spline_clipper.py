@@ -1,11 +1,13 @@
 from typing import Annotated
-from magicclass import magicclass, field, vfield, do_not_record
+from magicclass import magicclass, field, set_design, vfield, do_not_record
 from magicclass.ext.pyqtgraph import QtMultiImageCanvas
 from cylindra.components import CylSpline
 from cylindra.const import Mode, nm
 from cylindra.utils import map_coordinates
 import numpy as np
 import impy as ip
+
+from cylindra.widget_utils import capitalize
 from ._child_widget import ChildWidget
 
 
@@ -68,7 +70,9 @@ class SplineClipper(ChildWidget):
         return (clim0 - lim0) * length, (lim1 - clim1) * length
 
     @do_not_record
+    @set_design(text=capitalize)
     def load_spline(self, spline: Annotated[int, {"bind": _get_spline_id}]):
+        """Load the current spline selected in the main widget."""
         parent = self._get_main()
         spl = parent.tomogram.splines[spline]
         self._spline = self._original_spline = spl
@@ -77,13 +81,17 @@ class SplineClipper(ChildWidget):
         self._update_canvas()
 
     @do_not_record
+    @set_design(text=capitalize)
     def the_other_side(self):
+        """See the other side of the spline."""
         self._clip_at_start = not self._clip_at_start
         self.clip_length = self.current_clip_length[1 - int(self._clip_at_start)]
         self._update_canvas()
 
     @do_not_record(recursive=False)
+    @set_design(text=capitalize)
     def clip_here(self):
+        """Clip the spline at the current position."""
         parent = self._get_main()
         try:
             idx = parent.tomogram.splines.index(self._original_spline)

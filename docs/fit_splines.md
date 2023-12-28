@@ -18,6 +18,8 @@ the points with a spline.
 
 ![draw_splines](images/draw_splines.gif){ loading=lazy, width=400px }
 
+To delete the last spline, click ![](images/toolbutton_clear_current.png){ width=28px }.
+
 !!! note
 
     You can view the image from the different direction using the `napari` [viewer
@@ -25,14 +27,17 @@ the points with a spline.
 
 ??? info "Auto-picking tool"
 
-    The `cylindra` toolbar has an auto-picking tool. If you placed >1 points, you can
-    extend it with a fast auto-centering function (![](images/toolbutton_pick_next.png){ width=28px } or ++f3++).
+    The `cylindra` toolbar has an auto-picking tool. If you have placed two or more
+    points, you can extend it with a fast auto-centering function (![](images/toolbutton_pick_next.png){ width=28px } or ++f3++).
+
+    In the future version, other auto-picking tools (AI-powered, fully automated, etc)
+    may be added.
 
 ??? info "Configure splines"
 
     Each spline is tagged with a `SplineConfig` object, which describes the average
     feature of the cylindric structure it represents. Default values are optimized for
-    microtubules. If you want to analyze other structures, see [here](configure.md).
+    microtubules. If you want to analyze other structures, see [here](spline/config.md).
 
 ## Fit Automatically
 

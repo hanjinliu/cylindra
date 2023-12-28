@@ -40,6 +40,10 @@ nav:
     - lattice_params.md
     - project_io.md
     - workflows.md
+    - Spline:
+      - Overview: spline/index.md
+      - spline/clip.md
+      - spline/config.md
     - Molecules:
       - Overview: molecules/index.md
       - molecules/spline_to_molecules.md
@@ -53,7 +57,6 @@ nav:
       - alignment/landscape.md
       - alignment/viterbi.md
       - alignment/rma.md
-    - configure.md
     - simulate.md
     - seam_search.md
     - cli.md

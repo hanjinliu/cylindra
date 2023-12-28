@@ -15,8 +15,11 @@ Cylindra is a Python module for image analysis of cylindric structures cryo-ET.
 - [Measure lattice parameters](lattice_params.md)
 - [Load & Save Projects](project_io.md)
 - [Custom Workflows](workflows.md)
+- [Spline](spline/index.md)
+- [Molecules](molecules/index.md)
 - [Subtomogram Alignment](alignment/index.md)
 - [Tomogram Simulation](simulate.md)
+- [Microtubule Seam Search](seam_search.md)
 
 
 ### Major Dependencies

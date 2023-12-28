@@ -65,6 +65,8 @@ def main():
         ui.measure_local_radius,
         ui.local_cft_analysis,
         ui.global_cft_analysis,
+        # spline
+        ui.clip_spline,
         # spline -> molecules
         ui.map_monomers,
         ui.map_centers,
@@ -74,6 +76,9 @@ def main():
         ui.paint_molecules,
         ui.split_molecules,
         ui.concatenate_molecules,
+        # others
+        ui.SplinesMenu.Config.update_default_config,
+        ui.OthersMenu.configure_cylindra,
     ]:
         get_button(meth).changed.emit()
         gui = get_function_gui(meth)
@@ -140,7 +145,12 @@ def main():
     _imsave(ui.SplineControl.native, "spline_control")
     # Local props
     _imsave(ui.LocalProperties.native, "local_props_gui")
-
+    # Clipper
+    ui.SplinesMenu.open_spline_clipper()
+    _imsave(ui.spline_clipper.native, "spline_clipper")
+    # Spectra inspector
+    ui.AnalysisMenu.open_spectra_inspector()
+    _imsave(ui.spectra_inspector.native, "spectra_inspector")
     QtW.QApplication.processEvents()
 
 

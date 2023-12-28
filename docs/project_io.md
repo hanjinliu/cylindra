@@ -12,7 +12,7 @@ If you want to save the current session as a project, you can use this method to
 the current state.
 
 - `project.json` ... The main project file, which has the description of this project.
-- `default_spline_config.json` ... The default `SplineConfig`. See [here](configure.md)
+- `default_spline_config.json` ... The default `SplineConfig`. See [here](spline/config.md)
   for the details.
 - `globalprops.csv` ... The global properties of the splines.
 - `localprops.csv` ... The local properties of the splines.
