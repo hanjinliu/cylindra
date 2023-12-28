@@ -1114,9 +1114,7 @@ def test_spline_fitter(ui: CylindraMainWidget):
     ui.spline_fitter._prev_num()
     ui.spline_fitter.pos.value = 1
     ui.spline_fitter.resample_volumes(30)
-    ui.spline_fitter.fit(
-        shifts=[[1.094, 0.797], [1.094, 0.797], [1.094, 0.698]], i=0, max_interval=50.0
-    )
+    ui.spline_fitter.fit(shifts=[[1.094, 0.797], [1.094, 0.797], [1.094, 0.698]], i=0)
     ui.macro.undo()
     ui.macro.redo()
 

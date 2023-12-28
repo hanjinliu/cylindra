@@ -1,0 +1,12 @@
+{
+    "npf_range": [2, 3],
+    "spacing_range": [5.0, 7.0],
+    "twist_range": [15.0, 40.0],
+    "rise_range": [10.0, 30.0],
+    "rise_sign": -1,
+    "clockwise": "MinusToPlus",
+    "thickness_inner": 1.5,
+    "thickness_outer": 2.0,
+    "fit_depth": 24,
+    "fit_width": 12
+}
