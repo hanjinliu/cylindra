@@ -692,7 +692,7 @@ class AnalysisMenu(ChildWidget):
     load_project_for_reanalysis = abstractapi()
     sep2 = field(Separator)
 
-    @set_design(text="Open spectra inspector")
+    @set_design(text=capitalize)
     @do_not_record
     def open_spectra_inspector(self):
         """Open the spectra measurer widget to determine cylindric parameters."""
