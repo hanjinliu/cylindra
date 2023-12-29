@@ -175,13 +175,9 @@ class SplineConfig:
         thickness_outer: nm | None = None,
         fit_depth: nm | None = None,
         fit_width: nm | None = None,
-        skew_range: tuple[float, float] | None = None,  # deprecated
     ) -> SplineConfig:
         kwargs = locals()
         kwargs.pop("self")
-        skew_range = kwargs.pop("skew_range")
-        if skew_range is not None:
-            kwargs["twist_range"] = skew_range
         for k, v in kwargs.items():
             if v is None:
                 kwargs[k] = getattr(self, k)

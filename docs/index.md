@@ -1,10 +1,8 @@
 # Cylindra
 
-Cylindra is a Python module for image analysis of cylindric structures cryo-ET.
-
-### Highlights
-
--
+Cylindra is a Python module for image analysis of cylindric structures in cryo-ET.
+Spectral analysis, simulation and subtomogram averaging of heterogenic cylindrical
+structures are implemented.
 
 ### Index
 
@@ -19,6 +17,7 @@ Cylindra is a Python module for image analysis of cylindric structures cryo-ET.
 - [Molecules](molecules/index.md)
 - [Subtomogram Alignment](alignment/index.md)
 - [Tomogram Simulation](simulate.md)
+- [Process Images](process_images.md)
 - [Microtubule Seam Search](seam_search.md)
 
 

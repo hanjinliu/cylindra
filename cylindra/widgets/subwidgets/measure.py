@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated
 from enum import Enum
 
 from magicclass import (
@@ -18,9 +18,6 @@ import numpy as np
 from cylindra.utils import roundint
 from cylindra.const import FileFilter
 from ._child_widget import ChildWidget
-
-if TYPE_CHECKING:
-    from cylindra.components import CylSpline
 
 
 class MeasureMode(Enum):
@@ -51,6 +48,7 @@ class Parameters(MagicTemplate):
     rise = vfield("").with_options(enabled=False)
     twist = vfield("").with_options(enabled=False)
     npf = vfield("").with_options(enabled=False)
+    rise_sign = vfield("").with_options(enabled=False)
 
     def __init__(self):
         self._radius = None
@@ -58,6 +56,7 @@ class Parameters(MagicTemplate):
         self._rise = None
         self._twist = None
         self._npf = None
+        self._rise_sign = None
 
     @set_design(text="Export as CSV ...")
     def export(self, path: Path.Save[FileFilter.CSV]):
@@ -70,6 +69,7 @@ class Parameters(MagicTemplate):
                 "rise": [self.rise],
                 "twist": [self.twist],
                 "npf": [self.npf],
+                "rise_sign": [self.rise_sign],
             }
         ).write_csv(path)
 
@@ -133,6 +133,18 @@ class Parameters(MagicTemplate):
         else:
             return f"{int(value)}"
 
+    @rise_sign.post_get_hook
+    def _get_rise_sign(self, value):
+        return self._rise_sign
+
+    @rise_sign.pre_set_hook
+    def _set_rise_sign(self, value):
+        self._rise_sign = value
+        if self._rise_sign is None:
+            return "--"
+        else:
+            return f"{int(value)}"
+
 
 @magicclass(layout="horizontal", record=False)
 class SpectraInspector(ChildWidget):
@@ -153,7 +165,6 @@ class SpectraInspector(ChildWidget):
         self._layer_axial = None
         self._layer_angular = None
         self._image = None
-        self._spline: "CylSpline | None" = None
         self.mode = MeasureMode.none
 
     @magicclass(properties={"min_width": 200})
@@ -215,8 +226,9 @@ class SpectraInspector(ChildWidget):
         self.canvas.mouse_clicked.disconnect(self._on_mouse_clicked, missing_ok=True)
         parent = self._get_main()
         tomo = parent.tomogram
-        self._spline = tomo.splines[idx]
-        self.parameters.radius = self._spline.radius
+        spl = tomo.splines[idx]
+        self.parameters.radius = spl.radius
+        self.parameters.rise_sign = spl.config.rise_sign
         polar = tomo.straighten_cylindric(idx, binsize=binsize)
         pw = polar.power_spectra(zero_norm=True, dims="rya").mean(axis="r")
 
@@ -271,7 +283,7 @@ class SpectraInspector(ChildWidget):
 
         if self.mode == MeasureMode.axial:
             self.parameters.spacing = abs(1.0 / yfreq * scale) * self._get_binsize()
-            _sign = self._spline.config.rise_sign
+            _sign = self.parameters.rise_sign
             self.parameters.rise = np.rad2deg(np.arctan(afreq / yfreq)) * _sign
 
             if self._layer_axial in self.canvas.layers:

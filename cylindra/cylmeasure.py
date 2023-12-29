@@ -209,8 +209,9 @@ class CylinderSurface:
         start_pos = start[:, 3]
 
         # the displacement in the spline coordinate
-        dy = self._integrate_yvec(start_pos, vec)
-        end_pos = start_pos + dy
+        dpos = _dot(self._spline_vec_norm(start_pos), vec)
+        end_pos = start_pos + dpos
+        dy = _dot(self._spline_vec_norm(start_pos + dpos / 2), vec)
 
         # surface normal vectors at the start and end points
         er0 = self._surface_vec(_concat(start_zyx, start_pos))
@@ -257,20 +258,6 @@ class CylinderSurface:
         u = self._spl.y_to_position(pos)
         _spl_vec = self._spl.map(u, der=1)
         return _norm(_spl_vec)
-
-    def _integrate_yvec(
-        self,
-        start_pos: NDArray[np.float32],
-        vec: NDArray[np.float32],
-        num: int = 4,
-    ):
-        """Nonlinear dot product of vec and spline tangent vector."""
-        cur_pos = start_pos.copy()
-        for _ in range(num):
-            norm = self._spline_vec_norm(cur_pos) / num
-            ds0 = _dot(norm, vec)
-            cur_pos += ds0
-        return cur_pos - start_pos
 
 
 class RegionProfiler:

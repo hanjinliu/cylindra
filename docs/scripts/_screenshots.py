@@ -151,6 +151,9 @@ def main():
     # Spectra inspector
     ui.AnalysisMenu.open_spectra_inspector()
     _imsave(ui.spectra_inspector.native, "spectra_inspector")
+    # Image processor
+    ui.image_processor.show()
+    _imsave(ui.image_processor.native, "image_processor")
     QtW.QApplication.processEvents()
 
 

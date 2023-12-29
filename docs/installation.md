@@ -16,6 +16,10 @@ conda activate my-env  # enter the virtual environment
 In `cylindra`, some computationally intensive functions are implemented in Rust.
 You have to install Rust first to run `cylindra`. See the [Rust installation guide](https://www.rust-lang.org/tools/install).
 
+!!! note
+    In the future versions, the Rust part may be cross-compiled and distributed as
+    a binary, so that you don't have to install Rust.
+
 ### Install Cylindra
 
 Now, it's ready to install `cylindra`.

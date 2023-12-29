@@ -86,6 +86,13 @@ power spectrum.
 
 Presets are stored in the user directory. You can load the presets from the menu.
 
+By default, presets for following biological components are available:
+
+- F-actin
+- Eukaryotic microtubule
+- BtubAB (a bacterial microtubule)
+- Tobacco mosaic virus
+
 ## Save the Configuration
 
 :material-arrow-right-thin-circle-outline: GUI: `Splines > Config > Save default config`
