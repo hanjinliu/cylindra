@@ -34,7 +34,9 @@ from cylindra.utils import (
     crop_tomograms,
     map_coordinates_task,
     rotated_auto_zncc,
+    ceilint,
     roundint,
+    centroid_2d,
     set_gpu,
     angle_corr,
 )
@@ -335,25 +337,8 @@ class CylTomogram(Tomogram):
         """
         LOGGER.info(f"Running: {self.__class__.__name__}.fit, i={i}")
         spl = self.splines[i]
-        anc = self.splines[i].prep_anchor_positions(max_interval=max_interval)
-        npoints = anc.size
-        interval = spl.length() / (npoints - 1)
-        depth_px = self.nm2pixel(spl.config.fit_depth, binsize=binsize)
-        width_px = self.nm2pixel(spl.config.fit_width, binsize=binsize)
-
-        # If subtomogram region is rotated by 45 degree, its XY-width will be
-        # (length + width) / sqrt(2)
-        if binsize > 1:
-            centers = spl.map(anc) - self.multiscale_translation(binsize)
-        else:
-            centers = spl.map(anc)
-        center_px = self.nm2pixel(centers, binsize=binsize)
-        size_px = (width_px,) + (roundint((width_px + depth_px) / 1.414),) * 2
-        input_img = self._get_multiscale_or_original(binsize)
-
-        subtomograms = crop_tomograms(input_img, center_px, size_px)
-        subtomograms[:] -= subtomograms.mean()
-        scale = self.scale * binsize
+        anc = spl.prep_anchor_positions(max_interval=max_interval)
+        subtomograms, interval, scale = self._prep_fit_spline(spl, anc, binsize)
 
         with set_gpu():
             subtomograms = _soft_mask_edges(subtomograms, spl, anc, scale, edge_sigma)
@@ -383,7 +368,7 @@ class CylTomogram(Tomogram):
                 angle = refined_tilt_deg[_j]
                 img.rotate(-angle, cval=0, update=True)
 
-            # zx-shift correction by self-PCC
+            # zx-shift correction by self-ZNCC
             subtomo_proj = subtomograms.mean(axis="y")
 
             if edge_sigma is not None:
@@ -406,6 +391,44 @@ class CylTomogram(Tomogram):
 
         # Update spline parameters
         self.splines[i] = spl.fit(coords, err_max=err_max)
+        result = FitResult(shifts * scale)
+        LOGGER.info(f" >> Shift RMSD = {result.rmsd:.3f} nm")
+        return result
+
+    @batch_process
+    def fit_centroid(
+        self,
+        i: int = None,
+        *,
+        max_interval: nm = 30.0,
+        binsize: int = 1,
+        err_max: nm = 1.0,
+        max_shift: nm = 5.0,
+    ) -> FitResult:
+        LOGGER.info(f"Running: {self.__class__.__name__}.fit_centroid, i={i}")
+        spl = self.splines[i]
+        anc = spl.prep_anchor_positions(max_interval=max_interval)
+        scale = self.scale * binsize
+
+        # sample subtomograms
+        loader = _prep_loader_for_refine(self, spl, anc, binsize)
+        subtomograms = ip.asarray(loader.asnumpy(), axes="pzyx").mean(axis="y")[
+            ip.slicer.x[::-1]
+        ]
+        num, lz, lx = subtomograms.shape
+        dpx = ceilint(max_shift / scale)
+        sl_z = slice(max((lz - 1) // 2 - dpx, 0), min(lz // 2 + dpx + 1, lz))
+        sl_x = slice(max((lx - 1) // 2 - dpx, 0), min(lx // 2 + dpx + 1, lx))
+        centers = np.stack(
+            [centroid_2d(patch, sl_z, sl_x) for patch in subtomograms], axis=0
+        )
+        shifts = centers - np.column_stack(
+            [
+                np.full(num, (sl_z.start + sl_z.stop - 1) / 2),
+                np.full(num, (sl_x.start + sl_x.stop - 1) / 2),
+            ]
+        )
+        self.splines[i] = spl.shift(anc, shifts=shifts * scale, err_max=err_max)
         result = FitResult(shifts * scale)
         LOGGER.info(f" >> Shift RMSD = {result.rmsd:.3f} nm")
         return result
@@ -478,7 +501,7 @@ class CylTomogram(Tomogram):
         twist = gdict[H.twist]
         npf = roundint(gdict[H.npf])
 
-        LOGGER.info(f" >> Parameters: spacing = {space/2:.2f} nm, twist = {twist:.3f} deg, PF = {npf}")  # fmt: skip
+        LOGGER.info(f" >> Parameters: spacing = {space:.2f} nm, twist = {twist:.3f} deg, PF = {npf}")  # fmt: skip
 
         # complement twisting
         pf_ang = 360 / npf
@@ -1243,6 +1266,27 @@ class CylTomogram(Tomogram):
             mole = mole.rotate_by_rotvec_internal([np.pi, 0, 0])
         return mole
 
+    def _prep_fit_spline(self, spl: CylSpline, anc: NDArray[np.float32], binsize: int):
+        npoints = anc.size
+        interval = spl.length() / (npoints - 1)
+        depth_px = self.nm2pixel(spl.config.fit_depth, binsize=binsize)
+        width_px = self.nm2pixel(spl.config.fit_width, binsize=binsize)
+
+        # If subtomogram region is rotated by 45 degree, its XY-width will be
+        # (length + width) / sqrt(2)
+        if binsize > 1:
+            centers = spl.map(anc) - self.multiscale_translation(binsize)
+        else:
+            centers = spl.map(anc)
+        center_px = self.nm2pixel(centers, binsize=binsize)
+        size_px = (width_px,) + (roundint((width_px + depth_px) / 1.414),) * 2
+        input_img = self._get_multiscale_or_original(binsize)
+
+        subtomograms = crop_tomograms(input_img, center_px, size_px)
+        subtomograms[:] -= subtomograms.mean()
+        scale = self.scale * binsize
+        return subtomograms, interval, scale
+
 
 def dask_angle_corr(
     imgs, ang_centers, drot: float = 7, nrots: int = 29
@@ -1330,14 +1374,18 @@ def _prep_loader_for_refine(
     spl: CylSpline,
     ancs: NDArray[np.float32],
     binsize: int,
-    twists: NDArray[np.float32],
+    twists: NDArray[np.float32] | None = None,
 ) -> SubtomogramLoader:
     input_img = self._get_multiscale_or_original(binsize)
 
     depth_px = self.nm2pixel(spl.config.fit_depth, binsize=binsize)
     width_px = self.nm2pixel(spl.config.fit_width, binsize=binsize)
 
-    mole = spl.anchors_to_molecules(ancs, rotation=-np.deg2rad(twists))
+    if twists is None:
+        rotation = None
+    else:
+        rotation = -np.deg2rad(twists)
+    mole = spl.anchors_to_molecules(ancs, rotation=rotation)
     if binsize > 1:
         mole = mole.translate(-self.multiscale_translation(binsize))
     scale = input_img.scale.x

@@ -417,6 +417,7 @@ class SplinesMenu(ChildWidget):
         """Methods for spline fitting."""
 
         fit_splines = abstractapi()
+        fit_splines_by_centroid = abstractapi()
 
         @set_design(text=capitalize)
         @do_not_record

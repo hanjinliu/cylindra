@@ -964,7 +964,7 @@ class CylindraMainWidget(MagicTemplate):
         max_shift: nm = 5.0,
     ):  # fmt: skip
         """
-        Fit cylinder with spline curve, using manually selected points.
+        Fit splines to the cylinder by auto-correlation.
 
         Parameters
         ----------
@@ -988,6 +988,46 @@ class CylindraMainWidget(MagicTemplate):
                     err_max=err_max,
                     degree_precision=degree_precision,
                     edge_sigma=edge_sigma,
+                    max_shift=max_shift,
+                )
+                yield thread_worker.callback(self._update_splines_in_images)
+
+        @thread_worker.callback
+        def out():
+            self._init_widget_state()
+            self._update_splines_in_images()
+            return tracker.as_undo_callback()
+
+        return out
+
+    @set_design(text=capitalize, location=_sw.SplinesMenu.Fitting)
+    @thread_worker.with_progress(desc="Spline Fitting", total=_NSPLINES)
+    def fit_splines_by_centroid(
+        self,
+        splines: _Splines = None,
+        max_interval: Annotated[nm, {"label": "max interval (nm)"}] = 30,
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1.0,
+        err_max: Annotated[nm, {"label": "max fit error (nm)", "step": 0.1}] = 1.0,
+        max_shift: nm = 5.0,
+    ):  # fmt: skip
+        """
+        Fit splines to the cylinder by centroid of sub-volumes.
+
+        Parameters
+        ----------
+        {splines}{max_interval}{bin_size}{err_max}
+        max_shift : nm, default 5.0
+            Maximum shift to be applied to each point of splines.
+        """
+        tomo = self.tomogram
+        splines = self._norm_splines(splines)
+        with SplineTracker(widget=self, indices=splines) as tracker:
+            for i in splines:
+                tomo.fit_centroid(
+                    i,
+                    max_interval=max_interval,
+                    binsize=bin_size,
+                    err_max=err_max,
                     max_shift=max_shift,
                 )
                 yield thread_worker.callback(self._update_splines_in_images)

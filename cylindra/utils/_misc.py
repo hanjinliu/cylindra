@@ -130,6 +130,19 @@ def centroid(arr: NDArray[np.floating], xmin: int, xmax: int) -> float:
     return float(np.sum(input_arr * x) / np.sum(input_arr))
 
 
+def centroid_2d(
+    arr: NDArray[np.floating], slice_y: slice, slice_x: slice
+) -> tuple[float, float]:
+    """Centroid of 2D array."""
+    ind_y = np.arange(slice_y.start, slice_y.stop)
+    ind_x = np.arange(slice_x.start, slice_x.stop)
+    input_arr = arr[slice_y, slice_x] - np.min(arr[slice_y, slice_x])
+    yy, xx = np.meshgrid(ind_y, ind_x, indexing="ij")
+    ymax = float(np.sum(input_arr * yy) / np.sum(input_arr))
+    xmax = float(np.sum(input_arr * xx) / np.sum(input_arr))
+    return ymax, xmax
+
+
 def rotational_average(img: ip.ImgArray, fold: int = 13):
     """Rotational average of 2D image supposing `fold` PFs."""
     angles = np.arange(fold) * 360 / fold
