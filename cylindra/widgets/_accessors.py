@@ -264,7 +264,10 @@ class BatchLoaderAccessor(Accessor["LoaderInfo", "CylindraBatchWidget"]):
             raise ValueError(f"Layer {name} already exists.")
         self.widget()._loaders[name] = layer
 
-    def __delitem__(self, name: str) -> None:
+    def __delitem__(self, name: int | str) -> None:
+        if hasattr(name, "__index__"):
+            del self.widget()._loaders[name]
+            return
         for i, info in enumerate(self.widget()._loaders):
             if info.name == name:
                 self.widget()._loaders.pop(i)

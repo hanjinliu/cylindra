@@ -78,6 +78,7 @@ from cylindra.widgets import _progress_desc as _pdesc
 
 if TYPE_CHECKING:
     from cylindra.widgets.batch import CylindraBatchWidget
+    import napari
     from napari.utils.events import Event
     from cylindra.components._base import BaseComponent
 
@@ -263,6 +264,11 @@ class CylindraMainWidget(MagicTemplate):
             cfg = SplineConfig.from_dict(cfg, unknown="error")
         self._default_cfg = cfg
         self._refer_spline_config(cfg)
+
+    @property
+    def sub_viewer(self) -> "napari.Viewer":
+        """The sub-viewer for subtomogram averages."""
+        return self.sta.sub_viewer
 
     def _get_splines(self, widget=None) -> list[tuple[str, int]]:
         """Get list of spline objects for categorical widgets."""
