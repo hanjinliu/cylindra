@@ -6,7 +6,8 @@ import warnings
 import numpy as np
 from numpy.typing import NDArray
 import impy as ip
-from acryo.tilt import single_axis, TiltSeriesModel, SingleAxis, NoWedge
+from acryo.tilt import single_axis, dual_axis, TiltSeriesModel, SingleAxis, NoWedge
+from acryo.tilt.core import UnionAxes, SingleAxisX, SingleAxisY
 
 from cylindra.const import nm
 from cylindra._config import get_config
@@ -82,13 +83,22 @@ class Tomogram:
         return self._tilt_model
 
     @property
-    def tilt_range(self) -> tuple[float, float] | None:
-        """Tilt range in degree."""
-        if isinstance(self._tilt_model, SingleAxis):
-            return self._tilt_model.tilt_range
+    def tilt(self) -> dict[str, Any]:
+        """Tilt model as a dictionary."""
+        if isinstance(self._tilt_model, SingleAxisX):
+            return {"kind": "x", "range": self._tilt_model.tilt_range}
+        elif isinstance(self._tilt_model, SingleAxisY):
+            return {"kind": "y", "range": self._tilt_model.tilt_range}
         elif isinstance(self._tilt_model, NoWedge):
-            return None
-        raise ValueError("Tilt model is not correctly set.")
+            return {"kind": "none"}
+        elif isinstance(self._tilt_model, UnionAxes):
+            return {
+                "kind": "dual",
+                "xrange": self._tilt_model._wedges[1].tilt_range,
+                "yrange": self._tilt_model._wedges[0].tilt_range,
+            }
+        else:
+            raise ValueError("Tilt model is not correctly set.")
 
     @classmethod
     def from_image(
@@ -138,8 +148,22 @@ class Tomogram:
         if source := img.source:
             self._metadata["source"] = source.resolve()
         self._metadata["scale"] = scale
+        # parse tilt model
         if not isinstance(tilt, TiltSeriesModel):
-            tilt = single_axis(tilt)
+            if isinstance(tilt, dict):
+                match tilt["kind"]:
+                    case "none":
+                        tilt = NoWedge()
+                    case "x" | "y":
+                        tilt = single_axis(tilt["range"], tilt["kind"])
+                    case "dual":
+                        tilt = dual_axis(tilt["yrange"], tilt["xrange"])
+                    case _:
+                        raise ValueError(
+                            f"Tilt model {tilt!r} not in a correct format."
+                        )
+            else:
+                tilt = single_axis(tilt)
         self._tilt_model = tilt
 
         if isinstance(binsize, int):

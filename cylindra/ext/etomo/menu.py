@@ -262,7 +262,7 @@ class IMOD(ChildWidget):
             tomograms=str(main.tomogram.source),
             coordinates=str(coordinates_path),
             angles=str(angles_path),
-            tilt_range=list(main.tomogram.tilt_range),
+            tilt_range=list(main.tomogram.tilt["range"]),
             template=str(template_path),
             project_name=project_name,
             shape=list(template_image.shape),

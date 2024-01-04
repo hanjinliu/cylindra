@@ -1,5 +1,6 @@
 from cylindra.components import CylTomogram
 from cylindra.const import PropertyNames as H
+from cylindra.project._base import MissingWedge
 import numpy as np
 from numpy.testing import assert_allclose
 import pytest
@@ -150,3 +151,25 @@ def test_global_cft():
     tomo.make_anchors(n=3)
     tomo.global_cft(0)
     tomo.global_cft(0, binsize=2)
+
+
+@pytest.mark.parametrize(
+    "tilt",
+    [
+        None,
+        (-40, 40),
+        {"kind": "none"},
+        {"kind": "x", "range": (-40, 40)},
+        {"kind": "y", "range": (-40, 40)},
+        {"kind": "dual", "xrange": (-40, 40), "yrange": (-50, 50)},
+    ],
+)
+def test_imread(tilt):
+    path = TEST_DIR / "13pf_MT.tif"
+    tomo = CylTomogram.imread(path, binsize=[1], tilt=tilt, compute=False)
+    tilt0 = tomo.tilt
+    wedge_model = MissingWedge.parse(tomo.tilt)
+    tomo = CylTomogram.imread(
+        path, binsize=[1], tilt=wedge_model.as_param(), compute=False
+    )
+    assert tilt0 == tomo.tilt

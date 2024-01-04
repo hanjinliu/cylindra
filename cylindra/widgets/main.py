@@ -424,7 +424,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         path: Annotated[str | Path, {"bind": _image_loader.path}],
         scale: Annotated[nm, {"bind": _image_loader.scale.scale_value}] = None,
-        tilt_range: Annotated[Any, {"bind": _image_loader.tilt_range.range}] = None,
+        tilt_range: Annotated[Any, {"bind": _image_loader.tilt}] = None,
         bin_size: Annotated[Sequence[int], {"bind": _image_loader.bin_size}] = [1],
         filter: Annotated[ImageFilter | None, {"bind": _image_loader.filter}] = ImageFilter.Lowpass,
         eager: Annotated[bool, {"bind": _image_loader.eager}] = False
@@ -438,10 +438,15 @@ class CylindraMainWidget(MagicTemplate):
             Path to the tomogram. Must be 3-D image.
         scale : float, default 1.0
             Pixel size in nm/pixel unit.
+        tilt_range : tuple of float, default None
+            Range of tilt angles in degrees.
         bin_size : int or list of int, default [1]
             Initial bin size of image. Binned image will be used for visualization in the viewer.
             You can use both binned and non-binned image for analysis.
         {filter}
+        eager : bool, default False
+            If true, the image will be loaded immediately. Otherwise, it will be loaded
+            lazily.
         """
         img = ip.lazy.imread(path, chunks=_config.get_config().dask_chunk)
         if scale is not None:

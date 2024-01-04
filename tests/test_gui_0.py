@@ -110,7 +110,7 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     assert old_splines[1].close_to(new_splines[1])
     for mol0, mol1 in zip(old_molecules, new_molecules):
         assert_molecule_equal(mol0, mol1)
-    assert ui.tomogram.tilt_range == (-60, 60)
+    assert ui.tomogram.tilt["range"] == (-60, 60)
 
     # try .tar file
     ui.save_project(save_path / "test_tar.tar")
@@ -123,7 +123,7 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     assert old_splines[1].close_to(new_splines[1])
     for mol0, mol1 in zip(old_molecules, new_molecules):
         assert_molecule_equal(mol0, mol1)
-    assert ui.tomogram.tilt_range == (-60, 60)
+    assert ui.tomogram.tilt["range"] == (-60, 60)
 
     # try .zip file
     ui.save_project(save_path / "test_zip.zip")
@@ -136,7 +136,7 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     assert old_splines[1].close_to(new_splines[1])
     for mol0, mol1 in zip(old_molecules, new_molecules):
         assert_molecule_equal(mol0, mol1)
-    assert ui.tomogram.tilt_range == (-60, 60)
+    assert ui.tomogram.tilt["range"] == (-60, 60)
 
     ui.SplinesMenu.Show.show_splines()
     ui.SplinesMenu.Show.show_splines_as_meshes()

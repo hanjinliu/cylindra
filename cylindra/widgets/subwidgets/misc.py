@@ -55,16 +55,58 @@ class ImageLoader(MagicTemplate):
         scale_value = vfield(1.0).with_options(min=1e-3, step=1e-4, max=10.0)
         scan_header = abstractapi()
 
-    @magicclass(layout="horizontal", labels=False)
-    class tilt_range(MagicTemplate):
-        """Tilt range of the tomogram."""
-
-        tilt_range_label = vfield("tilt range (deg)", widget_type="Label")
-        range = vfield(Optional[tuple[float, float]]).with_options(
-            text="No missing wedge",
-            options={"options": dict(min=-90, max=90, step=1)},
-            value=(-60, 60),
+    @magicclass(widget_type="groupbox", name="Tilt model")
+    class tilt(MagicTemplate):
+        axis = vfield("y").with_choices(["none", "x", "y", "dual"])
+        xrange = field(tuple[float, float]).with_options(
+            visible=False, min=-90, max=90, step=1, value=(-60, 60)
         )
+        yrange = field(tuple[float, float]).with_options(
+            visible=True, min=-90, max=90, step=1, value=(-60, 60)
+        )
+
+        @axis.connect
+        def _on_axis_change(self, axis: str):
+            self.xrange.visible = axis in ("x", "dual")
+            self.yrange.visible = axis in ("y", "dual")
+
+        @property
+        def value(self):
+            match self.axis:
+                case "none":
+                    out = None
+                case "x":
+                    out = {"kind": self.axis, "range": self.xrange.value}
+                case "y":
+                    out = {"kind": self.axis, "range": self.yrange.value}
+                case "dual":
+                    out = {
+                        "kind": "dual",
+                        "xrange": self.xrange.value,
+                        "yrange": self.yrange.value,
+                    }
+                case axis:
+                    raise ValueError(f"Unknown axis {axis!r}.")
+            return out
+
+        @value.setter
+        def value(self, val):
+            if val is None:
+                self.axis = "none"
+            elif isinstance(val, dict):
+                self.axis = val["kind"]
+                if self.axis == "dual":
+                    self.xrange.value = val["xrange"]
+                    self.yrange.value = val["yrange"]
+                elif rng := val.get("range"):
+                    self.xrange.value = rng
+                    self.yrange.value = rng
+                else:
+                    pass
+            else:
+                low, high = val
+                self.axis = "y"
+                self.xrange.value = self.yrange.value = (low, high)
 
     bin_size = vfield([1]).with_options(options={"min": 1, "max": 32})
     filter = vfield(ImageFilter | None).with_options(value=ImageFilter.Lowpass)
@@ -119,7 +161,8 @@ class GeneralInfo(MagicTemplate):
             tilt_range = "No missing wedge"
         elif isinstance(tomo.tilt_model, SingleAxis):
             deg0, deg1 = tomo.tilt_model.tilt_range
-            tilt_range = f"{deg0:.1f}° — {deg1:.1f}°"
+            axis = type(tomo.tilt_model).__name__[-1].lower()
+            tilt_range = f"{deg0:.1f}° — {deg1:.1f}° (axis: {axis})"
         else:
             tilt_range = repr(tomo.tilt_model)
         value = (

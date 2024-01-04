@@ -139,7 +139,19 @@ class MissingWedge(BaseModel):
         if isinstance(obj, MissingWedge):
             return MissingWedge(**obj.dict())
         elif isinstance(obj, dict):
-            return MissingWedge(**obj)
+            kind = obj["kind"]
+            if kind == "none":
+                params = {}
+            elif kind in ("x", "y"):
+                _min, _max = obj["range"]
+                params = {"min": _min, "max": _max}
+            elif kind == "dual":
+                _xrange = {"min": obj["xrange"][0], "max": obj["xrange"][1]}
+                _yrange = {"min": obj["yrange"][0], "max": obj["yrange"][1]}
+                params = {"xrange": _xrange, "yrange": _yrange}
+            else:
+                raise ValueError(f"Unknown missing wedge kind {obj['kind']!r}.")
+            return MissingWedge(kind=kind, params=params)
         elif isinstance(obj, (tuple, list)) and len(obj) == 2:
             return MissingWedge(params={"min": obj[0], "max": obj[1]})
         elif obj is None:
@@ -148,8 +160,18 @@ class MissingWedge(BaseModel):
 
     def as_param(self):
         """As the input parameter for tomogram creation."""
-        if self.kind == "y":
-            return (self.params["min"], self.params["max"])
-        elif self.kind == "none":
+        if self.kind == "none":
             return None
-        raise NotImplementedError("Only y-axis rotation is supported now.")
+        elif self.kind in ("x", "y"):
+            return {
+                "kind": self.kind,
+                "range": (self.params["min"], self.params["max"]),
+            }
+        elif self.kind == "dual":
+            return {
+                "kind": self.kind,
+                "xrange": (self.params["xrange"]["min"], self.params["xrange"]["max"]),
+                "yrange": (self.params["yrange"]["min"], self.params["yrange"]["max"]),
+            }
+        else:
+            raise ValueError(f"Unknown missing wedge kind {self.kind!r}.")

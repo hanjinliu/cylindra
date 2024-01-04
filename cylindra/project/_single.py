@@ -152,7 +152,7 @@ class CylindraProject(BaseProject):
             multiscales=[x[0] for x in tomo.multiscaled],
             molecules_info=mole_infos,
             landscape_info=landscape_infos,
-            missing_wedge=MissingWedge.parse(tomo.tilt_range),
+            missing_wedge=MissingWedge.parse(tomo.tilt),
             project_path=project_dir,
         )
 
