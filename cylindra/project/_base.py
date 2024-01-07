@@ -132,13 +132,27 @@ class MissingWedge(BaseModel):
     """The missing wedge model."""
 
     params: dict[str, Any]
+    """
+    Missing wedge parameters.
+    {"min": float, "max": float} for kind = "x" or "y".
+    {"xrange": {"min": float, "max": float}, "yrange": {"min": float, "max": float}}
+    for kind = "dual".
+    """
+
     kind: str = "y"
 
     @classmethod
     def parse(self, obj):
+        """Parse an object as a MissingWedge model."""
         if isinstance(obj, MissingWedge):
+            # make a copy of the input model
             return MissingWedge(**obj.dict())
         elif isinstance(obj, dict):
+            # must be one of the following:
+            # {"kind": "none"}
+            # {"kind": "x", "range": (-40, 40)}
+            # {"kind": "y", "range": (-40, 40)}
+            # {"kind": "dual", "xrange": (-40, 40), "yrange": (-50, 50)}
             kind = obj["kind"]
             if kind == "none":
                 params = {}
@@ -150,7 +164,7 @@ class MissingWedge(BaseModel):
                 _yrange = {"min": obj["yrange"][0], "max": obj["yrange"][1]}
                 params = {"xrange": _xrange, "yrange": _yrange}
             else:
-                raise ValueError(f"Unknown missing wedge kind {obj['kind']!r}.")
+                raise ValueError(f"Unknown missing wedge kind {kind!r}.")
             return MissingWedge(kind=kind, params=params)
         elif isinstance(obj, (tuple, list)) and len(obj) == 2:
             return MissingWedge(params={"min": obj[0], "max": obj[1]})

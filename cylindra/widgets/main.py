@@ -424,7 +424,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         path: Annotated[str | Path, {"bind": _image_loader.path}],
         scale: Annotated[nm, {"bind": _image_loader.scale.scale_value}] = None,
-        tilt_range: Annotated[Any, {"bind": _image_loader.tilt}] = None,
+        tilt_range: Annotated[Any, {"bind": _image_loader.tilt_model}] = None,
         bin_size: Annotated[Sequence[int], {"bind": _image_loader.bin_size}] = [1],
         filter: Annotated[ImageFilter | None, {"bind": _image_loader.filter}] = ImageFilter.Lowpass,
         eager: Annotated[bool, {"bind": _image_loader.eager}] = False
