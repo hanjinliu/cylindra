@@ -1,4 +1,5 @@
-from typing import Annotated, TYPE_CHECKING, Literal, Any, Sequence
+from contextlib import suppress
+from typing import TYPE_CHECKING, Annotated, Any, Literal, Sequence
 
 import impy as ip
 import macrokit as mk
@@ -7,8 +8,8 @@ import polars as pl
 from acryo import Molecules, SubtomogramLoader
 from magicclass import (
     MagicTemplate,
-    box,
     bind_key,
+    box,
     confirm,
     do_not_record,
     field,
@@ -19,68 +20,68 @@ from magicclass import (
 )
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
-from magicclass.types import Colormap as ColormapType, Optional, Path, ExprStr
-from magicclass.utils import thread_worker
 from magicclass.logging import getLogger
+from magicclass.types import Colormap as ColormapType
+from magicclass.types import Optional, Path
 from magicclass.undo import undo_callback
-
+from magicclass.utils import thread_worker
 from napari.layers import Layer
 
-from cylindra import utils, _config, cylmeasure, widget_utils, _shared_doc
+from cylindra import _config, _shared_doc, cylmeasure, utils, widget_utils
+from cylindra._napari import LandscapeSurface, MoleculesLayer
 from cylindra.components import CylSpline, CylTomogram, SplineConfig
 from cylindra.const import (
     PREVIEW_LAYER_NAME,
-    PropertyNames as H,
-    MoleculesHeader as Mole,
-    Ori,
-    nm,
-    SplineColor,
-    ImageFilter,
     FileFilter,
+    ImageFilter,
+    Ori,
+    SplineColor,
+    nm,
 )
-from cylindra._napari import MoleculesLayer, LandscapeSurface
+from cylindra.const import (
+    MoleculesHeader as Mole,
+)
+from cylindra.const import PropertyNames as H
 from cylindra.project import CylindraProject, extract
-
 from cylindra.widget_utils import (
-    add_molecules,
-    change_viewer_focus,
-    PolarsExprStrOrScalar,
     PolarsExprStr,
-    FloatInfNan,
+    PolarsExprStrOrScalar,
+    add_molecules,
     capitalize,
+    change_viewer_focus,
 )
+from cylindra.widgets import _progress_desc as _pdesc
 from cylindra.widgets import subwidgets as _sw
-from cylindra.widgets.sta import SubtomogramAveraging
-
 from cylindra.widgets._accessors import MoleculesLayerAccessor
-from cylindra.widgets._widget_ext import (
-    ProtofilamentEdit,
-    OffsetEdit,
-    CheckBoxes,
-    KernelEdit,
-    SingleRotationEdit,
-)
 from cylindra.widgets._annotated import (
-    MoleculesLayerType,
     MoleculesLayersType,
+    MoleculesLayerType,
     assert_layer,
     assert_list_of_layers,
 )
 from cylindra.widgets._main_utils import (
+    AutoSaver,
     SplineTracker,
     normalize_offsets,
     normalize_radius,
     rotvec_from_axis_and_degree,
-    AutoSaver,
 )
 from cylindra.widgets._reserved_layers import ReservedLayers
-from cylindra.widgets import _progress_desc as _pdesc
+from cylindra.widgets._widget_ext import (
+    CheckBoxes,
+    KernelEdit,
+    OffsetEdit,
+    ProtofilamentEdit,
+    SingleRotationEdit,
+)
+from cylindra.widgets.sta import SubtomogramAveraging
 
 if TYPE_CHECKING:
-    from cylindra.widgets.batch import CylindraBatchWidget
     import napari
     from napari.utils.events import Event
+
     from cylindra.components._base import BaseComponent
+    from cylindra.widgets.batch import CylindraBatchWidget
 
 DEFAULT_COLORMAP = {
     0.00: "#0B0000",  # black
@@ -287,7 +288,7 @@ class CylindraMainWidget(MagicTemplate):
     def _get_available_binsize(self, _=None) -> list[int]:
         out = [x[0] for x in self.tomogram.multiscaled]
         if 1 not in out:
-            out = [1] + out
+            out = [1, *out]
         return out
 
     def _get_default_config(self, config):
@@ -566,10 +567,8 @@ class CylindraMainWidget(MagicTemplate):
         self._project_dir = path
         autosave_path = _config.autosave_path()
         if autosave_path.exists():
-            try:
+            with suppress(Exception):
                 autosave_path.unlink()
-            except Exception:
-                pass
         return None
 
     @set_design(text=capitalize, location=_sw.FileMenu)
@@ -1215,7 +1214,7 @@ class CylindraMainWidget(MagicTemplate):
                 _config = _s.config
             else:
                 _config = self.default_config
-            _shape = layer.regular_shape() + (3,)
+            _shape = (*layer.regular_shape(), 3)
             coords = layer.molecules.pos.reshape(_shape).mean(axis=1)
             spl = CylSpline(config=_config).fit(coords, err_max=err_max)
             try:
@@ -1542,8 +1541,8 @@ class CylindraMainWidget(MagicTemplate):
         """Get the macro expression for reanalysis in the given project path."""
         _ui_sym = mk.symbol(self)
         project = CylindraProject.from_file(path)
-        with project.open_project() as dir:
-            macro_path = dir / "script.py"
+        with project.open_project() as _dir:
+            macro_path = _dir / "script.py"
             macro_expr = extract(macro_path.read_text())
         return _filter_macro_for_reanalysis(macro_expr, _ui_sym)
 
@@ -2323,8 +2322,9 @@ class CylindraMainWidget(MagicTemplate):
         suffix : str, default "_binarize"
             Suffix of the new feature column name.
         """
-        from cylindra import cylfilters
         from napari.utils.colormaps import label_colormap
+
+        from cylindra import cylfilters
 
         layer = assert_layer(layer, self.parent_viewer)
         utils.assert_column_exists(layer.molecules.features, target)

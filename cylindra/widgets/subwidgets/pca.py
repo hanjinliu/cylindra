@@ -1,9 +1,7 @@
 from typing import TYPE_CHECKING
-import numpy as np
 
-from magicclass import magicclass, field, vfield, MagicTemplate
+from magicclass import MagicTemplate, field, magicclass, vfield
 from magicclass.ext.pyqtgraph import QtPlotCanvas
-
 from napari.utils.colormaps import label_colormap
 
 if TYPE_CHECKING:

@@ -1,25 +1,25 @@
-from qtpy.QtCore import Qt
 from pathlib import Path
-from magicgui.widgets import TextEdit
 
-from magicclass import (
-    magicclass,
-    field,
-    vfield,
-    MagicTemplate,
-    set_design,
-    abstractapi,
-)
-from magicclass.widgets import ConsoleTextEdit
 import impy as ip
 from acryo.tilt import NoWedge, SingleAxis
-from cylindra._previews import view_image
+from magicclass import (
+    MagicTemplate,
+    abstractapi,
+    field,
+    magicclass,
+    set_design,
+    vfield,
+)
+from magicclass.widgets import ConsoleTextEdit
+from magicgui.widgets import TextEdit
+from qtpy.QtCore import Qt
 
-from cylindra.utils import ceilint
-from cylindra.components import CylTomogram
-from cylindra.const import ImageFilter, FileFilter
-from cylindra.project import CylindraProject
 from cylindra._config import get_config
+from cylindra._previews import view_image
+from cylindra.components import CylTomogram
+from cylindra.const import FileFilter, ImageFilter
+from cylindra.project import CylindraProject
+from cylindra.utils import ceilint
 
 
 @magicclass(widget_type="groupbox")
@@ -39,10 +39,10 @@ class TiltModelEdit(MagicTemplate):
 
     axis = vfield("y").with_choices(["none", "x", "y", "dual"])
     xrange = field(tuple[float, float]).with_options(
-        visible=False, options=dict(min=-90, max=90, step=1), value=(-60, 60)
+        visible=False, options={"min": -90, "max": 90, "step": 1}, value=(-60, 60)
     )
     yrange = field(tuple[float, float]).with_options(
-        visible=True, options=dict(min=-90, max=90, step=1), value=(-60, 60)
+        visible=True, options={"min": -90, "max": 90, "step": 1}, value=(-60, 60)
     )
 
     @axis.connect
@@ -99,8 +99,8 @@ class ImageLoader(MagicTemplate):
     path : Path
         Path to the tomogram. Must be 3-D image.
     bin_size : int or list of int, default [1]
-        Initial bin size of image. Binned image will be used for visualization in the viewer.
-        You can use both binned and non-binned image for analysis.
+        Initial bin size of image. Binned image will be used for visualization in the
+        viewer. You can use both binned and non-binned image for analysis.
     filter : ImageFilter
         Choose filter for the reference image (does not affect image data itself).
     """

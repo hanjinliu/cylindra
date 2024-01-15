@@ -1,27 +1,30 @@
-from contextlib import contextmanager
 import tempfile
-from datetime import datetime
-from typing import Generator, Iterable, TYPE_CHECKING
-from pathlib import Path
-import json
 import warnings
-from pydantic import Field
+from contextlib import contextmanager
+from datetime import datetime
+from pathlib import Path
+from typing import TYPE_CHECKING, Generator, Iterable
+
 import polars as pl
+from pydantic import Field
 
 from cylindra.const import (
-    PropertyNames as H,
-    get_versions,
-    cast_dataframe,
     ImageFilter,
+    cast_dataframe,
+    get_versions,
 )
-from cylindra.project._base import BaseProject, PathLike, resolve_path, MissingWedge
-from cylindra.project._utils import extract, as_main_function
-from cylindra.project._layer_info import MoleculesInfo, LandscapeInfo
+from cylindra.const import (
+    PropertyNames as H,
+)
+from cylindra.project._base import BaseProject, MissingWedge, PathLike, resolve_path
+from cylindra.project._layer_info import LandscapeInfo, MoleculesInfo
+from cylindra.project._utils import as_main_function, extract
 
 if TYPE_CHECKING:
-    from cylindra.widgets.main import CylindraMainWidget
-    from cylindra.components import CylSpline, CylTomogram
     from acryo import Molecules
+
+    from cylindra.components import CylSpline, CylTomogram
+    from cylindra.widgets.main import CylindraMainWidget
 
 
 class CylindraProject(BaseProject):
@@ -210,8 +213,9 @@ class CylindraProject(BaseProject):
         update_config: bool = True,
     ):
         """Update CylindraMainWidget state based on the project model."""
-        from cylindra.components import SplineConfig
         from magicclass.utils import thread_worker
+
+        from cylindra.components import SplineConfig
 
         gui = _get_instance(gui)
         with self.open_project() as project_dir:
@@ -377,7 +381,9 @@ class CylindraProject(BaseProject):
             path = dir / info.name
             if not path.exists():
                 warnings.warn(
-                    f"Cannot find molecule file {path}. Probably it was moved?"
+                    f"Cannot find molecule file {path}. Probably it was moved?",
+                    RuntimeWarning,
+                    stacklevel=2,
                 )
                 continue
             mole = Molecules.from_file(path)
@@ -454,8 +460,8 @@ class CylindraProject(BaseProject):
             import zipfile
 
             with tempfile.TemporaryDirectory() as tmpdir:
-                with zipfile.ZipFile(self.project_path) as zip:
-                    zip.extractall(tmpdir)
+                with zipfile.ZipFile(self.project_path) as _zip:
+                    _zip.extractall(tmpdir)
                 yield Path(tmpdir)
 
         else:

@@ -1,24 +1,25 @@
 from typing import TYPE_CHECKING, Any
-import time
-import numpy as np
-import impy as ip
 
+import impy as ip
+import numpy as np
+from dask import array as da
 from magicclass import (
-    abstractapi,
-    magicclass,
     MagicTemplate,
+    abstractapi,
+    box,
     field,
+    magicclass,
     set_design,
     vfield,
-    box,
 )
+from magicclass.ext.pyqtgraph import QtMultiImageCanvas
 from magicclass.logging import getLogger
 from magicclass.types import Path
-from magicclass.ext.pyqtgraph import QtMultiImageCanvas
-from dask import array as da
 
-from cylindra.const import PropertyNames as H, Mode, FileFilter
-from cylindra.utils import map_coordinates_task, Projections
+from cylindra.const import FileFilter, Mode
+from cylindra.const import PropertyNames as H
+from cylindra.utils import Projections, map_coordinates_task
+
 from ._child_widget import ChildWidget
 
 if TYPE_CHECKING:
@@ -293,7 +294,7 @@ class SplineControl(ChildWidget):
         self._add_curve(1, [_circle(_r, center=center) for _r in [rmin, rmax]])
 
         # update texts
-        kw = dict(size=16, color="lime", anchor=(0.5, 0.5))
+        kw = {"size": 16, "color": "lime", "anchor": (0.5, 0.5)}
         if spl.orientation == "PlusToMinus":
             self.canvas[1].add_text(*center, "+", **kw)
         elif spl.orientation == "MinusToPlus":

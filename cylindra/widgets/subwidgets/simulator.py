@@ -1,48 +1,51 @@
-from typing import Callable, Iterator, Annotated, Any, TYPE_CHECKING
-
 import weakref
+from typing import TYPE_CHECKING, Annotated, Any, Callable, Iterator
 
-import numpy as np
-from numpy.typing import NDArray
 import impy as ip
-from scipy.spatial.transform import Rotation
+import numpy as np
 import polars as pl
-
-from magicgui.widgets import FunctionGui, RangeSlider
+from acryo import TomogramSimulator, pipe
 from magicclass import (
+    abstractapi,
+    confirm,
     do_not_record,
+    field,
+    impl_preview,
     magicclass,
     magicmenu,
     magictoolbar,
     set_design,
-    field,
     setup_function_gui,
     vfield,
-    confirm,
-    abstractapi,
-    impl_preview,
 )
-from magicclass.types import Path, Optional, ExprStr
-from magicclass.logging import getLogger
-from magicclass.widgets import Separator
-from magicclass.utils import thread_worker
 from magicclass.ext.dask import dask_thread_worker
-
-from acryo import TomogramSimulator, pipe
+from magicclass.logging import getLogger
+from magicclass.types import ExprStr, Optional, Path
+from magicclass.utils import thread_worker
+from magicclass.widgets import Separator
+from magicgui.widgets import FunctionGui, RangeSlider
+from numpy.typing import NDArray
+from scipy.spatial.transform import Rotation
 
 from cylindra._napari import MoleculesLayer
-from cylindra.widget_utils import capitalize, POLARS_NAMESPACE
-from cylindra.widgets._annotated import MoleculesLayerType, _as_layer_name, assert_layer
+from cylindra.components import CylinderModel, CylSpline, CylTomogram
+from cylindra.components import indexer as Idx
 from cylindra.const import (
-    FileFilter,
-    MoleculesHeader as Mole,
-    nm,
     INTERPOLATION_CHOICES,
-    PropertyNames as H,
     PREVIEW_LAYER_NAME,
+    FileFilter,
+    nm,
 )
-from cylindra.utils import roundint, ceilint
-from cylindra.components import CylTomogram, CylSpline, CylinderModel, indexer as Idx
+from cylindra.const import (
+    MoleculesHeader as Mole,
+)
+from cylindra.const import (
+    PropertyNames as H,
+)
+from cylindra.utils import ceilint, roundint
+from cylindra.widget_utils import POLARS_NAMESPACE, capitalize
+from cylindra.widgets._annotated import MoleculesLayerType, _as_layer_name, assert_layer
+
 from ._child_widget import ChildWidget
 
 if TYPE_CHECKING:
@@ -85,8 +88,8 @@ def _simulate_tomogram_iter(nsr):
 
 
 def _simulate_tomogram_from_tilt_iter():
-    yield f"(0/2) Reading tilt series"
-    yield f"(1/2) Back-projection"
+    yield "(0/2) Reading tilt series"
+    yield "(1/2) Back-projection"
 
 
 @magicclass(labels=False, record=False, layout="horizontal")
@@ -462,7 +465,7 @@ class Simulator(ChildWidget):
         """
         save_dir = _norm_save_dir(save_dir)
         _assert_not_empty(components)
-        nsr = list(round(float(_nsr), 4) for _nsr in nsr)
+        nsr = [round(float(_nsr), 4) for _nsr in nsr]
         main = self._get_main()
         degrees = np.linspace(*tilt_range, n_tilt)
         sino = self._prep_radon(components, degrees, order=interpolation)

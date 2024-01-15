@@ -1,25 +1,27 @@
 from typing import Callable
+
+import impy as ip
+import numpy as np
 from magicclass import (
     abstractapi,
-    magicclass,
+    bind_key,
     field,
+    magicclass,
+    nogui,
     set_design,
     vfield,
-    bind_key,
-    nogui,
 )
-from magicclass.logging import getLogger
-from magicclass.types import Optional, OneOf
-from magicclass.utils import thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
-import numpy as np
+from magicclass.logging import getLogger
+from magicclass.types import Optional
+from magicclass.utils import thread_worker
 from numpy.typing import NDArray
-import impy as ip
 
-from cylindra.utils import map_coordinates
-from cylindra.const import nm
 from cylindra.components._ftprops import LatticeAnalyzer
+from cylindra.const import nm
 from cylindra.cyltransform import get_polar_image
+from cylindra.utils import map_coordinates
+
 from ._child_widget import ChildWidget
 
 YPROJ = "Y-projection"

@@ -1,28 +1,29 @@
 from __future__ import annotations
-from typing import Annotated, Sequence, TYPE_CHECKING, Any, TypedDict, Union
-from dataclasses import dataclass
-from timeit import default_timer
+
 import inspect
 import re
+from dataclasses import dataclass
+from timeit import default_timer
+from typing import TYPE_CHECKING, Annotated, Any, Sequence, TypedDict
 
-import numpy as np
-from numpy.typing import NDArray
-import polars as pl
 import macrokit as mk
+import napari
+import numpy as np
+import polars as pl
+from acryo import Molecules
 from magicclass.logging import getLogger
 from magicclass.types import ExprStr
 from magicclass.widgets import EvalLineEdit
-import napari
+from numpy.typing import NDArray
 
-from acryo import Molecules
-from cylindra import utils
-from cylindra.const import nm, PropertyNames as H
-from cylindra.types import MoleculesLayer
 from cylindra.components._base import BaseComponent
+from cylindra.const import nm
+from cylindra.types import MoleculesLayer
 
 if TYPE_CHECKING:
-    from cylindra.components import CylTomogram, CylSpline
     from magicclass import MagicTemplate
+
+    from cylindra.components import CylSpline
 
 
 # namespace used in predicate
@@ -49,7 +50,7 @@ def _validate_expr_or_scalar(expr: str | pl.Expr | int | float) -> str | int | f
         elif isinstance(expr, pl.Expr):
             return _polars_expr_to_str(expr)
         else:
-            raise TypeError(f"Input must be string or polars.Expr type.")
+            raise TypeError("Input must be string or polars.Expr type.")
     elif isinstance(expr, (int, float, np.number)):
         return expr
     else:
@@ -57,7 +58,7 @@ def _validate_expr_or_scalar(expr: str | pl.Expr | int | float) -> str | int | f
 
 
 PolarsExprStrOrScalar = Annotated[
-    Union[str, int, float],
+    str | int | float,
     {
         "widget_type": EvalLineEdit,
         "namespace": POLARS_NAMESPACE,
@@ -141,7 +142,7 @@ def _validate_expr(expr: str | pl.Expr) -> str:
     elif isinstance(expr, pl.Expr):
         return _polars_expr_to_str(expr)
     else:
-        raise TypeError(f"Input must be string or polars.Expr type.")
+        raise TypeError("Input must be string or polars.Expr type.")
 
 
 def norm_scalar_expr(val) -> pl.Expr:

@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import math
-import numpy as np
-from numpy.typing import NDArray
-import polars as pl
-from scipy import ndimage as ndi
-import impy as ip
-from cylindra._dask import delayed, Delayed, compute
-from typing import Sequence, TypeVar, Callable
-from cylindra.const import Mode
 from contextlib import contextmanager
+from typing import Callable, Sequence, TypeVar
+
+import impy as ip
+import numpy as np
+import polars as pl
+from numpy.typing import NDArray
+from scipy import ndimage as ndi
+
+from cylindra._dask import Delayed, compute, delayed
+from cylindra.const import Mode
 
 
 def roundint(a: float) -> int:
@@ -45,8 +47,11 @@ def set_gpu():
 
 def make_slice_and_pad(z0: int, z1: int, size: int) -> tuple[slice, tuple[int, int]]:
     """
-    This function calculates what slicing and padding are needed when an array is sliced
-    by ``z0:z1``. Array must be padded when z0 is negative or z1 is outside the array size.
+    Calculate slice and padding for array slicing.
+
+    This function calculates what slicing and padding are needed when an array is
+    sliced by ``z0:z1``. Array must be padded when z0 is negative or z1 is outside the
+    array size.
     """
     z0_pad = z1_pad = 0
     if z0 < 0:
@@ -68,6 +73,8 @@ def crop_tomogram(
     img: ip.ImgArray | ip.LazyImgArray, pos, shape: tuple[int, int, int]
 ) -> ip.ImgArray:
     """
+    Crop tomogram at the integer borders.
+
     From large image ``img``, crop out small region centered at ``pos``.
     Image will be padded if needed.
     """

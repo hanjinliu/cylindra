@@ -97,3 +97,37 @@ exclude_lines = [
     "raise NotImplementedError",
     "pass",
 ]
+
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+select = [
+  "A",
+  "ARG",
+  "B",
+  "C",
+  "E",
+  "F",
+  "I",
+  "ICN",
+  "ISC",
+  "PLC",
+  "PLE",
+  "PLW",
+  "Q",
+  "T",
+  "TID",
+  "UP",
+  "W",
+  "YTT",
+]
+ignore = [
+  "A001", "A002", "A003", "ARG001", "ARG002",
+  # Allow non-abstract empty methods in abstract base classes
+  "B027", "B904", "B006",
+  "E501", "E741",
+  # Ignore complexity
+  "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915",
+  "UP038", "RUF001", "PLC1901", "N814", "UP035",
+]

@@ -1,21 +1,21 @@
 from __future__ import annotations
 
-from contextlib import contextmanager
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, NamedTuple, Sequence, TypedDict
 import weakref
+from contextlib import contextmanager
+from typing import TYPE_CHECKING, Any, Callable, NamedTuple, TypedDict
 
-import polars as pl
 import numpy as np
+import polars as pl
 from acryo import Molecules
-from napari.layers import Points, Labels, Surface
-from napari.utils.status_messages import generate_layer_coords_status
-from napari.utils.events import Event
+from napari.layers import Labels, Points, Surface
 from napari.utils import Colormap
+from napari.utils.events import Event
+from napari.utils.status_messages import generate_layer_coords_status
 
-from cylindra.const import MoleculesHeader as Mole
-from cylindra.utils import str_color, assert_column_exists
 from cylindra._config import get_config
+from cylindra.const import MoleculesHeader as Mole
+from cylindra.utils import assert_column_exists, str_color
 
 if TYPE_CHECKING:
     from cylindra.components import BaseComponent, CylSpline
@@ -35,7 +35,7 @@ class ColormapInfo(NamedTuple):
 
     def to_list(self) -> list[tuple[float, str]]:
         out = []
-        for cont, cols in zip(self.cmap.controls, self.cmap.colors):
+        for cont, cols in zip(self.cmap.controls, self.cmap.colors, strict=False):
             out.append((cont, str_color(cols)))
         return out
 
@@ -198,11 +198,11 @@ class MoleculesLayer(_FeatureBoundLayer, Points, _SourceBoundLayer):
         **kwargs,
     ):
         app_cfg = get_config()
-        kw = dict(
-            size=app_cfg.point_size,
-            face_color=app_cfg.molecules_color,
-            out_of_slice_display=True,
-        )
+        kw = {
+            "size": app_cfg.point_size,
+            "face_color": app_cfg.molecules_color,
+            "out_of_slice_display": True,
+        }
         kw.update(**kwargs)
         layer = MoleculesLayer(mol, name=name, metadata=metadata.copy(), **kw)
         if source is not None:
