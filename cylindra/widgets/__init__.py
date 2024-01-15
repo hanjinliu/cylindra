@@ -10,7 +10,8 @@ def dont_use_native_menu_bar():  # pragma: no cover
 
 
 def init_opengl_and_dpi():
-    from qtpy import QtCore, QtWidgets as QtW
+    from qtpy import QtCore
+    from qtpy import QtWidgets as QtW
 
     # Docking vispy widget in napari viewer requires this.
     QtW.QApplication.setAttribute(QtCore.Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
@@ -26,9 +27,8 @@ init_opengl_and_dpi()
 
 del dont_use_native_menu_bar, init_opengl_and_dpi
 
-from .main import CylindraMainWidget
-
-from . import _ui_init  # initialize main widget  # noqa: F401
+from . import _ui_init  # initialize main widget  # noqa: F401, E402
+from .main import CylindraMainWidget  # noqa: F401, E402
 
 del _ui_init
 

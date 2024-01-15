@@ -1,7 +1,7 @@
-import os
 import argparse
-from typing import Any
+import os
 from pathlib import Path
+from typing import Any
 
 
 class ParserBase(argparse.ArgumentParser):
@@ -35,8 +35,8 @@ def coerce_output_filename(name: str, ext: str = ".tif"):
 
 
 def get_polars_expr(expr: str):
-    import polars as pl
     import numpy as np
+    import polars as pl
 
     ns = {
         "pl": pl,

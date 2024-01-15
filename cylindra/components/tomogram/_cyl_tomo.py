@@ -1,54 +1,56 @@
 from __future__ import annotations
+
 import logging
+from collections.abc import Iterable
+from functools import partial, wraps
 from typing import (
-    Callable,
+    TYPE_CHECKING,
     Any,
+    Callable,
+    Protocol,
     Sequence,
     TypeVar,
     overload,
-    Protocol,
-    TYPE_CHECKING,
 )
-from collections.abc import Iterable
-from functools import partial, wraps
 
-from typing_extensions import ParamSpec, Concatenate
+import impy as ip
 import numpy as np
-from numpy.typing import ArrayLike, NDArray
 import polars as pl
+from acryo import Molecules, SubtomogramLoader
+from acryo.tilt import TiltSeriesModel
+from dask import array as da
+from numpy.typing import ArrayLike, NDArray
 from scipy import ndimage as ndi
 from scipy.fft import fft2, ifft2
 from scipy.spatial.transform import Rotation
-from dask import array as da
-from cylindra._dask import compute, delayed, Delayed
+from typing_extensions import Concatenate, ParamSpec
 
-from acryo import Molecules, SubtomogramLoader
-from acryo.tilt import TiltSeriesModel
-import impy as ip
-
-from cylindra.components.spline import CylSpline
+from cylindra._dask import Delayed, compute, delayed
+from cylindra.components._ftprops import LatticeAnalyzer, LatticeParams, get_polar_image
 from cylindra.components._peak import find_centroid_peak
-from cylindra.components._ftprops import LatticeParams, LatticeAnalyzer, get_polar_image
-from cylindra.const import nm, PropertyNames as H, Ori, Mode, ExtrapolationMode
+from cylindra.components.spline import CylSpline
+from cylindra.const import ExtrapolationMode, Mode, Ori, nm
+from cylindra.const import PropertyNames as H
 from cylindra.utils import (
+    angle_corr,
+    ceilint,
+    centroid_2d,
     crop_tomograms,
     map_coordinates_task,
     rotated_auto_zncc,
-    ceilint,
     roundint,
-    centroid_2d,
     set_gpu,
-    angle_corr,
 )
 
-from ._tomo_base import Tomogram
-from ._spline_list import SplineList
 from . import _straighten
+from ._spline_list import SplineList
+from ._tomo_base import Tomogram
 
 if TYPE_CHECKING:
-    from typing_extensions import Self, Literal
-    from cylindra.components.spline import SplineConfig
+    from typing_extensions import Literal, Self
+
     from cylindra.components.cylindric import CylinderModel
+    from cylindra.components.spline import SplineConfig
 
     Degenerative = Callable[[ArrayLike], Any]
 
@@ -1110,7 +1112,7 @@ class CylTomogram(Tomogram):
         twist = spl.props.get_glob(H.twist) / 2
 
         # Check length.
-        length = spl.length()
+        spl.length()
         u = spl.prep_anchor_positions(interval=interval)
         twists = spl.distances(u) / spacing * twist
         mole = spl.anchors_to_molecules(u, rotation=np.deg2rad(twists))

@@ -1,8 +1,8 @@
 from __future__ import annotations
-from contextlib import suppress
-from pathlib import Path
 
 from abc import ABC, abstractmethod
+from contextlib import suppress
+from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -21,21 +21,26 @@ from typing import (
 
 import polars as pl
 
+from cylindra._config import get_config
 from cylindra.const import (
     MoleculesHeader as Mole,
+)
+from cylindra.const import (
     PropertyNames as H,
+)
+from cylindra.const import (
     cast_dataframe,
 )
+from cylindra.cylmeasure import LatticeParameters, calc_localvec_lat, calc_localvec_long
 from cylindra.project._single import CylindraProject
-from cylindra._config import get_config
-from cylindra.cylmeasure import LatticeParameters, calc_localvec_long, calc_localvec_lat
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
-    from cylindra.components import CylSpline
-    from acryo import BatchLoader, Molecules
     import numpy as np
+    from acryo import BatchLoader, Molecules
     from numpy.typing import NDArray
+    from typing_extensions import Self
+
+    from cylindra.components import CylSpline
 
 _V = TypeVar("_V")
 _Null = object()
@@ -197,7 +202,10 @@ class ProjectSequence(MutableSequence[CylindraProject]):
 
         col = BatchLoader(scale=self._scale_validator.value)
         if name_filter is None:
-            name_filter = lambda _: True
+
+            def name_filter(_):
+                return True
+
         for idx, prj in enumerate(self._projects):
             tomo = ip.lazy.imread(prj.image, chunks=get_config().dask_chunk)
             with prj.open_project() as dir:
@@ -465,7 +473,10 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             If True, molecules without a source spline will be skipped.
         """
         if name_filter is None:
-            name_filter = lambda _: True
+
+            def name_filter(_):
+                return True
+
         for i_prj, prj in enumerate(self._projects):
             with prj.open_project() as dir_:
                 for info, mole in prj.iter_load_molecules():

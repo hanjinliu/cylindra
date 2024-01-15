@@ -1,11 +1,11 @@
 from cylindra.core import (
-    start,
-    instance,
-    view_project,
-    read_project,
-    read_molecules,
-    read_spline,
     collect_projects,
+    instance,
+    read_molecules,
+    read_project,
+    read_spline,
+    start,
+    view_project,
 )
 
 __NAMESPACE = {}
@@ -19,7 +19,7 @@ def __getattr__(name: str):
     if name not in ["__version__", "__author__", "__email__"]:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
     if name not in __NAMESPACE:
-        from importlib.metadata import PackageNotFoundError, version, metadata
+        from importlib.metadata import PackageNotFoundError, metadata, version
 
         try:
             _version = version("cylindra")

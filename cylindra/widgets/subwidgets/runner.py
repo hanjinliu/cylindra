@@ -3,14 +3,16 @@ from typing import Annotated, Sequence
 from magicclass import (
     do_not_record,
     magicclass,
-    vfield,
     set_design,
+    vfield,
 )
 from magicclass.types import Optional
 from magicclass.utils import thread_worker
-from cylindra.widgets._widget_ext import CheckBoxes
-from ._child_widget import ChildWidget
+
 from cylindra.const import nm
+from cylindra.widgets._widget_ext import CheckBoxes
+
+from ._child_widget import ChildWidget
 
 
 @magicclass(widget_type="groupbox", name="Fitting parameters", record=False)
@@ -29,7 +31,7 @@ class runner_params1:
 
     edge_sigma = vfield(Optional[float], label="Edge sigma").with_options(
         value=2.0,
-        options=dict(step=0.1, min=0.0, max=50.0),
+        options={"step": 0.1, "min": 0.0, "max": 50.0},
         text="Don't use dense mode",
     )
     max_shift = vfield(5.0, label="Max shift (nm)").with_options(max=50.0, step=0.5)

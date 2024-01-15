@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fnmatch import fnmatch
+
 from cylindra.cli._base import ParserBase, coerce_output_filename, get_polars_expr
 from cylindra.core import collect_projects
 
@@ -86,9 +87,15 @@ def get_loader(
 ):
     col = collect_projects(project)
     if "*" in molecules:
-        name_filter = lambda n: fnmatch(n, molecules)
+
+        def name_filter(n):
+            return fnmatch(n, molecules)
+
     else:
-        name_filter = lambda n: n == molecules
+
+        def name_filter(n):
+            return n == molecules
+
     loader = col.sta_loader(name_filter)
     shape = (int(round(size / loader.scale)),) * 3
     if filter:

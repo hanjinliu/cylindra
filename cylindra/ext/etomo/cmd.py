@@ -3,16 +3,17 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
+
 import numpy as np
 
 # NOTE: output of model2point has separator "\s+". This is only supported in pandas.
 import pandas as pd
 import polars as pl
 
-from .._utils import translate_command, CommandNotFound
+from cylindra.ext._utils import CommandNotFound, translate_command
 
 
-class IMOD(SimpleNamespace):
+class IMODCommand(SimpleNamespace):
     """IMOD commands."""
 
     model2point = translate_command("model2point")
@@ -41,10 +42,12 @@ def read_mod(path: str) -> pl.DataFrame:
         (N, 3) data frame with coordinates.
     """
     path = str(path)
-    if IMOD.model2point.available():
+    if IMODCommand.model2point.available():
         with tempfile.NamedTemporaryFile(mode="r+") as fh:
             output_path = fh.name
-            IMOD.model2point(input=path, output=output_path, object=True, contour=True)
+            IMODCommand.model2point(
+                input=path, output=output_path, object=True, contour=True
+            )
             df = pd.read_csv(output_path, sep=r"\s+", header=None)
             df.columns = ["object_id", "contour_id", "x", "y", "z"]
     else:
@@ -82,7 +85,7 @@ def save_mod(path: str, data: pl.DataFrame):
             ["     " + line.replace(",", "     ") for line in text.splitlines()]
         )
         Path(input_path).write_text(text)
-        IMOD.point2model(input=input_path, output=path)
+        IMODCommand.point2model(input=input_path, output=path)
     return None
 
 

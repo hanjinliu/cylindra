@@ -3,12 +3,14 @@ from __future__ import annotations
 
 import operator
 from typing import Any, Callable
+
 import numpy as np
-from numpy.typing import ArrayLike, NDArray
 import polars as pl
+from numpy.typing import ArrayLike, NDArray
+from typing_extensions import Self
+
 from cylindra._cylindra_ext import CylindricArray as _CylindricArray
 from cylindra.const import MoleculesHeader as Mole
-from typing_extensions import Self
 
 
 class CylindricArray:

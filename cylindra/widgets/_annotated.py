@@ -1,6 +1,8 @@
 from typing import Annotated, Any
-from magicclass.types import Optional
+
 import napari
+from magicclass.types import Optional
+
 from cylindra.types import MoleculesLayer, get_monomer_layers
 from cylindra.widgets._widget_ext import CheckBoxes
 

@@ -1,11 +1,13 @@
-import json
-from typing import Any
-from typing_extensions import Self
 import io
+import json
 from pathlib import Path
+from typing import Any
+
 from pydantic import BaseModel
-from cylindra.project._utils import get_project_file
+from typing_extensions import Self
+
 from cylindra.project._json import project_json_encoder
+from cylindra.project._utils import get_project_file
 
 PathLike = Path | str | bytes
 
@@ -93,7 +95,8 @@ class BaseProject(BaseModel):
     @classmethod
     def from_zip(cls, path: "str | Path") -> Self:
         """Construct a project from a zip file."""
-        import zipfile, tempfile
+        import tempfile
+        import zipfile
 
         with tempfile.TemporaryDirectory() as tmpdir:
             with zipfile.ZipFile(path) as zip:

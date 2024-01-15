@@ -130,4 +130,5 @@ ignore = [
   # Ignore complexity
   "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915",
   "UP038", "RUF001", "PLC1901", "N814", "UP035",
+  "T201", "PLW0603", "PLW2901",
 ]

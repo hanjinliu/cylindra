@@ -1,6 +1,6 @@
-from ._single import CylindraProject
 from ._batch import CylindraBatchProject
 from ._sequence import ProjectSequence
+from ._single import CylindraProject
 from ._utils import as_main_function, extract, get_project_file
 
 __all__ = [

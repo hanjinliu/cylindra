@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-import numpy as np
-from numpy.typing import NDArray
+
 import impy as ip
+import numpy as np
 import polars as pl
-from dask import array as da
 from acryo import SubtomogramLoader
+from dask import array as da
+from numpy.typing import NDArray
 
 from cylindra.const import MoleculesHeader as Mole
 

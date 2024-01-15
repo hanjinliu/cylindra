@@ -1,4 +1,4 @@
-from .cmd import read_mod, save_mod, save_angles, IMOD
+from .cmd import IMODCommand, read_mod, save_angles, save_mod
 from .menu import IMOD
 
-__all__ = ["read_mod", "save_mod", "save_angles", "IMOD", "IMOD"]
+__all__ = ["read_mod", "save_mod", "save_angles", "IMOD", "IMODCommand"]

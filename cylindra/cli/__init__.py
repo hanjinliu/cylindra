@@ -1,5 +1,6 @@
 """CLI parsers for cylindra."""
 
+from ._base import ParserBase
 from .average import ParserAverage
 from .config import ParserConfig
 from .find import ParserFind
@@ -9,7 +10,6 @@ from .open import ParserOpen
 from .preview import ParserPreview
 from .run import ParserRun
 from .workflow import ParserWorkflow
-from ._base import ParserBase
 
 __all__ = [
     "ParserAverage",

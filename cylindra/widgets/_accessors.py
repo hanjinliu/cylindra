@@ -1,29 +1,30 @@
 from __future__ import annotations
 
+import weakref
+from fnmatch import fnmatch
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
     Generic,
     Iterator,
-    TypeVar,
     MutableSequence,
+    TypeVar,
 )
-import weakref
-from fnmatch import fnmatch
-
-from macrokit import Expr, Head, symbol
 
 import napari
+from macrokit import Expr, Head, symbol
+
 from cylindra.types import MoleculesLayer
 
 if TYPE_CHECKING:
-    from magicclass import MagicTemplate
-    from cylindra.widgets.main import CylindraMainWidget
-    from cylindra.widgets.batch import CylindraBatchWidget
-    from cylindra.widgets.batch._utils import LoaderInfo
     from acryo import Molecules
+    from magicclass import MagicTemplate
     from typing_extensions import Self
+
+    from cylindra.widgets.batch import CylindraBatchWidget  # noqa: F401
+    from cylindra.widgets.batch._utils import LoaderInfo
+    from cylindra.widgets.main import CylindraMainWidget  # noqa: F401
 
 _V = TypeVar("_V")
 _W = TypeVar("_W", bound="MagicTemplate")
@@ -99,7 +100,7 @@ class MoleculesLayerAccessor(Accessor[MoleculesLayer, "CylindraMainWidget"]):
 
     def names(self) -> list[str]:
         """All molecules layer names."""
-        return list(layer.name for layer in self)
+        return [layer.name for layer in self]
 
     def count(self) -> int:
         """Number of molecules layers."""
@@ -130,7 +131,10 @@ class MoleculesLayerAccessor(Accessor[MoleculesLayer, "CylindraMainWidget"]):
     def iter(self, condition: _Condition | None = None) -> Iterator[MoleculesLayer]:
         """Iterate over molecules layers."""
         if condition is None:
-            condition = lambda _: True
+
+            def condition(_):
+                return True
+
         for layer in self:
             if condition(layer):
                 yield layer
@@ -140,7 +144,10 @@ class MoleculesLayerAccessor(Accessor[MoleculesLayer, "CylindraMainWidget"]):
     ) -> Iterator[Molecules]:
         """Iterate over molecules."""
         if condition is None:
-            condition = lambda _: True
+
+            def condition(_):
+                return True
+
         for layer in self:
             mole = layer.molecules
             if condition(mole):
@@ -191,10 +198,8 @@ class MoleculesLayerAccessor(Accessor[MoleculesLayer, "CylindraMainWidget"]):
         exclude: str = "",
         pattern: str = "",
     ) -> None:
-        old_names = list(
-            l.name for l in self._filtered_layers(include, exclude, pattern)
-        )
-        new_names = list(n.replace(old, new) for n in old_names)
+        old_names = [l.name for l in self._filtered_layers(include, exclude, pattern)]
+        new_names = [n.replace(old, new) for n in old_names]
         ui = self.widget()
         viewer = self.viewer()
 
@@ -209,9 +214,13 @@ class MoleculesLayerAccessor(Accessor[MoleculesLayer, "CylindraMainWidget"]):
         with ui.macro.blocked():
             redo()
         fn = Expr(Head.getattr, [self._my_symbol(), "rename"])
-        kwargs = dict(
-            old=old, new=new, include=include, exclude=exclude, pattern=pattern
-        )
+        kwargs = {
+            "old": old,
+            "new": new,
+            "include": include,
+            "exclude": exclude,
+            "pattern": pattern,
+        }
         expr = Expr.parse_call(fn, kwargs=kwargs)
         ui.macro.append_with_undo(expr, undo, redo)
         return None
@@ -285,7 +294,7 @@ class BatchLoaderAccessor(Accessor["LoaderInfo", "CylindraBatchWidget"]):
 
     def names(self) -> list[str]:
         """All molecules layer names."""
-        return list(layer.name for layer in self)
+        return [layer.name for layer in self]
 
     def count(self) -> int:
         """Number of molecules layers."""

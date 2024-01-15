@@ -1,16 +1,16 @@
 from typing import Annotated, Any
+
+import impy as ip
 import numpy as np
 import pandas as pd
 import polars as pl
-
-from magicclass import field, magicmenu, set_design
-from magicclass.widgets import Separator
-from magicclass.types import Path
 from acryo import Molecules
-import impy as ip
+from magicclass import field, magicmenu, set_design
+from magicclass.types import Path
+from magicclass.widgets import Separator
 
-from cylindra.types import get_monomer_layers, MoleculesLayer
 from cylindra.const import FileFilter
+from cylindra.types import MoleculesLayer, get_monomer_layers
 from cylindra.widget_utils import add_molecules, capitalize
 from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
@@ -331,7 +331,7 @@ def _save_molecules(
     mod_name: "str | None" = None,
     csv_name: "str | None" = None,
 ):
-    from .cmd import save_mod, save_angles
+    from .cmd import save_angles, save_mod
 
     if mod_name is None:
         mod_name = "coordinates.mod"

@@ -1,20 +1,21 @@
 from __future__ import annotations
 
-from typing import Iterable, Any, overload, TYPE_CHECKING
-from pathlib import Path
 import warnings
-import numpy as np
-from numpy.typing import NDArray
-import impy as ip
-from acryo.tilt import single_axis, dual_axis, TiltSeriesModel, SingleAxis, NoWedge
-from acryo.tilt.core import UnionAxes, SingleAxisX, SingleAxisY
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Iterable, overload
 
-from cylindra.const import nm
+import impy as ip
+import numpy as np
+from acryo.tilt import NoWedge, TiltSeriesModel, dual_axis, single_axis
+from acryo.tilt.core import SingleAxisX, SingleAxisY, UnionAxes
+from numpy.typing import NDArray
+
 from cylindra._config import get_config
+from cylindra.const import nm
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
     from acryo import Molecules, SubtomogramLoader
+    from typing_extensions import Self
 
 
 class Tomogram:
@@ -285,6 +286,7 @@ class Tomogram:
                     f"Binsize {binsize} already exists in multiscale images. "
                     "Skip binning process.",
                     UserWarning,
+                    stacklevel=2,
                 )
                 return _img
             if binsize % _b == 0:
@@ -353,10 +355,10 @@ class Tomogram:
             mole = mole.translate([tr, tr, tr])
             img = self.get_multiscale(binsize)
 
-        kwargs = dict(
-            order=order,
-            scale=self.scale * binsize,
-        )
+        kwargs = {
+            "order": order,
+            "scale": self.scale * binsize,
+        }
         if output_shape is not None:
             kwargs["output_shape"] = tuple(self.nm2pixel(output_shape, binsize=binsize))
         return SubtomogramLoader(

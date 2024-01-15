@@ -1,19 +1,22 @@
 from __future__ import annotations
+
 from enum import Enum
-
 from typing import TYPE_CHECKING, Iterable, overload
-import numpy as np
-from numpy.typing import NDArray
-import polars as pl
 
-from cylindra.const import MoleculesHeader as Mole, PropertyNames as H
-from cylindra.utils import assert_column_exists
+import numpy as np
+import polars as pl
+from numpy.typing import NDArray
+
 from cylindra._cylindra_ext import RegionProfiler as _RegionProfiler
+from cylindra.const import MoleculesHeader as Mole
+from cylindra.const import PropertyNames as H
+from cylindra.utils import assert_column_exists
 
 if TYPE_CHECKING:
     from acryo import Molecules
-    from cylindra.components import CylSpline
+
     from cylindra._napari import MoleculesLayer
+    from cylindra.components import CylSpline
 
 
 def calc_spacing(mole: Molecules, spl: CylSpline) -> pl.Series:
@@ -170,17 +173,17 @@ def calc_localvec_lat(
     mole_ext, new_pf_id = _pad_molecules_at_seam(mole, spl)
     surf = CylinderSurface(spl)
     for _, sub in _groupby_with_index(mole.concat_with(mole_ext), Mole.nth):
-        sub = sub.sort(Mole.pf)
-        _interv_vec = np.diff(sub.pos, axis=0, append=np.nan)
-        _start = _mole_to_coords(sub)
+        sub0 = sub.sort(Mole.pf)
+        _interv_vec = np.diff(sub0.pos, axis=0, append=np.nan)
+        _start = _mole_to_coords(sub0)
         _vec_tr = surf.transform_vector(_interv_vec, _start)
-        if sub.features[Mole.pf][-1] == new_pf_id:
+        if sub0.features[Mole.pf][-1] == new_pf_id:
             _vec_tr = _vec_tr[:-1, :]
-            sub = sub.subset(slice(None, -1))
+            sub0 = sub0.subset(slice(None, -1))
         else:
             _vec_tr[:-1, :] = fill
         subsets.append(
-            sub.with_features(
+            sub0.with_features(
                 pl.Series("vecr", _vec_tr[:, 0], dtype=pl.Float32),
                 pl.Series("vecy", _vec_tr[:, 1], dtype=pl.Float32),
                 pl.Series("veca", _vec_tr[:, 2], dtype=pl.Float32),

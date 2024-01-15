@@ -1,20 +1,23 @@
 from glob import glob
 from pathlib import Path
-from typing import Annotated, TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
+
 from magicclass import (
     abstractapi,
-    magicclass,
     field,
-    vfield,
-    set_design,
     get_button,
     get_function_gui,
+    magicclass,
+    set_design,
+    vfield,
 )
 from magicclass.utils import thread_worker
-from ._child_widget import ChildWidget
+
 from cylindra._previews import view_image
-from cylindra.project import ProjectSequence, CylindraProject
+from cylindra.project import CylindraProject, ProjectSequence
 from cylindra.widgets.subwidgets import LocalPropertiesWidget
+
+from ._child_widget import ChildWidget
 
 if TYPE_CHECKING:
     from cylindra.components import CylSpline
@@ -47,9 +50,7 @@ class FileIterator(ChildWidget):
         if val == "":
             raise ValueError("Pattern is not set.")
         self.pattern = Path(val).as_posix()
-        self._files = list(
-            Path(p).as_posix() for p in glob(self.pattern, recursive=True)
-        )
+        self._files = [Path(p).as_posix() for p in glob(self.pattern, recursive=True)]
         self._files.sort()
         if len(self._files) == 0:
             self.path = "No files found"

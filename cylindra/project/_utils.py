@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-from macrokit import parse, Head, Expr
 
+from macrokit import Expr, Head, parse
 
 _MACRO_FORMAT = """import polars as pl
 from cylindra.widgets import CylindraMainWidget

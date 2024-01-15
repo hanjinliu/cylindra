@@ -1,33 +1,34 @@
-from typing import Iterator
-from fnmatch import fnmatch
 import glob
-
-from magicgui.widgets import ComboBox, Container, Widget
-from magicclass import (
-    do_not_record,
-    impl_preview,
-    magicclass,
-    field,
-    magicmenu,
-    nogui,
-    vfield,
-    MagicTemplate,
-    set_design,
-    abstractapi,
-)
-from magicclass.types import Path, ExprStr
-from magicclass.widgets import Separator, ConsoleTextEdit
-from magicclass.ext.polars import DataFrameView
-from acryo import BatchLoader, Molecules, SubtomogramLoader
+from fnmatch import fnmatch
+from typing import Iterator
 
 import impy as ip
 import polars as pl
+from acryo import BatchLoader, Molecules, SubtomogramLoader
+from magicclass import (
+    MagicTemplate,
+    abstractapi,
+    do_not_record,
+    field,
+    impl_preview,
+    magicclass,
+    magicmenu,
+    nogui,
+    set_design,
+    vfield,
+)
+from magicclass.ext.polars import DataFrameView
+from magicclass.types import ExprStr, Path
+from magicclass.widgets import ConsoleTextEdit, Separator
+from magicgui.widgets import ComboBox, Container, Widget
 
-from cylindra.project import CylindraProject, get_project_file
-from cylindra.const import MoleculesHeader as Mole, FileFilter
-from cylindra.core import ACTIVE_WIDGETS
-from cylindra.widget_utils import POLARS_NAMESPACE
 from cylindra._config import get_config
+from cylindra.const import FileFilter
+from cylindra.const import MoleculesHeader as Mole
+from cylindra.core import ACTIVE_WIDGETS
+from cylindra.project import CylindraProject, get_project_file
+from cylindra.widget_utils import POLARS_NAMESPACE
+
 from ._utils import PathInfo, TempFeatures
 
 

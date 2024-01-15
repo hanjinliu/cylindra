@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable, Iterable
+
 import numpy as np
 import polars as pl
 from acryo import Molecules
-from cylindra.components.spline import CylSpline
 
-from cylindra.const import MoleculesHeader as Mole, PropertyNames as H
+from cylindra.components.spline import CylSpline
+from cylindra.const import MoleculesHeader as Mole
+from cylindra.const import PropertyNames as H
 
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
@@ -36,8 +38,8 @@ def flat_view(
         return a color. If sequence, it must be a sequence of colors. A
         predefined colormap name is also accepted.
     """
-    from matplotlib.patches import Circle
     import matplotlib.pyplot as plt
+    from matplotlib.patches import Circle
 
     nth = mole.features[Mole.nth].to_numpy()
     pf = mole.features[Mole.pf].to_numpy()
@@ -64,7 +66,7 @@ def flat_view(
         ref_feature = _get_feature_values()
         face_color = [colors(feat) for feat in ref_feature]
     elif isinstance(colors, str):
-        from vispy.color import get_colormap, Colormap
+        from vispy.color import Colormap, get_colormap
 
         ref_feature = _get_feature_values()
         cmap: Colormap = get_colormap(colors)

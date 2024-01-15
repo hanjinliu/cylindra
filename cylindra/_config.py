@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-from pathlib import Path
-import json
-from typing import Callable
 import atexit
-from dataclasses import dataclass, asdict
-from functools import wraps
+import json
 from contextlib import contextmanager
+from dataclasses import asdict, dataclass
+from functools import wraps
+from pathlib import Path
+from typing import Callable
 
 from appdirs import user_config_dir
-
 
 VAR_PATH = Path(user_config_dir("variables", "cylindra"))
 SETTINGS_DIR = Path(user_config_dir("settings", "cylindra"))
@@ -162,7 +161,6 @@ def patch_config_dir(dir: str | Path):
 def get_main_function(filename: str | Path) -> Callable:
     """Get the main function object from the file."""
     from runpy import run_path
-    from magicclass import logging
 
     path = Path(filename)
     if not path.exists():

@@ -1,17 +1,19 @@
 from magicclass import (
+    abstractapi,
+    bind_key,
     do_not_record,
+    field,
     magicmenu,
     magictoolbar,
-    field,
-    vfield,
-    bind_key,
     set_design,
-    abstractapi,
+    vfield,
 )
-from magicclass.widgets import Separator
 from magicclass.logging import getLogger
+from magicclass.widgets import Separator
+
 from cylindra.components.picker import AutoCorrelationPicker
 from cylindra.widget_utils import change_viewer_focus
+
 from ._child_widget import ChildWidget
 
 _Logger = getLogger("cylindra")

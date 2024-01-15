@@ -1,13 +1,15 @@
-from abc import abstractclassmethod, abstractmethod
-from typing import TYPE_CHECKING
-from pathlib import Path
 import warnings
+from abc import abstractclassmethod, abstractmethod
+from pathlib import Path
+from typing import TYPE_CHECKING
+
 from pydantic import BaseModel
 
 if TYPE_CHECKING:
-    from cylindra.widgets.main import CylindraMainWidget
-    from cylindra._napari import MoleculesLayer, LandscapeSurface
     from napari.layers import Layer
+
+    from cylindra._napari import LandscapeSurface, MoleculesLayer
+    from cylindra.widgets.main import CylindraMainWidget
 
 
 class LayerInfo(BaseModel):
@@ -73,11 +75,16 @@ class MoleculesInfo(LayerInfo):
 
     def to_layer(self, gui: "CylindraMainWidget", project_dir: Path):
         from acryo import Molecules
+
         from cylindra._napari import MoleculesLayer
 
         path = project_dir / self.name
         if not path.exists():
-            warnings.warn(f"Cannot find molecule file {path}. Probably it was moved?")
+            warnings.warn(
+                f"Cannot find molecule file {path}. Probably it was moved?",
+                RuntimeWarning,
+                stacklevel=2,
+            )
             return
         mole = Molecules.from_file(path)
 
@@ -85,12 +92,12 @@ class MoleculesInfo(LayerInfo):
             src = gui.tomogram.splines[self.source]
         else:
             src = None
-        kwargs = dict(
-            name=self.stem,
-            source=src,
-            visible=self.visible,
-            size=self.point_size,
-        )
+        kwargs = {
+            "name": self.stem,
+            "source": src,
+            "visible": self.visible,
+            "size": self.point_size,
+        }
         match self.color:
             case str(color):
                 kwargs["face_color"] = color
@@ -131,7 +138,11 @@ class LandscapeInfo(LayerInfo):
 
         path = project_dir / self.name
         if not path.exists():
-            warnings.warn(f"Cannot find landscape file {path}. Probably it was moved?")
+            warnings.warn(
+                f"Cannot find landscape file {path}. Probably it was moved?",
+                RuntimeWarning,
+                stacklevel=2,
+            )
             return
         landscape = Landscape.from_dir(path)
 

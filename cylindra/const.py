@@ -1,6 +1,8 @@
 from __future__ import annotations
+
 from enum import Enum
 from types import SimpleNamespace
+
 import polars as pl
 
 nm = float  # type alias for nanometer
@@ -177,13 +179,14 @@ class EulerAxes(strEnum):
 
 def get_versions() -> dict[str, str]:
     """Return version info of relevant libraries."""
+    import dask
+    import impy as ip
+    import magicclass as mcls
+    import magicgui
     import napari
     import numpy as np
-    import impy as ip
-    import magicgui
+
     from cylindra import __version__
-    import magicclass as mcls
-    import dask
 
     return {
         "cylindra": __version__,
