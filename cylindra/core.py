@@ -41,6 +41,7 @@ def start(
     headless : bool, default False
         If True, do not show the viewer.
     """
+    from cylindra.widgets import CylindraMainWidget  # noqa: I001
     import impy as ip
     import matplotlib.pyplot as plt
     import napari
@@ -50,7 +51,6 @@ def start(
     from magicclass import logging
 
     from cylindra._config import init_config
-    from cylindra.widgets import CylindraMainWidget
 
     global _CURRENT_INSTANCE
 

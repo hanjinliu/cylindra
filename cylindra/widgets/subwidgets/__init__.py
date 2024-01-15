@@ -14,6 +14,7 @@ from .misc import GeneralInfo, ImageLoader
 from .pca import PcaViewer
 from .properties import GlobalPropertiesWidget, LocalPropertiesWidget
 from .runner import Runner
+from .simulator import Simulator
 from .slicer import SplineSlicer
 from .spline_clipper import SplineClipper
 from .spline_control import SplineControl
@@ -27,7 +28,7 @@ __all__ = [
     "PcaViewer",
     "LocalPropertiesWidget",
     "GlobalPropertiesWidget",
-    "CylinderSimulator",
+    "Simulator",
     "SplineSlicer",
     "SplineClipper",
     "SplineControl",

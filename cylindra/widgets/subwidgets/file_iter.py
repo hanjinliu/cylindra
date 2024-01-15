@@ -15,7 +15,7 @@ from magicclass.utils import thread_worker
 
 from cylindra._previews import view_image
 from cylindra.project import CylindraProject, ProjectSequence
-from cylindra.widgets.subwidgets import LocalPropertiesWidget
+from cylindra.widgets.subwidgets.properties import LocalPropertiesWidget
 
 from ._child_widget import ChildWidget
 

@@ -27,8 +27,8 @@ init_opengl_and_dpi()
 
 del dont_use_native_menu_bar, init_opengl_and_dpi
 
+from .main import CylindraMainWidget  # noqa: F401, E402, I001
 from . import _ui_init  # initialize main widget  # noqa: F401, E402
-from .main import CylindraMainWidget  # noqa: F401, E402
 
 del _ui_init
 
