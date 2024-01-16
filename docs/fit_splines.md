@@ -75,6 +75,15 @@ to pass nearby the estimated centers as much as possible, while avoiding the out
        actual center line, you should not mask the image.
     7. "max shift" is the maximum shift of the sampling points to the estimated center.
 
+!!! note
+
+    If the filament is thin, fitting to the centroid may work better. To do this, use
+    following methods instead.
+
+    :material-arrow-right-thin-circle-outline: API: [`fit_splines`][cylindra.widgets.main.CylindraMainWidget.fit_splines_by_centroid]
+
+    :material-arrow-right-thin-circle-outline: GUI: `Splines > Fitting > Fit splines by centroid`
+
 ### Refine the fitting
 
 :material-arrow-right-thin-circle-outline: API: [`refine_splines`][cylindra.widgets.main.CylindraMainWidget.refine_splines]
@@ -148,5 +157,3 @@ shape: (0, 0)
 └┘
 )
 ```
-
-Next step: [Measure Lattice Parameters](lattice_params.md)

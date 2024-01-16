@@ -124,7 +124,9 @@ _STYLE = (
     .read_text()
     .replace("%QSS_PATH%", _WIDGETS_PATH.as_posix())
 )
-_NSPLINES = "len(self.splines) if splines is None else len(splines)"
+_NSPLINES = (
+    "len(self.splines) if splines is None or isinstance(splines, str) else len(splines)"
+)
 
 
 def _choice_getter(method_name: str, dtype_kind: str = ""):

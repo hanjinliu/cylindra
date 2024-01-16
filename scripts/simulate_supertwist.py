@@ -1,12 +1,13 @@
-from cylindra import start
-from cylindra.widgets import CylindraMainWidget
-from cylindra.types import MoleculesLayer
 import tempfile
-import polars as pl
-from magicclass.types import Path
-from magicclass.ext.polars import DataFrameView
-import napari
 
+import napari
+import polars as pl
+from magicclass.ext.polars import DataFrameView
+from magicclass.types import Path
+
+from cylindra import start
+from cylindra.types import MoleculesLayer
+from cylindra.widgets import CylindraMainWidget
 from scripts.user_consts import TEMPLATE_X
 
 

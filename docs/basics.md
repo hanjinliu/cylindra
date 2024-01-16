@@ -35,9 +35,13 @@ Following the convention of `napari` and `acryo`, the 3D coordinates are stored 
     3D array `arr` and a molecule at position `(z, y, x)`, you can access the value
     of the molecule by `arr[z, y, x]`.
 
+Therefore, if you have a 3D image `img`, `img.shape[0]` is the size of z axis. If a list
+of points is stored in a (N, 3) array `points`, `points[:, 0]` is the list of z
+coordinates.
+
 ## Manual and Programmatic Operations
 
-Owing to `magicgui` and  `magic-class`, all the operations can be done either manually
+Owing to `magicgui` and `magic-class`, all the operations can be done either manually
 or programmatically. For example, clicking the `File > Open image` item will open a
 dialog for you to select an image file, scale and so on. This function can also be
 called programmatically by `ui.open_image(...)`.
@@ -45,7 +49,8 @@ called programmatically by `ui.open_image(...)`.
 Throughout this documentation, you'll find following notations:
 
 :material-arrow-right-thin-circle-outline: API: `ui.<method-name>`
-:material-arrow-right-thin-circle-outline: GUI: `XXX > YYY` or many some shortcut keys
+
+:material-arrow-right-thin-circle-outline: GUI: `XXX > YYY` or maybe some shortcut keys
 
 These notations tell you how to do the same thing programmatically or manually. You can
 also open the command palette (++ctrl+p++) to search for the operation.
@@ -75,8 +80,6 @@ As data analyses of electron microscopy is a complicated process, you may need t
 combine many softwares together. Currently, `cylindra` provides functions to read/write
 `Spline` and `Molecules` objects from/to `IMOD` files. If you want other formats to be
 supported, please open an issue or submit a pull request to the [repository](https://github.com/hanjinliu/cylindra).
-
-Next step: [Start `cylindra`](open_image.md)
 
 ## Configure Global Variables
 
