@@ -25,7 +25,11 @@ from cylindra._previews import view_tables
 from cylindra import utils, widget_utils
 from cylindra.widgets.main import CylindraMainWidget
 from cylindra.widgets.sta import SubtomogramAveraging
-from cylindra.widgets._main_utils import normalize_offsets, rotvec_from_axis_and_degree
+from cylindra.widgets._main_utils import (
+    normalize_offsets,
+    normalize_radius,
+    rotvec_from_axis_and_degree,
+)
 from cylindra._napari import MoleculesLayer
 from cylindra import _config
 
@@ -126,6 +130,7 @@ def _preview_map_monomers_with_extensions(
     n_extend: dict[int, tuple[int, int]],
     orientation=None,
     offsets: tuple[float, float] | None = None,
+    radius: float | None = None,
 ):
     tomo = self.tomogram
     spl = tomo.splines[spline]
@@ -134,7 +139,8 @@ def _preview_map_monomers_with_extensions(
         i=spline,
         coords=coords,
         orientation=orientation,
-        offsets=normalize_offsets(offsets, tomo.splines[spline]),
+        offsets=normalize_offsets(offsets, spl),
+        radius=normalize_radius(radius, spl),
     )
     viewer = self.parent_viewer
 
