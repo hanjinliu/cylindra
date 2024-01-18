@@ -1669,7 +1669,7 @@ class CylindraMainWidget(MagicTemplate):
             i=spline,
             coords=coords,
             orientation=orientation,
-            offsets=offsets,
+            offsets=normalize_offsets(offsets, spl),
             radius=normalize_radius(radius, spl),
         )
         layer = self.add_molecules(mole, f"{prefix}-{spline}", source=spl)
