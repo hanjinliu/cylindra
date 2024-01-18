@@ -1,29 +1,30 @@
 from __future__ import annotations
+
+import random
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Callable, Iterable
-import random
+
 import numpy as np
-
-from qtpy import QtWidgets as QtW, QtCore, QtGui
-from qtpy.QtCore import Qt
-
+from magicclass.widgets import ScrollableContainer
+from magicgui.backends._qtpy import widgets as backend_qtw
+from magicgui.types import ChoicesType, Undefined
 from magicgui.widgets import (
-    SpinBox,
-    Container,
-    Label,
-    FloatSpinBox,
-    LineEdit,
-    PushButton,
     CheckBox,
     ComboBox,
+    Container,
+    FloatSpinBox,
+    Label,
+    LineEdit,
+    PushButton,
+    SpinBox,
     protocols,
     show_file_dialog,
 )
 from magicgui.widgets.bases import CategoricalWidget, ValueWidget
-from magicgui.types import ChoicesType, Undefined
-from magicgui.backends._qtpy import widgets as backend_qtw
-from magicclass.widgets import ScrollableContainer
+from qtpy import QtCore, QtGui
+from qtpy import QtWidgets as QtW
+from qtpy.QtCore import Qt
 
 
 class ProtofilamentEdit(ScrollableContainer[Container[SpinBox]]):
@@ -479,7 +480,7 @@ class KernelEdit(Container[Container[CheckBox]]):
                 )
             val = val > 0
         if val.ndim != 2 or val.dtype.kind not in "uifb":
-            raise ValueError(f"Array must be 2D and numeric.")
+            raise ValueError("Array must be 2D and numeric.")
         ny, nx = val.shape
         lim = self._SizeLim
         if ny > lim or nx > lim:

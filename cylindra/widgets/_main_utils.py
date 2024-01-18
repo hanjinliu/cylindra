@@ -1,15 +1,16 @@
 from __future__ import annotations
-from types import TracebackType
 
 import weakref
 from timeit import default_timer
+from types import TracebackType
 from typing import TYPE_CHECKING, ContextManager, Iterable, Literal
-import numpy as np
 
+import numpy as np
 from magicclass.undo import undo_callback
+
+from cylindra import _config
 from cylindra.const import PropertyNames as H
 from cylindra.project import CylindraProject
-from cylindra import _config
 
 if TYPE_CHECKING:
     from cylindra.components import CylSpline

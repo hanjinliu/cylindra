@@ -1,18 +1,19 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-import numpy as np
+
 import impy as ip
+import numpy as np
 import polars as pl
 from napari.layers import Image, Points
-from cylindra._napari import CylinderLabels
 
+from cylindra._napari import CylinderLabels
 from cylindra.const import (
-    SplineColor,
+    SELECTION_LAYER_NAME,
     SPLINE_ID,
     WORKING_LAYER_NAME,
-    SELECTION_LAYER_NAME,
     Ori,
+    SplineColor,
 )
 
 if TYPE_CHECKING:
@@ -125,7 +126,7 @@ class ReservedLayers:
         self.prof.feature_defaults[SPLINE_ID] = default
 
     def init_prof_and_work(self):
-        common_properties = dict(ndim=3, out_of_slice_display=True, size=8)
+        common_properties = {"ndim": 3, "out_of_slice_display": True, "size": 8}
         self.prof = Points(
             **common_properties,
             name=SELECTION_LAYER_NAME,

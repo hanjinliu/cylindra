@@ -1,4 +1,4 @@
-from magicclass import magicmenu, MagicTemplate, abstractapi, field
+from magicclass import MagicTemplate, abstractapi, field, magicmenu
 from magicclass.widgets import Separator
 
 

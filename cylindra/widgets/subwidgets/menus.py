@@ -1,55 +1,56 @@
-from functools import partial
 import inspect
-from typing import Annotated, TYPE_CHECKING, Literal
 from datetime import datetime
+from functools import partial
+from typing import TYPE_CHECKING, Annotated, Literal
 
-import numpy as np
-from macrokit import Head, parse, Symbol
-from macrokit.utils import check_call_args, check_attributes
 import matplotlib.pyplot as plt
+import numpy as np
 from acryo import pipe
-
+from macrokit import Head, Symbol, parse
+from macrokit.utils import check_attributes, check_call_args
 from magicclass import (
-    do_not_record,
-    get_function_gui,
-    magicmenu,
-    field,
-    nogui,
-    setup_function_gui,
     MagicTemplate,
-    set_options,
-    set_design,
+    abstractapi,
     bind_key,
     confirm,
-    abstractapi,
+    do_not_record,
+    field,
+    get_function_gui,
+    magicmenu,
+    nogui,
+    set_design,
+    set_options,
+    setup_function_gui,
 )
-from magicclass.widgets import Separator, ConsoleTextEdit, CodeEdit
-from magicclass.types import Path, Color, Optional
-from magicclass.logging import getLogger
-from magicclass.utils import thread_worker
 from magicclass.ext.polars import DataFrameView
+from magicclass.logging import getLogger
+from magicclass.types import Color, Optional, Path
+from magicclass.utils import thread_worker
+from magicclass.widgets import CodeEdit, ConsoleTextEdit, Separator
 
+from cylindra import _config
 from cylindra._napari import MoleculesLayer
-from cylindra.utils import roundint, str_color
-from cylindra.types import get_monomer_layers, ColoredLayer
-from cylindra.ext.etomo import IMOD
-from cylindra.const import nm, get_versions, ImageFilter, FileFilter
+from cylindra.components.spline import SplineConfig
+from cylindra.const import FileFilter, ImageFilter, get_versions, nm
 from cylindra.core import ACTIVE_WIDGETS
+from cylindra.ext.etomo import IMOD
 from cylindra.project import CylindraProject, extract
-from cylindra.widget_utils import get_code_theme, capitalize
+from cylindra.types import ColoredLayer
+from cylindra.utils import roundint, str_color
+from cylindra.widget_utils import capitalize, get_code_theme
 from cylindra.widgets._annotated import assert_layer
 from cylindra.widgets._widget_ext import CheckBoxes
-from cylindra.components.spline import SplineConfig
-from cylindra import _config
 
 from ._child_widget import ChildWidget
 
 if TYPE_CHECKING:
-    from cylindra.widgets import CylindraMainWidget
-    from magicgui.widgets import FunctionGui
     from magicclass._gui._macro import MacroEdit
+    from magicgui.widgets import FunctionGui
+
+    from cylindra.widgets import CylindraMainWidget
 
 _Logger = getLogger("cylindra")
+_AppCfg = _config.get_config()
 
 
 @magicmenu
@@ -312,7 +313,7 @@ class SplinesMenu(ChildWidget):
         @do_not_record
         def show_localprops(self):
             """Show spline local properties in a table widget."""
-            from magicgui.widgets import Container, ComboBox
+            from magicgui.widgets import ComboBox, Container
 
             main = self._get_main()
             cbox = ComboBox(choices=main._get_splines)
@@ -573,8 +574,9 @@ class MoleculesMenu(ChildWidget):
             backend : "inline" or "qt", optional
                 Plotting backend. "inline" means the plot is shown in the console.
             """
-            from cylindra.components.visualize import flat_view
             from matplotlib.axes import Axes
+
+            from cylindra.components.visualize import flat_view
 
             layer = assert_layer(layer, self._get_main().parent_viewer)
             match backend:
@@ -624,8 +626,8 @@ class MoleculesMenu(ChildWidget):
             scale : nm, default 1.5
                 Scale to resize the template image.
             """
-            from skimage.measure import marching_cubes
             from skimage.filters import threshold_yen
+            from skimage.measure import marching_cubes
 
             template = pipe.from_file(template_path).provide(scale)
             mole = layer.molecules
@@ -1013,12 +1015,12 @@ class OthersMenu(ChildWidget):
     @do_not_record
     def configure_cylindra(
         self,
-        default_spline_config: Annotated[str, {"choices": _get_list_of_cfg}] = _config.get_config().default_spline_config,
-        dask_chunk: tuple[int, int, int] = _config.get_config().dask_chunk,
-        point_size: Annotated[float, {"min": 0.5, "max": 10}] = _config.get_config().point_size,
-        molecules_color: Color = _config.get_config().molecules_color,
-        molecules_ndim: Literal[2, 3] = _config.get_config().molecules_ndim,
-        use_gpu: Annotated[bool, {"label": "use GPU"}] = _config.get_config().use_gpu,
+        default_spline_config: Annotated[str, {"choices": _get_list_of_cfg}] = _AppCfg.default_spline_config,
+        dask_chunk: tuple[int, int, int] = _AppCfg.dask_chunk,
+        point_size: Annotated[float, {"min": 0.5, "max": 10}] = _AppCfg.point_size,
+        molecules_color: Color = _AppCfg.molecules_color,
+        molecules_ndim: Literal[2, 3] = _AppCfg.molecules_ndim,
+        use_gpu: Annotated[bool, {"label": "use GPU"}] = _AppCfg.use_gpu,
     ):  # fmt: skip
         """
         Configure cylindra application global parameters.
@@ -1063,10 +1065,10 @@ def normalize_workflow(workflow: str, ui: "CylindraMainWidget") -> str:
     workflow = workflow.replace("\t", "    ")
     expr = parse(workflow)
     if errors := check_call_args(expr, {"ui": ui}):
-        msg = "".join(map(lambda s: f"\n - {s}", errors))
+        msg = "".join(f"\n - {s}" for s in errors)
         raise ValueError(f"Method errors found in workflow script: {msg}")
     if errors := check_attributes(expr, {"ui": ui}):
-        msg = "".join(map(lambda s: f"\n - {s}", errors))
+        msg = "".join(f"\n - {s}" for s in errors)
         raise ValueError(f"Attribute errors found in workflow script: {msg}")
     _main_function_found = False
     for line in expr.args:

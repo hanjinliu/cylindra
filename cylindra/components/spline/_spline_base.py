@@ -1,35 +1,35 @@
 from __future__ import annotations
 
+import logging
+import warnings
 from functools import lru_cache
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Sequence,
     TypeVar,
-    TYPE_CHECKING,
     overload,
 )
-import warnings
-import logging
 
 import numpy as np
-from scipy.interpolate import splprep, splev, splrep
-from scipy.spatial.transform import Rotation
-
 from acryo import Molecules
 from acryo.molecules import axes_to_rotator
+from scipy.interpolate import splev, splprep, splrep
+from scipy.spatial.transform import Rotation
 
-from cylindra.utils import ceilint, interval_divmod, roundint
-from cylindra.const import Mode, nm, ExtrapolationMode
 from cylindra.components._base import BaseComponent
+from cylindra.const import ExtrapolationMode, Mode, nm
 from cylindra.cyltransform import polar_coords_2d
-from ._props import SplineProps
+from cylindra.utils import ceilint, interval_divmod, roundint
+
 from ._config import SplineConfig
-from ._types import TCKType, SplineInfo, SplineFitResult
+from ._props import SplineProps
+from ._types import SplineFitResult, SplineInfo, TCKType
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
     from numpy.typing import ArrayLike, NDArray
+    from typing_extensions import Self
 
 logger = logging.getLogger("cylindra")
 
@@ -194,13 +194,13 @@ class Spline(BaseComponent):
     def anchors(self, positions: float | Sequence[float]) -> None:
         _anc = np.atleast_1d(np.asarray(positions, dtype=np.float32))
         if _anc.ndim != 1:
-            raise TypeError(f"Could not convert positions into 1D array.")
+            raise TypeError("Could not convert positions into 1D array.")
         elif _anc.min() < 0 or _anc.max() > 1:
             msg = (
-                f"Anchor positions should be set between 0 and 1. Otherwise spline "
-                f"curve does not fit well."
+                "Anchor positions should be set between 0 and 1. Otherwise spline "
+                "curve does not fit well."
             )
-            warnings.warn(msg, UserWarning)
+            warnings.warn(msg, UserWarning, stacklevel=2)
         _old = self._anchors
         if (
             _old is None

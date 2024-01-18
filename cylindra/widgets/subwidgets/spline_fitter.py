@@ -1,21 +1,22 @@
 from typing import Annotated
-import numpy as np
+
 import impy as ip
-
+import numpy as np
 from magicclass import (
-    do_not_record,
-    magicclass,
-    field,
     MagicTemplate,
-    bind_key,
-    set_design,
     abstractapi,
+    bind_key,
+    do_not_record,
+    field,
+    magicclass,
+    set_design,
 )
-from magicclass.undo import undo_callback
 from magicclass.ext.pyqtgraph import QtImageCanvas, mouse_event
+from magicclass.undo import undo_callback
 
-from cylindra.utils import roundint, centroid, map_coordinates
-from cylindra.const import nm, Mode
+from cylindra.const import Mode, nm
+from cylindra.utils import centroid, map_coordinates, roundint
+
 from ._child_widget import ChildWidget
 
 _FILP_X = ip.slicer.x[::-1]
@@ -52,7 +53,7 @@ class SplineFitter(ChildWidget):
         theta = np.linspace(0, 2 * np.pi, 100, endpoint=False)
         cos = np.cos(theta)
         sin = np.sin(theta)
-        kwargs = dict(color="lime", lw=2, ls="--")
+        kwargs = {"color": "lime", "lw": 2, "ls": "--"}
         self.canvas.add_curve(cos, sin, **kwargs, antialias=True)
         self.canvas.add_curve(2 * cos, 2 * sin, **kwargs, antialias=True)
 

@@ -1,17 +1,20 @@
 import os
-from typing import TYPE_CHECKING
 from pathlib import Path
+from typing import TYPE_CHECKING
+
 import macrokit as mk
 from pydantic import BaseModel
 
+from cylindra._config import get_config
+from cylindra.const import (
+    MoleculesHeader as Mole,
+)
 from cylindra.const import (
     get_versions,
-    MoleculesHeader as Mole,
     nm,
 )
 from cylindra.project._base import BaseProject, PathLike, resolve_path
 from cylindra.project._utils import as_main_function
-from cylindra._config import get_config
 
 if TYPE_CHECKING:
     from cylindra.widgets.batch import CylindraBatchWidget
@@ -129,7 +132,7 @@ class CylindraBatchProject(BaseProject):
 
     def _to_gui(self, gui: "CylindraBatchWidget") -> None:
         import impy as ip
-        from acryo import Molecules, BatchLoader
+        from acryo import BatchLoader, Molecules
 
         for lmodel in self.loaders:
             loader = BatchLoader(scale=lmodel.scale)

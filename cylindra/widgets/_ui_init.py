@@ -1,41 +1,43 @@
 """Implement preview functions for the main widget."""
 from __future__ import annotations
 
-from pathlib import Path
 from contextlib import contextmanager, suppress
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
-from acryo import Molecules
-
-import polars as pl
-from magicgui.widgets import FunctionGui, PushButton, Label
-from magicclass.widgets import ConsoleTextEdit
-from magicclass import setup_function_gui, impl_preview
 
 import numpy as np
+import polars as pl
+from acryo import Molecules
+from magicclass import impl_preview, setup_function_gui
+from magicclass.widgets import ConsoleTextEdit
+from magicgui.widgets import FunctionGui, Label, PushButton
 from napari.utils.colormaps import label_colormap
 
+from cylindra import _config, utils, widget_utils
+from cylindra._napari import MoleculesLayer
+from cylindra._previews import view_tables
 from cylindra.const import (
-    PropertyNames as H,
     PREVIEW_LAYER_NAME,
+)
+from cylindra.const import (
     MoleculesHeader as Mole,
 )
-from cylindra.project import CylindraProject
+from cylindra.const import (
+    PropertyNames as H,
+)
 from cylindra.core import ACTIVE_WIDGETS
-from cylindra._previews import view_tables
-from cylindra import utils, widget_utils
-from cylindra.widgets.main import CylindraMainWidget
-from cylindra.widgets.sta import SubtomogramAveraging
+from cylindra.project import CylindraProject
 from cylindra.widgets._main_utils import (
     normalize_offsets,
     normalize_radius,
     rotvec_from_axis_and_degree,
 )
-from cylindra._napari import MoleculesLayer
-from cylindra import _config
+from cylindra.widgets.main import CylindraMainWidget
+from cylindra.widgets.sta import SubtomogramAveraging
 
 if TYPE_CHECKING:
-    from napari.layers import Layer
     from magicgui.widgets import FloatSpinBox
+    from napari.layers import Layer
 
 
 @impl_preview(CylindraMainWidget.load_molecules)

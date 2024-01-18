@@ -1,4 +1,4 @@
-from ._layers import MoleculesLayer, LandscapeSurface, CylinderLabels
+from ._layers import CylinderLabels, LandscapeSurface, MoleculesLayer
 
 __all__ = ["MoleculesLayer", "LandscapeSurface", "CylinderLabels"]
 

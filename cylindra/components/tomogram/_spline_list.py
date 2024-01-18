@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import Any, Callable, MutableSequence, overload, Iterable, Iterator
+from typing import Iterable, Iterator, MutableSequence, overload
+
 import numpy as np
-from numpy.typing import NDArray
 import polars as pl
+from numpy.typing import NDArray
 
 from cylindra.components.spline import CylSpline
 from cylindra.const import PropertyNames as H
@@ -74,14 +75,18 @@ class SplineList(MutableSequence[CylSpline]):
 
     def filter(self, predicate: pl.Expr) -> SplineList:
         """Filter the list by its global properties."""
-        fn: Callable[[CylSpline], bool] = lambda spl: spl.props.glob.select(predicate)[
-            0
-        ]
+
+        def fn(spl):
+            return spl.props.glob.select(predicate)[0]
+
         return SplineList(filter(fn, self._list))
 
     def sort(self, by: pl.Expr | str) -> SplineList:
         """Sort the list by its global properties."""
-        fn: Callable[[CylSpline], Any] = lambda spl: spl.props.glob.select(by)[0]
+
+        def fn(spl):
+            return spl.props.glob.select(by)[0]
+
         return SplineList(sorted(self._list, key=fn))
 
     def iter(self) -> Iterator[CylSpline]:

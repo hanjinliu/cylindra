@@ -1,9 +1,10 @@
+import impy as ip
+import numpy as np
+import pytest
+from numpy.testing import assert_allclose
+
 from cylindra import utils
 from cylindra.components.seam_search import BooleanSeamSearcher
-import pytest
-import numpy as np
-from numpy.testing import assert_allclose
-import impy as ip
 
 
 def test_ints():
@@ -165,4 +166,4 @@ def test_rotated_auto_zncc():
 )
 def test_infer_seam(label, expected: int):
     searcher = BooleanSeamSearcher(npf=4)
-    searcher.search(label).seam_pos == expected
+    assert searcher.search(label).seam_pos == expected

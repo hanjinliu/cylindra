@@ -1,25 +1,25 @@
+from .file_iter import FileIterator
 from .function_menu import Volume
 from .image_processor import ImageProcessor
 from .measure import SpectraInspector
-from .misc import ImageLoader, GeneralInfo
+from .menus import (
+    AnalysisMenu,
+    FileMenu,
+    ImageMenu,
+    MoleculesMenu,
+    OthersMenu,
+    SplinesMenu,
+)
+from .misc import GeneralInfo, ImageLoader
 from .pca import PcaViewer
-from .properties import LocalPropertiesWidget, GlobalPropertiesWidget
+from .properties import GlobalPropertiesWidget, LocalPropertiesWidget
 from .runner import Runner
 from .simulator import Simulator
 from .slicer import SplineSlicer
 from .spline_clipper import SplineClipper
 from .spline_control import SplineControl
 from .spline_fitter import SplineFitter
-from .menus import (
-    FileMenu,
-    ImageMenu,
-    SplinesMenu,
-    MoleculesMenu,
-    AnalysisMenu,
-    OthersMenu,
-)
 from .toolbar import CylindraToolbar
-from .file_iter import FileIterator
 
 __all__ = [
     "Volume",
@@ -28,7 +28,7 @@ __all__ = [
     "PcaViewer",
     "LocalPropertiesWidget",
     "GlobalPropertiesWidget",
-    "CylinderSimulator",
+    "Simulator",
     "SplineSlicer",
     "SplineClipper",
     "SplineControl",

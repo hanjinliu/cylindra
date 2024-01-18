@@ -1,25 +1,28 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NamedTuple, SupportsIndex, SupportsInt
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING, NamedTuple, SupportsIndex, SupportsInt
+
+import impy as ip
 import numpy as np
+import polars as pl
+from acryo import Molecules, alignment, pipe
 from numpy.typing import NDArray
 from scipy.spatial.transform import Rotation
-import polars as pl
-from acryo import Molecules, pipe, alignment
 from skimage.measure import marching_cubes
-import impy as ip
 
-from cylindra.const import MoleculesHeader as Mole, nm
-from cylindra.components.spline import CylSpline
+from cylindra._dask import Delayed, compute, delayed
 from cylindra.components._peak import find_peak
-from cylindra._dask import delayed, Delayed, compute
+from cylindra.components.spline import CylSpline
+from cylindra.const import MoleculesHeader as Mole
+from cylindra.const import nm
 
 if TYPE_CHECKING:
-    from acryo.loader._base import LoaderBase, TemplateInputType, MaskInputType
     from acryo.alignment._base import ParametrizedModel, TomographyInput
+    from acryo.loader._base import LoaderBase, MaskInputType, TemplateInputType
     from dask import array as da
+
     from cylindra._cylindra_ext import CylindricAnnealingModel
 
     _DistLike = nm | str
@@ -93,7 +96,7 @@ class Landscape:
         mask: MaskInputType = None,
         max_shifts: tuple[nm, nm, nm] = (0.8, 0.8, 0.8),
         upsample_factor: int = 5,
-        alignment_model: alignment.TomographyInput = alignment.ZNCCAlignment.with_params(),
+        alignment_model: alignment.TomographyInput = alignment.ZNCCAlignment,
     ) -> Landscape:
         """
         Construct a landscape from a loader object.

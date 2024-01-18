@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from pathlib import Path
 import math
 import warnings
-from cylindra.core import read_project, start
+from pathlib import Path
+
 from cylindra.cli._base import ParserBase
+from cylindra.core import read_project, start
 
 
 class ParserOpen(ParserBase):

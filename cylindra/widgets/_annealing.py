@@ -1,23 +1,24 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+
 import matplotlib.pyplot as plt
+import numpy as np
 from acryo import Molecules
-from magicgui.widgets import FunctionGui
 from magicclass import get_function_gui
 from magicclass.ext.pyqtgraph import QtMultiPlotCanvas
+from magicgui.widgets import FunctionGui
 
-import numpy as np
-
-from cylindra.const import MoleculesHeader as Mole, nm
+from cylindra._napari import LandscapeSurface, MoleculesLayer
+from cylindra.const import MoleculesHeader as Mole
+from cylindra.const import nm
 from cylindra.core import ACTIVE_WIDGETS
-from cylindra._napari import MoleculesLayer, LandscapeSurface
 
 if TYPE_CHECKING:
     from cylindra._cylindra_ext import CylindricAnnealingModel
-    from cylindra.widgets.sta import SubtomogramAveraging
     from cylindra.components import CylSpline
     from cylindra.components.landscape import AnnealingResult
+    from cylindra.widgets.sta import SubtomogramAveraging
 
 
 def get_annealing_model(
@@ -32,7 +33,7 @@ def get_annealing_model(
         cyl = spl.cylinder_model()
         _nrise, _npf = cyl.nrise, cyl.shape[1]
     else:
-        raise ValueError(f"Layer does not have a valid source spline.")
+        raise ValueError("Layer does not have a valid source spline.")
 
     _max_shifts = np.asarray(max_shifts, dtype=np.float32)
     _max_shifts_clipped = (_max_shifts / scale_factor).astype(np.int32) * scale_factor

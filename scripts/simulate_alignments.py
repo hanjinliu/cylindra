@@ -1,20 +1,19 @@
 import tempfile
-from matplotlib import pyplot as plt
+from timeit import default_timer
 
 import napari
+import numpy as np
+import polars as pl
+from acryo import Molecules
+from magicclass.ext.polars import DataFrameView
+from magicclass.types import Path
+from matplotlib import pyplot as plt
 
 from cylindra import start  # NOTE: Set ApplicationAttributes
-from timeit import default_timer
-from magicclass.types import Path
-from magicclass.ext.polars import DataFrameView
-import numpy as np
-from acryo import Molecules
-from cylindra.widgets import CylindraMainWidget
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.cylmeasure import calc_lateral_interval
 from cylindra.types import MoleculesLayer
-
-import polars as pl
+from cylindra.widgets import CylindraMainWidget
 from scripts.user_consts import TEMPLATE_X
 
 SPACING = Mole.spacing
@@ -228,7 +227,7 @@ def main():
     plt.show()
     names = ["conventional", "viterbi", "RMA"]
     dfs = {}
-    for n, layer in zip(names, ui.sta.sub_viewer.layers):
+    for n, layer in zip(names, ui.sta.sub_viewer.layers, strict=False):
         fsc = layer.metadata["fsc"]
         dfs["freq"] = fsc.freq
         dfs[n] = fsc.mean

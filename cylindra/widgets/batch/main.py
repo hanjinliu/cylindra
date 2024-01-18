@@ -1,30 +1,32 @@
-from typing import Annotated, Literal, Any
+from typing import Annotated, Any, Literal
+
 import impy as ip
 import polars as pl
-
 from acryo import BatchLoader
-from macrokit import Symbol, Expr
+from macrokit import Expr, Symbol
 from magicclass import (
+    MagicTemplate,
     confirm,
+    do_not_record,
+    field,
     get_button,
     magicclass,
-    do_not_record,
     set_design,
-    MagicTemplate,
-    field,
 )
 from magicclass.types import Path
 from magicclass.utils import thread_worker
+
+from cylindra._config import get_config
 from cylindra.const import FileFilter
 from cylindra.core import ACTIVE_WIDGETS
+from cylindra.project import CylindraBatchProject, CylindraProject
 from cylindra.widget_utils import POLARS_NAMESPACE, capitalize
 from cylindra.widgets._accessors import BatchLoaderAccessor
-from cylindra.project import CylindraProject, CylindraBatchProject
-from cylindra._config import get_config
-from .sta import BatchSubtomogramAveraging
-from ._sequence import ProjectSequenceEdit, PathInfo
+
 from ._loaderlist import LoaderList
-from ._utils import TempFeatures, LoaderInfo
+from ._sequence import PathInfo, ProjectSequenceEdit
+from ._utils import LoaderInfo, TempFeatures
+from .sta import BatchSubtomogramAveraging
 
 
 @magicclass(

@@ -1,86 +1,91 @@
+import re
+from enum import Enum
 from typing import (
+    TYPE_CHECKING,
+    Annotated,
     Any,
     Callable,
     Iterable,
     Literal,
     Sequence,
-    TYPE_CHECKING,
-    Annotated,
 )
-import re
-from enum import Enum
-from scipy.spatial.transform import Rotation
+
+import impy as ip
+import napari
+import numpy as np
+import polars as pl
+from acryo import Molecules, SubtomogramLoader, alignment, pipe
 from magicclass import (
+    MagicTemplate,
+    abstractapi,
     do_not_record,
+    field,
+    impl_preview,
     magicclass,
     magicmenu,
-    field,
     magictoolbar,
     nogui,
-    vfield,
-    MagicTemplate,
     set_design,
-    impl_preview,
-    abstractapi,
+    vfield,
 )
-from magicclass.widgets import HistoryFileEdit, Separator
-from magicclass.types import Optional, Path
-from magicclass.utils import thread_worker
-from magicclass.logging import getLogger
-from magicclass.undo import undo_callback
 from magicclass.ext.dask import dask_thread_worker as dask_worker
+from magicclass.logging import getLogger
+from magicclass.types import Optional, Path
+from magicclass.undo import undo_callback
+from magicclass.utils import thread_worker
+from magicclass.widgets import HistoryFileEdit, Separator
+from scipy.spatial.transform import Rotation
 
-from acryo import Molecules, SubtomogramLoader, alignment, pipe
-
-import numpy as np
-import impy as ip
-import polars as pl
-import napari
-
-from cylindra import utils, _config, cylmeasure, widget_utils, _shared_doc
-from cylindra.types import MoleculesLayer
-from cylindra.const import (
-    ALN_SUFFIX,
-    SEAM_SEARCH_RESULT,
-    ANNEALING_RESULT,
-    INTERPOLATION_CHOICES,
-    LANDSCAPE_PREFIX,
-    MoleculesHeader as Mole,
-    nm,
-    PropertyNames as H,
-    Ori,
-    FileFilter,
-)
+from cylindra import _config, _shared_doc, cylmeasure, utils, widget_utils
 from cylindra._napari import LandscapeSurface
-from cylindra.core import ACTIVE_WIDGETS
-from cylindra.widgets._widget_ext import (
-    RotationsEdit,
-    RandomSeedEdit,
-    MultiFileEdit,
-)
-from cylindra.widget_utils import capitalize, timer, PolarsExprStr
 from cylindra.components.landscape import Landscape
 from cylindra.components.seam_search import (
-    CorrelationSeamSearcher,
     BooleanSeamSearcher,
+    CorrelationSeamSearcher,
     ManualSeamSearcher,
     SeamSearchResult,
 )
+from cylindra.const import (
+    ALN_SUFFIX,
+    ANNEALING_RESULT,
+    INTERPOLATION_CHOICES,
+    LANDSCAPE_PREFIX,
+    SEAM_SEARCH_RESULT,
+    FileFilter,
+    Ori,
+    nm,
+)
+from cylindra.const import (
+    MoleculesHeader as Mole,
+)
+from cylindra.const import (
+    PropertyNames as H,
+)
+from cylindra.core import ACTIVE_WIDGETS
+from cylindra.types import MoleculesLayer
+from cylindra.widget_utils import PolarsExprStr, capitalize, timer
+from cylindra.widgets._widget_ext import (
+    MultiFileEdit,
+    RandomSeedEdit,
+    RotationsEdit,
+)
 
+from . import _annealing
+from . import _progress_desc as _pdesc
 from ._annotated import (
-    MoleculesLayerType,
-    MoleculesLayersType,
     FSCFreq,
+    MoleculesLayersType,
+    MoleculesLayerType,
     assert_layer,
     assert_list_of_layers,
 )
 from .subwidgets._child_widget import ChildWidget
-from . import _progress_desc as _pdesc, _annealing
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray
-    from napari.layers import Image
     from dask.array.core import Array
+    from napari.layers import Image
+    from numpy.typing import NDArray
+
     from cylindra.components import CylSpline
     from cylindra.components.landscape import AnnealingResult
 
@@ -1167,15 +1172,15 @@ class SubtomogramAveraging(ChildWidget):
         {interpolation}{upsample_factor}
         """
         layer = assert_layer(layer, self.parent_viewer)
-        kwargs = dict(
-            template_path=template_path,
-            mask_params=mask_params,
-            max_shifts=max_shifts,
-            rotations=rotations,
-            cutoff=cutoff,
-            interpolation=interpolation,
-            upsample_factor=upsample_factor,
-        )
+        kwargs = {
+            "template_path": template_path,
+            "mask_params": mask_params,
+            "max_shifts": max_shifts,
+            "rotations": rotations,
+            "cutoff": cutoff,
+            "interpolation": interpolation,
+            "upsample_factor": upsample_factor,
+        }
         lnd = self._construct_landscape(layer, **kwargs)
         surf = LandscapeSurface(lnd, name=f"{LANDSCAPE_PREFIX}{layer.name}")
         surf.source_component = layer.source_component
@@ -1909,7 +1914,7 @@ def _run_viterbi_on_landscape(
     range_long: tuple[nm, nm] = (4.0, 4.28),
     angle_max: "float | None" = 5.0,
 ):
-    from cylindra._dask import delayed, compute
+    from cylindra._dask import compute, delayed
 
     mole = landscape.molecules
     npfs: Sequence[int] = mole.features[Mole.pf].unique(maintain_order=True)
@@ -1936,7 +1941,7 @@ def _run_annealing_on_landscape(
     range_lat: tuple[float | str, float | str],
     angle_max: float,
     temperature_time_const: float = 1.0,
-    random_seeds: Iterable[int] = range(5),
+    random_seeds: Iterable[int] = (0, 1, 2, 3, 4),
 ):
     mole = landscape.molecules
     results = landscape.run_annealing(

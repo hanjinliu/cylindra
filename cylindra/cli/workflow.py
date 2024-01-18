@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+
 from cylindra.cli._base import ParserBase
 
 
 def list_all_workflows():
     import rich
     from rich.panel import Panel
+
     from cylindra._config import get_config
 
     _list = list[str]()
@@ -63,9 +65,10 @@ class ParserWorkflow(ParserBase):
         self.add_argument("--wrap", "-w", action="store_true")
 
     def run_action(self, path: str | None, wrap: bool = False, **kwargs):
-        from cylindra._config import workflow_path
         import rich
         from rich.syntax import Syntax
+
+        from cylindra._config import workflow_path
 
         if path is None:
             return list_all_workflows()

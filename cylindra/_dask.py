@@ -1,5 +1,7 @@
-from typing import Callable, TypeVar, Generic
-from dask import array as da, delayed as dask_delayed
+from typing import Callable, Generic, TypeVar
+
+from dask import array as da
+from dask import delayed as dask_delayed
 
 _T = TypeVar("_T")
 

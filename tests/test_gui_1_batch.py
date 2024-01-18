@@ -1,13 +1,14 @@
-from cylindra.widgets import CylindraMainWidget
 import tempfile
 from pathlib import Path
+
 import pytest
-
-from .utils import pytest_group
-from ._const import TEST_DIR, PROJECT_DIR_13PF, PROJECT_DIR_14PF
-
 from magicclass import testing as mcls_testing
+
+from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets.sta import MaskChoice
+
+from ._const import PROJECT_DIR_13PF, PROJECT_DIR_14PF, TEST_DIR
+from .utils import pytest_group
 
 
 def _load(ui: CylindraMainWidget, name="Loader"):

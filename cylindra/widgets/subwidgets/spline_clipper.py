@@ -1,13 +1,15 @@
 from typing import Annotated
-from magicclass import magicclass, field, set_design, vfield, do_not_record
+
+import impy as ip
+import numpy as np
+from magicclass import do_not_record, field, magicclass, set_design, vfield
 from magicclass.ext.pyqtgraph import QtMultiImageCanvas
+
 from cylindra.components import CylSpline
 from cylindra.const import Mode, nm
 from cylindra.utils import map_coordinates
-import numpy as np
-import impy as ip
-
 from cylindra.widget_utils import capitalize
+
 from ._child_widget import ChildWidget
 
 
@@ -47,8 +49,8 @@ class SplineClipper(ChildWidget):
         self.canvas[0, 1].lock_contrast_limits = True
         self.canvas[1, 1].lock_contrast_limits = True
         self.canvas.enabled = False
-        curve_kw = dict(color="lime", lw=4, antialias=True)
-        line_kw = dict(color="lime", lw=1, ls=":")
+        curve_kw = {"color": "lime", "lw": 4, "antialias": True}
+        line_kw = {"color": "lime", "lw": 1, "ls": ":"}
         self._xy_line = self.xy_canvas.add_curve([0, 0], [0, 1], **curve_kw)
         self._xy_ref = self.xy_canvas.add_infline(pos=[0, 0], degree=0, **line_kw)
         self._yz_line = self.yz_canvas.add_curve([0, 1], [0, 0], **curve_kw)

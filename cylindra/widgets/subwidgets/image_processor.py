@@ -1,20 +1,22 @@
-from typing import Annotated, Literal
 from glob import glob
 from pathlib import Path
-from magicclass import (
-    magicclass,
-    vfield,
-    confirm,
-    set_design,
-)
-from magicclass.types import Optional
-from magicclass.ext.dask import dask_thread_worker
+from typing import Annotated, Literal
+
 import impy as ip
+from magicclass import (
+    confirm,
+    magicclass,
+    set_design,
+    vfield,
+)
+from magicclass.ext.dask import dask_thread_worker
+from magicclass.types import Optional
+
+from cylindra._config import get_config
+from cylindra._previews import view_image
 from cylindra.const import FileFilter
 from cylindra.core import ACTIVE_WIDGETS
-from cylindra._previews import view_image
 from cylindra.widgets._widget_ext import CheckBoxes
-from cylindra._config import get_config
 
 from ._child_widget import ChildWidget
 

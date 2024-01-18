@@ -1,6 +1,7 @@
 import numpy as np
-from numpy.testing import assert_equal, assert_array_less
 import pytest
+from numpy.testing import assert_array_less, assert_equal
+
 from cylindra._cylindra_ext import ViterbiGrid
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
-import subprocess
+
 import shutil
+import subprocess
 from typing import Callable
 
 
@@ -22,11 +23,11 @@ class CLICommand(Callable):
         options = []
         for k, v in kwargs.items():
             options.append(f"-{k}")
-            if type(v) is bool:
+            if isinstance(v, bool):
                 continue
             options.append(str(v))
         process = subprocess.run(
-            [self._cmd] + list(args) + options, capture_output=True
+            [self._cmd] + list(args) + options, capture_output=True, check=False
         )
         out = process.stdout.decode()
         err = process.stderr.decode()

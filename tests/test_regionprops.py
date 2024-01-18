@@ -1,8 +1,9 @@
 import numpy as np
-from numpy.testing import assert_allclose
-from cylindra.cylmeasure import RegionProfiler
 from acryo import Molecules
+from numpy.testing import assert_allclose
+
 from cylindra.components import CylSpline
+from cylindra.cylmeasure import RegionProfiler
 
 
 def test_length_and_width():

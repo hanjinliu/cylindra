@@ -23,6 +23,7 @@ theme:
     - content.code.annotate
     - navigation.sections
     - navigation.indexes
+    - navigation.footer
     - toc.follow
     - search.suggest
     - search.share
@@ -57,6 +58,7 @@ nav:
       - alignment/landscape.md
       - alignment/viterbi.md
       - alignment/rma.md
+    - process_images.md
     - simulate.md
     - seam_search.md
     - cli.md
@@ -69,6 +71,8 @@ nav:
     - Widgets:
       - api/widgets/main.md
       - api/widgets/sta.md
+      - api/widgets/subwidgets.md
+      - api/widgets/batch.md
 
 hooks:
   - docs/scripts/_dynamic_doc.py

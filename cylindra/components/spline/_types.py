@@ -1,5 +1,7 @@
 from __future__ import annotations
-from typing import Any, TypedDict, NamedTuple
+
+from typing import Any, NamedTuple, TypedDict
+
 import numpy as np
 from numpy.typing import NDArray
 

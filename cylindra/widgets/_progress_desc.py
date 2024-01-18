@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from cylindra.const import ImageFilter
 from napari.layers import Layer
+
+from cylindra.const import ImageFilter
 
 
 def _get_name(layer) -> str:

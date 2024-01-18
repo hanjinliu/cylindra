@@ -1,26 +1,26 @@
 from __future__ import annotations
 
 from pathlib import Path
-from magicgui.widgets import Slider, FloatSlider, Container
-from magicclass.widgets import TabbedContainer
+
+import impy as ip
+import numpy as np
+import polars as pl
 from magicclass import (
+    MagicTemplate,
+    abstractapi,
+    field,
     magicclass,
     magicmenu,
-    MagicTemplate,
-    field,
     set_design,
     vfield,
-    abstractapi,
 )
-from magicclass.utils import thread_worker
-from magicclass.ext.pyqtgraph import QtImageCanvas
 from magicclass.ext.polars import DataFrameView
+from magicclass.ext.pyqtgraph import QtImageCanvas
+from magicclass.utils import thread_worker
+from magicclass.widgets import TabbedContainer
+from magicgui.widgets import Slider
 
 from cylindra.core import ACTIVE_WIDGETS
-
-import numpy as np
-import impy as ip
-import polars as pl
 
 
 @magicclass(record=False, name="Image Preview")
@@ -158,7 +158,7 @@ def view_tables(
         container = DataFrameView(value=df, name=Path(paths).name)
     else:
         container = TabbedContainer(labels=False)
-        for i, path in enumerate(paths):
+        for _i, path in enumerate(paths):
             df = pl.read_csv(path, **kwargs)
             view = DataFrameView(value=df, name=Path(path).name)
             container.append(view)

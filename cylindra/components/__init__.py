@@ -1,8 +1,8 @@
-from .cylindric import CylinderModel, indexer
-from .spline import Spline, CylSpline, SplineConfig
-from .tomogram import Tomogram, CylTomogram
 from ._base import BaseComponent
 from ._cylinder_params import CylinderParameters
+from .cylindric import CylinderModel, indexer
+from .spline import CylSpline, Spline, SplineConfig
+from .tomogram import CylTomogram, Tomogram
 
 __all__ = [
     "BaseComponent",

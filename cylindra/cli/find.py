@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-import re
 import json
+import re
 from glob import glob
 from pathlib import Path
-from cylindra.core import read_project
+
 from cylindra.cli._base import ParserBase, get_polars_expr
+from cylindra.core import read_project
 
 
 class ParserFind(ParserBase):

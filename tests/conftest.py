@@ -1,12 +1,15 @@
-import pytest
 from contextlib import suppress
+
+import pytest
+
 from cylindra.widgets.sta import StaParameters
 
 
 @pytest.fixture
 def ui(make_napari_viewer):
-    from cylindra.core import start, ACTIVE_WIDGETS
     import napari
+
+    from cylindra.core import ACTIVE_WIDGETS, start
 
     viewer: napari.Viewer = make_napari_viewer()
     _ui = start(viewer=viewer)

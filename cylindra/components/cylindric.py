@@ -1,14 +1,17 @@
 from __future__ import annotations
-from typing import Any, TYPE_CHECKING, NamedTuple
 
-from acryo import Molecules
+from typing import TYPE_CHECKING, Any, NamedTuple
+
 import numpy as np
-from numpy.typing import ArrayLike, NDArray
 import polars as pl
+from acryo import Molecules
+from numpy.typing import ArrayLike, NDArray
+
 from cylindra.const import MoleculesHeader as Mole
 
 if TYPE_CHECKING:
     from typing_extensions import Self
+
     from .spline import Spline
 
 

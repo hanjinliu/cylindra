@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from typing import NamedTuple
-from cylindra.utils import ceilint, floorint, centroid
+
+import impy as ip
 import numpy as np
 from numpy.typing import NDArray
 from scipy import ndimage as ndi
-import impy as ip
+
+from cylindra.utils import ceilint, centroid, floorint
 
 
 def int_translate(img: ip.ImgArray, shift: int, axis: str = "a") -> ip.ImgArray:

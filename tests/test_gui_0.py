@@ -1,27 +1,29 @@
-from pathlib import Path
 import tempfile
-import napari
 from itertools import product
-import numpy as np
-from numpy.testing import assert_allclose
-import impy as ip
-from acryo import Molecules
-import polars as pl
-from magicclass import testing as mcls_testing, get_function_gui
-from magicclass.utils import thread_worker
+from pathlib import Path
 
-from cylindra import view_project, _config, cylmeasure
-from cylindra.widgets import CylindraMainWidget
-from cylindra.widgets.sta import MaskChoice
+import impy as ip
+import napari
+import numpy as np
+import polars as pl
+import pytest
+from acryo import Molecules
+from magicclass import get_function_gui
+from magicclass import testing as mcls_testing
+from magicclass.utils import thread_worker
+from numpy.testing import assert_allclose
+
+from cylindra import _config, cylmeasure, view_project
+from cylindra._config import get_config
 from cylindra.const import (
     MoleculesHeader as Mole,
-    PropertyNames as H,
-    MoleculesHeader as Mole,
 )
-from cylindra._config import get_config
-import pytest
-from .utils import pytest_group, ExceptionGroup
-from ._const import TEST_DIR, PROJECT_DIR_13PF, PROJECT_DIR_14PF
+from cylindra.const import PropertyNames as H
+from cylindra.widgets import CylindraMainWidget
+from cylindra.widgets.sta import MaskChoice
+
+from ._const import PROJECT_DIR_13PF, PROJECT_DIR_14PF, TEST_DIR
+from .utils import ExceptionGroup, pytest_group
 
 coords_13pf = [[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]]
 coords_14pf = [[21.97, 123.1, 32.98], [21.97, 83.3, 40.5]]
@@ -108,7 +110,7 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     new_molecules = list(ui.mole_layers.iter_molecules())
     assert old_splines[0].close_to(new_splines[0])
     assert old_splines[1].close_to(new_splines[1])
-    for mol0, mol1 in zip(old_molecules, new_molecules):
+    for mol0, mol1 in zip(old_molecules, new_molecules, strict=True):
         assert_molecule_equal(mol0, mol1)
     assert ui.tomogram.tilt["range"] == (-60, 60)
 
@@ -121,7 +123,7 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     new_molecules = list(ui.mole_layers.iter_molecules())
     assert old_splines[0].close_to(new_splines[0])
     assert old_splines[1].close_to(new_splines[1])
-    for mol0, mol1 in zip(old_molecules, new_molecules):
+    for mol0, mol1 in zip(old_molecules, new_molecules, strict=True):
         assert_molecule_equal(mol0, mol1)
     assert ui.tomogram.tilt["range"] == (-60, 60)
 
@@ -134,7 +136,7 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     new_molecules = list(ui.mole_layers.iter_molecules())
     assert old_splines[0].close_to(new_splines[0])
     assert old_splines[1].close_to(new_splines[1])
-    for mol0, mol1 in zip(old_molecules, new_molecules):
+    for mol0, mol1 in zip(old_molecules, new_molecules, strict=True):
         assert_molecule_equal(mol0, mol1)
     assert ui.tomogram.tilt["range"] == (-60, 60)
 
@@ -147,10 +149,10 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
 def test_io_with_different_data(ui: CylindraMainWidget):
     path = TEST_DIR / "13pf_MT.tif"
     params = [
-        dict(local_props=False, global_props=False),
-        dict(local_props=False, global_props=True),
-        dict(local_props=True, global_props=False),
-        dict(local_props=True, global_props=True, map_monomers=True),
+        {"local_props": False, "global_props": False},
+        {"local_props": False, "global_props": True},
+        {"local_props": True, "global_props": False},
+        {"local_props": True, "global_props": True, "map_monomers": True},
     ]
     exc_group = ExceptionGroup()
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -803,13 +805,13 @@ def test_simulate_tomogram(ui: CylindraMainWidget):
         offsets=(0.0, 0.0),
     )
 
-    kwargs = dict(
-        components=[(ui.mole_layers.last().name, TEST_DIR / "beta-tubulin.mrc")],
-        tilt_range=(-60.0, 60.0),
-        n_tilt=11,
-        interpolation=1,
-        seed=0,
-    )
+    kwargs = {
+        "components": [(ui.mole_layers.last().name, TEST_DIR / "beta-tubulin.mrc")],
+        "tilt_range": (-60.0, 60.0),
+        "n_tilt": 11,
+        "interpolation": 1,
+        "seed": 0,
+    }
     with tempfile.TemporaryDirectory() as dirpath:
         dirpath = Path(dirpath)
         assert len(list(dirpath.glob("*"))) == 0
@@ -1099,7 +1101,7 @@ def test_lattice_structure_of_curved_microtubule(ui: CylindraMainWidget):
 
 def test_spline_fitter(ui: CylindraMainWidget):
     ui.open_image(
-        TEST_DIR / f"14pf_MT.tif",
+        TEST_DIR / "14pf_MT.tif",
         scale=1.052,
         tilt_range=(-60.0, 60.0),
         bin_size=[1],
@@ -1121,13 +1123,14 @@ def test_spline_fitter(ui: CylindraMainWidget):
 
 def test_cli(make_napari_viewer):
     import sys
+
     from cylindra.__main__ import main
     from cylindra.core import ACTIVE_WIDGETS
 
     viewer: napari.Viewer = make_napari_viewer()
 
     def run_cli(*args):
-        sys.argv = list(str(a) for a in args)
+        sys.argv = [str(a) for a in args]
         main(viewer, ignore_sys_exit=True)
 
     # test help
@@ -1431,12 +1434,12 @@ def test_workflows_custom(ui: CylindraMainWidget):
         ui.OthersMenu.Workflows.copy_workflow_directory()
 
         # test invalid code
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017
             # attribute error
             ui.OthersMenu.Workflows.define_workflow(
                 "Test-2", "def main(ui):\n    ui.bad_method_name()\n"
             )
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017
             # not enough arguments
             ui.OthersMenu.Workflows.define_workflow(
                 "Test-2", "def main(ui):\n    ui.open_image()\n"

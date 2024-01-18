@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import weakref
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
-import weakref
+
+import impy as ip
 import numpy as np
 from numpy.typing import NDArray
-import impy as ip
 
 from cylindra import utils
 from cylindra.const import nm

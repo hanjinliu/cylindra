@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from typing import overload
 import re
 from pathlib import Path
-from psygnal.containers import EventedList
+from typing import overload
 
 from acryo import BatchLoader
+from psygnal.containers import EventedList
+
 from ._utils import LoaderInfo
 
 

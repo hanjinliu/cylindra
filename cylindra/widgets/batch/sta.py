@@ -1,47 +1,46 @@
+import re
 from typing import Annotated, Any
 
-import re
+import impy as ip
+import numpy as np
 from acryo import BatchLoader
-
-from magicgui.widgets import Container
 from magicclass import (
-    magicclass,
+    MagicTemplate,
+    abstractapi,
     do_not_record,
     field,
+    magicclass,
     magictoolbar,
     nogui,
-    vfield,
-    MagicTemplate,
     set_design,
-    abstractapi,
     setup_function_gui,
+    vfield,
 )
-from magicclass.types import OneOf, Optional, Path
-from magicclass.utils import thread_worker
-from magicclass.logging import getLogger
-from magicclass.widgets import ConsoleTextEdit
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.polars import DataFrameView
-
-import numpy as np
-import impy as ip
+from magicclass.logging import getLogger
+from magicclass.types import OneOf, Optional, Path
+from magicclass.utils import thread_worker
+from magicclass.widgets import ConsoleTextEdit
+from magicgui.widgets import Container
 
 from cylindra import _shared_doc
-from cylindra.const import nm, ALN_SUFFIX, MoleculesHeader as Mole
+from cylindra.const import ALN_SUFFIX, nm
+from cylindra.const import MoleculesHeader as Mole
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.utils import roundint
-from cylindra.widgets._widget_ext import RotationsEdit
+from cylindra.widget_utils import FscResult, PolarsExprStr, norm_expr, timer
 from cylindra.widgets._annotated import FSCFreq
-from cylindra.widgets.sta import StaParameters
-from cylindra.widget_utils import timer, PolarsExprStr, norm_expr, FscResult
+from cylindra.widgets._widget_ext import RotationsEdit
 from cylindra.widgets.sta import (
     INTERPOLATION_CHOICES,
     METHOD_CHOICES,
+    StaParameters,
     _get_alignment,
 )
 
-from .menus import BatchLoaderMenu, BatchSubtomogramAnalysis, BatchRefinement
 from ._loaderlist import LoaderList
+from .menus import BatchLoaderMenu, BatchRefinement, BatchSubtomogramAnalysis
 
 
 def _classify_pca_fmt():
@@ -256,11 +255,11 @@ class BatchSubtomogramAveraging(MagicTemplate):
         bin_size: _BINSIZE = 1,
     ):
         """
-        Group-wise subtomogram averaging using molecules grouped by the given expression.
+        Groupwise subtomogram averaging using molecules grouped by the given expression.
 
         This method first group molecules by its features, and then average each group.
-        This method is useful for such as get average of each protofilament and segmented
-        subtomogram averaging.
+        This method is useful for such as get average of each protofilament and
+        segmented subtomogram averaging.
 
         Parameters
         ----------
@@ -395,8 +394,8 @@ class BatchSubtomogramAveraging(MagicTemplate):
         show_average : bool, default True
             If true, subtomogram averaging will be shown after FSC calculation.
         dfreq : float, default 0.02
-            Precision of frequency to calculate FSC. "0.02" means that FSC will be calculated
-            at frequency 0.01, 0.03, 0.05, ..., 0.45.
+            Precision of frequency to calculate FSC. "0.02" means that FSC will be
+            calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.
         """
         t0 = timer()
         loader = (

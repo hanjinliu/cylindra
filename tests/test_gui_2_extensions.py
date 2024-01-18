@@ -1,8 +1,10 @@
-from contextlib import suppress
 import tempfile
+from contextlib import suppress
 from pathlib import Path
+
 from cylindra.ext import CommandNotFound
 from cylindra.widgets import CylindraMainWidget
+
 from ._const import PROJECT_DIR_14PF, TEST_DIR
 
 

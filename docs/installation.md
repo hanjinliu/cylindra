@@ -41,5 +41,3 @@ compile the Rust codes to be used from Python.
     - `scikit-learn`
     - `mrcfile`
     - `tifffile`
-
-Next step: [Basics](basics.md)

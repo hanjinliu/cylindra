@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import argparse
 import json
-from typing import TYPE_CHECKING
-from pathlib import Path
 from glob import glob
-from cylindra.core import collect_projects
+from pathlib import Path
+from typing import TYPE_CHECKING
+
 from cylindra.cli._base import ParserBase
+from cylindra.core import collect_projects
 
 if TYPE_CHECKING:
     from cylindra.project import CylindraProject
@@ -23,6 +24,7 @@ class InitAction(argparse.Action):
 def list_all_configs():
     import rich
     from rich.panel import Panel
+
     from cylindra._config import get_config
 
     for path in get_config().list_config_paths():

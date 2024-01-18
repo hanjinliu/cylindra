@@ -58,7 +58,7 @@ filtered image for visualization.
    supported.
 2. Set the appropriate pixel scale. You can click "Scan header" to automatically detect
    the pixel scale.
-3. Set the tilt range used for calculating missing wedges.
+3. Set the tilt range and the tilt axis used for calculating missing wedges.
 4. Bin sizes used during your analysis. For example, setting to `[2, 4]` will start
    calculation of 2&times; and 4&times; binned images, which will be loaded into the
    memory, and leave the original image in the memory-mapped state (ready to be read
@@ -82,5 +82,3 @@ After opening an image, you'll find three layers added to the viewer:
 - `<name of the tomogram>`: an [Image layer](https://napari.org/stable/howtos/layers/image.html) showing the reference image.
 
 The `"Drawing Layer"` will be selected, with the "add points" mode activated by default.
-
-Next step: [Fit Splines](fit_splines.md)

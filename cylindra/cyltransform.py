@@ -1,10 +1,13 @@
 from __future__ import annotations
+
 from functools import lru_cache
+
+import impy as ip
 import numpy as np
 from numpy.typing import NDArray
-import impy as ip
-from cylindra._dask import delayed, Delayed
-from cylindra.const import nm, Mode
+
+from cylindra._dask import Delayed, delayed
+from cylindra.const import Mode, nm
 from cylindra.utils import map_coordinates, map_coordinates_task, roundint
 
 

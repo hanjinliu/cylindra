@@ -1,28 +1,31 @@
 from typing import TYPE_CHECKING, Annotated
+
+import impy as ip
 import numpy as np
 import polars as pl
-import impy as ip
 from magicclass import (
-    abstractapi,
-    magicclass,
-    field,
     MagicTemplate,
+    abstractapi,
+    field,
+    magicclass,
     magicmenu,
     set_design,
 )
-from magicclass.widgets import ConsoleTextEdit, FrameContainer, ToggleSwitch, Label
+from magicclass.ext.polars import DataFrameView
+from magicclass.ext.vispy import Vispy3DCanvas
 from magicclass.types import Path
 from magicclass.utils import thread_worker
-from magicclass.ext.vispy import Vispy3DCanvas
-from magicclass.ext.polars import DataFrameView
+from magicclass.widgets import ConsoleTextEdit, FrameContainer, Label, ToggleSwitch
 
 from cylindra.const import ImageFilter
 from cylindra.widget_utils import capitalize
 
 if TYPE_CHECKING:
-    from ._single import CylindraProject
-    from cylindra.widgets import CylindraMainWidget
     from magicclass.ext.vispy._base import LayerItem
+
+    from cylindra.widgets import CylindraMainWidget
+
+    from ._single import CylindraProject
 
 
 @magicclass(labels=False, widget_type="split", layout="horizontal", record=False)

@@ -13,3 +13,8 @@ repos:
     rev: 23.3.0
     hooks:
       - id: black
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.1.12
+    hooks:
+      - id: ruff
+        args: ["--fix"]

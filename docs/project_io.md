@@ -21,6 +21,8 @@ the current state.
 - `spline-*.json` ... The spline objects in JSON format (not human readable, should
   always be read by [from_json][cylindra.components.BaseComponent.from_json]) method.
 
+The project can be a directory, a zip file or a tar file.
+
 ## Load Project
 
 :material-arrow-right-thin-circle-outline: API: [`load_project`][cylindra.widgets.main.CylindraMainWidget.load_project]
@@ -52,4 +54,23 @@ readily loaded from the GUI.
 
 Drawing splines is a most time-consuming step. `cylindra` is implemented with a method
 that automatically filter the script in a project file and only run until it reaches
-any non-manual line.
+any non-manual line. For example, if you have a project file that contains a `script.py`
+file with a `main` function like this:
+
+``` python
+def main(ui):
+    ui.open_image(path='path/to/image.tif', ...)
+    ui.register_path(coords=[[19, 190, 29], [19, 100, 50]], ...)
+    ui.register_path(coords=[[20, 100, 32], [20, 190.0, 63]], ...)
+    ui.fit_splines(splines='all', ...)
+    ui.refine_splines(splines='all', ...)
+```
+
+then, the filtered script will be:
+
+``` python
+def main(ui):
+    ui.open_image(path='path/to/image.tif', ...)
+    ui.register_path(coords=[[19, 190, 29], [19, 100, 50]], ...)
+    ui.register_path(coords=[[20, 100, 32], [20, 190.0, 63]], ...)
+```

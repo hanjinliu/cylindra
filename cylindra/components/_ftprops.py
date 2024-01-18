@@ -1,18 +1,21 @@
 from __future__ import annotations
 
-from typing import NamedTuple
 import math
-import numpy as np
-from numpy.typing import NDArray
+from typing import NamedTuple
+
 import impy as ip
+import numpy as np
 import polars as pl
-from cylindra._dask import delayed, Delayed
-from cylindra.const import nm, PropertyNames as H
-from cylindra.components._peak import PeakDetector, FTPeakInfo
+from numpy.typing import NDArray
+
+from cylindra._dask import Delayed, delayed
 from cylindra.components._cylinder_params import CylinderParameters
+from cylindra.components._peak import FTPeakInfo, PeakDetector
 from cylindra.components.spline import SplineConfig
-from cylindra.utils import ceilint, roundint, floorint
+from cylindra.const import PropertyNames as H
+from cylindra.const import nm
 from cylindra.cyltransform import get_polar_image, get_polar_image_task
+from cylindra.utils import ceilint, floorint, roundint
 
 
 class LatticeParams(NamedTuple):
@@ -127,15 +130,15 @@ class LatticeAnalyzer:
             math.tan(math.radians(s)) for s in self._cfg.twist_range.aslist()
         )
         npf_min_max = self._cfg.npf_range.asarray()
-        return dict(
-            range_y=(
+        return {
+            "range_y": (
                 np.min(tan_twist_min * y_factor * npf_min_max),
                 np.max(tan_twist_max * y_factor * npf_min_max),
             ),
-            range_a=self.get_arange(img),
-            up_y=max(int(21600 / img.shape.y), 1),
-            up_a=20,
-        )
+            "range_a": self.get_arange(img),
+            "up_y": max(int(21600 / img.shape.y), 1),
+            "up_a": 20,
+        }
 
     def get_peak_v(self, peak_det: PeakDetector, img: ip.ImgArray, npf: float):
         return peak_det.get_peak(**self._params_v(img, npf))
@@ -155,15 +158,15 @@ class LatticeAnalyzer:
         _a_min, _a_max = sorted(
             [_a_min * self._cfg.rise_sign, _a_max * self._cfg.rise_sign]
         )
-        return dict(
-            range_y=(_y_min, _y_max),
-            range_a=(
+        return {
+            "range_y": (_y_min, _y_max),
+            "range_a": (
                 floorint(max(-npf / 2, _a_min)),
                 ceilint(min(npf / 2, _a_max)) + 1,
             ),
-            up_y=max(int(6000 / img.shape.y), 1),
-            up_a=20,
-        )
+            "up_y": max(int(6000 / img.shape.y), 1),
+            "up_a": 20,
+        }
 
     def get_params(
         self,

@@ -1,22 +1,22 @@
-from typing import Annotated
 from enum import Enum
-
-from magicclass import (
-    magicclass,
-    abstractapi,
-    set_design,
-    vfield,
-    field,
-    MagicTemplate,
-    get_button,
-)
-from magicclass.types import Path, OneOf
-from magicclass.ext.pyqtgraph import QtImageCanvas, mouse_event
+from typing import Annotated
 
 import numpy as np
+from magicclass import (
+    MagicTemplate,
+    abstractapi,
+    field,
+    get_button,
+    magicclass,
+    set_design,
+    vfield,
+)
+from magicclass.ext.pyqtgraph import QtImageCanvas, mouse_event
+from magicclass.types import OneOf, Path
 
-from cylindra.utils import roundint
 from cylindra.const import FileFilter
+from cylindra.utils import roundint
+
 from ._child_widget import ChildWidget
 
 

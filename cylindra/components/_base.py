@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import io
-from abc import ABC, abstractmethod, abstractclassmethod
 import json
+from abc import ABC, abstractclassmethod, abstractmethod
 from pathlib import Path
 from typing import Any
+
 from typing_extensions import Self
 
 

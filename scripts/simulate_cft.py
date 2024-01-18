@@ -1,23 +1,20 @@
-from enum import Enum
-from typing import Annotated, Any
 import tempfile
+from enum import Enum
 from timeit import default_timer
+from typing import Annotated, Any
+
+import napari
+import numpy as np
+import polars as pl
+from magicclass import MagicTemplate, magicclass, vfield
+from magicclass.ext.polars import DataFrameView
+from magicclass.types import Optional, Path
+from numpy.typing import NDArray
 
 from cylindra import start  # NOTE: Set ApplicationAttributes
-
-from magicclass import MagicTemplate, magicclass, vfield
-from magicclass.types import Optional, Path
-from magicclass.ext.polars import DataFrameView
-import numpy as np
-from numpy.typing import NDArray
-import napari
-
 from cylindra.components import CylSpline
-from cylindra.widgets import CylindraMainWidget
 from cylindra.const import PropertyNames as H
-
-import polars as pl
-
+from cylindra.widgets import CylindraMainWidget
 from scripts.user_consts import TEMPLATE_X
 
 POSITIONS = [(0, 15), (15, 30), (30, 45), (45, 60)]
@@ -61,7 +58,7 @@ class local_expansion(Simulator):
         self.ui.simulator.generate_molecules(
             0, spacing=4.125, twist=0.08, start=3, radius=11.2, npf=13
         )
-        for exp, yrange in zip([-0.075, -0.025, 0.025, 0.075], POSITIONS):
+        for exp, yrange in zip([-0.075, -0.025, 0.025, 0.075], POSITIONS, strict=False):
             self.ui.simulator.expand(
                 layer=self.ui.mole_layers.last(),
                 by=exp,
@@ -103,7 +100,7 @@ class local_skew_13_3(_local_skew_base):
         self.ui.simulator.generate_molecules(
             0, spacing=4.1, twist=0.0, start=3, radius=11.2, npf=13
         )
-        for sk, yrange in zip(self.values(), POSITIONS):
+        for sk, yrange in zip(self.values(), POSITIONS, strict=False):
             self.ui.simulator.twist(
                 self.ui.mole_layers.last(),
                 by=sk,
@@ -126,7 +123,7 @@ class local_skew_14_3(_local_skew_base):
         self.ui.simulator.generate_molecules(
             0, spacing=4.1, twist=0.0, start=3, radius=12.1, npf=14
         )
-        for sk, yrange in zip(self.values(), POSITIONS):
+        for sk, yrange in zip(self.values(), POSITIONS, strict=False):
             self.ui.simulator.twist(
                 self.ui.mole_layers.last(),
                 by=sk,
@@ -353,7 +350,8 @@ if __name__ == "__main__":
     # $ python .\scripts\simulate_cft.py "function='local_skew_14_3', n_tilt=61, nsr=[0.1, 3.0, 3.5, 4.0], nrepeat=20, scale=0.2615, binsize=2, output=r'C:\Users\Uemura-Lab\Desktop\simulate_CFT_results\cft_twist_14_3.csv', seed=333"
     # $ python .\scripts\simulate_cft.py "function='local_orientation', n_tilt=61, nsr=[0.1, 3.0, 3.5, 4.0], nrepeat=20, scale=0.2615, binsize=2, output=r'C:\Users\Uemura-Lab\Desktop\simulate_CFT_results\cft_orientation.csv', seed=444"
     # $ python .\scripts\simulate_cft.py "function='local_curvature', n_tilt=61, nsr=[0.1, 3.0, 3.5, 4.0], nrepeat=20, scale=0.2615, binsize=2, output=r'C:\Users\Uemura-Lab\Desktop\simulate_CFT_results\cft_curvature.csv', seed=555"
-    import sys, inspect
+    import inspect
+    import sys
 
     if args := sys.argv[1:]:
         code = f"dict({args[0]})"

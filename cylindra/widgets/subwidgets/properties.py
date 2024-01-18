@@ -1,20 +1,24 @@
-from typing import TYPE_CHECKING, Annotated, Any
-from psygnal import Signal
+from typing import TYPE_CHECKING, Annotated
+
 from magicclass import (
+    FieldGroup,
+    MagicTemplate,
     abstractapi,
-    magicclass,
+    box,
     field,
+    logging,
+    magicclass,
     set_design,
     vfield,
-    MagicTemplate,
-    FieldGroup,
-    box,
-    logging,
 )
-from magicclass.types import Path
 from magicclass.ext.pyqtgraph import QtMultiPlotCanvas
-from cylindra.const import PropertyNames as H, Ori, FileFilter
+from magicclass.types import Path
+from psygnal import Signal
+
+from cylindra.const import FileFilter, Ori
+from cylindra.const import PropertyNames as H
 from cylindra.widgets._widget_ext import CheckBoxes
+
 from ._child_widget import ChildWidget
 
 if TYPE_CHECKING:
@@ -112,7 +116,7 @@ class LocalPropertiesWidget(ChildWidget):
         nplots = len(self.plot)
         for i in range(nplots, len(props)):
             self.plot.addaxis(i, 0)
-        for i in range(len(props), nplots):
+        for _ in range(len(props), nplots):
             del self.plot[0]
         for prop, _plot in zip(props, self.plot, strict=True):
             info = _PlotInfo.get(prop, ("unknown", "lightgray"))
@@ -132,7 +136,7 @@ class LocalPropertiesWidget(ChildWidget):
 
         self._init_plot()
 
-        kw = dict(pos=[x[0], 0], degree=90, color=[1.0, 0.0, 0.0, 0.3], lw=2)
+        kw = {"pos": [x[0], 0], "degree": 90, "color": [1.0, 0.0, 0.0, 0.3], "lw": 2}
         for prop, _plot in zip(self._props_to_plot, self.plot, strict=True):
             if (_interv := spl.props.get_loc(prop, None)) is not None:
                 color = _PlotInfo[prop][1]
@@ -244,7 +248,7 @@ class GlobalPropertiesWidget(MagicTemplate):
         npf = spl.props.get_glob(H.npf, None)
         start = spl.props.get_glob(H.start, None)
         if npf is None or start is None:
-            self.params.params1.structure.txt = f" -- "
+            self.params.params1.structure.txt = " -- "
         else:
             self.params.params1.structure.txt = f" {npf}_{start}"
         self.params.params2.radius.txt = f" {_fmt_prop(spl, H.radius)} nm"

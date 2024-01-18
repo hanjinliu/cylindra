@@ -1,7 +1,9 @@
 import numpy as np
-from numpy.testing import assert_allclose
 import pytest
-from cylindra.components import CylinderModel, Spline, indexer as Idx
+from numpy.testing import assert_allclose
+
+from cylindra.components import CylinderModel, Spline
+from cylindra.components import indexer as Idx
 
 
 def test_cylindric_model_construction():

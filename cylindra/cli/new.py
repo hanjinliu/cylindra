@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from glob import glob
 from pathlib import Path
+
 from cylindra.cli._base import ParserBase
 
 
@@ -79,8 +80,8 @@ class ParserNew(ParserBase):
                 if "*" in mole:
                     if "**" in mole:
                         raise ValueError("Recursive glob is not supported.")
-                    for mole in glob(mole):
-                        mole_input[Path(mole).name] = Molecules.from_file(mole)
+                    for m in glob(mole):
+                        mole_input[Path(m).name] = Molecules.from_file(m)
                 else:
                     mole_input[Path(mole).name] = Molecules.from_file(mole)
         prj.save(path, molecules=mole_input)

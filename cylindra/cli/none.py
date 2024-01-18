@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from cylindra.core import start
 from cylindra.cli._base import ParserBase
+from cylindra.core import start
 
 
 class ParserNone(ParserBase):

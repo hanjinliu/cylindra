@@ -1,4 +1,5 @@
 from cylindra import collect_projects
+
 from ._const import PROJECT_DIR_13PF, PROJECT_DIR_14PF
 
 
@@ -28,7 +29,7 @@ def test_mutable_sequence_methods():
     p0 = seq[0]
     seq[0] = p0  # setitem
     del seq[0]  # delitem
-    for proj in seq:
+    for _ in seq:
         pass
     seq.insert(0, p0)
     repr(seq)
@@ -38,13 +39,13 @@ def test_sequence_methods():
     seq = collect_projects([PROJECT_DIR_13PF, PROJECT_DIR_14PF])
     mole = seq.collect_molecules(curvature=True)
     assert mole.count() > 500
-    for (i, s), mole in seq.iter_molecules():
+    for (_, _), _ in seq.iter_molecules():
         pass
 
 
 def test_molecules_items():
     seq = collect_projects([PROJECT_DIR_13PF, PROJECT_DIR_14PF])
-    for item in seq.iter_molecules_with_splines(name_filter=lambda name: True):
+    for item in seq.iter_molecules_with_splines(name_filter=lambda _: True):
         assert item.molecules.count() > 0
         assert item.spline is not None
         item.lattice_structure(("spacing",))

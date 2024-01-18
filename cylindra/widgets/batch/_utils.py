@@ -1,11 +1,14 @@
 from __future__ import annotations
+
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
-import polars as pl
-from acryo import Molecules, BatchLoader
 
+import polars as pl
+from acryo import BatchLoader, Molecules
+
+from cylindra.const import MoleculesHeader as Mole
+from cylindra.const import PropertyNames as H
 from cylindra.project import CylindraProject
-from cylindra.const import MoleculesHeader as Mole, PropertyNames as H
 
 if TYPE_CHECKING:
     from cylindra.components import CylSpline

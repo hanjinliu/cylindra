@@ -1,24 +1,25 @@
-from typing import Annotated, Any
+import operator
 from contextlib import suppress
+from typing import Annotated, Any
+
+import impy as ip
+import napari
+import numpy as np
 from magicclass import (
+    MagicTemplate,
+    impl_preview,
     magicclass,
     magicmenu,
-    impl_preview,
-    vfield,
-    MagicTemplate,
     set_design,
+    vfield,
 )
 from magicclass.types import Path
 from magicclass.widgets import FloatRangeSlider
-import numpy as np
-import impy as ip
-import operator
-import napari
-from napari.types import LayerDataTuple
 from napari.layers import Image, Labels, Layer
+from napari.types import LayerDataTuple
 
-from cylindra.utils import set_gpu
 from cylindra.const import PREVIEW_LAYER_NAME
+from cylindra.utils import set_gpu
 from cylindra.widget_utils import capitalize
 
 
@@ -67,12 +68,12 @@ class Volume(MagicTemplate):
 
         return (
             out,
-            dict(
-                scale=out.scale,
-                translate=translate,
-                name=layer.name + "-binning",
-                rendering=layer.rendering,
-            ),
+            {
+                "scale": out.scale,
+                "translate": translate,
+                "name": layer.name + "-binning",
+                "rendering": layer.rendering,
+            },
             "image",
         )
 
@@ -115,12 +116,12 @@ class Volume(MagicTemplate):
         out = getattr(operator, op)(img1, img2)
         return (
             out,
-            dict(
-                scale=layer_1.scale,
-                translate=layer_1.translate,
-                name=f"{layer_1.name}-binary_op",
-                rendering=layer_1.rendering,
-            ),
+            {
+                "scale": layer_1.scale,
+                "translate": layer_1.translate,
+                "name": f"{layer_1.name}-binary_op",
+                "rendering": layer_1.rendering,
+            },
             "image",
         )
 
@@ -161,12 +162,12 @@ class Volume(MagicTemplate):
             out = getattr(img, method_name)(*args, **kwargs)
         return (
             out,
-            dict(
-                scale=layer.scale,
-                translate=layer.translate,
-                name=f"{layer.name}-{method_name}",
-                rendering=layer.rendering,
-            ),
+            {
+                "scale": layer.scale,
+                "translate": layer.translate,
+                "name": f"{layer.name}-{method_name}",
+                "rendering": layer.rendering,
+            },
             "image",
         )
 

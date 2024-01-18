@@ -1,19 +1,19 @@
 from __future__ import annotations
 
 import glob
-from pathlib import Path
-from weakref import WeakSet
-from typing import TYPE_CHECKING, Iterable, Literal, Sequence, overload
 from contextlib import suppress
+from pathlib import Path
+from typing import TYPE_CHECKING, Iterable, Literal, Sequence, overload
+from weakref import WeakSet
 
 if TYPE_CHECKING:
     import napari
-    from magicgui.widgets import Widget
     from acryo import Molecules
-    from cylindra.project import ProjectSequence
-    from cylindra.widgets import CylindraMainWidget
+    from magicgui.widgets import Widget
+
     from cylindra.components import CylSpline
-    from cylindra.project import CylindraProject
+    from cylindra.project import CylindraProject, ProjectSequence
+    from cylindra.widgets import CylindraMainWidget
 
 PathLike = str | Path
 _CURRENT_INSTANCE: CylindraMainWidget | None = None
@@ -41,15 +41,16 @@ def start(
     headless : bool, default False
         If True, do not show the viewer.
     """
-    from cylindra.widgets import CylindraMainWidget
-    from cylindra._config import init_config
-    import numpy as np
+    from cylindra.widgets import CylindraMainWidget  # noqa: I001
     import impy as ip
-    import polars as pl
     import matplotlib.pyplot as plt
-    from magicclass import logging
     import napari
+    import numpy as np
+    import polars as pl
     from IPython import get_ipython
+    from magicclass import logging
+
+    from cylindra._config import init_config
 
     global _CURRENT_INSTANCE
 
@@ -236,7 +237,7 @@ def collect_projects(
             if "*" not in f:
                 _files.append(f)
             else:
-                _files.extend([_f for _f in glob.glob(f)])
+                _files.extend(list(glob.glob(f)))
     else:
         raise TypeError(f"files must be path or iterable of paths, got {type(files)}")
     if len(_files) == 0:

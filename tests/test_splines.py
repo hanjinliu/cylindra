@@ -1,10 +1,11 @@
-import pytest
-from cylindra.utils import map_coordinates
-from cylindra.components import CylSpline
-import numpy as np
-from numpy.testing import assert_allclose
 import impy as ip
+import numpy as np
+import pytest
 from IPython.display import display
+from numpy.testing import assert_allclose
+
+from cylindra.components import CylSpline
+from cylindra.utils import map_coordinates
 
 
 @pytest.mark.parametrize("mode", ["linear", "default"])

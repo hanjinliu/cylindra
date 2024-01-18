@@ -1,9 +1,12 @@
 from typing import TYPE_CHECKING, NewType
-import numpy as np
+
+import macrokit
 import magicgui
 import napari
+import numpy as np
 from napari.layers import Layer
-from cylindra._napari import MoleculesLayer, CylinderLabels
+
+from cylindra._napari import CylinderLabels, MoleculesLayer
 from cylindra.const import PREVIEW_LAYER_NAME
 
 if TYPE_CHECKING:
@@ -55,6 +58,4 @@ magicgui.register_type(MoleculesLayer, choices=get_monomer_layers)
 magicgui.register_type(ColoredLayer, choices=get_colored_layers)
 
 # Record 1D numpy array as a list of floats.
-from macrokit import register_type
-
-register_type(np.ndarray, lambda arr: str(arr.tolist()))
+macrokit.register_type(np.ndarray, lambda arr: str(arr.tolist()))

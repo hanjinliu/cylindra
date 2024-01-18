@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-from cylindra.cli._base import ParserBase
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+from cylindra.cli._base import ParserBase
 from cylindra.core import read_project, view_project
 
 if TYPE_CHECKING:
@@ -29,8 +30,8 @@ class ParserPreview(ParserBase):
         self.add_argument("--gui", "-g", action="store_true")
 
     def run_action(self, path: str, gui: bool, **kwargs):
-        from magicgui.application import use_app
         import rich
+        from magicgui.application import use_app
 
         if "::" in path:
             path, inner_filename = path.split("::")
@@ -81,8 +82,8 @@ class ParserPreview(ParserBase):
     def show_filetree(self, path: Path, dir: Path):
         import rich
         from rich.style import Style
-        from rich.tree import Tree
         from rich.syntax import Syntax
+        from rich.tree import Tree
 
         tree = Tree(f"[bold cyan]{path.as_posix()}[/bold cyan]")
         for f in dir.glob("*"):
@@ -153,8 +154,8 @@ def render_dataframe(df: pl.DataFrame):
 
 def pl_to_table(df: pl.DataFrame, elide: bool = False):
     import polars as pl
-    from rich.table import Table, Column
     from rich.box import ROUNDED
+    from rich.table import Column, Table
 
     table = Table(
         *[Column(c, min_width=min(len(c), 5)) for c in df.columns], box=ROUNDED
@@ -167,8 +168,8 @@ def pl_to_table(df: pl.DataFrame, elide: bool = False):
 
 
 def boxed(renderable, title: str):
-    from rich.text import Text
     from rich.table import Table
+    from rich.text import Text
 
     table = Table(title=Text(title, justify="left"), show_header=False, box=None)
     table.add_row(renderable)

@@ -1,10 +1,12 @@
 from __future__ import annotations
-import json
 
-from typing import Any, Generic, Literal, Sequence, TypeVar
-from dataclasses import dataclass
+import json
 import warnings
+from dataclasses import dataclass
+from typing import Any, Generic, Literal, Sequence, TypeVar
+
 import numpy as np
+
 from cylindra.const import nm
 
 _T = TypeVar("_T")
@@ -141,7 +143,7 @@ class SplineConfig:
                 case "error":
                     raise ValueError(msg)
                 case "warn":
-                    warnings.warn(msg, RuntimeWarning)
+                    warnings.warn(msg, RuntimeWarning, stacklevel=2)
                 case "ignore":
                     pass
                 case other:  # pragma: no cover

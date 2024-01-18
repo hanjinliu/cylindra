@@ -1,22 +1,23 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-from enum import Enum
 from contextlib import contextmanager
+from enum import Enum
 from fnmatch import fnmatch
-from qtpy import QtCore, QtWidgets as QtW
+from typing import TYPE_CHECKING
+
+import napari
+from magicclass.ext.polars import DataFrameView
+from napari._qt.layer_controls.qt_points_controls import QtPointsControls
+from napari._qt.layer_controls.qt_surface_controls import QtSurfaceControls
+from qtpy import QtCore
+from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
 from superqt import QEnumComboBox, QLabeledDoubleSlider
 
-import napari
-from napari._qt.layer_controls.qt_surface_controls import QtSurfaceControls
-from napari._qt.layer_controls.qt_points_controls import QtPointsControls
-
-from magicclass.ext.polars import DataFrameView
-
 if TYPE_CHECKING:
     from qtpy.QtWidgets import QFormLayout
-    from ._layers import MoleculesLayer, LandscapeSurface
+
+    from ._layers import LandscapeSurface, MoleculesLayer
 
 
 @contextmanager
@@ -195,7 +196,8 @@ class QtLandscapeSurfaceControls(QtSurfaceControls):
 
 def install_custom_layers():
     from napari._qt.layer_controls.qt_layer_controls_container import layer_to_controls
-    from ._layers import MoleculesLayer, LandscapeSurface
+
+    from ._layers import LandscapeSurface, MoleculesLayer
 
     layer_to_controls[MoleculesLayer] = QtMoleculesControls
     layer_to_controls[LandscapeSurface] = QtLandscapeSurfaceControls

@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from typing import Callable, NamedTuple, TypeVar
 
 # This file is for documentation and tooltip purposes only.
