@@ -14,7 +14,7 @@ def create_microtubule(ui: CylindraMainWidget):
     ui.simulator.create_empty_image(size=(60.0, 180.0, 60.0), scale=0.2615)
     initialize_molecules(ui)
     layer = ui.mole_layers.last()
-    dtheta = 0.025
+    dtheta = 0.04
     ui.simulator.displace(
         layer, twist=pl.when(pl.col("isotype-id").eq(1)).then(-dtheta).otherwise(dtheta)
     )
@@ -83,7 +83,7 @@ def run_one(
     mole_cnv = post_process_layer(ui, ui.mole_layers.last()).molecules
     ui.sta.run_annealing_on_landscape(
         landscape_layer,
-        range_long=(3.98, 4.28),
+        range_long=(4.0, 4.28),
         range_lat=("-0.1", "+0.1"),
         angle_max=5.0,
     )
@@ -100,15 +100,7 @@ def run_one(
 def flat_agg(df: pl.DataFrame, suffix: str):
     agg = (
         df.group_by("isotype-id", maintain_order=True)
-        .agg(
-            pl.col("twist")
-            .filter(pl.col("twist").is_finite())
-            .radians()
-            .tan()
-            .mean()
-            .arctan()
-            .degrees()
-        )
+        .agg(pl.col("twist").filter(pl.col("twist").is_finite()).mean())
         .sort("isotype-id")
     )
     return pl.DataFrame(

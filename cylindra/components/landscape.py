@@ -274,9 +274,9 @@ class Landscape:
         return (
             model.set_graph_coordinates(
                 origin=mole.pos,
-                zvec=mole.z.astype(np.float32) * self.scale_factor,
-                yvec=mole.y.astype(np.float32) * self.scale_factor,
-                xvec=mole.x.astype(np.float32) * self.scale_factor,
+                zvec=(mole.z * self.scale_factor).astype(np.float32),
+                yvec=(mole.y * self.scale_factor).astype(np.float32),
+                xvec=(mole.x * self.scale_factor).astype(np.float32),
             )
             .set_energy_landscape(self.energies)
             .set_reservoir(
@@ -305,7 +305,6 @@ class Landscape:
         random_seeds: list[int] = [0],
     ) -> list[AnnealingResult]:
         """Run simulated mesh annealing."""
-        from cylindra._dask import compute, delayed
 
         if angle_max is None:
             angle_max = 90.0
@@ -324,29 +323,10 @@ class Landscape:
         batch_size = _to_batch_size(annealing.time_constant())
         temp0 = annealing.temperature()
 
-        @delayed
-        def _run(seed: int) -> AnnealingResult:
-            _model = annealing.with_seed(seed)
-            _model.init_shift_random()
-            energies = [_model.energy()]
-            while (
-                _model.temperature() > temp0 * 1e-5
-                and _model.optimization_state() == "not_converged"
-            ):
-                _model.simulate(batch_size)
-                energies.append(_model.energy())
-            _model.cool_completely()
-            energies.append(_model.energy())
-            return AnnealingResult(
-                energies=np.array(energies),
-                batch_size=batch_size,
-                time_const=_model.time_constant(),
-                indices=_model.shifts(),
-                niter=_model.iteration(),
-                state=_model.optimization_state(),
-            )
-
-        tasks = [_run(s) for s in random_seeds]
+        tasks = [
+            _run_annealing(annealing.with_seed(s), batch_size, temp0)
+            for s in random_seeds
+        ]
         return compute(*tasks)
 
     def _normalize_args(
@@ -510,7 +490,35 @@ def _norm_distance(v: str | nm, ref: nm) -> nm:
     return v
 
 
+@delayed
+def _run_annealing(
+    model: CylindricAnnealingModel,
+    batch_size: int,
+    temp: float,
+) -> AnnealingResult:
+    model.init_shift_random()
+    energies = [model.energy()]
+    while (
+        model.temperature() > temp * 1e-5
+        and model.optimization_state() == "not_converged"
+    ):
+        model.simulate(batch_size)
+        energies.append(model.energy())
+    model.cool_completely()
+    energies.append(model.energy())
+    return AnnealingResult(
+        energies=np.array(energies),
+        batch_size=batch_size,
+        time_const=model.time_constant(),
+        indices=model.shifts(),
+        niter=model.iteration(),
+        state=model.optimization_state(),
+    )
+
+
 class SurfaceData(NamedTuple):
+    """Tuple for storing isosurface data for landscapes."""
+
     vertices: NDArray[np.float32]
     faces: NDArray[np.int32]
     values: NDArray[np.float32]
@@ -523,6 +531,7 @@ def delayed_isosurface(
     spacing: tuple[float, float, float],
     step_size: int = 1,
 ) -> SurfaceData:
+    """Create an isosurface from a 3D array using marching cubes algorithm."""
     arr_pad = np.pad(arr, step_size, mode="constant", constant_values=arr.min())
     try:
         verts, faces, _, vals = marching_cubes(

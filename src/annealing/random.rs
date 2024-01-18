@@ -1,7 +1,8 @@
 use rand::SeedableRng;
 use rand::prelude::Distribution;
-use rand::rngs::StdRng;
+use rand::Rng;
 use numpy::ndarray::Array3;
+use mt19937::MT19937 as BaseRng;
 
 use crate::coordinates::{Vector3D, list_neighbors};
 
@@ -42,7 +43,7 @@ impl NeighborList {
 
 /// A custom random number generator with a neighbor cache.
 pub struct RandomNumberGenerator {
-    rng: StdRng,
+    rng: BaseRng,
     seed: u64,
     neighbor_list: NeighborList,
 }
@@ -50,44 +51,55 @@ pub struct RandomNumberGenerator {
 impl Clone for RandomNumberGenerator {
     /// Clone the random number generator.
     fn clone(&self) -> Self {
-        let rng = StdRng::seed_from_u64(self.seed);
+        let rng = BaseRng::seed_from_u64(self.seed);
         Self { rng, seed: self.seed, neighbor_list: self.neighbor_list.clone() }
     }
 }
 
+const SCALE: f32 = 32768.0;
+
 impl RandomNumberGenerator {
     pub fn new(seed: u64) -> Self {
-        let rng = StdRng::seed_from_u64(seed);
+        let rng = BaseRng::seed_from_u64(seed);
         Self { rng, seed, neighbor_list: NeighborList::empty() }
     }
 
+    /// Create a new random number generator with a different seed.
+    /// As the shape does not change, the neighbor list can be cloned.
     pub fn with_seed(&self, seed: u64) -> Self {
-        let rng = StdRng::seed_from_u64(seed);
+        let rng = BaseRng::seed_from_u64(seed);
         Self { rng, seed, neighbor_list: self.neighbor_list.clone() }
     }
 
+    /// Shape of the neighbor list.
     pub fn shape(&self) -> &[usize] {
         self.neighbor_list.neighbors.shape()
     }
 
+    /// Set the shape of the neighbor list.
     pub fn set_shape(&mut self, shape: (usize, usize, usize)) {
         let (z, y, x) = shape;
         self.neighbor_list = NeighborList::new(Vector3D::new(z as isize, y as isize, x as isize));
     }
 
+    /// Sample a random number from a Bernoulli distribution.
+    /// This is a naive implementation instead of using a Bernoulli distribution from
+    /// the rand crate. This implementation directly use f32, and is safer when values
+    /// are sampled many times (Bernoulli sampling using rand crate returns different
+    /// results even with the same seed!).
     pub fn bernoulli(&mut self, ptrue: f32) -> bool {
-        let dist = match rand::distributions::Bernoulli::new(ptrue as f64){
-            Ok(dist) => dist,
-            Err(_) => panic!("Bernoulli distribution failed {}", ptrue),
-        };
-        dist.sample(&mut self.rng)
+        let p_int = (ptrue * SCALE).floor() as u16;
+        let v: u16 = self.rng.gen();
+        v / 2 < p_int
     }
 
+    /// Sample a random positive integer from a uniform distribution.
     pub fn uniform_int(&mut self, max: usize) -> usize {
         let dist = rand::distributions::Uniform::new(0, max);
         dist.sample(&mut self.rng)
     }
 
+    /// Sample a random integer vector from a uniform distribution.
     pub fn uniform_vec(&mut self, shape: &Vector3D<isize>) -> Vector3D<isize> {
         let dist = rand::distributions::Uniform::new(0, shape.z);
         let z = dist.sample(&mut self.rng);
@@ -98,6 +110,7 @@ impl RandomNumberGenerator {
         Vector3D::new(z, y, x)
     }
 
+    /// Sample a random shift from the given source position.
     pub fn rand_shift(&mut self, src: &Vector3D<isize>) -> Vector3D<isize> {
         let neighbors = self.neighbor_list.at(src);
         let idx = get_uniform(neighbors.len()).sample(&mut self.rng);

@@ -267,10 +267,10 @@ impl CylindricAnnealingModel {
         if self.temperature() <= 0.0 {
             return value_error!("temperature must be positive");
         }
-        let mut reject_count = 0;
         py.allow_threads(
             move || {
                 // Simulate while cooling.
+                let mut reject_count = 0;
                 for _ in 0..nsteps {
                     if self.proceed() {
                         reject_count = 0;
