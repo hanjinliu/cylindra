@@ -1,9 +1,11 @@
+import numpy as np
+import pytest
+from numpy.testing import assert_allclose
+
 from cylindra.components import CylTomogram
 from cylindra.const import PropertyNames as H
 from cylindra.project._base import MissingWedge
-import numpy as np
-from numpy.testing import assert_allclose
-import pytest
+
 from ._const import TEST_DIR
 
 coords_13pf = [[18.97, 190.0, 28.99], [18.97, 107.8, 51.48], [18.97, 35.2, 79.90]]

@@ -1,4 +1,5 @@
-from cylindra import read_molecules, read_spline, read_project
+from cylindra import read_molecules, read_project, read_spline
+
 from ._const import PROJECT_DIR_13PF
 
 

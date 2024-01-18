@@ -1,7 +1,8 @@
-import pytest
 import numpy as np
-from numpy.testing import assert_array_equal
 import polars as pl
+import pytest
+from numpy.testing import assert_array_equal
+
 from cylindra import cylfilters
 from cylindra.const import MoleculesHeader as Mole
 

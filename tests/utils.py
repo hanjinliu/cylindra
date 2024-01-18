@@ -1,7 +1,8 @@
+from contextlib import contextmanager
 from functools import wraps
 from typing import Any
+
 import pytest
-from contextlib import contextmanager
 
 
 class pytest_group:
@@ -22,7 +23,7 @@ class pytest_group:
 
     _all = {}
 
-    def __new__(cls, id: str, maxfail: int = 1):
+    def __new__(cls, id: str, maxfail: int = 1):  # noqa: ARG003
         if self := cls._all.get(id):
             return self
         cls._all[id] = self = super().__new__(cls)
