@@ -190,7 +190,7 @@ def main():
     time_list = []
     with tempfile.TemporaryDirectory() as tmpdir:
         save_tilt_series(ui, tmpdir)
-        for i in range(1):
+        for i in range(10):
             pos, spacing, times = run_one(
                 ui,
                 Path(tmpdir) / "image.mrc",
