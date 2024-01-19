@@ -560,6 +560,8 @@ class MoleculesMenu(ChildWidget):
             self,
             layer: MoleculesLayer,
             backend: Literal["inline", "qt"] = "inline",
+            show_title: bool = True,
+            show_axis: bool = True,
         ):
             """
             Show current molecule feature coloring in 2D figure.
@@ -599,7 +601,10 @@ class MoleculesMenu(ChildWidget):
                 colors=layer.face_color,
                 ax=ax,
             )
-            ax.set_title(layer.name)
+            if show_title:
+                ax.set_title(layer.name)
+            if not show_axis:
+                ax.axis("off")
             return
 
         @set_design(text=capitalize)

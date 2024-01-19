@@ -1,6 +1,7 @@
 import tempfile
 from timeit import default_timer
 
+import matplotlib as mpl
 import napari
 import numpy as np
 import polars as pl
@@ -10,6 +11,7 @@ from magicclass.types import Path
 from matplotlib import pyplot as plt
 
 from cylindra import start  # NOTE: Set ApplicationAttributes
+from cylindra.components.visualize import flat_view
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.cylmeasure import calc_lateral_interval
 from cylindra.types import MoleculesLayer
@@ -123,7 +125,7 @@ def run_one(
 
     # Viterbi alignment
     t2 = default_timer()
-    ui.sta.run_viterbi_on_landscape(land_layer, range_long=(3.98, 4.28), angle_max=5.0)
+    ui.sta.run_viterbi_on_landscape(land_layer, range_long=(4.0, 4.28), angle_max=5.0)
     t2 = default_timer() - t2
     mole_vit = post_process_layer(ui, ui.mole_layers.last()).molecules
 
@@ -134,7 +136,7 @@ def run_one(
     t3 = default_timer()
     ui.sta.run_annealing_on_landscape(
         land_layer,
-        range_long=(3.98, 4.28),
+        range_long=(4.0, 4.28),
         range_lat=(interv_mean - dx, interv_mean + dx),
         angle_max=5.0,
     )
@@ -169,6 +171,17 @@ def show_dataframe(ui: CylindraMainWidget, df: pl.DataFrame, name=""):
     ui.parent_viewer.window.add_dock_widget(view, name=name)
 
 
+def show_flat_view(ui: CylindraMainWidget, name: str, ax: plt.Axes):
+    layer = ui.mole_layers[name]
+    flat_view(
+        layer.molecules,
+        spl=layer.source_spline,
+        colors=layer.face_color,
+        ax=ax,
+    )
+    ax.axis("off")
+
+
 def main():
     ui = start()
     mole_truth = create_microtubule(ui)
@@ -177,7 +190,7 @@ def main():
     time_list = []
     with tempfile.TemporaryDirectory() as tmpdir:
         save_tilt_series(ui, tmpdir)
-        for i in range(10):
+        for i in range(1):
             pos, spacing, times = run_one(
                 ui,
                 Path(tmpdir) / "image.mrc",
@@ -211,21 +224,12 @@ def main():
     show_dataframe(ui, df_pos, name="pos")
     show_dataframe(ui, df_spacing, name="spacing")
     show_dataframe(ui, df_time, name="time")
+
+    # FSC results
+    names = ["conventional", "viterbi", "RMA"]
     for i in [-3, -2, -1]:
         layer = ui.mole_layers.nth(i)
         ui.sta.calculate_fsc(layer, template_path=TEMPLATE_X, mask_params=(0.8, 0.8))
-        ui.paint_molecules(layer, "spacing", limits=(4.0, 4.28))
-        ui.MoleculesMenu.View.plot_molecule_feature(layer)
-        plt.show()
-        ui.paint_molecules(layer, "spacing_mean", limits=(4.0, 4.28))
-        ui.MoleculesMenu.View.plot_molecule_feature(layer)
-        plt.show()
-    ui.add_molecules(mole_truth, name="truth", source=ui.splines[0])
-    ui.calculate_lattice_structure(layer="truth", props=["spacing"])
-    ui.paint_molecules("truth", "spacing", limits=(4.0, 4.28))
-    ui.MoleculesMenu.View.plot_molecule_feature("truth")
-    plt.show()
-    names = ["conventional", "viterbi", "RMA"]
     dfs = {}
     for n, layer in zip(names, ui.sta.sub_viewer.layers, strict=False):
         fsc = layer.metadata["fsc"]
@@ -233,6 +237,23 @@ def main():
         dfs[n] = fsc.mean
     df = pl.DataFrame(dfs)
     show_dataframe(ui, df, name="FSC")
+
+    mpl.use("Qt5Agg")
+    plt.rcParams["figure.dpi"] = 200
+    fig, axes = plt.subplots(nrows=1, ncols=7, figsize=(12, 4))
+    for i in [-3, -2, -1]:
+        layer = ui.mole_layers.nth(i)
+        ui.paint_molecules(layer, "spacing", limits=(4.0, 4.28))
+        show_flat_view(ui, f"Mole(Sim)-0-ALN{i + 4}", axes[2 * i + 7])
+        ui.paint_molecules(layer, "spacing_mean", limits=(4.0, 4.28))
+        show_flat_view(ui, f"Mole(Sim)-0-ALN{i + 4}", axes[2 * i + 8])
+    ui.add_molecules(mole_truth, name="truth", source=ui.splines[0])
+    ui.calculate_lattice_structure(layer="truth", props=["spacing"])
+    ui.paint_molecules("truth", "spacing", limits=(4.0, 4.28))
+    show_flat_view(ui, "truth", axes[0])
+    plt.tight_layout()
+    plt.show()
+
     ui.parent_viewer.show(block=True)
 
 

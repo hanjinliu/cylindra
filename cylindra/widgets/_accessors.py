@@ -68,7 +68,9 @@ _Condition = Callable[[MoleculesLayer], bool]
 class MoleculesLayerAccessor(Accessor[MoleculesLayer, "CylindraMainWidget"]):
     """Accessor to the molecules layers of the viewer."""
 
-    def __getitem__(self, name: str) -> MoleculesLayer:
+    def __getitem__(self, name: int | str) -> MoleculesLayer:
+        if hasattr(name, "__index__"):
+            return self.nth(name)
         return _get_monomer_layer(self.viewer(), name)
 
     def __setitem__(self, name: str, layer: MoleculesLayer) -> None:

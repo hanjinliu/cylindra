@@ -1,9 +1,10 @@
-from cylindra import start
-from cylindra.widgets import CylindraMainWidget
-from cylindra.const import MoleculesHeader as Mole
 import napari
-import polars as pl
 import numpy as np
+import polars as pl
+
+from cylindra import start
+from cylindra.const import MoleculesHeader as Mole
+from cylindra.widgets import CylindraMainWidget
 from scripts.user_consts import WOBBLE_TEMPLATES
 
 
@@ -53,7 +54,7 @@ def main(ui: CylindraMainWidget):
         rotations=((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff=0.5,
         interpolation=3,
-        range_long=(3.98, 4.28),
+        range_long=(4.0, 4.28),
         range_lat=(5.6, 5.8),
         angle_max=5.0,
         upsample_factor=5,
@@ -65,17 +66,17 @@ def main(ui: CylindraMainWidget):
     ui.paint_molecules(
         layer="molecules",
         color_by=SPACING,
-        limits=(3.98, 4.28),
+        limits=(4.0, 4.28),
     )
     ui.paint_molecules(
         layer="Conventional",
         color_by=SPACING,
-        limits=(3.98, 4.28),
+        limits=(4.0, 4.28),
     )
     ui.paint_molecules(
         layer="molecules-ALN1",
         color_by=SPACING,
-        limits=(3.98, 4.28),
+        limits=(4.0, 4.28),
     )
     ui.set_multiscale(bin_size=2)
     ui.convolve_feature(

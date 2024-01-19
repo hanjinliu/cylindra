@@ -2,7 +2,7 @@ use rand::SeedableRng;
 use rand::prelude::Distribution;
 use rand::Rng;
 use numpy::ndarray::Array3;
-use mt19937::MT19937 as BaseRng;
+use mt19937::MT19937;
 
 use crate::coordinates::{Vector3D, list_neighbors};
 
@@ -43,7 +43,7 @@ impl NeighborList {
 
 /// A custom random number generator with a neighbor cache.
 pub struct RandomNumberGenerator {
-    rng: BaseRng,
+    rng: MT19937,
     seed: u64,
     neighbor_list: NeighborList,
 }
@@ -51,23 +51,24 @@ pub struct RandomNumberGenerator {
 impl Clone for RandomNumberGenerator {
     /// Clone the random number generator.
     fn clone(&self) -> Self {
-        let rng = BaseRng::seed_from_u64(self.seed);
+        let rng = MT19937::seed_from_u64(self.seed);
         Self { rng, seed: self.seed, neighbor_list: self.neighbor_list.clone() }
     }
 }
 
-const SCALE: f32 = 32768.0;
+const BUF: usize = 1;
+const SCALE: f32 = (1 << (24 - BUF)) as f32;
 
 impl RandomNumberGenerator {
     pub fn new(seed: u64) -> Self {
-        let rng = BaseRng::seed_from_u64(seed);
+        let rng = MT19937::seed_from_u64(seed);
         Self { rng, seed, neighbor_list: NeighborList::empty() }
     }
 
     /// Create a new random number generator with a different seed.
     /// As the shape does not change, the neighbor list can be cloned.
     pub fn with_seed(&self, seed: u64) -> Self {
-        let rng = BaseRng::seed_from_u64(seed);
+        let rng = MT19937::seed_from_u64(seed);
         Self { rng, seed, neighbor_list: self.neighbor_list.clone() }
     }
 
@@ -88,9 +89,9 @@ impl RandomNumberGenerator {
     /// are sampled many times (Bernoulli sampling using rand crate returns different
     /// results even with the same seed!).
     pub fn bernoulli(&mut self, ptrue: f32) -> bool {
-        let p_int = (ptrue * SCALE).floor() as u16;
-        let v: u16 = self.rng.gen();
-        v / 2 < p_int
+        let p_int = (ptrue * SCALE).floor() as u32;
+        let v: u32 = self.rng.gen();
+        (v >> (BUF + 8)) < p_int
     }
 
     /// Sample a random positive integer from a uniform distribution.
