@@ -1,6 +1,5 @@
 from typing import Annotated, Any, Literal
 
-import impy as ip
 import polars as pl
 from acryo import BatchLoader
 from macrokit import Expr, Symbol
@@ -16,10 +15,9 @@ from magicclass import (
 from magicclass.types import Path
 from magicclass.utils import thread_worker
 
-from cylindra._config import get_config
 from cylindra.const import FileFilter
 from cylindra.core import ACTIVE_WIDGETS
-from cylindra.project import CylindraBatchProject, CylindraProject
+from cylindra.project import CylindraBatchProject
 from cylindra.widget_utils import POLARS_NAMESPACE, capitalize
 from cylindra.widgets._accessors import BatchLoaderAccessor
 
@@ -58,7 +56,7 @@ class CylindraBatchWidget(MagicTemplate):
     def construct_loader(
         self,
         paths: Annotated[Any, {"bind": _get_loader_paths}],
-        predicate: Annotated[str | pl.Expr | None, {"bind": _get_expression}],
+        predicate: Annotated[str | pl.Expr | None, {"bind": _get_expression}] = None,
         name: str = "Loader",
     ):  # fmt: skip
         """
@@ -69,6 +67,10 @@ class CylindraBatchWidget(MagicTemplate):
         paths : list of (Path, list[Path]) or list of (Path, list[Path], Path)
             List of tuples of image path, list of molecule paths, and project path. The
             project path is optional.
+        predicate : str or polars expression, optional
+            Filter predicate of molecules.
+        name : str, default "Loader"
+            Name of the loader.
         """
         if name == "":
             raise ValueError("Name is empty!")
@@ -76,18 +78,15 @@ class CylindraBatchWidget(MagicTemplate):
         yield 0.0, 0.0
         loader = BatchLoader()
         image_paths: dict[int, Path] = {}
-        _temp_features = TempFeatures()
+        _temp_feat = TempFeatures()
         for img_id, path_info in enumerate(paths):
             path_info = PathInfo(*path_info)
-            img = ip.lazy.imread(path_info.image, chunks=get_config().dask_chunk)
+            img = path_info.lazy_imread()
             image_paths[img_id] = Path(path_info.image)
-            prj = CylindraProject.from_file(path_info.project)
-            with prj.open_project() as dir:
-                for molecule_id, mole_path in enumerate(path_info.molecules):
-                    mole = _temp_features.read_molecules(prj, dir / mole_path)
-                    loader.add_tomogram(img.value, mole, img_id)
-                    yield img_id / len(paths), molecule_id / len(path_info.molecules)
-                yield (img_id + 1) / len(paths), 0.0
+            for molecule_id, mole in enumerate(path_info.iter_molecules(_temp_feat)):
+                loader.add_tomogram(img.value, mole, img_id)
+                yield img_id / len(paths), molecule_id / len(path_info.molecules)
+            yield (img_id + 1) / len(paths), 0.0
         yield 1.0, 1.0
 
         if predicate is not None:
@@ -95,7 +94,7 @@ class CylindraBatchWidget(MagicTemplate):
                 predicate = eval(predicate, POLARS_NAMESPACE, {})
             loader = loader.filter(predicate)
         new = loader.replace(
-            molecules=loader.molecules.drop_features(_temp_features.to_drop),
+            molecules=loader.molecules.drop_features(_temp_feat.to_drop),
             scale=self.constructor.scale.value,
         )
 
@@ -116,6 +115,34 @@ class CylindraBatchWidget(MagicTemplate):
         btn.text = "Construct loader"
 
     @set_design(text=capitalize, location=ProjectSequenceEdit.File)
+    def construct_loader_by_list(
+        self,
+        project_paths: Path.Multiple[FileFilter.PROJECT],
+        mole_pattern: str = "*",
+        predicate: Annotated[str | pl.Expr | None, {"bind": _get_expression}] = None,
+        name: str = "Loader",
+    ):
+        """
+        Construct a batch loader from a list of project paths and a molecule pattern.
+
+        Parameters
+        ----------
+        project_paths : list of path-like
+            All the project paths to be used for construction.
+        mole_pattern : str, default "*"
+            A glob pattern for molecule file names. For example, "*-ALN1.csv" will only
+            collect the molecule file names ends with "-ALN1.csv".
+        predicate : str or polars expression, optional
+            Filter predicate of molecules.
+        name : str, default "Loader"
+            Name of the loader.
+        """
+        self.constructor.add_projects(project_paths, clear=True)
+        self.constructor.select_molecules_by_pattern(mole_pattern)
+        self.construct_loader(self._get_loader_paths(), predicate=predicate, name=name)
+        return None
+
+    @set_design(text=capitalize, location=ProjectSequenceEdit.File)
     def construct_loader_by_pattern(
         self,
         path_pattern: str,
@@ -123,6 +150,21 @@ class CylindraBatchWidget(MagicTemplate):
         predicate: Annotated[str | pl.Expr | None, {"bind": _get_expression}] = None,
         name: str = "Loader",
     ):
+        """
+        Construct a batch loader from a pattern of project paths and molecule paths.
+
+        Parameters
+        ----------
+        path_pattern : str
+            A glob pattern for project paths.
+        mole_pattern : str, default "*"
+            A glob pattern for molecule file names. For example, "*-ALN1.csv" will only
+            collect the molecule file names ends with "-ALN1.csv".
+        predicate : str or polars expression, optional
+            Filter predicate of molecules.
+        name : str, default "Loader"
+            Name of the loader.
+        """
         self.constructor.add_projects_glob(path_pattern, clear=True)
         self.constructor.select_molecules_by_pattern(mole_pattern)
         self.construct_loader(self._get_loader_paths(), predicate=predicate, name=name)

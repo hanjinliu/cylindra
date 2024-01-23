@@ -84,10 +84,11 @@ and the preview is also available.
 
 ??? example "simulate supertwist"
 
+    After [seam-searching](seam_search.md), column "isotype-id" will be added to the
+    molecules layer, which indicates the alpha/beta isotype of each molecule.
+
     ``` python
     dtheta = 0.05
-    # after seam-searching, column "isotype-id" will be added to the molecules layer,
-    # which indicates the alpha/beta isotype of each molecule.
     ui.simulator.displace(
         layer="Mole(Sim)-0",
         twist=pl.when(pl.col("isotype-id").eq(1)).then(-dtheta).otherwise(dtheta)

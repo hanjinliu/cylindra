@@ -77,9 +77,13 @@ resume the analysis or view the results by loading the project file.
 ## Working with Other Softwares
 
 As data analyses of electron microscopy is a complicated process, you may need to
-combine many softwares together. Currently, `cylindra` provides functions to read/write
-`Spline` and `Molecules` objects from/to `IMOD` files. If you want other formats to be
-supported, please open an issue or submit a pull request to the [repository](https://github.com/hanjinliu/cylindra).
+combine many softwares together. `cylindra` provides functions to read or convert
+components such as `Spline` and `Molecules` objects for other softwares. If you find
+that some softwares would be nice to be supported but not currently, please open an
+issue for the feature request or submit a pull request to the
+[repository](https://github.com/hanjinliu/cylindra).
+
+&rarr; [Learn more](extern/index.md)
 
 ## Configure Global Variables
 

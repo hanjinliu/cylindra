@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, Iterator, NamedTuple
 
+import impy as ip
 import polars as pl
 from acryo import BatchLoader, Molecules
 
+from cylindra._config import get_config
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import PropertyNames as H
 from cylindra.project import CylindraProject
@@ -35,9 +37,13 @@ class TempFeatures:
     def to_drop(self):
         return self._temp_features
 
-    def read_molecules(self, prj: CylindraProject, mole_abs_path: Path) -> Molecules:
+    def read_molecules(
+        self,
+        mole_abs_path: Path,
+        project: CylindraProject | None = None,
+    ) -> Molecules:
         mole = Molecules.from_file(mole_abs_path)
-        spl = _find_source(prj, mole_abs_path)
+        spl = _find_source(mole_abs_path, project)
         features = [pl.repeat(mole_abs_path.stem, pl.count()).alias(Mole.id)]
         if spl is not None and self._enabled:
             for propname in _SPLINE_FEATURES:
@@ -66,17 +72,39 @@ class PathInfo(NamedTuple):
     """Tuple that represents a child project path."""
 
     image: Path
-    molecules: list[str]
-    project: Path
+    molecules: list[str | Path]
+    project: Path | None = None
+
+    def lazy_imread(self) -> ip.LazyImgArray:
+        """Get the lazy image array."""
+        return ip.lazy.imread(self.image, chunks=get_config().dask_chunk)
+
+    def iter_molecules(self, temp_features: TempFeatures) -> Iterator[Molecules]:
+        """Iterate over all molecules."""
+        if self.project is None:
+            for mole_path in self.molecules:
+                mole = temp_features.read_molecules(mole_path)
+                yield mole
+        else:
+            prj = CylindraProject.from_file(self.project)
+            with prj.open_project() as dir:
+                for mole_path in self.molecules:
+                    mole = temp_features.read_molecules(dir / mole_path, prj)
+                    yield mole
 
 
-def _find_source(prj: CylindraProject, mole_abs_path: Path) -> CylSpline | None:
+def _find_source(
+    mole_abs_path: Path,
+    project: CylindraProject | None = None,
+) -> CylSpline | None:
+    if project is None:
+        return None
     dir = mole_abs_path.parent
     mole_path = mole_abs_path.name
-    for info in prj.molecules_info:
+    for info in project.molecules_info:
         if info.name == mole_path:
             source = info.source
             if source is None:
                 return None
-            return prj.load_spline(dir, source)
+            return project.load_spline(dir, source)
     return None

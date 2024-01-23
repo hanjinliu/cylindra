@@ -9,6 +9,8 @@ from cylindra import instance
 
 DOCS = Path(__file__).parent.parent
 PATH_13_3 = DOCS.parent / "tests" / "13pf_MT.tif"
+PROJECT_13 = DOCS.parent / "tests" / "test_project_13pf"
+PROJECT_14 = DOCS.parent / "tests" / "test_project_14pf"
 PATH_TEMP = DOCS.parent / "tests" / "beta-tubulin.tif"
 
 assert PATH_13_3.exists()
@@ -87,6 +89,7 @@ def main():
         ui.fit_splines,
         ui.refine_splines,
         ui.measure_radius,
+        ui.set_radius,
         ui.measure_local_radius,
         ui.local_cft_analysis,
         ui.global_cft_analysis,
@@ -167,6 +170,11 @@ def main():
     # Image processor
     ui.image_processor.show()
     _imsave(ui.image_processor.native, "image_processor")
+
+    # batch analyzer
+    ui.batch.construct_loader_by_list([PROJECT_13, PROJECT_14], mole_pattern="Mole-0*")
+    _imsave(ui.batch.constructor.native, "batch_constructor")
+
     QtW.QApplication.processEvents()
 
 

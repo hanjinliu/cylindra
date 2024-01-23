@@ -57,9 +57,16 @@ shape: (3, 2)
 └─────┴───────┘
 ```
 
-The expression system is very useful to describe how to process the molecules (or
-sometimes splines). For example,
+## Expressions in `cylindra`
 
-- `pl.col("pf-id") % 2 == 1` ... The odd-number-th protofilaments
-- `pl.col("position-nm") < 50` ... The molecules <50 nm from the tip.
-- `pl.col("orientation") == "PlusToMinus"` ... Splines in "PlusToMinus" orientation.
+The expression system is very useful to describe how to process the molecules (or
+sometimes splines). It is used in the following methods:
+
+- [Set spline radius](../lattice_params.md#set-global-radius-manually)
+- [Calculate molecule features](features.md#calculate-features)
+- [Filter molecules](filter_molecules.md)
+- [Average with filtered molecules](../alignment/conventional.md#subtomogram-averaging)
+- [Average groups of molecules](../alignment/conventional.md#subtomogram-averaging)
+
+In these methods, expressions are given as a `str`. `pl` and `col` is available in the
+namespace.

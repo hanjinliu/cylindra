@@ -53,7 +53,7 @@ def test_project_io(ui: CylindraMainWidget):
             (
                 TEST_DIR / "14pf_MT.tif",
                 ["Mole-0.csv", "Mole-1.csv"],
-                PROJECT_DIR_13PF,
+                PROJECT_DIR_14PF,
             ),
         ],
         predicate="pl.col('npf_glob') == 13",
@@ -72,6 +72,21 @@ def test_project_io(ui: CylindraMainWidget):
     assert ui.batch.loader_infos[1].name == "Loader2"
     ui.batch.loader_infos["Loader"]
     del ui.batch.loader_infos["Loader2"]
+
+    # use absolute paths
+    ui.batch.construct_loader(
+        paths=[
+            (
+                TEST_DIR / "13pf_MT.tif",
+                [PROJECT_DIR_13PF / "Mole-0.csv", PROJECT_DIR_13PF / "Mole-1.csv"],
+            ),
+            (
+                TEST_DIR / "14pf_MT.tif",
+                [PROJECT_DIR_14PF / "Mole-0.csv", PROJECT_DIR_14PF / "Mole-1.csv"],
+            ),
+        ],
+        name="Loader_abs",
+    )
 
 
 def test_view(ui: CylindraMainWidget):

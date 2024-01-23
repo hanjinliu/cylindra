@@ -8,6 +8,7 @@ structures are implemented.
 
 - [Installation](installation.md)
 - [Basics](basics.md)
+
 - [Open an image](open_image.md)
 - [Fit splines](fit_splines.md)
 - [Measure lattice parameters](lattice_params.md)
@@ -15,11 +16,14 @@ structures are implemented.
 - [Custom Workflows](workflows.md)
 - [Spline](spline/index.md)
 - [Molecules](molecules/index.md)
-- [Subtomogram Alignment](alignment/index.md)
+- [Subtomogram Alignment and Averaging](alignment/index.md)
+- [Working with Many Projects](batch/index.md)
+- [Working with External Softwares](extern/index.md)
 - [Tomogram Simulation](simulate.md)
 - [Process Images](process_images.md)
 - [Microtubule Seam Search](seam_search.md)
 
+- [API Reference](api/index.md)
 
 ### Major Dependencies
 

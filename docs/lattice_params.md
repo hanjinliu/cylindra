@@ -35,6 +35,40 @@ print(spl.props.get_glob("radius"))  # print the global radius of the spline
 print(spl.radius)  # a shorthand for spl.props.get_glob("radius")
 ```
 
+### Set global radius manually
+
+:material-arrow-right-thin-circle-outline: API: [`set_radius`][cylindra.widgets.main.CylindraMainWidget.set_radius]
+
+:material-arrow-right-thin-circle-outline: GUI: `Analysis > Radius > Set radius`
+
+If you already know the radius, or the rule to calculate the radius, you can set it
+manually. If the latter, you'll use the [expression system](molecules/expressions.md).
+
+![Set radius](images/set_radius.png){ loading=lazy, width=400px }
+
+??? info "List of parameters"
+
+    1. The registered splines should be shown in the top "splines" row.
+    2. "radius" is the radius in nm. If a scalar is given, radii of all the selected
+       splines will be updated with the same value. If an expression is given, radius
+       values will be calculated by evaluating the expression using the global
+       properties of the spline.
+
+??? example "set radius using an expression"
+
+    Calculate the radius based on the number of protofilaments.
+
+    ```python
+    ui.set_radius(splines=[0, 1], radius="col('npf') * 0.78")
+    ```
+
+    The [replace](https://docs.pola.rs/py-polars/html/reference/expressions/api/polars.Expr.replace.html)
+    method is useful to map the number of protofilaments to the radius value.
+
+    ```python
+    ui.set_radius(splines=[0, 1], radius="col('npf').replace({13: 10.0, 14: 11.0})")
+    ```
+
 ### The local radius
 
 :material-arrow-right-thin-circle-outline: API: [`measure_local_radius`][cylindra.widgets.main.CylindraMainWidget.measure_local_radius]
