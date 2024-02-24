@@ -29,8 +29,11 @@ After running the method, a new `napari` viewer will be opened to show the avera
 
 !!! note
     There are more options for averaging molecules in the `Averaging` menu:
+
     - [`average_subset`][cylindra.widgets.sta.SubtomogramAveraging.average_subset]
+
     - [`average_groups`][cylindra.widgets.sta.SubtomogramAveraging.average_groups]
+
     - [`average_filtered`][cylindra.widgets.sta.SubtomogramAveraging.average_filtered]
 
 ## Subtomogram Alignment
@@ -40,6 +43,10 @@ After running the method, a new `napari` viewer will be opened to show the avera
 :material-arrow-right-thin-circle-outline: GUI: `STA widget > Alignment > Align all molecules`
 
 ![Align all](../images/align_all.png){ loading=lazy, width=480px }
+
+Alignment is a step in which each coordinate of a molecules layer is updated to maximize
+the correlation score between the subtomogram around the molecule and the template
+image. New molecules layer will be suffixed with "ALN1", "ALN2", etc.
 
 ??? info "List of parameters"
     1. Set the template image and mask parameters in the STA widget.
@@ -65,8 +72,8 @@ After running the method, a new `napari` viewer will be opened to show the avera
 This method is mostly used after molecules are initialized by [`map_monomers`](../molecules/spline_to_molecules.md#molecules-on-the-cylinder-surface).
 It first calculates the average, then fit the average to the template image. The
 optimal fitting parameters are then used to shift and rotate all the molecules. It
-means that if you run `average_all` on the aligned molecules, the average image should
-be almost well fitted to the template image.
+means that if you run `average_all` on the aligned molecules, the average image
+should be *almost* well fitted to the template image.
 
 ![Align averaged](../images/align_averaged.png){ loading=lazy, width=480px }
 
@@ -94,8 +101,9 @@ be almost well fitted to the template image.
 This method automatically split the selected molecules into two groups, and calculate
 the Fourier Shell Correlation (FSC) between the two groups. The FSC curve will be shown
 in the logger widget. Since the average image can easily be calculated after FSC, this
-method also adds the average image to the sub-viewer as [`average_all`](#subtomogram-averaging) does. The FSC results will also be stored in the `metadata`
-attribute of the image layer for the average image.
+method also adds the average image to the sub-viewer as [`average_all`](#subtomogram-averaging)
+does. The FSC results will also be stored in the `metadata` attribute of the image layer
+for the average image.
 
 ![Calculate FSC](../images/calculate_fsc.png){ loading=lazy, width=400px }
 

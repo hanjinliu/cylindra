@@ -27,7 +27,7 @@ constant along the cylindric structure.
     3. "min radius" is the minimum radius to be considered as a valid peak.
 
 After this estimation, the radius is stored as a global property of the spline. It is
-available in `Spline` properties.
+available in the `spline` properties.
 
 ```python
 spl = ui.splines[0]  # the first Spline object
@@ -104,9 +104,10 @@ Many biological filamentous structures have polarity. This feature usually needs
 determined by subtomogram averaging, but in some cases we can undoubtedly distinguish
 the polarity by seeing the chirality of the molecules.
 
-In `cylindra`, an automatic polarity inference method is implemented for microtubules,
-using the fact that clockwise appearance of tubulin molecules corresponds to the
-minus-to-plus direction.
+In `cylindra`, an automatic polarity inference method is implemented. This method works
+very well for microtubules, using the fact that clockwise appearance of tubulin
+molecules corresponds to the minus-to-plus direction. Theoretically, it should also
+work for other helical structures such as actin filament, but it's not guaranteed.
 
 ## Running CFT
 
@@ -116,7 +117,7 @@ the local and global lattice parameters of microtubules. It composed of followin
 1. Coordinate transformation from the Cartesian coordinate $(z, y, x)$ to the
    cylindrical coordinate $(r, y', \theta)$.
 2. 3D Discrete Fourier Transformation around the peak locations with up-sampling. The
-   peak locations are defined in the spline configurations.
+   expected peak locations are defined in the spline configurations.
 3. Project the 3D cylindric power spectrum to $(y', \theta)$. The peak frequencies are
    used to calculate the lattice parameters.
 
@@ -244,16 +245,18 @@ ui.splines[0].props.get_glob("rise_angle")
 
 After running CFT, splines will have the following properties:
 
-- `"rise_angle"`
-- `"rise_length"`
-- `"pitch"`
-- `"spacing"`
-- `"skew_angle"`
-- `"twist"`
-- `"npf"`
-- `"start"`
-- `"radius"`
-- `"orientation"` (global only)
+1. `"rise_angle"`
+2. `"rise_length"`
+3. `"pitch"`
+4. `"spacing"`
+5. `"skew_angle"`
+6. `"twist"`
+7. `"radius"`
+8. `"npf"`
+9. `"start"`
+10. `"orientation"` (global only)
+
+![Definition of lattice parameters](images/lattice_params.png)
 
 ## Sweep along the Splines
 
@@ -275,5 +278,3 @@ The "fit &rarr; refine &rarr; measure radius &rarr; CFT" workflow can be quickly
 from the toolbar, or ++f2++ key.
 
 ![Runner](images/run_workflow_dialog.png){ loading=lazy, width=400px }
-
-Nest step: [Load & Save Projects](project_io.md)

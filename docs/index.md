@@ -6,8 +6,12 @@ structures are implemented.
 
 ### Index
 
+#### Getting Started
+
 - [Installation](installation.md)
 - [Basics](basics.md)
+
+#### In-depth Tutorials
 
 - [Open an image](open_image.md)
 - [Fit splines](fit_splines.md)
@@ -22,6 +26,8 @@ structures are implemented.
 - [Tomogram Simulation](simulate.md)
 - [Process Images](process_images.md)
 - [Microtubule Seam Search](seam_search.md)
+
+#### Others
 
 - [API Reference](api/index.md)
 

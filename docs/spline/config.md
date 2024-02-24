@@ -69,13 +69,13 @@ SplineConfig(
 
 :material-arrow-right-thin-circle-outline: GUI: `Splines > Config > Update default config`
 
-![update_default_config](../images/update_default_config.png)
+![update_default_config](../images/update_default_config.png){ lazy loading, width=400px }
 
 ### Measuring the approximate parameters of unknown structures
 
 :material-arrow-right-thin-circle-outline: GUI: `Analysis > Open spectra inspector`
 
-![spectra_inspector](../images/spectra_inspector.png)
+![spectra_inspector](../images/spectra_inspector.png){ lazy loading, width=480px }
 
 This widget is used to measure lattice parameters by clicking the peak positions on the
 power spectrum.

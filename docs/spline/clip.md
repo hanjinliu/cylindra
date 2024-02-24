@@ -24,13 +24,13 @@ $\boldsymbol{C}_{inv}(u) = \boldsymbol{C}(1 - u)$
 This method clips the selected spline at both ends by the given lengths. Local
 properties of the clipped spline will be discarded, while global properties will not.
 
-![clip_spline](../images/clip_spline.png)
+![clip_spline](../images/clip_spline.png){ lazy loading, width=400px }
 
 ## Spline Clipper
 
 :material-arrow-right-thin-circle-outline: GUI: `Splines > Open spline clipper`
 
-![Spline Clipper](../images/spline_clipper.png)
+![Spline Clipper](../images/spline_clipper.png){ lazy loading, width=480px }
 
 For precise clipping, you can use the spline clipper widget. This widget synchronizes
 the clipping lengths and the projections of the spline edges. "Clip here" will call

@@ -42,29 +42,29 @@ nav:
     - project_io.md
     - workflows.md
     - Spline:
-      - Overview: spline/index.md
+      - Spline: spline/index.md
       - spline/clip.md
       - spline/config.md
     - Molecules:
-      - Overview: molecules/index.md
+      - Molecules: molecules/index.md
       - molecules/spline_to_molecules.md
       - molecules/features.md
       - molecules/expressions.md
       - molecules/split_and_combine.md
       - molecules/filter_molecules.md
     - Alignment:
-      - Overview: alignment/index.md
+      - Subtomogram Alignment and Averaging: alignment/index.md
       - alignment/conventional.md
       - alignment/landscape.md
       - alignment/viterbi.md
       - alignment/rma.md
     - Working with Many Projects:
-      - Overview: batch/index.md
+      - Working with Many Projects: batch/index.md
       - batch/collect_projects.md
       - batch/construct.md
       - batch/average.md
     - Working with External Softwares:
-      - Overview: extern/index.md
+      - Working with External Softwares: extern/index.md
       - extern/imod.md
     - process_images.md
     - simulate.md

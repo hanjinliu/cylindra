@@ -37,7 +37,11 @@ compile the Rust codes to be used from Python.
     `cylindra`. If you don't want all of these, you can manually select the
     dependencies. The optional dependencies are:
 
-    - `pyqt5`
-    - `scikit-learn`
-    - `mrcfile`
-    - `tifffile`
+    - `pyqt5` ... This is the default GUI backend. You can also use `pyqt6` or
+      `pyside6`.
+    - `scikit-learn` ... Conventional machine learning library. Princilple component
+      analysis (PCA) and k-means clustering need this library.
+    - `mrcfile` ... A library for reading and writing MRC files. This is needed if you
+      want to use MRC files.
+    - `tifffile` ... A library for reading and writing TIFF files. This is needed if you
+      want to use TIFF files.

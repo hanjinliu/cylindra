@@ -89,7 +89,7 @@ issue for the feature request or submit a pull request to the
 
 :material-arrow-right-thin-circle-outline: GUI: `Others > Configure cylindra`
 
-![Configure cylindra](images/configure_cylindra.png)
+![Configure cylindra](images/configure_cylindra.png){ loading=lazy, width=400px }
 
 Parameters in this dialog will be used across different sessions, but does not affect
 the calculation results.
