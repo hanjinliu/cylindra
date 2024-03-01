@@ -28,8 +28,7 @@ Now, it's ready to install `cylindra`.
 pip install cylindra[all] -U
 ```
 
-This command will automatically install all the modules `cylindra` depends on, and
-compile the Rust codes to be used from Python.
+This command will automatically install all the modules `cylindra` depends on.
 
 ??? info "Avoid installing optional dependencies"
 

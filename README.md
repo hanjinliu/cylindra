@@ -1,6 +1,7 @@
 # cylindra
 
-`cylindra` is a GUI-integrated cryo-ET image analysis tool for cylindric periodic structures such as microtubules.
+`cylindra` is a GUI-integrated cryo-ET image analysis tool for cylindric periodic
+structures such as microtubules.
 
 ![](resources/fig.png)
 
@@ -10,17 +11,18 @@ TODO
 
 ## Installation
 
-In `cylindra`, computationally-intensive part is implemented in Rust. You have to install Rust first to run `cylindra`. See the [Rust installation guide](https://www.rust-lang.org/tools/install).
+- Use `pip`
+
+```shell
+pip install cylindra -U
+```
 
 - From source
 
+If you install from the source, you'll need Rust to compile a part of the code.
+
 ```shell
 git clone git+https://github.com/hanjinliu/cylindra
-```
-
-To install using pip, run following commands under your desired environment.
-
-```shell
 cd cylindra
 pip install -e .
 ```
