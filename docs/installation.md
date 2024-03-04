@@ -11,24 +11,39 @@ conda create -n my-env python  # create environment
 conda activate my-env  # enter the virtual environment
 ```
 
-### Install Rust
-
-In `cylindra`, some computationally intensive functions are implemented in Rust.
-You have to install Rust first to run `cylindra`. See the [Rust installation guide](https://www.rust-lang.org/tools/install).
-
-!!! note
-    In the future versions, the Rust part may be cross-compiled and distributed as
-    a binary, so that you don't have to install Rust.
-
 ### Install Cylindra
 
 Now, it's ready to install `cylindra`.
 
-```shell
-pip install cylindra[all] -U
-```
+=== "Using `pip`"
 
-This command will automatically install all the modules `cylindra` depends on.
+    Following command will install `cylindra` and all the relevant dependencies in the
+    current virtual environment.
+
+    ```shell
+    pip install cylindra[all] -U
+    ```
+
+=== "From the GitHub main branch"
+
+    Following command will install `cylindra` from the main branch of the GitHub
+    repository.
+
+    ```shell
+    pip install git+https://github.com/hanjinliu/cylindra.git
+    ```
+
+=== "Build from the source"
+
+    You can clone the repository and build locally. This option requires `git` and
+    the Rust programming language. Following commands will save all the files in the
+    "cylindra" folder, compile the Rust files and install them.
+
+    ```shell
+    git clone https://github.com/hanjinliu/cylindra
+    cd cylindra
+    pip install .[all]
+    ```
 
 ??? info "Avoid installing optional dependencies"
 
@@ -44,3 +59,5 @@ This command will automatically install all the modules `cylindra` depends on.
       want to use MRC files.
     - `tifffile` ... A library for reading and writing TIFF files. This is needed if you
       want to use TIFF files.
+
+You can check if the installation succeeded by running `cylindra -v`.

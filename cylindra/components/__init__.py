@@ -1,6 +1,6 @@
 from ._base import BaseComponent
 from ._cylinder_params import CylinderParameters
-from .cylindric import CylinderModel, indexer
+from .cylindric import CylinderModel, CylindricSliceConstructor, indexer
 from .spline import CylSpline, Spline, SplineConfig
 from .tomogram import CylTomogram, Tomogram
 
@@ -14,4 +14,5 @@ __all__ = [
     "Tomogram",
     "CylTomogram",
     "CylinderParameters",
+    "CylindricSliceConstructor",
 ]

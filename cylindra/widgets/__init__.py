@@ -10,13 +10,15 @@ def dont_use_native_menu_bar():  # pragma: no cover
 
 
 def init_opengl_and_dpi():
-    from qtpy import QtCore
+    from qtpy import QT6
     from qtpy import QtWidgets as QtW
+    from qtpy.QtCore import Qt
 
     # Docking vispy widget in napari viewer requires this.
-    QtW.QApplication.setAttribute(QtCore.Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
-    # High DPI support for High-DPI devices such as Surface Pro.
-    QtW.QApplication.setAttribute(QtCore.Qt.ApplicationAttribute.AA_UseHighDpiPixmaps)
+    QtW.QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+    # High DPI support for High-DPI devices such as Surface Pro. Only for Qt<6.
+    if not QT6:
+        QtW.QApplication.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps)
     return None
 
 

@@ -256,7 +256,7 @@ After running CFT, splines will have the following properties:
 9. `"start"`
 10. `"orientation"` (global only)
 
-![Definition of lattice parameters](images/lattice_params.png)
+![Definition of lattice parameters](images/lattice_params.png){ loading=lazy, width=320px }
 
 ## Sweep along the Splines
 

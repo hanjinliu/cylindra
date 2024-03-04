@@ -17,7 +17,7 @@ class BaseProject(BaseModel):
 
     datetime: str
     version: str
-    dependency_versions: "dict[str, str]"
+    dependency_versions: dict[str, str]
     project_path: Path | None = None
 
     def _post_init(self):
