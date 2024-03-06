@@ -102,7 +102,7 @@ class MoleculesInfo(LayerInfo):
             case str(color):
                 kwargs["face_color"] = color
             case cmap:
-                kwargs["cmap"] = cmap.dict()
+                kwargs["cmap"] = cmap.model_dump()
 
         return MoleculesLayer.construct(mole, **kwargs)
 
