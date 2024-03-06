@@ -45,6 +45,8 @@ class AppConfig:
 
     @classmethod
     def from_user_dir(cls, ignore_error: bool = False) -> AppConfig:
+        if not USER_SETTINGS.exists():
+            return cls()
         with open(USER_SETTINGS) as f:
             js = json.load(f)
             if "dask_chunk" in js:

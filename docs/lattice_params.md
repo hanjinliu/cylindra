@@ -27,13 +27,47 @@ constant along the cylindric structure.
     3. "min radius" is the minimum radius to be considered as a valid peak.
 
 After this estimation, the radius is stored as a global property of the spline. It is
-available in `Spline` properties.
+available in the `spline` properties.
 
 ```python
 spl = ui.splines[0]  # the first Spline object
 print(spl.props.get_glob("radius"))  # print the global radius of the spline
 print(spl.radius)  # a shorthand for spl.props.get_glob("radius")
 ```
+
+### Set global radius manually
+
+:material-arrow-right-thin-circle-outline: API: [`set_radius`][cylindra.widgets.main.CylindraMainWidget.set_radius]
+
+:material-arrow-right-thin-circle-outline: GUI: `Analysis > Radius > Set radius`
+
+If you already know the radius, or the rule to calculate the radius, you can set it
+manually. If the latter, you'll use the [expression system](molecules/expressions.md).
+
+![Set radius](images/set_radius.png){ loading=lazy, width=400px }
+
+??? info "List of parameters"
+
+    1. The registered splines should be shown in the top "splines" row.
+    2. "radius" is the radius in nm. If a scalar is given, radii of all the selected
+       splines will be updated with the same value. If an expression is given, radius
+       values will be calculated by evaluating the expression using the global
+       properties of the spline.
+
+??? example "set radius using an expression"
+
+    Calculate the radius based on the number of protofilaments.
+
+    ```python
+    ui.set_radius(splines=[0, 1], radius="col('npf') * 0.78")
+    ```
+
+    The [replace](https://docs.pola.rs/py-polars/html/reference/expressions/api/polars.Expr.replace.html)
+    method is useful to map the number of protofilaments to the radius value.
+
+    ```python
+    ui.set_radius(splines=[0, 1], radius="col('npf').replace({13: 10.0, 14: 11.0})")
+    ```
 
 ### The local radius
 
@@ -70,9 +104,10 @@ Many biological filamentous structures have polarity. This feature usually needs
 determined by subtomogram averaging, but in some cases we can undoubtedly distinguish
 the polarity by seeing the chirality of the molecules.
 
-In `cylindra`, an automatic polarity inference method is implemented for microtubules,
-using the fact that clockwise appearance of tubulin molecules corresponds to the
-minus-to-plus direction.
+In `cylindra`, an automatic polarity inference method is implemented. This method works
+very well for microtubules, using the fact that clockwise appearance of tubulin
+molecules corresponds to the minus-to-plus direction. Theoretically, it should also
+work for other helical structures such as actin filament, but it's not guaranteed.
 
 ## Running CFT
 
@@ -82,7 +117,7 @@ the local and global lattice parameters of microtubules. It composed of followin
 1. Coordinate transformation from the Cartesian coordinate $(z, y, x)$ to the
    cylindrical coordinate $(r, y', \theta)$.
 2. 3D Discrete Fourier Transformation around the peak locations with up-sampling. The
-   peak locations are defined in the spline configurations.
+   expected peak locations are defined in the spline configurations.
 3. Project the 3D cylindric power spectrum to $(y', \theta)$. The peak frequencies are
    used to calculate the lattice parameters.
 
@@ -210,16 +245,18 @@ ui.splines[0].props.get_glob("rise_angle")
 
 After running CFT, splines will have the following properties:
 
-- `"rise_angle"`
-- `"rise_length"`
-- `"pitch"`
-- `"spacing"`
-- `"skew_angle"`
-- `"twist"`
-- `"npf"`
-- `"start"`
-- `"radius"`
-- `"orientation"` (global only)
+1. `"rise_angle"`
+2. `"rise_length"`
+3. `"pitch"`
+4. `"spacing"`
+5. `"skew_angle"`
+6. `"twist"`
+7. `"radius"`
+8. `"npf"`
+9. `"start"`
+10. `"orientation"` (global only)
+
+![Definition of lattice parameters](images/lattice_params.png){ loading=lazy, width=320px }
 
 ## Sweep along the Splines
 
@@ -241,5 +278,3 @@ The "fit &rarr; refine &rarr; measure radius &rarr; CFT" workflow can be quickly
 from the toolbar, or ++f2++ key.
 
 ![Runner](images/run_workflow_dialog.png){ loading=lazy, width=400px }
-
-Nest step: [Load & Save Projects](project_io.md)

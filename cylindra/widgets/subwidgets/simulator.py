@@ -23,13 +23,18 @@ from magicclass.logging import getLogger
 from magicclass.types import ExprStr, Optional, Path
 from magicclass.utils import thread_worker
 from magicclass.widgets import Separator
-from magicgui.widgets import FunctionGui, RangeSlider
+from magicgui.widgets import FunctionGui, Label, RangeSlider
 from numpy.typing import NDArray
 from scipy.spatial.transform import Rotation
 
 from cylindra._napari import MoleculesLayer
-from cylindra.components import CylinderModel, CylSpline, CylTomogram
-from cylindra.components import indexer as Idx
+from cylindra.components import (
+    CylinderModel,
+    CylindricSliceConstructor,
+    CylSpline,
+    CylTomogram,
+    indexer,
+)
 from cylindra.const import (
     INTERPOLATION_CHOICES,
     PREVIEW_LAYER_NAME,
@@ -115,11 +120,16 @@ class Component(ChildWidget):
         parent = self.find_ancestor(ComponentList)
         idx = parent.index(self)
         del parent[idx]
+        parent._on_children_change()
 
 
 @magicclass(widget_type="scrollable", record=False)
 class ComponentList(ChildWidget):
     """List of components"""
+
+    def __post_init__(self):
+        self._empty_label = Label(value="No components added.")
+        self.append(self._empty_label)
 
     def _iter_components(self) -> Iterator[Component]:
         for wdt in self:
@@ -138,6 +148,10 @@ class ComponentList(ChildWidget):
                 to_remove.append(i)
         for i in reversed(to_remove):
             self.pop(i)
+        self._on_children_change()
+
+    def _on_children_change(self):
+        self._empty_label.visible = len(list(self._iter_components())) == 0
 
 
 @magicclass
@@ -226,6 +240,7 @@ class Simulator(ChildWidget):
         """
         layer = assert_layer(layer, self.parent_viewer)
         self.component_list.append(Component(template_path, layer))
+        self.component_list._on_children_change()
 
     @set_design(text=capitalize, location=CreateMenu)
     @thread_worker.with_progress(desc="Creating an image")
@@ -835,7 +850,7 @@ def _fill_shift(yrange, arange, val: float, shape):
     ysl = slice(*yrange)
     asl = slice(*arange)
     shift[ysl, asl] = val
-    return shift, Idx[ysl, asl]
+    return shift, indexer[ysl, asl]
 
 
 def _assert_not_empty(components: list[tuple[str, Path]]):
@@ -917,7 +932,9 @@ def _fetch_shape(self: Simulator, gui: FunctionGui):
 
 
 def _local_transform(
-    transformer: Callable[[CylinderModel, float, Idx], CylinderModel],
+    transformer: Callable[
+        [CylinderModel, float, CylindricSliceConstructor], CylinderModel
+    ],
     layer: MoleculesLayer,
     by: float,
     yrange: tuple[int, int],

@@ -33,11 +33,12 @@ To delete the last spline, click ![](images/toolbutton_clear_current.png){ width
     In the future version, other auto-picking tools (AI-powered, fully automated, etc)
     may be added.
 
-??? info "Configure splines"
+!!! danger "Important: Configure the spline for your cylindric structure"
 
     Each spline is tagged with a `SplineConfig` object, which describes the average
-    feature of the cylindric structure it represents. Default values are optimized for
-    microtubules. If you want to analyze other structures, see [here](spline/config.md).
+    feature of the cylindric structure it represents. **Default values are optimized for
+    microtubules**. If you want to analyze other structures, see
+    [here](spline/config.md).
 
 ## Fit Automatically
 
@@ -80,7 +81,7 @@ to pass nearby the estimated centers as much as possible, while avoiding the out
     If the filament is thin, fitting to the centroid may work better. To do this, use
     following methods instead.
 
-    :material-arrow-right-thin-circle-outline: API: [`fit_splines`][cylindra.widgets.main.CylindraMainWidget.fit_splines_by_centroid]
+    :material-arrow-right-thin-circle-outline: API: [`fit_splines_by_centroid`][cylindra.widgets.main.CylindraMainWidget.fit_splines_by_centroid]
 
     :material-arrow-right-thin-circle-outline: GUI: `Splines > Fitting > Fit splines by centroid`
 

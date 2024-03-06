@@ -59,9 +59,9 @@ filtered image for visualization.
 2. Set the appropriate pixel scale. You can click "Scan header" to automatically detect
    the pixel scale.
 3. Set the tilt range and the tilt axis used for calculating missing wedges.
-4. Bin sizes used during your analysis. For example, setting to `[2, 4]` will start
-   calculation of 2&times; and 4&times; binned images, which will be loaded into the
-   memory, and leave the original image in the memory-mapped state (ready to be read
+4. Set the bin sizes used during your analysis. For example, setting to `[2, 4]` will
+   start calculation of 2&times; and 4&times; binned images, which will be loaded into
+   the memory, and leave the original image in the memory-mapped state (ready to be read
    in the future). The 4&times; binned image will be shown in the viewer as a
    reference. In the later analysis, you can switch between the original, 2&times;
    binned and 4&times; binned images.

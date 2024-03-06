@@ -15,7 +15,8 @@ if TYPE_CHECKING:
     from cylindra.project import CylindraProject, ProjectSequence
     from cylindra.widgets import CylindraMainWidget
 
-PathLike = str | Path
+    PathLike = str | Path
+
 _CURRENT_INSTANCE: CylindraMainWidget | None = None
 ACTIVE_WIDGETS: WeakSet[Widget] = WeakSet()
 

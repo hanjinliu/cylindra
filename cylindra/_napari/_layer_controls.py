@@ -178,11 +178,7 @@ class QtLandscapeSurfaceControls(QtSurfaceControls):
 
     def _on_show_min_change(self, event):
         with qt_signals_blocked(self.showMinCheckBox):
-            if event.value:
-                state = Qt.CheckState.Checked
-            else:
-                state = Qt.CheckState.Unchecked
-            self.showMinCheckBox.setChecked(state)
+            self.showMinCheckBox.setChecked(bool(event.value))
 
     def _change_level(self):
         self.layer.level = self.levelSlider.value()

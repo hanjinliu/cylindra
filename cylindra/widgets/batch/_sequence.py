@@ -266,6 +266,7 @@ class ProjectSequenceEdit(MagicTemplate):
         load_batch_project = abstractapi()
         save_batch_project = abstractapi()
         sep1 = field(Separator)
+        construct_loader_by_list = abstractapi()
         construct_loader_by_pattern = abstractapi()
 
     @magicmenu
@@ -332,21 +333,20 @@ class ProjectSequenceEdit(MagicTemplate):
         self, order: int = 3, output_shape=None, predicate=None
     ) -> BatchLoader:
         batch_loader = BatchLoader(order=order)
-        ###
         image_paths: dict[int, Path] = {}
         _temp_features = TempFeatures(enabled=predicate is not None)
         for img_id, prj_wdt in enumerate(iter(self.projects)):
             if not prj_wdt.check:
                 continue
             path_info = PathInfo(*prj_wdt._get_loader_paths())
-            img = ip.lazy.imread(path_info.image, chunks=get_config().dask_chunk)
+            img = path_info.lazy_imread()
             image_paths[img_id] = Path(path_info.image)
             prj = CylindraProject.from_file(path_info.project)
             with prj.open_project() as dir:
                 for mole_wdt in prj_wdt.molecules:
                     if not mole_wdt.check:
                         continue
-                    mole = _temp_features.read_molecules(prj, dir / mole_wdt.line.value)
+                    mole = _temp_features.read_molecules(dir / mole_wdt.line.value, prj)
                     batch_loader.add_tomogram(img.value, mole, img_id)
 
         if predicate is not None:
@@ -449,8 +449,14 @@ class ProjectSequenceEdit(MagicTemplate):
 
     @set_design(text="Add projects", location=File)
     @do_not_record
-    def add_projects(self, paths: Path.Multiple[FileFilter.PROJECT]):
+    def add_projects(
+        self,
+        paths: Path.Multiple[FileFilter.PROJECT],
+        clear: bool = False,
+    ):
         """Add project json files as the child projects."""
+        if clear:
+            self.projects.clear()
         for path in paths:
             wdt = self.projects._add(get_project_file(path))
             self.scale.value = wdt.project.scale

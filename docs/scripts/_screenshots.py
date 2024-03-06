@@ -87,6 +87,7 @@ def main():
         ui.fit_splines,
         ui.refine_splines,
         ui.measure_radius,
+        ui.set_radius,
         ui.measure_local_radius,
         ui.local_cft_analysis,
         ui.global_cft_analysis,
@@ -167,6 +168,10 @@ def main():
     # Image processor
     ui.image_processor.show()
     _imsave(ui.image_processor.native, "image_processor")
+
+    # batch analyzer
+    _imsave(ui.batch.constructor.native, "batch_constructor")
+
     QtW.QApplication.processEvents()
 
 
