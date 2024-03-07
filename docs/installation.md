@@ -13,12 +13,13 @@ conda activate my-env  # enter the virtual environment
 
 ### Install Cylindra
 
-Now, it's ready to install `cylindra`.
+Now, it's ready to install `cylindra`. Following command will install `cylindra` and all
+the relevant dependencies in the current virtual environment. Note that if you don't use
+`pip`, you'll need [`git`](https://git-scm.com) and
+[`rustup`](https://www.rust-lang.org/learn/get-started) command.
+
 
 === "Using `pip`"
-
-    Following command will install `cylindra` and all the relevant dependencies in the
-    current virtual environment.
 
     ```shell
     pip install cylindra[all] -U
@@ -26,18 +27,11 @@ Now, it's ready to install `cylindra`.
 
 === "From the GitHub main branch"
 
-    Following command will install `cylindra` from the main branch of the GitHub
-    repository.
-
     ```shell
     pip install git+https://github.com/hanjinliu/cylindra.git
     ```
 
 === "Build from the source"
-
-    You can clone the repository and build locally. This option requires `git` and
-    the Rust programming language. Following commands will save all the files in the
-    "cylindra" folder, compile the Rust files and install them.
 
     ```shell
     git clone https://github.com/hanjinliu/cylindra
