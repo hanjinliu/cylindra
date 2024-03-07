@@ -224,7 +224,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                             pl.Series(cv, dtype=pl.Float32).alias("spline_curvature")
                         )
                     mole.features = mole.features.with_columns(
-                        pl.repeat(info.stem, pl.count()).alias(Mole.id)
+                        pl.repeat(info.stem, pl.len()).alias(Mole.id)
                     )
                     col.add_tomogram(tomo.value, molecules=mole, image_id=idx)
         return col
@@ -290,7 +290,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                         )
                     dfs_spl.append(_df_spl)
                 _df_prj = pl.concat(dfs_spl, how="diagonal")
-                columns = [pl.repeat(idx, pl.count()).cast(pl.UInt16).alias(Mole.image)]
+                columns = [pl.repeat(idx, pl.len()).cast(pl.UInt16).alias(Mole.image)]
                 if H.spline_id in _df_prj.columns:
                     columns.append(pl.col(H.spline_id).cast(pl.UInt16))
 

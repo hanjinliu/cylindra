@@ -44,14 +44,14 @@ class TempFeatures:
     ) -> Molecules:
         mole = Molecules.from_file(mole_abs_path)
         spl = _find_source(mole_abs_path, project)
-        features = [pl.repeat(mole_abs_path.stem, pl.count()).alias(Mole.id)]
+        features = [pl.repeat(mole_abs_path.stem, pl.len()).alias(Mole.id)]
         if spl is not None and self._enabled:
             for propname in _SPLINE_FEATURES:
                 prop = spl.props.get_glob(propname, None)
                 if prop is None:
                     continue
                 propname_glob = propname + "_glob"
-                features.append(pl.repeat(prop, pl.count()).alias(propname_glob))
+                features.append(pl.repeat(prop, pl.len()).alias(propname_glob))
                 self._temp_features.add(propname_glob)
         mole = mole.with_features(features)
         return mole

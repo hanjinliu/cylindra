@@ -122,7 +122,7 @@ def _pad_molecules_at_seam(mole: Molecules, spl: CylSpline) -> tuple[Molecules, 
         mole.filter(pl.col(Mole.pf) == 0)
         .with_features(
             pl.col(Mole.nth) - _nrise,
-            pl.repeat(new_pf_id, pl.count(), dtype=pf_dtype).alias(Mole.pf),
+            pl.repeat(new_pf_id, pl.len(), dtype=pf_dtype).alias(Mole.pf),
         )
         .filter(pl.col(Mole.nth).is_between(*nth_rng))
     )
@@ -460,7 +460,7 @@ def _groupby_with_index(mole: Molecules, by: str):
     """
     if _INDEX_KEY in mole.features.columns:
         raise ValueError(f"Column name {_INDEX_KEY!r} already exists.")
-    mole0 = mole.with_features([pl.int_range(0, pl.count()).alias(_INDEX_KEY)])
+    mole0 = mole.with_features([pl.int_range(0, pl.len()).alias(_INDEX_KEY)])
     yield from mole0.groupby(by)
 
 

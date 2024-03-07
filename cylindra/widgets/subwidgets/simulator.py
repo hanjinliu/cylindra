@@ -828,10 +828,10 @@ def _normalize_expression(expr: Any) -> pl.Expr:
     elif isinstance(expr, str):
         out = ExprStr(expr, POLARS_NAMESPACE).eval()
         if not isinstance(out, pl.Expr):
-            return pl.repeat(float(out), pl.count())
+            return pl.repeat(float(out), pl.len())
         return out
     else:
-        return pl.repeat(float(expr), pl.count())
+        return pl.repeat(float(expr), pl.len())
 
 
 def _get_simulation_model(layer: MoleculesLayer) -> CylinderModel:

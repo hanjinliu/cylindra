@@ -363,7 +363,7 @@ class ProjectSequenceEdit(MagicTemplate):
             df = prj._get_localprops()
             dataframes.append(
                 df.with_columns(
-                    pl.repeat(idx, pl.count()).cast(pl.UInt16).alias(Mole.image)
+                    pl.repeat(idx, pl.len()).cast(pl.UInt16).alias(Mole.image)
                 )
             )
         return pl.concat(dataframes, how="diagonal")

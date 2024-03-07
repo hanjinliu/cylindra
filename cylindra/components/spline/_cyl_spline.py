@@ -204,7 +204,7 @@ class CylSpline(Spline):
         loc = list[pl.Expr]()
         glob = list[pl.Series]()
         if npf is not None:
-            loc.append(pl.repeat(npf, pl.count()).cast(pl.UInt8).alias(H.npf))
+            loc.append(pl.repeat(npf, pl.len()).cast(pl.UInt8).alias(H.npf))
             glob.append(pl.Series([npf]).cast(pl.UInt8).alias(H.npf))
         if orientation is not None:
             glob.append(
