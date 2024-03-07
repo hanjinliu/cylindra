@@ -26,9 +26,9 @@ class BaseProject(BaseModel):
     def resolve_path(self, file_dir: PathLike):
         pass
 
-    def dict(self, **kwargs) -> dict[str, Any]:
+    def model_dump(self, **kwargs) -> dict[str, Any]:
         """Return a dict."""
-        d = super().dict(**kwargs)
+        d = super().model_dump(**kwargs)
         d.pop("project_path")
         return d
 
@@ -43,7 +43,7 @@ class BaseProject(BaseModel):
     def _dump(self, f: io.IOBase) -> None:
         """Dump the project to a file."""
         json.dump(
-            self.dict(),
+            self.model_dump(),
             f,
             indent=4,
             separators=(",", ": "),
@@ -149,7 +149,7 @@ class MissingWedge(BaseModel):
         """Parse an object as a MissingWedge model."""
         if isinstance(obj, MissingWedge):
             # make a copy of the input model
-            return MissingWedge(**obj.dict())
+            return MissingWedge(**obj.model_dump())
         elif isinstance(obj, dict):
             # must be one of the following:
             # {"kind": "none"}
