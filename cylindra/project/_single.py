@@ -93,7 +93,7 @@ class CylindraProject(BaseProject):
             )
             expr = as_main_function(expr_open)
             self.script_py_path(results_dir).write_text(expr)
-            self_copy = self.copy()
+            self_copy = self.model_copy()
             for name, mole in molecules.items():
                 save_path = results_dir / name
                 if save_path.suffix == "":
