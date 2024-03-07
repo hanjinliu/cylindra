@@ -6,16 +6,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Generator, Iterable
 
 import polars as pl
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
-from cylindra.const import (
-    ImageFilter,
-    cast_dataframe,
-    get_versions,
-)
-from cylindra.const import (
-    PropertyNames as H,
-)
+from cylindra.const import ImageFilter, cast_dataframe, get_versions
+from cylindra.const import PropertyNames as H
 from cylindra.project._base import BaseProject, MissingWedge, PathLike, resolve_path
 from cylindra.project._layer_info import LandscapeInfo, MoleculesInfo
 from cylindra.project._utils import as_main_function, extract
@@ -30,9 +24,8 @@ if TYPE_CHECKING:
 class CylindraProject(BaseProject):
     """A project of cylindra."""
 
-    class Config:
-        # this allows extra fields in the json file, for backward compatibility
-        extra = "allow"
+    # this allows extra fields in the json file, for backward compatibility
+    model_config = ConfigDict(extra="allow")
 
     datetime: str
     version: str
