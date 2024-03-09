@@ -20,27 +20,28 @@ class IMOD(ChildWidget):
     """File IO for IMOD softwares."""
 
     @set_design(text=capitalize)
-    def read_monomers(
+    def load_molecules(
         self,
         mod_path: Annotated[Path.Read[FileFilter.MOD], {"label": "Path to MOD file"}],
         ang_path: Annotated[Path.Read[FileFilter.CSV], {"label": "Path to csv file"}],
         shift_mol: Annotated[bool, {"label": "Apply shifts to monomers if offsets are available."}] = True,
     ):  # fmt: skip
         """
-        Read monomer coordinates and angles from IMOD .mod files.
+        Read molecule coordinates and angles from IMOD .mod files.
 
         Parameters
         ----------
         mod_path : Path
-            Path to the mod file that contains monomer coordinates.
+            Path to the mod file that contains molecule coordinates.
         ang_path : Path
-            Path to the text file that contains monomer angles in Euler angles.
+            Path to the text file that contains molecule angles in Euler angles.
         shift_mol : bool, default True
-            In PEET output csv there may be xOffset, yOffset, zOffset columns that can be directly applied to
-            the molecule coordinates.
+            In PEET output csv there may be xOffset, yOffset, zOffset columns that can
+            be directly applied to the molecule coordinates.
         """
         from .cmd import read_mod
 
+        mod_path = Path(mod_path)
         df = read_mod(mod_path)
         mod = df.select("z", "y", "x").to_numpy()
         mod[:, 1:] -= 0.5  # shift to center of voxel
@@ -49,12 +50,10 @@ class IMOD(ChildWidget):
         if shift_mol:
             mol.translate(shifts * self.scale, copy=False)
 
-        return add_molecules(
-            self.parent_viewer, mol, "Molecules from PEET", source=None
-        )
+        return add_molecules(self.parent_viewer, mol, mod_path.name, source=None)
 
     @set_design(text=capitalize)
-    def read_lines_as_splines(
+    def load_splines(
         self,
         mod_path: Annotated[Path.Read[FileFilter.MOD], {"label": "Path to MOD file"}],
     ):
@@ -70,7 +69,7 @@ class IMOD(ChildWidget):
     sep0 = field(Separator)
 
     @set_design(text=capitalize)
-    def save_monomers(self, save_dir: Path.Dir, layer: MoleculesLayer):
+    def save_molecules(self, save_dir: Path.Dir, layer: MoleculesLayer):
         """
         Save monomer positions and angles in the PEET format.
 
@@ -86,7 +85,7 @@ class IMOD(ChildWidget):
         return _save_molecules(save_dir=save_dir, mol=mol, scale=self.scale)
 
     @set_design(text=capitalize)
-    def save_all_monomers(self, save_dir: Path.Dir):
+    def save_all_molecules(self, save_dir: Path.Dir):
         """
         Save monomer angles in PEET format.
 
@@ -111,16 +110,17 @@ class IMOD(ChildWidget):
         """
         Save splines as a mod file.
 
-        This function will sample coordinates along the splines and save the coordinates as a mod file.
-        The mod file will be labeled with object_id=1 and contour_id=i+1, where i is the index of the spline.
+        This function will sample coordinates along the splines and save the coordinates
+        as a mod file. The mod file will be labeled with object_id=1 and contour_id=i+1,
+        where i is the index of the spline.
 
         Parameters
         ----------
         save_path : Path
             Saving path.
         interval : float, default 10.0
-            Sampling interval along the splines. For example, if interval=10.0 and the length of a spline
-            is 100.0, 11 points will be sampled.
+            Sampling interval along the splines. For example, if interval=10.0 and the
+            length of a spline is 100.0, 11 points will be sampled.
         """
         from .cmd import save_mod
 
@@ -145,7 +145,7 @@ class IMOD(ChildWidget):
         save_mod(save_path, data_all)
 
     @set_design(text=capitalize)
-    def shift_monomers(
+    def shift_molecules(
         self,
         ang_path: Annotated[Path.Read[FileFilter.CSV], {"label": "Path to csv file"}],
         layer: MoleculesLayer,

@@ -13,9 +13,9 @@ def test_IMOD(ui: CylindraMainWidget):
     imod = ui.FileMenu.IMOD
     with tempfile.TemporaryDirectory() as tmpdir:
         with suppress(CommandNotFound):
-            imod.save_monomers(Path(tmpdir), ui.mole_layers.nth(0))
+            imod.save_molecules(Path(tmpdir), ui.mole_layers.nth(0))
         with suppress(CommandNotFound):
-            imod.save_all_monomers(Path(tmpdir))
+            imod.save_all_molecules(Path(tmpdir))
         with suppress(CommandNotFound):
             imod.export_project(
                 ui.mole_layers.nth(0),

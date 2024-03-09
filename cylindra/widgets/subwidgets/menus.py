@@ -33,7 +33,7 @@ from cylindra._napari import MoleculesLayer
 from cylindra.components.spline import SplineConfig
 from cylindra.const import FileFilter, ImageFilter, get_versions, nm
 from cylindra.core import ACTIVE_WIDGETS
-from cylindra.ext.imod import IMOD
+from cylindra.ext import IMOD, RELION
 from cylindra.project import CylindraProject, extract
 from cylindra.types import ColoredLayer
 from cylindra.utils import roundint, str_color
@@ -202,6 +202,7 @@ class FileMenu(ChildWidget):
 
     sep2 = field(Separator)
     IMOD = IMOD
+    RELION = RELION
 
 
 @magicmenu
