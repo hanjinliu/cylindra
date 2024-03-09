@@ -66,6 +66,7 @@ nav:
     - Working with External Softwares:
       - Working with External Softwares: extern/index.md
       - extern/imod.md
+      - extern/relion.md
     - process_images.md
     - simulate.md
     - seam_search.md
