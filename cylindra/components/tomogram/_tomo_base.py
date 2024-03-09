@@ -326,10 +326,11 @@ class Tomogram:
         """Get lateral translation of binned image in nm."""
         return (binsize - 1) / 2 * self.scale
 
-    def invert(self) -> Self:
+    def invert(self, cache: bool = False) -> Self:
         """Invert tomogram intensities **in-place**."""
         img_inv = -self.image
-        img_inv.release()
+        if cache:
+            img_inv.release()
         self._set_image(img_inv)
         for i, (_b, _img) in enumerate(self._multiscaled):
             self._multiscaled[i] = (_b, -_img)

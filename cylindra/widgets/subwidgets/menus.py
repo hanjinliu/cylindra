@@ -209,6 +209,7 @@ class ImageMenu(ChildWidget):
     """Image processing and visualization"""
 
     filter_reference_image = abstractapi()
+    invert_image = abstractapi()
     add_multiscale = abstractapi()
     set_multiscale = abstractapi()
     sep0 = field(Separator)

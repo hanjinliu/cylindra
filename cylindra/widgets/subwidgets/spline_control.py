@@ -82,7 +82,7 @@ class SplineControl(ChildWidget):
             return []
         return [(f"({i}) {spl}", i) for i, spl in enumerate(tomo.splines)]
 
-    num = vfield(int, label="Spline No.").with_choices(_get_splines)
+    num = vfield(int, label="Spline").with_choices(_get_splines)
     pos = vfield(int, widget_type="Slider", label="Position").with_options(max=0)
     canvas = box.resizable(
         field(QtMultiImageCanvas, name="Figure").with_options(nrows=1, ncols=3),
@@ -92,9 +92,18 @@ class SplineControl(ChildWidget):
     @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)}, record=False)
     class footer(MagicTemplate):
         highlight_subvolume = vfield(False).with_options(text="Highlight subvolume")
+        auto_contrast = abstractapi()
         copy_screenshot = abstractapi()
         save_screenshot = abstractapi()
         log_screenshot = abstractapi()
+
+    @set_design(max_width=40, text="Auto", location=footer)
+    def auto_contrast(self):
+        """Auto-contrast by the current projection."""
+        proj = self._projections[self.pos]
+        clim = np.min(proj.yx), np.max(proj.yx)
+        for each in self.canvas:
+            each.contrast_limits = clim
 
     @set_design(max_width=40, text="Copy", location=footer)
     def copy_screenshot(self):

@@ -144,6 +144,7 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     ui.SplinesMenu.Show.show_splines_as_meshes()
     ui.load_splines(save_path / "spline-0.json")
     ui.set_source_spline(ui.mole_layers["Mole-0"], 0)
+    ui.invert_image()
 
 
 def test_io_with_different_data(ui: CylindraMainWidget):
