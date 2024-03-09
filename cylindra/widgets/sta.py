@@ -459,6 +459,7 @@ class StaParameters(MagicTemplate):
                 viewer.window.main_menu, volume_menu.native.windowFlags()
             )
             viewer.window.main_menu.addMenu(volume_menu.native)
+            viewer.layers.events.connect(volume_menu.reset_choices)
             viewer.window.resize(10, 10)
             viewer.window.activate()
         StaParameters._viewer.scale_bar.visible = True

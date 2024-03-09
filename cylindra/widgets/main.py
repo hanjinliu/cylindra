@@ -2725,12 +2725,10 @@ class CylindraMainWidget(MagicTemplate):
         fgui.npf.value = int(cfg.npf_range.center)
         fgui.npf.value = None
 
+        # update GUI default values
         fgui = get_function_gui(self.simulator.generate_molecules)
-        fgui.spacing.min, fgui.spacing.max = cfg.spacing_range.astuple()
         fgui.spacing.value = cfg.spacing_range.center
-        fgui.twist.min, fgui.twist.max = cfg.twist_range.astuple()
         fgui.twist.value = cfg.twist_range.center
-        fgui.npf.min, fgui.npf.max = cfg.npf_range.astuple()
         fgui.npf.value = int(cfg.npf_range.center)
 
         for method in [self.map_monomers, self.map_monomers_with_extensions, self.map_along_pf, self.map_centers]:  # fmt: skip
