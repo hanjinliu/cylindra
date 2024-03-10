@@ -209,6 +209,9 @@ class SplineControl(ChildWidget):
         # update plots in pyqtgraph, if properties exist
         parent.LocalProperties._plot_properties(spl)
 
+        if tomo.is_dummy:
+            return
+
         # calculate projection
         anc = spl.anchors
         if (npfs := spl.props.get_loc(H.npf, None)) is not None:
@@ -254,7 +257,7 @@ class SplineControl(ChildWidget):
             pos = self.pos
 
         if not self._projections or num is None or pos is None:
-            return self._clear_all_layers
+            return self._clear_all_layers()
         if num >= len(tomo.splines):
             return
 

@@ -190,6 +190,7 @@ class CylTomogram(Tomogram):
 
     @property
     def is_dummy(self) -> bool:
+        """True if this tomogram object does not have a real image."""
         return self.metadata.get("is_dummy", False)
 
     def add_spline(

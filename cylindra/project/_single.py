@@ -227,7 +227,6 @@ class CylindraProject(BaseProject):
 
             @thread_worker.callback
             def _update_widget():
-                gui._reserved_layers.image.bounding_box.visible = not read_image
                 if len(tomogram.splines) > 0:
                     gui._update_splines_in_images()
                     with gui.macro.blocked():
@@ -400,13 +399,25 @@ class CylindraProject(BaseProject):
         from cylindra.components import CylTomogram
 
         if self.image is not None:
-            tomo = CylTomogram.imread(
-                path=self.image,
-                scale=self.scale,
-                tilt=self.missing_wedge.as_param(),
-                binsize=self.multiscales,
-                compute=compute,
-            )
+            if self.image.exists():
+                tomo = CylTomogram.imread(
+                    path=self.image,
+                    scale=self.scale,
+                    tilt=self.missing_wedge.as_param(),
+                    binsize=self.multiscales,
+                    compute=compute,
+                )
+            else:
+                warnings.warn(
+                    f"Cannot find image file {self.image}. Load other components only.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+                tomo = CylTomogram.dummy(
+                    scale=self.scale,
+                    tilt=self.missing_wedge.as_param(),
+                    binsize=self.multiscales,
+                )
         else:
             tomo = CylTomogram.dummy(
                 scale=self.scale,
