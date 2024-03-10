@@ -23,15 +23,17 @@ MOLE_ID = "MoleculeGroupID"
 
 @magicmenu
 class RELION(ChildWidget):
-    """File IO for IMOD softwares."""
+    """File IO for RELION."""
 
     @set_design(text=capitalize)
-    def load_molecules(
-        self,
-        path: Annotated[Path.Read[FileFilter.STAR], {"label": "Path to star file"}],
-    ):  # fmt: skip
+    def load_molecules(self, path: Path.Read[FileFilter.STAR]):
         """
         Read monomer coordinates and angles from RELION .star file.
+
+        Parameters
+        ----------
+        path : path-like
+            The path to the star file.
         """
         path = Path(path)
         moles = self._read_star(path)
@@ -39,11 +41,17 @@ class RELION(ChildWidget):
             add_molecules(self.parent_viewer, mole, f"{path.name}-{i}", source=None)
 
     @set_design(text=capitalize)
-    def load_splines(
-        self,
-        path: Annotated[Path.Read[FileFilter.STAR], {"label": "Path to star file"}],
-    ):
-        """Read a star file and register all the tubes as splines."""
+    def load_splines(self, path: Path.Read[FileFilter.STAR]):
+        """
+        Read a star file and register all the tubes as splines.
+
+        The "rlnHelicalTubeID" column will be used to group the points into splines.
+
+        Parameters
+        ----------
+        path : path-like
+            The path to the star file.
+        """
         mole = Molecules.concat(self._read_star(path))
         main = self._get_main()
         if RELION_TUBE_ID not in mole.features.columns:
@@ -112,7 +120,17 @@ class RELION(ChildWidget):
         save_path: Path.Save[FileFilter.STAR],
         interval: Annotated[float, {"min": 0.01, "max": 1000.0, "label": "Sampling interval (nm)"}] = 10.0,
     ):  # fmt: skip
-        """Save the current splines to a RELION .star file."""
+        """
+        Save the current splines to a RELION .star file.
+
+        Parameters
+        ----------
+        save_path : path-like
+            The path to save the star file.
+        interval : float, default 10.0
+            Sampling interval along the splines. For example, if interval=10.0 and the
+            length of a spline is 100.0, 11 points will be sampled.
+        """
 
         if interval <= 1e-4:
             raise ValueError("Interval must be larger than 1e-4.")

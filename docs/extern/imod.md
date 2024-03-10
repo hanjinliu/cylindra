@@ -24,9 +24,9 @@ directory. Saved files can be directly used in PEET.
 
 ## Import Lines as Splines from IMOD
 
-:material-arrow-right-thin-circle-outline: API: [`ui.FileMenu.IMOD.read_splines`][cylindra.ext.imod.menu.IMOD.read_splines]
+:material-arrow-right-thin-circle-outline: API: [`ui.FileMenu.IMOD.load_splines`][cylindra.ext.imod.menu.IMOD.load_splines]
 
-:material-arrow-right-thin-circle-outline: GUI: `File > IMOD > Read splines`
+:material-arrow-right-thin-circle-outline: GUI: `File > IMOD > Load splines`
 
 In IMOD, you can create segmented lines with such as `3dmod` viewer and save as a
 `.mod` file. The lines can be imported as splines in `cylindra`.
