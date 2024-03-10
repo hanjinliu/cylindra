@@ -187,13 +187,13 @@ class FileMenu(ChildWidget):
     @set_design(text=capitalize)
     @do_not_record
     def open_image_processor(self):
-        """Open image processor."""
+        """Open the image processor widget."""
         return self._get_main().image_processor.show()
 
     @set_design(text=capitalize)
     @do_not_record
     def view_project(self, path: Path.Read[FileFilter.PROJECT]):
-        """View a project file"""
+        """View a project file in a new window."""
         main = self._get_main()
         pviewer = CylindraProject.from_file(path).make_project_viewer()
         pviewer.native.setParent(main.native, pviewer.native.windowFlags())
@@ -209,6 +209,7 @@ class ImageMenu(ChildWidget):
     """Image processing and visualization"""
 
     filter_reference_image = abstractapi()
+    invert_image = abstractapi()
     add_multiscale = abstractapi()
     set_multiscale = abstractapi()
     sep0 = field(Separator)
