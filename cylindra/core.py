@@ -134,17 +134,15 @@ def start(
     return ui
 
 
+# fmt: off
 @overload
-def instance(create: Literal[False] = False) -> CylindraMainWidget | None:
-    ...
-
-
+def instance(create: Literal[False] = False) -> CylindraMainWidget | None: ...
 @overload
-def instance(create: Literal[True]) -> CylindraMainWidget:
-    ...
+def instance(create: Literal[True]) -> CylindraMainWidget: ...
+# fmt: on
 
 
-def instance(create: bool = False) -> CylindraMainWidget | None:
+def instance(create=False):
     """Get the current CylindraMainWidget instance."""
     ins = _CURRENT_INSTANCE
     if ins is None and create:

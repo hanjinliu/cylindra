@@ -1111,11 +1111,15 @@ def test_spline_fitter(ui: CylindraMainWidget):
     ui.register_path(coords=[[22, 117, 35], [22, 36, 58]])
     ui.register_path(coords=[[22, 117, 35], [22, 36, 58]])
     ui.SplinesMenu.Fitting.fit_splines_manually()
+    ui.spline_fitter.auto_contrast.value = False
     ui.spline_fitter._next_pos()
     ui.spline_fitter._prev_pos()
     ui.spline_fitter._next_num()
     ui.spline_fitter._prev_num()
     ui.spline_fitter.pos.value = 1
+    ui.spline_fitter.auto_contrast.value = True
+    ui.spline_fitter._next_pos()
+    ui.spline_fitter._prev_pos()
     ui.spline_fitter.resample_volumes(30)
     ui.spline_fitter.fit(shifts=[[1.094, 0.797], [1.094, 0.797], [1.094, 0.698]], i=0)
     ui.macro.undo()
