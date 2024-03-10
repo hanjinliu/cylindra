@@ -69,12 +69,13 @@ class SplineFitter(ChildWidget):
         return self.close()
 
     @magicclass(record=False)
-    class footer(MagicTemplate):
+    class RightPanel(MagicTemplate):
         """Select and fit splines."""
 
         num = abstractapi()
         pos = abstractapi()
         err_max = abstractapi()
+        auto_contrast = abstractapi()
         resample_volumes = abstractapi()
         fit = abstractapi()
 
@@ -98,9 +99,16 @@ class SplineFitter(ChildWidget):
         self.num.value = max(self.num.value - 1, self.num.min)
         self._focus_me()
 
-    num = field(int, label="Spline No.", location=footer, record=False).with_options(max=0)  # fmt: skip
-    pos = field(int, label="Position", location=footer, record=False).with_options(max=0)  # fmt: skip
-    err_max = field(0.5, label="Max. error", location=footer, record=False).with_options(step=0.05)  # fmt: skip
+    num = field(int, label="Spline", location=RightPanel, record=False).with_options(max=0)  # fmt: skip
+    pos = field(int, label="Position", location=RightPanel, record=False).with_options(max=0)  # fmt: skip
+    err_max = field(0.5, label="Max error", location=RightPanel, record=False).with_options(step=0.05)  # fmt: skip
+    auto_contrast = field(False, location=RightPanel, record=False)
+
+    @auto_contrast.connect
+    def _auto_contrast_changed(self, checked: bool):
+        self.canvas.lock_contrast_limits = not checked
+        if checked and (cur_img := self.canvas.image) is not None:
+            self.canvas.contrast_limits = cur_img.min(), cur_img.max()
 
     def _get_shifts(self, _=None):
         if self.shifts is None:
@@ -115,7 +123,7 @@ class SplineFitter(ChildWidget):
     def _get_max_interval(self, _=None) -> nm:
         return self._max_interval
 
-    @set_design(text="Resample", location=footer)
+    @set_design(text="Resample", location=RightPanel)
     @do_not_record
     def resample_volumes(
         self,
@@ -138,10 +146,11 @@ class SplineFitter(ChildWidget):
         self.num.min = 0
         self.num.value = 0
         self._cylinder_changed()
-        self.canvas.contrast_limits = np.percentile(self.subtomograms, [1, 99.9])
+        if (cur_img := self.canvas.image) is not None:
+            self.canvas.contrast_limits = cur_img.min(), cur_img.max()
         return None
 
-    @set_design(text="Fit", location=footer)
+    @set_design(text="Fit", location=RightPanel)
     def fit(
         self,
         i: Annotated[int, {"bind": num}],

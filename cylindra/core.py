@@ -69,7 +69,7 @@ def start(
     logger = logging.getLogger("cylindra")
     formatter = logging.Formatter(fmt="%(levelname)s || %(message)s")
     logger.widget.setFormatter(formatter)
-    logger.widget.min_height = 200
+    logger.widget.min_height = 150
 
     # set log level
     if isinstance(log_level, str):
