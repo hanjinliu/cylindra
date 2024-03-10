@@ -103,6 +103,8 @@ class ComponentsViewer(MagicTemplate):
             self.components._add_layer(layer, info.visible)
 
         # draw edge
+        if project.image is None or not project.image.exists():
+            return
         img = ip.lazy.imread(project.image)
         nz, ny, nx = img.shape
         for z in [0, nz]:

@@ -656,6 +656,8 @@ class CylindraMainWidget(MagicTemplate):
     ):  # fmt: skip
         """Apply filter to enhance contrast of the reference image."""
         method = ImageFilter(method)
+        if self.tomogram.is_dummy:
+            return
         with utils.set_gpu():
             img = self._reserved_layers.image_data
             overlap = [min(s, 32) for s in img.shape]
@@ -684,6 +686,18 @@ class CylindraMainWidget(MagicTemplate):
             self.Overview.contrast_limits = contrast_limits
 
         return _filter_reference_image_on_return
+
+    @set_design(text=capitalize, location=_sw.ImageMenu)
+    def invert_image(self):
+        """Invert the intensity of all the images."""
+        self.tomogram.invert()
+        self._reserved_layers.image.data = -self._reserved_layers.image.data
+        clow, chigh = self._reserved_layers.image.contrast_limits
+        self._reserved_layers.image.contrast_limits = -chigh, -clow
+        self.Overview.image = -self.Overview.image
+        clow, chigh = self.Overview.contrast_limits
+        self.Overview.contrast_limits = -chigh, -clow
+        return undo_callback(self.invert_image)
 
     @set_design(text="Add multi-scale", location=_sw.ImageMenu)
     @dask_thread_worker.with_progress(desc=lambda bin_size: f"Adding multiscale (bin = {bin_size})")  # fmt: skip
@@ -1468,6 +1482,30 @@ class CylindraMainWidget(MagicTemplate):
         tomo = self.tomogram
         splines = self._norm_splines(splines)
 
+        # first check radius
+        match radius:
+            case "global":
+                for i in splines:
+                    if tomo.splines[i].radius is None:
+                        raise ValueError(
+                            f"Global Radius of {i}-th spline is not measured yet. Please "
+                            "measure the radius first from `Analysis > Radius`."
+                        )
+            case "local":
+                for i in splines:
+                    if not tomo.splines[i].props.has_loc(H.radius):
+                        raise ValueError(
+                            f"Local Radius of {i}-th spline is not measured yet. Please "
+                            "measure the radius first from `Analysis > Radius`."
+                        )
+                if interval is not None:
+                    raise ValueError(
+                        "With `interval`, local radius values will be dropped. Please "
+                        "set `radius='global'` or `interval=None`."
+                    )
+            case _:
+                raise ValueError(f"radius must be 'local' or 'global', got {radius!r}.")
+
         @thread_worker.callback
         def _local_cft_analysis_on_yield(i: int):
             self._update_splines_in_images()
@@ -1477,11 +1515,6 @@ class CylindraMainWidget(MagicTemplate):
         with SplineTracker(widget=self, indices=splines, sample=True) as tracker:
             for i in splines:
                 if interval is not None:
-                    if radius == "local":
-                        raise ValueError(
-                            "With `interval`, local radius values will be dropped. Please set "
-                            "`radius='global'` or `interval=None`."
-                        )
                     tomo.make_anchors(i=i, interval=interval)
                 tomo.local_cft_params(
                     i=i,
@@ -2496,6 +2529,7 @@ class CylindraMainWidget(MagicTemplate):
             self._reserved_layers.update_image(imgb, bin_size, tr)
         if self._reserved_layers.highlight in viewer.layers:
             viewer.layers.remove(self._reserved_layers.highlight)
+        self._reserved_layers.image.bounding_box.visible = _is_lazy
 
         self.GeneralInfo._refer_tomogram(tomo)
 
@@ -2694,12 +2728,10 @@ class CylindraMainWidget(MagicTemplate):
         fgui.npf.value = int(cfg.npf_range.center)
         fgui.npf.value = None
 
+        # update GUI default values
         fgui = get_function_gui(self.simulator.generate_molecules)
-        fgui.spacing.min, fgui.spacing.max = cfg.spacing_range.astuple()
         fgui.spacing.value = cfg.spacing_range.center
-        fgui.twist.min, fgui.twist.max = cfg.twist_range.astuple()
         fgui.twist.value = cfg.twist_range.center
-        fgui.npf.min, fgui.npf.max = cfg.npf_range.astuple()
         fgui.npf.value = int(cfg.npf_range.center)
 
         for method in [self.map_monomers, self.map_monomers_with_extensions, self.map_along_pf, self.map_centers]:  # fmt: skip
