@@ -10,8 +10,13 @@ from magicclass.types import Path
 from magicclass.widgets import Separator
 
 from cylindra.const import FileFilter
-from cylindra.types import MoleculesLayer, get_monomer_layers
 from cylindra.widget_utils import add_molecules, capitalize
+from cylindra.widgets._annotated import (
+    MoleculesLayersType,
+    MoleculesLayerType,
+    assert_layer,
+    assert_list_of_layers,
+)
 from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 
@@ -69,7 +74,7 @@ class IMOD(ChildWidget):
     sep0 = field(Separator)
 
     @set_design(text=capitalize)
-    def save_molecules(self, save_dir: Path.Dir, layer: MoleculesLayer):
+    def save_molecules(self, save_dir: Path.Dir, layers: MoleculesLayersType):
         """
         Save monomer positions and angles in the PEET format.
 
@@ -77,27 +82,11 @@ class IMOD(ChildWidget):
         ----------
         save_dir : Path
             Saving path.
-        layer : Points
-            Select the Vectors layer to save.
+        layers : sequence of MoleculesLayer
+            Select the layers to save. All the molecules will be concatenated.
         """
         save_dir = Path(save_dir)
-        mol = layer.molecules
-        return _save_molecules(save_dir=save_dir, mol=mol, scale=self.scale)
-
-    @set_design(text=capitalize)
-    def save_all_molecules(self, save_dir: Path.Dir):
-        """
-        Save monomer angles in PEET format.
-
-        Parameters
-        ----------
-        save_dir : Path
-            Saving path.
-        """
-        save_dir = Path(save_dir)
-        layers = get_monomer_layers(self)
-        if len(layers) == 0:
-            raise ValueError("No monomer found.")
+        layers = assert_list_of_layers(layers, self.parent_viewer)
         mol = Molecules.concat([l.molecules for l in layers])
         return _save_molecules(save_dir=save_dir, mol=mol, scale=self.scale)
 
@@ -148,7 +137,7 @@ class IMOD(ChildWidget):
     def shift_molecules(
         self,
         ang_path: Annotated[Path.Read[FileFilter.CSV], {"label": "Path to csv file"}],
-        layer: MoleculesLayer,
+        layer: MoleculesLayerType,
         update: bool = False,
     ):
         """
@@ -194,13 +183,6 @@ class IMOD(ChildWidget):
             add_molecules(self.parent_viewer, mol_shifted, name="Molecules from PEET")
         return None
 
-    def _get_molecules_layers(self, *_) -> list[MoleculesLayer]:
-        try:
-            main = self._get_main()
-            return get_monomer_layers(main)
-        except Exception:
-            return []
-
     def _get_template_path(self, *_) -> Path:
         return self._get_main().sta._template_param()
 
@@ -210,7 +192,7 @@ class IMOD(ChildWidget):
     @set_design(text=capitalize)
     def export_project(
         self,
-        layer: MoleculesLayer,
+        layer: MoleculesLayerType,
         save_dir: Path.Dir,
         template_path: Annotated[str, {"bind": _get_template_path}],
         mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
@@ -236,6 +218,7 @@ class IMOD(ChildWidget):
             Name of the PEET project.
         """
         save_dir = Path(save_dir)
+        layer = assert_layer(layer, self.parent_viewer)
         if not save_dir.exists():
             save_dir.mkdir()
         main = self._get_main()

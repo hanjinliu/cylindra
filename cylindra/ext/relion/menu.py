@@ -1,6 +1,7 @@
 import warnings
 from typing import Annotated
 
+import numpy as np
 import pandas as pd
 import polars as pl
 from acryo import Molecules
@@ -9,14 +10,15 @@ from magicclass.types import Path
 from magicclass.widgets import Separator
 
 from cylindra.const import FileFilter
-from cylindra.types import MoleculesLayer
 from cylindra.widget_utils import add_molecules, capitalize
+from cylindra.widgets._annotated import MoleculesLayersType, assert_list_of_layers
 from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 POS_COLUMNS = ["rlnCoordinateZ", "rlnCoordinateY", "rlnCoordinateX"]
 ROT_COLUMNS = ["rlnAngleRot", "rlnAngleTilt", "rlnAnglePsi"]
 POS_ORIGIN_COLUMNS = ["rlnOriginZAngst", "rlnOriginYAngst", "rlnOriginXAngst"]
 RELION_TUBE_ID = "rlnHelicalTubeID"
+MOLE_ID = "MoleculeGroupID"
 
 
 @magicmenu
@@ -32,8 +34,9 @@ class RELION(ChildWidget):
         Read monomer coordinates and angles from RELION .star file.
         """
         path = Path(path)
-        mole = self._read_star(path)
-        return add_molecules(self.parent_viewer, mole, path.name, source=None)
+        moles = self._read_star(path)
+        for i, mole in enumerate(moles):
+            add_molecules(self.parent_viewer, mole, f"{path.name}-{i}", source=None)
 
     @set_design(text=capitalize)
     def load_splines(
@@ -41,7 +44,7 @@ class RELION(ChildWidget):
         path: Annotated[Path.Read[FileFilter.STAR], {"label": "Path to star file"}],
     ):
         """Read a star file and register all the tubes as splines."""
-        mole = self._read_star(path)
+        mole = Molecules.concat(self._read_star(path))
         main = self._get_main()
         if RELION_TUBE_ID not in mole.features.columns:
             warnings.warn(
@@ -60,20 +63,43 @@ class RELION(ChildWidget):
 
     @set_design(text=capitalize)
     def save_molecules(
-        self, save_path: Path.Save[FileFilter.STAR], layer: MoleculesLayer
+        self,
+        save_path: Path.Save[FileFilter.STAR],
+        layers: MoleculesLayersType,
     ):
-        """Save the current molecules to a RELION .star file."""
+        """
+        Save the selected molecules to a RELION .star file.
+
+        If multiple layers are selected, the `MoleculeGroupID` column will be added
+        to the star file to distinguish the layers.
+
+        Parameters
+        ----------
+        save_path : path-like
+            The path to save the star file.
+        layers : sequence of MoleculesLayer
+            The layers to save.
+        """
         save_path = Path(save_path)
-        mole = layer.molecules
+        layers = assert_list_of_layers(layers, self.parent_viewer)
+        mole = Molecules.concat([layer.molecules for layer in layers])
         euler_angle = mole.euler_angle(seq="ZYZ", degrees=True)
+
         out_dict = {
             POS_COLUMNS[2]: mole.pos[:, 2] / self.scale * 10,
             POS_COLUMNS[1]: mole.pos[:, 1] / self.scale * 10,
             POS_COLUMNS[0]: mole.pos[:, 0] / self.scale * 10,
-            ROT_COLUMNS[0]: -euler_angle[:, 0],
-            ROT_COLUMNS[1]: -euler_angle[:, 1],
-            ROT_COLUMNS[2]: -euler_angle[:, 2],
+            ROT_COLUMNS[0]: euler_angle[:, 0],
+            ROT_COLUMNS[1]: euler_angle[:, 1],
+            ROT_COLUMNS[2]: euler_angle[:, 2],
         }
+        if len(layers) > 1:
+            out_dict[MOLE_ID] = np.concatenate(
+                [
+                    np.full(layer.molecules.count(), i, dtype=np.uint32)
+                    for i, layer in enumerate(layers)
+                ]
+            )
         for col in mole.features.columns:
             out_dict[col] = mole.features[col]
         df = pd.DataFrame(out_dict)
@@ -84,10 +110,8 @@ class RELION(ChildWidget):
     def save_splines(
         self,
         save_path: Path.Save[FileFilter.STAR],
-        interval: Annotated[
-            float, {"min": 0.01, "max": 1000.0, "label": "Sampling interval (nm)"}
-        ] = 10.0,
-    ):
+        interval: Annotated[float, {"min": 0.01, "max": 1000.0, "label": "Sampling interval (nm)"}] = 10.0,
+    ):  # fmt: skip
         """Save the current splines to a RELION .star file."""
 
         if interval <= 1e-4:
@@ -110,15 +134,14 @@ class RELION(ChildWidget):
                 }
             )
             data_list.append(df)
-        data_all = pl.concat(data_list, how="vertical")
-        df = pl.concat(data_all, how="vertical").to_pandas()
+        df = pl.concat(data_list, how="vertical").to_pandas()
         write_star(df, save_path)
 
     @property
     def scale(self) -> float:
         return self._get_main().tomogram.scale
 
-    def _read_star(self, path):
+    def _read_star(self, path) -> list[Molecules]:
         try:
             import starfile
         except ImportError:
@@ -135,7 +158,7 @@ class RELION(ChildWidget):
         if not isinstance(particles, pd.DataFrame):
             raise NotImplementedError("Particles block must be a dataframe")
 
-        scale = self.scale  # default scale to use
+        scale = self.scale / 10  # default scale to use
         if "optics" in star:
             opt = star["optics"]
             if not isinstance(opt, pd.DataFrame):
@@ -157,7 +180,9 @@ class RELION(ChildWidget):
         mole = Molecules.from_euler(
             pos, euler, seq="ZYZ", degrees=True, order="xyz", features=features
         )
-        return mole
+        if MOLE_ID in mole.features.columns:
+            return [m.drop_features(MOLE_ID) for _, m in mole.group_by(MOLE_ID)]
+        return [mole]
 
 
 def write_star(df: pd.DataFrame, path: str):
