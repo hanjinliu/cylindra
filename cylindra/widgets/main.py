@@ -656,6 +656,8 @@ class CylindraMainWidget(MagicTemplate):
     ):  # fmt: skip
         """Apply filter to enhance contrast of the reference image."""
         method = ImageFilter(method)
+        if self.tomogram.is_dummy:
+            return
         with utils.set_gpu():
             img = self._reserved_layers.image_data
             overlap = [min(s, 32) for s in img.shape]
@@ -2527,6 +2529,7 @@ class CylindraMainWidget(MagicTemplate):
             self._reserved_layers.update_image(imgb, bin_size, tr)
         if self._reserved_layers.highlight in viewer.layers:
             viewer.layers.remove(self._reserved_layers.highlight)
+        self._reserved_layers.image.bounding_box.visible = _is_lazy
 
         self.GeneralInfo._refer_tomogram(tomo)
 

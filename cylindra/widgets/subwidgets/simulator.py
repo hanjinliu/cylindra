@@ -197,7 +197,9 @@ class Simulator(ChildWidget):
             mole = main.mole_layers[layer_name].molecules
             simulator.add_molecules(mole, pipe.from_file(temp_path))
         tilt_series = simulator.simulate_tilt_series(degrees=degrees, shape=shape)
-        tilt_series = ip.asarray(tilt_series, axes=["degree", "y", "x"])
+        tilt_series = ip.asarray(
+            tilt_series, axes=["degree", "y", "x"], name="Simulated"
+        )
         return tilt_series.set_scale(y=scale, x=scale)
 
     def _get_proper_molecules_layers(self, *_):
@@ -277,7 +279,8 @@ class Simulator(ChildWidget):
         tomo = CylTomogram.from_image(img, scale=scale, binsize=binsize)
         tomo.metadata["is_dummy"] = True
         main._macro_offset = len(main.macro)
-        return main._send_tomogram_to_viewer.with_args(tomo)
+        yield main._send_tomogram_to_viewer.with_args(tomo)
+        main._reserved_layers.image.bounding_box.visible = True
 
     @set_design(text=capitalize, location=CreateMenu)
     def create_straight_line(
