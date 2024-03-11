@@ -66,6 +66,7 @@ class RELION(ChildWidget):
         self,
         save_path: Path.Save[FileFilter.STAR],
         layers: MoleculesLayersType,
+        save_features: bool = True,
     ):
         """
         Save the selected molecules to a RELION .star file.
@@ -79,6 +80,8 @@ class RELION(ChildWidget):
             The path to save the star file.
         layers : sequence of MoleculesLayer
             The layers to save.
+        save_features : bool, default True
+            Whether to save the features of the molecules.
         """
         save_path = Path(save_path)
         layers = assert_list_of_layers(layers, self.parent_viewer)
@@ -100,8 +103,9 @@ class RELION(ChildWidget):
                     for i, layer in enumerate(layers)
                 ]
             )
-        for col in mole.features.columns:
-            out_dict[col] = mole.features[col]
+        if save_features:
+            for col in mole.features.columns:
+                out_dict[col] = mole.features[col]
         df = pd.DataFrame(out_dict)
         write_star(df, save_path)
         return None

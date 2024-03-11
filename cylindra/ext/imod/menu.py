@@ -69,6 +69,7 @@ class IMOD(ChildWidget):
         main = self._get_main()
         for _, sub in df.group_by("object_id", "contour_id", maintain_order=True):
             coords = sub.select("z", "y", "x").to_numpy()
+            coords[:, 1:] -= 0.5  # shift YX to center of voxel
             main.register_path(coords * self.scale, err_max=1e-8)
 
     sep0 = field(Separator)
@@ -124,8 +125,8 @@ class IMOD(ChildWidget):
                 {
                     "object_id": 1,
                     "contour_id": i + 1,
-                    "x": coords[:, 2],
-                    "y": coords[:, 1],
+                    "x": coords[:, 2] + 0.5,
+                    "y": coords[:, 1] + 0.5,
                     "z": coords[:, 0],
                 }
             )
@@ -326,7 +327,7 @@ def _save_molecules(
         csv_name += ".csv"
 
     pos = mol.pos[:, ::-1] / scale
-    pos[:, 1:] += 0.5
+    pos[:, :2] += 0.5  # shift XY to center of voxel
     save_mod(
         save_dir / mod_name,
         pl.DataFrame({"z": pos[:, 0], "y": pos[:, 1], "x": pos[:, 2]}),
