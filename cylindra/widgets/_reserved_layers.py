@@ -4,10 +4,8 @@ from typing import TYPE_CHECKING
 
 import impy as ip
 import numpy as np
-import polars as pl
 from napari.layers import Image, Points
 
-from cylindra._napari import CylinderLabels
 from cylindra.const import (
     SELECTION_LAYER_NAME,
     SPLINE_ID,
@@ -25,7 +23,6 @@ class ReservedLayers:
         self.image: Image | None = None
         self.prof: Points | None = None
         self.work: Points | None = None
-        self.paint: CylinderLabels | None = None
         self.highlight = Points(
             ndim=3,
             name="Highlight",
@@ -46,10 +43,6 @@ class ReservedLayers:
         self.image.translate = [tr] * 3
         self.image.contrast_limits = [np.min(img), np.max(img)]
 
-        if self.paint is not None:
-            self.paint.scale = self.image.scale
-            self.paint.translate = self.image.translate
-
     def reset_image(self, img: ip.ImgArray, bin_size: int, tr: float):
         """Reset the reserved image layer"""
         self.image = Image(
@@ -60,14 +53,6 @@ class ReservedLayers:
             contrast_limits=[np.min(img), np.max(img)],
             blending="translucent_no_depth",
         )
-
-    def init_paint(self):
-        """Initialize the cylinder paint layer."""
-        if self.paint is not None:
-            self.paint.data = np.zeros_like(self.paint.data)
-            if self.image is not None:
-                self.paint.scale = self.image.scale
-                self.paint.translate = self.image.translate
 
     def highlight_spline(self, i: int):
         """Highlight the current spline."""
@@ -93,24 +78,6 @@ class ReservedLayers:
     @property
     def scale(self) -> float:
         return self.image.scale[-1]
-
-    def contains(self, layer):
-        return layer in (self.image, self.prof, self.work, self.paint)
-
-    def add_paint(self, lbl, props: pl.DataFrame):
-        """Add cylinder paint layer"""
-        if self.paint is None:
-            self.paint = CylinderLabels(
-                lbl,
-                scale=self.image.scale,
-                translate=self.image.translate,
-                opacity=0.33,
-                name="Cylinder properties",
-                features=props.to_pandas(),
-            )
-        else:
-            self.paint.data = lbl
-            self.paint.features = props.to_pandas()
 
     def select_spline(self, i: int, default: int):
         features = self.prof.features
