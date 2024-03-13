@@ -211,6 +211,7 @@ class ImageMenu(ChildWidget):
 
     filter_reference_image = abstractapi()
     invert_image = abstractapi()
+    load_reference_image = abstractapi()
     add_multiscale = abstractapi()
     set_multiscale = abstractapi()
     sep0 = field(Separator)

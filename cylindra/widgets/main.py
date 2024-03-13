@@ -648,6 +648,25 @@ class CylindraMainWidget(MagicTemplate):
         return assert_layer(layer, self.parent_viewer).molecules.to_csv(save_path)
 
     @set_design(text=capitalize, location=_sw.ImageMenu)
+    @do_not_record
+    def load_reference_image(self, path: Path.Read[FileFilter.IMAGE]):
+        """
+        Load an image as a reference image of the current tomogram.
+
+        The input image is usually a denoised image created by other softwares, or
+        simply a filtered image. Please note that this method does not check that the
+        input image is appropriate as a reference of the current tomogram, as
+        potentially any 3D image can be used.
+
+        Parameters
+        ----------
+        path : path-like
+            Path to the image file. The image must be 3-D.
+        """
+        img = ip.imread(path, name="reference")
+        return self._update_reference_image(img)
+
+    @set_design(text=capitalize, location=_sw.ImageMenu)
     @dask_thread_worker.with_progress(desc=_pdesc.filter_image_fmt)
     @do_not_record
     def filter_reference_image(
@@ -2512,39 +2531,17 @@ class CylindraMainWidget(MagicTemplate):
     ):
         viewer = self.parent_viewer
         self._tomogram = tomo
+        self.GeneralInfo._refer_tomogram(tomo)
+
         bin_size = max(x[0] for x in tomo.multiscaled)
         self._current_binsize = bin_size
         imgb = tomo.get_multiscale(bin_size)
-        _is_lazy = isinstance(imgb, ip.LazyImgArray)
-        if _is_lazy:
-            imgb = ip.zeros(imgb.shape, dtype=np.int8, like=imgb)
-            imgb[0, [0, 0, 1, 1], [0, 1, 0, 1]] = 1
-            imgb[1, [0, 0, 1, 1], [0, 1, 0, 1]] = 1
-        tr = tomo.multiscale_translation(bin_size)
-        # update image layer
-        if self._reserved_layers.image not in viewer.layers:
-            self._reserved_layers.reset_image(imgb, bin_size, tr)
-            viewer.add_layer(self._reserved_layers.image)  # TODO: <-- tomogram sampled
-        else:
-            self._reserved_layers.update_image(imgb, bin_size, tr)
-        if self._reserved_layers.highlight in viewer.layers:
-            viewer.layers.remove(self._reserved_layers.highlight)
-        self._reserved_layers.image.bounding_box.visible = _is_lazy
-
-        self.GeneralInfo._refer_tomogram(tomo)
+        self._update_reference_image(imgb)
 
         # update viewer dimensions
         viewer.scale_bar.unit = imgb.scale_unit
         viewer.dims.axis_labels = ("z", "y", "x")
         change_viewer_focus(viewer, np.asarray(imgb.shape) / 2, imgb.scale.x)
-
-        # update labels layer
-        self._reserved_layers.init_paint()
-
-        # update overview
-        proj = imgb.mean(axis="z")
-        self.Overview.image = proj
-        self.Overview.ylim = (0, proj.shape[0])
 
         try:
             parts = tomo.source.parts
@@ -2568,11 +2565,40 @@ class CylindraMainWidget(MagicTemplate):
                 filt = ImageFilter.Lowpass
             else:
                 filt = None
-        if filt is not None and not _is_lazy:
+        if filt is not None and not isinstance(imgb, ip.LazyImgArray):
             self.filter_reference_image(method=filt)
         self.GeneralInfo.project_desc.value = ""  # clear the project description
         self._need_save = False
         self._macro_image_load_offset = len(self.macro)
+
+    def _update_reference_image(
+        self,
+        img: ip.ImgArray | ip.LazyImgArray,
+        bin_size: int | None = None,
+    ):
+        viewer = self.parent_viewer
+        if bin_size is None:
+            bin_size = round(img.scale.x / self.tomogram.scale, 2)
+        _is_lazy = isinstance(img, ip.LazyImgArray)
+        if _is_lazy:
+            img = ip.zeros(img.shape, dtype=np.int8, like=img)
+            img[0, [0, 0, 1, 1], [0, 1, 0, 1]] = 1
+            img[1, [0, 0, 1, 1], [0, 1, 0, 1]] = 1
+        tr = self.tomogram.multiscale_translation(bin_size)
+        # update image layer
+        if self._reserved_layers.image not in viewer.layers:
+            self._reserved_layers.reset_image(img, bin_size, tr)
+            viewer.add_layer(self._reserved_layers.image)  # TODO: <-- tomogram sampled
+        else:
+            self._reserved_layers.update_image(img, bin_size, tr)
+        if self._reserved_layers.highlight in viewer.layers:
+            viewer.layers.remove(self._reserved_layers.highlight)
+        self._reserved_layers.image.bounding_box.visible = _is_lazy
+
+        # update overview
+        proj = img.mean(axis="z")
+        self.Overview.image = proj
+        self.Overview.ylim = (0, proj.shape[0])
 
     def _on_layer_removing(self, event: "Event"):
         # NOTE: To make recorded macro completely reproducible, removing molecules
@@ -2636,7 +2662,6 @@ class CylindraMainWidget(MagicTemplate):
         self._reserved_layers.init_prof_and_work()
         viewer.add_layer(self._reserved_layers.prof)
         viewer.add_layer(self._reserved_layers.work)
-        self._reserved_layers.init_paint()
         self.GlobalProperties._init_text()
 
         # Connect layer events.
