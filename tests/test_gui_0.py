@@ -69,21 +69,6 @@ def test_tooltip(ui: CylindraMainWidget):
     mcls_testing.check_tooltip(ui.simulator)
 
 
-def test_misc_actions(ui: CylindraMainWidget):
-    ui.OthersMenu.cylindra_info()
-    ui.OthersMenu.open_command_palette()
-    ui.SplineControl.copy_screenshot()
-    ui.LocalProperties.copy_screenshot()
-    with tempfile.TemporaryDirectory() as tmpdir:
-        ui.SplineControl.save_screenshot(Path(tmpdir) / "img.png")
-        ui.LocalProperties.save_screenshot(Path(tmpdir) / "img.png")
-    ui.SplineControl.log_screenshot()
-    ui.LocalProperties.log_screenshot()
-    cfg = get_config()
-    ui.OthersMenu.configure_cylindra(use_gpu=cfg.use_gpu)
-    cfg.to_user_dir()
-
-
 @pytest.mark.parametrize(
     "save_path,npf", [(PROJECT_DIR_13PF, 13), (PROJECT_DIR_14PF, 14)]
 )
@@ -139,6 +124,11 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     for mol0, mol1 in zip(old_molecules, new_molecules, strict=True):
         assert_molecule_equal(mol0, mol1)
     assert ui.tomogram.tilt["range"] == (-60, 60)
+
+    # operations on the local properties and projections
+    ui.SplineControl.auto_contrast()
+    ui.LocalProperties.edit_plots(["spacing", "twist"])
+    ui.LocalProperties.edit_plots(["spacing", "twist", "rise"])
 
     ui.SplinesMenu.Show.show_splines()
     ui.SplinesMenu.Show.show_splines_as_meshes()
@@ -318,7 +308,7 @@ def test_load_macro(ui: CylindraMainWidget):
         ui.OthersMenu.Macro.load_macro_file(fp)
 
 
-def test_spline_switch(ui: CylindraMainWidget):
+def test_spline_control(ui: CylindraMainWidget):
     path = TEST_DIR / "13pf_MT.tif"
     ui.open_image(path=path, scale=1.052, tilt_range=(-60, 60), bin_size=2)
     ui.filter_reference_image()
@@ -419,6 +409,19 @@ def test_spline_switch(ui: CylindraMainWidget):
 
         assert ui.LocalProperties.params.spacing.txt == " -- nm"
         assert ui.GlobalProperties.params.params1.spacing.txt == " -- nm"
+
+    ui.OthersMenu.cylindra_info()
+    ui.OthersMenu.open_command_palette()
+    ui.LocalProperties.copy_screenshot()
+    ui.SplineControl.copy_screenshot()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        ui.SplineControl.save_screenshot(Path(tmpdir) / "img.png")
+        ui.LocalProperties.save_screenshot(Path(tmpdir) / "img.png")
+    ui.SplineControl.log_screenshot()
+    ui.LocalProperties.log_screenshot()
+    cfg = get_config()
+    ui.OthersMenu.configure_cylindra(use_gpu=cfg.use_gpu)
+    cfg.to_user_dir()
 
 
 def test_preview(ui: CylindraMainWidget):
@@ -1394,6 +1397,9 @@ def test_regionprops(ui: CylindraMainWidget):
         ],
     )  # fmt: skip
     ui.count_neighbors("Mole-0")
+    ui.distance_from_spline("Mole-0", spline=1)
+    dist = ui.mole_layers[0].features["distance"][13:-13]
+    assert np.all(np.abs(dist - ui.splines[0].radius) < 0.2)
 
 
 def test_showing_widgets(ui: CylindraMainWidget):

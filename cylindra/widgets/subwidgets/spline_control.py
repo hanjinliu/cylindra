@@ -59,7 +59,7 @@ class SplineControl(ChildWidget):
     """
 
     def __post_init__(self):
-        self._projections = list[Projections]()
+        self._projections: list[Projections] = None
 
         self.canvas.min_height = 200
         self.canvas.max_height = 230
@@ -100,6 +100,8 @@ class SplineControl(ChildWidget):
     @set_design(max_width=40, text="Auto", location=footer)
     def auto_contrast(self):
         """Auto-contrast by the current projection."""
+        if self._projections is None:
+            return None  # nothing to adjust
         proj = self._projections[self.pos]
         clim = np.min(proj.yx), np.max(proj.yx)
         for each in self.canvas:
@@ -256,7 +258,7 @@ class SplineControl(ChildWidget):
         if pos is None:
             pos = self.pos
 
-        if not self._projections or num is None or pos is None:
+        if self._projections is None or num is None or pos is None:
             return self._clear_all_layers()
         if num >= len(tomo.splines):
             return
@@ -320,6 +322,17 @@ class SplineControl(ChildWidget):
             parent.LocalProperties._init_plot()
 
         return None
+
+    def _init_widget(self):
+        self.pos = 0
+        self["pos"].max = 0
+        self.footer.highlight_subvolume = False
+
+        for i in range(3):
+            del self.canvas[i].image
+            self.canvas[i].layers.clear()
+            self.canvas[i].text_overlay.text = ""
+        self._projections = None
 
     def _clear_all_layers(self):
         for ic in range(3):

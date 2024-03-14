@@ -234,18 +234,20 @@ class CylinderModel:
         mole.features = {Mole.nth: nth, Mole.pf: pf, Mole.position: pos}
         return mole
 
-    def to_mesh(self, spl: Spline):
+    def to_mesh(self, spl: Spline, shape: tuple[int, int] | None = None):
         """
         Create a mesh data for cylinder visualization.
 
-        Returned mesh is a tuple of (nodes, vertices). Nodes is a (N, 3) array, where
-        N is the y-shape of this object.
+        Returned mesh is a tuple of (nodes, vertices). Nodes is a (N, 3) array.
         """
-        nodes = spl.cylindrical_to_world(
-            self.replace(tilts=(0, 0))._get_regular_mesh().reshape(-1, 3)
-        )
+        if shape is None:
+            shape = self.shape
+        yy, aa = np.indices(shape, dtype=np.int32)
+        coords = np.stack([yy.ravel(), aa.ravel()], axis=1)
+        mesh2d = self.replace(tilts=(0, 0))._get_mesh(coords)
+        nodes = spl.cylindrical_to_world(mesh2d.reshape(-1, 3))
         vertices = list[tuple[int, int, int]]()
-        ny, npf = self.shape
+        ny, npf = shape
         for y in range(ny):
             for a in range(npf):
                 idx = y * npf + a

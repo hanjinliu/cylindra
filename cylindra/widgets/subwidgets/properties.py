@@ -37,7 +37,7 @@ class LabeledText(FieldGroup):
         self.margins = (0, 0, 0, 0)
 
 
-_PlotInfo = {
+_PLOT_DEFAULTS = {
     H.spacing: ("spacing (nm)", "lime"),
     H.pitch: ("pitch (nm)", "green"),
     H.twist: ("twist (deg)", "gold"),
@@ -113,13 +113,15 @@ class LocalPropertiesWidget(ChildWidget):
         return None
 
     def _set_properties_to_plot(self, props: list[str]):
+        # first insert/remove axes to match the number of properties
         nplots = len(self.plot)
         for i in range(nplots, len(props)):
-            self.plot.addaxis(i, 0)
+            self.plot.addaxis(i + 1, 0)
         for _ in range(len(props), nplots):
             del self.plot[0]
+        # update all the lines
         for prop, _plot in zip(props, self.plot, strict=True):
-            info = _PlotInfo.get(prop, ("unknown", "lightgray"))
+            info = _PLOT_DEFAULTS.get(prop, ("unknown", "lightgray"))
             _plot.ylabel = info[0]
             _plot.legend.visible = False
             _plot.border = [1, 1, 1, 0.2]
@@ -139,7 +141,7 @@ class LocalPropertiesWidget(ChildWidget):
         kw = {"pos": [x[0], 0], "degree": 90, "color": [1.0, 0.0, 0.0, 0.3], "lw": 2}
         for prop, _plot in zip(self._props_to_plot, self.plot, strict=True):
             if (_interv := spl.props.get_loc(prop, None)) is not None:
-                color = _PlotInfo[prop][1]
+                color = _PLOT_DEFAULTS[prop][1]
                 _plot.add_curve(x, _interv, color=color, antialias=True)
             _plot.add_infline(**kw)
         if len(self.plot) > 0:
@@ -162,16 +164,17 @@ class LocalPropertiesWidget(ChildWidget):
 
     @magicclass(layout="horizontal", labels=False, record=False)
     class footer(MagicTemplate):
-        edit_props = abstractapi()
+        edit_plots = abstractapi()
         copy_screenshot = abstractapi()
         save_screenshot = abstractapi()
         log_screenshot = abstractapi()
 
-    @set_design(text="Edit plots", location=footer)
-    def edit_props(
+    @set_design(text=str.capitalize, location=footer)
+    def edit_plots(
         self,
-        props: Annotated[list[str], {"widget_type": CheckBoxes, "choices": _PlotInfo.keys()}] = (H.spacing, H.twist, H.rise)
+        props: Annotated[list[str], {"widget_type": CheckBoxes, "choices": _PLOT_DEFAULTS.keys()}] = (H.spacing, H.twist, H.rise)
     ):  # fmt: skip
+        """Edit which properties to plot."""
         self._set_properties_to_plot(props)
         self._props_changed.emit(props)
         return None

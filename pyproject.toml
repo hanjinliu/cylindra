@@ -98,6 +98,14 @@ filterwarnings = [
     "ignore:Jupyter is migrating its paths to use standard platformdirs:DeprecationWarning",
 ]
 
+[tool.coverage.run]
+source_pkgs = ["cylindra"]
+branch = true
+parallel = true
+
+[tool.coverage.paths]
+cylindra = ["*/cylindra/cylindra"]
+
 [tool.coverage.report]
 exclude_lines = [
     "pragma: no cover",

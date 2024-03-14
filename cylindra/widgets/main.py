@@ -2312,11 +2312,36 @@ class CylindraMainWidget(MagicTemplate):
         out = cylfilters.count_neighbors(layer.molecules.features, footprint, nrise)
         layer.molecules = layer.molecules.with_features(out.alias(column_name))
         self.reset_choices()
-        match layer.colormap_info:
-            case str(color):
-                layer.face_color = color
-            case info:
-                layer.set_colormap(column_name, info.clim, info.cmap)
+        return undo_callback(layer.feature_setter(feat, cmap_info))
+
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
+    def distance_from_spline(
+        self,
+        layer: MoleculesLayerType,
+        spline: Annotated[int, {"choices": _get_splines}],
+        column_name: str = "distance",
+        interval: nm = 1.0,
+    ):
+        """
+        Add a new column that stores the shortest distance from the given spline.
+
+        Parameters
+        ----------
+        {layer}{spline}
+        interval: nm, default 1.0
+            Sampling interval along the spline. Note that small value will increase the
+            memory usage and computation time.
+        """
+        spl = self.tomogram.splines[spline]
+        layer = assert_layer(layer, self.parent_viewer)
+        if interval <= 0:
+            raise ValueError("`precision` must be positive.")
+        feat, cmap_info = layer.molecules.features, layer.colormap_info
+        npartitions = utils.ceilint(spl.length() / interval)
+        sample_points = spl.map(np.linspace(0, 1, npartitions))
+        dist = utils.distance_matrix(layer.molecules.pos, sample_points)
+        dist_min = pl.Series(column_name, np.min(dist, axis=1))
+        layer.molecules = layer.molecules.with_features(dist_min)
         return undo_callback(layer.feature_setter(feat, cmap_info))
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
@@ -2485,15 +2510,8 @@ class CylindraMainWidget(MagicTemplate):
 
     def _init_widget_state(self, _=None):
         """Initialize widget state of spline control and local properties for new plot."""
-        self.SplineControl.pos = 0
-        self.SplineControl["pos"].max = 0
-        self.SplineControl.footer.highlight_subvolume = False
+        self.SplineControl._init_widget()
         self.LocalProperties._init_text()
-
-        for i in range(3):
-            del self.SplineControl.canvas[i].image
-            self.SplineControl.canvas[i].layers.clear()
-            self.SplineControl.canvas[i].text_overlay.text = ""
         self.LocalProperties._init_plot()
         return None
 
