@@ -312,6 +312,7 @@ def test_load_macro(ui: CylindraMainWidget):
 
 def test_spline_control(ui: CylindraMainWidget):
     path = TEST_DIR / "13pf_MT.tif"
+    ui.parent_viewer.show()  # this test needs the viewer to be shown
     ui.open_image(path=path, scale=1.052, tilt_range=(-60, 60), bin_size=2)
     ui.filter_reference_image()
     ui.register_path(coords=coords_13pf)

@@ -451,8 +451,15 @@ class StaParameters(MagicTemplate):
         if StaParameters._viewer is None:
             from cylindra.widgets.subwidgets import Volume
 
+            if qt_window := getattr(self.parent_viewer.window, "_qt_window", None):
+                show = qt_window.isVisible()
+            else:
+                show = False
             StaParameters._viewer = viewer = napari.Viewer(
-                title=name, axis_labels=("z", "y", "x"), ndisplay=3
+                title=name,
+                axis_labels=("z", "y", "x"),
+                ndisplay=3,
+                show=show,
             )
             volume_menu = Volume(viewer)
             volume_menu.native.setParent(
