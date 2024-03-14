@@ -31,7 +31,13 @@ from magicclass.widgets import CodeEdit, ConsoleTextEdit, Separator
 from cylindra import _config
 from cylindra._napari import MoleculesLayer
 from cylindra.components.spline import SplineConfig
-from cylindra.const import FileFilter, ImageFilter, get_versions, nm
+from cylindra.const import (
+    INTERPOLATION_CHOICES,
+    FileFilter,
+    ImageFilter,
+    get_versions,
+    nm,
+)
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.ext import IMOD, RELION
 from cylindra.project import CylindraProject, extract
@@ -295,22 +301,49 @@ class SplinesMenu(ChildWidget):
             )
 
         @set_design(text=capitalize)
-        def show_splines_as_meshes(self):
-            """Show 3D spline cylinder as a surface layer."""
+        def show_splines_as_meshes(
+            self,
+            color_by: Annotated[Optional[str], {"text": "Do not colorize"}] = None,
+            interval: Annotated[nm, {"min": 0.1, "step": 0.1}] = 4.0,
+            interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 0,
+        ):
+            """
+            Show 3D spline cylinder as a surface layer.
+
+            Parameters
+            ----------
+            color_by : str, optional
+                Name of the feature to colorize the surface.
+            interval : nm, default 4.0
+                Interval of the spline to sample.
+            interpolation : int, default 0
+                Interpolation order for points between the anchors.
+            """
             # TODO: after napari supports features in surface layer, add spline
             # properties
             main = self._get_main()
-            nodes = []
-            vertices = []
-            n_nodes = 0
-            for i, spl in enumerate(main.tomogram.splines):
-                node, vert = spl.cylinder_model().to_mesh(spl)
+            nodes: list[np.ndarray] = []
+            vertices: list[np.ndarray] = []
+            values: list[np.ndarray] = []
+            current_n_nodes = 0
+            for spl in main.tomogram.splines:
+                shape = (round(spl.length() / interval), 16)
+                node, vert, vals = spl.cylinder_model().to_mesh(
+                    spl, shape, value_by=color_by, order=interpolation
+                )
                 nodes.append(node)
-                vertices.append(vert + i * n_nodes)
-                n_nodes += node.shape[0]
-            nodes = np.concatenate(nodes, axis=0)
-            vertices = np.concatenate(vertices, axis=0)
-            return main.parent_viewer.add_surface([nodes, vertices], shading="smooth")
+                vertices.append(vert + current_n_nodes)
+                values.append(vals)
+                current_n_nodes += node.shape[0]
+            surface_data = [
+                np.concatenate(nodes, axis=0),
+                np.concatenate(vertices, axis=0),
+                np.concatenate(values, axis=0),
+            ]
+            cmap = "inferno" if color_by else None
+            return main.parent_viewer.add_surface(
+                surface_data, shading="smooth", colormap=cmap, name="cylinders"
+            )
 
         @set_design(text="Show local properties in table")
         @do_not_record

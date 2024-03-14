@@ -7,6 +7,8 @@ import polars as pl
 from acryo import Molecules
 from numpy.typing import ArrayLike, NDArray
 
+from cylindra import utils
+from cylindra._cylindra_ext import cylinder_faces
 from cylindra.const import MoleculesHeader as Mole
 
 if TYPE_CHECKING:
@@ -234,7 +236,13 @@ class CylinderModel:
         mole.features = {Mole.nth: nth, Mole.pf: pf, Mole.position: pos}
         return mole
 
-    def to_mesh(self, spl: Spline, shape: tuple[int, int] | None = None):
+    def to_mesh(
+        self,
+        spl: Spline,
+        shape: tuple[int, int] | None = None,
+        value_by: str | None = None,
+        order: int = 0,
+    ) -> tuple[NDArray[np.float32], NDArray[np.int32], NDArray[np.float32]]:
         """
         Create a mesh data for cylinder visualization.
 
@@ -242,48 +250,28 @@ class CylinderModel:
         """
         if shape is None:
             shape = self.shape
-        yy, aa = np.indices(shape, dtype=np.int32)
-        coords = np.stack([yy.ravel(), aa.ravel()], axis=1)
+        ycoords = np.linspace(0, self.shape[0] - 1, shape[0])
+        acoords = np.linspace(0, self.shape[1] - 1, shape[1])
+        yy, aa = np.meshgrid(ycoords, acoords, indexing="ij")
+        coords = np.stack([yy.ravel(), aa.ravel()], axis=1, dtype=np.float32)
         mesh2d = self.replace(tilts=(0, 0))._get_mesh(coords)
-        nodes = spl.cylindrical_to_world(mesh2d.reshape(-1, 3))
-        vertices = list[tuple[int, int, int]]()
-        ny, npf = shape
-        for y in range(ny):
-            for a in range(npf):
-                idx = y * npf + a
-                if y > 0:
-                    if a > 0:
-                        vertices.append((idx, idx - 1, idx - npf))
-                    else:
-                        vertices.append((idx, idx + npf - 1, idx - npf))
-                if y < ny - 1:
-                    if a < npf - 1:
-                        vertices.append((idx, idx + 1, idx + npf))
-                    else:
-                        vertices.append((idx, idx - npf + 1, idx + npf))
-        return nodes, np.array(vertices)
-
-    def add_offsets(self, offsets: tuple[float, float]) -> Self:
-        """Increment offsets attribute of the model."""
-        _offsets = tuple(x + y for x, y in zip(self._offsets, offsets, strict=True))
-        return self.replace(offsets=_offsets)
+        verts = spl.cylindrical_to_world(mesh2d.reshape(-1, 3))
+        faces = cylinder_faces(*shape)
+        if value_by is not None:
+            loc = spl.props.get_loc(value_by)
+            anc = spl.anchors
+            xinterp = np.repeat(np.linspace(0, 1, shape[0]), shape[1]).clip(
+                anc[0], anc[-1]
+            )
+            values = utils.interp(anc, loc, order=order)(xinterp)
+        else:
+            values = np.full(verts.shape[0], 0.5, dtype=np.float32)
+        return verts, faces, values
 
     def add_shift(self, shift: NDArray[np.floating]) -> Self:
         """Increment displace attribute of the model."""
         displace = self._displace + shift
         return self.replace(displace=displace)
-
-    def add_radial_shift(self, shift: NDArray[np.floating]) -> Self:
-        """Add shift to the radial (r-axis) direction."""
-        return self._add_directional_shift(shift, 0)
-
-    def add_axial_shift(self, shift: NDArray[np.floating]) -> Self:
-        """Add shift to the axial (y-axis) direction."""
-        return self._add_directional_shift(shift, 1)
-
-    def add_skew_shift(self, shift: NDArray[np.floating]) -> Self:
-        """Add shift to the skew (a-axis) direction."""
-        return self._add_directional_shift(shift, 2)
 
     def dilate(self, by: float, sl: _Slicer) -> Self:
         """Locally add uniform shift to the radial (r-axis) direction."""
@@ -402,7 +390,10 @@ class CylinderModel:
         yoffset = y_incr + self._offsets[0]
         aoffset = self._offsets[1]
         mesh2d = oblique_coordinates(
-            coords, self._tilts, self._intervals, (yoffset, aoffset)
+            coords.astype(np.float32, copy=False),
+            self._tilts,
+            self._intervals,
+            (yoffset, aoffset),
         )
         r_arr = np.full(mesh2d.shape[:1] + (1,), self._radius, dtype=np.float32)
         return np.concatenate([r_arr, mesh2d], axis=1)

@@ -48,6 +48,26 @@ def distance_matrix(a: NDArray[np.floating], b: NDArray[np.floating]):
     return np.linalg.norm(a[:, np.newaxis] - b[np.newaxis], axis=-1)
 
 
+def interp(
+    x: NDArray[np.floating],
+    y: NDArray[np.floating],
+    order: int = 1,
+    axis: int = -1,
+) -> Callable[[NDArray[np.floating]], NDArray[np.floating]]:
+    from scipy.interpolate import interp1d
+
+    match order:
+        case 0:
+            kind = "nearest"
+        case 1:
+            kind = "linear"
+        case 3:
+            kind = "cubic"
+        case v:
+            raise ValueError(f"`interpolation` must be 0, 1 or 3. Got {v}.")
+    return interp1d(x, y, kind=kind, axis=axis)
+
+
 @contextmanager
 def set_gpu():
     """Use GPU within this context."""

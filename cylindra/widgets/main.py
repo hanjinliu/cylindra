@@ -281,7 +281,10 @@ class CylindraMainWidget(MagicTemplate):
     def _get_spline_coordinates(self, coords=None) -> np.ndarray:
         """Get coordinates of the manually picked spline."""
         if coords is None:
-            coords = self._reserved_layers.work.data
+            if self._reserved_layers.work is None:
+                coords = np.zeros((0, 3), dtype=np.float32)
+            else:
+                coords = self._reserved_layers.work.data
         out = np.round(coords, 3)
         if out.ndim != 2 or out.shape[1] != 3 or out.dtype.kind not in "iuf":
             raise ValueError("Input coordinates must be a (N, 3) numeric array.")
@@ -2192,23 +2195,13 @@ class CylindraMainWidget(MagicTemplate):
         suffix : str, default "_spl"
             Suffix of the new feature column names.
         """
-        from scipy.interpolate import interp1d
-
         layer = assert_layer(layer, self.parent_viewer)
-        match interpolation:
-            case 0:
-                kind = "nearest"
-            case 1:
-                kind = "linear"
-            case 3:
-                kind = "cubic"
-            case v:
-                raise ValueError(f"`interpolation` must be 0, 1 or 3. Got {v}.")
-
         spl = _assert_source_spline_exists(layer)
         feat = layer.molecules.features
         anc = spl.anchors
-        interp = interp1d(anc, spl.props.loc.to_numpy(), kind=kind, axis=0)
+        interp = utils.interp(
+            anc, spl.props.loc.to_numpy(), order=interpolation, axis=0
+        )
         pos_nm = feat[Mole.position].to_numpy()
         values = interp(spl.y_to_position(pos_nm).clip(anc.min(), anc.max()))
         layer.molecules = layer.molecules.with_features(

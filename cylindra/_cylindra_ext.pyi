@@ -104,11 +104,15 @@ def alleviate(
     nrise: int,
 ) -> NDArray[np.float64]: ...
 def oblique_coordinates(
-    coords: NDArray[np.int32],
+    coords: NDArray[np.float32],
     tilts: tuple[float, float],
     intervals: tuple[float, float],
     offsets: tuple[float, float],
 ) -> NDArray[np.float32]: ...
+def cylinder_faces(
+    ny: int,
+    npf: int,
+) -> NDArray[np.int32]: ...
 
 class RegionProfiler:
     def __init__(
