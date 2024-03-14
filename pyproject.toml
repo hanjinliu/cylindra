@@ -56,6 +56,7 @@ testing = [
     "mrcfile>=1.3.0",
     "tifffile>=2023.2.28",
     "starfile",
+    "maturin",
 ]
 all = [
     "pyqt5",
