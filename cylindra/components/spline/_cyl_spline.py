@@ -198,6 +198,7 @@ class CylSpline(Spline):
         self,
         *,
         npf: int | None = None,
+        start: int | None = None,
         orientation: Ori | str | None = None,
     ) -> CylSpline:
         """Update the npf or orientation parameters in place."""
@@ -206,6 +207,9 @@ class CylSpline(Spline):
         if npf is not None:
             loc.append(pl.repeat(npf, pl.len()).cast(pl.UInt8).alias(H.npf))
             glob.append(pl.Series([npf]).cast(pl.UInt8).alias(H.npf))
+        if start is not None:
+            loc.append(pl.repeat(start, pl.len()).cast(pl.Int32).alias(H.start))
+            glob.append(pl.Series([start]).cast(pl.Int32).alias(H.start))
         if orientation is not None:
             glob.append(
                 pl.Series([str(orientation)]).cast(pl.Utf8).alias(H.orientation)

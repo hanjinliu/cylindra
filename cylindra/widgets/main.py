@@ -419,8 +419,9 @@ class CylindraMainWidget(MagicTemplate):
         """
         Run a user-defined workflow.
 
-        This method will run a .py file that was defined by the user from `Workflow > Define workflow`.
-        *args and **kwargs follow the signature of the main function of the workflow.
+        This method will run a .py file that was defined by the user from
+        `Workflow > Define workflow`. *args and **kwargs follow the signature of the
+        main function of the workflow.
         """
         main = _config.get_main_function(filename)
         out = main(self, *args, **kwargs)
@@ -1037,11 +1038,11 @@ class CylindraMainWidget(MagicTemplate):
                 )
                 yield thread_worker.callback(self._update_splines_in_images)
 
-        @thread_worker.callback
-        def out():
-            self._init_widget_state()
-            self._update_splines_in_images()
-            return tracker.as_undo_callback()
+            @thread_worker.callback
+            def out():
+                self._init_widget_state()
+                self._update_splines_in_images()
+                return tracker.as_undo_callback()
 
         return out
 
@@ -1077,11 +1078,11 @@ class CylindraMainWidget(MagicTemplate):
                 )
                 yield thread_worker.callback(self._update_splines_in_images)
 
-        @thread_worker.callback
-        def out():
-            self._init_widget_state()
-            self._update_splines_in_images()
-            return tracker.as_undo_callback()
+            @thread_worker.callback
+            def out():
+                self._init_widget_state()
+                self._update_splines_in_images()
+                return tracker.as_undo_callback()
 
         return out
 
@@ -1102,8 +1103,8 @@ class CylindraMainWidget(MagicTemplate):
             How to add anchors.
 
             - "pack": (x———x———x—) Pack anchors from the starting point of splines.
-            - "equal": (x——x——x——x) Equally distribute anchors between the starting point
-              and the end point of splines. Actual intervals will be smaller.
+            - "equal": (x——x——x——x) Equally distribute anchors between the starting
+              point and the end point of splines. Actual intervals will be smaller.
         """
         tomo = self.tomogram
         splines = self._norm_splines(splines)
@@ -1116,8 +1117,8 @@ class CylindraMainWidget(MagicTemplate):
                 case _:  # pragma: no cover
                     raise ValueError(f"Unknown method: {how}")
 
-        self._update_splines_in_images()
-        return tracker.as_undo_callback()
+            self._update_splines_in_images()
+            return tracker.as_undo_callback()
 
     @set_design(text=capitalize, location=_sw.SplinesMenu.Fitting)
     @thread_worker.with_progress(desc="Refining splines", total=_NSPLINES)
@@ -1136,8 +1137,8 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         {splines}{max_interval}{err_max}
         corr_allowed : float, default 0.9
-            How many images will be used to make template for alignment. If 0.9, then top 90%
-            will be used.
+            How many images will be used to make template for alignment. If 0.9, then
+            top 90% will be used.
         {bin_size}
         """
         tomo = self.tomogram
@@ -1153,12 +1154,12 @@ class CylindraMainWidget(MagicTemplate):
                 )
                 yield thread_worker.callback(self._update_splines_in_images)
 
-        @thread_worker.callback
-        def out():
-            self._init_widget_state()
-            self._update_splines_in_images()
-            self._update_local_properties_in_widget()
-            return tracker.as_undo_callback()
+            @thread_worker.callback
+            def out():
+                self._init_widget_state()
+                self._update_splines_in_images()
+                self._update_local_properties_in_widget()
+                return tracker.as_undo_callback()
 
         return out
 
@@ -1167,6 +1168,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         spline: Annotated[int, {"bind": _get_spline_idx}],
         npf: Annotated[Optional[int], {"label": "number of PF", "text": "Do not update"}] = None,
+        start: Annotated[Optional[int], {"label": "start number", "text": "Do not update"}] = None,
         orientation: Annotated[Optional[Literal["MinusToPlus", "PlusToMinus"]], {"text": "Do not update"}] = None,
     ):  # fmt: skip
         """
@@ -1185,7 +1187,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         spl = self.tomogram.splines[spline]
         old_spl = spl.copy()
-        spl.update_props(npf=npf, orientation=orientation)
+        spl.update_props(npf=npf, start=start, orientation=orientation)
         self.sample_subtomograms()
         self._update_splines_in_images()
 
@@ -1333,7 +1335,7 @@ class CylindraMainWidget(MagicTemplate):
                 self.tomogram.measure_radius(i, binsize=bin_size, min_radius=min_radius)
                 yield
 
-        return tracker.as_undo_callback()
+            return tracker.as_undo_callback()
 
     @set_design(text=capitalize, location=_sw.AnalysisMenu.Radius)
     def set_radius(
@@ -1367,7 +1369,7 @@ class CylindraMainWidget(MagicTemplate):
         with SplineTracker(widget=self, indices=splines, sample=True) as tracker:
             for i in splines:
                 self.splines[i].radius = rdict[i]
-        return tracker.as_undo_callback()
+            return tracker.as_undo_callback()
 
     @set_design(text=capitalize, location=_sw.AnalysisMenu.Radius)
     @thread_worker.with_progress(desc="Measuring local radii", total=_NSPLINES)
@@ -1410,7 +1412,7 @@ class CylindraMainWidget(MagicTemplate):
                 else:
                     yield
 
-        return tracker.as_undo_callback()
+            return tracker.as_undo_callback()
 
     @set_design(text=capitalize, location=_sw.AnalysisMenu.Radius)
     def measure_radius_by_molecules(
@@ -1466,8 +1468,8 @@ class CylindraMainWidget(MagicTemplate):
                 spl.props.update_loc([radii], depth)
                 if update_glob:
                     spl.radius = df[Mole.radius].mean()
-        self._update_local_properties_in_widget(replot=True)
-        return tracker.as_undo_callback()
+            self._update_local_properties_in_widget(replot=True)
+            return tracker.as_undo_callback()
 
     @set_design(text="Local CFT analysis", location=_sw.AnalysisMenu)
     @thread_worker.with_progress(
@@ -1543,7 +1545,7 @@ class CylindraMainWidget(MagicTemplate):
                     update_glob=update_glob,
                 )
                 yield _local_cft_analysis_on_yield.with_args(i)
-        return tracker.as_undo_callback()
+            return tracker.as_undo_callback()
 
     @set_design(text="Global CFT analysis", location=_sw.AnalysisMenu)
     @thread_worker.with_progress(
@@ -1572,22 +1574,22 @@ class CylindraMainWidget(MagicTemplate):
                 tomo.global_cft_params(i=i, binsize=bin_size)
                 yield
 
-        # show all in a table
-        df = (
-            self.tomogram.splines.collect_globalprops()
-            .drop(H.spline_id)
-            .to_pandas()
-            .transpose()
-        )
-        df.columns = [f"Spline-{i}" for i in range(len(df.columns))]
+            # show all in a table
+            df = (
+                self.tomogram.splines.collect_globalprops()
+                .drop(H.spline_id)
+                .to_pandas()
+                .transpose()
+            )
+            df.columns = [f"Spline-{i}" for i in range(len(df.columns))]
 
-        @thread_worker.callback
-        def _global_cft_analysis_on_return():
-            self.sample_subtomograms()
-            _Logger.print_table(df, precision=3)
-            self._update_global_properties_in_widget()
+            @thread_worker.callback
+            def _global_cft_analysis_on_return():
+                self.sample_subtomograms()
+                _Logger.print_table(df, precision=3)
+                self._update_global_properties_in_widget()
 
-            return tracker.as_undo_callback()
+                return tracker.as_undo_callback()
 
         return _global_cft_analysis_on_return
 
