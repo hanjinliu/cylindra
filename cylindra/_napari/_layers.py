@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Callable, NamedTuple, TypedDict
 import numpy as np
 import polars as pl
 from acryo import Molecules
-from napari.layers import Labels, Points, Surface
+from napari.layers import Points, Surface
 from napari.utils import Colormap
 from napari.utils.events import Event
 from napari.utils.status_messages import generate_layer_coords_status
@@ -395,35 +395,6 @@ class MoleculesLayer(_FeatureBoundLayer, Points, _SourceBoundLayer):
         if nlon * nlat != mole.count():
             raise ValueError("Molecules are not regularly arranged")
         return nlon, nlat
-
-
-class CylinderLabels(_FeatureBoundLayer, Labels):
-    _type_string = "labels"
-
-    def __init__(self, data, **kwargs):
-        self._colormap_info: ColormapInfo | None = None
-        self._property_filter = lambda _: True
-        super().__init__(data, **kwargs)
-
-    def set_colormap(self, by: str, limits: tuple[float, float], cmap: Any):
-        color = {
-            0: np.array([0.0, 0.0, 0.0, 0.0], dtype=np.float32),
-            None: np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float32),
-        }
-        clim = tuple(limits)
-        lim0, lim1 = clim
-        seq = self.features[by][1:]  # skip background
-        _cmap = _normalize_colormap(cmap)
-        for i, value in enumerate(seq):
-            color[i + 1] = _cmap.map((value - lim0) / (lim1 - lim0))
-        self.color = color
-        self._colormap_info = ColormapInfo(_cmap, clim, by)
-        return None
-
-    @property
-    def colormap_info(self) -> ColormapInfo | None:
-        """Colormap information."""
-        return self._colormap_info
 
 
 class LandscapeSurface(Surface, _SourceBoundLayer):

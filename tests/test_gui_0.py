@@ -282,6 +282,8 @@ def test_map_molecules(ui: CylindraMainWidget):
     # test expression input
     ui.map_along_pf(0, molecule_interval=pl.col("spacing") * 2)
     ui.map_centers(0, molecule_interval=pl.col("spacing") * 2)
+    # this also tests coercing names
+    ui.map_centers(0, molecule_interval=pl.col("spacing"))
 
 
 def test_napari_operations(ui: CylindraMainWidget):
@@ -332,6 +334,7 @@ def test_spline_control(ui: CylindraMainWidget):
         ui.SplineControl.pos = 0
         assert_canvas(ui, [False, False, True])
 
+        ui.fit_splines_by_centroid(splines=[0])
         ui._runner.run(interval=32.6)
 
         # check results
