@@ -4,9 +4,9 @@
 
 ## Import Molecules from IMOD
 
-:material-arrow-right-thin-circle-outline: API: [`ui.FileMenu.IMOD.read_monomers`][cylindra.ext.imod.menu.IMOD.read_monomers]
+:material-arrow-right-thin-circle-outline: API: [`ui.FileMenu.IMOD.load_molecules`][cylindra.ext.imod.menu.IMOD.load_molecules]
 
-:material-arrow-right-thin-circle-outline: GUI: `File > IMOD > Read monomers`
+:material-arrow-right-thin-circle-outline: GUI: `File > IMOD > Load molecules`
 
 This function reads molecules from files in IMOD format, which are usually used in PEET.
 Molecule positions are defined in a `.mod` file, while the molecule rotations are in a
@@ -15,18 +15,18 @@ passing the paths to these files, this function add molecules to the viewer.
 
 ## Export Molecules for IMOD
 
-:material-arrow-right-thin-circle-outline: API: [`ui.FileMenu.IMOD.save_monomers`][cylindra.ext.imod.menu.IMOD.save_monomers]
+:material-arrow-right-thin-circle-outline: API: [`ui.FileMenu.IMOD.save_molecules`][cylindra.ext.imod.menu.IMOD.save_molecules]
 
-:material-arrow-right-thin-circle-outline: GUI: `File > IMOD > Save monomers`
+:material-arrow-right-thin-circle-outline: GUI: `File > IMOD > Save molecules`
 
 This function saves the selected molecules as a `.mod` file and a CSV file in the same
 directory. Saved files can be directly used in PEET.
 
 ## Import Lines as Splines from IMOD
 
-:material-arrow-right-thin-circle-outline: API: [`ui.FileMenu.IMOD.read_lines_as_splines`][cylindra.ext.imod.menu.IMOD.read_lines_as_splines]
+:material-arrow-right-thin-circle-outline: API: [`ui.FileMenu.IMOD.load_splines`][cylindra.ext.imod.menu.IMOD.load_splines]
 
-:material-arrow-right-thin-circle-outline: GUI: `File > IMOD > Read lines as splines`
+:material-arrow-right-thin-circle-outline: GUI: `File > IMOD > Load splines`
 
 In IMOD, you can create segmented lines with such as `3dmod` viewer and save as a
 `.mod` file. The lines can be imported as splines in `cylindra`.

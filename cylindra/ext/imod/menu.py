@@ -10,8 +10,13 @@ from magicclass.types import Path
 from magicclass.widgets import Separator
 
 from cylindra.const import FileFilter
-from cylindra.types import MoleculesLayer, get_monomer_layers
 from cylindra.widget_utils import add_molecules, capitalize
+from cylindra.widgets._annotated import (
+    MoleculesLayersType,
+    MoleculesLayerType,
+    assert_layer,
+    assert_list_of_layers,
+)
 from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 
@@ -20,27 +25,28 @@ class IMOD(ChildWidget):
     """File IO for IMOD softwares."""
 
     @set_design(text=capitalize)
-    def read_monomers(
+    def load_molecules(
         self,
         mod_path: Annotated[Path.Read[FileFilter.MOD], {"label": "Path to MOD file"}],
         ang_path: Annotated[Path.Read[FileFilter.CSV], {"label": "Path to csv file"}],
         shift_mol: Annotated[bool, {"label": "Apply shifts to monomers if offsets are available."}] = True,
     ):  # fmt: skip
         """
-        Read monomer coordinates and angles from IMOD .mod files.
+        Read molecule coordinates and angles from IMOD .mod files.
 
         Parameters
         ----------
         mod_path : Path
-            Path to the mod file that contains monomer coordinates.
+            Path to the mod file that contains molecule coordinates.
         ang_path : Path
-            Path to the text file that contains monomer angles in Euler angles.
+            Path to the text file that contains molecule angles in Euler angles.
         shift_mol : bool, default True
-            In PEET output csv there may be xOffset, yOffset, zOffset columns that can be directly applied to
-            the molecule coordinates.
+            In PEET output csv there may be xOffset, yOffset, zOffset columns that can
+            be directly applied to the molecule coordinates.
         """
         from .cmd import read_mod
 
+        mod_path = Path(mod_path)
         df = read_mod(mod_path)
         mod = df.select("z", "y", "x").to_numpy()
         mod[:, 1:] -= 0.5  # shift to center of voxel
@@ -49,12 +55,10 @@ class IMOD(ChildWidget):
         if shift_mol:
             mol.translate(shifts * self.scale, copy=False)
 
-        return add_molecules(
-            self.parent_viewer, mol, "Molecules from PEET", source=None
-        )
+        return add_molecules(self.parent_viewer, mol, mod_path.name, source=None)
 
     @set_design(text=capitalize)
-    def read_lines_as_splines(
+    def load_splines(
         self,
         mod_path: Annotated[Path.Read[FileFilter.MOD], {"label": "Path to MOD file"}],
     ):
@@ -65,12 +69,13 @@ class IMOD(ChildWidget):
         main = self._get_main()
         for _, sub in df.group_by("object_id", "contour_id", maintain_order=True):
             coords = sub.select("z", "y", "x").to_numpy()
+            coords[:, 1:] -= 0.5  # shift YX to center of voxel
             main.register_path(coords * self.scale, err_max=1e-8)
 
     sep0 = field(Separator)
 
     @set_design(text=capitalize)
-    def save_monomers(self, save_dir: Path.Dir, layer: MoleculesLayer):
+    def save_molecules(self, save_dir: Path.Dir, layers: MoleculesLayersType):
         """
         Save monomer positions and angles in the PEET format.
 
@@ -78,27 +83,11 @@ class IMOD(ChildWidget):
         ----------
         save_dir : Path
             Saving path.
-        layer : Points
-            Select the Vectors layer to save.
+        layers : sequence of MoleculesLayer
+            Select the layers to save. All the molecules will be concatenated.
         """
         save_dir = Path(save_dir)
-        mol = layer.molecules
-        return _save_molecules(save_dir=save_dir, mol=mol, scale=self.scale)
-
-    @set_design(text=capitalize)
-    def save_all_monomers(self, save_dir: Path.Dir):
-        """
-        Save monomer angles in PEET format.
-
-        Parameters
-        ----------
-        save_dir : Path
-            Saving path.
-        """
-        save_dir = Path(save_dir)
-        layers = get_monomer_layers(self)
-        if len(layers) == 0:
-            raise ValueError("No monomer found.")
+        layers = assert_list_of_layers(layers, self.parent_viewer)
         mol = Molecules.concat([l.molecules for l in layers])
         return _save_molecules(save_dir=save_dir, mol=mol, scale=self.scale)
 
@@ -111,16 +100,17 @@ class IMOD(ChildWidget):
         """
         Save splines as a mod file.
 
-        This function will sample coordinates along the splines and save the coordinates as a mod file.
-        The mod file will be labeled with object_id=1 and contour_id=i+1, where i is the index of the spline.
+        This function will sample coordinates along the splines and save the coordinates
+        as a mod file. The mod file will be labeled with object_id=1 and contour_id=i+1,
+        where i is the index of the spline.
 
         Parameters
         ----------
         save_path : Path
             Saving path.
         interval : float, default 10.0
-            Sampling interval along the splines. For example, if interval=10.0 and the length of a spline
-            is 100.0, 11 points will be sampled.
+            Sampling interval along the splines. For example, if interval=10.0 and the
+            length of a spline is 100.0, 11 points will be sampled.
         """
         from .cmd import save_mod
 
@@ -135,8 +125,8 @@ class IMOD(ChildWidget):
                 {
                     "object_id": 1,
                     "contour_id": i + 1,
-                    "x": coords[:, 2],
-                    "y": coords[:, 1],
+                    "x": coords[:, 2] + 0.5,
+                    "y": coords[:, 1] + 0.5,
                     "z": coords[:, 0],
                 }
             )
@@ -145,10 +135,10 @@ class IMOD(ChildWidget):
         save_mod(save_path, data_all)
 
     @set_design(text=capitalize)
-    def shift_monomers(
+    def shift_molecules(
         self,
         ang_path: Annotated[Path.Read[FileFilter.CSV], {"label": "Path to csv file"}],
-        layer: MoleculesLayer,
+        layer: MoleculesLayerType,
         update: bool = False,
     ):
         """
@@ -194,13 +184,6 @@ class IMOD(ChildWidget):
             add_molecules(self.parent_viewer, mol_shifted, name="Molecules from PEET")
         return None
 
-    def _get_molecules_layers(self, *_) -> list[MoleculesLayer]:
-        try:
-            main = self._get_main()
-            return get_monomer_layers(main)
-        except Exception:
-            return []
-
     def _get_template_path(self, *_) -> Path:
         return self._get_main().sta._template_param()
 
@@ -210,7 +193,7 @@ class IMOD(ChildWidget):
     @set_design(text=capitalize)
     def export_project(
         self,
-        layer: MoleculesLayer,
+        layer: MoleculesLayerType,
         save_dir: Path.Dir,
         template_path: Annotated[str, {"bind": _get_template_path}],
         mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
@@ -236,6 +219,7 @@ class IMOD(ChildWidget):
             Name of the PEET project.
         """
         save_dir = Path(save_dir)
+        layer = assert_layer(layer, self.parent_viewer)
         if not save_dir.exists():
             save_dir.mkdir()
         main = self._get_main()
@@ -343,7 +327,7 @@ def _save_molecules(
         csv_name += ".csv"
 
     pos = mol.pos[:, ::-1] / scale
-    pos[:, 1:] += 0.5
+    pos[:, :2] += 0.5  # shift XY to center of voxel
     save_mod(
         save_dir / mod_name,
         pl.DataFrame({"z": pos[:, 0], "y": pos[:, 1], "x": pos[:, 2]}),

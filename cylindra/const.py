@@ -108,6 +108,7 @@ class FileFilter(SimpleNamespace):
     CSV = "CSV (*.csv;*.txt;*.dat);;All files (*)"
     PY = "Python (*.py);;All files (*)"
     MOD = "Model files (*.mod);;All files (*.txt;*.csv)"
+    STAR = "STAR files (*.star);;All files (*)"
 
 
 class Mode(SimpleNamespace):

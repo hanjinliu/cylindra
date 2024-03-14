@@ -55,8 +55,8 @@ def read_mod(path: str) -> pl.DataFrame:
             import imodmodel
         except ImportError:
             raise CommandNotFound(
-                "To read mod file, either the `model2point` command of IMOD or the Python "
-                "package `imodmodel` is required."
+                "To read mod file, either the `model2point` command of IMOD or the "
+                "Python package `imodmodel` is required."
             ) from None
         df = imodmodel.read(path)
     return pl.DataFrame(df)
@@ -81,8 +81,9 @@ def save_mod(path: str, data: pl.DataFrame):
         tempdir = Path(tempdir)
         input_path = tempdir / "input.txt"
         text = data.write_csv(separator=",", include_header=False, float_precision=5)
-        text = "\n".join(
-            ["     " + line.replace(",", "     ") for line in text.splitlines()]
+        bk = "     "
+        text = (
+            "\n".join(bk + line.replace(",", bk) for line in text.splitlines()) + "\n"
         )
         Path(input_path).write_text(text)
         IMODCommand.point2model(input=input_path, output=path)
