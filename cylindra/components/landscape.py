@@ -187,7 +187,7 @@ class Landscape:
         if (nrots := self.quaternions.shape[0]) > 1:
             quats = np.stack(
                 [
-                    self.quaternions[self.argmax[i, *ind] % nrots]
+                    self.quaternions[self.argmax[(i, *ind)] % nrots]
                     for i, ind in enumerate(indices)
                 ],
                 axis=0,
