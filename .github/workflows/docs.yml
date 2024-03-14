@@ -21,6 +21,7 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           python -m pip install -e .[docs]
+          maturin develop --release
 
       - name: Deploy docs to GitHub Pages
         if: github.event_name == 'push'
