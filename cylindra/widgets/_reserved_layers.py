@@ -20,9 +20,9 @@ if TYPE_CHECKING:
 
 class ReservedLayers:
     def __init__(self):
-        self.image: Image | None = None
-        self.prof: Points | None = None
-        self.work: Points | None = None
+        self.image = Image(np.zeros((1, 1, 1)))
+        self.prof = _prof_layer()
+        self.work = _work_layer()
         self.highlight = Points(
             ndim=3,
             name="Highlight",
@@ -93,27 +93,8 @@ class ReservedLayers:
         self.prof.feature_defaults[SPLINE_ID] = default
 
     def init_prof_and_work(self):
-        common_properties = {"ndim": 3, "out_of_slice_display": True, "size": 8}
-        self.prof = Points(
-            **common_properties,
-            name=SELECTION_LAYER_NAME,
-            features={SPLINE_ID: []},
-            opacity=0.4,
-            edge_color="black",
-            face_color=SplineColor.DEFAULT,
-            text={"color": "yellow"},
-        )
-        self.prof.feature_defaults[SPLINE_ID] = 0
-        self.prof.editable = False
-
-        self.work = Points(
-            **common_properties,
-            name=WORKING_LAYER_NAME,
-            face_color="yellow",
-            blending="translucent_no_depth",
-        )
-
-        self.work.mode = "add"
+        self.prof = _prof_layer()
+        self.work = _work_layer()
 
     def set_orientation(self, idx: int, orientation: Ori):
         """Set the orientation marker text."""
@@ -144,3 +125,33 @@ class ReservedLayers:
         layer.text.string = list(string_arr)
         layer.refresh()
         return None
+
+
+def _prof_layer() -> Points:
+    prof = Points(
+        ndim=3,
+        out_of_slice_display=True,
+        size=8,
+        name=SELECTION_LAYER_NAME,
+        features={SPLINE_ID: []},
+        opacity=0.4,
+        edge_color="black",
+        face_color=SplineColor.DEFAULT,
+        text={"color": "yellow"},
+    )
+    prof.feature_defaults[SPLINE_ID] = 0
+    prof.editable = False
+    return prof
+
+
+def _work_layer() -> Points:
+    work = Points(
+        ndim=3,
+        out_of_slice_display=True,
+        size=8,
+        name=WORKING_LAYER_NAME,
+        face_color="yellow",
+        blending="translucent_no_depth",
+    )
+    work.mode = "add"
+    return work

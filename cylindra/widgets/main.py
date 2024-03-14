@@ -281,10 +281,7 @@ class CylindraMainWidget(MagicTemplate):
     def _get_spline_coordinates(self, coords=None) -> np.ndarray:
         """Get coordinates of the manually picked spline."""
         if coords is None:
-            if self._reserved_layers.work is None:
-                coords = np.zeros((0, 3), dtype=np.float32)
-            else:
-                coords = self._reserved_layers.work.data
+            coords = self._reserved_layers.work.data
         out = np.round(coords, 3)
         if out.ndim != 2 or out.shape[1] != 3 or out.dtype.kind not in "iuf":
             raise ValueError("Input coordinates must be a (N, 3) numeric array.")
@@ -2684,7 +2681,7 @@ class CylindraMainWidget(MagicTemplate):
 
     def _highlight_spline(self):
         i = self.SplineControl.num
-        if i is None or self._reserved_layers.prof is None:
+        if i is None:
             return
 
         for layer in self.Overview.layers:

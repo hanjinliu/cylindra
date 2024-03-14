@@ -15,7 +15,7 @@ def init_opengl_and_dpi():
     from qtpy.QtCore import Qt
 
     # Docking vispy widget in napari viewer requires this.
-    QtW.QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+    # QtW.QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
     # High DPI support for High-DPI devices such as Surface Pro. Only for Qt<6.
     if not QT6:
         QtW.QApplication.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps)
