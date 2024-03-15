@@ -155,14 +155,20 @@ class CylinderParameters:
                 start = roundint(perimeter * m.tan(m.radians(rise_angle)) / pitch)
                 tan_rise = m.tan(m.radians(rise_angle))
                 if given(twist):
-                    skew = _twist_to_skew(start, tan_rise, twist)
+                    if start != 0:
+                        skew = _twist_to_skew(start, tan_rise, twist)
+                    else:
+                        skew = _twist_to_skew_no_rise(pitch, radius, twist)
             elif given(start):
                 start *= rise_sign
                 if _rise_is_known and not allow_duplicate:
                     raise ValueError("Cannot specify both start and rise.")
                 tan_rise = start * pitch / perimeter
                 if given(twist):
-                    skew = _twist_to_skew(start, tan_rise, twist)
+                    if start != 0:
+                        skew = _twist_to_skew(start, tan_rise, twist)
+                    else:
+                        skew = _twist_to_skew_no_rise(pitch, radius, twist)
             elif given(rise_length):
                 raise NotImplementedError
             else:
@@ -213,6 +219,15 @@ def _twist_to_skew(start: int, tan_rise: float, twist: float) -> float:
     _s_sk = start * m.radians(twist)
     tan_skew = _s_sk / tan_rise / (2 * m.pi + _s_sk)
     return m.degrees(m.atan(tan_skew))
+
+
+def _twist_to_skew_no_rise(pitch: float, radius: float, twist: float) -> float:
+    #    o   o -+- pitch
+    #           |
+    # twist \|  |
+    #        o -+
+    rad = m.tan(m.radians(twist)) * pitch / radius
+    return m.degrees(rad)
 
 
 def _rise_to_start(rise_angle, skew_rad, spacing, perimeter):

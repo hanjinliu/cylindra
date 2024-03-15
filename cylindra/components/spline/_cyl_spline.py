@@ -208,18 +208,16 @@ class CylSpline(Spline):
             loc.append(pl.repeat(npf, pl.len()).cast(pl.UInt8).alias(H.npf))
             glob.append(pl.Series([npf]).cast(pl.UInt8).alias(H.npf))
         if start is not None:
-            loc.append(pl.repeat(start, pl.len()).cast(pl.Int32).alias(H.start))
-            glob.append(pl.Series([start]).cast(pl.Int32).alias(H.start))
+            loc.append(pl.repeat(start, pl.len()).cast(pl.Int8).alias(H.start))
+            glob.append(pl.Series([start]).cast(pl.Int8).alias(H.start))
         if orientation is not None:
             glob.append(
                 pl.Series([str(orientation)]).cast(pl.Utf8).alias(H.orientation)
             )
 
-        ldf = self.props.loc.with_columns(loc)
-        gdf = self.props.glob.with_columns(glob)
+        self.props.loc = self.props.loc.with_columns(loc)
+        self.props.glob = self.props.glob.with_columns(glob)
 
-        self.props.loc = ldf
-        self.props.glob = gdf
         return self
 
     def update_glob_by_cylinder_params(self, cparams: CylinderParameters) -> CylSpline:
