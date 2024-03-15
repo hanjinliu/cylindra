@@ -488,7 +488,7 @@ class CylindraMainWidget(MagicTemplate):
     def _open_image_on_start(self):
         return self._image_loader.close()
 
-    @set_design(text=str.capitalize, location=_sw.FileMenu)
+    @set_design(text=capitalize, location=_sw.FileMenu)
     @thread_worker.with_progress(desc="Reading project", total=0)
     @confirm(text="You may have unsaved data. Open a new project?", condition="self._need_save")  # fmt: skip
     @do_not_record

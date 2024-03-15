@@ -32,6 +32,7 @@ class CylindraProject(BaseProject):
     dependency_versions: dict[str, str]
     image: PathLike | None
     scale: float
+    invert: bool = False
     multiscales: list[int]
     molecules_info: list[MoleculesInfo] = Field(default_factory=list)
     landscape_info: list[LandscapeInfo] = Field(default_factory=list)
@@ -145,6 +146,7 @@ class CylindraProject(BaseProject):
             dependency_versions=_versions,
             image=as_relative(tomo.metadata.get("source", None)),
             scale=tomo.scale,
+            invert=tomo.is_inverted,
             multiscales=[x[0] for x in tomo.multiscaled],
             molecules_info=mole_infos,
             landscape_info=landscape_infos,
@@ -220,7 +222,9 @@ class CylindraProject(BaseProject):
             else:
                 default_config = None
 
-            cb = gui._send_tomogram_to_viewer.with_args(tomogram, filt=filter)
+            cb = gui._send_tomogram_to_viewer.with_args(
+                tomogram, filt=filter, invert=self.invert
+            )
             yield cb
             cb.await_call()
             gui._macro_offset = len(gui.macro)

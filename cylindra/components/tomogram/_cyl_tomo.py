@@ -165,34 +165,6 @@ class CylTomogram(Tomogram):
         """List of splines."""
         return self._splines
 
-    @classmethod
-    def dummy(
-        cls,
-        *,
-        scale: float = 1.0,
-        tilt: tuple[float, float] | None = None,
-        binsize: int | Iterable[int] = (),
-        source: str | None = None,
-        shape: tuple[int, int, int] = (24, 24, 24),
-    ) -> Self:
-        """Create a dummy tomogram."""
-        dummy = ip.zeros(shape, dtype=np.float32, axes="zyx")
-        dummy[0, 0, 0] = 1.0
-        dummy.source = source
-        tomo = cls.from_image(
-            dummy,
-            scale=scale,
-            tilt=tilt,
-            binsize=binsize,
-        )
-        tomo.metadata["is_dummy"] = True
-        return tomo
-
-    @property
-    def is_dummy(self) -> bool:
-        """True if this tomogram object does not have a real image."""
-        return self.metadata.get("is_dummy", False)
-
     def add_spline(
         self,
         coords: ArrayLike,

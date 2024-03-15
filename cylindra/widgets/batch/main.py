@@ -77,12 +77,14 @@ class CylindraBatchWidget(MagicTemplate):
 
         yield 0.0, 0.0
         loader = BatchLoader()
-        image_paths: dict[int, Path] = {}
+        image_paths = dict[int, Path]()
+        invert = dict[int, bool]()
         _temp_feat = TempFeatures()
         for img_id, path_info in enumerate(paths):
             path_info = PathInfo(*path_info)
             img = path_info.lazy_imread()
             image_paths[img_id] = Path(path_info.image)
+            invert[img_id] = path_info.need_invert()
             for molecule_id, mole in enumerate(path_info.iter_molecules(_temp_feat)):
                 loader.add_tomogram(img.value, mole, img_id)
                 yield img_id / len(paths), molecule_id / len(path_info.molecules)
@@ -100,7 +102,7 @@ class CylindraBatchWidget(MagicTemplate):
 
         @thread_worker.callback
         def _on_return():
-            self._add_loader(new, name, image_paths)
+            self._add_loader(new, name, image_paths, invert)
 
         return _on_return
 
@@ -170,8 +172,14 @@ class CylindraBatchWidget(MagicTemplate):
         self.construct_loader(self._get_loader_paths(), predicate=predicate, name=name)
         return None
 
-    def _add_loader(self, loader: BatchLoader, name: str, image_paths: dict[int, Path]):
-        self._loaders.append(LoaderInfo(loader, name=name, image_paths=image_paths))
+    def _add_loader(
+        self,
+        loader: BatchLoader,
+        name: str,
+        image_paths: dict[int, Path],
+        invert: dict[int, bool],
+    ):
+        self._loaders.append(LoaderInfo(loader, name, image_paths, invert))
         try:
             self.sta["loader_name"].value = self.sta["loader_name"].choices[-1]
         except Exception:

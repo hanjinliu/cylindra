@@ -17,9 +17,9 @@ from psygnal import Signal
 
 from cylindra.const import FileFilter, Ori
 from cylindra.const import PropertyNames as H
+from cylindra.widget_utils import capitalize
 from cylindra.widgets._widget_ext import CheckBoxes
-
-from ._child_widget import ChildWidget
+from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 if TYPE_CHECKING:
     from cylindra.components import CylSpline
@@ -169,7 +169,7 @@ class LocalPropertiesWidget(ChildWidget):
         save_screenshot = abstractapi()
         log_screenshot = abstractapi()
 
-    @set_design(text=str.capitalize, location=footer)
+    @set_design(text=capitalize, location=footer)
     def edit_plots(
         self,
         props: Annotated[list[str], {"widget_type": CheckBoxes, "choices": _PLOT_DEFAULTS.keys()}] = (H.spacing, H.twist, H.rise)

@@ -63,9 +63,10 @@ class LoaderInfo(NamedTuple):
     loader: BatchLoader
     name: str
     image_paths: dict[int, Path]
+    invert: dict[int, bool]
 
     def rename(self, name: str):
-        return LoaderInfo(self.loader, name, self.image_paths)
+        return LoaderInfo(self.loader, name, self.image_paths, self.invert)
 
 
 class PathInfo(NamedTuple):
@@ -77,7 +78,10 @@ class PathInfo(NamedTuple):
 
     def lazy_imread(self) -> ip.LazyImgArray:
         """Get the lazy image array."""
-        return ip.lazy.imread(self.image, chunks=get_config().dask_chunk)
+        img = ip.lazy.imread(self.image, chunks=get_config().dask_chunk)
+        if self.need_invert():
+            img = -img
+        return img
 
     def iter_molecules(self, temp_features: TempFeatures) -> Iterator[Molecules]:
         """Iterate over all molecules."""
@@ -91,6 +95,13 @@ class PathInfo(NamedTuple):
                 for mole_path in self.molecules:
                     mole = temp_features.read_molecules(dir / mole_path, prj)
                     yield mole
+
+    def need_invert(self) -> bool:
+        """Whether the image needs inversion."""
+        if self.project is not None:
+            prj = CylindraProject.from_file(self.project)
+            return prj.invert
+        return False
 
 
 def _find_source(

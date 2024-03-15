@@ -198,8 +198,11 @@ class Project(MagicTemplate):
                 for mole in self.molecules
                 if mole.check
             ]
+        img = ip.lazy.imread(project.image, chunks=get_config().dask_chunk).value
+        if project.invert:
+            img = -img
         return SubtomogramLoader(
-            ip.lazy.imread(project.image, chunks=get_config().dask_chunk).value,
+            img,
             molecules=Molecules.concat(molecules),
             order=order,
             scale=project.scale,

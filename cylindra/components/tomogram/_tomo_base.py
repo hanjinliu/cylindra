@@ -101,6 +101,39 @@ class Tomogram:
         else:
             raise ValueError("Tilt model is not correctly set.")
 
+    @property
+    def is_inverted(self) -> bool:
+        """True if this image is inverted"""
+        return self.metadata.get("is_inverted", False)
+
+    @classmethod
+    def dummy(
+        cls,
+        *,
+        scale: float = 1.0,
+        tilt: tuple[float, float] | None = None,
+        binsize: int | Iterable[int] = (),
+        source: str | None = None,
+        shape: tuple[int, int, int] = (24, 24, 24),
+    ) -> Self:
+        """Create a dummy tomogram."""
+        dummy = ip.zeros(shape, dtype=np.float32, axes="zyx")
+        dummy[0, 0, 0] = 1.0
+        dummy.source = source
+        tomo = cls.from_image(
+            dummy,
+            scale=scale,
+            tilt=tilt,
+            binsize=binsize,
+        )
+        tomo.metadata["is_dummy"] = True
+        return tomo
+
+    @property
+    def is_dummy(self) -> bool:
+        """True if this tomogram object does not have a real image."""
+        return self.metadata.get("is_dummy", False)
+
     @classmethod
     def from_image(
         cls,
@@ -332,6 +365,7 @@ class Tomogram:
         if cache:
             img_inv.release()
         self._set_image(img_inv)
+        self.metadata["is_inverted"] = True
         for i, (_b, _img) in enumerate(self._multiscaled):
             self._multiscaled[i] = (_b, -_img)
         return self

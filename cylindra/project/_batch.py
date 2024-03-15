@@ -21,9 +21,12 @@ if TYPE_CHECKING:
 
 
 class ImageInfo(BaseModel):
+    """Model that describe how to load an image."""
+
     id: int
     image: PathLike
     scale: nm
+    invert: bool = False
 
     def resolve_path(self, file_dir: PathLike):
         self.image = resolve_path(self.image, Path(file_dir))
@@ -31,6 +34,8 @@ class ImageInfo(BaseModel):
 
 
 class LoaderInfoModel(BaseModel):
+    """Model that describe how to construct a batch loader."""
+
     molecule: PathLike
     images: list[ImageInfo]
     name: str
@@ -93,6 +98,7 @@ class CylindraBatchProject(BaseProject):
                             id=id,
                             image=as_relative(fp),
                             scale=info.loader.scale,
+                            invert=info.invert.get(id, False),
                         )
                         for id, fp in info.image_paths.items()
                     ],
