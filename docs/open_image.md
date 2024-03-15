@@ -43,7 +43,7 @@ variables are pushed to the console global namespace:
 - `Path`: `pathlib.Path` class.
 
 
-### Open Images
+### Open an Image
 
 :material-arrow-right-thin-circle-outline: API: [`open_image`][cylindra.widgets.main.CylindraMainWidget.open_image].
 
@@ -71,11 +71,12 @@ filtered image for visualization.
    for more details.
 5. Set the filter to apply to the image. The filter is applied to the reference image
    shown in the viewer, not to the original image.
-6. If you want to load the original image into the memory, check "Load the entire image
+6. If you want to invert the image, check "Invert intensity".
+7. If you want to load the original image into the memory, check "Load the entire image
    into memory".
-7. You can preview the selected image by clicking "Preview". A preview window will be
+8. You can preview the selected image by clicking "Preview". A preview window will be
    shown, which only loads separate image slices to accelerate the image loading.
-8. Click "Open" to calculate the binning/filtering and show the reference image.
+9. Click "Open" to calculate the binning/filtering and show the reference image.
 
 ![](images\viewer_00_open_image.png){ loading=lazy }
 
@@ -128,6 +129,9 @@ scaled images, and the reference image) using this method.
     image processing methods such as cross-correlation calculation and coordinate
     transformation.
 
+Note that [`open_image`](#open-an-image) can also run this method by specifying the
+`invert` argument.
+
 ### Filter the Reference Image
 
 :material-arrow-right-thin-circle-outline: API: [`filter_reference_image`][cylindra.widgets.main.CylindraMainWidget.filter_reference_image].
@@ -141,6 +145,9 @@ Currently, following filters are implemented:
 - `method="Gaussian"`: Gaussian filter
 - `method="DoG"`: Difference of Gaussian (DoG) filter
 - `method="LoG"`: Laplacian of Gaussian (LoG) filter
+
+Note that [`open_image`](#open-an-image) can also run this method by specifying the
+`filter` argument.
 
 ### Use Custom Reference
 

@@ -913,6 +913,8 @@ def test_molecules_methods(ui: CylindraMainWidget):
     tester = mcls_testing.FunctionGuiTester(ui.delete_molecules)
     tester.update_parameters(include="-0")
 
+    ui.register_molecules([[10, 10, 10], [10, 20, 20]])
+
 
 def test_transform_molecules(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=None)

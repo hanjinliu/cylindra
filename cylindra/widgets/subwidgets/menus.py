@@ -494,6 +494,7 @@ class SplinesMenu(ChildWidget):
 class MoleculesMenu(ChildWidget):
     """Operations on molecules"""
 
+    register_molecules = abstractapi()
     translate_molecules = abstractapi()
     rotate_molecules = abstractapi()
     filter_molecules = abstractapi()

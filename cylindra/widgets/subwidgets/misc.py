@@ -125,6 +125,7 @@ class ImageLoader(MagicTemplate):
     tilt_model = field(TiltModelEdit)
     bin_size = vfield([1]).with_options(options={"min": 1, "max": 32})
     filter = vfield(ImageFilter | None).with_options(value=ImageFilter.Lowpass)
+    invert = vfield(False, label="Invert intensity")
     eager = vfield(False, label="Load the entire image into memory")
 
     @set_design(text="Scan header", max_width=90, location=scale)

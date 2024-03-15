@@ -352,7 +352,7 @@ class CylindraMainWidget(MagicTemplate):
         err_max: Annotated[nm, {"bind": 0.5}] = 0.5,
     ):  # fmt: skip
         """Register points as a spline path."""
-        if coords.size == 0:
+        if coords is None or coords.size == 0:
             raise ValueError("No points are given.")
 
         tomo = self.tomogram
@@ -437,6 +437,7 @@ class CylindraMainWidget(MagicTemplate):
         tilt_range: Annotated[Any, {"bind": _image_loader.tilt_model}] = None,
         bin_size: Annotated[Sequence[int], {"bind": _image_loader.bin_size}] = [1],
         filter: Annotated[ImageFilter | None, {"bind": _image_loader.filter}] = ImageFilter.Lowpass,
+        invert: Annotated[bool, {"bind": _image_loader.invert}] = False,
         eager: Annotated[bool, {"bind": _image_loader.eager}] = False
     ):  # fmt: skip
         """
@@ -454,6 +455,8 @@ class CylindraMainWidget(MagicTemplate):
             Initial bin size of image. Binned image will be used for visualization in the viewer.
             You can use both binned and non-binned image for analysis.
         {filter}
+        invert : bool, default False
+            If true, invert the intensity of the image.
         eager : bool, default False
             If true, the image will be loaded immediately. Otherwise, it will be loaded
             lazily.
@@ -479,7 +482,7 @@ class CylindraMainWidget(MagicTemplate):
         )
         self._macro_offset = len(self.macro)
         self._project_dir = None
-        return self._send_tomogram_to_viewer.with_args(tomo, filter)
+        return self._send_tomogram_to_viewer.with_args(tomo, filter, invert=invert)
 
     @open_image.started.connect
     def _open_image_on_start(self):
@@ -707,17 +710,24 @@ class CylindraMainWidget(MagicTemplate):
 
         return _filter_reference_image_on_return
 
+    @thread_worker.with_progress(desc="Inverting image")
     @set_design(text=capitalize, location=_sw.ImageMenu)
     def invert_image(self):
-        """Invert the intensity of all the images."""
+        """Invert the intensity of the images."""
         self.tomogram.invert()
-        self._reserved_layers.image.data = -self._reserved_layers.image.data
-        clow, chigh = self._reserved_layers.image.contrast_limits
-        self._reserved_layers.image.contrast_limits = -chigh, -clow
-        self.Overview.image = -self.Overview.image
-        clow, chigh = self.Overview.contrast_limits
-        self.Overview.contrast_limits = -chigh, -clow
-        return undo_callback(self.invert_image)
+        img_inv = -self._reserved_layers.image.data
+        clim = np.percentile(img_inv, [1, 99.9])
+
+        @thread_worker.callback
+        def _invert_image_on_return():
+            self._reserved_layers.image.data = img_inv
+            self._reserved_layers.image.contrast_limits = clim
+            self.Overview.image = -self.Overview.image
+            clow, chigh = self.Overview.contrast_limits
+            self.Overview.contrast_limits = -chigh, -clow
+            return undo_callback(self.invert_image)
+
+        return _invert_image_on_return
 
     @set_design(text="Add multi-scale", location=_sw.ImageMenu)
     @dask_thread_worker.with_progress(desc=lambda bin_size: f"Adding multiscale (bin = {bin_size})")  # fmt: skip
@@ -1935,6 +1945,17 @@ class CylindraMainWidget(MagicTemplate):
         return self._undo_callback_for_layer(_added_layers)
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu)
+    def register_molecules(
+        self,
+        coords: Annotated[np.ndarray, {"validator": _get_spline_coordinates}] = None,
+    ):
+        """Register manually added points as molecules."""
+        if coords is None or coords.size == 0:
+            raise ValueError("No points are given.")
+        mole = Molecules(coords)
+        return self.add_molecules(mole, name="Mole-manual")
+
+    @set_design(text=capitalize, location=_sw.MoleculesMenu)
     def translate_molecules(
         self,
         layers: MoleculesLayersType,
@@ -2537,7 +2558,10 @@ class CylindraMainWidget(MagicTemplate):
 
     @thread_worker.callback
     def _send_tomogram_to_viewer(
-        self, tomo: CylTomogram, filt: "ImageFilter | None" = None
+        self,
+        tomo: CylTomogram,
+        filt: "ImageFilter | None" = None,
+        invert: bool = False,
     ):
         viewer = self.parent_viewer
         self._tomogram = tomo
@@ -2577,6 +2601,8 @@ class CylindraMainWidget(MagicTemplate):
                 filt = None
         if filt is not None and not isinstance(imgb, ip.LazyImgArray):
             self.filter_reference_image(method=filt)
+        if invert:
+            self.invert_image()
         self.GeneralInfo.project_desc.value = ""  # clear the project description
         self._need_save = False
         self._macro_image_load_offset = len(self.macro)
