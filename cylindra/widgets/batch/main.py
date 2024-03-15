@@ -20,11 +20,10 @@ from cylindra.core import ACTIVE_WIDGETS
 from cylindra.project import CylindraBatchProject
 from cylindra.widget_utils import POLARS_NAMESPACE, capitalize
 from cylindra.widgets._accessors import BatchLoaderAccessor
-
-from ._loaderlist import LoaderList
-from ._sequence import PathInfo, ProjectSequenceEdit
-from ._utils import LoaderInfo, TempFeatures
-from .sta import BatchSubtomogramAveraging
+from cylindra.widgets.batch._loaderlist import LoaderList
+from cylindra.widgets.batch._sequence import PathInfo, ProjectSequenceEdit
+from cylindra.widgets.batch._utils import LoaderInfo, TempFeatures
+from cylindra.widgets.batch.sta import BatchSubtomogramAveraging
 
 
 @magicclass(
@@ -73,9 +72,9 @@ class CylindraBatchWidget(MagicTemplate):
             Name of the loader.
         """
         if name == "":
-            raise ValueError("Name is empty!")
+            raise ValueError("Name must be given.")
 
-        yield 0.0, 0.0
+        yield 0.0, 0.0  # this function yields the progress
         loader = BatchLoader()
         image_paths = dict[int, Path]()
         invert = dict[int, bool]()
@@ -84,7 +83,7 @@ class CylindraBatchWidget(MagicTemplate):
             path_info = PathInfo(*path_info)
             img = path_info.lazy_imread()
             image_paths[img_id] = Path(path_info.image)
-            invert[img_id] = path_info.need_invert()
+            invert[img_id] = path_info.need_invert
             for molecule_id, mole in enumerate(path_info.iter_molecules(_temp_feat)):
                 loader.add_tomogram(img.value, mole, img_id)
                 yield img_id / len(paths), molecule_id / len(path_info.molecules)
@@ -188,6 +187,7 @@ class CylindraBatchWidget(MagicTemplate):
     @set_design(text=capitalize, location=ProjectSequenceEdit.MacroMenu)
     @do_not_record
     def show_macro(self):
+        """Show the macro widget of the batch analyzer."""
         from cylindra import instance
 
         ui = instance()
@@ -199,6 +199,7 @@ class CylindraBatchWidget(MagicTemplate):
     @set_design(text=capitalize, location=ProjectSequenceEdit.MacroMenu)
     @do_not_record
     def show_native_macro(self):
+        """Show the native macro widget of the batch analyzer."""
         self.macro.widget.show()
         ACTIVE_WIDGETS.add(self.macro.widget)
         return None

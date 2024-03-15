@@ -159,6 +159,18 @@ class BatchSubtomogramAveraging(MagicTemplate):
         by: Annotated[str, {"choices": _get_selected_loader_choice}],
         delete_old: bool = False,
     ):
+        """
+        Split the selected loader by the values of the given column.
+
+        Parameters
+        ----------
+        loader_name : str
+            Name of the input loader
+        by : str
+            Column name to split the loader
+        delete_old : bool, default False
+            If true, the original loader will be deleted.
+        """
         parent = self._get_parent()
         loaders = parent._loaders
         batch_info = loaders[loader_name]
@@ -173,7 +185,8 @@ class BatchSubtomogramAveraging(MagicTemplate):
             image_paths = {
                 k: v for k, v in batch_info.image_paths.items() if v in existing_id
             }
-            parent._add_loader(loader, f"{loader_name}_{_key}", image_paths)
+            invert = {k: v for k, v in batch_info.invert.items() if v in existing_id}
+            parent._add_loader(loader, f"{loader_name}_{_key}", image_paths, invert)
 
         if delete_old:
             idx = -1
@@ -213,6 +226,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
             new,
             name=f"{info.name}-Filt",
             image_paths={k: v for k, v in info.image_paths.items() if v in existing_id},
+            invert={k: v for k, v in info.invert.items() if v in existing_id},
         )
         return None
 
@@ -362,6 +376,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
             aligned,
             name=_coerce_aligned_name(info.name, loaderlist),
             image_paths=info.image_paths,
+            invert=info.invert,
         )
         t0.toc()
         return None

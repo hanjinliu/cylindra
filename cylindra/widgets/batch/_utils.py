@@ -79,7 +79,7 @@ class PathInfo(NamedTuple):
     def lazy_imread(self) -> ip.LazyImgArray:
         """Get the lazy image array."""
         img = ip.lazy.imread(self.image, chunks=get_config().dask_chunk)
-        if self.need_invert():
+        if self.need_invert:
             img = -img
         return img
 
@@ -96,6 +96,7 @@ class PathInfo(NamedTuple):
                     mole = temp_features.read_molecules(dir / mole_path, prj)
                     yield mole
 
+    @property
     def need_invert(self) -> bool:
         """Whether the image needs inversion."""
         if self.project is not None:

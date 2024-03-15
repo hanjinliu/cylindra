@@ -152,7 +152,8 @@ class CylindraBatchProject(BaseProject):
                     image_id=imginfo.id,
                 )
             image_paths = {imginfo.id: imginfo.image for imginfo in lmodel.images}
-            gui._add_loader(loader, lmodel.name, image_paths)
+            invert = {imginfo.id: imginfo.invert for imginfo in lmodel.images}
+            gui._add_loader(loader, lmodel.name, image_paths, invert)
 
         txt = self.project_path.joinpath("script.py").read_text()
         macro = mk.parse(txt)

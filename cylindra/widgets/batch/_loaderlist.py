@@ -57,7 +57,16 @@ class LoaderList(EventedList[LoaderInfo]):
             value = value.rename(f"{prefix}-{suffix}")
         return super().insert(index, value)
 
-    def add_loader(self, loader: BatchLoader, name: str, image_paths: dict[int, Path]):
+    def add_loader(
+        self,
+        loader: BatchLoader,
+        name: str,
+        image_paths: dict[int, Path],
+        invert: dict[int, bool] | None = None,
+    ) -> LoaderInfo:
         """Add a new loader to the list."""
-        self.append(LoaderInfo(loader, name, image_paths))
-        return None
+        if invert is None:
+            invert = {k: False for k in image_paths.keys()}
+        info = LoaderInfo(loader, name, image_paths, invert)
+        self.append(info)
+        return info
