@@ -95,7 +95,7 @@ def main():
         ui.clip_spline,
         # spline -> molecules
         ui.map_monomers,
-        ui.map_centers,
+        ui.map_along_spline,
         ui.map_along_pf,
         # molecules
         ui.filter_molecules,

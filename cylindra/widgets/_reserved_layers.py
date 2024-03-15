@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from weakref import WeakSet
 
 import impy as ip
 import numpy as np
-from napari.layers import Image, Points
+from napari.layers import Image, Layer, Points
 
 from cylindra.const import (
     SELECTION_LAYER_NAME,
@@ -34,6 +35,7 @@ class ReservedLayers:
             blending="translucent_no_depth",
         )
         self.highlight.editable = False
+        self.to_be_removed = WeakSet[Layer]()
 
     def update_image(self, img: ip.ImgArray, bin_size: int, tr: float):
         """Update the reserved image layer"""
@@ -92,7 +94,7 @@ class ReservedLayers:
         self.prof.features = new_features
         self.prof.feature_defaults[SPLINE_ID] = default
 
-    def init_prof_and_work(self):
+    def init_layers(self):
         self.prof = _prof_layer()
         self.work = _work_layer()
 

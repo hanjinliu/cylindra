@@ -1180,22 +1180,23 @@ class SubtomogramAveraging(ChildWidget):
         {interpolation}{upsample_factor}
         """
         layer = assert_layer(layer, self.parent_viewer)
-        kwargs = {
-            "template_path": template_path,
-            "mask_params": mask_params,
-            "max_shifts": max_shifts,
-            "rotations": rotations,
-            "cutoff": cutoff,
-            "interpolation": interpolation,
-            "upsample_factor": upsample_factor,
-        }
-        lnd = self._construct_landscape(layer, **kwargs)
+        lnd = self._construct_landscape(
+            layer,
+            template_path=template_path,
+            mask_params=mask_params,
+            max_shifts=max_shifts,
+            rotations=rotations,
+            cutoff=cutoff,
+            interpolation=interpolation,
+            upsample_factor=upsample_factor,
+        )
         surf = LandscapeSurface(lnd, name=f"{LANDSCAPE_PREFIX}{layer.name}")
         surf.source_component = layer.source_component
 
         @thread_worker.callback
         def _on_return():
             self.parent_viewer.add_layer(surf)
+            self._get_main()._reserved_layers.to_be_removed.add(surf)
             layer.visible = False
 
         return _on_return

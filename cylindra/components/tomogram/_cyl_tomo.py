@@ -1089,6 +1089,7 @@ class CylTomogram(Tomogram):
         *,
         interval: nm = 1.0,
         orientation: Ori | str | None = None,
+        rotate_molecules: bool = True,
     ) -> Molecules:
         """
         Mapping molecules along the center of a cylinder.
@@ -1099,6 +1100,8 @@ class CylTomogram(Tomogram):
             Spline ID that mapping will be calculated.
         interval : float (nm), optional
             Interval of molecules.
+        rotate_molecules : bool, default True
+            If True, twist the molecule orientations according to the spline twist.
 
         Returns
         -------
@@ -1106,17 +1109,14 @@ class CylTomogram(Tomogram):
             Molecules object with mapped coordinates and angles.
         """
         spl = self.splines[i]
-        if spl.props.has_glob([H.spacing, H.twist]):
-            self.global_cft_params(i=i)
-
-        spacing = spl.props.get_glob(H.spacing)
-        twist = spl.props.get_glob(H.twist) / 2
-
-        # Check length.
-        spl.length()
         u = spl.prep_anchor_positions(interval=interval)
-        twists = spl.distances(u) / spacing * twist
-        mole = spl.anchors_to_molecules(u, rotation=np.deg2rad(twists))
+        if rotate_molecules:
+            spacing = spl.props.get_glob(H.spacing)
+            twist = spl.props.get_glob(H.twist) / 2
+            rotation = np.deg2rad(spl.distances(u) / spacing * twist)
+        else:
+            rotation = None
+        mole = spl.anchors_to_molecules(u, rotation=rotation)
         if spl._need_rotation(orientation):
             mole = mole.rotate_by_rotvec_internal([np.pi, 0, 0])
         return mole
@@ -1251,8 +1251,6 @@ class CylTomogram(Tomogram):
             Object that represents protofilament positions and angles.
         """
         spl = self.splines[i]
-        if not spl.props.has_glob([H.spacing, H.twist]):
-            self.global_cft_params(i=i, nsamples=1)
         spacing = spl.props.get_glob(H.spacing)
         twist = spl.props.get_glob(H.twist) / 2
 

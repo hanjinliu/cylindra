@@ -272,7 +272,7 @@ def test_map_molecules(ui: CylindraMainWidget):
     assert ui.get_loader("Mole-0").molecules is ui.mole_layers["Mole-0"].molecules
     ui.map_monomers_with_extensions(0, {0: (1, 1), 1: (-1, -1)})
     ui.map_along_pf(0, molecule_interval=4.0)
-    ui.map_centers(0, molecule_interval=4.0)
+    ui.map_along_spline(0, molecule_interval=4.0)
     ui.macro.undo()
     ui.macro.undo()
     ui.macro.undo()
@@ -281,9 +281,14 @@ def test_map_molecules(ui: CylindraMainWidget):
     ui.macro.redo()
     # test expression input
     ui.map_along_pf(0, molecule_interval=pl.col("spacing") * 2)
-    ui.map_centers(0, molecule_interval=pl.col("spacing") * 2)
+    ui.map_along_spline(0, molecule_interval=pl.col("spacing") * 2)
     # this also tests coercing names
-    ui.map_centers(0, molecule_interval=pl.col("spacing"))
+    ui.map_along_spline(0, molecule_interval=pl.col("spacing"))
+    ui.clear_all()
+    ui.register_path(coords_14pf)
+    ui.map_along_spline(
+        0, molecule_interval=4.08, rotate_molecules=False, orientation=None
+    )  # test mapping without any measurement.
 
 
 def test_napari_operations(ui: CylindraMainWidget):

@@ -488,7 +488,7 @@ class CylindraMainWidget(MagicTemplate):
     def _open_image_on_start(self):
         return self._image_loader.close()
 
-    @set_design(text=capitalize, location=_sw.FileMenu)
+    @set_design(text=str.capitalize, location=_sw.FileMenu)
     @thread_worker.with_progress(desc="Reading project", total=0)
     @confirm(text="You may have unsaved data. Open a new project?", condition="self._need_save")  # fmt: skip
     @do_not_record
@@ -501,7 +501,7 @@ class CylindraMainWidget(MagicTemplate):
         update_config: bool = False,
     ):
         """
-        Load a project json file.
+        Load a project file (project.json, tar file or zip file).
 
         Parameters
         ----------
@@ -651,11 +651,11 @@ class CylindraMainWidget(MagicTemplate):
         """
         return assert_layer(layer, self.parent_viewer).molecules.to_csv(save_path)
 
-    @set_design(text=capitalize, location=_sw.ImageMenu)
+    @set_design(text=capitalize, location=_sw.FileMenu)
     @do_not_record
-    def load_reference_image(self, path: Path.Read[FileFilter.IMAGE]):
+    def open_reference_image(self, path: Path.Read[FileFilter.IMAGE]):
         """
-        Load an image as a reference image of the current tomogram.
+        Open an image as a reference image of the current tomogram.
 
         The input image is usually a denoised image created by other softwares, or
         simply a filtered image. Please note that this method does not check that the
@@ -667,8 +667,25 @@ class CylindraMainWidget(MagicTemplate):
         path : path-like
             Path to the image file. The image must be 3-D.
         """
-        img = ip.imread(path, name="reference")
+        img = ip.imread(path)
         return self._update_reference_image(img)
+
+    @set_design(text=capitalize, location=_sw.FileMenu)
+    @do_not_record
+    def open_label_image(self, path: Path.Read[FileFilter.IMAGE]):
+        """Open an image file as a label image of the current tomogram."""
+        label = ip.imread(path)
+        if label.ndim != 3:
+            raise ValueError("Label image must be 3-D.")
+        tr = self.tomogram.multiscale_translation(label.scale.x / self.tomogram.scale)
+        label = self.parent_viewer.add_labels(
+            label,
+            name=label.name,
+            translate=[tr, tr, tr],
+            opacity=0.4,
+        )
+        self._reserved_layers.to_be_removed.add(label)
+        return label
 
     @set_design(text=capitalize, location=_sw.ImageMenu)
     @dask_thread_worker.with_progress(desc=_pdesc.filter_image_fmt)
@@ -1740,11 +1757,12 @@ class CylindraMainWidget(MagicTemplate):
         return self._undo_callback_for_layer(layer)
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu.FromToSpline)
-    def map_centers(
+    def map_along_spline(
         self,
         splines: _Splines = None,
         molecule_interval: PolarsExprStrOrScalar = "col('spacing')",
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
+        rotate_molecules: bool = True,
         prefix: str = "Center",
     ):  # fmt: skip
         """
@@ -1752,17 +1770,25 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {splines}{molecule_interval}{orientation}{prefix}
+        {splines}{molecule_interval}{orientation}
+        rotate_molecules : bool, default True
+            If True, rotate molecules by the "twist" parameter of each spline.
+        {prefix}
         """
         tomo = self.tomogram
         interv_expr = widget_utils.norm_scalar_expr(molecule_interval)
         splines = self._norm_splines(splines)
-        _Logger.print_html("<code>map_centers</code>")
+        _Logger.print_html("<code>map_along_spline</code>")
         _added_layers = []
         for idx in splines:
             spl = tomo.splines[idx]
             interv = spl.props.get_glob(interv_expr)
-            mole = tomo.map_centers(i=idx, interval=interv, orientation=orientation)
+            mole = tomo.map_centers(
+                i=idx,
+                interval=interv,
+                orientation=orientation,
+                rotate_molecules=rotate_molecules,
+            )
             _name = f"{prefix}-{idx}"
             layer = self.add_molecules(mole, _name, source=spl)
             _added_layers.append(layer)
@@ -2695,7 +2721,10 @@ class CylindraMainWidget(MagicTemplate):
             layer: Layer = viewer.layers[name]
             viewer.layers.remove(layer)
 
-        self._reserved_layers.init_prof_and_work()
+        self._reserved_layers.init_layers()
+        for layer in self._reserved_layers.to_be_removed:
+            if layer in viewer.layers:
+                viewer.layers.remove(layer)
         viewer.add_layer(self._reserved_layers.prof)
         viewer.add_layer(self._reserved_layers.work)
         self.GlobalProperties._init_text()
@@ -2795,7 +2824,7 @@ class CylindraMainWidget(MagicTemplate):
         fgui.twist.value = cfg.twist_range.center
         fgui.npf.value = int(cfg.npf_range.center)
 
-        for method in [self.map_monomers, self.map_monomers_with_extensions, self.map_along_pf, self.map_centers]:  # fmt: skip
+        for method in [self.map_monomers, self.map_monomers_with_extensions, self.map_along_pf, self.map_along_spline]:  # fmt: skip
             get_function_gui(method)["orientation"].value = cfg.clockwise
 
 

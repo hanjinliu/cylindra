@@ -72,15 +72,18 @@ class FileMenu(ChildWidget):
         loader.show()
         return loader
 
+    open_reference_image = abstractapi()
+    open_label_image = abstractapi()
+    sep0 = field(Separator)
     load_project = abstractapi()
     load_splines = abstractapi()
     load_molecules = abstractapi()
-    sep0 = field(Separator)
+    sep1 = field(Separator)
     save_project = abstractapi()
     overwrite_project = abstractapi()
     save_spline = abstractapi()
     save_molecules = abstractapi()
-    sep1 = field(Separator)
+    sep2 = field(Separator)
 
     @set_design(text=capitalize)
     @do_not_record
@@ -206,7 +209,7 @@ class FileMenu(ChildWidget):
         ACTIVE_WIDGETS.add(pviewer)
         return pviewer.show()
 
-    sep2 = field(Separator)
+    sep3 = field(Separator)
     IMOD = IMOD
     RELION = RELION
 
@@ -217,7 +220,6 @@ class ImageMenu(ChildWidget):
 
     filter_reference_image = abstractapi()
     invert_image = abstractapi()
-    load_reference_image = abstractapi()
     add_multiscale = abstractapi()
     set_multiscale = abstractapi()
     sep0 = field(Separator)
@@ -292,13 +294,15 @@ class SplinesMenu(ChildWidget):
             """Show 3D spline paths of cylinder central axes as a layer."""
             main = self._get_main()
             paths = [r.partition(100) for r in main.tomogram.splines]
-            return main.parent_viewer.add_shapes(
+            paths = main.parent_viewer.add_shapes(
                 paths,
                 shape_type="path",
                 name="Spline Curves",
                 edge_color="lime",
                 edge_width=1,
             )
+            main._reserved_layers.to_be_removed.add(paths)
+            return paths
 
         @set_design(text=capitalize)
         def show_splines_as_meshes(
@@ -341,9 +345,11 @@ class SplinesMenu(ChildWidget):
                 np.concatenate(values, axis=0),
             ]
             cmap = "inferno" if color_by else None
-            return main.parent_viewer.add_surface(
+            surf = main.parent_viewer.add_surface(
                 surface_data, shading="smooth", colormap=cmap, name="cylinders"
             )
+            main._reserved_layers.to_be_removed.add(surf)
+            return surf
 
         @set_design(text="Show local properties in table")
         @do_not_record
@@ -510,7 +516,7 @@ class MoleculesMenu(ChildWidget):
 
         map_monomers = abstractapi()
         map_monomers_with_extensions = abstractapi()
-        map_centers = abstractapi()
+        map_along_spline = abstractapi()
         map_along_pf = abstractapi()
         sep0 = field(Separator)
         set_source_spline = abstractapi()

@@ -7,16 +7,10 @@ import polars as pl
 
 from cylindra.components._cylinder_params import CylinderParameters
 from cylindra.components.cylindric import CylinderModel
-from cylindra.const import (
-    Ori,
-    nm,
-)
-from cylindra.const import (
-    PropertyNames as H,
-)
+from cylindra.components.spline._spline_base import Spline
+from cylindra.const import Ori, nm
+from cylindra.const import PropertyNames as H
 from cylindra.utils import roundint
-
-from ._spline_base import Spline
 
 
 class CylSpline(Spline):

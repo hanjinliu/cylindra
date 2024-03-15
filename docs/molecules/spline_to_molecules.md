@@ -52,7 +52,7 @@ Following image shows an example of the result of this operation.
 
 ## Molecules along the Spline
 
-:material-arrow-right-thin-circle-outline: API: [`map_centers`][cylindra.widgets.main.CylindraMainWidget.map_centers]
+:material-arrow-right-thin-circle-outline: API: [`map_along_spline`][cylindra.widgets.main.CylindraMainWidget.map_along_spline]
 
 :material-arrow-right-thin-circle-outline: GUI: `Molecules > From/To Splines > Map centers`
 
@@ -60,7 +60,7 @@ This method places molecules along the spline. Each molecule will be rotated by 
 twist angle of the spline. This method will be used for sampling fragments along
 filaments.
 
-![Map centers](../images/map_centers.png){ loading=lazy, width=400px }
+![Map along spline](../images/map_along_spline.png){ loading=lazy, width=400px }
 
 ??? info "List of parameters"
 

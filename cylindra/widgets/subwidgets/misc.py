@@ -12,6 +12,7 @@ from magicclass import (
 )
 from magicclass.widgets import ConsoleTextEdit
 from magicgui.widgets import TextEdit
+from qtpy import QtGui
 from qtpy.QtCore import Qt
 
 from cylindra._config import get_config
@@ -166,6 +167,7 @@ class GeneralInfo(MagicTemplate):
         self.image_info.native.setVerticalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
+        self.image_info.native.setWordWrapMode(QtGui.QTextOption.WrapMode.WordWrap)
 
     def _refer_tomogram(self, tomo: CylTomogram):
         img = tomo.image
