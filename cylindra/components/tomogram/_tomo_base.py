@@ -28,13 +28,10 @@ class Tomogram:
     subtomogram cache will automatically deleted from the old ones.
     """
 
-    _image: ip.LazyImgArray
-    _multiscaled: list[tuple[int, ip.ImgArray]]
-
     def __init__(self):
         self._metadata: dict[str, Any] = {}
         self._image: ip.ImgArray | ip.LazyImgArray | None = None
-        self._multiscaled = []
+        self._multiscaled = list[tuple[int, ip.ImgArray]]()
         self._tilt_model: TiltSeriesModel = single_axis(None)
         self._scale = 1.0
 
@@ -240,7 +237,7 @@ class Tomogram:
             Tomogram object with the image that has just been read and multi-scales.
         """
         chunks = get_config().dask_chunk
-        img = ip.lazy.imread(path, chunks=chunks, name="tomogram")
+        img = ip.lazy.imread(path, chunks=chunks)
         if eager:
             img = img.compute()
         return cls.from_image(

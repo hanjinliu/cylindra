@@ -1144,7 +1144,10 @@ def test_cli(make_napari_viewer):
     import sys
 
     from cylindra.__main__ import main
+    from cylindra.cli import set_testing
     from cylindra.core import ACTIVE_WIDGETS
+
+    set_testing(True)
 
     viewer: napari.Viewer = make_napari_viewer()
 

@@ -134,6 +134,13 @@ def _preview_function(
     # connect value change signals
     @fgui[0].changed.connect
     def _layer_changed(val: MoleculesLayer | LandscapeSurface):
+        # When new image is opened, the source spline may be garbage collected before
+        # this callback is called. Therefore, we need to check if the spline is still
+        # alive.
+        if val.source_spline is None:
+            lon_hist.set_hist(np.zeros(0))
+            lat_hist.set_hist(np.zeros(0))
+
         data_lon, data_lat = get_distances(
             val.molecules, val.source_spline, scale_factor
         )

@@ -46,7 +46,7 @@ _PARAMETERS = [
     Parameter(name="interval", type="nm", desc="Interval (nm) between spline anchors. Please note that resetting interval will discard\nall the existing local properties."),
     Parameter(name="depth", type="nm", desc="Depth (length parallel to the spline tangent) of the subtomograms to be sampled."),
     Parameter(name="max_interval", type="nm", desc="Maximum interval (nm) between spline anchors."),
-    Parameter(name="molecule_interval", type="nm", desc="Interval (nm) between molecules."),
+    Parameter(name="molecule_interval", type="nm", desc="Interval (nm) between molecules.\n`col` is available in this namespace to refer to the spline global properties.\nFor example, `col('spacing') * 2` means twice the spacing of the spline."),
     Parameter(name="orientation", type="None, 'PlusToMinus', 'MinusToPlus'", desc="Orientation of molecules' y-axis. If none, use the\ncurrent spline orientation as is."),
     Parameter(name="offsets", type="(float, float), optional", desc="Offset values that will be used to define molecule positions."),
     Parameter(name="filter", type="ImageFilter", desc="Filter to be applied to the reference image. This does not affect the image data itself.\n\n- Lowpass: butterworth low-pass filter.\n- Gaussian: Gaussian blur.\n- DoG: difference of Gaussian.\n- LoG: Laplacian of Gaussian."),

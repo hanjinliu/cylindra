@@ -150,12 +150,13 @@ def instance(create=False):
     return ins
 
 
-def view_project(project_file: PathLike, run: bool = False):
+def view_project(project_file: PathLike, show: bool = True):
     """View the Cylindra project file."""
     from cylindra.project import CylindraProject
 
     widget = CylindraProject.from_file(project_file).make_project_viewer()
-    widget.show(run=run)
+    if show:
+        widget.show(run=False)
     ACTIVE_WIDGETS.add(widget)
     return widget
 

@@ -99,7 +99,7 @@ def _preview_load_project_for_reanalysis(self: CylindraMainWidget, path: Path):
 def _preview_map_along_pf(
     self: CylindraMainWidget,
     spline: int,
-    molecule_interval: float,
+    molecule_interval: str,
     offsets: tuple[float, float] | None = None,
     orientation: str | None = None,
 ):  # fmt: skip

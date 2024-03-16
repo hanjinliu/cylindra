@@ -778,9 +778,7 @@ class CylindraMainWidget(MagicTemplate):
         _old_bin_size = self._current_binsize
         imgb = tomo.get_multiscale(bin_size)
         factor = self._reserved_layers.scale / imgb.scale.x
-        self._reserved_layers.update_image(
-            imgb, bin_size, tomo.multiscale_translation(bin_size)
-        )
+        self._reserved_layers.update_image(imgb, tomo.multiscale_translation(bin_size))
         current_z = self.parent_viewer.dims.current_step[0]
         self.parent_viewer.dims.set_current_step(axis=0, value=current_z * factor)
 
@@ -2649,10 +2647,10 @@ class CylindraMainWidget(MagicTemplate):
         tr = self.tomogram.multiscale_translation(bin_size)
         # update image layer
         if self._reserved_layers.image not in viewer.layers:
-            self._reserved_layers.reset_image(img, bin_size, tr)
+            self._reserved_layers.reset_image(img, tr)
             viewer.add_layer(self._reserved_layers.image)  # TODO: <-- tomogram sampled
         else:
-            self._reserved_layers.update_image(img, bin_size, tr)
+            self._reserved_layers.update_image(img, tr)
         if self._reserved_layers.highlight in viewer.layers:
             viewer.layers.remove(self._reserved_layers.highlight)
         self._reserved_layers.image.bounding_box.visible = _is_lazy

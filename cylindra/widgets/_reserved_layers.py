@@ -20,6 +20,8 @@ if TYPE_CHECKING:
 
 
 class ReservedLayers:
+    """A class that stores layers reserved for a cylindra session."""
+
     def __init__(self):
         self.image = Image(np.zeros((1, 1, 1)))
         self.prof = _prof_layer()
@@ -37,22 +39,22 @@ class ReservedLayers:
         self.highlight.editable = False
         self.to_be_removed = WeakSet[Layer]()
 
-    def update_image(self, img: ip.ImgArray, bin_size: int, tr: float):
+    def update_image(self, img: ip.ImgArray, tr: float):
         """Update the reserved image layer"""
         self.image.data = img
         self.image.scale = img.scale
-        self.image.name = f"{img.name} (bin {bin_size})"
+        self.image.name = img.name
         self.image.translate = [tr] * 3
-        self.image.contrast_limits = [np.min(img), np.max(img)]
+        self.image.contrast_limits = np.min(img), np.max(img)
 
-    def reset_image(self, img: ip.ImgArray, bin_size: int, tr: float):
+    def reset_image(self, img: ip.ImgArray, tr: float):
         """Reset the reserved image layer"""
         self.image = Image(
             img,
             scale=img.scale,
-            name=f"{img.name} (bin {bin_size})",
+            name=img.name,
             translate=[tr, tr, tr],
-            contrast_limits=[np.min(img), np.max(img)],
+            contrast_limits=(np.min(img), np.max(img)),
             blending="translucent_no_depth",
         )
 
@@ -79,6 +81,7 @@ class ReservedLayers:
 
     @property
     def scale(self) -> float:
+        """Scale of the reserved image layer."""
         return self.image.scale[-1]
 
     def select_spline(self, i: int, default: int):
