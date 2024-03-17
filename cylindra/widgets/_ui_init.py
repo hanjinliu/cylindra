@@ -28,9 +28,9 @@ from cylindra.const import (
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.project import CylindraProject
 from cylindra.widgets._main_utils import (
+    degrees_to_rotator,
     normalize_offsets,
     normalize_radius,
-    rotvec_from_axis_and_degree,
 )
 from cylindra.widgets.main import CylindraMainWidget
 from cylindra.widgets.sta import SubtomogramAveraging
@@ -233,12 +233,9 @@ def _preview_rotate_molecules(
         yield
         return
     all_data = list[np.ndarray]()
+    rotvec = degrees_to_rotator(degrees).as_rotvec()
     for layer in layers:
-        mole = layer.molecules
-        for axis, deg in degrees:
-            mole = mole.rotate_by_rotvec_internal(
-                rotvec_from_axis_and_degree(axis, deg)
-            )
+        mole = layer.molecules.rotate_by_rotvec_internal(rotvec)
 
         nmol = len(mole)
         zvec = np.stack([mole.pos, mole.z], axis=1)

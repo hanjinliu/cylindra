@@ -3,10 +3,11 @@ from __future__ import annotations
 import weakref
 from timeit import default_timer
 from types import TracebackType
-from typing import TYPE_CHECKING, ContextManager, Iterable, Literal
+from typing import TYPE_CHECKING, ContextManager, Iterable
 
 import numpy as np
 from magicclass.undo import undo_callback
+from scipy.spatial.transform import Rotation
 
 from cylindra import _config
 from cylindra.const import PropertyNames as H
@@ -122,16 +123,27 @@ def normalize_radius(radius: float | None, spl: CylSpline) -> float:
     return _r
 
 
-def rotvec_from_axis_and_degree(axis: Literal["z", "y", "x"], deg: float):
-    if axis == "z":
-        unit_vec = np.array([1, 0, 0], dtype=np.float32)
-    elif axis == "y":
-        unit_vec = np.array([0, 1, 0], dtype=np.float32)
-    elif axis == "x":
-        unit_vec = np.array([0, 0, 1], dtype=np.float32)
-    else:  # pragma: no cover
-        raise ValueError(f"Unknown axis: {axis!r}")
-    return unit_vec * np.deg2rad(deg)
+def degrees_to_rotator(
+    degrees: tuple[str, float] | list[tuple[str, float]],
+) -> Rotation:
+    if (
+        len(degrees) == 2
+        and isinstance(degrees[0], str)
+        and isinstance(degrees[1], float)
+    ):
+        degrees = [degrees]
+    rotator = Rotation.identity()
+    for axis, deg in degrees:
+        if axis == "z":
+            unit_vec = np.array([1, 0, 0], dtype=np.float32)
+        elif axis == "y":
+            unit_vec = np.array([0, 1, 0], dtype=np.float32)
+        elif axis == "x":
+            unit_vec = np.array([0, 0, 1], dtype=np.float32)
+        else:  # pragma: no cover
+            raise ValueError(f"Unknown axis: {axis!r}")
+        rotator = rotator * Rotation.from_rotvec(unit_vec * np.deg2rad(deg))
+    return rotator
 
 
 class AutoSaver:

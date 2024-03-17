@@ -64,10 +64,12 @@ from cylindra.const import (
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.types import MoleculesLayer
 from cylindra.widget_utils import PolarsExprStr, capitalize, timer
+from cylindra.widgets._main_utils import degrees_to_rotator
 from cylindra.widgets._widget_ext import (
     MultiFileEdit,
     RandomSeedEdit,
     RotationsEdit,
+    SingleRotationEdit,
 )
 
 from . import _annealing
@@ -286,6 +288,8 @@ class Alignment(MagicTemplate):
     align_all_viterbi = abstractapi()
     align_all_annealing = abstractapi()
     save_annealing_scores = abstractapi()
+    sep1 = field(Separator)
+    convert_pdb_to_image = abstractapi()
 
 
 @magicmenu
@@ -1720,6 +1724,39 @@ class SubtomogramAveraging(ChildWidget):
         if npf is None:
             npf = mole.features[Mole.pf].unique().len()
         return loader, npf
+
+    @set_design(text="PDB to image file", location=Alignment)
+    @do_not_record
+    def convert_pdb_to_image(
+        self,
+        pdb_path: Path.Read[FileFilter.PDB],
+        save_path: Path.Save[FileFilter.IMAGE],
+        degrees: Annotated[
+            list[tuple[Literal["z", "y", "x"], float]],
+            {"layout": "vertical", "options": {"widget_type": SingleRotationEdit}},
+        ],
+        scale: nm = 0.2,
+    ):
+        """
+        Convert a PDB file to an 3D image file.
+
+        This method uses 3D histogram to make an approximate image of the PDB file.
+
+        Parameters
+        ----------
+        pdb_path : Path
+            Path to the PDB file.
+        save_path : Path
+            Path to save the image file.
+        degrees : list of (str, float)
+            Rotation angles in degree.
+        scale : float, default 0.2
+            Scale of the output image in nm/pixel.
+        """
+        rotator = degrees_to_rotator(degrees)
+        img = pipe.from_pdb(pdb_path, rotator).provide(scale)
+        ip.asarray(img, axes="zyx").set_scale(zyx=scale).imsave(save_path)
+        return None
 
     @set_design(text="Save last average", location=STAnalysis)
     def save_last_average(self, path: Path.Save[FileFilter.IMAGE]):
