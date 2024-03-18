@@ -290,6 +290,7 @@ class Alignment(MagicTemplate):
     save_annealing_scores = abstractapi()
     sep1 = field(Separator)
     convert_pdb_to_image = abstractapi()
+    convert_csv_to_image = abstractapi()
 
 
 @magicmenu
@@ -1717,7 +1718,7 @@ class SubtomogramAveraging(ChildWidget):
         degrees: Annotated[
             list[tuple[Literal["z", "y", "x"], float]],
             {"layout": "vertical", "options": {"widget_type": SingleRotationEdit}},
-        ],
+        ] = (),
         sigma: nm = 0.1,
         scale: nm = 0.2,
     ):
@@ -1743,7 +1744,48 @@ class SubtomogramAveraging(ChildWidget):
         img = pipe.from_pdb(pdb_path, rotator).provide(scale)
         return (
             ip.asarray(img, axes="zyx")
-            .set_scale(zyx=scale)
+            .set_scale(zyx=scale, unit="nm")
+            .gaussian_filter(sigma / scale)
+            .imsave(save_path)
+        )
+
+    @set_design(text="CSV to image file", location=Alignment)
+    @do_not_record
+    def convert_csv_to_image(
+        self,
+        csv_path: Path.Read[FileFilter.CSV],
+        save_path: Path.Save[FileFilter.IMAGE],
+        sigma: nm = 0.1,
+        scale: nm = 0.2,
+    ):
+        """
+        Convert a CSV file to an 3D image file.
+
+        The header must contain "x", "y", "z" and optionally "weights" columns.
+
+        Parameters
+        ----------
+        csv_path : Path
+            Path to the CSV file.
+        save_path : Path
+            Path to save the image file.
+        sigma : float, default 0.1
+            Standard deviation of the Gaussian filter in nm.
+        scale : float, default 0.2
+            Scale of the output image in nm/pixel.
+        """
+        df = pl.read_csv(csv_path)
+        if not {"x", "y", "z"}.issubset(df.columns):
+            raise ValueError("The CSV file must contain 'x', 'y' and 'z' columns.")
+        atoms = df.select(["z", "y", "x"]).to_numpy()
+        if "weights" in df.columns:
+            weights = df["weights"].to_numpy()
+        else:
+            weights = None
+        img = pipe.from_atoms(atoms, weights=weights).provide(scale)
+        return (
+            ip.asarray(img, axes="zyx")
+            .set_scale(zyx=scale, unit="nm")
             .gaussian_filter(sigma / scale)
             .imsave(save_path)
         )
@@ -1772,7 +1814,7 @@ class SubtomogramAveraging(ChildWidget):
     ):
         """The return callback function for alignment methods."""
         main = self._get_main()
-        new_layers = []
+        new_layers = list[MoleculesLayer]()
         for mole, layer in zip(molecules, old_layers, strict=True):
             points = main.add_molecules(
                 mole,
