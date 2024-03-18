@@ -1075,14 +1075,14 @@ def test_calc_lattice_structures(ui: CylindraMainWidget):
 PDB_TEXT = """
 HEADER    SOME HEADER
 TITLE     SOME PROTEIN
-ATOM      1  N   ASP A   3      43.743  -2.106  39.408  1.00100.00           N
-ATOM      2  CA  ASP A   3      45.053  -2.661  39.856  1.00100.00           C
-ATOM      3  C   ASP A   3      45.305  -2.401  41.340  1.00100.00           C
-ATOM      4  O   ASP A   3      46.119  -3.083  41.957  1.00100.00           O
-ATOM      5  CB  ASP A   3      46.204  -2.067  39.034  1.00100.00           C
-ATOM      6  CG  ASP A   3      45.912  -2.039  37.542  1.00100.00           C
-ATOM      7  OD1 ASP A   3      45.455  -3.066  36.993  1.00100.00           O
-ATOM      8  OD2 ASP A   3      46.136  -0.978  36.920  1.00100.00           O
+ATOM      1  N   ASP A   3      -1.748   0.194   0.277  1.00100.00           N
+ATOM      2  CA  ASP A   3      -0.438  -0.361   0.725  1.00100.00           C
+ATOM      3  C   ASP A   3      -0.186  -0.101   2.209  1.00100.00           C
+ATOM      4  O   ASP A   3       0.628  -0.783   2.826  1.00100.00           O
+ATOM      5  CB  ASP A   3       0.713   0.233  -0.097  1.00100.00           C
+ATOM      6  CG  ASP A   3       0.421   0.261  -1.589  1.00100.00           C
+ATOM      7  OD1 ASP A   3      -0.036  -0.766  -2.138  1.00100.00           O
+ATOM      8  OD2 ASP A   3       0.645   1.322  -2.211  1.00100.00           O
 """
 
 
@@ -1112,7 +1112,7 @@ def test_calc_misc(ui: CylindraMainWidget):
         df = pl.DataFrame({"z": [1, 2, 3], "y": [4, 5, 6], "x": [2, 1, 1]})
         df.write_csv(fp_csv)
         ui.sta.convert_csv_to_image(fp_csv, fp_img)
-        df.with_columns(weight=[0.4, 0.5, 0.9]).write_csv(fp_csv)
+        df.with_columns(pl.Series("weight", [0.4, 0.5, 0.9])).write_csv(fp_csv)
         ui.sta.convert_csv_to_image(fp_csv, fp_img)
 
 
