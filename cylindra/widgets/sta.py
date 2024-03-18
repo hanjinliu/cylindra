@@ -883,24 +883,7 @@ class SubtomogramAveraging(ChildWidget):
                     _radius: nm = cylmeasure.calc_radius(mole, spl).mean()
                 else:
                     _radius = spl.radius
-                _dz, _dy, _dx = rotator.apply(svec)
-                _offset_y = _dy
-                _offset_r = np.sqrt((_dz + _radius) ** 2 + _dx**2) - _radius
-                _offset_a = np.arctan2(_dx, _dz + _radius)
-                if spl.orientation is Ori.PlusToMinus:
-                    _offset_y = -_offset_y
-                    _offset_a = -_offset_a
-                if spl.props.has_glob(H.offset_axial):
-                    _offset_y += spl.props.get_glob(H.offset_axial)
-                if spl.props.has_glob(H.offset_angular):
-                    _offset_a += spl.props.get_glob(H.offset_angular)
-                if spl.props.has_glob(H.offset_radial):
-                    _offset_r += spl.props.get_glob(H.offset_radial)
-                spl.props.glob = spl.props.glob.with_columns(
-                    pl.Series(H.offset_axial, [_offset_y], dtype=pl.Float32),
-                    pl.Series(H.offset_angular, [_offset_a], dtype=pl.Float32),
-                    pl.Series(H.offset_radial, [_offset_r], dtype=pl.Float32),
-                )
+                spl.props.glob = _update_offset(spl, rotator.apply(svec), _radius)
 
             yield _on_yield.with_args(_mole_trans, layer)
 
@@ -1062,8 +1045,8 @@ class SubtomogramAveraging(ChildWidget):
 
         Parameters
         ----------
-        {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}
-        {range_long}{angle_max}{upsample_factor}
+        {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}
+        {interpolation}{range_long}{angle_max}{upsample_factor}
         """
         t0 = timer()
         layer = assert_layer(layer, self.parent_viewer)
@@ -1735,6 +1718,7 @@ class SubtomogramAveraging(ChildWidget):
             list[tuple[Literal["z", "y", "x"], float]],
             {"layout": "vertical", "options": {"widget_type": SingleRotationEdit}},
         ],
+        sigma: nm = 0.1,
         scale: nm = 0.2,
     ):
         """
@@ -1750,13 +1734,19 @@ class SubtomogramAveraging(ChildWidget):
             Path to save the image file.
         degrees : list of (str, float)
             Rotation angles in degree.
+        sigma : float, default 0.1
+            Standard deviation of the Gaussian filter in nm.
         scale : float, default 0.2
             Scale of the output image in nm/pixel.
         """
         rotator = degrees_to_rotator(degrees)
         img = pipe.from_pdb(pdb_path, rotator).provide(scale)
-        ip.asarray(img, axes="zyx").set_scale(zyx=scale).imsave(save_path)
-        return None
+        return (
+            ip.asarray(img, axes="zyx")
+            .set_scale(zyx=scale)
+            .gaussian_filter(sigma / scale)
+            .imsave(save_path)
+        )
 
     @set_design(text="Save last average", location=STAnalysis)
     def save_last_average(self, path: Path.Save[FileFilter.IMAGE]):
@@ -2110,6 +2100,27 @@ def _update_mole_pos(new: Molecules, old: Molecules, spl: "CylSpline") -> Molecu
     vec_norm = vec / np.linalg.norm(vec, axis=1, keepdims=True)
     dy = np.sum((new.pos - old.pos) * vec_norm, axis=1)
     return new.with_features(pl.col(Mole.position) + dy)
+
+
+def _update_offset(spl: "CylSpline", dr: tuple[nm, nm, nm], radius: nm):
+    _dz, _dy, _dx = dr
+    _offset_y = _dy
+    _offset_r = np.sqrt((_dz + radius) ** 2 + _dx**2) - radius
+    _offset_a = np.arctan2(_dx, _dz + radius)
+    if spl.orientation is Ori.PlusToMinus:
+        _offset_y = -_offset_y
+        _offset_a = -_offset_a
+    if spl.props.has_glob(H.offset_axial):
+        _offset_y += spl.props.get_glob(H.offset_axial)
+    if spl.props.has_glob(H.offset_angular):
+        _offset_a += spl.props.get_glob(H.offset_angular)
+    if spl.props.has_glob(H.offset_radial):
+        _offset_r += spl.props.get_glob(H.offset_radial)
+    return spl.props.glob.with_columns(
+        pl.Series(H.offset_axial, [_offset_y], dtype=pl.Float32),
+        pl.Series(H.offset_angular, [_offset_a], dtype=pl.Float32),
+        pl.Series(H.offset_radial, [_offset_r], dtype=pl.Float32),
+    )
 
 
 class MoleculesCombiner:
