@@ -1106,14 +1106,16 @@ def test_calc_misc(ui: CylindraMainWidget):
         fp_img = Path(dirpath) / "test.mrc"
         fp_pdb = Path(dirpath) / "test.pdb"
         fp_pdb.write_text(PDB_TEXT)
-        ui.sta.convert_pdb_to_image(fp_pdb, fp_img, degrees=[("z", 90)])
+        ui.sta.AlignmentMenu.TemplateImage.convert_pdb_to_image(
+            fp_pdb, fp_img, degrees=[("z", 90)]
+        )
 
         fp_csv = Path(dirpath) / "test.csv"
         df = pl.DataFrame({"z": [1, 2, 3], "y": [4, 5, 6], "x": [2, 1, 1]})
         df.write_csv(fp_csv)
-        ui.sta.convert_csv_to_image(fp_csv, fp_img)
+        ui.sta.AlignmentMenu.TemplateImage.convert_csv_to_image(fp_csv, fp_img)
         df.with_columns(pl.Series("weight", [0.4, 0.5, 0.9])).write_csv(fp_csv)
-        ui.sta.convert_csv_to_image(fp_csv, fp_img)
+        ui.sta.AlignmentMenu.TemplateImage.convert_csv_to_image(fp_csv, fp_img)
 
 
 def test_lattice_structure_of_curved_microtubule(ui: CylindraMainWidget):
