@@ -64,10 +64,12 @@ from cylindra.const import (
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.types import MoleculesLayer
 from cylindra.widget_utils import PolarsExprStr, capitalize, timer
+from cylindra.widgets._main_utils import degrees_to_rotator
 from cylindra.widgets._widget_ext import (
     MultiFileEdit,
     RandomSeedEdit,
     RotationsEdit,
+    SingleRotationEdit,
 )
 
 from . import _annealing
@@ -286,6 +288,9 @@ class Alignment(MagicTemplate):
     align_all_viterbi = abstractapi()
     align_all_annealing = abstractapi()
     save_annealing_scores = abstractapi()
+    sep1 = field(Separator)
+    convert_pdb_to_image = abstractapi()
+    convert_csv_to_image = abstractapi()
 
 
 @magicmenu
@@ -879,24 +884,7 @@ class SubtomogramAveraging(ChildWidget):
                     _radius: nm = cylmeasure.calc_radius(mole, spl).mean()
                 else:
                     _radius = spl.radius
-                _dz, _dy, _dx = rotator.apply(svec)
-                _offset_y = _dy
-                _offset_r = np.sqrt((_dz + _radius) ** 2 + _dx**2) - _radius
-                _offset_a = np.arctan2(_dx, _dz + _radius)
-                if spl.orientation is Ori.PlusToMinus:
-                    _offset_y = -_offset_y
-                    _offset_a = -_offset_a
-                if spl.props.has_glob(H.offset_axial):
-                    _offset_y += spl.props.get_glob(H.offset_axial)
-                if spl.props.has_glob(H.offset_angular):
-                    _offset_a += spl.props.get_glob(H.offset_angular)
-                if spl.props.has_glob(H.offset_radial):
-                    _offset_r += spl.props.get_glob(H.offset_radial)
-                spl.props.glob = spl.props.glob.with_columns(
-                    pl.Series(H.offset_axial, [_offset_y], dtype=pl.Float32),
-                    pl.Series(H.offset_angular, [_offset_a], dtype=pl.Float32),
-                    pl.Series(H.offset_radial, [_offset_r], dtype=pl.Float32),
-                )
+                spl.props.glob = _update_offset(spl, rotator.apply(svec), _radius)
 
             yield _on_yield.with_args(_mole_trans, layer)
 
@@ -1058,8 +1046,8 @@ class SubtomogramAveraging(ChildWidget):
 
         Parameters
         ----------
-        {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}
-        {range_long}{angle_max}{upsample_factor}
+        {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}
+        {interpolation}{range_long}{angle_max}{upsample_factor}
         """
         t0 = timer()
         layer = assert_layer(layer, self.parent_viewer)
@@ -1721,6 +1709,87 @@ class SubtomogramAveraging(ChildWidget):
             npf = mole.features[Mole.pf].unique().len()
         return loader, npf
 
+    @set_design(text="PDB to image file", location=Alignment)
+    @do_not_record
+    def convert_pdb_to_image(
+        self,
+        pdb_path: Path.Read[FileFilter.PDB],
+        save_path: Path.Save[FileFilter.IMAGE],
+        degrees: Annotated[
+            list[tuple[Literal["z", "y", "x"], float]],
+            {"layout": "vertical", "options": {"widget_type": SingleRotationEdit}},
+        ] = (),
+        sigma: nm = 0.1,
+        scale: nm = 0.2,
+    ):
+        """
+        Convert a PDB file to an 3D image file.
+
+        This method uses 3D histogram to make an approximate image of the PDB file.
+
+        Parameters
+        ----------
+        pdb_path : Path
+            Path to the PDB file.
+        save_path : Path
+            Path to save the image file.
+        degrees : list of (str, float)
+            Rotation angles in degree.
+        sigma : float, default 0.1
+            Standard deviation of the Gaussian filter in nm.
+        scale : float, default 0.2
+            Scale of the output image in nm/pixel.
+        """
+        rotator = degrees_to_rotator(degrees)
+        img = pipe.from_pdb(pdb_path, rotator).provide(scale)
+        return (
+            ip.asarray(img, axes="zyx")
+            .set_scale(zyx=scale, unit="nm")
+            .gaussian_filter(sigma / scale)
+            .imsave(save_path)
+        )
+
+    @set_design(text="CSV to image file", location=Alignment)
+    @do_not_record
+    def convert_csv_to_image(
+        self,
+        csv_path: Path.Read[FileFilter.CSV],
+        save_path: Path.Save[FileFilter.IMAGE],
+        sigma: nm = 0.1,
+        scale: nm = 0.2,
+    ):
+        """
+        Convert a CSV file to an 3D image file.
+
+        The header must contain "x", "y", "z" and optionally "weights" columns.
+
+        Parameters
+        ----------
+        csv_path : Path
+            Path to the CSV file.
+        save_path : Path
+            Path to save the image file.
+        sigma : float, default 0.1
+            Standard deviation of the Gaussian filter in nm.
+        scale : float, default 0.2
+            Scale of the output image in nm/pixel.
+        """
+        df = pl.read_csv(csv_path)
+        if not {"x", "y", "z"}.issubset(df.columns):
+            raise ValueError("The CSV file must contain 'x', 'y' and 'z' columns.")
+        atoms = df.select(["z", "y", "x"]).to_numpy()
+        if "weights" in df.columns:
+            weights = df["weights"].to_numpy()
+        else:
+            weights = None
+        img = pipe.from_atoms(atoms, weights=weights).provide(scale)
+        return (
+            ip.asarray(img, axes="zyx")
+            .set_scale(zyx=scale, unit="nm")
+            .gaussian_filter(sigma / scale)
+            .imsave(save_path)
+        )
+
     @set_design(text="Save last average", location=STAnalysis)
     def save_last_average(self, path: Path.Save[FileFilter.IMAGE]):
         """Save the lastly generated average image."""
@@ -1745,7 +1814,7 @@ class SubtomogramAveraging(ChildWidget):
     ):
         """The return callback function for alignment methods."""
         main = self._get_main()
-        new_layers = []
+        new_layers = list[MoleculesLayer]()
         for mole, layer in zip(molecules, old_layers, strict=True):
             points = main.add_molecules(
                 mole,
@@ -2073,6 +2142,27 @@ def _update_mole_pos(new: Molecules, old: Molecules, spl: "CylSpline") -> Molecu
     vec_norm = vec / np.linalg.norm(vec, axis=1, keepdims=True)
     dy = np.sum((new.pos - old.pos) * vec_norm, axis=1)
     return new.with_features(pl.col(Mole.position) + dy)
+
+
+def _update_offset(spl: "CylSpline", dr: tuple[nm, nm, nm], radius: nm):
+    _dz, _dy, _dx = dr
+    _offset_y = _dy
+    _offset_r = np.sqrt((_dz + radius) ** 2 + _dx**2) - radius
+    _offset_a = np.arctan2(_dx, _dz + radius)
+    if spl.orientation is Ori.PlusToMinus:
+        _offset_y = -_offset_y
+        _offset_a = -_offset_a
+    if spl.props.has_glob(H.offset_axial):
+        _offset_y += spl.props.get_glob(H.offset_axial)
+    if spl.props.has_glob(H.offset_angular):
+        _offset_a += spl.props.get_glob(H.offset_angular)
+    if spl.props.has_glob(H.offset_radial):
+        _offset_r += spl.props.get_glob(H.offset_radial)
+    return spl.props.glob.with_columns(
+        pl.Series(H.offset_axial, [_offset_y], dtype=pl.Float32),
+        pl.Series(H.offset_angular, [_offset_a], dtype=pl.Float32),
+        pl.Series(H.offset_radial, [_offset_r], dtype=pl.Float32),
+    )
 
 
 class MoleculesCombiner:

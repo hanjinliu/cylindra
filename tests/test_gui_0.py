@@ -1072,6 +1072,20 @@ def test_calc_lattice_structures(ui: CylindraMainWidget):
     exc_group.raise_exceptions()
 
 
+PDB_TEXT = """
+HEADER    SOME HEADER
+TITLE     SOME PROTEIN
+ATOM      1  N   ASP A   3      -1.748   0.194   0.277  1.00100.00           N
+ATOM      2  CA  ASP A   3      -0.438  -0.361   0.725  1.00100.00           C
+ATOM      3  C   ASP A   3      -0.186  -0.101   2.209  1.00100.00           C
+ATOM      4  O   ASP A   3       0.628  -0.783   2.826  1.00100.00           O
+ATOM      5  CB  ASP A   3       0.713   0.233  -0.097  1.00100.00           C
+ATOM      6  CG  ASP A   3       0.421   0.261  -1.589  1.00100.00           C
+ATOM      7  OD1 ASP A   3      -0.036  -0.766  -2.138  1.00100.00           O
+ATOM      8  OD2 ASP A   3       0.645   1.322  -2.211  1.00100.00           O
+"""
+
+
 def test_calc_misc(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None)
     ui.mole_layers.clear()
@@ -1087,7 +1101,19 @@ def test_calc_misc(ui: CylindraMainWidget):
         fp = Path(dirpath) / "test-project.tar"
         ui.save_project(fp)
         ui.load_project(fp, filter=None)
-    assert_allclose(ui.mole_layers.last().face_color, colors)
+        assert_allclose(ui.mole_layers.last().face_color, colors)
+
+        fp_img = Path(dirpath) / "test.mrc"
+        fp_pdb = Path(dirpath) / "test.pdb"
+        fp_pdb.write_text(PDB_TEXT)
+        ui.sta.convert_pdb_to_image(fp_pdb, fp_img, degrees=[("z", 90)])
+
+        fp_csv = Path(dirpath) / "test.csv"
+        df = pl.DataFrame({"z": [1, 2, 3], "y": [4, 5, 6], "x": [2, 1, 1]})
+        df.write_csv(fp_csv)
+        ui.sta.convert_csv_to_image(fp_csv, fp_img)
+        df.with_columns(pl.Series("weight", [0.4, 0.5, 0.9])).write_csv(fp_csv)
+        ui.sta.convert_csv_to_image(fp_csv, fp_img)
 
 
 def test_lattice_structure_of_curved_microtubule(ui: CylindraMainWidget):

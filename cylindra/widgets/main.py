@@ -62,9 +62,9 @@ from cylindra.widgets._annotated import (
 from cylindra.widgets._main_utils import (
     AutoSaver,
     SplineTracker,
+    degrees_to_rotator,
     normalize_offsets,
     normalize_radius,
-    rotvec_from_axis_and_degree,
 )
 from cylindra.widgets._reserved_layers import ReservedLayers
 from cylindra.widgets._widget_ext import (
@@ -2052,18 +2052,9 @@ class CylindraMainWidget(MagicTemplate):
         """
         layers = assert_list_of_layers(layers, self.parent_viewer)
         new_layers = list[MoleculesLayer]()
-        if (
-            len(degrees) == 2
-            and isinstance(degrees[0], str)
-            and isinstance(degrees[1], float)
-        ):
-            degrees = [degrees]
+        rotvec = degrees_to_rotator(degrees).as_rotvec()
         for layer in layers:
-            mole = layer.molecules
-            for axis, deg in degrees:
-                mole = mole.rotate_by_rotvec_internal(
-                    rotvec_from_axis_and_degree(axis, deg)
-                )
+            mole = layer.molecules.rotate_by_rotvec_internal(rotvec)
             if inherit_source:
                 source = layer.source_component
             else:
