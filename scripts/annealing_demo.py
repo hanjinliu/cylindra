@@ -1,14 +1,13 @@
-from typing import NamedTuple
-import numpy as np
 import warnings
+from typing import NamedTuple
 
+import numpy as np
 from acryo import Molecules
-
-from cylindra.widgets.sta import SubtomogramAveraging
-from cylindra._napari import MoleculesLayer
-
-from magicgui import magicgui
 from magicclass.ext.pyqtgraph import plot_api as plt
+from magicgui import magicgui
+
+from cylindra._napari import MoleculesLayer
+from cylindra.widgets.sta import SubtomogramAveraging
 
 
 class DemoResult(NamedTuple):
@@ -37,12 +36,12 @@ def mesh_annealing_demo(
     molecules = layer.molecules
 
     landscape = self._construct_landscape(
-        layer=layer,
+        molecules=layer.molecules,
         template_path=template_path,
         mask_params=mask_params,
         max_shifts=max_shifts,
         cutoff=cutoff,
-        interpolation=interpolation,
+        order=interpolation,
         upsample_factor=upsample_factor,
     )
     spl = layer.source_spline

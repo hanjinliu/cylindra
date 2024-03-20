@@ -19,6 +19,14 @@ class ViterbiGrid:
         angle_max: float | None = None,
         /,
     ) -> tuple[NDArray[np.int32], float]: ...
+    def viterbi_fixed_start(
+        self,
+        dist_min: float,
+        dist_max: float,
+        coords: NDArray[np.float32],
+        origin: NDArray[np.float32],
+        angle_max: float | None = None,
+    ) -> tuple[NDArray[np.int32], float]: ...
     def world_pos(self, n: int, z: int, y: int, x: int, /) -> NDArray[np.float64]: ...
 
 class Index:

@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, NamedTuple, SupportsIndex, SupportsInt
+from typing import TYPE_CHECKING, NamedTuple, Sequence, SupportsIndex, SupportsInt
 
 import impy as ip
 import numpy as np
 import polars as pl
 from acryo import Molecules, alignment, pipe
+from magicclass.logging import getLogger
 from numpy.typing import NDArray
 from scipy.spatial.transform import Rotation
 from skimage.measure import marching_cubes
@@ -26,6 +27,8 @@ if TYPE_CHECKING:
     from cylindra._cylindra_ext import CylindricAnnealingModel
 
     _DistLike = nm | str
+
+_Logger = getLogger("cylindra")
 
 
 @dataclass
@@ -201,7 +204,10 @@ class Landscape:
             *shift_feat, pl.Series(Mole.score, opt_score)
         )
 
-    def run_min_energy(self):
+    def run_min_energy(
+        self, spl: CylSpline | None = None
+    ) -> tuple[Molecules, MinEnergyResult]:
+        """Minimize energy for each local landscape independently."""
         shape = self.energies.shape[1:]
         indices = list[NDArray[np.int32]]()
         engs = list[float]()
@@ -212,34 +218,95 @@ class Landscape:
             engs.append(eng[pos])
         indices = np.stack(indices, axis=0)
         engs = np.array(engs, dtype=np.float32)
-        return MinEnergyResult(indices, engs)
+        result = MinEnergyResult(indices, engs)
 
-    def run_viterbi(
-        self, dist_range: tuple[_DistLike, _DistLike], angle_max: float | None = None
-    ):
-        """Run Viterbi alignment."""
-        from cylindra._cylindra_ext import ViterbiGrid
+        mole_opt = self.transform_molecules(
+            self.molecules, result.indices, detect_peak=True
+        )
+        if spl is not None:
+            mole_opt = _update_mole_pos(mole_opt, self.molecules, spl)
+        return mole_opt, result
 
+    def _norm_dist(self, dist_range: tuple[_DistLike, _DistLike]) -> tuple[nm, nm]:
         dist_min, dist_max = dist_range
-        if angle_max is not None:
-            angle_max = np.deg2rad(angle_max)
-        mole = self.molecules.translate_internal(-self.offset_nm)
-        origin = (mole.pos / self.scale_factor).astype(np.float32)
-        zvec = mole.z.astype(np.float32)
-        yvec = mole.y.astype(np.float32)
-        xvec = mole.x.astype(np.float32)
-
         # normalize distance limits
         dist_mean = np.mean(
             np.sqrt(np.sum(np.diff(self.molecules.pos, axis=0) ** 2, axis=1))
         )
         dist_min = _norm_distance(dist_min, dist_mean)
         dist_max = _norm_distance(dist_max, dist_mean)
+        return dist_min / self.scale_factor, dist_max / self.scale_factor
 
-        grid = ViterbiGrid(-self.energies, origin, zvec, yvec, xvec)
-        _dist_range = (dist_min / self.scale_factor, dist_max / self.scale_factor)
-        result = grid.viterbi(*_dist_range, angle_max)
-        return ViterbiResult(result[0], result[1])
+    def _prep_viterbi_grid(self):
+        from cylindra._cylindra_ext import ViterbiGrid
+
+        mole = self.molecules.translate_internal(-self.offset_nm)
+        origin = (mole.pos / self.scale_factor).astype(np.float32)
+        zvec = mole.z.astype(np.float32)
+        yvec = mole.y.astype(np.float32)
+        xvec = mole.x.astype(np.float32)
+        return ViterbiGrid(-self.energies, origin, zvec, yvec, xvec)
+
+    def run_viterbi(
+        self, dist_range: tuple[_DistLike, _DistLike], angle_max: float | None = None
+    ):
+        """Run Viterbi alignment."""
+        dist_min, dist_max = self._norm_dist(dist_range)
+        if angle_max is not None:
+            angle_max = np.deg2rad(angle_max)
+        grid = self._prep_viterbi_grid()
+        return ViterbiResult(*grid.viterbi(dist_min, dist_max, angle_max))
+
+    def run_viterbi_along_spline(
+        self,
+        spl: CylSpline | None,
+        range_long: tuple[nm, nm] = (4.0, 4.28),
+        angle_max: float | None = 5.0,
+    ):
+        mole = self.molecules
+        if Mole.pf in mole.features.columns:
+            npfs: Sequence[int] = mole.features[Mole.pf].unique(maintain_order=True)
+            slices = [(mole.features[Mole.pf] == i).to_numpy() for i in npfs]
+            viterbi_tasks = [
+                delayed(self[sl].run_viterbi)(range_long, angle_max) for sl in slices
+            ]
+        else:
+            slices = [slice(None)]
+            viterbi_tasks = [delayed(self.run_viterbi)(range_long, angle_max)]
+        vit_out = compute(*viterbi_tasks)
+
+        inds = np.empty((mole.count(), 3), dtype=np.int32)
+        max_shifts_px = (np.array(self.energies.shape[1:]) - 1) // 2
+        for i, result in enumerate(vit_out):
+            inds[slices[i], :] = _check_viterbi_shift(result.indices, max_shifts_px, i)
+        molecules_opt = self.transform_molecules(mole, inds)
+        if spl is not None:
+            molecules_opt = _update_mole_pos(molecules_opt, mole, spl)
+        return molecules_opt
+
+    def run_viterbi_fixed_start(
+        self,
+        first: NDArray[np.float32],
+        range_long: tuple[nm, nm] = (4.0, 4.28),
+        angle_max: float | None = 5.0,
+    ):
+        """Run Viterbi alignment with a fixed start edge."""
+        mole = self.molecules
+        dist_min, dist_max = self._norm_dist(range_long)
+        if angle_max is not None:
+            angle_max = np.deg2rad(angle_max)
+        grid = self._prep_viterbi_grid()
+        mole0 = Molecules(first, mole.rotator[:1]).translate_internal(-self.offset_nm)
+        origin = (mole0.pos[0] / self.scale_factor).astype(np.float32)
+        res = ViterbiResult(
+            *grid.viterbi_fixed_start(
+                dist_min, dist_max, first / self.scale_factor, origin, angle_max
+            )
+        )
+        max_shifts_px = (np.array(self.energies.shape[1:]) - 1) // 2
+        inds = _check_viterbi_shift(res.indices, max_shifts_px, 0)
+        molecules_opt = self.transform_molecules(mole, inds)
+        return molecules_opt
 
     def annealing_model(
         self,
@@ -331,6 +398,43 @@ class Landscape:
             for s in random_seeds
         ]
         return compute(*tasks)
+
+    def run_annealing_along_spline(
+        landscape: Landscape,
+        spl: CylSpline,
+        range_long: tuple[float, float],
+        range_lat: tuple[float | str, float | str],
+        angle_max: float,
+        temperature_time_const: float = 1.0,
+        random_seeds: Sequence[int] = (0, 1, 2, 3, 4),
+    ):
+        mole = landscape.molecules
+        results = landscape.run_annealing(
+            spl,
+            range_long,
+            range_lat,
+            angle_max,
+            temperature_time_const=temperature_time_const,
+            random_seeds=random_seeds,
+        )
+        if all(result.state == "failed" for result in results):
+            raise RuntimeError(
+                "Failed to optimize for all trials. You may check the distance range."
+            )
+        elif not any(result.state == "converged" for result in results):
+            _Logger.print("Optimization did not converge for any trial.")
+
+        _Logger.print_table(
+            {
+                "Iteration": [r.niter for r in results],
+                "Score": [-float(r.energies[-1]) for r in results],
+                "State": [r.state for r in results],
+            }
+        )
+        results = sorted(results, key=lambda r: r.energies[-1])
+        mole_opt = landscape.transform_molecules(mole, results[0].indices)
+        mole_opt = _update_mole_pos(mole_opt, mole, spl)
+        return mole_opt, results
 
     def _normalize_args(
         self, temperature_time_const, temperature, cooling_rate, reject_limit
@@ -491,6 +595,36 @@ def _norm_distance(v: str | nm, ref: nm) -> nm:
     else:
         raise ValueError(f"Invalid bound: {v}")
     return v
+
+
+def _check_viterbi_shift(shift: NDArray[np.int32], offset: NDArray[np.int32], i):
+    invalid = shift[:, 0] < 0
+    if invalid.any():
+        invalid_indices = np.where(invalid)[0]
+        _Logger.print(
+            f"Viterbi alignment could not determine the optimal positions for PF={i!r}"
+        )
+        for idx in invalid_indices:
+            shift[idx, :] = offset
+
+    return shift
+
+
+def _update_mole_pos(new: Molecules, old: Molecules, spl: CylSpline) -> Molecules:
+    """
+    Update the "position-nm" feature of molecules.
+
+    Feature "position-nm" is the coordinate of molecules along the source spline.
+    After alignment, this feature should be updated accordingly. This fucntion
+    will do this.
+    """
+    if Mole.position not in old.features.columns:
+        return new
+    _u = spl.y_to_position(old.features[Mole.position])
+    vec = spl.map(_u, der=1)  # the tangent vector of the spline
+    vec_norm = vec / np.linalg.norm(vec, axis=1, keepdims=True)
+    dy = np.sum((new.pos - old.pos) * vec_norm, axis=1)
+    return new.with_features(pl.col(Mole.position) + dy)
 
 
 @delayed

@@ -1,14 +1,6 @@
 import re
 from enum import Enum
-from typing import (
-    TYPE_CHECKING,
-    Annotated,
-    Any,
-    Callable,
-    Iterable,
-    Literal,
-    Sequence,
-)
+from typing import TYPE_CHECKING, Annotated, Any, Callable, Iterable, Literal
 
 import impy as ip
 import napari
@@ -60,11 +52,7 @@ from cylindra.const import PropertyNames as H
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.types import MoleculesLayer
 from cylindra.widget_utils import PolarsExprStr, capitalize, timer
-from cylindra.widgets._widget_ext import (
-    MultiFileEdit,
-    RandomSeedEdit,
-    RotationsEdit,
-)
+from cylindra.widgets._widget_ext import MultiFileEdit, RandomSeedEdit, RotationsEdit
 
 from . import _annealing
 from . import _progress_desc as _pdesc
@@ -285,6 +273,7 @@ class Alignment(MagicTemplate):
     save_annealing_scores = abstractapi()
     sep1 = field(Separator)
     TemplateImage = TemplateImage
+    extend_filaments = abstractapi()
 
 
 @magicmenu
@@ -893,8 +882,18 @@ class SubtomogramAveraging(ChildWidget):
             _Logger.print_table(
                 [
                     ["", "X", "Y", "Z"],
-                    ["Shift (nm)", f"{svec[2]:2f}", f"{svec[1]:2f}", f"{svec[0]:2f}"],
-                    ["Rot vector", f"{rvec[2]:2f}", f"{rvec[1]:2f}", f"{rvec[0]:2f}"],
+                    [
+                        "Shift (nm)",
+                        f"{svec[2]:.2f}",
+                        f"{svec[1]:.2f}",
+                        f"{svec[0]:.2f}",
+                    ],
+                    [
+                        "Rot vector",
+                        f"{rvec[2]:.2f}",
+                        f"{rvec[1]:.2f}",
+                        f"{rvec[0]:.2f}",
+                    ],
                 ],
                 header=False,
                 index=False,
@@ -976,7 +975,7 @@ class SubtomogramAveraging(ChildWidget):
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
         """
-        Calculate the subtomogram average and use it as the template for the alignment.
+        Run template-free alignment for the given layers (EXPERIMENTAL).
 
         Parameters
         ----------
@@ -1046,19 +1045,18 @@ class SubtomogramAveraging(ChildWidget):
         t0 = timer()
         layer = assert_layer(layer, self.parent_viewer)
         landscape = self._construct_landscape(
-            layer=layer,
+            molecules=layer.molecules,
             template_path=template_path,
             mask_params=mask_params,
             max_shifts=max_shifts,
             rotations=rotations,
             cutoff=cutoff,
-            interpolation=interpolation,
+            order=interpolation,
             upsample_factor=upsample_factor,
         )
 
         yield
-        mole = _run_viterbi_on_landscape(
-            landscape=landscape,
+        mole = landscape.run_viterbi_along_spline(
             spl=layer.source_spline,
             range_long=range_long,
             angle_max=angle_max,
@@ -1103,18 +1101,17 @@ class SubtomogramAveraging(ChildWidget):
             raise ValueError("RMA requires a spline.")
         main = self._get_main()
         landscape = self._construct_landscape(
-            layer=layer,
+            molecules=layer.molecules,
             template_path=template_path,
             mask_params=mask_params,
             max_shifts=max_shifts,
             rotations=rotations,
             cutoff=cutoff,
-            interpolation=interpolation,
+            order=interpolation,
             upsample_factor=upsample_factor,
         )
         yield
-        mole, results = _run_annealing_on_landscape(
-            landscape,
+        mole, results = landscape.run_annealing_along_spline(
             layer.source_spline,
             range_long=range_long,
             range_lat=range_lat,
@@ -1140,6 +1137,78 @@ class SubtomogramAveraging(ChildWidget):
 
         return _on_return
 
+    @set_design(text=capitalize, location=Alignment)
+    @dask_worker.with_progress(desc="Extending filaments")
+    def extend_filaments(
+        self,
+        layer: MoleculesLayerType,
+        template_path: Annotated[_PathOrPathsOrNone, {"bind": _template_params}],
+        mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
+        max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
+        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
+        cutoff: _CutoffFreq = 0.2,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        range_long: _DistRangeLon = (4.0, 4.28),
+        angle_max: _AngleMaxLon = 10.0,
+        upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 3,
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        min_score: Annotated[float, {"min": -1.0, "max": 1.0}] = 0.05,
+    ):
+        """
+        Extend filaments by iterative Viterbi alignment (EXPERIMENTAL).
+
+        ```
+        x-o-o   <- fix the first molecule, align the second and third molecules
+          x-o-o <- extend by one molecule, and repeat the process
+        ```
+
+        Parameters
+        ----------
+        {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}
+        {interpolation}{range_long}{angle_max}{upsample_factor}{bin_size}
+        min_score : float, default 0.05
+            Minimum score to accept the alignment result.
+        """
+        from cylindra._dask import compute, delayed
+
+        t0 = timer()
+        layer = assert_layer(layer, self.parent_viewer)
+
+        func = delayed(self._extend_pf)
+        if Mole.pf in layer.molecules.features:
+            molecules = list(layer.molecules.group_by(Mole.pf))
+        else:
+            molecules = [(None, layer.molecules)]
+        tasks = [
+            func(
+                each,
+                template_path=template_path,
+                mask_params=mask_params,
+                max_shifts=max_shifts,
+                rotations=rotations,
+                cutoff=cutoff,
+                order=interpolation,
+                range_long=range_long,
+                angle_max=angle_max,
+                upsample_factor=upsample_factor,
+                min_score=min_score,
+                bin_size=bin_size,
+                npf=pf,
+            )  # fmt: skip
+            for pf, each in molecules
+        ]
+        results = compute(*tasks)
+        mole_out = Molecules.concat([result[0] for result in results])
+        t0.toc()
+        import matplotlib.pyplot as plt
+
+        with _Logger.set_plt():
+            plt.figure()
+            for result in results:
+                plt.plot(result[1], lw=1)
+            plt.show()
+        return self._align_all_on_return.with_args([mole_out], [layer])
+
     @set_design(text=capitalize, location=LandscapeMenu)
     @dask_worker.with_progress(descs=_pdesc.construct_landscape_fmt)
     def construct_landscape(
@@ -1163,13 +1232,13 @@ class SubtomogramAveraging(ChildWidget):
         """
         layer = assert_layer(layer, self.parent_viewer)
         lnd = self._construct_landscape(
-            layer,
+            molecules=layer.molecules,
             template_path=template_path,
             mask_params=mask_params,
             max_shifts=max_shifts,
             rotations=rotations,
             cutoff=cutoff,
-            interpolation=interpolation,
+            order=interpolation,
             upsample_factor=upsample_factor,
         )
         surf = LandscapeSurface(lnd, name=f"{LANDSCAPE_PREFIX}{layer.name}")
@@ -1189,12 +1258,8 @@ class SubtomogramAveraging(ChildWidget):
         """Find the optimal displacement for each molecule on the landscape."""
         landscape_layer = _assert_landscape_layer(landscape_layer, self.parent_viewer)
         landscape = landscape_layer.landscape
-        mole = landscape.molecules
         spl = landscape_layer.source_spline
-        result = landscape.run_min_energy()
-        mole_opt = landscape.transform_molecules(mole, result.indices, detect_peak=True)
-        if spl is not None:
-            mole_opt = _update_mole_pos(mole_opt, mole, spl)
+        mole_opt, _ = landscape.run_min_energy(spl)
         return self._align_on_landscape_on_return.with_args(
             mole_opt, landscape_layer.name, spl
         )
@@ -1217,8 +1282,7 @@ class SubtomogramAveraging(ChildWidget):
         t0 = timer()
         landscape_layer = _assert_landscape_layer(landscape_layer, self.parent_viewer)
         spl = landscape_layer.source_spline
-        mole = _run_viterbi_on_landscape(
-            landscape_layer.landscape,
+        mole = landscape_layer.landscape.run_viterbi_along_spline(
             spl=spl,
             range_long=range_long,
             angle_max=angle_max,
@@ -1252,8 +1316,7 @@ class SubtomogramAveraging(ChildWidget):
         spl = landscape_layer.source_spline
         if spl is None:
             raise ValueError("RMA requires a spline.")
-        mole, results = _run_annealing_on_landscape(
-            landscape_layer.landscape,
+        mole, results = landscape_layer.landscape.run_annealing_along_spline(
             spl=spl,
             range_long=range_long,
             range_lat=range_lat,
@@ -1721,6 +1784,44 @@ class SubtomogramAveraging(ChildWidget):
     def _show_subtomogram_averaging(self):
         return self.show()
 
+    def _extend_pf(
+        self,
+        mole: Molecules,
+        range_long: tuple[float, float],
+        angle_max: float,
+        min_score: float,
+        npf: int | None = None,
+        **kwargs,
+    ):
+        score_hist_0 = []
+        score_hist_1 = list[float]()
+        next_mole, cur_fixed = _prep_next_molecules(mole)
+        aligned_molecules = list[Molecules]()
+        while True:
+            landscape = self._construct_landscape(molecules=next_mole, **kwargs)
+            if len(score_hist_0) == 0:
+                score_hist_0.append(-landscape.energies[(0, *landscape.offset)])
+            aligned_mole = landscape.run_viterbi_fixed_start(
+                cur_fixed,
+                range_long=range_long,
+                angle_max=angle_max,
+            )
+            next_mole, cur_fixed = _prep_next_molecules(aligned_mole)
+            aligned_molecules.append(aligned_mole[:1])
+            score_hist_1.append(aligned_mole.features["score"][0])
+            if score_hist_1[-1] + score_hist_0[-1] < min_score * 2:
+                break
+            score_hist_0.append(aligned_mole.features["score"][1])
+
+        if len(aligned_molecules) > 1:
+            fin = Molecules.concat(aligned_molecules[:-1])
+        else:
+            fin = Molecules.empty(["score"])
+        scores = (np.array(score_hist_0) + np.array(score_hist_1)) / 2
+        if npf is not None:
+            fin = fin.with_features(pl.repeat(npf, pl.len()).alias(Mole.pf))
+        return fin, scores
+
     @thread_worker.callback
     def _align_all_on_return(
         self, molecules: list[Molecules], old_layers: list[MoleculesLayer]
@@ -1871,22 +1972,22 @@ class SubtomogramAveraging(ChildWidget):
 
     def _construct_landscape(
         self,
-        layer: MoleculesLayer,
+        molecules: Molecules,
         template_path: Any,
         mask_params=None,
         max_shifts: tuple[nm, nm, nm] = (0.8, 0.8, 0.8),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: float = 0.5,
-        interpolation: int = 3,
+        order: int = 3,
         upsample_factor: int = 5,
+        bin_size: int = 1,
     ):  # fmt: skip
         parent = self._get_main()
-        layer = assert_layer(layer, self.parent_viewer)
-        self.params._norm_template_param(template_path, allow_multiple=True)
+        loader = parent.tomogram.get_subtomogram_loader(
+            molecules, binsize=bin_size, order=order
+        )
         return Landscape.from_loader(
-            loader=parent.tomogram.get_subtomogram_loader(
-                layer.molecules, order=interpolation
-            ),
+            loader=loader,
             template=template_path,
             mask=self.params._get_mask(params=mask_params),
             max_shifts=max_shifts,
@@ -1899,68 +2000,10 @@ class SubtomogramAveraging(ChildWidget):
         ).normed()
 
 
-def _run_viterbi_on_landscape(
-    landscape: Landscape,
-    spl: "CylSpline | None",
-    range_long: tuple[nm, nm] = (4.0, 4.28),
-    angle_max: "float | None" = 5.0,
-):
-    from cylindra._dask import compute, delayed
-
-    mole = landscape.molecules
-    npfs: Sequence[int] = mole.features[Mole.pf].unique(maintain_order=True)
-    slices = [(mole.features[Mole.pf] == i).to_numpy() for i in npfs]
-    viterbi_tasks = [
-        delayed(landscape[sl].run_viterbi)(range_long, angle_max) for sl in slices
-    ]
-    vit_out = compute(*viterbi_tasks)
-
-    inds = np.empty((mole.count(), 3), dtype=np.int32)
-    max_shifts_px = (np.array(landscape.energies.shape[1:]) - 1) // 2
-    for i, result in enumerate(vit_out):
-        inds[slices[i], :] = _check_viterbi_shift(result.indices, max_shifts_px, i)
-    molecules_opt = landscape.transform_molecules(mole, inds)
-    if spl is not None:
-        molecules_opt = _update_mole_pos(molecules_opt, mole, spl)
-    return molecules_opt
-
-
-def _run_annealing_on_landscape(
-    landscape: Landscape,
-    spl: "CylSpline",
-    range_long: tuple[float, float],
-    range_lat: tuple[float | str, float | str],
-    angle_max: float,
-    temperature_time_const: float = 1.0,
-    random_seeds: Iterable[int] = (0, 1, 2, 3, 4),
-):
-    mole = landscape.molecules
-    results = landscape.run_annealing(
-        spl,
-        range_long,
-        range_lat,
-        angle_max,
-        temperature_time_const=temperature_time_const,
-        random_seeds=random_seeds,
-    )
-    if all(result.state == "failed" for result in results):
-        raise RuntimeError(
-            "Failed to optimize for all trials. You may check the distance range."
-        )
-    elif not any(result.state == "converged" for result in results):
-        _Logger.print("Optimization did not converge for any trial.")
-
-    _Logger.print_table(
-        {
-            "Iteration": [r.niter for r in results],
-            "Score": [-float(r.energies[-1]) for r in results],
-            "State": [r.state for r in results],
-        }
-    )
-    results = sorted(results, key=lambda r: r.energies[-1])
-    mole_opt = landscape.transform_molecules(mole, results[0].indices)
-    mole_opt = _update_mole_pos(mole_opt, mole, spl)
-    return mole_opt, results
+def _prep_next_molecules(m: Molecules) -> tuple[Molecules, np.ndarray]:
+    fixed, p0, rot = m.pos[-2], m.pos[-1], m.rotator[-1:]
+    rot2 = Rotation.concatenate([rot, rot])
+    return Molecules(np.stack([p0, p0 * 2 - fixed]), rot2), fixed
 
 
 def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
@@ -2109,19 +2152,6 @@ class MoleculesCombiner:
                 mole0 = _update_mole_pos(mole0, layer.molecules, spl)
             out.append(mole0)
         return out
-
-
-def _check_viterbi_shift(shift: "NDArray[np.int32]", offset: "NDArray[np.int32]", i):
-    invalid = shift[:, 0] < 0
-    if invalid.any():
-        invalid_indices = np.where(invalid)[0]
-        _Logger.print(
-            f"Viterbi alignment could not determine the optimal positions for PF={i!r}"
-        )
-        for idx in invalid_indices:
-            shift[idx, :] = offset
-
-    return shift
 
 
 impl_preview(SubtomogramAveraging.align_all_annealing, text="Preview molecule network")(

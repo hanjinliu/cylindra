@@ -1,7 +1,6 @@
 use pyo3::{prelude::*, Python};
 use numpy::{
-    IntoPyArray, PyArray1, PyArray2, PyReadonlyArray2, PyReadonlyArray4,
-    ndarray::{Array, Array2, ArcArray, Ix4, s}
+    ndarray::{s, ArcArray, Array, Array2, Ix4}, IntoPyArray, Ix3, PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray4
 };
 use crate::{
     coordinates::{Vector3D, CoordinateSystem},
@@ -114,6 +113,9 @@ impl ViterbiGrid {
     }
 
     #[pyo3(signature = (dist_min, dist_max, angle_max = None))]
+    /// Find the optimal alignment on the Viterbi grid.
+    /// The values of `dist_min` and `dist_max` must be normalized so that the unit of
+    /// the grid is 1.
     pub fn viterbi<'py>(
         &self,
         py: Python<'py>,
@@ -126,6 +128,35 @@ impl ViterbiGrid {
                 match angle_max {
                     Some(s) => self.viterbi_with_angle(dist_min, dist_max, s),
                     None => self.viterbi_simple(dist_min, dist_max)
+                }
+            }
+        )?;
+        Ok((states.into_pyarray(py).into(), score))
+    }
+
+    #[pyo3(signature = (dist_min, dist_max, coords, origin, angle_max = None))]
+    /// Find the optimal alignment on the Viterbi grid with the first local coordinate
+    /// system connected with a fixed point `coords`.
+    pub fn viterbi_fixed_start<'py>(
+        &self,
+        py: Python<'py>,
+        dist_min: f32,
+        dist_max: f32,
+        coords: PyReadonlyArray1<f32>,
+        origin: PyReadonlyArray1<f32>,
+        angle_max: Option<f32>,
+    ) -> PyResult<(Py<PyArray2<isize>>, f32)> {
+        let coords = Vector3D::from(coords.as_array());
+        let origin = Vector3D::from(origin.as_array());
+        let (states, score) = py.allow_threads(
+            move || {
+                match angle_max {
+                    Some(s) => self.viterbi_with_angle_fixed_start(
+                        dist_min, dist_max, s, coords, origin
+                    ),
+                    None => self.viterbi_with_angle_fixed_start(
+                        dist_min, dist_max, 90.0, coords, origin
+                    ),
                 }
             }
         )?;
@@ -146,7 +177,7 @@ impl ViterbiGrid {
         let dist_min2 = dist_min.powi(2);
         let dist_max2 = dist_max.powi(2);
 
-        let mut viterbi_lattice = Array::zeros((self.nmole, self.nz, self.ny, self.nx));
+        let mut viterbi_lattice = self.init_viterbi_lattice();
         viterbi_lattice.slice_mut(s![0, .., .., ..]).assign(&self.score.slice(s![0, .., .., ..]));
         let mut state_sequence = Array::zeros((self.nmole, 3));
         let constraint = Constraint::new(
@@ -185,29 +216,13 @@ impl ViterbiGrid {
             }
         }
 
-        let mut max_score = f32::NEG_INFINITY;
-        let mut prev: Vector3D<isize> = Vector3D::new(0, 0, 0);
-
-        // find maximum score
-        for z in 0..self.nz {
-            for y in 0..self.ny {
-                for x in 0..self.nx {
-                    let s = viterbi_lattice[[self.nmole - 1, z, y, x]];
-                    if s > max_score {
-                        max_score = s;
-                        prev.z = z as isize;
-                        prev.y = y as isize;
-                        prev.x = x as isize;
-                    }
-                }
-            }
-        }
-
-        state_sequence[[self.nmole - 1, 0]] = prev.z;
-        state_sequence[[self.nmole - 1, 1]] = prev.y;
-        state_sequence[[self.nmole - 1, 2]] = prev.x;
+        let (argmax, max_score) = argmax3d(&viterbi_lattice);
+        state_sequence[[self.nmole - 1, 0]] = argmax.z;
+        state_sequence[[self.nmole - 1, 1]] = argmax.y;
+        state_sequence[[self.nmole - 1, 2]] = argmax.x;
 
         // backward tracking
+        let mut prev = argmax.clone();
 
         for t in (0..self.nmole - 1).rev() {
             let point_prev = self.coords[t + 1].at(prev.z as f32, prev.y as f32, prev.x as f32);
@@ -239,7 +254,82 @@ impl ViterbiGrid {
         Ok((state_sequence, max_score))
     }
 
-    fn viterbi_with_angle(&self, dist_min: f32, dist_max: f32, angle_max: f32) -> PyResult<(Array2<isize>, f32)> {
+    fn viterbi_with_angle(
+        &self,
+        dist_min: f32,
+        dist_max: f32,
+        angle_max: f32,
+    ) -> PyResult<(Array2<isize>, f32)> {
+        self.viterbi_with_angle_given_start_score(
+            dist_min,
+            dist_max,
+            angle_max,
+            self.score.slice(s![0, .., .., ..]).to_owned()
+        )
+    }
+
+    fn viterbi_with_angle_fixed_start(
+        &self,
+        dist_min: f32,
+        dist_max: f32,
+        angle_max: f32,
+        fixed_point: Vector3D<f32>,
+        origin: Vector3D<f32>,
+    ) -> PyResult<(Array2<isize>, f32)> {
+        let dist_min2 = dist_min.powi(2);
+        let dist_max2 = dist_max.powi(2);
+        let cos_angle_max = angle_max.cos();
+        let constraint = AngleConstraint::new(
+            self.nz as f32,
+            self.ny as f32,
+            self.nx as f32,
+            dist_min2,
+            dist_max2,
+            cos_angle_max,
+        );
+
+        let coords_first = &self.coords[0];
+        let origin_vector = origin - coords_first.origin;
+        let origin_dist2 = origin_vector.length2();
+        let mut start = Array::zeros((self.nz, self.ny, self.nx));
+        for z in 0..self.nz {
+            for y in 0..self.ny {
+                for x in 0..self.nx {
+                    if constraint.check_constraint(
+                        &fixed_point,
+                        &coords_first.at(z as f32, y as f32, x as f32),
+                        &origin_vector,
+                        origin_dist2,
+                    ) {
+                        continue;
+                    }
+                    start[[z, y, x]] = self.score[[0, z, y, x]];
+                }
+            }
+        }
+        self.viterbi_with_angle_given_start_score(dist_min, dist_max, angle_max, start)
+    }
+
+    /// Run viterbi with given start landscape (the start probability in HMM)
+    fn viterbi_with_angle_given_start_score(
+        &self,
+        dist_min: f32,
+        dist_max: f32,
+        angle_max: f32,
+        start: Array<f32, Ix3>,
+    ) -> PyResult<(Array2<isize>, f32)> {
+        let mut viterbi_lattice = self.init_viterbi_lattice();
+        viterbi_lattice.slice_mut(s![0, .., .., ..]).assign(&start);
+        self.run_viterbi(&mut viterbi_lattice, dist_min, dist_max, angle_max)
+    }
+
+    fn run_viterbi(
+        &self,
+        viterbi_lattice: &mut Array<f32, Ix4>,
+        dist_min: f32,
+        dist_max: f32,
+        angle_max: f32,
+    ) -> PyResult<(Array2<isize>, f32)> {
         if dist_min >= dist_max {
             return value_error!(
                 format!(
@@ -259,8 +349,6 @@ impl ViterbiGrid {
         let dist_max2 = dist_max.powi(2);
         let cos_angle_max = angle_max.cos();
 
-        let mut viterbi_lattice = Array::zeros((self.nmole, self.nz, self.ny, self.nx));
-        viterbi_lattice.slice_mut(s![0, .., .., ..]).assign(&self.score.slice(s![0, .., .., ..]));
         let mut state_sequence = Array::zeros((self.nmole, 3));
         let constraint = AngleConstraint::new(
             self.nz as f32,
@@ -305,31 +393,15 @@ impl ViterbiGrid {
                 }
             }
         }
+        let (argmax, max_score) = argmax3d(&viterbi_lattice);
 
-        let mut max_score = f32::NEG_INFINITY;
-        let mut prev: Vector3D<isize> = Vector3D::new(0, 0, 0);
+        state_sequence[[self.nmole - 1, 0]] = argmax.z;
+        state_sequence[[self.nmole - 1, 1]] = argmax.y;
+        state_sequence[[self.nmole - 1, 2]] = argmax.x;
 
-        // find maximum score
-        for z in 0..self.nz {
-            for y in 0..self.ny {
-                for x in 0..self.nx {
-                    let s = viterbi_lattice[[self.nmole - 1, z, y, x]];
-                    if s > max_score {
-                        max_score = s;
-                        prev.z = z as isize;
-                        prev.y = y as isize;
-                        prev.x = x as isize;
-                    }
-                }
-            }
-        }
-
-        state_sequence[[self.nmole - 1, 0]] = prev.z;
-        state_sequence[[self.nmole - 1, 1]] = prev.y;
-        state_sequence[[self.nmole - 1, 2]] = prev.x;
+        let mut prev = argmax.clone();
 
         // backward tracking
-
         for t in (0..self.nmole - 1).rev() {
             let coord_prev = &self.coords[t + 1];
             let coord = &self.coords[t];
@@ -367,4 +439,34 @@ impl ViterbiGrid {
 
         Ok((state_sequence, max_score))
     }
+
+    fn init_viterbi_lattice(&self) -> Array<f32, Ix4> {
+        Array::from_elem((self.nmole, self.nz, self.ny, self.nx), f32::NEG_INFINITY)
+    }
+}
+
+/// Find the maximum value and its index in a 3D array
+fn argmax3d(viterbi_lattice: &Array<f32, Ix4>) -> (Vector3D<isize>, f32) {
+    let mut max_score = f32::NEG_INFINITY;
+    let mut argmax = (0, 0, 0);
+    let (nmole, nz, ny, nx) = viterbi_lattice.dim();
+
+    // find maximum score
+    for z in 0..nz {
+        for y in 0..ny {
+            for x in 0..nx {
+                let s = viterbi_lattice[[nmole - 1, z, y, x]];
+                if s > max_score {
+                    max_score = s;
+                    argmax = (z, y, x);
+                }
+            }
+        }
+    }
+    let vec = Vector3D::new(
+        argmax.0 as isize,
+        argmax.1 as isize,
+        argmax.2 as isize
+    );
+    (vec, max_score)
 }
