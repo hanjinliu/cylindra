@@ -165,6 +165,12 @@ impl AngleConstraint {
         return CheckResult::OK;
     }
 
+    /// Check if the displacement vector of the end point is within the constraint.
+    /// start_point is in the i-th coordinate system, and end_point is in the (i+1)-th
+    /// coordinate system. origin_vector is the displacement vector of the origin of the
+    /// (i+1)-th coordinate system and the origin of the i-th coordinate system.
+    /// origin_dist2 is simply the square length of origin_vector (just for the
+    /// efficiency).
     pub fn check_constraint(
         &self,
         start_point: &Vector3D<f32>,
