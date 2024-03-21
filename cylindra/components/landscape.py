@@ -169,6 +169,10 @@ class Landscape:
             Molecules object to be transformed.
         indices : integer array
             Indices in the landscape to be used for transformation.
+        detect_peak : bool, default False
+            If True, landscape will be sub-sampled to detect the peak in higher
+            precision. This should be false for constrained alignment, as the detected
+            peak usually does not represent the optimal result.
 
         Returns
         -------
@@ -195,8 +199,9 @@ class Landscape:
                 ],
                 axis=0,
             )
-            molecules_opt = molecules_opt.rotate_by_quaternion(quats)
-            rotvec = Rotation.from_quat(quats).as_rotvec().astype(np.float32)
+            rotator = Rotation.from_quat(quats).inv()
+            molecules_opt = molecules_opt.rotate_by(rotator)
+            rotvec = rotator.as_rotvec().astype(np.float32)
             rotvec_feat = _as_n_series("align-d{}rot", rotvec)
             molecules_opt = molecules_opt.with_features(*rotvec_feat)
 

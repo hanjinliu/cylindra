@@ -884,15 +884,15 @@ class SubtomogramAveraging(ChildWidget):
                     ["", "X", "Y", "Z"],
                     [
                         "Shift (nm)",
-                        f"{svec[2]:.2f}",
-                        f"{svec[1]:.2f}",
-                        f"{svec[0]:.2f}",
+                        f"  {svec[2]:.2f}  ",
+                        f"  {svec[1]:.2f}  ",
+                        f"  {svec[0]:.2f}  ",
                     ],
                     [
                         "Rot vector",
-                        f"{rvec[2]:.2f}",
-                        f"{rvec[1]:.2f}",
-                        f"{rvec[0]:.2f}",
+                        f"  {rvec[2]:.2f}  ",
+                        f"  {rvec[1]:.2f}  ",
+                        f"  {rvec[0]:.2f}  ",
                     ],
                 ],
                 header=False,
@@ -1169,6 +1169,8 @@ class SubtomogramAveraging(ChildWidget):
         min_score : float, default 0.05
             Minimum score to accept the alignment result.
         """
+        import matplotlib.pyplot as plt
+
         from cylindra._dask import compute, delayed
 
         t0 = timer()
@@ -1181,26 +1183,17 @@ class SubtomogramAveraging(ChildWidget):
             molecules = [(None, layer.molecules)]
         tasks = [
             func(
-                each,
-                template_path=template_path,
-                mask_params=mask_params,
-                max_shifts=max_shifts,
-                rotations=rotations,
-                cutoff=cutoff,
-                order=interpolation,
-                range_long=range_long,
-                angle_max=angle_max,
-                upsample_factor=upsample_factor,
-                min_score=min_score,
-                bin_size=bin_size,
+                each, template_path=template_path, mask_params=mask_params,
+                max_shifts=max_shifts, rotations=rotations, cutoff=cutoff,
+                order=interpolation, range_long=range_long, angle_max=angle_max,
+                upsample_factor=upsample_factor, min_score=min_score, bin_size=bin_size,
                 npf=pf,
-            )  # fmt: skip
+            )
             for pf, each in molecules
-        ]
+        ]  # fmt: skip
         results = compute(*tasks)
         mole_out = Molecules.concat([result[0] for result in results])
         t0.toc()
-        import matplotlib.pyplot as plt
 
         with _Logger.set_plt():
             plt.figure()
