@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.13">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.15">
     
     
       
@@ -449,9 +449,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#open-images" class="md-nav__link">
+  <a href="#open-an-image" class="md-nav__link">
     <span class="md-ellipsis">
-      Open Images
+      Open an Image
     </span>
   </a>
   
@@ -1728,9 +1728,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#open-images" class="md-nav__link">
+  <a href="#open-an-image" class="md-nav__link">
     <span class="md-ellipsis">
-      Open Images
+      Open an Image
     </span>
   </a>
   
@@ -1825,7 +1825,7 @@ variables are pushed to the console global namespace:</p>
 <li><code>plt</code>: <code>matplotlib.pyplot</code> module.</li>
 <li><code>Path</code>: <code>pathlib.Path</code> class.</li>
 </ul>
-<h3 id="open-images">Open Images</h3>
+<h3 id="open-an-image">Open an Image</h3>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03-4.41 0-8.03 3.62-8.03 8.03 0 4.41 3.62 8.03 8.03 8.03 4.41 0 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.open_image"><code>open_image</code></a>.</p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03-4.41 0-8.03 3.62-8.03 8.03 0 4.41 3.62 8.03 8.03 8.03 4.41 0 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>File &gt; Open image</code> or <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-k">K</kbd></span> &rarr; <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-o">O</kbd></span>.</p>
 <p>In GUI, an open-image dialog is shown.</p>
@@ -1848,6 +1848,7 @@ filtered image for visualization.</p>
    for more details.</li>
 <li>Set the filter to apply to the image. The filter is applied to the reference image
    shown in the viewer, not to the original image.</li>
+<li>If you want to invert the image, check "Invert intensity".</li>
 <li>If you want to load the original image into the memory, check "Load the entire image
    into memory".</li>
 <li>You can preview the selected image by clicking "Preview". A preview window will be
@@ -1891,6 +1892,8 @@ that different in most cases, because the inversion is much faster than most of 
 image processing methods such as cross-correlation calculation and coordinate
 transformation.</p>
 </div>
+<p>Note that <a href="#open-an-image"><code>open_image</code></a> can also run this method by specifying the
+<code>invert</code> argument.</p>
 <h3 id="filter-the-reference-image">Filter the Reference Image</h3>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03-4.41 0-8.03 3.62-8.03 8.03 0 4.41 3.62 8.03 8.03 8.03 4.41 0 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.filter_reference_image"><code>filter_reference_image</code></a>.</p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03-4.41 0-8.03 3.62-8.03 8.03 0 4.41 3.62 8.03 8.03 8.03 4.41 0 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Image &gt; Filter reference image</code></p>
@@ -1902,14 +1905,16 @@ Currently, following filters are implemented:</p>
 <li><code>method="DoG"</code>: Difference of Gaussian (DoG) filter</li>
 <li><code>method="LoG"</code>: Laplacian of Gaussian (LoG) filter</li>
 </ul>
+<p>Note that <a href="#open-an-image"><code>open_image</code></a> can also run this method by specifying the
+<code>filter</code> argument.</p>
 <h3 id="use-custom-reference">Use Custom Reference</h3>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03-4.41 0-8.03 3.62-8.03 8.03 0 4.41 3.62 8.03 8.03 8.03 4.41 0 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.load_reference_image"><code>load_reference_image</code></a>.</p>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03-4.41 0-8.03 3.62-8.03 8.03 0 4.41 3.62 8.03 8.03 8.03 4.41 0 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Image &gt; Load reference image</code></p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03-4.41 0-8.03 3.62-8.03 8.03 0 4.41 3.62 8.03 8.03 8.03 4.41 0 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.open_reference_image"><code>open_reference_image</code></a>.</p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03-4.41 0-8.03 3.62-8.03 8.03 0 4.41 3.62 8.03 8.03 8.03 4.41 0 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Image &gt; Open reference image</code></p>
 <p>There are many softwares that implement powerful denoising and deconvolution methods,
 such as <a href="https://github.com/tbepler/topaz">Topaz</a> and <a href="https://github.com/juglab/cryoCARE_pip">cryoCARE</a>.
 It is a good idea to use these noise-reduced images as the reference image while using
 the original image for the analysis. In this case, you can load any image as the
-reference using <code>load_reference_image</code>.</p>
+reference using <code>open_reference_image</code>.</p>
 
 
 
@@ -2003,7 +2008,7 @@ reference using <code>load_reference_image</code>.</p>
     <script id="__config" type="application/json">{"base": "..", "features": ["content.code.annotate", "navigation.sections", "navigation.indexes", "navigation.footer", "toc.follow", "search.suggest", "search.share"], "search": "../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.c8d2eff1.min.js"></script>
+      <script src="../assets/javascripts/bundle.bd41221c.min.js"></script>
       
         <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
       
