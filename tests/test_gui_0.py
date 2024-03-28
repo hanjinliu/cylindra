@@ -1180,6 +1180,7 @@ def test_cli(make_napari_viewer):
     def run_cli(*args):
         sys.argv = [str(a) for a in args]
         main(viewer, ignore_sys_exit=True)
+        use_app().process_events()
 
     # test help
     for cmd in [
