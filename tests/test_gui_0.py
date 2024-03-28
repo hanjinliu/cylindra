@@ -11,6 +11,7 @@ from acryo import Molecules
 from magicclass import get_function_gui
 from magicclass import testing as mcls_testing
 from magicclass.utils import thread_worker
+from magicgui.application import use_app
 from numpy.testing import assert_allclose
 
 from cylindra import _config, cylmeasure, view_project
@@ -30,7 +31,8 @@ coords_14pf = [[21.97, 123.1, 32.98], [21.97, 83.3, 40.5]]
 coords = {13: coords_13pf, 14: coords_14pf}
 
 
-def assert_canvas(ui: CylindraMainWidget, isnone):
+def assert_canvas(ui: CylindraMainWidget, isnone: list[bool]):
+    use_app().process_events()
     for i in range(3):
         if isnone[i]:
             assert ui.SplineControl.canvas[i].image is None, f"{i}-th canvas"
@@ -317,7 +319,6 @@ def test_load_macro(ui: CylindraMainWidget):
 
 def test_spline_control(ui: CylindraMainWidget):
     path = TEST_DIR / "13pf_MT.tif"
-    ui.parent_viewer.show()  # this test needs the viewer to be shown
     ui.open_image(path=path, scale=1.052, tilt_range=(-60, 60), bin_size=2)
     ui.filter_reference_image()
     ui.register_path(coords=coords_13pf)
@@ -1172,10 +1173,7 @@ def test_cli(make_napari_viewer):
     import sys
 
     from cylindra.__main__ import main
-    from cylindra.cli import set_testing
     from cylindra.core import ACTIVE_WIDGETS
-
-    set_testing(True)
 
     viewer: napari.Viewer = make_napari_viewer()
 
@@ -1233,6 +1231,7 @@ def test_cli(make_napari_viewer):
     for widget in ACTIVE_WIDGETS:
         widget.close()
     ACTIVE_WIDGETS.clear()
+    use_app().process_events()
 
 
 def test_function_menu(make_napari_viewer):

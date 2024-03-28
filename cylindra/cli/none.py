@@ -40,6 +40,5 @@ class ParserNone(ParserBase):
 
     def run_action(self, **kwargs):
         ui = start(viewer=self.viewer)
-        if not self._IS_TESTING:  # pragma: no cover
-            ui.parent_viewer.show(block=self.viewer is None)
+        ui.parent_viewer.show(block=self.viewer is None)
         return None

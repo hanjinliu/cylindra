@@ -78,5 +78,4 @@ class ParserOpen(ParserBase):
                 ui.load_project(fp, read_image=not no_reference)
             case _:
                 raise ValueError(f"invalid file type: {fp.suffix}")
-        if not self._IS_TESTING:  # pragma: no cover
-            ui.parent_viewer.show(block=self.viewer is None)
+        ui.parent_viewer.show(block=self.viewer is None)

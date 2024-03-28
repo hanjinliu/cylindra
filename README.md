@@ -24,7 +24,7 @@ If you install from the source, you'll need Rust to compile a part of the code.
 ```shell
 git clone git+https://github.com/hanjinliu/cylindra
 cd cylindra
-pip install -e .
+pip install .
 ```
 
 ## Usage
