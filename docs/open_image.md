@@ -151,12 +151,12 @@ Note that [`open_image`](#open-an-image) can also run this method by specifying 
 
 ### Use Custom Reference
 
-:material-arrow-right-thin-circle-outline: API: [`_reference_image`][cylindra.widgets.main.CylindraMainWidget._reference_image].
+:material-arrow-right-thin-circle-outline: API: [`open_reference_image`][cylindra.widgets.main.CylindraMainWidget.open_reference_image].
 
-:material-arrow-right-thin-circle-outline: GUI: `Image > Load reference image`
+:material-arrow-right-thin-circle-outline: GUI: `Image > Open reference image`
 
 There are many softwares that implement powerful denoising and deconvolution methods,
 such as [Topaz](https://github.com/tbepler/topaz) and [cryoCARE](https://github.com/juglab/cryoCARE_pip).
 It is a good idea to use these noise-reduced images as the reference image while using
 the original image for the analysis. In this case, you can load any image as the
-reference using `_reference_image`.
+reference using `open_reference_image`.

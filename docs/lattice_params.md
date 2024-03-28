@@ -278,3 +278,13 @@ The "fit &rarr; refine &rarr; measure radius &rarr; CFT" workflow can be quickly
 from the toolbar, or ++f2++ key.
 
 ![Runner](images/run_workflow_dialog.png){ loading=lazy, width=400px }
+
+??? info "Manually set parameters"
+
+    :material-arrow-right-thin-circle-outline: API: [`set_spline_props`][cylindra.widgets.main.CylindraMainWidget.set_spline_props]
+
+    :material-arrow-right-thin-circle-outline: GUI: `Splines > Set spline properties`
+
+    This method is useful when you want to set the protofilament number, start number
+    and/or orientation of the splines manually, especially when the automatic inference
+    fails but you are sure about the values.

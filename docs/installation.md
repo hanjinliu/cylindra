@@ -14,12 +14,12 @@ conda activate my-env  # enter the virtual environment
 ### Install Cylindra
 
 Now, it's ready to install `cylindra`. Following command will install `cylindra` and all
-the relevant dependencies in the current virtual environment. Note that if you don't use
-`pip`, you'll need [`git`](https://git-scm.com) and
+the relevant dependencies in the current virtual environment. Note that if you don't
+install from [PyPI](https://pypi.org), you'll need [`git`](https://git-scm.com) and
 [`rustup`](https://www.rust-lang.org/learn/get-started) command.
 
 
-=== "Using `pip`"
+=== "From PyPI"
 
     ```shell
     pip install cylindra[all] -U

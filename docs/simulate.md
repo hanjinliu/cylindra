@@ -15,7 +15,7 @@ orientations. To do this, you can first create an empty image, and [draw splines
 
 :material-arrow-right-thin-circle-outline: GUI: `Simulator widget > Create > Create empty image`
 
-![create_empty_image](images/create_empty_image.png){ loading=lazy, width=400px }
+![create_empty_image](images/create_empty_image.png){ loading=lazy, width=480px }
 
 The image size and the pixel scale will be directly used as the simulated tomograms.
 
@@ -60,6 +60,9 @@ and the preview is also available.
 
 ??? example "Programatically apply local expansion"
 
+    This script will expand the 10th to 20th molecules (all the protofilaments) from the
+    tip in the layer named `"Mole(Sim)-0"` by 0.1 nm.
+
     ``` python
     ui.simulator.expand("Mole(Sim)-0", by=0.1, yrange=(10, 20))
     ```
@@ -95,7 +98,7 @@ and the preview is also available.
     )
     ```
 
-## Asign An Image to Molecules
+## Asign Density to Molecules
 
 :material-arrow-right-thin-circle-outline: API: [`add_component`][cylindra.widgets.subwidgets.Simulator.add_component]
 
@@ -104,10 +107,10 @@ and the preview is also available.
 !!! note
     Before this step, you can run any operations on the molecules, such as [filtration](molecules/filter_molecules.md) and [split/combine](molecules/split_and_combine.md).
 
-One the molecules are ready, you have to assign a template image to each molecules layer
-for simulation. In this method, you can select image files and assign them to one of the
-molecules layers in the viewer. The image don't have to be scaled; it will automatically
-be rescaled to the pixel scale of the tomogram.
+Once the molecules are ready, you have to assign a template image to each molecules
+layer for simulation. In this method, you can select image files and assign them to one
+of the molecules layers in the viewer. The image don't have to be scaled; it will
+automatically be rescaled to the pixel scale of the tomogram.
 
 ## Simulate Tomograms from Molecules
 

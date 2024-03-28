@@ -6,9 +6,11 @@ Before start analyzing data, here's the basics of what you should know.
 
 A `Tomogram` is a data structure with following information:
 
-- Data source: this is not necessarily loaded into memory.
-- Image metadata: voxel size, missing wedge, path to the data source, etc.
-- Multiscale images: a list of images with different binning factors. For example,
+- **Image Data**: a 3D array of the actual image data. this is not necessarily loaded
+  into memory; by default, image data is in a memory-mapped state, which means that the
+  data is read from the disk only when it is needed.
+- **Image metadata**: voxel size, missing wedge, path to the data source, etc.
+**- Multiscale images**: a list of images with different binning factors. For example,
   you can have a tomogram with 4&times;4&times;4 and 2&times;2&times;2 binned images
   and switch between them for different purposes (without actually saving them as
   separate image files).
@@ -26,6 +28,14 @@ A `Tomogram` is connected with following components:
 
 ## Coordinate Systems
 
+### Origin
+
+The corner pixel of an image is the origin of the coordinate system. If a molecule is
+located at (0, 0, 0), it means that the center of the molecule is at the center of the
+pixel at the corner.
+
+### Ordering
+
 Following the convention of `napari` and `acryo`, the 3D coordinates are stored in
 (z, y, x) order.
 
@@ -38,6 +48,27 @@ Following the convention of `napari` and `acryo`, the 3D coordinates are stored 
 Therefore, if you have a 3D image `img`, `img.shape[0]` is the size of z axis. If a list
 of points is stored in a (N, 3) array `points`, `points[:, 0]` is the list of z
 coordinates.
+
+### Coordinates of subtomograms
+
+Subtomograms sampled from the tomogram also have (Z, Y, X) coordinates, but the origin
+and the direction of the axes are different from the original tomogram.
+
+The origin of the subtomogram is defined so that the center of the subtomogram is at the
+position of the corresponding molecule in the original tomogram.
+
+The direction of the axes depends on the rotation of molecules.
+
+- If the molecules are initialized on the surface of a cylinder using
+  [`map_monomers`](molecules/spline_to_molecules.md#molecules-on-the-cylinder-surface),
+  or [`map_along_pf`](molecules/spline_to_molecules.md#molecules-along-a-protofilament),
+  the Y axis is parallel to the spline and the Z axis is parallel to the vector from the
+  spline to the molecule.
+
+- If the molecules are initialized along a spline using
+  [`map_along_spline`](molecules/spline_to_molecules.md#molecules-along-the-spline),
+  the Y axis is parallel to the spline and the Z axis is rotated so that it satisfies
+  the twist parameter of the spline.
 
 ## Manual and Programmatic Operations
 

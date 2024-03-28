@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 from magicclass import testing as mcls_testing
+from magicgui.application import use_app
 
 from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets.sta import MaskChoice
@@ -105,6 +106,7 @@ def test_view(ui: CylindraMainWidget):
 
     ui.batch.constructor.view_selected_components().close()
     ui.batch.close()
+    use_app().process_events()
 
 
 @pytest_group("batch.average")
