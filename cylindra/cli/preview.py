@@ -47,7 +47,7 @@ class ParserPreview(ParserBase):
             if inner_filename is not None:
                 rich.print(f"[yellow]::{inner_filename} is ignored for --gui.[/yellow]")
             print(f"Previewing project: {_path.as_posix()}")
-            view_project(_path, show=True)
+            view_project(_path, show=not self._IS_TESTING)
             if self.viewer is None and gui:
                 use_app().run()
             return

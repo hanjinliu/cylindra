@@ -1173,14 +1173,15 @@ def test_cli(make_napari_viewer):
     import sys
 
     from cylindra.__main__ import main
+    from cylindra.cli import set_testing
     from cylindra.core import ACTIVE_WIDGETS
 
     viewer: napari.Viewer = make_napari_viewer()
+    set_testing(True)
 
     def run_cli(*args):
         sys.argv = [str(a) for a in args]
         main(viewer, ignore_sys_exit=True)
-        use_app().process_events()
 
     # test help
     for cmd in [

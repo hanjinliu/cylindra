@@ -27,3 +27,7 @@ __all__ = [
 
 def set_current_viewer(viewer):
     ParserBase.viewer = viewer
+
+
+def set_testing(testing: bool):
+    ParserBase._IS_TESTING = testing
