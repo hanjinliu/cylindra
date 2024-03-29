@@ -6,7 +6,7 @@ from typing import Any
 
 class ParserBase(argparse.ArgumentParser):
     viewer: Any
-    _IS_TESTING = False
+    _IS_TESTING = False  # patch for testing
 
     def __init__(self, prog: str, description: str, add_help: bool = False):
         super().__init__(

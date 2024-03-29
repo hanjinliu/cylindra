@@ -244,13 +244,13 @@ class IMOD(ChildWidget):
 
         txt = PEET_TEMPLATE.format(
             tomograms=str(main.tomogram.source),
-            coordinates=str(coordinates_path),
-            angles=str(angles_path),
+            coordinates=coordinates_path,
+            angles=angles_path,
             tilt_range=list(main.tomogram.tilt["range"]),
-            template=str(template_path),
+            template=template_path,
             project_name=project_name,
             shape=list(template_image.shape),
-            mask_type=str(mask_path),
+            mask_type=mask_path,
         )
 
         # save files
