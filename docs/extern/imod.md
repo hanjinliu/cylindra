@@ -41,7 +41,7 @@ In IMOD, you can create segmented lines with such as `3dmod` viewer and save as 
 as segmented lines in a `.mod` file.
 
 !!! warning
-    Reading a `.mod` file and save back to a new `.mod` file does **not** preserve the
+    Reading a `.mod` file and saving back to a new `.mod` file does **not** preserve the
     original data.
 
 ## Create a `.prm` File for PEET

@@ -35,6 +35,20 @@ print(spl.props.get_glob("radius"))  # print the global radius of the spline
 print(spl.radius)  # a shorthand for spl.props.get_glob("radius")
 ```
 
+??? info "If the estimated value is not appropriate"
+
+    - If you forgot to invert the image, this step will be the first step that the
+      result goes wrong. Make sure the image is inverted.
+    - This method uses the radial profile of the raw intensity values. If the cylinder
+      structure is coated with dense components inside and/or outside of the cylinder,
+      the result will be affected. If there's any a priori knowledge about the radius,
+      you can set it manually with [`set_radius` method](#set-global-radius-manually).
+
+!!! note
+
+    If the cylinder structure is supposed to change, you may want to
+    [measure local radius](#the-local-radius).
+
 ### Set global radius manually
 
 :material-arrow-right-thin-circle-outline: API: [`set_radius`][cylindra.widgets.main.CylindraMainWidget.set_radius]
@@ -108,6 +122,11 @@ In `cylindra`, an automatic polarity inference method is implemented. This metho
 very well for microtubules, using the fact that clockwise appearance of tubulin
 molecules corresponds to the minus-to-plus direction. Theoretically, it should also
 work for other helical structures such as actin filament, but it's not guaranteed.
+
+!!! note
+
+    If the polarity is not inferred correctly, you can set it manually using the
+    [`set_spline_props` method][cylindra.widgets.main.CylindraMainWidget.set_spline_props].
 
 ## Running CFT
 

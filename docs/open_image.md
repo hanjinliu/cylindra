@@ -57,6 +57,14 @@ In this dialog, you can configure how to open the image. Note that the image ope
 the viewer is **NOT the original image**. `cylindra` uses a binned and optionally
 filtered image for visualization.
 
+!!! danger "Important: Use dark background images"
+
+   Most of the methods require dark-background images, while most of the raw images of
+   electron microscopy are light-background. You have to manually prepare an inverted
+   image file, or check the "Invert intensity" option in the open-image dialog. The
+   loaded image can also be inverted from the menu (see
+   [Invert Images](#invert-images)).
+
 1. Click "Select file" to select the image file to open. tiff and mrc files are
    supported.
 2. Set the appropriate pixel scale. You can click "Scan header" to automatically detect
@@ -95,20 +103,21 @@ the original and binned images. Many methods in `cylindra` have a `bin_size` arg
 All the bin sizes registered as multi-scales are available for this argument. Usually,
 the bin sizes are set using the `bin_size` argument of the open-image dialog.
 
+##### (i) Add a new bin size to the multi-scale list after you opened the image
+
 :material-arrow-right-thin-circle-outline: API: [`add_multiscale`][cylindra.widgets.main.CylindraMainWidget.add_multiscale].
 
 :material-arrow-right-thin-circle-outline: GUI: `File > Add multi-scale`
 
-This method will add a new bin size to the multi-scale list after you opened the image.
+##### (ii) Choose which multi-scale image to be shown in the viewer
 
 :material-arrow-right-thin-circle-outline: API: [`set_multiscale`][cylindra.widgets.main.CylindraMainWidget.set_multiscale].
 
 :material-arrow-right-thin-circle-outline: GUI: `File > Set multi-scale`
 
-With this method, you can choose which multi-scale image to be shown in the viewer. It
-is useful when you have a low-resolution image (to see the overall state of your sample)
-and a high-resolution image (to see the detailed structures of the components) as the
-multi-scale images.
+It is useful when you have a low-resolution image (to see the overall state of your
+sample) and a high-resolution image (to see the detailed structures of the components)
+as the multi-scale images.
 
 ### Invert Images
 

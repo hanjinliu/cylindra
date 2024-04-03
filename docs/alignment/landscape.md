@@ -34,4 +34,5 @@ This method will calculate the correlation landscape around selected molecules.
 ## Visualizing the Landscape
 
 After the landscape construction, a `Landscape` layer, a subclass of [`Surface` layer](https://napari.org/stable/howtos/layers/surface.html)
-will be added to the viewer.
+will be added to the viewer. A `Landscape` layer shows the surface of an arbitrary
+threshold. You can adjust the threshold value in the layer control.

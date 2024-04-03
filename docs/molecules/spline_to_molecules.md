@@ -1,7 +1,7 @@
 # Spline to Molecules
 
 [Analysis of tomograms](../alignment/index.md) usually starts with placing molecules
-around densities. What method to be used for this initialization step largely depend on
+around densities. What method to be used for this initialization step largely depends on
 your target; if you have a plausible model of placing and orienting molecules, the task
 can be solve more efficiently and accurately.
 

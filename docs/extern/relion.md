@@ -38,5 +38,4 @@ as segmented lines in a `.star` file. Following the convention, "rlnHelicalTubeI
 used as the column name for identifying each splines.
 
 !!! warning
-    Reading a `.star` file and save back to a new `.star` file does **not** preserve the
-    original data.
+    Reading a `.star` file and saving back to a new `.star` file does **not** preserve the original data.
