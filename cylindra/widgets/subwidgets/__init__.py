@@ -1,8 +1,8 @@
-from .file_iter import FileIterator
-from .function_menu import Volume
-from .image_processor import ImageProcessor
-from .measure import SpectraInspector
-from .menus import (
+from cylindra.widgets.subwidgets.file_iter import FileIterator
+from cylindra.widgets.subwidgets.function_menu import Volume
+from cylindra.widgets.subwidgets.image_processor import ImageProcessor
+from cylindra.widgets.subwidgets.measure import SpectraInspector
+from cylindra.widgets.subwidgets.menus import (
     AnalysisMenu,
     FileMenu,
     ImageMenu,
@@ -10,16 +10,19 @@ from .menus import (
     OthersMenu,
     SplinesMenu,
 )
-from .misc import GeneralInfo, ImageLoader
-from .pca import PcaViewer
-from .properties import GlobalPropertiesWidget, LocalPropertiesWidget
-from .runner import Runner
-from .simulator import Simulator
-from .slicer import SplineSlicer
-from .spline_clipper import SplineClipper
-from .spline_control import SplineControl
-from .spline_fitter import SplineFitter
-from .toolbar import CylindraToolbar
+from cylindra.widgets.subwidgets.misc import GeneralInfo, ImageLoader
+from cylindra.widgets.subwidgets.pca import PcaViewer
+from cylindra.widgets.subwidgets.properties import (
+    GlobalPropertiesWidget,
+    LocalPropertiesWidget,
+)
+from cylindra.widgets.subwidgets.runner import Runner
+from cylindra.widgets.subwidgets.simulator import Simulator
+from cylindra.widgets.subwidgets.slicer import SplineSlicer
+from cylindra.widgets.subwidgets.spline_clipper import SplineClipper
+from cylindra.widgets.subwidgets.spline_control import SplineControl
+from cylindra.widgets.subwidgets.spline_fitter import SplineFitter
+from cylindra.widgets.subwidgets.toolbar import CylindraToolbar
 
 __all__ = [
     "Volume",

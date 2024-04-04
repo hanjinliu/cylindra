@@ -15,9 +15,9 @@ from magicclass.ext.pyqtgraph import QtImageCanvas, mouse_event
 from magicclass.undo import undo_callback
 
 from cylindra.const import Mode, nm
-from cylindra.utils import centroid, map_coordinates, roundint
-
-from ._child_widget import ChildWidget
+from cylindra.utils import centroid, map_coordinates, rotated_auto_zncc, roundint
+from cylindra.widget_utils import capitalize
+from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 _FILP_X = ip.slicer.x[::-1]
 
@@ -25,7 +25,7 @@ _FILP_X = ip.slicer.x[::-1]
 @magicclass(layout="horizontal")
 class SplineFitter(ChildWidget):
     """
-    Manually fit splines with longitudinal projections.
+    Manually fit cylinders with spline curves with longitudinal projections.
 
     Attributes
     ----------
@@ -37,13 +37,11 @@ class SplineFitter(ChildWidget):
         Maximum allowed error (nm) for spline fitting.
     """
 
-    # Manually fit cylinders with spline curve using longitudinal projections
-
     canvas = field(QtImageCanvas).with_options(lock_contrast_limits=True)
 
     def __init__(self) -> None:
         self._max_interval: nm = 50.0
-        self.subtomograms: "ip.ImgArray | None" = None
+        self.subtomograms: "ip.ImgArray | None" = None  # 2D projections
 
     def __post_init__(self):
         self.shifts: list[np.ndarray] = None
@@ -150,7 +148,7 @@ class SplineFitter(ChildWidget):
             self.canvas.contrast_limits = cur_img.min(), cur_img.max()
         return None
 
-    @set_design(text="Fit", location=RightPanel)
+    @set_design(text=capitalize, location=RightPanel)
     def fit(
         self,
         i: Annotated[int, {"bind": num}],
@@ -185,7 +183,25 @@ class SplineFitter(ChildWidget):
             self._cylinder_changed()
             self._get_main()._update_splines_in_images()
 
+        self._focus_me()
         return out
+
+    @set_design(text=capitalize, location=RightPanel)
+    @do_not_record
+    def auto_center(self):
+        """Auto centering at the current position."""
+        i = self.num.value
+        j = self.pos.value
+        spl = self._get_main().tomogram.splines[i]
+        cur_projection = self.subtomograms[j]
+        cur_projection = cur_projection - cur_projection.mean()
+        d_ang = 180 / spl.config.npf_range.center
+        degrees = np.linspace(-d_ang, d_ang, 5) + 180
+        shifts = rotated_auto_zncc(cur_projection, degrees)
+        lz, lx = self.subtomograms.sizesof("zx")
+        z = shifts[0] + lz / 2 - 0.5
+        x = shifts[1] + lx / 2 - 0.5
+        self._update_cross(x, z)
 
     def _update_cross(self, x: float, z: float):
         i = self.num.value

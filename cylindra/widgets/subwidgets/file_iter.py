@@ -15,9 +15,8 @@ from magicclass.utils import thread_worker
 
 from cylindra._previews import view_image
 from cylindra.project import CylindraProject, ProjectSequence
+from cylindra.widgets.subwidgets._child_widget import ChildWidget
 from cylindra.widgets.subwidgets.properties import LocalPropertiesWidget
-
-from ._child_widget import ChildWidget
 
 if TYPE_CHECKING:
     from cylindra.components import CylSpline

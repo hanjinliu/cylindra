@@ -50,8 +50,7 @@ from cylindra.const import (
 from cylindra.utils import ceilint, roundint
 from cylindra.widget_utils import POLARS_NAMESPACE, capitalize
 from cylindra.widgets._annotated import MoleculesLayerType, _as_layer_name, assert_layer
-
-from ._child_widget import ChildWidget
+from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 if TYPE_CHECKING:
     from napari.layers import Layer

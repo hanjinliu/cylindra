@@ -17,8 +17,7 @@ from cylindra._previews import view_image
 from cylindra.const import FileFilter
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.widgets._widget_ext import CheckBoxes
-
-from ._child_widget import ChildWidget
+from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 
 def _autofill(input_path, suffix: str) -> Path:

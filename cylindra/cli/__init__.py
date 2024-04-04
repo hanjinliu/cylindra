@@ -1,15 +1,15 @@
 """CLI parsers for cylindra."""
 
-from ._base import ParserBase
-from .average import ParserAverage
-from .config import ParserConfig
-from .find import ParserFind
-from .new import ParserNew
-from .none import ParserNone
-from .open import ParserOpen
-from .preview import ParserPreview
-from .run import ParserRun
-from .workflow import ParserWorkflow
+from cylindra.cli._base import ParserBase
+from cylindra.cli.average import ParserAverage
+from cylindra.cli.config import ParserConfig
+from cylindra.cli.find import ParserFind
+from cylindra.cli.new import ParserNew
+from cylindra.cli.none import ParserNone
+from cylindra.cli.open import ParserOpen
+from cylindra.cli.preview import ParserPreview
+from cylindra.cli.run import ParserRun
+from cylindra.cli.workflow import ParserWorkflow
 
 __all__ = [
     "ParserAverage",

@@ -19,8 +19,7 @@ from magicclass.types import Path
 from cylindra.const import FileFilter, Mode
 from cylindra.const import PropertyNames as H
 from cylindra.utils import Projections, map_coordinates_task
-
-from ._child_widget import ChildWidget
+from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 if TYPE_CHECKING:
     from cylindra.components import CylSpline

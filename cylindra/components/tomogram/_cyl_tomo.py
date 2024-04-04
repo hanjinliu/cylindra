@@ -29,6 +29,9 @@ from cylindra._dask import Delayed, compute, delayed
 from cylindra.components._ftprops import LatticeAnalyzer, LatticeParams, get_polar_image
 from cylindra.components._peak import find_centroid_peak
 from cylindra.components.spline import CylSpline
+from cylindra.components.tomogram import _straighten
+from cylindra.components.tomogram._spline_list import SplineList
+from cylindra.components.tomogram._tomo_base import Tomogram
 from cylindra.const import ExtrapolationMode, Mode, Ori, nm
 from cylindra.const import PropertyNames as H
 from cylindra.utils import (
@@ -41,10 +44,6 @@ from cylindra.utils import (
     roundint,
     set_gpu,
 )
-
-from . import _straighten
-from ._spline_list import SplineList
-from ._tomo_base import Tomogram
 
 if TYPE_CHECKING:
     from typing_extensions import Literal, Self

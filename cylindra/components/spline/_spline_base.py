@@ -19,13 +19,12 @@ from scipy.interpolate import splev, splprep, splrep
 from scipy.spatial.transform import Rotation
 
 from cylindra.components._base import BaseComponent
+from cylindra.components.spline._config import SplineConfig
+from cylindra.components.spline._props import SplineProps
+from cylindra.components.spline._types import SplineFitResult, SplineInfo, TCKType
 from cylindra.const import ExtrapolationMode, Mode, nm
 from cylindra.cyltransform import polar_coords_2d
 from cylindra.utils import ceilint, interval_divmod, roundint
-
-from ._config import SplineConfig
-from ._props import SplineProps
-from ._types import SplineFitResult, SplineInfo, TCKType
 
 if TYPE_CHECKING:
     from numpy.typing import ArrayLike, NDArray

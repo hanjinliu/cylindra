@@ -13,8 +13,7 @@ from magicclass.widgets import Separator
 
 from cylindra.components.picker import AutoCorrelationPicker
 from cylindra.widget_utils import change_viewer_focus
-
-from ._child_widget import ChildWidget
+from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 _Logger = getLogger("cylindra")
 

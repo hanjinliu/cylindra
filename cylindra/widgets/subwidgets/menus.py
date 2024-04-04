@@ -46,8 +46,7 @@ from cylindra.utils import roundint, str_color
 from cylindra.widget_utils import capitalize, get_code_theme
 from cylindra.widgets._annotated import assert_layer
 from cylindra.widgets._widget_ext import CheckBoxes
-
-from ._child_widget import ChildWidget
+from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 if TYPE_CHECKING:
     from magicclass._gui._macro import MacroEdit

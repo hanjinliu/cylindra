@@ -23,9 +23,8 @@ from cylindra.widget_utils import capitalize
 if TYPE_CHECKING:
     from magicclass.ext.vispy._base import LayerItem
 
+    from cylindra.project._single import CylindraProject
     from cylindra.widgets import CylindraMainWidget
-
-    from ._single import CylindraProject
 
 
 @magicclass(labels=False, widget_type="split", layout="horizontal", record=False)

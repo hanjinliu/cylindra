@@ -433,14 +433,14 @@ class CylindraProject(BaseProject):
 
     def make_project_viewer(self):
         """Build a project viewer widget from this project."""
-        from ._widgets import ProjectViewer
+        from cylindra.project._widgets import ProjectViewer
 
         pviewer = ProjectViewer()
         pviewer._from_project(self)
         return pviewer
 
     def make_component_viewer(self):
-        from ._widgets import ComponentsViewer
+        from cylindra.project._widgets import ComponentsViewer
 
         """Build a molecules viewer widget from this project."""
         mviewer = ComponentsViewer()

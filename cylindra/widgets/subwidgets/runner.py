@@ -11,8 +11,7 @@ from magicclass.utils import thread_worker
 
 from cylindra.const import nm
 from cylindra.widgets._widget_ext import CheckBoxes
-
-from ._child_widget import ChildWidget
+from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 
 @magicclass(widget_type="groupbox", name="Fitting parameters", record=False)

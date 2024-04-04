@@ -52,19 +52,18 @@ from cylindra.const import PropertyNames as H
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.types import MoleculesLayer
 from cylindra.widget_utils import PolarsExprStr, capitalize, timer
-from cylindra.widgets._widget_ext import MultiFileEdit, RandomSeedEdit, RotationsEdit
-
-from . import _annealing
-from . import _progress_desc as _pdesc
-from ._annotated import (
+from cylindra.widgets import _annealing
+from cylindra.widgets import _progress_desc as _pdesc
+from cylindra.widgets._annotated import (
     FSCFreq,
     MoleculesLayersType,
     MoleculesLayerType,
     assert_layer,
     assert_list_of_layers,
 )
-from ._process_template import TemplateImage
-from .subwidgets._child_widget import ChildWidget
+from cylindra.widgets._process_template import TemplateImage
+from cylindra.widgets._widget_ext import MultiFileEdit, RandomSeedEdit, RotationsEdit
+from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 if TYPE_CHECKING:
     from dask.array.core import Array

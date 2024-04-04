@@ -21,8 +21,7 @@ from cylindra.components._ftprops import LatticeAnalyzer
 from cylindra.const import nm
 from cylindra.cyltransform import get_polar_image
 from cylindra.utils import map_coordinates
-
-from ._child_widget import ChildWidget
+from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 YPROJ = "Y-projection"
 RPROJ = "R-projection"

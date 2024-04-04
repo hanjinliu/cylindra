@@ -16,8 +16,7 @@ from magicclass.types import OneOf, Path
 
 from cylindra.const import FileFilter
 from cylindra.utils import roundint
-
-from ._child_widget import ChildWidget
+from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 
 class MeasureMode(Enum):

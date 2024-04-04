@@ -28,8 +28,7 @@ from cylindra.const import MoleculesHeader as Mole
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.project import CylindraProject, get_project_file
 from cylindra.widget_utils import POLARS_NAMESPACE
-
-from ._utils import PathInfo, TempFeatures
+from cylindra.widgets.batch._utils import PathInfo, TempFeatures
 
 
 @magicclass(

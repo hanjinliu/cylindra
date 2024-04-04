@@ -32,15 +32,18 @@ from cylindra.utils import roundint
 from cylindra.widget_utils import FscResult, PolarsExprStr, norm_expr, timer
 from cylindra.widgets._annotated import FSCFreq
 from cylindra.widgets._widget_ext import RotationsEdit
+from cylindra.widgets.batch._loaderlist import LoaderList
+from cylindra.widgets.batch.menus import (
+    BatchLoaderMenu,
+    BatchRefinement,
+    BatchSubtomogramAnalysis,
+)
 from cylindra.widgets.sta import (
     INTERPOLATION_CHOICES,
     METHOD_CHOICES,
     StaParameters,
     _get_alignment,
 )
-
-from ._loaderlist import LoaderList
-from .menus import BatchLoaderMenu, BatchRefinement, BatchSubtomogramAnalysis
 
 
 def _classify_pca_fmt():

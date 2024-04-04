@@ -1,5 +1,5 @@
-from ._utils import CommandExecutionError, CommandNotFound
-from .imod import IMOD
-from .relion import RELION
+from cylindra.ext._utils import CommandExecutionError, CommandNotFound
+from cylindra.ext.imod import IMOD
+from cylindra.ext.relion import RELION
 
 __all__ = ["CommandExecutionError", "CommandNotFound", "IMOD", "RELION"]

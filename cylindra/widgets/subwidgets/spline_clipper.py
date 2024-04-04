@@ -9,8 +9,7 @@ from cylindra.components import CylSpline
 from cylindra.const import Mode, nm
 from cylindra.utils import map_coordinates
 from cylindra.widget_utils import capitalize
-
-from ._child_widget import ChildWidget
+from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 
 @magicclass
