@@ -19,7 +19,7 @@ from magicclass import (
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.polars import DataFrameView
 from magicclass.logging import getLogger
-from magicclass.types import OneOf, Optional, Path
+from magicclass.types import Optional, Path
 from magicclass.utils import thread_worker
 from magicclass.widgets import ConsoleTextEdit
 from magicgui.widgets import Container
@@ -73,7 +73,7 @@ _SubVolumeSize = Annotated[
         "label": "size (nm)",
     },
 ]
-_BINSIZE = OneOf[(1, 2, 3, 4, 5, 6, 7, 8)]
+_BINSIZE = Annotated[int, {"choices": [1, 2, 3, 4, 5, 6, 7, 8]}]
 
 _Logger = getLogger("cylindra")
 
@@ -246,7 +246,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         self,
         loader_name: Annotated[str, {"bind": _get_current_loader_name}],
         size: _SubVolumeSize = None,
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
         bin_size: _BINSIZE = 1,
     ):
         t0 = timer()
@@ -343,8 +343,8 @@ class BatchSubtomogramAveraging(MagicTemplate):
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
-        method: OneOf[METHOD_CHOICES] = "zncc",
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
         bin_size: _BINSIZE = 1,
     ):  # fmt: skip
         """
@@ -393,7 +393,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         size: _SubVolumeSize = None,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 1,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
         n_pairs: Annotated[int, {"min": 1, "label": "number of image pairs"}] = 1,
         show_average: bool = True,
         dfreq: FSCFreq = None,
@@ -466,7 +466,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         size: Annotated[Optional[nm], {"text": "Use mask shape", "options": {"value": 12.0, "max": 100.0}, "label": "size (nm)"}] = None,
         cutoff: _CutoffFreq = 0.5,
-        interpolation: OneOf[INTERPOLATION_CHOICES] = 3,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         bin_size: _BINSIZE = 1,
         n_components: Annotated[int, {"min": 2, "max": 20}] = 2,
         n_clusters: Annotated[int, {"min": 2, "max": 100}] = 2,

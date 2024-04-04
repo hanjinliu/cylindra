@@ -12,7 +12,7 @@ from magicclass import (
     vfield,
 )
 from magicclass.ext.pyqtgraph import QtImageCanvas, mouse_event
-from magicclass.types import OneOf, Path
+from magicclass.types import Path
 
 from cylindra.const import FileFilter
 from cylindra.utils import roundint
@@ -243,7 +243,7 @@ class SpectraInspector(ChildWidget):
         self.canvas.mouse_clicked.connect(self._on_mouse_clicked, unique=True)
 
     @set_design(text="Set bin size", location=SidePanel)
-    def set_binsize(self, binsize: OneOf[_get_binsize_choices]):
+    def set_binsize(self, binsize: Annotated[int, {"choices": _get_binsize_choices}]):
         self.load_spline(self._get_current_index(), binsize)
 
     @set_design(text="Set axial peak", location=SidePanel)

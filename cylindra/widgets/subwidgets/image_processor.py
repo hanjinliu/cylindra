@@ -12,7 +12,6 @@ from magicclass import (
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.types import Optional
 
-from cylindra._config import get_config
 from cylindra._previews import view_image
 from cylindra.const import FileFilter
 from cylindra.core import ACTIVE_WIDGETS
@@ -171,10 +170,10 @@ class ImageProcessor(ChildWidget):
                 raise ValueError("Cannot read multiple images without `suffix`.")
             imgs = []
             for fp in glob(path, recursive=True):
-                imgs.append(ip.lazy.imread(fp, chunks=get_config().dask_chunk))
+                imgs.append(ip.lazy.imread(fp, chunks=(4, -1, -1)))
             out = ip.DataList(imgs)
         else:
-            out = ip.lazy.imread(path, chunks=get_config().dask_chunk)
+            out = ip.lazy.imread(path, chunks=(4, -1, -1))
         return out
 
     def _file_count(self, path) -> int:

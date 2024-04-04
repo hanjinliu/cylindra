@@ -148,6 +148,7 @@ class SplineFitter(ChildWidget):
             self.canvas.contrast_limits = cur_img.min(), cur_img.max()
         return None
 
+    @bind_key("F")
     @set_design(text=capitalize, location=RightPanel)
     def fit(
         self,
@@ -187,6 +188,7 @@ class SplineFitter(ChildWidget):
         return out
 
     @set_design(text=capitalize, location=RightPanel)
+    @bind_key("C")
     @do_not_record
     def auto_center(self):
         """Auto centering at the current position."""

@@ -40,7 +40,8 @@ class AppConfig:
     point_size: float = 4.2
     molecules_color: str = "#00EA00"
     molecules_ndim: int = 3
-    autosave_interval: float = 30.0
+    autosave_interval: float = 60.0
+    default_dask_n_workers: int | None = None
     use_gpu: bool = True
 
     @classmethod

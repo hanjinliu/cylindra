@@ -1023,7 +1023,7 @@ class OthersMenu(ChildWidget):
     @set_design(text=capitalize)
     def configure_dask(
         self,
-        num_workers: Optional[Annotated[int, {"min": 1}]] = None,
+        num_workers: Optional[Annotated[int, {"min": 1, "value": 3}]] = None,
         scheduler: Literal["single-threaded", "threads", "synchronous", "processes"] = "threads",
     ):  # fmt: skip
         """
@@ -1068,6 +1068,7 @@ class OthersMenu(ChildWidget):
         point_size: Annotated[float, {"min": 0.5, "max": 10}] = _AppCfg.point_size,
         molecules_color: Color = _AppCfg.molecules_color,
         molecules_ndim: Literal[2, 3] = _AppCfg.molecules_ndim,
+        default_dask_n_workers: Optional[Annotated[int, {"min": 1, "value": 3}]] = _AppCfg.default_dask_n_workers,
         use_gpu: Annotated[bool, {"label": "use GPU"}] = _AppCfg.use_gpu,
     ):  # fmt: skip
         """
@@ -1085,17 +1086,22 @@ class OthersMenu(ChildWidget):
             Default point color for molecules.
         molecules_ndim : 2 or 3
             Default dimensionality to display molecules.
+        default_dask_n_workers : int, optional
+            Default number of workers to use in dask.
         use_gpu : bool, optional
             (currently does no effect)
         """
         if not isinstance(molecules_color, str):
             molecules_color = str_color(molecules_color)
+        if default_dask_n_workers is not None and default_dask_n_workers <= 0:
+            raise ValueError("Number of workers must be a positive integer.")
         cfg = _config.get_config()
         cfg.default_spline_config = default_spline_config
         cfg.dask_chunk = dask_chunk
         cfg.point_size = point_size
         cfg.molecules_color = molecules_color
         cfg.molecules_ndim = molecules_ndim
+        cfg.default_dask_n_workers = default_dask_n_workers
         cfg.use_gpu = use_gpu
         return None
 

@@ -229,7 +229,15 @@ class CylindraMainWidget(MagicTemplate):
             except Exception as e:
                 _Logger.exception(f"Failed to load workflow {file.stem}: {e}")
 
+        # setup auto saver
         self._auto_saver = AutoSaver(self, sec=cfg.autosave_interval)
+
+        # dask worker number
+        if cfg.default_dask_n_workers is not None:
+            if cfg.default_dask_n_workers <= 0:
+                _Logger.warning("Invalid dask worker number. Set to default.")
+            else:
+                self.OthersMenu.configure_dask(cfg.default_dask_n_workers)
 
         @self.macro.on_appended.append
         def _on_appended(expr: mk.Expr):
