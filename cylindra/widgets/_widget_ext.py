@@ -521,29 +521,44 @@ class _ListWidget(QtW.QListWidget):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.itemEntered.connect(self._item_entered)
         self._mouse_start: int | None = None
+        self._dragged = False
         self._old_state = None
 
     def mousePressEvent(self, e: QtGui.QMouseEvent) -> None:
-        self._mouse_start = self.indexAt(e.pos()).row()
-        self._old_state = [self.item(i).checkState() for i in range(self.count())]
+        if e.button() & Qt.MouseButton.LeftButton:
+            self._dragged = False
+            self._mouse_start = self.indexAt(e.pos()).row()
+            self._old_state = [self.item(i).checkState() for i in range(self.count())]
         return super().mousePressEvent(e)
 
     def mouseReleaseEvent(self, e: QtGui.QMouseEvent) -> None:
+        if not self._dragged and self._mouse_start is not None:
+            i = self._mouse_start
+            if item := self.item(i):
+                item.setCheckState(_not(self._old_state[i]))
+            self._mouse_start = None
+            return
         self._mouse_start = None
         return super().mouseReleaseEvent(e)
 
     def _item_entered(self, item: QtW.QListWidgetItem):
         if self._mouse_start is None:
             return None
+        self._dragged = True
         r0 = self._mouse_start
         r1 = self.indexFromItem(item).row()
         r0, r1 = sorted([r0, r1])
         for i in range(r0):
-            self.item(i).setCheckState(self._old_state[i])
+            self._set_check_state(i, self._old_state[i])
         for i in range(r0, r1 + 1):
-            self.item(i).setCheckState(_not(self._old_state[i]))
+            self._set_check_state(i, _not(self._old_state[i]))
         for i in range(r1 + 1, self.count()):
-            self.item(i).setCheckState(self._old_state[i])
+            self._set_check_state(i, self._old_state[i])
+
+    def _set_check_state(self, i: int, state: Qt.CheckState):
+        """Safely set check state of the item at the given index."""
+        if item := self.item(i):
+            item.setCheckState(state)
 
     def sizeHint(self) -> QtCore.QSize:
         size = super().sizeHint()
