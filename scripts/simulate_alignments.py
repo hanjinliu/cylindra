@@ -1,3 +1,4 @@
+import argparse
 import tempfile
 from timeit import default_timer
 
@@ -84,11 +85,15 @@ def post_process_layer(ui: CylindraMainWidget, layer: MoleculesLayer) -> Molecul
 
 
 def run_one(
-    ui: CylindraMainWidget, image_path: Path, mole_truth: Molecules, seed: int = 0
+    ui: CylindraMainWidget,
+    image_path: Path,
+    mole_truth: Molecules,
+    seed: int = 0,
+    nsr: float = 3.5,
 ):
     ui.simulator.simulate_tomogram_from_tilt_series(
         image_path,
-        nsr=3.5,
+        nsr=nsr,
         bin_size=2,
         tilt_range=(-60, 60),
         height=60.0,
@@ -182,7 +187,7 @@ def show_flat_view(ui: CylindraMainWidget, name: str, ax: plt.Axes):
     ax.axis("off")
 
 
-def main():
+def main(nrepeat: int = 10, nsr: float = 3.5):
     ui = start()
     mole_truth = create_microtubule(ui)
     pos_list = []
@@ -190,12 +195,13 @@ def main():
     time_list = []
     with tempfile.TemporaryDirectory() as tmpdir:
         save_tilt_series(ui, tmpdir)
-        for i in range(10):
+        for i in range(nrepeat):
             pos, spacing, times = run_one(
                 ui,
                 Path(tmpdir) / "image.mrc",
                 mole_truth,
                 seed=i,
+                nsr=nsr,
             )
             pos_list.append(pos)
             spacing_list.append(spacing)
@@ -258,5 +264,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    args = argparse.ArgumentParser()
+    args.add_argument("--nrepeat", type=int, default=10)
+    args.add_argument("--nsr", type=float, default=3.5)
+    params = args.parse_args()
+    print(params)
+    main(params.nrepeat, params.nsr)
     napari.run()

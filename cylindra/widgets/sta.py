@@ -74,9 +74,25 @@ if TYPE_CHECKING:
     from cylindra.components.landscape import AnnealingResult
 
 
-def _get_template_shape(self: "SubtomogramAveraging", size: nm) -> nm:
-    shape = self._get_shape_in_nm(size)
-    return max(shape)
+def _get_template_shape(
+    self: "SubtomogramAveraging", size: nm | None, others: dict
+) -> nm:
+    if size is not None:
+        return size
+    if "template_path" in others:
+        # for `calculate_fsc` and `classify_pca`
+        main = self._get_main()
+        loader = main.tomogram.get_subtomogram_loader(Molecules.empty())
+        template, mask = loader.normalize_input(
+            template=self.params._norm_template_param(
+                others.get("template_path"), allow_none=True
+            ),
+            mask=self.params._get_mask(params=others.get("mask_params")),
+        )
+        _size = max(template.shape) * loader.scale
+    else:
+        _size = max(self._get_shape_in_nm(size))
+    return _size
 
 
 def _validate_landscape_layer(self: "SubtomogramAveraging", layer) -> str:
@@ -322,7 +338,8 @@ class StaParameters(MagicTemplate):
         # load history
         line = self.template_path
         for fp in _config.get_template_path_hist():
-            line.append_history(str(fp))
+            if fp.exists():
+                line.append_history(str(fp))
 
         self.min_width = 350
 

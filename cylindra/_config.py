@@ -267,10 +267,15 @@ def get_template_path_hist() -> list[Path]:
 
 def set_template_path_hist(paths: list[str]):
     path = TEMPLATE_PATH_HIST
+
+    def _is_file_and_exists(p: str) -> bool:
+        p0 = Path(p)
+        return p0.is_file() and p0.exists()
+
     try:
         if not path.parent.exists():
             path.parent.mkdir(parents=True)
-        path.write_text("\n".join([p for p in paths if Path(p).is_file()]) + "\n")
+        path.write_text("\n".join([p for p in paths if _is_file_and_exists(p)]) + "\n")
     except Exception:
         pass
     return None
