@@ -52,6 +52,8 @@ nav:
       - molecules/expressions.md
       - molecules/split_and_combine.md
       - molecules/filter_molecules.md
+      - molecules/transform.md
+      - molecules/headers.md
     - Alignment:
       - Subtomogram Alignment and Averaging: alignment/index.md
       - alignment/conventional.md

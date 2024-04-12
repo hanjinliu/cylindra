@@ -178,6 +178,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         name_filter: Callable[[str], bool] | None = None,
         *,
         curvature: bool = False,
+        allow_no_image: bool = False,
     ) -> BatchLoader:
         """
         Construct a STA loader from all the projects.
@@ -190,6 +191,9 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             molecules by default.
         curvature : bool, default False
             If True, the spline curvature will be added to the molecule features.
+        allow_no_image : bool, default False
+            If True, this method will not raise an error when the image file is not
+            found.
         """
         import impy as ip
         from acryo import BatchLoader
@@ -201,7 +205,16 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                 return True
 
         for idx, prj in enumerate(self._projects):
-            tomo = ip.lazy.imread(prj.image, chunks=get_config().dask_chunk)
+            if prj.image is None or not prj.image.exists():
+                if not allow_no_image:
+                    raise ValueError(
+                        f"Image file not found in project at {prj.project_path}."
+                    )
+                import numpy as np
+
+                img = np.zeros((0, 0, 0), dtype=np.float32)  # dummy
+            else:
+                img = ip.lazy.imread(prj.image, chunks=get_config().dask_chunk).value
             with prj.open_project() as dir:
                 for info, mole in prj.iter_load_molecules(dir):
                     if not name_filter(info.stem):
@@ -220,7 +233,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                     mole.features = mole.features.with_columns(
                         pl.repeat(info.stem, pl.len()).alias(Mole.id)
                     )
-                    col.add_tomogram(tomo.value, molecules=mole, image_id=idx)
+                    col.add_tomogram(img, molecules=mole, image_id=idx)
         return col
 
     def collect_localprops(
@@ -419,8 +432,8 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         curvature : bool, default False
             If True, the spline curvature will be added to the molecule features.
         """
-        mole = self.sta_loader(name_filter, curvature=curvature).molecules
-        return mole
+        loader = self.sta_loader(name_filter, curvature=curvature, allow_no_image=True)
+        return loader.molecules
 
     def iter_splines(self) -> Iterable[tuple[SplineKey, CylSpline]]:
         """Iterate over all the splines in all the projects."""

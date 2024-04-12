@@ -406,9 +406,8 @@ class Spline(BaseComponent):
         fit_results = list[SplineFitResult]()
         new = self.__class__(order=k, extrapolate=self.extrapolate, config=self.config)
         with warnings.catch_warnings():
-            warnings.simplefilter(
-                "ignore", RuntimeWarning
-            )  # fitting may fail for some std
+            # fitting may fail for some std
+            warnings.simplefilter("ignore", RuntimeWarning)
             for std in std_list:
                 _tck, _u = splprep(crds.T, k=k, s=std**2 * npoints)
                 new._set_params(_tck, _u)

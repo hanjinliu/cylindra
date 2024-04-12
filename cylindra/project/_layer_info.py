@@ -1,5 +1,5 @@
 import warnings
-from abc import abstractclassmethod, abstractmethod
+from abc import abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -13,7 +13,8 @@ if TYPE_CHECKING:
 
 
 class LayerInfo(BaseModel):
-    @abstractclassmethod
+    @classmethod
+    @abstractmethod
     def from_layer(cls, gui: "CylindraMainWidget", layer: "Layer") -> "LayerInfo":
         """Convert layer to info."""
 

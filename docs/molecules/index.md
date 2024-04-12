@@ -9,3 +9,5 @@ analyze molecules.
 - [Expressions](expressions.md)
 - [Filter molecules](filter_molecules.md)
 - [Split & Combine](split_and_combine.md)
+- [Transform Molecules](transform.md)
+- [Feature Names](headers.md)

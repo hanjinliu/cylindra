@@ -1,5 +1,5 @@
+import logging
 import tempfile
-import warnings
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
@@ -19,6 +19,8 @@ if TYPE_CHECKING:
 
     from cylindra.components import CylSpline, CylTomogram
     from cylindra.widgets.main import CylindraMainWidget
+
+LOGGER = logging.getLogger("cylindra")
 
 
 class CylindraProject(BaseProject):
@@ -376,10 +378,9 @@ class CylindraProject(BaseProject):
         for info in self.molecules_info:
             path = dir / info.name
             if not path.exists():
-                warnings.warn(
-                    f"Cannot find molecule file {path}. Probably it was moved?",
-                    RuntimeWarning,
-                    stacklevel=2,
+                LOGGER.warning(
+                    f"Cannot find molecule file: {path.as_posix()}. "
+                    "Probably it was moved?"
                 )
                 continue
             mole = Molecules.from_file(path)
@@ -412,21 +413,22 @@ class CylindraProject(BaseProject):
                     compute=compute,
                 )
             else:
-                warnings.warn(
-                    f"Cannot find image file {self.image}. Load other components only.",
-                    UserWarning,
-                    stacklevel=2,
+                LOGGER.warning(
+                    f"Cannot find image file: {self.image.as_posix()}. "
+                    "Load other components only.",
                 )
                 tomo = CylTomogram.dummy(
                     scale=self.scale,
                     tilt=self.missing_wedge.as_param(),
                     binsize=self.multiscales,
+                    name="Not found",
                 )
         else:
             tomo = CylTomogram.dummy(
                 scale=self.scale,
                 tilt=self.missing_wedge.as_param(),
                 binsize=self.multiscales,
+                name="No image",
             )
         tomo.splines.extend(self.iter_load_splines(dir))
         return tomo

@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -6,13 +5,8 @@ import macrokit as mk
 from pydantic import BaseModel
 
 from cylindra._config import get_config
-from cylindra.const import (
-    MoleculesHeader as Mole,
-)
-from cylindra.const import (
-    get_versions,
-    nm,
-)
+from cylindra.const import MoleculesHeader as Mole
+from cylindra.const import get_versions, nm
 from cylindra.project._base import BaseProject, PathLike, resolve_path
 from cylindra.project._utils import as_main_function
 
@@ -123,8 +117,8 @@ class CylindraBatchProject(BaseProject):
         """Save the GUI state to a project directory."""
         self = cls.from_gui(gui, project_dir, mole_ext)
 
-        if not os.path.exists(project_dir):
-            os.mkdir(project_dir)  # create a directory if not exists.
+        if not project_dir.exists():
+            project_dir.mkdir()
 
         # save molecules
         for lmodel, info in zip(self.loaders, gui._loaders, strict=True):
