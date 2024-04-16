@@ -41,12 +41,8 @@ from cylindra.const import (
     FileFilter,
     nm,
 )
-from cylindra.const import (
-    MoleculesHeader as Mole,
-)
-from cylindra.const import (
-    PropertyNames as H,
-)
+from cylindra.const import MoleculesHeader as Mole
+from cylindra.const import PropertyNames as H
 from cylindra.utils import ceilint, roundint
 from cylindra.widget_utils import POLARS_NAMESPACE, capitalize
 from cylindra.widgets._annotated import MoleculesLayerType, _as_layer_name, assert_layer
@@ -270,13 +266,7 @@ class Simulator(ChildWidget):
         binsize = ceilint(0.96 / scale)
         # NOTE: zero-filled image breaks contrast limit calculation, and bad for
         # visual detection of the image edges.
-        img = ip.zeros(shape, axes="zyx", name="Empty image")
-        img.scale_unit = "nm"
-        val = 100 * binsize**3
-        img[0, 0, 0] = img[0, -1, 0] = img[-1, 0, 0] = img[-1, -1, 0] = val
-        img[0, 0, -1] = img[0, -1, -1] = img[-1, 0, -1] = img[-1, -1, -1] = val
-        tomo = CylTomogram.from_image(img, scale=scale, binsize=binsize)
-        tomo.metadata["is_dummy"] = True
+        tomo = CylTomogram.dummy(scale=scale, binsize=binsize, shape=shape)
         main._macro_offset = len(main.macro)
         yield main._send_tomogram_to_viewer.with_args(tomo)
         main._reserved_layers.image.bounding_box.visible = True
@@ -339,11 +329,8 @@ class Simulator(ChildWidget):
         end_shift = zxrot.apply(yxrot.apply(np.array([0.0, length / 2, 0.0])))
         center = np.array(size) / 2
         yield from self.create_empty_image.arun(size=size, scale=scale)
-
-        yield thread_worker.callback(self.create_straight_line).with_args(
-            start_shift + center, end_shift + center
-        )
-        return
+        cb = thread_worker.callback(self.create_straight_line)
+        yield cb.with_args(start_shift + center, end_shift + center)
 
     def _get_spline_idx(self, *_) -> int:
         return self._get_main()._get_spline_idx()

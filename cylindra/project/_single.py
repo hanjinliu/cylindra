@@ -421,14 +421,14 @@ class CylindraProject(BaseProject):
                     scale=self.scale,
                     tilt=self.missing_wedge.as_param(),
                     binsize=self.multiscales,
-                    name="Not found",
+                    name="<Image not found>",
                 )
         else:
             tomo = CylTomogram.dummy(
                 scale=self.scale,
                 tilt=self.missing_wedge.as_param(),
                 binsize=self.multiscales,
-                name="No image",
+                name="<No image>",
             )
         tomo.splines.extend(self.iter_load_splines(dir))
         return tomo

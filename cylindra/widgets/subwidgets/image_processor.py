@@ -191,9 +191,13 @@ class ImageProcessor(ChildWidget):
         if isinstance(img, ip.DataList):
             for each in img:
                 save_path = _autofill(each.source, self._current_suffix)
+                if each.size < 5e7:
+                    each = each.compute()
                 each.imsave(save_path)
                 yield
         else:
+            if img.size < 5e7:
+                img = img.compute()
             img.imsave(path)
             yield
         return None

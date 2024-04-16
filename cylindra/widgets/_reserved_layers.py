@@ -45,7 +45,7 @@ class ReservedLayers:
         self.image.scale = img.scale
         self.image.name = img.name
         self.image.translate = [tr] * 3
-        self.image.contrast_limits = np.min(img), np.max(img)
+        self.image.contrast_limits = _calc_contrast_limits(img)
 
     def reset_image(self, img: ip.ImgArray, tr: float):
         """Reset the reserved image layer"""
@@ -54,7 +54,7 @@ class ReservedLayers:
             scale=img.scale,
             name=img.name,
             translate=[tr, tr, tr],
-            contrast_limits=(np.min(img), np.max(img)),
+            contrast_limits=_calc_contrast_limits(img),
             blending="translucent_no_depth",
         )
 
@@ -160,3 +160,11 @@ def _work_layer() -> Points:
     )
     work.mode = "add"
     return work
+
+
+def _calc_contrast_limits(arr: np.ndarray) -> tuple[float, float]:
+    """Calculate contrast limits for an array."""
+    cmin, cmax = np.min(arr), np.max(arr)
+    if cmin >= cmax:
+        cmax = cmin + 1
+    return cmin, cmax

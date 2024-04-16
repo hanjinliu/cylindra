@@ -741,12 +741,14 @@ class CylindraMainWidget(MagicTemplate):
         """Invert the intensity of the images."""
         self.tomogram.invert()
         img_inv = -self._reserved_layers.image.data
-        clim = np.percentile(img_inv, [1, 99.9])
+        cmin, cmax = np.percentile(img_inv, [1, 99.9])
+        if cmin >= cmax:
+            cmax = cmin + 1
 
         @thread_worker.callback
         def _invert_image_on_return():
             self._reserved_layers.image.data = img_inv
-            self._reserved_layers.image.contrast_limits = clim
+            self._reserved_layers.image.contrast_limits = (cmin, cmax)
             self.Overview.image = -self.Overview.image
             clow, chigh = self.Overview.contrast_limits
             self.Overview.contrast_limits = -chigh, -clow

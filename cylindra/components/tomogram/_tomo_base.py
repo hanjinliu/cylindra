@@ -116,7 +116,6 @@ class Tomogram:
     ) -> Self:
         """Create a dummy tomogram."""
         dummy = ip.zeros(shape, name=name, dtype=np.float32, axes="zyx")
-        dummy[0, 0, 0] = 1.0
         dummy.source = source
         tomo = cls.from_image(
             dummy,
