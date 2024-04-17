@@ -1652,6 +1652,23 @@ class CylindraMainWidget(MagicTemplate):
         mk.Expr(mk.Head.block, macro.args[1:]).eval({_ui_sym: self})
         return self.macro.clear_undo_stack()
 
+    @set_design(text="Re-analyze current tomogram with new config", location=_sw.AnalysisMenu)  # fmt: skip
+    @do_not_record
+    def reanalyze_image_config_updated(self):
+        """
+        Reanalyze the current tomogram with newly set default spline config.
+
+        This method is useful when you have mistakenly drawn splines with wrong spline
+        config.
+        """
+        _ui_sym = mk.symbol(self)
+        macro_expr = self._format_macro()[self._macro_image_load_offset :]
+        macro = _filter_macro_for_reanalysis(macro_expr, _ui_sym)
+        macro = _remove_config_kwargs(macro)
+        self.clear_all()
+        mk.Expr(mk.Head.block, macro.args[1:]).eval({_ui_sym: self})
+        return self.macro.clear_undo_stack()
+
     @set_design(text="Re-analyze project", location=_sw.AnalysisMenu)
     @do_not_record
     @bind_key("Ctrl+K, Ctrl+L")
@@ -2870,6 +2887,17 @@ def _filter_macro_for_reanalysis(macro_expr: mk.Expr, ui_sym: mk.Symbol):
         exprs.append(mk.Expr(mk.Head.comment, [str(breaked_line) + " ... break here."]))
 
     return mk.Expr(mk.Head.block, exprs)
+
+
+def _remove_config_kwargs(macro: mk.Macro) -> mk.Macro:
+    macro_args_new = []
+    for line in macro.args:
+        _fn, _args, _kwargs = line.split_call()
+        if "config" in _kwargs:
+            _kwargs.pop("config")
+        line_new = mk.Expr.unsplit_call(_fn, _args, _kwargs)
+        macro_args_new.append(line_new)
+    return mk.Macro(macro_args_new)
 
 
 def _assert_source_spline_exists(layer: MoleculesLayer) -> "CylSpline":

@@ -309,7 +309,8 @@ class SplinesMenu(ChildWidget):
             color_by: Annotated[Optional[str], {"text": "Do not colorize"}] = None,
             interval: Annotated[nm, {"min": 0.1, "step": 0.1}] = 4.0,
             interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 0,
-        ):
+            contrast_limits: Annotated[Optional[tuple[float, float]], {"text": "Auto contrast"}] = None,
+        ):  # fmt: skip
             """
             Show 3D spline cylinder as a surface layer.
 
@@ -345,7 +346,11 @@ class SplinesMenu(ChildWidget):
             ]
             cmap = "inferno" if color_by else None
             surf = main.parent_viewer.add_surface(
-                surface_data, shading="smooth", colormap=cmap, name="cylinders"
+                surface_data,
+                shading="smooth",
+                colormap=cmap,
+                name="cylinders",
+                contrast_limits=contrast_limits,
             )
             main._reserved_layers.to_be_removed.add(surf)
             return surf
@@ -740,6 +745,7 @@ class AnalysisMenu(ChildWidget):
     global_cft_analysis = abstractapi()
     sep1 = field(Separator)
     reanalyze_image = abstractapi()
+    reanalyze_image_config_updated = abstractapi()
     load_project_for_reanalysis = abstractapi()
     sep2 = field(Separator)
 

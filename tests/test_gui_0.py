@@ -263,6 +263,7 @@ def test_reanalysis(ui: CylindraMainWidget):
     assert ui.splines[0].radius is not None
     assert len(ui.macro.undo_stack["undo"]) > 0
     ui.reanalyze_image()
+    ui.reanalyze_image_config_updated()
     assert len(ui.macro.undo_stack["undo"]) == 0
     assert ui.splines[0].radius is None
     assert len(ui.macro) > 1
