@@ -690,6 +690,7 @@ class CylindraMainWidget(MagicTemplate):
             label,
             name=label.name,
             translate=[tr, tr, tr],
+            scale=list(label.scale),
             opacity=0.4,
         )
         self._reserved_layers.to_be_removed.add(label)
@@ -1022,12 +1023,14 @@ class CylindraMainWidget(MagicTemplate):
         thickness_outer: Annotated[nm, {"min": 0.0, "step": 0.1}] = 2.8,
         fit_depth: Annotated[nm, {"min": 4.0, "step": 1}] = 49.0,
         fit_width: Annotated[nm, {"min": 4.0, "step": 1}] = 44.0,
+        copy_props: bool = False,
     ):  # fmt: skip
         """Make a copy of the current spline with a new configuration."""
         config = locals()
-        del config["i"], config["self"]
+        del config["i"], config["self"], config["copy_props"]
         spl = self.tomogram.splines[i]
-        self.tomogram.splines.append(spl.with_config(config))
+        spl_new = spl.with_config(config, copy_props=copy_props)
+        self.tomogram.splines.append(spl_new)
         self.reset_choices()
         self.SplineControl.num = len(self.tomogram.splines) - 1
         return undo_callback(self.delete_spline).with_args(-1)
@@ -1507,9 +1510,7 @@ class CylindraMainWidget(MagicTemplate):
             return tracker.as_undo_callback()
 
     @set_design(text="Local CFT analysis", location=_sw.AnalysisMenu)
-    @thread_worker.with_progress(
-        desc="Local Cylindric Fourier transform", total=_NSPLINES
-    )
+    @thread_worker.with_progress(desc="Local Cylindric Fourier transform", total=_NSPLINES)  # fmt: skip
     def local_cft_analysis(
         self,
         splines: _Splines = None,
@@ -1984,9 +1985,6 @@ class CylindraMainWidget(MagicTemplate):
         """
         layer = assert_layer(layer, self.parent_viewer)
         utils.assert_column_exists(layer.molecules.features, by)
-        n_unique = layer.molecules.features[by].n_unique()
-        if n_unique > 48:
-            raise ValueError(f"Too many groups ({n_unique}).")
         _added_layers = list[MoleculesLayer]()
         for _key, mole in layer.molecules.groupby(by):
             new = self.add_molecules(
@@ -2024,11 +2022,11 @@ class CylindraMainWidget(MagicTemplate):
         {layers}
         translation : tuple of float
             Translation (nm) of the molecules in (Z, Y, X) order. Whether the world
-            coordinate or the internal coordinate is used depends on the ``internal``
+            coordinate or the internal coordinate is used depends on the `internal`
             argument.
         internal : bool, default True
-            If true, the translation is applied to the internal coordinates, i.e. molecules
-            with different rotations are translated differently.
+            If true, the translation is applied to the internal coordinates, i.e.
+            molecules with different rotations are translated differently.
         {inherit_source}
         """
         layers = assert_list_of_layers(layers, self.parent_viewer)
@@ -2073,8 +2071,9 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         {layers}
         degrees : list of (str, float)
-            Rotation axes and degrees. For example, ``[("z", 20), ("y", -10)]`` means rotation
-            by 20 degrees around the molecule Z axis and then by -10 degrees around the Y axis.
+            Rotation axes and degrees. For example, `[("z", 20), ("y", -10)]` means
+            rotation by 20 degrees around the molecule Z axis and then by -10 degrees
+            around the Y axis.
         {inherit_source}
         """
         layers = assert_list_of_layers(layers, self.parent_viewer)
@@ -2144,9 +2143,7 @@ class CylindraMainWidget(MagicTemplate):
         pattern : str, optional
             String pattern to match the layer names. Use `*` as wildcard.
         """
-        return self.mole_layers.delete(
-            include=include, exclude=exclude, pattern=pattern
-        )
+        self.mole_layers.delete(include=include, exclude=exclude, pattern=pattern)
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu)
     def filter_molecules(
@@ -2217,11 +2214,11 @@ class CylindraMainWidget(MagicTemplate):
         """
         Calculate a new feature from the existing features.
 
-        This method is identical to running ``with_columns`` on the features dataframe
-        as a ``polars.DataFrame``. For example,
-        `ui.calculate_molecule_features(layer, "Y", "pl.col('X') + 1")`
+        This method is identical to running `with_columns` on the features dataframe
+        as a `polars.DataFrame`. For example,
+        >>> ui.calculate_molecule_features(layer, "Y", "pl.col('X') + 1")
         is equivalent to
-        `layer.features = layer.features.with_columns([(pl.col("X") + 1).alias("Y")])`
+        >>> layer.features = layer.features.with_columns([(pl.col("X") + 1).alias("Y")])
 
         Parameters
         ----------

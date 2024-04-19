@@ -251,6 +251,7 @@ def test_config(ui: CylindraMainWidget):
         with _config.patch_config_dir(tmpdir):
             ui.SplinesMenu.Config.save_default_config(tmpdir)
             ui.SplinesMenu.Config.load_default_config(tmpdir)
+    ui.SplinesMenu.Config.view_config_presets()
 
 
 def test_reanalysis(ui: CylindraMainWidget):

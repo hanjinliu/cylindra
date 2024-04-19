@@ -116,9 +116,13 @@ class Spline(BaseComponent):
         new._extrapolate = ExtrapolationMode(extrapolate)
         return new
 
-    def with_config(self, config: dict[str, Any] | SplineConfig) -> Self:
+    def with_config(
+        self,
+        config: dict[str, Any] | SplineConfig,
+        copy_props: bool = False,
+    ) -> Self:
         """Return a copy of the spline with a new config."""
-        new = self.copy(copy_config=False)
+        new = self.copy(copy_props=copy_props, copy_config=False)
         if not isinstance(config, SplineConfig):
             config = SplineConfig.construct(**config)
         new._config = config

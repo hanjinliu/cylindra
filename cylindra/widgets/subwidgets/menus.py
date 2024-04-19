@@ -27,6 +27,7 @@ from magicclass.logging import getLogger
 from magicclass.types import Color, Optional, Path
 from magicclass.utils import thread_worker
 from magicclass.widgets import CodeEdit, ConsoleTextEdit, Separator
+from magicgui.widgets import ComboBox, Container
 
 from cylindra import _config
 from cylindra._napari import MoleculesLayer
@@ -359,8 +360,6 @@ class SplinesMenu(ChildWidget):
         @do_not_record
         def show_localprops(self):
             """Show spline local properties in a table widget."""
-            from magicgui.widgets import ComboBox, Container
-
             main = self._get_main()
             cbox = ComboBox(choices=main._get_splines)
             table = DataFrameView(value={})
@@ -446,18 +445,39 @@ class SplinesMenu(ChildWidget):
         def load_default_config(
             self, name: Annotated[str, {"choices": _get_saved_config_files}]
         ):
-            """Load a saved config file as the default config."""
+            """Load a preset config file as the default config."""
             path = _config.get_config().spline_config_path(name)
             self._get_main().default_config = SplineConfig.from_file(path)
             return None
 
         @set_design(text=capitalize)
         def save_default_config(self, name: str):
-            """Save current default config."""
+            """Save current default config as a preset."""
             path = _config.get_config().spline_config_path(name)
             if path.exists():
                 raise FileExistsError(f"Config file {path} already exists.")
-            return self._get_main().default_config.to_file(path)
+            self._get_main().default_config.to_file(path)
+            return self.reset_choices()
+
+        @set_design(text=capitalize)
+        def view_config_presets(self):
+            """View the spline config presets."""
+            cbox = ComboBox(choices=self._get_saved_config_files())
+            params_wdt = Container.from_callable(self.update_default_config)
+            params_wdt.enabled = False
+
+            @cbox.changed.connect
+            def _on_changed(name: str):
+                path = _config.get_config().spline_config_path(name)
+                config = SplineConfig.from_file(path)
+                params_wdt.update(config.asdict())
+
+            widget = Container(widgets=[cbox, params_wdt], labels=False)
+            self.parent_viewer.window.add_dock_widget(
+                widget, area="left", name="Config presets"
+            ).setFloating(True)
+            cbox.changed.emit(cbox.value)
+            return None
 
     @magicmenu
     class Fitting(ChildWidget):

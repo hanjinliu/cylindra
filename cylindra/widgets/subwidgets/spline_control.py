@@ -340,8 +340,11 @@ class SplineControl(ChildWidget):
     def _update_projections(self, proj: Projections):
         self.canvas[0].image = proj.yx
         self.canvas[1].image = proj.zx
+        self.canvas[0].auto_range()
+        self.canvas[1].auto_range()
         if proj.zx_ave is not None:
             self.canvas[2].image = proj.zx_ave
+            self.canvas[2].auto_range()
         else:
             del self.canvas[2].image
 

@@ -278,6 +278,9 @@ class Landscape:
         else:
             slices = [slice(None)]
             viterbi_tasks = [delayed(self.run_viterbi)(range_long, angle_max)]
+        _Logger.info("Running Viterbi alignment")
+        _Logger.info(f"  shape: {self.energies.shape[1:]!r}")
+        _Logger.info(f"  tasks: {len(viterbi_tasks)}")
         vit_out = compute(*viterbi_tasks)
 
         inds = np.empty((mole.count(), 3), dtype=np.int32)
@@ -397,7 +400,8 @@ class Landscape:
 
         batch_size = _to_batch_size(annealing.time_constant())
         temp0 = annealing.temperature()
-
+        _Logger.info("Running annealing")
+        _Logger.info(f"  shape: {self.energies.shape[1:]!r}")
         tasks = [
             _run_annealing(annealing.with_seed(s), batch_size, temp0)
             for s in random_seeds
@@ -445,9 +449,7 @@ class Landscape:
         self, temperature_time_const, temperature, cooling_rate, reject_limit
     ):
         nmole = self.molecules.count()
-        time_const = (
-            nmole * np.product(self.energies.shape[1:]) * temperature_time_const
-        )
+        time_const = nmole * np.prod(self.energies.shape[1:]) * temperature_time_const
         _energy_std = np.std(self.energies)
         if temperature is None:
             temperature = _energy_std * 2
@@ -459,11 +461,11 @@ class Landscape:
 
     def normed(self, sd: bool = True) -> Landscape:
         """Return a landscape with normalized mean energy."""
-        each_mean = self.energies.mean(axis=(1, 2, 3))
+        each_mean: NDArray[np.float32] = self.energies.mean(axis=(1, 2, 3))
         all_mean = each_mean.mean()
         sl = (slice(None), np.newaxis, np.newaxis, np.newaxis)
         if sd:
-            each_sd = self.energies.std(axis=(1, 2, 3))
+            each_sd: NDArray[np.float32] = self.energies.std(axis=(1, 2, 3))
             all_sd = each_sd.std()
             dif = self.energies - each_mean[sl]
             new_array = dif * all_sd / each_sd[sl] + all_mean
