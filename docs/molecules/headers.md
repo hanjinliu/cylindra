@@ -9,7 +9,7 @@ Here's the list of the standard feature names and how they will be added.
 
     This feature is added by:
     - [map_monomers][cylindra.widgets.main.CylindraMainWidget.map_monomers]
-    - [map_monomers_with_extentions][cylindra.widgets.main.CylindraMainWidget.map_monomers_with_extentions]
+    - [map_monomers_with_extensions][cylindra.widgets.main.CylindraMainWidget.map_monomers_with_extensions]
 
 - `"pf-id"`
 
@@ -18,7 +18,7 @@ Here's the list of the standard feature names and how they will be added.
 
     This feature is added by:
     - [map_monomers][cylindra.widgets.main.CylindraMainWidget.map_monomers]
-    - [map_monomers_with_extentions][cylindra.widgets.main.CylindraMainWidget.map_monomers_with_extentions]
+    - [map_monomers_with_extensions][cylindra.widgets.main.CylindraMainWidget.map_monomers_with_extensions]
 
 - `"position"`
 
@@ -27,7 +27,7 @@ Here's the list of the standard feature names and how they will be added.
 
     This feature is added by:
     - [map_monomers][cylindra.widgets.main.CylindraMainWidget.map_monomers]
-    - [map_monomers_with_extentions][cylindra.widgets.main.CylindraMainWidget.map_monomers_with_extentions]
+    - [map_monomers_with_extensions][cylindra.widgets.main.CylindraMainWidget.map_monomers_with_extensions]
 
 - `"isotype-id"`
 
@@ -35,9 +35,9 @@ Here's the list of the standard feature names and how they will be added.
     isotype.
 
     This feature is added by:
-    - [seam_search][cylindra.widgets.sta.SubtomogramAnalysis.seam_search]
-    - [seam_search_by_feature][cylindra.widgets.sta.SubtomogramAnalysis.seam_search_by_feature]
-    - [seam_search_manually][cylindra.widgets.sta.SubtomogramAnalysis.seam_search_manually]
+    - [seam_search][cylindra.widgets.sta.SubtomogramAveraging.seam_search]
+    - [seam_search_by_feature][cylindra.widgets.sta.SubtomogramAveraging.seam_search_by_feature]
+    - [seam_search_manually][cylindra.widgets.sta.SubtomogramAveraging.seam_search_manually]
 
 - `"score"`
 
@@ -45,13 +45,13 @@ Here's the list of the standard feature names and how they will be added.
     may be affected by the missing wedge.
 
     This feature is added by:
-    - [align_all][cylindra.widgets.sta.SubtomogramAnalysis.align_all]
-    - [align_all_template_free][cylindra.widgets.sta.SubtomogramAnalysis.align_all_template_free]
-    - [align_all_viterbi][cylindra.widgets.sta.SubtomogramAnalysis.align_all_viterbi]
-    - [align_all_annealing][cylindra.widgets.sta.SubtomogramAnalysis.align_all_annealing]
-    - [run_align_on_landscape][cylindra.widgets.sta.SubtomogramAnalysis.run_align_on_landscape]
-    - [run_viterbi_on_landscape][cylindra.widgets.sta.SubtomogramAnalysis.run_viterbi_on_landscape]
-    - [run_annealing_on_landscape][cylindra.widgets.sta.SubtomogramAnalysis.run_annealing_on_landscape]
+    - [align_all][cylindra.widgets.sta.SubtomogramAveraging.align_all]
+    - [align_all_template_free][cylindra.widgets.sta.SubtomogramAveraging.align_all_template_free]
+    - [align_all_viterbi][cylindra.widgets.sta.SubtomogramAveraging.align_all_viterbi]
+    - [align_all_annealing][cylindra.widgets.sta.SubtomogramAveraging.align_all_annealing]
+    - [run_align_on_landscape][cylindra.widgets.sta.SubtomogramAveraging.run_align_on_landscape]
+    - [run_viterbi_on_landscape][cylindra.widgets.sta.SubtomogramAveraging.run_viterbi_on_landscape]
+    - [run_annealing_on_landscape][cylindra.widgets.sta.SubtomogramAveraging.run_annealing_on_landscape]
 
 Following values are measured by [calculate_lattice_structure].
 

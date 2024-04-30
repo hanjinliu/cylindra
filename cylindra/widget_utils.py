@@ -107,11 +107,20 @@ def _replace_utf8(string: str) -> str:
     return string[sl_0] + '"' + string[sl_mid] + '"' + string[sl_1]
 
 
+def _replace_dyn(string: str, fmt: str) -> str:
+    _float_or_int = r"[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?"
+    return re.sub(rf"\(dyn {fmt}: ({_float_or_int})\)", r"\1", string)
+
+
 def _polars_expr_to_str(expr: pl.Expr) -> str:
     expr_str = str(expr).replace(".when(", "when(").replace(".strict_cast(", ".cast(")
     if "Utf8" in expr_str:
         # Utf8(xxx) -> "xxx"
         expr_str = _replace_utf8(expr_str)
+    if "dyn int:" in expr_str:
+        expr_str = _replace_dyn(expr_str, "int")
+    if "dyn float:" in expr_str:
+        expr_str = _replace_dyn(expr_str, "float")
     if "[" in expr_str:
         # converting binary expression to str will add brackets so remove them
         # e.g. [col("a") == (3)] -> col("a") == (3)
@@ -124,7 +133,8 @@ def _polars_expr_to_str(expr: pl.Expr) -> str:
         ):
             expr_str = expr_str[1:-1]
     try:
-        ExprStr(expr_str, POLARS_NAMESPACE).eval()
+        ns = dict(**POLARS_NAMESPACE, true=True, false=False, String=str)
+        ExprStr(expr_str, ns).eval()
     except Exception:
         raise ValueError(
             f"Expression {expr_str!r} cannot be safely parsed. Please use "
