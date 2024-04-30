@@ -3,7 +3,7 @@ from abc import abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from pydantic import BaseModel
+from pydantic_compat import BaseModel
 
 if TYPE_CHECKING:
     from napari.layers import Layer

@@ -19,6 +19,8 @@ ROT_COLUMNS = ["rlnAngleRot", "rlnAngleTilt", "rlnAnglePsi"]
 POS_ORIGIN_COLUMNS = ["rlnOriginZAngst", "rlnOriginYAngst", "rlnOriginXAngst"]
 RELION_TUBE_ID = "rlnHelicalTubeID"
 MOLE_ID = "MoleculeGroupID"
+PIXEL_SIZE = "rlnTomoTiltSeriesPixelSize"
+OPTICS_GROUP = "rlnOpticsGroup"
 
 
 @magicmenu
@@ -97,12 +99,13 @@ class RELION(ChildWidget):
         euler_angle = mole.euler_angle(seq="ZYZ", degrees=True)
 
         out_dict = {
-            POS_COLUMNS[2]: mole.pos[:, 2] / self.scale * 10,
-            POS_COLUMNS[1]: mole.pos[:, 1] / self.scale * 10,
-            POS_COLUMNS[0]: mole.pos[:, 0] / self.scale * 10,
+            POS_COLUMNS[2]: mole.pos[:, 2] / self.scale,
+            POS_COLUMNS[1]: mole.pos[:, 1] / self.scale,
+            POS_COLUMNS[0]: mole.pos[:, 0] / self.scale,
             ROT_COLUMNS[0]: euler_angle[:, 0],
             ROT_COLUMNS[1]: euler_angle[:, 1],
             ROT_COLUMNS[2]: euler_angle[:, 2],
+            OPTICS_GROUP: np.ones(mole.count(), dtype=np.uint32),
         }
         if len(layers) > 1:
             out_dict[MOLE_ID] = np.concatenate(
@@ -115,7 +118,7 @@ class RELION(ChildWidget):
             for col in mole.features.columns:
                 out_dict[col] = mole.features[col]
         df = pd.DataFrame(out_dict)
-        write_star(df, save_path)
+        self._write_star(df, save_path)
         return None
 
     @set_design(text=capitalize)
@@ -143,7 +146,7 @@ class RELION(ChildWidget):
         data_list: list[pl.DataFrame] = []
         for i, spl in enumerate(main.splines):
             num = int(spl.length() / interval)
-            coords = spl.partition(num) / self.scale * 10
+            coords = spl.partition(num) / self.scale
             df = pl.DataFrame(
                 {
                     POS_COLUMNS[2]: coords[:, 2],
@@ -153,11 +156,12 @@ class RELION(ChildWidget):
                     ROT_COLUMNS[1]: 0.0,
                     ROT_COLUMNS[2]: 0.0,
                     RELION_TUBE_ID: i,
+                    OPTICS_GROUP: np.ones(coords.shape[0], dtype=np.uint32),
                 }
             )
             data_list.append(df)
         df = pl.concat(data_list, how="vertical").to_pandas()
-        write_star(df, save_path)
+        self._write_star(df, save_path)
 
     @property
     def scale(self) -> float:
@@ -185,9 +189,9 @@ class RELION(ChildWidget):
             opt = star["optics"]
             if not isinstance(opt, pd.DataFrame):
                 raise NotImplementedError("Optics block must be a dataframe")
-            particles = particles.merge(opt, on="rlnOpticsGroup")
-            if "rlnTomoTiltSeriesPixelSize" in particles.columns:
-                pixel_sizes = particles["rlnTomoTiltSeriesPixelSize"] / 10
+            particles = particles.merge(opt, on=OPTICS_GROUP)
+            if PIXEL_SIZE in particles.columns:
+                pixel_sizes = particles[PIXEL_SIZE] / 10
                 for col in POS_COLUMNS:
                     particles[col] *= pixel_sizes  # update positions in place
                 scale = 1  # because already updated
@@ -206,14 +210,15 @@ class RELION(ChildWidget):
             return [m.drop_features(MOLE_ID) for _, m in mole.group_by(MOLE_ID)]
         return [mole]
 
+    def _write_star(self, df: pd.DataFrame, path: str):
+        try:
+            import starfile
+        except ImportError:
+            raise ImportError(
+                "`starfile` is required to save RELION star files. Please\n"
+                "$ pip install starfile"
+            )
 
-def write_star(df: pd.DataFrame, path: str):
-    try:
-        import starfile
-    except ImportError:
-        raise ImportError(
-            "`starfile` is required to save RELION star files. Please\n"
-            "$ pip install starfile"
-        )
+        head = pd.DataFrame({OPTICS_GROUP: [1], PIXEL_SIZE: [self.scale * 10]})
 
-    return starfile.write(df, path)
+        return starfile.write({"optics": head, "particles": df}, path)

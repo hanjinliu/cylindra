@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import macrokit as mk
-from pydantic import BaseModel
+from pydantic_compat import BaseModel
 
 from cylindra._config import get_config
 from cylindra.const import MoleculesHeader as Mole

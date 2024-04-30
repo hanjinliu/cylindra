@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic_compat import BaseModel
 from typing_extensions import Self
 
 from cylindra.project._json import project_json_encoder
