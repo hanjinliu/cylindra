@@ -10,7 +10,7 @@ on:
 
 jobs:
   docs:
-    runs-on: windows-latest
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -21,7 +21,7 @@ jobs:
 
       - name: Create virtual environment
         env:
-          BIN: ${{ matrix.os == 'windows-latest' && 'Scripts' || 'bin' }}
+          BIN: ${{ matrix.os == 'macos-latest' && 'Scripts' || 'bin' }}
         run: |
           python -m venv .venv
           echo "$GITHUB_WORKSPACE/.venv/$BIN" >> $GITHUB_PATH
