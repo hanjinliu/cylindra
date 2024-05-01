@@ -1,3 +1,7 @@
+[![BSD 3-Clause License](https://img.shields.io/pypi/l/cylindra.svg?color=green)](https://github.com/hanjinliu/cylindra/blob/main/LICENSE)
+[![Python package index download statistics](https://img.shields.io/pypi/dm/cylindra.svg)](https://pypistats.org/packages/cylindra)
+[![PyPI version](https://badge.fury.io/py/cylindra.svg)](https://badge.fury.io/py/cylindra)
+
 # cylindra
 
 `cylindra` is a GUI-integrated cryo-ET image analysis tool for cylindric periodic
@@ -7,7 +11,7 @@ structures such as microtubules.
 
 ## Documentation
 
-TODO
+COMING SOON
 
 ## Installation
 
@@ -89,6 +93,4 @@ and the recorded macro from `Others > Macro > Show macro`.
 
 If you find `cylindra` useful in your work, please consider citing our paper.
 
-```
-TODO
-```
+COMING SOON
