@@ -59,11 +59,11 @@ filtered image for visualization.
 
 !!! danger "Important: Use dark background images"
 
-   Most of the methods require dark-background images, while most of the raw images of
-   electron microscopy are light-background. You have to manually prepare an inverted
-   image file, or check the "Invert intensity" option in the open-image dialog. The
-   loaded image can also be inverted from the menu (see
-   [Invert Images](#invert-images)).
+    Most of the methods require dark-background images, while most of the raw images of
+    electron microscopy are light-background. You have to manually prepare an inverted
+    image file, or check the "Invert intensity" option in the open-image dialog. The
+    loaded image can also be inverted from the menu (see
+    [Invert Images](#invert-images)).
 
 1. Click "Select file" to select the image file to open. tiff and mrc files are
    supported.

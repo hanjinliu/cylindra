@@ -9,9 +9,7 @@ structures such as microtubules.
 
 ![](resources/fig.png)
 
-## Documentation
-
-COMING SOON
+### [&rarr; Documentation](https://hanjinliu.github.io/cylindra/)
 
 ## Installation
 
