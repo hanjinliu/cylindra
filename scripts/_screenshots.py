@@ -1,3 +1,4 @@
+import gc
 from pathlib import Path
 
 import mkdocs_gen_files
@@ -172,7 +173,10 @@ def main():
     # batch analyzer
     _imsave(ui.batch.constructor.native, "batch_constructor")
 
-    QtW.QApplication.processEvents()
+    # to avoid OpenGL rendering error
+    for _ in range(10):
+        QtW.QApplication.processEvents()
+    gc.collect()
 
 
 main()
