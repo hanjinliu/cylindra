@@ -10,6 +10,8 @@ def _get_name(layer) -> str:
         return layer
     elif isinstance(layer, Layer):
         return layer.name
+    elif isinstance(layer, list) and len(layer) > 0:
+        return f"{_get_name(layer[0])} etc."
     return repr(layer)
 
 
@@ -45,11 +47,11 @@ def align_averaged_fmt(layers: list[Layer]):
     yield f"({total}/{total}) Finishing"
 
 
-def align_template_free_fmt():
-    yield "(0/4) Caching subtomograms of"
-    yield "(1/4) Preparing template images for"
-    yield "(2/4) Averaging subtomograms of"
-    yield "(3/4) Aligning subtomograms of"
+def align_template_free_fmt(layers: list[Layer]):
+    name = _get_name(layers)
+    yield f"(0/3) Preparing template images for {name!r}"
+    yield f"(1/3) Averaging subtomograms of {name!r}"
+    yield f"(2/3) Aligning subtomograms of {name!r}"
     yield "(4/4) Finishing"
 
 
@@ -79,9 +81,8 @@ def construct_landscape_fmt(layer: Layer):
 
 def classify_pca_fmt(layer: Layer):
     name = _get_name(layer)
-    yield f"(0/5) Caching subtomograms of {name!r}"
-    yield "(1/5) Creating template image for PCA clustering"
-    yield "(2/5) Fitting PCA model"
-    yield "(3/5) Transforming all the images"
-    yield "(4/5) Creating average images for each cluster"
-    yield "(5/5) Finishing"
+    yield f"(0/4) Creating template image for PCA clustering from {name!r}"
+    yield "(1/4) Fitting PCA model"
+    yield "(2/4) Transforming all the images"
+    yield "(3/4) Creating average images for each cluster"
+    yield "(4/4) Finishing"

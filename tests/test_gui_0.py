@@ -52,11 +52,11 @@ def assert_orientation(ui: CylindraMainWidget, ori: str):
     assert ui.GlobalProperties.params.params2.orientation_.txt == ori
 
     spec = ui._reserved_layers.prof.features["spline-id"] == ui.SplineControl.num
-    arr = ui._reserved_layers.prof.text.string.array[spec]
+    arr = ui._reserved_layers.prof.symbol[spec]
     if ori == "MinusToPlus":
-        assert (arr[0], arr[-1]) == ("-", "+")
+        assert (arr[0], arr[-1]) == ("hbar", "cross")
     elif ori == "PlusToMinus":
-        assert (arr[0], arr[-1]) == ("+", "-")
+        assert (arr[0], arr[-1]) == ("cross", "hbar")
 
 
 def test_click_buttons(ui: CylindraMainWidget):

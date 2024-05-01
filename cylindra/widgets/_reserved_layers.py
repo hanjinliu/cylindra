@@ -102,32 +102,27 @@ class ReservedLayers:
         self.work = _work_layer()
 
     def set_orientation(self, idx: int, orientation: Ori):
-        """Set the orientation marker text."""
+        """Set the orientation marker."""
         layer = self.prof
         spline_id = layer.features[SPLINE_ID]
         spec = spline_id == idx
-        if layer.text.string.encoding_type == "ConstantStringEncoding":
-            # if text uses constant string encoding, update it to ManualStringEncoding
-            string_arr = np.zeros(len(layer.data), dtype="<U1")
-        else:
-            string_arr = np.asarray(layer.text.string.array, dtype="<U1")
+        symbol_arr = layer.symbol
 
-        str_of_interest = string_arr[spec]
+        symbol_of_interest = symbol_arr[spec]
 
-        if orientation is Ori.none:
-            str_of_interest[:] = ""
-        elif orientation is Ori.MinusToPlus:
-            str_of_interest[0], str_of_interest[-1] = "-", "+"
-        elif orientation is Ori.PlusToMinus:
-            str_of_interest[0], str_of_interest[-1] = "+", "-"
-        else:  # pragma: no cover
-            raise RuntimeError(orientation)
+        match orientation:
+            case Ori.none:
+                symbol_of_interest[:] = "o"
+            case Ori.MinusToPlus:
+                symbol_of_interest[0], symbol_of_interest[-1] = "-", "+"
+            case Ori.PlusToMinus:
+                symbol_of_interest[0], symbol_of_interest[-1] = "+", "-"
+            case ori:  # pragma: no cover
+                raise RuntimeError(ori)
 
         # update
-        string_arr[spec] = str_of_interest
-        layer.text.string = list(string_arr)
-
-        layer.text.string = list(string_arr)
+        symbol_arr[spec] = symbol_of_interest
+        layer.symbol = list(symbol_arr)
         layer.refresh()
         return None
 

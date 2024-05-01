@@ -86,7 +86,7 @@ filtered image for visualization.
    shown, which only loads separate image slices to accelerate the image loading.
 9. Click "Open" to calculate the binning/filtering and show the reference image.
 
-![](images\viewer_00_open_image.png){ loading=lazy }
+![](images/viewer_00_open_image.png){ loading=lazy }
 
 After opening an image, you'll find three layers added to the viewer:
 
