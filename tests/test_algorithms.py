@@ -29,6 +29,8 @@ def test_run_all(coords, npf, rise, twist_range):
     tomo.make_anchors(n=3)
     assert tomo.splines.collect_localprops() is None
     assert tomo.splines.collect_globalprops() is None
+    tomo.measure_radius(positions="auto")
+    tomo.measure_radius(positions=[0.2, 0.8])
     tomo.measure_radius()
     assert tomo.splines.collect_localprops() is None
     assert H.radius in tomo.splines.collect_globalprops(allow_none=False).columns
@@ -74,7 +76,7 @@ def test_run_all(coords, npf, rise, twist_range):
 
     tomo.local_radii()
     tomo.local_cft_params(radius="local")
-    tomo.local_cft_params(radius=10.2)
+    tomo.local_cft_params(radius=10.2, update_glob=True)
 
     repr(tomo.splines[0].props)
     tomo.splines[0].props[H.spacing]

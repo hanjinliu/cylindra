@@ -66,26 +66,6 @@ PolarsExprStrOrScalar = Annotated[
     },
 ]
 
-_FLOAT_NAMESPACE = {"__builtins__": {}, "inf": float("inf"), "nan": float("nan")}
-
-
-def _validate_float(x):
-    if isinstance(x, str):
-        x = eval(x, _FLOAT_NAMESPACE)
-    if not isinstance(x, (int, float, np.number)):
-        raise TypeError(f"Invalid type: {type(x)}")
-    return x
-
-
-FloatInfNan = Annotated[
-    float,
-    {
-        "widget_type": EvalLineEdit,
-        "namespace": _FLOAT_NAMESPACE,
-        "validator": _validate_float,
-    },
-]
-
 
 def _unwrap_rust_expr(expr: mk.Symbol | mk.Expr) -> mk.Symbol | mk.Expr:
     """The str of pl.Expr use brackets for binary expressions."""
@@ -96,27 +76,19 @@ def _unwrap_rust_expr(expr: mk.Symbol | mk.Expr) -> mk.Symbol | mk.Expr:
     return mk.Expr(expr.head, [_unwrap_rust_expr(a) for a in expr.args])
 
 
-def _replace_utf8(string: str) -> str:
-    ptn = re.compile(r"Utf8\(.?+\)")
-    m0 = ptn.search(string)
-    if m0 is None:
-        return string
-    sl_0 = slice(None, m0.start())
-    sl_mid = slice(m0.start() + 5, m0.end() - 1)
-    sl_1 = slice(m0.end(), None)
-    return string[sl_0] + '"' + string[sl_mid] + '"' + string[sl_1]
-
-
 def _replace_dyn(string: str, fmt: str) -> str:
     _float_or_int = r"[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?"
     return re.sub(rf"\(dyn {fmt}: ({_float_or_int})\)", r"\1", string)
 
 
+def _replace_string(string: str) -> str:
+    return re.sub(r"String\(([^)]+)\)", r"'\1'", string)
+
+
 def _polars_expr_to_str(expr: pl.Expr) -> str:
     expr_str = str(expr).replace(".when(", "when(").replace(".strict_cast(", ".cast(")
-    if "Utf8" in expr_str:
-        # Utf8(xxx) -> "xxx"
-        expr_str = _replace_utf8(expr_str)
+    if "String(" in expr_str:
+        expr_str = _replace_string(expr_str)
     if "dyn int:" in expr_str:
         expr_str = _replace_dyn(expr_str, "int")
     if "dyn float:" in expr_str:
@@ -133,7 +105,7 @@ def _polars_expr_to_str(expr: pl.Expr) -> str:
         ):
             expr_str = expr_str[1:-1]
     try:
-        ns = dict(**POLARS_NAMESPACE, true=True, false=False, String=str)
+        ns = dict(**POLARS_NAMESPACE)
         ExprStr(expr_str, ns).eval()
     except Exception:
         raise ValueError(
