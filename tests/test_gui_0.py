@@ -21,7 +21,7 @@ from cylindra.const import (
 )
 from cylindra.const import PropertyNames as H
 from cylindra.widgets import CylindraMainWidget
-from cylindra.widgets.sta import MaskChoice
+from cylindra.widgets.sta import MaskChoice, TemplateChoice
 
 from ._const import PROJECT_DIR_13PF, PROJECT_DIR_14PF, TEST_DIR
 from .utils import ExceptionGroup, pytest_group
@@ -684,7 +684,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
     )
     ui.sta.get_subtomograms("Mole-0", shape=(5, 5, 5), bin_size=bin_size, order=1)
     assert "score_0" in ui.mole_layers["Mole-0-ALN1"].features
-    ui.sta.params.template_choice = "from_files"
+    ui.sta.params.template_choice = TemplateChoice.from_files
 
 
 def test_seam_search(ui: CylindraMainWidget):
@@ -735,7 +735,11 @@ def test_classify_pca(ui: CylindraMainWidget):
 
 def test_extend_filament(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None)
-    ui.sta.extend_filaments("Mole-1", min_score=0.8)
+    ui.sta.extend_filaments(
+        "Mole-1",
+        TEST_DIR / "beta-tubulin.mrc",
+        min_score=0.8,
+    )
 
 
 def test_clip_spline(ui: CylindraMainWidget):
