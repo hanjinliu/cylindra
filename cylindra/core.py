@@ -27,6 +27,8 @@ def start(
     *,
     log_level: int | str = "INFO",
     headless: bool = False,
+    add_main_widget: bool = True,
+    run: bool = True,
 ) -> CylindraMainWidget:
     """
     Start napari viewer and dock cylindra widget as a dock widget.
@@ -83,10 +85,11 @@ def start(
     # set polars display options
     pl.Config().set_tbl_width_chars(120)
 
-    dock = viewer.window.add_dock_widget(
-        ui, area="right", allowed_areas=["right"], name="cylindra"
-    )
-    dock.setMinimumHeight(300)
+    if add_main_widget:
+        dock = viewer.window.add_dock_widget(
+            ui, area="right", allowed_areas=["right"], name="cylindra"
+        )
+        dock.setMinimumHeight(300)
     viewer.window.add_dock_widget(logger.widget, name="Log")
     ui.macro.options.syntax_highlight = False
 
@@ -119,18 +122,36 @@ def start(
         # napari-console disables calltips by default. It's better to enable it.
         viewer.window._qt_viewer.console.enable_calltips = True
 
-    ui.show()
-    try:  # Just in case
-        # avoid accidentally closing/hiding the dock widget
-        dock.title.close_button.disconnect()
-        dock.title.hide_button.disconnect()
-    except Exception:  # pragma: no cover
-        print("Failed to disconnect the close/hide button of the dock widget.")
+    ui.show(run=run)
+    if add_main_widget:
+        try:  # Just in case
+            # avoid accidentally closing/hiding the dock widget
+            dock.title.close_button.disconnect()
+            dock.title.hide_button.disconnect()
+        except Exception:  # pragma: no cover
+            print("Failed to disconnect the close/hide button of the dock widget.")
 
     # Programmatically run `%matplotlib inline` magic
     ipy = get_ipython()
     ipy.run_line_magic("matplotlib", "inline")
 
+    return ui
+
+
+def start_as_plugin(run: bool = True):
+    """Start Cylindra as a napari plugin"""
+    import napari
+    from magicclass import logging
+
+    ui = start(
+        viewer=napari.current_viewer(),
+        add_main_widget=False,
+        run=run,
+    )
+    # float logger widget
+    logger = logging.getLogger("cylindra")
+    logger.widget.native.parentWidget().setFloating(True)
+    logger.widget.height = 160
     return ui
 
 

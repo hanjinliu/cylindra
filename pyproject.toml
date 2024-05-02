@@ -16,6 +16,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Framework :: napari",
 ]
 license = { file = "LICENSE" }
 dynamic = ["version"]
@@ -83,6 +84,9 @@ docs = [
 
 [project.scripts]
 cylindra = "cylindra.__main__:main"
+
+[project.entry-points."napari.manifest"]
+cylindra = "cylindra:napari.yaml"
 
 [tool.maturin]
 include = ["**/*.pyi", "*.pyi", "**/*.svg", "**/*.yaml", "**/*.qss", "**/*.json"]

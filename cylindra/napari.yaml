@@ -1,0 +1,10 @@
+name: cylindra
+display_name: cylindra
+contributions:
+  commands:
+    - id: cylindra.main_widget
+      python_name: cylindra.core:start_as_plugin
+      title: Open main widget
+  widgets:
+    - command: cylindra.main_widget
+      display_name: cylindra
