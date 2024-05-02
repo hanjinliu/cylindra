@@ -137,19 +137,10 @@ class FitResult:
     def __init__(self, residual: NDArray[np.float64]):
         self.residual = residual
 
-    def __repr__(self) -> str:
-        cname = self.__class__.__name__
-        return f"{cname}(rmsd={self.rmsd:.3f} nm, max={self.max:.3f} nm)"
-
     @property
     def rmsd(self) -> float:
         """Root mean square deviation."""
         return np.sqrt(np.sum(self.residual**2) / self.residual.shape[0])
-
-    @property
-    def max(self) -> float:
-        """Maximum deviation."""
-        return np.abs(self.residual).max()
 
 
 class CylTomogram(Tomogram):

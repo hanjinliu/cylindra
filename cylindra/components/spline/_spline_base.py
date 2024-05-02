@@ -22,7 +22,7 @@ from cylindra.components._base import BaseComponent
 from cylindra.components.spline._config import SplineConfig
 from cylindra.components.spline._props import SplineProps
 from cylindra.components.spline._types import SplineFitResult, SplineInfo, TCKType
-from cylindra.const import ExtrapolationMode, Mode, nm
+from cylindra.const import ExtrapolationMode, nm
 from cylindra.cyltransform import polar_coords_2d
 from cylindra.utils import ceilint, interval_divmod, roundint
 
@@ -720,74 +720,6 @@ class Spline(BaseComponent):
             self._config = SplineConfig.from_dict(cfg)
         return self
 
-    def affine_matrix(
-        self,
-        positions: Sequence[float] = None,
-        center: Sequence[float] = None,
-        *,
-        inverse: bool = False,
-    ) -> NDArray[np.float32]:
-        """
-        Calculate list of Affine transformation matrix along spline, which correspond to
-        the orientation of spline curve.
-
-        Parameters
-        ----------
-        positions : array-like, (N,)
-            Positions. Between 0 and 1.
-        center : array-like, optional
-            If not provided, rotation will be executed around the origin. If an array is provided,
-            it will be considered as the coordinates of rotation center. This is useful for
-            rotating images.
-        inverse : bool, default False
-            If True, rotation matrix will be inversed.
-
-        Returns
-        -------
-        np.ndarray (N, 4, 4)
-            3D array of matrices, where the first dimension corresponds to each point.
-        """
-        if positions is None:
-            positions = self.anchors
-        ds = self.map(positions, der=1)
-
-        if ds.ndim == 1:
-            ds = ds[np.newaxis]
-        rot = axes_to_rotator(None, ds)
-        if inverse:
-            rot = rot.inv()
-        out = np.zeros((len(rot), 4, 4), dtype=np.float32)
-        out[:, :3, :3] = rot.as_matrix()
-        out[:, 3, 3] = 1.0
-
-        if center is not None:
-            dz, dy, dx = center
-            # center to corner
-            translation_0 = np.array(
-                [
-                    [1.0, 0.0, 0.0, dz],
-                    [0.0, 1.0, 0.0, dy],
-                    [0.0, 0.0, 1.0, dx],
-                    [0.0, 0.0, 0.0, 1.0],
-                ],
-                dtype=np.float32,
-            )
-            # corner to center
-            translation_1 = np.array(
-                [
-                    [1.0, 0.0, 0.0, -dz],
-                    [0.0, 1.0, 0.0, -dy],
-                    [0.0, 0.0, 1.0, -dx],
-                    [0.0, 0.0, 0.0, 1.0],
-                ],
-                dtype=np.float32,
-            )
-
-            out = translation_0 @ out @ translation_1
-        if np.isscalar(positions):
-            out = out[0]
-        return out
-
     def get_rotator(
         self,
         positions: Sequence[float] | None = None,
@@ -1096,27 +1028,6 @@ class Spline(BaseComponent):
         zvec = world_coords - ycoords
         yvec = self.map(u, der=1)
         return Molecules.from_axes(pos=world_coords, z=zvec, y=yvec)
-
-    def slice_along(
-        self,
-        array: NDArray[np.float32],
-        s_range: tuple[float, float] = (0.0, 1.0),
-        order: int = 3,
-        mode: str = Mode.constant,
-        cval: float = 0.0,
-    ) -> NDArray[np.float32]:
-        """Slice input array along the spline."""
-        from scipy import ndimage as ndi
-
-        _, coords = self._get_y_ax_coords(s_range)
-        return ndi.map_coordinates(
-            array,
-            coords.T,
-            order=order,
-            mode=mode,
-            cval=cval,
-            prefilter=order > 1,
-        )
 
     def _get_coords(
         self,

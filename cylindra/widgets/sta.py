@@ -7,6 +7,7 @@ import napari
 import numpy as np
 import polars as pl
 from acryo import Molecules, SubtomogramLoader, alignment, pipe
+from acryo._utils import SubvolumeOutOfBoundError
 from magicclass import (
     MagicTemplate,
     abstractapi,
@@ -1802,12 +1803,17 @@ class SubtomogramAveraging(ChildWidget):
         npf: int | None = None,
         **kwargs,
     ):
-        score_hist_0 = []
+        score_hist_0 = list[float]()
         score_hist_1 = list[float]()
         next_mole, cur_fixed = _prep_next_molecules(mole)
         aligned_molecules = list[Molecules]()
         while True:
-            landscape = self._construct_landscape(molecules=next_mole, **kwargs)
+            try:
+                landscape = self._construct_landscape(molecules=next_mole, **kwargs)
+            except SubvolumeOutOfBoundError:
+                if score_hist_0:
+                    score_hist_0.pop()
+                break
             if len(score_hist_0) == 0:
                 score_hist_0.append(-landscape.energies[(0, *landscape.offset)])
             aligned_mole = landscape.run_viterbi_fixed_start(

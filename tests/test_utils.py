@@ -1,9 +1,10 @@
 import impy as ip
 import numpy as np
+import polars as pl
 import pytest
 from numpy.testing import assert_allclose
 
-from cylindra import utils
+from cylindra import utils, widget_utils
 from cylindra.components.seam_search import BooleanSeamSearcher
 
 
@@ -167,3 +168,14 @@ def test_rotated_auto_zncc():
 def test_infer_seam(label, expected: int):
     searcher = BooleanSeamSearcher(npf=4)
     assert searcher.search(label).seam_pos == expected
+
+
+def test_rust_expressions():
+    assert widget_utils._polars_expr_to_str(pl.col("a") == 3) == "col('a') == 3"
+    assert widget_utils._polars_expr_to_str(pl.col("f") == -4.2) == "col('f') == (-4.2)"
+    assert widget_utils._polars_expr_to_str(pl.col("b") == "ts") == "col('b') == 'ts'"
+
+
+def test_validate():
+    widget_utils._validate_expr_or_scalar(pl.col("a") == 3)
+    widget_utils._validate_expr_or_scalar('pl.col("a") == 3')

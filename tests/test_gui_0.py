@@ -21,7 +21,7 @@ from cylindra.const import (
 )
 from cylindra.const import PropertyNames as H
 from cylindra.widgets import CylindraMainWidget
-from cylindra.widgets.sta import MaskChoice
+from cylindra.widgets.sta import MaskChoice, TemplateChoice
 
 from ._const import PROJECT_DIR_13PF, PROJECT_DIR_14PF, TEST_DIR
 from .utils import ExceptionGroup, pytest_group
@@ -175,6 +175,9 @@ def test_io_with_different_data(ui: CylindraMainWidget):
     ui.mole_layers.get("Mole-0")
     ui.mole_layers.get("Mole-100", None)
     list(ui.mole_layers.iter())
+    ui.mole_layers.first()
+    ui.mole_layers.count()
+    assert "Mole-0" in ui.mole_layers
 
 
 def test_picking_splines(ui: CylindraMainWidget):
@@ -213,6 +216,14 @@ def test_spline_deletion(ui: CylindraMainWidget):
     ui.Toolbar.redo()
     assert ui._reserved_layers.prof.features["spline-id"].values[0] == 0.0
     assert ui._reserved_layers.prof.features["spline-id"].values[-1] == 0.0
+
+
+def test_serialize(ui: CylindraMainWidget):
+    from magicclass.serialize import deserialize, serialize
+
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
+    d = serialize(ui)
+    deserialize(ui, d)
 
 
 def test_workflow_with_many_input(ui: CylindraMainWidget):
@@ -530,6 +541,10 @@ def test_preview(ui: CylindraMainWidget):
     tester = mcls_testing.FunctionGuiTester(ui.label_feature_clusters)
     tester.click_preview()
 
+    # two preview layers
+    mcls_testing.FunctionGuiTester(ui.translate_molecules).click_preview()
+    mcls_testing.FunctionGuiTester(ui.map_along_pf).click_preview()
+
 
 def test_sub_widgets(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None)
@@ -669,6 +684,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
     )
     ui.sta.get_subtomograms("Mole-0", shape=(5, 5, 5), bin_size=bin_size, order=1)
     assert "score_0" in ui.mole_layers["Mole-0-ALN1"].features
+    ui.sta.params.template_choice = TemplateChoice.from_files
 
 
 def test_seam_search(ui: CylindraMainWidget):
@@ -715,6 +731,15 @@ def test_classify_pca(ui: CylindraMainWidget):
                 bin_size=binsize,
             )
     exc_group.raise_exceptions()
+
+
+def test_extend_filament(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
+    ui.sta.extend_filaments(
+        "Mole-1",
+        TEST_DIR / "beta-tubulin.mrc",
+        min_score=0.8,
+    )
 
 
 def test_clip_spline(ui: CylindraMainWidget):
@@ -812,6 +837,10 @@ def test_simulator(ui: CylindraMainWidget):
         tester = mcls_testing.FunctionGuiTester(method)
         tester.click_preview()
         tester.click_preview()
+
+    ui.simulator.add_component(layer, TEST_DIR / "beta-tubulin.mrc")
+    comp = list(ui.simulator.component_list._iter_components())[0]
+    comp.remove_me()
     ui.simulator.close()
 
 
@@ -1407,9 +1436,10 @@ def test_landscape(ui: CylindraMainWidget):
     )
     # click preview
     tester = mcls_testing.FunctionGuiTester(ui.sta.run_annealing_on_landscape)
+    tester.gui  # noqa: B018
     tester.click_preview()
     ui.sta.run_annealing_on_landscape(
-        layer_land,
+        layer_land.name,
         range_long=("-0.1", "+0.1"),
         range_lat=("-0.1", "+0.1"),
         angle_max=20,
@@ -1465,6 +1495,21 @@ def test_showing_widgets(ui: CylindraMainWidget):
     loader.scan_header()
     loader.preview_image().close()
     ui.FileMenu.view_project(PROJECT_DIR_13PF / "project.json")
+
+    loader.tilt_model.value = None
+    assert loader.tilt_model.value is None
+    loader.tilt_model.value = {"kind": "x", "range": (-50, 60)}
+    assert loader.tilt_model.value == {"kind": "x", "range": (-50, 60)}
+    loader.tilt_model.value = {"kind": "y", "range": (-50, 60)}
+    assert loader.tilt_model.value == {"kind": "y", "range": (-50, 60)}
+    loader.tilt_model.value = {"kind": "dual", "xrange": (-50, 60), "yrange": (-50, 60)}
+    assert loader.tilt_model.value == {
+        "kind": "dual",
+        "xrange": (-50, 60),
+        "yrange": (-50, 60),
+    }
+    loader.tilt_model.value = (-60, 60)
+    assert loader.tilt_model.value == {"kind": "y", "range": (-60, 60)}
 
 
 def test_image_processor(ui: CylindraMainWidget):
