@@ -16,15 +16,9 @@ from napari.utils.colormaps import label_colormap
 from cylindra import _config, utils, widget_utils
 from cylindra._napari import MoleculesLayer
 from cylindra._previews import view_tables
-from cylindra.const import (
-    PREVIEW_LAYER_NAME,
-)
-from cylindra.const import (
-    MoleculesHeader as Mole,
-)
-from cylindra.const import (
-    PropertyNames as H,
-)
+from cylindra.const import PREVIEW_LAYER_NAME
+from cylindra.const import MoleculesHeader as Mole
+from cylindra.const import PropertyNames as H
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.project import CylindraProject
 from cylindra.widgets._main_utils import (
@@ -114,11 +108,7 @@ def _preview_map_along_pf(
         offsets=normalize_offsets(offsets, spl),
         orientation=orientation,
     )
-    if PREVIEW_LAYER_NAME in viewer.layers:
-        layer: MoleculesLayer = viewer.layers[PREVIEW_LAYER_NAME]
-        layer.molecules = out
-    else:
-        layer = self.add_molecules(out, name=PREVIEW_LAYER_NAME)
+    layer = _update_existing_layer(self, out)
     layer.face_color = "crimson"
     is_active = yield
     if not is_active and layer in viewer.layers:
@@ -146,13 +136,9 @@ def _preview_map_monomers_with_extensions(
     )
     viewer = self.parent_viewer
 
-    if PREVIEW_LAYER_NAME in viewer.layers:
-        layer: MoleculesLayer = viewer.layers[PREVIEW_LAYER_NAME]
-        layer.molecules = out
-    else:
-        layer = self.add_molecules(out, name=PREVIEW_LAYER_NAME)
-        layer.view_ndim = 2
-        layer.text = {"string": "{pf-id}"}
+    layer = _update_existing_layer(self, out)
+    layer.view_ndim = 2
+    layer.text = {"string": "{pf-id}"}
     layer.face_color = "crimson"
     is_active = yield
     if not is_active and layer in viewer.layers:
@@ -211,12 +197,8 @@ def _preview_translate_molecules(
         all_mole.append(out)
     out = Molecules.concat(all_mole, concat_features=False)
     viewer = self.parent_viewer
-    if PREVIEW_LAYER_NAME in viewer.layers:
-        layer: Layer = viewer.layers[PREVIEW_LAYER_NAME]
-        layer.data = out.pos
-    else:
-        layer = self.add_molecules(out, name=PREVIEW_LAYER_NAME)
-        layer.face_color = "crimson"
+    layer = _update_existing_layer(self, out)
+    layer.face_color = "crimson"
     is_active = False
     is_active = yield
     if not is_active and layer in viewer.layers:
@@ -548,3 +530,13 @@ def _temp_layer_colors(layer: MoleculesLayer):
         layer.face_contrast_limits = fclim
         layer.edge_contrast_limits = eclim
         layer._colormap_info = info
+
+
+def _update_existing_layer(self: CylindraMainWidget, out: Molecules) -> MoleculesLayer:
+    viewer = self.parent_viewer
+    if PREVIEW_LAYER_NAME in viewer.layers:
+        layer: MoleculesLayer = viewer.layers[PREVIEW_LAYER_NAME]
+        layer.molecules = out
+    else:
+        layer = self.add_molecules(out, name=PREVIEW_LAYER_NAME)
+    return layer
