@@ -1509,6 +1509,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#cylindra.core.start_as_plugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      start_as_plugin
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#cylindra.core.view_project" class="md-nav__link">
     <span class="md-ellipsis">
       view_project
@@ -1846,6 +1855,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#cylindra.core.start_as_plugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      start_as_plugin
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#cylindra.core.view_project" class="md-nav__link">
     <span class="md-ellipsis">
       view_project
@@ -1948,28 +1966,7 @@
 
           <details class="quote">
             <summary>Source code in <code>cylindra/core.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">218</span>
-<span class="normal">219</span>
-<span class="normal">220</span>
-<span class="normal">221</span>
-<span class="normal">222</span>
-<span class="normal">223</span>
-<span class="normal">224</span>
-<span class="normal">225</span>
-<span class="normal">226</span>
-<span class="normal">227</span>
-<span class="normal">228</span>
-<span class="normal">229</span>
-<span class="normal">230</span>
-<span class="normal">231</span>
-<span class="normal">232</span>
-<span class="normal">233</span>
-<span class="normal">234</span>
-<span class="normal">235</span>
-<span class="normal">236</span>
-<span class="normal">237</span>
-<span class="normal">238</span>
-<span class="normal">239</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">239</span>
 <span class="normal">240</span>
 <span class="normal">241</span>
 <span class="normal">242</span>
@@ -1983,7 +1980,28 @@
 <span class="normal">250</span>
 <span class="normal">251</span>
 <span class="normal">252</span>
-<span class="normal">253</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">collect_projects</span><span class="p">(</span>
+<span class="normal">253</span>
+<span class="normal">254</span>
+<span class="normal">255</span>
+<span class="normal">256</span>
+<span class="normal">257</span>
+<span class="normal">258</span>
+<span class="normal">259</span>
+<span class="normal">260</span>
+<span class="normal">261</span>
+<span class="normal">262</span>
+<span class="normal">263</span>
+<span class="normal">264</span>
+<span class="normal">265</span>
+<span class="normal">266</span>
+<span class="normal">267</span>
+<span class="normal">268</span>
+<span class="normal">269</span>
+<span class="normal">270</span>
+<span class="normal">271</span>
+<span class="normal">272</span>
+<span class="normal">273</span>
+<span class="normal">274</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">collect_projects</span><span class="p">(</span>
     <span class="n">files</span><span class="p">:</span> <span class="n">PathLike</span> <span class="o">|</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">PathLike</span><span class="p">],</span> <span class="o">*</span><span class="p">,</span> <span class="n">skip_exc</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ProjectSequence</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -2042,12 +2060,12 @@
 
           <details class="quote">
             <summary>Source code in <code>cylindra/core.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">145</span>
-<span class="normal">146</span>
-<span class="normal">147</span>
-<span class="normal">148</span>
-<span class="normal">149</span>
-<span class="normal">150</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">instance</span><span class="p">(</span><span class="n">create</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">166</span>
+<span class="normal">167</span>
+<span class="normal">168</span>
+<span class="normal">169</span>
+<span class="normal">170</span>
+<span class="normal">171</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">instance</span><span class="p">(</span><span class="n">create</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Get the current CylindraMainWidget instance.&quot;&quot;&quot;</span>
     <span class="n">ins</span> <span class="o">=</span> <span class="n">_CURRENT_INSTANCE</span>
     <span class="k">if</span> <span class="n">ins</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">create</span><span class="p">:</span>
@@ -2158,32 +2176,32 @@
 
           <details class="quote">
             <summary>Source code in <code>cylindra/core.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">171</span>
-<span class="normal">172</span>
-<span class="normal">173</span>
-<span class="normal">174</span>
-<span class="normal">175</span>
-<span class="normal">176</span>
-<span class="normal">177</span>
-<span class="normal">178</span>
-<span class="normal">179</span>
-<span class="normal">180</span>
-<span class="normal">181</span>
-<span class="normal">182</span>
-<span class="normal">183</span>
-<span class="normal">184</span>
-<span class="normal">185</span>
-<span class="normal">186</span>
-<span class="normal">187</span>
-<span class="normal">188</span>
-<span class="normal">189</span>
-<span class="normal">190</span>
-<span class="normal">191</span>
-<span class="normal">192</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">192</span>
 <span class="normal">193</span>
 <span class="normal">194</span>
 <span class="normal">195</span>
-<span class="normal">196</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">read_molecules</span><span class="p">(</span>
+<span class="normal">196</span>
+<span class="normal">197</span>
+<span class="normal">198</span>
+<span class="normal">199</span>
+<span class="normal">200</span>
+<span class="normal">201</span>
+<span class="normal">202</span>
+<span class="normal">203</span>
+<span class="normal">204</span>
+<span class="normal">205</span>
+<span class="normal">206</span>
+<span class="normal">207</span>
+<span class="normal">208</span>
+<span class="normal">209</span>
+<span class="normal">210</span>
+<span class="normal">211</span>
+<span class="normal">212</span>
+<span class="normal">213</span>
+<span class="normal">214</span>
+<span class="normal">215</span>
+<span class="normal">216</span>
+<span class="normal">217</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">read_molecules</span><span class="p">(</span>
     <span class="n">file</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span>
     <span class="n">pos_cols</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">),</span>
     <span class="n">rot_cols</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;zvec&quot;</span><span class="p">,</span> <span class="s2">&quot;yvec&quot;</span><span class="p">,</span> <span class="s2">&quot;xvec&quot;</span><span class="p">),</span>
@@ -2232,11 +2250,11 @@
 
           <details class="quote">
             <summary>Source code in <code>cylindra/core.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">164</span>
-<span class="normal">165</span>
-<span class="normal">166</span>
-<span class="normal">167</span>
-<span class="normal">168</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">read_project</span><span class="p">(</span><span class="n">file</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CylindraProject</span><span class="p">:</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">185</span>
+<span class="normal">186</span>
+<span class="normal">187</span>
+<span class="normal">188</span>
+<span class="normal">189</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">read_project</span><span class="p">(</span><span class="n">file</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CylindraProject</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Read the Cylindra project file.&quot;&quot;&quot;</span>
     <span class="kn">from</span> <span class="nn">cylindra.project</span> <span class="kn">import</span> <span class="n">CylindraProject</span>
 
@@ -2318,23 +2336,23 @@
 
           <details class="quote">
             <summary>Source code in <code>cylindra/core.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">199</span>
-<span class="normal">200</span>
-<span class="normal">201</span>
-<span class="normal">202</span>
-<span class="normal">203</span>
-<span class="normal">204</span>
-<span class="normal">205</span>
-<span class="normal">206</span>
-<span class="normal">207</span>
-<span class="normal">208</span>
-<span class="normal">209</span>
-<span class="normal">210</span>
-<span class="normal">211</span>
-<span class="normal">212</span>
-<span class="normal">213</span>
-<span class="normal">214</span>
-<span class="normal">215</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">read_spline</span><span class="p">(</span><span class="n">file</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CylSpline</span><span class="p">:</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">220</span>
+<span class="normal">221</span>
+<span class="normal">222</span>
+<span class="normal">223</span>
+<span class="normal">224</span>
+<span class="normal">225</span>
+<span class="normal">226</span>
+<span class="normal">227</span>
+<span class="normal">228</span>
+<span class="normal">229</span>
+<span class="normal">230</span>
+<span class="normal">231</span>
+<span class="normal">232</span>
+<span class="normal">233</span>
+<span class="normal">234</span>
+<span class="normal">235</span>
+<span class="normal">236</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">read_spline</span><span class="p">(</span><span class="n">file</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CylSpline</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Read the spline file.</span>
 
@@ -2363,7 +2381,7 @@
 
 
 <h4 id="cylindra.core.start" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">start</span><span class="p">(</span><span class="n">project_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">viewer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">log_level</span><span class="o">=</span><span class="s1">&#39;INFO&#39;</span><span class="p">,</span> <span class="n">headless</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+          <code class="highlight language-python"><span class="n">start</span><span class="p">(</span><span class="n">project_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">viewer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">log_level</span><span class="o">=</span><span class="s1">&#39;INFO&#39;</span><span class="p">,</span> <span class="n">headless</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">add_main_widget</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">run</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
 
 </h4>
 
@@ -2556,12 +2574,18 @@
 <span class="normal">131</span>
 <span class="normal">132</span>
 <span class="normal">133</span>
-<span class="normal">134</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">start</span><span class="p">(</span>
+<span class="normal">134</span>
+<span class="normal">135</span>
+<span class="normal">136</span>
+<span class="normal">137</span>
+<span class="normal">138</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">start</span><span class="p">(</span>
     <span class="n">project_file</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">viewer</span><span class="p">:</span> <span class="n">napari</span><span class="o">.</span><span class="n">Viewer</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">log_level</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;INFO&quot;</span><span class="p">,</span>
     <span class="n">headless</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">add_main_widget</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">run</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CylindraMainWidget</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Start napari viewer and dock cylindra widget as a dock widget.</span>
@@ -2618,10 +2642,11 @@
     <span class="c1"># set polars display options</span>
     <span class="n">pl</span><span class="o">.</span><span class="n">Config</span><span class="p">()</span><span class="o">.</span><span class="n">set_tbl_width_chars</span><span class="p">(</span><span class="mi">120</span><span class="p">)</span>
 
-    <span class="n">dock</span> <span class="o">=</span> <span class="n">viewer</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">add_dock_widget</span><span class="p">(</span>
-        <span class="n">ui</span><span class="p">,</span> <span class="n">area</span><span class="o">=</span><span class="s2">&quot;right&quot;</span><span class="p">,</span> <span class="n">allowed_areas</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;right&quot;</span><span class="p">],</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;cylindra&quot;</span>
-    <span class="p">)</span>
-    <span class="n">dock</span><span class="o">.</span><span class="n">setMinimumHeight</span><span class="p">(</span><span class="mi">300</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">add_main_widget</span><span class="p">:</span>
+        <span class="n">dock</span> <span class="o">=</span> <span class="n">viewer</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">add_dock_widget</span><span class="p">(</span>
+            <span class="n">ui</span><span class="p">,</span> <span class="n">area</span><span class="o">=</span><span class="s2">&quot;right&quot;</span><span class="p">,</span> <span class="n">allowed_areas</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;right&quot;</span><span class="p">],</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;cylindra&quot;</span>
+        <span class="p">)</span>
+        <span class="n">dock</span><span class="o">.</span><span class="n">setMinimumHeight</span><span class="p">(</span><span class="mi">300</span><span class="p">)</span>
     <span class="n">viewer</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">add_dock_widget</span><span class="p">(</span><span class="n">logger</span><span class="o">.</span><span class="n">widget</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Log&quot;</span><span class="p">)</span>
     <span class="n">ui</span><span class="o">.</span><span class="n">macro</span><span class="o">.</span><span class="n">options</span><span class="o">.</span><span class="n">syntax_highlight</span> <span class="o">=</span> <span class="kc">False</span>
 
@@ -2654,18 +2679,71 @@
         <span class="c1"># napari-console disables calltips by default. It&#39;s better to enable it.</span>
         <span class="n">viewer</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">_qt_viewer</span><span class="o">.</span><span class="n">console</span><span class="o">.</span><span class="n">enable_calltips</span> <span class="o">=</span> <span class="kc">True</span>
 
-    <span class="n">ui</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
-    <span class="k">try</span><span class="p">:</span>  <span class="c1"># Just in case</span>
-        <span class="c1"># avoid accidentally closing/hiding the dock widget</span>
-        <span class="n">dock</span><span class="o">.</span><span class="n">title</span><span class="o">.</span><span class="n">close_button</span><span class="o">.</span><span class="n">disconnect</span><span class="p">()</span>
-        <span class="n">dock</span><span class="o">.</span><span class="n">title</span><span class="o">.</span><span class="n">hide_button</span><span class="o">.</span><span class="n">disconnect</span><span class="p">()</span>
-    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Failed to disconnect the close/hide button of the dock widget.&quot;</span><span class="p">)</span>
+    <span class="n">ui</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="n">run</span><span class="o">=</span><span class="n">run</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">add_main_widget</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>  <span class="c1"># Just in case</span>
+            <span class="c1"># avoid accidentally closing/hiding the dock widget</span>
+            <span class="n">dock</span><span class="o">.</span><span class="n">title</span><span class="o">.</span><span class="n">close_button</span><span class="o">.</span><span class="n">disconnect</span><span class="p">()</span>
+            <span class="n">dock</span><span class="o">.</span><span class="n">title</span><span class="o">.</span><span class="n">hide_button</span><span class="o">.</span><span class="n">disconnect</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Failed to disconnect the close/hide button of the dock widget.&quot;</span><span class="p">)</span>
 
     <span class="c1"># Programmatically run `%matplotlib inline` magic</span>
     <span class="n">ipy</span> <span class="o">=</span> <span class="n">get_ipython</span><span class="p">()</span>
     <span class="n">ipy</span><span class="o">.</span><span class="n">run_line_magic</span><span class="p">(</span><span class="s2">&quot;matplotlib&quot;</span><span class="p">,</span> <span class="s2">&quot;inline&quot;</span><span class="p">)</span>
 
+    <span class="k">return</span> <span class="n">ui</span>
+</code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<h4 id="cylindra.core.start_as_plugin" class="doc doc-heading">
+          <code class="highlight language-python"><span class="n">start_as_plugin</span><span class="p">(</span><span class="n">run</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+
+</h4>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Start Cylindra as a napari plugin</p>
+
+          <details class="quote">
+            <summary>Source code in <code>cylindra/core.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">141</span>
+<span class="normal">142</span>
+<span class="normal">143</span>
+<span class="normal">144</span>
+<span class="normal">145</span>
+<span class="normal">146</span>
+<span class="normal">147</span>
+<span class="normal">148</span>
+<span class="normal">149</span>
+<span class="normal">150</span>
+<span class="normal">151</span>
+<span class="normal">152</span>
+<span class="normal">153</span>
+<span class="normal">154</span>
+<span class="normal">155</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">start_as_plugin</span><span class="p">(</span><span class="n">run</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Start Cylindra as a napari plugin&quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">napari</span>
+    <span class="kn">from</span> <span class="nn">magicclass</span> <span class="kn">import</span> <span class="n">logging</span>
+
+    <span class="n">ui</span> <span class="o">=</span> <span class="n">start</span><span class="p">(</span>
+        <span class="n">viewer</span><span class="o">=</span><span class="n">napari</span><span class="o">.</span><span class="n">current_viewer</span><span class="p">(),</span>
+        <span class="n">add_main_widget</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">run</span><span class="o">=</span><span class="n">run</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="c1"># float logger widget</span>
+    <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;cylindra&quot;</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">widget</span><span class="o">.</span><span class="n">native</span><span class="o">.</span><span class="n">parentWidget</span><span class="p">()</span><span class="o">.</span><span class="n">setFloating</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">widget</span><span class="o">.</span><span class="n">height</span> <span class="o">=</span> <span class="mi">160</span>
     <span class="k">return</span> <span class="n">ui</span>
 </code></pre></div></td></tr></table></div>
           </details>
@@ -2690,15 +2768,15 @@
 
           <details class="quote">
             <summary>Source code in <code>cylindra/core.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">153</span>
-<span class="normal">154</span>
-<span class="normal">155</span>
-<span class="normal">156</span>
-<span class="normal">157</span>
-<span class="normal">158</span>
-<span class="normal">159</span>
-<span class="normal">160</span>
-<span class="normal">161</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">view_project</span><span class="p">(</span><span class="n">project_file</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="n">show</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">174</span>
+<span class="normal">175</span>
+<span class="normal">176</span>
+<span class="normal">177</span>
+<span class="normal">178</span>
+<span class="normal">179</span>
+<span class="normal">180</span>
+<span class="normal">181</span>
+<span class="normal">182</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">view_project</span><span class="p">(</span><span class="n">project_file</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">,</span> <span class="n">show</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;View the Cylindra project file.&quot;&quot;&quot;</span>
     <span class="kn">from</span> <span class="nn">cylindra.project</span> <span class="kn">import</span> <span class="n">CylindraProject</span>
 
