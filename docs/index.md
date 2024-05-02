@@ -60,5 +60,7 @@ them, but knowing them will help you to use `cylindra` more efficiently.
 If you find `cylindra` useful in your work, please consider citing our paper.
 
 ```
-TODO
+Heterogeneous local structures of the microtubule lattice revealed by cryo-ET and non-averaging analysis
+Hanjin Liu, Hiroshi Yamaguchi, Masahide Kikkawa, Tomohiro Shima
+bioRxiv 2024.04.30.591984; doi: https://doi.org/10.1101/2024.04.30.591984
 ```
