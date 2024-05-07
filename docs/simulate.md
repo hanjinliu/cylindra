@@ -140,3 +140,9 @@ There are several methods to simulate images from molecules.
 :material-arrow-right-thin-circle-outline: API: [`simulate_tomogram_from_tilt_series`][cylindra.widgets.subwidgets.Simulator.simulate_tomogram_from_tilt_series]
 
 :material-arrow-right-thin-circle-outline: GUI: `Simulator widget > Simulate > Simulate tomogram from tilt series`
+
+### 5. Simulate a 2D projection
+
+:material-arrow-right-thin-circle-outline: API: [`simulate_projection`][cylindra.widgets.subwidgets.Simulator.simulate_projection]
+
+:material-arrow-right-thin-circle-outline: GUI: `Simulator widget > Simulate > Simulate projection`

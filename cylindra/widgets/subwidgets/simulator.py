@@ -49,6 +49,7 @@ from cylindra.widgets._annotated import MoleculesLayerType, _as_layer_name, asse
 from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 if TYPE_CHECKING:
+    import napari
     from napari.layers import Layer
 
 _TiltRange = Annotated[
@@ -163,6 +164,7 @@ class Simulator(ChildWidget):
         simulate_tomogram_from_tilt_series = abstractapi()
         simulate_tomogram_and_open = abstractapi()
         simulate_tilt_series = abstractapi()
+        simulate_projection = abstractapi()
 
     @magictoolbar
     class SimulatorTools(ChildWidget):
@@ -371,7 +373,8 @@ class Simulator(ChildWidget):
         spl = main.splines[spline]
         model = self._prep_model(spl, spacing, twist, start, npf, radius, offsets)
         mole = model.to_molecules(spl)
-        layer = main.add_molecules(mole, name=f"Mole(Sim)-{spline}", source=spl)
+        name = _make_simulated_mole_name(main.parent_viewer)
+        layer = main.add_molecules(mole, name=name, source=spl)
         _set_simulation_model(layer, model)
         if update_glob:
             cparams = spl.cylinder_params(
@@ -477,8 +480,8 @@ class Simulator(ChildWidget):
         yield _on_radon_finished.with_args(sino, degrees)
 
         rng = ip.random.default_rng(seed)
+        imax = sino.max()
         for i, nsr_val in enumerate(nsr):
-            imax = sino.max()
             sino_noise = sino + rng.normal(
                 scale=imax * nsr_val, size=sino.shape, axes=sino.axes
             )
@@ -671,6 +674,51 @@ class Simulator(ChildWidget):
         save_path = save_dir / "image.mrc"
         sino.set_axes("zyx").set_scale(zyx=scale, unit="nm").imsave(save_path)
         _Logger.print(f"Tilt series saved at {save_path}.")
+        self._get_main().save_project(save_dir / PROJECT_NAME, molecules_ext=".parquet")
+        return None
+
+    @set_design(text=capitalize, location=SimulateMenu)
+    @dask_thread_worker.with_progress(desc="Simulating 2D projections...")
+    def simulate_projection(
+        self,
+        components: Annotated[Any, {"bind": _get_components}],
+        save_dir: Annotated[Path.Save, {"label": "Save at"}],
+        nsr: _NSRatios = [1.5],
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        seed: Optional[Annotated[int, {"min": 0, "max": 1e8}]] = None,
+    ):  # fmt: skip
+        """
+        Simulate a projection without tilt (cryo-EM-like image).
+
+        Parameters
+        ----------
+        components : list of (str, Path)
+            List of tuples of layer name and path to the template image.
+        save_dir : Path
+            Path to the directory where the images will be saved.
+        nsr : list of float
+            Noise-to-signal ratio. It is defined by N/S, where S is the maximum
+            value of the true monomer density and N is the standard deviation of
+            the Gaussian noise. Duplicate values are allowed, which is useful
+            for simulation of multiple images with the same noise level.
+        interpolation : int
+            Interpolation method used during the simulation.
+        seed : int, optional
+            Random seed used for the Gaussian noise.
+        """
+        save_dir = _norm_save_dir(save_dir)
+        _assert_not_empty(components)
+        proj = self._prep_radon(components, np.zeros(1), order=interpolation)[0]
+        proj = proj.set_axes("yx").set_scale(yx=proj.scale.x, unit="nm")
+        yield _on_iradon_finished.with_args(proj, "Projection (noise-free)")
+        rng = ip.random.default_rng(seed)
+        imax = proj.max()
+        for i, nsr_val in enumerate(nsr):
+            proj_noise = proj + rng.normal(
+                scale=imax * nsr_val, size=proj.shape, axes=proj.axes
+            )
+            proj_noise.imsave(save_dir / f"image-{i}.tif")
+        _Logger.print(f"Projections saved at {save_dir}.")
         self._get_main().save_project(save_dir / PROJECT_NAME, molecules_ext=".parquet")
         return None
 
@@ -1035,3 +1083,12 @@ def _select_molecules(
     yield
     layer.data = layer.molecules.pos
     layer.selected_data = {}
+
+
+def _make_simulated_mole_name(viewer: "napari.Viewer"):
+    num = 0
+    name = "Mole(Sim)"
+    existing_names = {layer.name for layer in viewer.layers}
+    while f"{name}-{num}" in existing_names:
+        num += 1
+    return f"{name}-{num}"

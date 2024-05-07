@@ -38,9 +38,7 @@ from cylindra.const import (
     SplineColor,
     nm,
 )
-from cylindra.const import (
-    MoleculesHeader as Mole,
-)
+from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import PropertyNames as H
 from cylindra.project import CylindraProject, extract
 from cylindra.widget_utils import (

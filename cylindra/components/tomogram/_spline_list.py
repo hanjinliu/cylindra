@@ -76,16 +76,15 @@ class SplineList(MutableSequence[CylSpline]):
     def filter(self, predicate: pl.Expr) -> SplineList:
         """Filter the list by its global properties."""
 
-        def fn(spl):
-            return spl.props.glob.select(predicate)[0]
-
-        return SplineList(filter(fn, self._list))
+        df = pl.concat([spl.props.glob for spl in self])
+        indices = np.where(df.select(predicate).to_series().to_numpy())[0]
+        return SplineList([self._list[i] for i in indices])
 
     def sort(self, by: pl.Expr | str) -> SplineList:
         """Sort the list by its global properties."""
 
-        def fn(spl):
-            return spl.props.glob.select(by)[0]
+        def fn(spl: CylSpline):
+            return spl.props.glob.select(by).to_series()[0]
 
         return SplineList(sorted(self._list, key=fn))
 
