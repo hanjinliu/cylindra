@@ -1,8 +1,9 @@
 import numpy as np
+import polars as pl
 import pytest
 from numpy.testing import assert_allclose
 
-from cylindra.components import CylTomogram
+from cylindra.components import CylSpline, CylTomogram
 from cylindra.const import PropertyNames as H
 from cylindra.project._base import MissingWedge
 
@@ -177,3 +178,22 @@ def test_imread(tilt):
         path, binsize=[1], tilt=wedge_model.as_param(), compute=False
     )
     assert tilt0 == tomo.tilt
+
+
+def test_spline_list():
+    path = TEST_DIR / "13pf_MT.tif"
+    tomo = CylTomogram.imread(path, binsize=[1], compute=False)
+    tomo.add_spline(coords=[[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]])
+    tomo.add_spline(coords=[[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]])
+    tomo.add_spline(coords=[[18.97, 190.0, 28.99], [18.97, 187.8, 30.00]])
+    for spl in tomo.splines.iter():
+        assert isinstance(spl, CylSpline)
+        spl.props.update_glob(length=spl.length())
+    for _, spl in tomo.splines.enumerate():
+        spl.make_anchors(n=3)
+    splines_filt = tomo.splines.filter(pl.col("length") > 60)
+    assert len(splines_filt) == 2
+    assert len(tomo.splines.sort(pl.col("length"))) == 3
+    for coords in tomo.splines.iter_anchor_coords():
+        assert isinstance(coords, np.ndarray)
+    tomo.splines.remove(tomo.splines[1])

@@ -1570,3 +1570,9 @@ def test_stash(ui: CylindraMainWidget):
         name1 = _config.get_stash_list()[0]
         ui.FileMenu.Stash.delete_stash_project(name1)
         ui.FileMenu.Stash.clear_stash_projects()
+
+
+def test_recover_project(ui: CylindraMainWidget):
+    ui.FileMenu.recover_last_project()
+    ui.OthersMenu.configure_dask(num_workers=2)
+    ui.OthersMenu.configure_dask(num_workers=None)

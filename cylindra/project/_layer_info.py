@@ -3,13 +3,14 @@ from abc import abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from pydantic_compat import BaseModel
-
 if TYPE_CHECKING:
     from napari.layers import Layer
+    from pydantic import BaseModel
 
     from cylindra._napari import LandscapeSurface, MoleculesLayer
     from cylindra.widgets.main import CylindraMainWidget
+else:
+    from pydantic_compat import BaseModel
 
 
 class LayerInfo(BaseModel):
