@@ -889,6 +889,11 @@ def test_simulate_tilt_series(ui: CylindraMainWidget):
             interpolation=1,
         )
         ui.simulator.simulate_tomogram_from_tilt_series(Path(dirpath) / "image.mrc")
+        ui.simulator.simulate_projection(
+            components=[(ui.mole_layers.last().name, TEST_DIR / "beta-tubulin.mrc")],
+            save_dir=Path(dirpath) / "projection_test",
+            nsr=[0.1, 1.5],
+        )
     ui.simulator.close()
 
 
