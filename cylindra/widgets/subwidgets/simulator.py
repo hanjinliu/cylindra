@@ -164,6 +164,7 @@ class Simulator(ChildWidget):
         simulate_tomogram_from_tilt_series = abstractapi()
         simulate_tomogram_and_open = abstractapi()
         simulate_tilt_series = abstractapi()
+        simulate_projection = abstractapi()
 
     @magictoolbar
     class SimulatorTools(ChildWidget):
