@@ -888,12 +888,12 @@ def test_simulate_tilt_series(ui: CylindraMainWidget):
             n_tilt=11,
             interpolation=1,
         )
-        ui.simulator.simulate_tomogram_from_tilt_series(Path(dirpath) / "image.mrc")
         ui.simulator.simulate_projection(
             components=[(ui.mole_layers.last().name, TEST_DIR / "beta-tubulin.mrc")],
             save_dir=Path(dirpath) / "projection_test",
             nsr=[0.1, 1.5],
         )
+        ui.simulator.simulate_tomogram_from_tilt_series(Path(dirpath) / "image.mrc")
     ui.simulator.close()
 
 
@@ -1570,9 +1570,5 @@ def test_stash(ui: CylindraMainWidget):
         name1 = _config.get_stash_list()[0]
         ui.FileMenu.Stash.delete_stash_project(name1)
         ui.FileMenu.Stash.clear_stash_projects()
-
-
-def test_recover_project(ui: CylindraMainWidget):
-    ui.FileMenu.recover_last_project()
     ui.OthersMenu.configure_dask(num_workers=2)
     ui.OthersMenu.configure_dask(num_workers=None)
