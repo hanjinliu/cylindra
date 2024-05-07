@@ -90,7 +90,7 @@ and the recorded macro from `Others > Macro > Show macro`.
 
 ## Citation
 
-If you find `cylindra` useful in your work, please consider citing our paper.
+If you find `cylindra` useful in your work, please consider citing [our paper](https://www.biorxiv.org/content/10.1101/2024.04.30.591984v1).
 
 ```
 Heterogeneous local structures of the microtubule lattice revealed by cryo-ET and non-averaging analysis
