@@ -2,6 +2,7 @@
 [![Python package index download statistics](https://img.shields.io/pypi/dm/cylindra.svg)](https://pypistats.org/packages/cylindra)
 [![PyPI version](https://badge.fury.io/py/cylindra.svg)](https://badge.fury.io/py/cylindra)
 [![codecov](https://codecov.io/gh/hanjinliu/cylindra/graph/badge.svg?token=X1F259JYT5)](https://codecov.io/gh/hanjinliu/cylindra)
+[![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/cylindra)](https://napari-hub.org/plugins/cylindra)
 
 ![](https://github.com/hanjinliu/cylindra/blob/main/resources/fig.png)
 
