@@ -12,17 +12,20 @@ from magicclass import (
     set_design,
     vfield,
 )
-from magicclass.ext.pyqtgraph import QtMultiImageCanvas
+from magicclass.ext.pyqtgraph import QtImageCanvas, QtMultiImageCanvas
 from magicclass.logging import getLogger
 from magicclass.types import Path
 
 from cylindra.const import FileFilter, Mode
 from cylindra.const import PropertyNames as H
+from cylindra.core import ACTIVE_WIDGETS
 from cylindra.utils import Projections, map_coordinates_task
 from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 if TYPE_CHECKING:
     from cylindra.components import CylSpline
+    from cylindra.components.tomogram._cyl_tomo import PowerSpectrumWithPeak
+
 _Logger = getLogger("cylindra")
 
 
@@ -96,6 +99,11 @@ class SplineControl(ChildWidget):
         save_screenshot = abstractapi()
         log_screenshot = abstractapi()
 
+    @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)}, record=False)
+    class footer2(MagicTemplate):
+        label_text = field("View result:", widget_type="Label")
+        view_local_cft_results = abstractapi()
+
     @set_design(max_width=40, text="Auto", location=footer)
     def auto_contrast(self):
         """Auto-contrast by the current projection."""
@@ -130,6 +138,30 @@ class SplineControl(ChildWidget):
             plt.axis("off")
             plt.show()
         return None
+
+    @set_design(text="local-CFT", location=footer2)
+    def view_local_cft_results(self):
+        main = self._get_main()
+        peaks = main.tomogram.local_cps_with_peaks(i=self.num)
+        widget = PeakInspector(peaks)
+        dock = main.parent_viewer.window.add_dock_widget(
+            widget, name=f"Local CFT Results of spline-{self.num}", tabify=True
+        )
+        dock.setFloating(True)
+        ACTIVE_WIDGETS.add(widget)
+        return widget.show()
+
+    @set_design(text="global-CFT", location=footer2)
+    def view_glocal_cft_results(self):
+        main = self._get_main()
+        peak = main.tomogram.global_cps_with_peaks(i=self.num)
+        widget = PeakInspector([peak])
+        dock = main.parent_viewer.window.add_dock_widget(
+            widget, name=f"Global CFT Results of spline-{self.num}", tabify=True
+        )
+        dock.setFloating(True)
+        ACTIVE_WIDGETS.add(widget)
+        return widget.show()
 
     @num.connect
     @pos.connect
@@ -391,3 +423,40 @@ def _circle(
     x = r * np.cos(theta) + center[0]
     y = r * np.sin(theta) + center[1]
     return x, y
+
+
+@magicclass
+class PeakInspector(MagicTemplate):
+    canvas = field(QtImageCanvas)
+    pos = vfield(int, widget_type="Slider", label="Position").with_options(max=0)
+
+    def __init__(self, peaks: "PowerSpectrumWithPeak | list[PowerSpectrumWithPeak]"):
+        self._is_global = not isinstance(peaks, list)
+        if self._is_global:
+            self._peaks = [peaks]
+        else:
+            self._peaks = peaks
+        self._markers = self.canvas.add_scatter(
+            [], [], face_color="red", edge_color="red", symbol="+", size=14
+        )
+        self._texts = self.canvas.add_text(
+            [0, 0],
+            [0, 0],
+            ["", ""],
+            color="red",
+            size=14,
+        )
+
+    def __post_init__(self):
+        self["pos"].max = len(self._peaks) - 1
+        self._pos_changed(0)
+        if self._is_global:
+            self["pos"].visible = False
+
+    @pos.connect
+    def _pos_changed(self, pos: int):
+        self.canvas.image = self._peaks[pos].power
+        x = [peak.a for peak in self._peaks[pos].peaks]
+        y = [peak.y for peak in self._peaks[pos].peaks]
+        self._markers.data = (x, y)
+        return None

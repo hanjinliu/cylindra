@@ -1501,7 +1501,7 @@ class CylindraMainWidget(MagicTemplate):
                 radii = pl.Series(H.radius, radii, dtype=pl.Float32)
                 if radii.is_nan().any():
                     _Logger.print_html(f"<b>Spline-{i} contains NaN radius.</b>")
-                spl.props.update_loc([radii], depth)
+                spl.props.update_loc([radii], depth, bin_size=1)
                 if update_glob:
                     spl.radius = df[Mole.radius].mean()
             self._update_local_properties_in_widget(replot=True)
@@ -1609,16 +1609,15 @@ class CylindraMainWidget(MagicTemplate):
                 yield
 
             # show all in a table
-            df = (
-                self.tomogram.splines.collect_globalprops()
-                .drop(H.spline_id)
-                .to_pandas()
-                .transpose()
-            )
-            df.columns = [f"Spline-{i}" for i in range(len(df.columns))]
-
             @thread_worker.callback
             def _global_cft_analysis_on_return():
+                df = (
+                    self.tomogram.splines.collect_globalprops()
+                    .drop(H.spline_id, H.intensity_vertical, H.intensity_horizontal)
+                    .to_pandas()
+                    .transpose()
+                )
+                df.columns = [f"Spline-{i}" for i in range(len(df.columns))]
                 self.sample_subtomograms()
                 _Logger.print_table(df, precision=3)
                 self._update_global_properties_in_widget()

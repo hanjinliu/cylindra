@@ -27,7 +27,7 @@ from typing_extensions import Concatenate, ParamSpec
 
 from cylindra._dask import Delayed, compute, delayed
 from cylindra.components._ftprops import LatticeAnalyzer, LatticeParams, get_polar_image
-from cylindra.components._peak import find_centroid_peak
+from cylindra.components._peak import FTPeakInfo, find_centroid_peak
 from cylindra.components.spline import CylSpline
 from cylindra.components.tomogram import _straighten
 from cylindra.components.tomogram._spline_list import SplineList
@@ -141,6 +141,12 @@ class FitResult:
     def rmsd(self) -> float:
         """Root mean square deviation."""
         return np.sqrt(np.sum(self.residual**2) / self.residual.shape[0])
+
+
+class PowerSpectrumWithPeak:
+    def __init__(self, power: NDArray[np.float32], peaks: list[FTPeakInfo]):
+        self.power = power
+        self.peaks = peaks
 
 
 class CylTomogram(Tomogram):
@@ -581,7 +587,10 @@ class CylTomogram(Tomogram):
         offset_px = _get_radius_offset(min_radius_px, max_radius_px)
         radius = (imax_sub + offset_px) * _scale
         if update:
-            spl.radius = radius
+            spl.props.update_glob(
+                [pl.Series(H.radius, [radius], dtype=pl.Float32)],
+                bin_size=binsize,
+            )
         LOGGER.info(f" >> Radius = {radius:.3f} nm")
         return radius
 
@@ -647,9 +656,9 @@ class CylTomogram(Tomogram):
 
         out = pl.Series(H.radius, radii, dtype=pl.Float32)
         if update:
-            spl.props.update_loc([out], depth)
+            spl.props.update_loc([out], depth, bin_size=binsize)
         if update_glob:
-            spl.props.update_glob([pl.Series(H.radius, [out.mean()])])
+            spl.props.update_glob([pl.Series(H.radius, [out.mean()])], bin_size=binsize)
         return out
 
     @batch_process
@@ -716,7 +725,7 @@ class CylTomogram(Tomogram):
             schema=LatticeParams.polars_schema(),
         )
         if update:
-            spl.props.update_loc(lprops, depth)
+            spl.props.update_loc(lprops, depth, bin_size=binsize)
         if update_glob:
             gprops = lprops.select(
                 pl.col(H.spacing).mean(),
@@ -728,7 +737,7 @@ class CylTomogram(Tomogram):
                 pl.col(H.npf).mode().first(),
                 pl.col(H.start).mode().first(),
             )
-            spl.props.update_glob(gprops)
+            spl.props.update_glob(gprops, bin_size=binsize)
 
         return lprops
 
@@ -817,6 +826,64 @@ class CylTomogram(Tomogram):
         """
         cft = self.local_cft(i=i, depth=depth, pos=pos, binsize=binsize)
         return cft.real**2 + cft.imag**2
+
+    @batch_process
+    def local_cps_with_peaks(self, *, i: int = None) -> list[PowerSpectrumWithPeak]:
+        spl = self.splines[i]
+        depth = spl.props.window_size[H.spacing]
+        binsize = spl.props.binsize_loc[H.spacing]
+        cps = self.local_cps(i=i, depth=depth, binsize=binsize)
+        df_loc = spl.props.loc
+        out = list[PowerSpectrumWithPeak]()
+        for j in range(cps.shape[0]):
+            cps_proj = cps[j].mean(axis="r")
+            cparams = spl.cylinder_params(
+                spacing=_get_component(df_loc, H.spacing, j),
+                pitch=_get_component(df_loc, H.pitch, j),
+                twist=_get_component(df_loc, H.twist, j),
+                skew=_get_component(df_loc, H.skew, j),
+                rise_angle=_get_component(df_loc, H.rise, j),
+                start=_get_component(df_loc, H.start, j),
+            )
+            analyzer = LatticeAnalyzer(spl.config)
+            peakv, peakh = analyzer.params_to_peaks(
+                cps_proj,
+                cparams,
+                intensity_vertical=_get_component(df_loc, H.intensity_vertical, j),
+                intensity_horizontal=_get_component(df_loc, H.intensity_horizontal, j),
+            )
+            peakv = peakv.shift_to_center()
+            peakh = peakh.shift_to_center()
+            out.append(PowerSpectrumWithPeak(cps_proj, [peakv, peakh]))
+        return out
+
+    @batch_process
+    def global_cps_with_peaks(self, *, i: int = None) -> PowerSpectrumWithPeak:
+        spl = self.splines[i]
+        binsize = spl.props.binsize_loc[H.spacing]
+        cft = self.global_cft(i=i, binsize=binsize)
+        cps = cft.real**2 + cft.imag**2
+        cps_proj = cps.mean(axis="r")
+        cparams = spl.cylinder_params(
+            spacing=spl.props.get_glob(H.spacing, default=None),
+            pitch=spl.props.get_glob(H.pitch, default=None),
+            twist=spl.props.get_glob(H.twist, default=None),
+            skew=spl.props.get_glob(H.skew, default=None),
+            rise_angle=spl.props.get_glob(H.rise, default=None),
+            start=spl.props.get_glob(H.start, default=None),
+        )
+        analyzer = LatticeAnalyzer(spl.config)
+        peakv, peakh = analyzer.params_to_peaks(
+            cps_proj,
+            cparams,
+            intensity_vertical=spl.props.get_glob(H.intensity_vertical, default=None),
+            intensity_horizontal=spl.props.get_glob(
+                H.intensity_horizontal, default=None
+            ),
+        )
+        peakv = peakv.shift_to_center()
+        peakh = peakh.shift_to_center()
+        return PowerSpectrumWithPeak(cps_proj, [peakv, peakh])
 
     @batch_process
     def global_cft_params(
@@ -1472,3 +1539,10 @@ def _normalize_chunk_length(img, chunk_length: nm | None) -> nm:
         else:
             chunk_length = 999999
     return chunk_length
+
+
+def _get_component(df: pl.DataFrame, key: str, idx: int, default=None):
+    try:
+        return df[key][idx]
+    except (KeyError, IndexError):
+        return default

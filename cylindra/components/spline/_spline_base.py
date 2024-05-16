@@ -686,6 +686,8 @@ class Spline(BaseComponent):
             "u": u.tolist(),
             "lims": self._lims,
             "localprops_window_size": dict(self.props.window_size),
+            "binsize_loc": dict(self.props.binsize_loc),
+            "binsize_glob": dict(self.props.binsize_glob),
             "extrapolate": self._extrapolate.name,
             "config": self.config.asdict(),
         }
@@ -716,6 +718,8 @@ class Spline(BaseComponent):
         self._tck = (t, c, k)
         self._u = np.asarray(d["u"])
         self.props._window_size = d.get("localprops_window_size", {})
+        self.props._binsize_loc = d.get("binsize_loc", {})
+        self.props._binsize_glob = d.get("binsize_glob", {})
         if cfg := d.get("config", None):
             self._config = SplineConfig.from_dict(cfg)
         return self
