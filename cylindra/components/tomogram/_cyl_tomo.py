@@ -926,9 +926,12 @@ class CylTomogram(Tomogram):
         img_st = self.straighten_cylindric(i, radii=(rmin, rmax), binsize=binsize)
         rc = (rmin + rmax) / 2
         analyzer = LatticeAnalyzer(spl.config)
-        out = analyzer.estimate_lattice_params_polar(
-            img_st, rc, nsamples=nsamples
-        ).to_polars()
+        lparams = analyzer.estimate_lattice_params_polar(img_st, rc, nsamples=nsamples)
+        out = lparams.to_polars()
+        LOGGER.info(
+            f" >> Peak intensity: vertical={lparams.intensity_vertical:.3g}, "
+            f"horizontal={lparams.intensity_horizontal:.3g}"
+        )
         if update:
             spl.props.glob = spl.props.glob.with_columns(out)
         return out
