@@ -828,10 +828,16 @@ class CylTomogram(Tomogram):
         return cft.real**2 + cft.imag**2
 
     @batch_process
-    def local_cps_with_peaks(self, *, i: int = None) -> list[PowerSpectrumWithPeak]:
+    def local_cps_with_peaks(
+        self,
+        *,
+        i: int = None,
+        binsize: int | None = None,
+    ) -> list[PowerSpectrumWithPeak]:
         spl = self.splines[i]
         depth = spl.props.window_size[H.spacing]
-        binsize = spl.props.binsize_loc[H.spacing]
+        if binsize is None:
+            binsize = spl.props.binsize_loc[H.spacing]
         cps = self.local_cps(i=i, depth=depth, binsize=binsize)
         df_loc = spl.props.loc
         out = list[PowerSpectrumWithPeak]()
@@ -858,9 +864,15 @@ class CylTomogram(Tomogram):
         return out
 
     @batch_process
-    def global_cps_with_peaks(self, *, i: int = None) -> PowerSpectrumWithPeak:
+    def global_cps_with_peaks(
+        self,
+        *,
+        i: int = None,
+        binsize: int | None = None,
+    ) -> PowerSpectrumWithPeak:
         spl = self.splines[i]
-        binsize = spl.props.binsize_loc[H.spacing]
+        if binsize is None:
+            binsize = spl.props.binsize_loc[H.spacing]
         cft = self.global_cft(i=i, binsize=binsize)
         cps = cft.real**2 + cft.imag**2
         cps_proj = cps.mean(axis="r")

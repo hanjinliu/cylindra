@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 import numpy as np
 from magicclass import (
@@ -15,14 +15,107 @@ from magicclass.ext.pyqtgraph import QtImageCanvas, mouse_event
 from magicclass.types import Path
 
 from cylindra.const import FileFilter
+from cylindra.const import PropertyNames as H
 from cylindra.utils import roundint
 from cylindra.widgets.subwidgets._child_widget import ChildWidget
+
+if TYPE_CHECKING:
+    from cylindra.components.tomogram._cyl_tomo import PowerSpectrumWithPeak
 
 
 class MeasureMode(Enum):
     none = "none"
     axial = "spacing/rise"
     angular = "twist/npf"
+
+
+@magicclass
+class PeakInspector(ChildWidget):
+    show_what = vfield("Global-CFT", widget_type="RadioButtons").with_choices(
+        ["Local-CFT", "Global-CFT"]
+    )
+    canvas = field(QtImageCanvas)
+    pos = vfield(int, widget_type="Slider", label="Position").with_options(max=0)
+
+    def _set_peaks(self, peaks: "PowerSpectrumWithPeak | list[PowerSpectrumWithPeak]"):
+        if not isinstance(peaks, list):
+            self._peaks = [peaks]
+        else:
+            self._peaks = peaks
+        self._pos_changed(0)
+
+    def __init__(self):
+        self._peaks = []
+        self._image = None
+        self._is_log_scale = False
+
+    def __post_init__(self):
+        self["pos"].max = len(self._peaks) - 1
+        self._infline_x = self.canvas.add_infline(1, 0, color="yellow")
+        self._infline_y = self.canvas.add_infline(1, 90, color="yellow")
+        self._layer_axial = self.canvas.add_scatter(
+            [], [], color="cyan", symbol="+", size=12
+        )
+        self._layer_angular = self.canvas.add_scatter(
+            [], [], color="lime", symbol="+", size=12
+        )
+        self._markers = self.canvas.add_scatter(
+            [], [], color="red", symbol="+", size=14
+        )
+        self._texts = self.canvas.add_text(
+            [0, 0],
+            [0, 0],
+            ["", ""],
+            color="red",
+            size=14,
+        )
+
+    def _set_log_scale(self, value: bool):
+        self._is_log_scale = value
+        if value:
+            self.canvas.image = np.log(self._image + 1e-12)
+        else:
+            self.canvas.image = self._image
+
+    def _set_spline(self, i: int, binsize: int | None = None):
+        main = self._get_main()
+        spl = main.splines[i]
+        if self.show_what == "Local-CFT":
+            if spl.props.has_loc(H.twist):
+                peaks = main.tomogram.local_cps_with_peaks(i=i, binsize=binsize)
+                self._set_peaks(peaks)
+            else:
+                # how to deal with peaks?
+                self._peaks = []
+            self["pos"].visible = True
+        else:
+            if spl.props.has_glob(H.twist):
+                peak = main.tomogram.global_cps_with_peaks(i=i, binsize=binsize)
+                self._set_peaks(peak)
+            else:
+                self._peaks = []
+            self["pos"].visible = False
+
+        shape = self._peaks[0].power.shape
+        center = np.ceil(np.array(shape) / 2 - 0.5)
+        self._infline_x.pos = center
+        self._infline_y.pos = center
+
+    @pos.connect
+    def _pos_changed(self, pos: int):
+        self._image = self._peaks[pos].power
+        if self._is_log_scale:
+            self.canvas.image = np.log(self._image + 1e-12)
+        else:
+            self.canvas.image = self._image
+        x = [peak.a for peak in self._peaks[pos].peaks]
+        y = [peak.y for peak in self._peaks[pos].peaks]
+        self._markers.data = (x, y)
+        return None
+
+    @show_what.connect
+    def _show_what_changed(self, value: str):
+        self._set_spline(self.pos, binsize=None)
 
 
 @magicclass(widget_type="groupbox", record=False)
@@ -158,7 +251,7 @@ class SpectraInspector(ChildWidget):
         Check to use log power spectra.
     """
 
-    canvas = field(QtImageCanvas)
+    peak_viewer = field(PeakInspector)
 
     def __post_init__(self) -> None:
         self._layer_axial = None
@@ -175,8 +268,12 @@ class SpectraInspector(ChildWidget):
         select_angular_peak = abstractapi()
         log_scale = abstractapi()
 
-    parameters = field(Parameters, location=SidePanel)
+    parameters = field(Parameters, location=SidePanel, name="Measured parameters")
     log_scale = vfield(False, location=SidePanel)
+
+    @property
+    def canvas(self):
+        return self.peak_viewer.canvas
 
     @property
     def mode(self):
@@ -228,19 +325,11 @@ class SpectraInspector(ChildWidget):
         spl = tomo.splines[idx]
         self.parameters.radius = spl.radius
         self.parameters.rise_sign = spl.config.rise_sign
-        polar = tomo.straighten_cylindric(idx, binsize=binsize)
-        pw = polar.power_spectra(zero_norm=True, dims="rya").mean(axis="r")
 
-        self.canvas.layers.clear()
-        self._image = pw.value
-        self.canvas.image = self._image
         self._on_log_scale_changed(self.log_scale)
-
-        center = np.ceil(np.array(pw.shape) / 2 - 0.5)
-        self.canvas.add_infline(center[::-1], 0, color="yellow")
-        self.canvas.add_infline(center[::-1], 90, color="yellow")
-
+        self.peak_viewer._set_spline(idx, binsize)
         self.canvas.mouse_clicked.connect(self._on_mouse_clicked, unique=True)
+        self.mode = MeasureMode.none
 
     @set_design(text="Set bin size", location=SidePanel)
     def set_binsize(self, binsize: Annotated[int, {"choices": _get_binsize_choices}]):
@@ -260,10 +349,7 @@ class SpectraInspector(ChildWidget):
 
     @log_scale.connect
     def _on_log_scale_changed(self, value: bool):
-        if value:
-            self.canvas.image = np.log(self._image + 1e-12)
-        else:
-            self.canvas.image = self._image
+        self.peak_viewer._set_log_scale(value)
 
     def _on_mouse_clicked(self, e: mouse_event.MouseClickEvent):
         return self._click_at(e.pos())
@@ -284,12 +370,7 @@ class SpectraInspector(ChildWidget):
             self.parameters.spacing = abs(1.0 / yfreq * scale) * self._get_binsize()
             _sign = self.parameters.rise_sign
             self.parameters.rise = np.rad2deg(np.arctan(afreq / yfreq)) * _sign
-
-            if self._layer_axial in self.canvas.layers:
-                self.canvas.layers.remove(self._layer_axial)
-            self._layer_axial = self.canvas.add_scatter(
-                [a0], [y0], color="cyan", symbol="+", size=12
-            )
+            self.peak_viewer._layer_axial.data = [a0], [y0]
 
         elif self.mode == MeasureMode.angular:
             _p = self.parameters
@@ -300,7 +381,6 @@ class SpectraInspector(ChildWidget):
 
             if self._layer_angular in self.canvas.layers:
                 self.canvas.layers.remove(self._layer_angular)
-            self._layer_angular = self.canvas.add_scatter(
-                [a0], [y0], color="lime", symbol="+", size=12
-            )
+            self.peak_viewer._layer_angular.data = [a0], [y0]
+
         self.mode = MeasureMode.none
