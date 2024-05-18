@@ -12,19 +12,17 @@ from magicclass import (
     set_design,
     vfield,
 )
-from magicclass.ext.pyqtgraph import QtImageCanvas, QtMultiImageCanvas
+from magicclass.ext.pyqtgraph import QtMultiImageCanvas
 from magicclass.logging import getLogger
 from magicclass.types import Path
 
 from cylindra.const import FileFilter, Mode
 from cylindra.const import PropertyNames as H
-from cylindra.core import ACTIVE_WIDGETS
 from cylindra.utils import Projections, map_coordinates_task
 from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 if TYPE_CHECKING:
     from cylindra.components import CylSpline
-    from cylindra.components.tomogram._cyl_tomo import PowerSpectrumWithPeak
 
 _Logger = getLogger("cylindra")
 

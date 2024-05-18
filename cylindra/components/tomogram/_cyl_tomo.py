@@ -143,8 +143,9 @@ class FitResult:
         return np.sqrt(np.sum(self.residual**2) / self.residual.shape[0])
 
 
-class PowerSpectrumWithPeak:
-    def __init__(self, power: NDArray[np.float32], peaks: list[FTPeakInfo]):
+class ImageWithPeak:
+    def __init__(self, image: ip.ImgArray, power: ip.ImgArray, peaks: list[FTPeakInfo]):
+        self.image = image
         self.power = power
         self.peaks = peaks
 
@@ -741,6 +742,32 @@ class CylTomogram(Tomogram):
 
         return lprops
 
+    def iter_local_image(
+        self,
+        i: int,
+        depth: nm = 50.0,
+        pos: int | None = None,
+        binsize: int = 1,
+    ) -> Iterable[ip.ImgArray]:
+        spl = self.splines[i]
+        if spl.radius is None:
+            raise ValueError("Radius has not been determined yet.")
+
+        input_img = self._get_multiscale_or_original(binsize)
+        _scale = input_img.scale.x
+        rmin, rmax = spl.radius_range()
+        rc = (rmin + rmax) / 2
+        if pos is None:
+            anchors = spl.anchors
+        else:
+            anchors = [spl.anchors[pos]]
+        spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
+        for anc in anchors:
+            coords = spl_trans.local_cylindrical((rmin, rmax), depth, anc, scale=_scale)
+            polar = get_polar_image(input_img, coords, rc)
+            polar[:] -= np.mean(polar)
+            yield polar
+
     @batch_process
     def local_cft(
         self,
@@ -771,29 +798,10 @@ class CylTomogram(Tomogram):
         ip.ImgArray
             FT images stacked along "p" axis.
         """
-        spl = self.splines[i]
-        if spl.radius is None:
-            raise ValueError("Radius has not been determined yet.")
-
-        input_img = self._get_multiscale_or_original(binsize)
-        _scale = input_img.scale.x
-        rmin, rmax = spl.radius_range()
-        rc = (rmin + rmax) / 2
         out = list[ip.ImgArray]()
-        if pos is None:
-            anchors = spl.anchors
-        else:
-            anchors = [spl.anchors[pos]]
-        spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
         with set_gpu():
-            for anc in anchors:
-                coords = spl_trans.local_cylindrical(
-                    (rmin, rmax), depth, anc, scale=_scale
-                )
-                polar = get_polar_image(input_img, coords, rc)
-                polar[:] -= np.mean(polar)
+            for polar in self.iter_local_image(i, depth, pos, binsize):
                 out.append(polar.fft(dims="rya"))
-
         return np.stack(out, axis="p")
 
     @batch_process
@@ -828,21 +836,19 @@ class CylTomogram(Tomogram):
         return cft.real**2 + cft.imag**2
 
     @batch_process
-    def local_cps_with_peaks(
+    def local_image_with_peaks(
         self,
         *,
         i: int = None,
         binsize: int | None = None,
-    ) -> list[PowerSpectrumWithPeak]:
+    ) -> list[ImageWithPeak]:
         spl = self.splines[i]
         depth = spl.props.window_size[H.twist]
         if binsize is None:
             binsize = spl.props.binsize_loc[H.twist]
-        cps = self.local_cps(i=i, depth=depth, binsize=binsize)
         df_loc = spl.props.loc
-        out = list[PowerSpectrumWithPeak]()
-        for j in range(cps.shape[0]):
-            cps_proj = cps[j].mean(axis="r")
+        out = list[ImageWithPeak]()
+        for j, polar_img in enumerate(self.iter_local_image(i, depth, binsize=binsize)):
             cparams = spl.cylinder_params(
                 spacing=_get_component(df_loc, H.spacing, j),
                 pitch=_get_component(df_loc, H.pitch, j),
@@ -852,6 +858,8 @@ class CylTomogram(Tomogram):
                 start=_get_component(df_loc, H.start, j),
             )
             analyzer = LatticeAnalyzer(spl.config)
+            cft = polar_img.fft(dims="rya")
+            cps_proj = (cft.real**2 + cft.imag**2).mean(axis="r")
             peakv, peakh = analyzer.params_to_peaks(
                 cps_proj,
                 cparams,
@@ -860,7 +868,7 @@ class CylTomogram(Tomogram):
             )
             peakv = peakv.shift_to_center()
             peakh = peakh.shift_to_center()
-            out.append(PowerSpectrumWithPeak(cps_proj, [peakv, peakh]))
+            out.append(ImageWithPeak(polar_img, cps_proj, [peakv, peakh]))
         return out
 
     @batch_process
@@ -889,16 +897,18 @@ class CylTomogram(Tomogram):
         return cft.real**2 + cft.imag**2
 
     @batch_process
-    def global_cps_with_peaks(
+    def global_image_with_peaks(
         self,
         *,
         i: int = None,
         binsize: int | None = None,
-    ) -> PowerSpectrumWithPeak:
+    ) -> ImageWithPeak:
         spl = self.splines[i]
         if binsize is None:
             binsize = spl.props.binsize_loc[H.spacing]
-        cft = self.global_cft(i=i, binsize=binsize)
+        img_st = self.straighten_cylindric(i, binsize=binsize)
+        img_st -= np.mean(img_st)
+        cft = img_st.fft(dims="rya")
         cps = cft.real**2 + cft.imag**2
         cps_proj = cps.mean(axis="r")
         cparams = spl.cylinder_params(
@@ -920,7 +930,7 @@ class CylTomogram(Tomogram):
         )
         peakv = peakv.shift_to_center()
         peakh = peakh.shift_to_center()
-        return PowerSpectrumWithPeak(cps_proj, [peakv, peakh])
+        return ImageWithPeak(img_st, cps_proj, [peakv, peakh])
 
     @batch_process
     def global_cft_params(
@@ -990,7 +1000,7 @@ class CylTomogram(Tomogram):
         ip.ImgArray
             Complex image.
         """
-        img_st: ip.ImgArray = self.straighten_cylindric(i, binsize=binsize)
+        img_st = self.straighten_cylindric(i, binsize=binsize)
         img_st -= np.mean(img_st)
         return img_st.fft(dims="rya")
 
