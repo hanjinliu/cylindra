@@ -115,8 +115,12 @@ class ReservedLayers:
                 symbol_of_interest[:] = "o"
             case Ori.MinusToPlus:
                 symbol_of_interest[0], symbol_of_interest[-1] = "-", "+"
+                if len(symbol_of_interest) > 2:
+                    symbol_of_interest[1:-1] = "o"
             case Ori.PlusToMinus:
                 symbol_of_interest[0], symbol_of_interest[-1] = "+", "-"
+                if len(symbol_of_interest) > 2:
+                    symbol_of_interest[1:-1] = "o"
             case ori:  # pragma: no cover
                 raise RuntimeError(ori)
 
