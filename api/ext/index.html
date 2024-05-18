@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.21">
+      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.23">
     
     
       
@@ -26,7 +26,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.66ac8b77.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.6543a935.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
@@ -2014,14 +2014,14 @@
 
 
 <a id="cylindra.ext.IMOD"></a>
-  <div class="doc doc-contents first">
+    <div class="doc doc-contents first">
 
-  
+
       <p>File IO for IMOD softwares.</p>
 
-            <details class="quote">
-              <summary>Source code in <code>cylindra/ext/imod/menu.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 23</span>
+              <details class="quote">
+                <summary>Source code in <code>cylindra/ext/imod/menu.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 23</span>
 <span class="normal"> 24</span>
 <span class="normal"> 25</span>
 <span class="normal"> 26</span>
@@ -2521,12 +2521,11 @@
     <span class="k">def</span> <span class="nf">scale</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_main</span><span class="p">()</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">scale</span>
 </code></pre></div></td></tr></table></div>
-            </details>
+              </details>
 
-  
+
 
   <div class="doc doc-children">
-
 
 
 
@@ -2539,108 +2538,106 @@
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.ext.IMOD.export_project" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">export_project</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">save_dir</span><span class="p">,</span> <span class="n">template_path</span><span class="p">,</span> <span class="n">mask_params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">project_name</span><span class="o">=</span><span class="s1">&#39;project-0&#39;</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">export_project</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">save_dir</span><span class="p">,</span> <span class="n">template_path</span><span class="p">,</span> <span class="n">mask_params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">project_name</span><span class="o">=</span><span class="s1">&#39;project-0&#39;</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Export cylindra state as a PEET prm file.</p>
 <p>Molecules and images will be exported to a directory that can be
 directly used by PEET.</p>
 
 
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>layer</code></td>
+            <td>
+                  <code>MoleculesLayer</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Molecules layer to export.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>save_dir</code></td>
+            <td>
+                  <code><span title="magicclass.types.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Directory to save the files needed for a PEET project.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>template_path</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path to the template image.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>mask_params</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" title="typing.Any" href="https://docs.python.org/3/library/typing.html#typing.Any">Any</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Mask parameters.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>project_name</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Name of the PEET project.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#34;project-0&#34;</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>layer</code></td>
-          <td>
-                <code>MoleculesLayer</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Molecules layer to export.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>save_dir</code></td>
-          <td>
-                <code><span title="magicclass.types.Path">Path</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Directory to save the files needed for a PEET project.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>template_path</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Path to the template image.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>mask_params</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" title="typing.Any" href="https://docs.python.org/3/library/typing.html#typing.Any">Any</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Mask parameters.</p>
-            </div>
-          </td>
-          <td>
-                <code>None</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>project_name</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Name of the PEET project.</p>
-            </div>
-          </td>
-          <td>
-                <code>&#34;project-0&#34;</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
-
-          <details class="quote">
-            <summary>Source code in <code>cylindra/ext/imod/menu.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">193</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/ext/imod/menu.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">193</span>
 <span class="normal">194</span>
 <span class="normal">195</span>
 <span class="normal">196</span>
@@ -2792,88 +2789,85 @@ directly used by PEET.</p>
 
     <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.ext.IMOD.load_molecules" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">load_molecules</span><span class="p">(</span><span class="n">mod_path</span><span class="p">,</span> <span class="n">ang_path</span><span class="p">,</span> <span class="n">shift_mol</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">load_molecules</span><span class="p">(</span><span class="n">mod_path</span><span class="p">,</span> <span class="n">ang_path</span><span class="p">,</span> <span class="n">shift_mol</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Read molecule coordinates and angles from IMOD .mod files.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>mod_path</code></td>
-          <td>
-                <code><span title="magicclass.types.Path">Path</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Path to the mod file that contains molecule coordinates.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>ang_path</code></td>
-          <td>
-                <code><span title="magicclass.types.Path">Path</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Path to the text file that contains molecule angles in Euler angles.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>shift_mol</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>In PEET output csv there may be xOffset, yOffset, zOffset columns that can
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>mod_path</code></td>
+            <td>
+                  <code><span title="magicclass.types.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path to the mod file that contains molecule coordinates.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>ang_path</code></td>
+            <td>
+                  <code><span title="magicclass.types.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path to the text file that contains molecule angles in Euler angles.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>shift_mol</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>In PEET output csv there may be xOffset, yOffset, zOffset columns that can
 be directly applied to the molecule coordinates.</p>
-            </div>
-          </td>
-          <td>
-                <code>True</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/ext/imod/menu.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">27</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/ext/imod/menu.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">27</span>
 <span class="normal">28</span>
 <span class="normal">29</span>
 <span class="normal">30</span>
@@ -2937,29 +2931,27 @@ be directly applied to the molecule coordinates.</p>
 
     <span class="k">return</span> <span class="n">add_molecules</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">,</span> <span class="n">mol</span><span class="p">,</span> <span class="n">mod_path</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.ext.IMOD.load_splines" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">load_splines</span><span class="p">(</span><span class="n">mod_path</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">load_splines</span><span class="p">(</span><span class="n">mod_path</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Read a mod file and register all the contours as splines.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/ext/imod/menu.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">60</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/ext/imod/menu.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">60</span>
 <span class="normal">61</span>
 <span class="normal">62</span>
 <span class="normal">63</span>
@@ -2987,73 +2979,70 @@ be directly applied to the molecule coordinates.</p>
         <span class="n">coords</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">:]</span> <span class="o">-=</span> <span class="mf">0.5</span>  <span class="c1"># shift YX to center of voxel</span>
         <span class="n">main</span><span class="o">.</span><span class="n">register_path</span><span class="p">(</span><span class="n">coords</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span><span class="p">,</span> <span class="n">err_max</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.ext.IMOD.save_molecules" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">save_molecules</span><span class="p">(</span><span class="n">save_dir</span><span class="p">,</span> <span class="n">layers</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">save_molecules</span><span class="p">(</span><span class="n">save_dir</span><span class="p">,</span> <span class="n">layers</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Save monomer positions and angles in the PEET format.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>save_dir</code></td>
-          <td>
-                <code><span title="magicclass.types.Path">Path</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Saving path.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>layers</code></td>
-          <td>
-                <code>sequence of MoleculesLayer</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Select the layers to save. All the molecules will be concatenated.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>save_dir</code></td>
+            <td>
+                  <code><span title="magicclass.types.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Saving path.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>layers</code></td>
+            <td>
+                  <code>sequence of MoleculesLayer</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Select the layers to save. All the molecules will be concatenated.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/ext/imod/menu.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">77</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/ext/imod/menu.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">77</span>
 <span class="normal">78</span>
 <span class="normal">79</span>
 <span class="normal">80</span>
@@ -3085,77 +3074,74 @@ be directly applied to the molecule coordinates.</p>
     <span class="n">mol</span> <span class="o">=</span> <span class="n">Molecules</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">l</span><span class="o">.</span><span class="n">molecules</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">layers</span><span class="p">])</span>
     <span class="k">return</span> <span class="n">_save_molecules</span><span class="p">(</span><span class="n">save_dir</span><span class="o">=</span><span class="n">save_dir</span><span class="p">,</span> <span class="n">mol</span><span class="o">=</span><span class="n">mol</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">scale</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.ext.IMOD.save_splines" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">save_splines</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="n">interval</span><span class="o">=</span><span class="mf">10.0</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">save_splines</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="n">interval</span><span class="o">=</span><span class="mf">10.0</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Save splines as a mod file.</p>
 <p>This function will sample coordinates along the splines and save the coordinates
 as a mod file. The mod file will be labeled with object_id=1 and contour_id=i+1,
 where i is the index of the spline.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>save_path</code></td>
-          <td>
-                <code><span title="magicclass.types.Path">Path</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Saving path.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>interval</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Sampling interval along the splines. For example, if interval=10.0 and the
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>save_path</code></td>
+            <td>
+                  <code><span title="magicclass.types.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Saving path.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>interval</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Sampling interval along the splines. For example, if interval=10.0 and the
 length of a spline is 100.0, 11 points will be sampled.</p>
-            </div>
-          </td>
-          <td>
-                <code>10.0</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+              </div>
+            </td>
+            <td>
+                  <code>10.0</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/ext/imod/menu.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 94</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/ext/imod/menu.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 94</span>
 <span class="normal"> 95</span>
 <span class="normal"> 96</span>
 <span class="normal"> 97</span>
@@ -3239,87 +3225,84 @@ length of a spline is 100.0, 11 points will be sampled.</p>
     <span class="n">data_all</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">data_list</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;vertical&quot;</span><span class="p">)</span>
     <span class="n">save_mod</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="n">data_all</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.ext.IMOD.shift_molecules" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">shift_molecules</span><span class="p">(</span><span class="n">ang_path</span><span class="p">,</span> <span class="n">layer</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">shift_molecules</span><span class="p">(</span><span class="n">ang_path</span><span class="p">,</span> <span class="n">layer</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Shift monomer coordinates in PEET format.</p>
 
 
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>ang_path</code></td>
+            <td>
+                  <code><span title="magicclass.types.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path of offset file.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>layer</code></td>
+            <td>
+                  <code>MoleculesLayer</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Points layer of target monomers.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>update</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Check if update monomer coordinates in place.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>ang_path</code></td>
-          <td>
-                <code><span title="magicclass.types.Path">Path</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Path of offset file.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>layer</code></td>
-          <td>
-                <code>MoleculesLayer</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Points layer of target monomers.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>update</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Check if update monomer coordinates in place.</p>
-            </div>
-          </td>
-          <td>
-                <code>False</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
-
-          <details class="quote">
-            <summary>Source code in <code>cylindra/ext/imod/menu.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">137</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/ext/imod/menu.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">137</span>
 <span class="normal">138</span>
 <span class="normal">139</span>
 <span class="normal">140</span>
@@ -3417,8 +3400,8 @@ length of a spline is 100.0, 11 points will be sampled.</p>
         <span class="n">add_molecules</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">,</span> <span class="n">mol_shifted</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Molecules from PEET&quot;</span><span class="p">)</span>
     <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
 
@@ -3426,8 +3409,7 @@ length of a spline is 100.0, 11 points will be sampled.</p>
 
   </div>
 
-  </div>
-
+    </div>
 
 </div><h2 id="relion">RELION</h2>
 
@@ -3437,14 +3419,14 @@ length of a spline is 100.0, 11 points will be sampled.</p>
 
 
 <a id="cylindra.ext.RELION"></a>
-  <div class="doc doc-contents first">
+    <div class="doc doc-contents first">
 
-  
+
       <p>File IO for RELION.</p>
 
-            <details class="quote">
-              <summary>Source code in <code>cylindra/ext/relion/menu.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 26</span>
+              <details class="quote">
+                <summary>Source code in <code>cylindra/ext/relion/menu.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 26</span>
 <span class="normal"> 27</span>
 <span class="normal"> 28</span>
 <span class="normal"> 29</span>
@@ -3842,12 +3824,11 @@ length of a spline is 100.0, 11 points will be sampled.</p>
 
         <span class="k">return</span> <span class="n">starfile</span><span class="o">.</span><span class="n">write</span><span class="p">({</span><span class="s2">&quot;optics&quot;</span><span class="p">:</span> <span class="n">head</span><span class="p">,</span> <span class="s2">&quot;particles&quot;</span><span class="p">:</span> <span class="n">df</span><span class="p">},</span> <span class="n">path</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-            </details>
+              </details>
 
-  
+
 
   <div class="doc doc-children">
-
 
 
 
@@ -3860,50 +3841,48 @@ length of a spline is 100.0, 11 points will be sampled.</p>
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.ext.RELION.load_molecules" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">load_molecules</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">load_molecules</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Read monomer coordinates and angles from RELION .star file.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>path</code></td>
-          <td>
-                <code>path - like</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>The path to the star file.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>path</code></td>
+            <td>
+                  <code>path - like</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The path to the star file.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/ext/relion/menu.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">30</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/ext/relion/menu.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">30</span>
 <span class="normal">31</span>
 <span class="normal">32</span>
 <span class="normal">33</span>
@@ -3931,60 +3910,57 @@ length of a spline is 100.0, 11 points will be sampled.</p>
     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">mole</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">moles</span><span class="p">):</span>
         <span class="n">add_molecules</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">,</span> <span class="n">mole</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.ext.RELION.load_splines" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">load_splines</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">load_splines</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Read a star file and register all the tubes as splines.</p>
 <p>The "rlnHelicalTubeID" column will be used to group the points into splines.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>path</code></td>
-          <td>
-                <code>path - like</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>The path to the star file.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>path</code></td>
+            <td>
+                  <code>path - like</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The path to the star file.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/ext/relion/menu.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">45</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/ext/relion/menu.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">45</span>
 <span class="normal">46</span>
 <span class="normal">47</span>
 <span class="normal">48</span>
@@ -4036,89 +4012,86 @@ length of a spline is 100.0, 11 points will be sampled.</p>
             <span class="n">main</span><span class="o">.</span><span class="n">register_path</span><span class="p">(</span><span class="n">each</span><span class="o">.</span><span class="n">pos</span><span class="p">,</span> <span class="n">err_max</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">)</span>
     <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.ext.RELION.save_molecules" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">save_molecules</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="n">layers</span><span class="p">,</span> <span class="n">save_features</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">save_molecules</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="n">layers</span><span class="p">,</span> <span class="n">save_features</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Save the selected molecules to a RELION .star file.</p>
 <p>If multiple layers are selected, the <code>MoleculeGroupID</code> column will be added
 to the star file to distinguish the layers.</p>
 
 
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>save_path</code></td>
+            <td>
+                  <code>path - like</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The path to save the star file.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>layers</code></td>
+            <td>
+                  <code>sequence of MoleculesLayer</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The layers to save.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>save_features</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Whether to save the features of the molecules.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>save_path</code></td>
-          <td>
-                <code>path - like</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>The path to save the star file.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>layers</code></td>
-          <td>
-                <code>sequence of MoleculesLayer</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>The layers to save.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>save_features</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Whether to save the features of the molecules.</p>
-            </div>
-          </td>
-          <td>
-                <code>True</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
-
-          <details class="quote">
-            <summary>Source code in <code>cylindra/ext/relion/menu.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 74</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/ext/relion/menu.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 74</span>
 <span class="normal"> 75</span>
 <span class="normal"> 76</span>
 <span class="normal"> 77</span>
@@ -4216,74 +4189,71 @@ to the star file to distinguish the layers.</p>
     <span class="bp">self</span><span class="o">.</span><span class="n">_write_star</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">save_path</span><span class="p">)</span>
     <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.ext.RELION.save_splines" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">save_splines</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="n">interval</span><span class="o">=</span><span class="mf">10.0</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">save_splines</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="n">interval</span><span class="o">=</span><span class="mf">10.0</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Save the current splines to a RELION .star file.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>save_path</code></td>
-          <td>
-                <code>path - like</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>The path to save the star file.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>interval</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Sampling interval along the splines. For example, if interval=10.0 and the
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>save_path</code></td>
+            <td>
+                  <code>path - like</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The path to save the star file.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>interval</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Sampling interval along the splines. For example, if interval=10.0 and the
 length of a spline is 100.0, 11 points will be sampled.</p>
-            </div>
-          </td>
-          <td>
-                <code>10.0</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+              </div>
+            </td>
+            <td>
+                  <code>10.0</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/ext/relion/menu.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">124</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/ext/relion/menu.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">124</span>
 <span class="normal">125</span>
 <span class="normal">126</span>
 <span class="normal">127</span>
@@ -4365,8 +4335,8 @@ length of a spline is 100.0, 11 points will be sampled.</p>
     <span class="n">df</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">data_list</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;vertical&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to_pandas</span><span class="p">()</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_write_star</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">save_path</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
 
@@ -4374,8 +4344,7 @@ length of a spline is 100.0, 11 points will be sampled.</p>
 
   </div>
 
-  </div>
-
+    </div>
 
 </div>
 
@@ -4471,7 +4440,7 @@ length of a spline is 100.0, 11 points will be sampled.</p>
     <script id="__config" type="application/json">{"base": "../..", "features": ["content.code.annotate", "navigation.sections", "navigation.indexes", "navigation.footer", "toc.follow", "search.suggest", "search.share"], "search": "../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.a7c05c9e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.ebd0bdb7.min.js"></script>
       
         <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
       

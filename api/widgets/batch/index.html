@@ -16,7 +16,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.21">
+      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.23">
     
     
       
@@ -24,7 +24,7 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.66ac8b77.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.6543a935.min.css">
       
         
         <link rel="stylesheet" href="../../../assets/stylesheets/palette.06af60db.min.css">
@@ -2194,12 +2194,12 @@
 
 
 <a id="cylindra.widgets.batch.CylindraBatchWidget"></a>
-  <div class="doc doc-contents first">
+    <div class="doc doc-contents first">
 
 
-            <details class="quote">
-              <summary>Source code in <code>cylindra/widgets/batch/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 29</span>
+              <details class="quote">
+                <summary>Source code in <code>cylindra/widgets/batch/main.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 29</span>
 <span class="normal"> 30</span>
 <span class="normal"> 31</span>
 <span class="normal"> 32</span>
@@ -2625,12 +2625,11 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">CylindraBatchProject</span><span class="o">.</span><span class="n">save_gui</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">Path</span><span class="p">(</span><span class="n">save_path</span><span class="p">),</span> <span class="n">molecules_ext</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-            </details>
+              </details>
 
-  
+
 
   <div class="doc doc-children">
-
 
 
 
@@ -2643,79 +2642,77 @@
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.batch.CylindraBatchWidget.construct_loader" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">construct_loader</span><span class="p">(</span><span class="n">paths</span><span class="p">,</span> <span class="n">predicate</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;Loader&#39;</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">construct_loader</span><span class="p">(</span><span class="n">paths</span><span class="p">,</span> <span class="n">predicate</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;Loader&#39;</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Construct a batch loader object from the given paths and predicate.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>paths</code></td>
-          <td>
-                <code>list of (Path, list[Path]) or list of (Path, list[Path], Path)</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>List of tuples of image path, list of molecule paths, and project path. The
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>paths</code></td>
+            <td>
+                  <code>list of (Path, list[Path]) or list of (Path, list[Path], Path)</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>List of tuples of image path, list of molecule paths, and project path. The
 project path is optional.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>predicate</code></td>
-          <td>
-                <code>str or polars expression</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Filter predicate of molecules.</p>
-            </div>
-          </td>
-          <td>
-                <code>None</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>name</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Name of the loader.</p>
-            </div>
-          </td>
-          <td>
-                <code>&#34;Loader&#34;</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>predicate</code></td>
+            <td>
+                  <code>str or polars expression</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Filter predicate of molecules.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>name</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Name of the loader.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#34;Loader&#34;</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/batch/main.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 53</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/batch/main.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 53</span>
 <span class="normal"> 54</span>
 <span class="normal"> 55</span>
 <span class="normal"> 56</span>
@@ -2823,102 +2820,99 @@ project path is optional.</p>
 
     <span class="k">return</span> <span class="n">_on_return</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.batch.CylindraBatchWidget.construct_loader_by_list" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">construct_loader_by_list</span><span class="p">(</span><span class="n">project_paths</span><span class="p">,</span> <span class="n">mole_pattern</span><span class="o">=</span><span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="n">predicate</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;Loader&#39;</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">construct_loader_by_list</span><span class="p">(</span><span class="n">project_paths</span><span class="p">,</span> <span class="n">mole_pattern</span><span class="o">=</span><span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="n">predicate</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;Loader&#39;</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Construct a batch loader from a list of project paths and a molecule pattern.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>project_paths</code></td>
-          <td>
-                <code>list of path-like</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>All the project paths to be used for construction.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>mole_pattern</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>A glob pattern for molecule file names. For example, "*-ALN1.csv" will only
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>project_paths</code></td>
+            <td>
+                  <code>list of path-like</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>All the project paths to be used for construction.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>mole_pattern</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A glob pattern for molecule file names. For example, "*-ALN1.csv" will only
 collect the molecule file names ends with "-ALN1.csv".</p>
-            </div>
-          </td>
-          <td>
-                <code>&#34;*&#34;</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>predicate</code></td>
-          <td>
-                <code>str or polars expression</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Filter predicate of molecules.</p>
-            </div>
-          </td>
-          <td>
-                <code>None</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>name</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Name of the loader.</p>
-            </div>
-          </td>
-          <td>
-                <code>&#34;Loader&#34;</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+              </div>
+            </td>
+            <td>
+                  <code>&#34;*&#34;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>predicate</code></td>
+            <td>
+                  <code>str or polars expression</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Filter predicate of molecules.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>name</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Name of the loader.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#34;Loader&#34;</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/batch/main.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">118</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/batch/main.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">118</span>
 <span class="normal">119</span>
 <span class="normal">120</span>
 <span class="normal">121</span>
@@ -2972,102 +2966,99 @@ collect the molecule file names ends with "-ALN1.csv".</p>
     <span class="bp">self</span><span class="o">.</span><span class="n">construct_loader</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_loader_paths</span><span class="p">(),</span> <span class="n">predicate</span><span class="o">=</span><span class="n">predicate</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
     <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.batch.CylindraBatchWidget.construct_loader_by_pattern" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">construct_loader_by_pattern</span><span class="p">(</span><span class="n">path_pattern</span><span class="p">,</span> <span class="n">mole_pattern</span><span class="o">=</span><span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="n">predicate</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;Loader&#39;</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">construct_loader_by_pattern</span><span class="p">(</span><span class="n">path_pattern</span><span class="p">,</span> <span class="n">mole_pattern</span><span class="o">=</span><span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="n">predicate</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;Loader&#39;</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Construct a batch loader from a pattern of project paths and molecule paths.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>path_pattern</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>A glob pattern for project paths.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>mole_pattern</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>A glob pattern for molecule file names. For example, "*-ALN1.csv" will only
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>path_pattern</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A glob pattern for project paths.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>mole_pattern</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A glob pattern for molecule file names. For example, "*-ALN1.csv" will only
 collect the molecule file names ends with "-ALN1.csv".</p>
-            </div>
-          </td>
-          <td>
-                <code>&#34;*&#34;</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>predicate</code></td>
-          <td>
-                <code>str or polars expression</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Filter predicate of molecules.</p>
-            </div>
-          </td>
-          <td>
-                <code>None</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>name</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Name of the loader.</p>
-            </div>
-          </td>
-          <td>
-                <code>&#34;Loader&#34;</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+              </div>
+            </td>
+            <td>
+                  <code>&#34;*&#34;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>predicate</code></td>
+            <td>
+                  <code>str or polars expression</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Filter predicate of molecules.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>name</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Name of the loader.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#34;Loader&#34;</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/batch/main.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">146</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/batch/main.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">146</span>
 <span class="normal">147</span>
 <span class="normal">148</span>
 <span class="normal">149</span>
@@ -3121,59 +3112,56 @@ collect the molecule file names ends with "-ALN1.csv".</p>
     <span class="bp">self</span><span class="o">.</span><span class="n">construct_loader</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_loader_paths</span><span class="p">(),</span> <span class="n">predicate</span><span class="o">=</span><span class="n">predicate</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
     <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.batch.CylindraBatchWidget.load_batch_project" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">load_batch_project</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">load_batch_project</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Load a batch project from a JSON file.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>path</code></td>
-          <td>
-                <code>path - like</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Path to the JSON file.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>path</code></td>
+            <td>
+                  <code>path - like</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path to the JSON file.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/batch/main.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">207</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/batch/main.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">207</span>
 <span class="normal">208</span>
 <span class="normal">209</span>
 <span class="normal">210</span>
@@ -3203,73 +3191,70 @@ collect the molecule file names ends with "-ALN1.csv".</p>
     <span class="bp">self</span><span class="o">.</span><span class="n">_loaders</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
     <span class="k">return</span> <span class="n">CylindraBatchProject</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">_to_gui</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.batch.CylindraBatchWidget.save_batch_project" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">save_batch_project</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="n">molecules_ext</span><span class="o">=</span><span class="s1">&#39;.csv&#39;</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">save_batch_project</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="n">molecules_ext</span><span class="o">=</span><span class="s1">&#39;.csv&#39;</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Save the GUI state to a JSON file.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>save_path</code></td>
-          <td>
-                <code>path - like</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Path to the JSON file.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>molecules_ext</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Extension of the molecule files.</p>
-            </div>
-          </td>
-          <td>
-                <code>&#34;.csv&#34;</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>save_path</code></td>
+            <td>
+                  <code>path - like</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path to the JSON file.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>molecules_ext</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Extension of the molecule files.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#34;.csv&#34;</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/batch/main.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">223</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/batch/main.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">223</span>
 <span class="normal">224</span>
 <span class="normal">225</span>
 <span class="normal">226</span>
@@ -3307,29 +3292,27 @@ collect the molecule file names ends with "-ALN1.csv".</p>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="n">CylindraBatchProject</span><span class="o">.</span><span class="n">save_gui</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">Path</span><span class="p">(</span><span class="n">save_path</span><span class="p">),</span> <span class="n">molecules_ext</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.batch.CylindraBatchWidget.show_macro" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">show_macro</span><span class="p">()</span></code>
+            <code class="highlight language-python"><span class="n">show_macro</span><span class="p">()</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Show the macro widget of the batch analyzer.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/batch/main.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">187</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/batch/main.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">187</span>
 <span class="normal">188</span>
 <span class="normal">189</span>
 <span class="normal">190</span>
@@ -3351,29 +3334,27 @@ collect the molecule file names ends with "-ALN1.csv".</p>
     <span class="n">ui</span><span class="o">.</span><span class="n">OthersMenu</span><span class="o">.</span><span class="n">Macro</span><span class="o">.</span><span class="n">_get_macro_window</span><span class="p">(</span><span class="n">macro_str</span><span class="p">,</span> <span class="s2">&quot;Batch&quot;</span><span class="p">)</span>
     <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.batch.CylindraBatchWidget.show_native_macro" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">show_native_macro</span><span class="p">()</span></code>
+            <code class="highlight language-python"><span class="n">show_native_macro</span><span class="p">()</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Show the native macro widget of the batch analyzer.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/batch/main.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">199</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/batch/main.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">199</span>
 <span class="normal">200</span>
 <span class="normal">201</span>
 <span class="normal">202</span>
@@ -3387,8 +3368,8 @@ collect the molecule file names ends with "-ALN1.csv".</p>
     <span class="n">ACTIVE_WIDGETS</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">macro</span><span class="o">.</span><span class="n">widget</span><span class="p">)</span>
     <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
 
@@ -3396,8 +3377,7 @@ collect the molecule file names ends with "-ALN1.csv".</p>
 
   </div>
 
-  </div>
-
+    </div>
 
 </div><h2 id="batchsubtomogramaveraging">BatchSubtomogramAveraging</h2>
 <p>Methods are available in the namespace <code>ui.batch.sta</code>.</p>
@@ -3408,12 +3388,12 @@ collect the molecule file names ends with "-ALN1.csv".</p>
 
 
 <a id="cylindra.widgets.batch.sta.BatchSubtomogramAveraging"></a>
-  <div class="doc doc-contents first">
+    <div class="doc doc-contents first">
 
 
-            <details class="quote">
-              <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 81</span>
+              <details class="quote">
+                <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 81</span>
 <span class="normal"> 82</span>
 <span class="normal"> 83</span>
 <span class="normal"> 84</span>
@@ -4471,12 +4451,11 @@ collect the molecule file names ends with "-ALN1.csv".</p>
     <span class="k">def</span> <span class="nf">_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gui</span><span class="p">):</span>
         <span class="n">gui</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">changed</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">gui</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">reset_choices</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-            </details>
+              </details>
 
-  
+
 
   <div class="doc doc-children">
-
 
 
 
@@ -4489,163 +4468,161 @@ collect the molecule file names ends with "-ALN1.csv".</p>
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.batch.sta.BatchSubtomogramAveraging.align_all" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">align_all</span><span class="p">(</span><span class="n">loader_name</span><span class="p">,</span> <span class="n">template_path</span><span class="p">,</span> <span class="n">mask_params</span><span class="p">,</span> <span class="n">max_shifts</span><span class="o">=</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span> <span class="n">rotations</span><span class="o">=</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)),</span> <span class="n">cutoff</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;zncc&#39;</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">align_all</span><span class="p">(</span><span class="n">loader_name</span><span class="p">,</span> <span class="n">template_path</span><span class="p">,</span> <span class="n">mask_params</span><span class="p">,</span> <span class="n">max_shifts</span><span class="o">=</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span> <span class="n">rotations</span><span class="o">=</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)),</span> <span class="n">cutoff</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;zncc&#39;</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Align all the molecules in the selected loader.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>loader_name</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Name of the batch subtomogram loader to be used.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>template_path</code></td>
-          <td>
-                <code><span title="magicclass.types.Path">Path</span> or <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Path to template image.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>mask_params</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a> or (<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a>, <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a>)</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Mask image path or dilation/Gaussian blur parameters.
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>loader_name</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Name of the batch subtomogram loader to be used.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>template_path</code></td>
+            <td>
+                  <code><span title="magicclass.types.Path">Path</span> or <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path to template image.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>mask_params</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a> or (<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a>, <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a>)</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Mask image path or dilation/Gaussian blur parameters.
 If a path is given, image must in the same shape as the template.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>max_shifts</code></td>
-          <td>
-                <code>int or tuple of int</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Maximum shift between subtomograms and template in nm. ZYX order.</p>
-            </div>
-          </td>
-          <td>
-                <code>(1.0, 1.0, 1.0)</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>rotations</code></td>
-          <td>
-                <code>((<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a>, <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a>), (<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a>, <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a>), (<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a>, <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a>))</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Rotation in external degree around each axis.</p>
-            </div>
-          </td>
-          <td>
-                <code>((0.0, 0.0), (0.0, 0.0), (0.0, 0.0))</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>cutoff</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Cutoff frequency of low-pass filter applied in each subtomogram.</p>
-            </div>
-          </td>
-          <td>
-                <code>0.5</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>interpolation</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Interpolation order.</p>
-            </div>
-          </td>
-          <td>
-                <code>3</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>method</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Correlation metrics for alignment.</p>
-            </div>
-          </td>
-          <td>
-                <code>&#39;zncc&#39;</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>bin_size</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Bin size of multiscale image to be used. Set to &gt;1 to boost performance.</p>
-            </div>
-          </td>
-          <td>
-                <code>1</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>max_shifts</code></td>
+            <td>
+                  <code>int or tuple of int</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Maximum shift between subtomograms and template in nm. ZYX order.</p>
+              </div>
+            </td>
+            <td>
+                  <code>(1.0, 1.0, 1.0)</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>rotations</code></td>
+            <td>
+                  <code>((<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a>, <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a>), (<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a>, <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a>), (<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a>, <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a>))</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Rotation in external degree around each axis.</p>
+              </div>
+            </td>
+            <td>
+                  <code>((0.0, 0.0), (0.0, 0.0), (0.0, 0.0))</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>cutoff</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Cutoff frequency of low-pass filter applied in each subtomogram.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.5</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>interpolation</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Interpolation order.</p>
+              </div>
+            </td>
+            <td>
+                  <code>3</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>method</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Correlation metrics for alignment.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;zncc&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>bin_size</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Bin size of multiscale image to be used. Set to &gt;1 to boost performance.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">336</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">336</span>
 <span class="normal">337</span>
 <span class="normal">338</span>
 <span class="normal">339</span>
@@ -4745,118 +4722,115 @@ If a path is given, image must in the same shape as the template.</p>
     <span class="n">t0</span><span class="o">.</span><span class="n">toc</span><span class="p">()</span>
     <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.batch.sta.BatchSubtomogramAveraging.average_groups" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">average_groups</span><span class="p">(</span><span class="n">loader_name</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">by</span><span class="o">=</span><span class="s2">&quot;col(&#39;pf-id&#39;)&quot;</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">average_groups</span><span class="p">(</span><span class="n">loader_name</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">by</span><span class="o">=</span><span class="s2">&quot;col(&#39;pf-id&#39;)&quot;</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Groupwise subtomogram averaging using molecules grouped by the given expression.</p>
 <p>This method first group molecules by its features, and then average each group.
 This method is useful for such as get average of each protofilament and
 segmented subtomogram averaging.</p>
 
 
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>loader_name</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Name of the batch subtomogram loader to be used.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>size</code></td>
+            <td>
+                  <code><span title="cylindra.const.nm">nm</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Size of the template in nm. Use the size of template image by default.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>by</code></td>
+            <td>
+                  <code>str or polars expression</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Expression to group molecules.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#34;col(&#39;pf-id&#39;)&#34;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>interpolation</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Interpolation order.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>bin_size</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Bin size of multiscale image to be used. Set to &gt;1 to boost performance.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>loader_name</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Name of the batch subtomogram loader to be used.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>size</code></td>
-          <td>
-                <code><span title="cylindra.const.nm">nm</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Size of the template in nm. Use the size of template image by default.</p>
-            </div>
-          </td>
-          <td>
-                <code>None</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>by</code></td>
-          <td>
-                <code>str or polars expression</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Expression to group molecules.</p>
-            </div>
-          </td>
-          <td>
-                <code>&#34;col(&#39;pf-id&#39;)&#34;</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>interpolation</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Interpolation order.</p>
-            </div>
-          </td>
-          <td>
-                <code>1</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>bin_size</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Bin size of multiscale image to be used. Set to &gt;1 to boost performance.</p>
-            </div>
-          </td>
-          <td>
-                <code>1</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
-
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">264</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">264</span>
 <span class="normal">265</span>
 <span class="normal">266</span>
 <span class="normal">267</span>
@@ -4930,173 +4904,170 @@ segmented subtomogram averaging.</p>
     <span class="n">t0</span><span class="o">.</span><span class="n">toc</span><span class="p">()</span>
     <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_rec</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;[AVG]</span><span class="si">{</span><span class="n">loader_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">store</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.batch.sta.BatchSubtomogramAveraging.calculate_fsc" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">calculate_fsc</span><span class="p">(</span><span class="n">loader_name</span><span class="p">,</span> <span class="n">template_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mask_params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">n_pairs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">show_average</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dfreq</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">calculate_fsc</span><span class="p">(</span><span class="n">loader_name</span><span class="p">,</span> <span class="n">template_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mask_params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">n_pairs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">show_average</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">dfreq</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Calculate Fourier Shell Correlation using the selected loader.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>loader_name</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Name of the batch subtomogram loader to be used.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>template_path</code></td>
-          <td>
-                <code><span title="magicclass.types.Path">Path</span> or <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Path to template image.</p>
-            </div>
-          </td>
-          <td>
-                <code>None</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>mask_params</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a> or (<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a>, <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a>)</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Mask image path or dilation/Gaussian blur parameters.
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>loader_name</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Name of the batch subtomogram loader to be used.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>template_path</code></td>
+            <td>
+                  <code><span title="magicclass.types.Path">Path</span> or <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path to template image.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>mask_params</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a> or (<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a>, <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a>)</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Mask image path or dilation/Gaussian blur parameters.
 If a path is given, image must in the same shape as the template.</p>
-            </div>
-          </td>
-          <td>
-                <code>None</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>size</code></td>
-          <td>
-                <code><span title="cylindra.const.nm">nm</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Size of the template in nm. Use the size of template image by default.</p>
-            </div>
-          </td>
-          <td>
-                <code>None</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>seed</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Random seed used for subtomogram sampling.</p>
-            </div>
-          </td>
-          <td>
-                <code>0</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>interpolation</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Interpolation order.</p>
-            </div>
-          </td>
-          <td>
-                <code>1</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>n_pairs</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>How many sets of image pairs will be generated to average FSC.</p>
-            </div>
-          </td>
-          <td>
-                <code>1</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>show_average</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>If true, subtomogram averaging will be shown after FSC calculation.</p>
-            </div>
-          </td>
-          <td>
-                <code>True</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>dfreq</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Precision of frequency to calculate FSC. "0.02" means that FSC will be
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>size</code></td>
+            <td>
+                  <code><span title="cylindra.const.nm">nm</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Size of the template in nm. Use the size of template image by default.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>seed</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Random seed used for subtomogram sampling.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>interpolation</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Interpolation order.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>n_pairs</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>How many sets of image pairs will be generated to average FSC.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>show_average</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If true, subtomogram averaging will be shown after FSC calculation.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>dfreq</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Precision of frequency to calculate FSC. "0.02" means that FSC will be
 calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
-            </div>
-          </td>
-          <td>
-                <code>0.02</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+              </div>
+            </td>
+            <td>
+                  <code>0.02</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">387</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">387</span>
 <span class="normal">388</span>
 <span class="normal">389</span>
 <span class="normal">390</span>
@@ -5240,186 +5211,183 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 
     <span class="k">return</span> <span class="n">_calculate_fsc_on_return</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.batch.sta.BatchSubtomogramAveraging.classify_pca" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">classify_pca</span><span class="p">(</span><span class="n">loader_name</span><span class="p">,</span> <span class="n">template_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mask_params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cutoff</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">n_clusters</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">classify_pca</span><span class="p">(</span><span class="n">loader_name</span><span class="p">,</span> <span class="n">template_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mask_params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cutoff</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">n_clusters</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Classify molecules in the loader using PCA and K-means clustering.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>loader_name</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Name of the batch subtomogram loader to be used.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>template_path</code></td>
-          <td>
-                <code><span title="magicclass.types.Path">Path</span> or <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Path to template image.</p>
-            </div>
-          </td>
-          <td>
-                <code>None</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>mask_params</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a> or (<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a>, <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a>)</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Mask image path or dilation/Gaussian blur parameters.
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>loader_name</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Name of the batch subtomogram loader to be used.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>template_path</code></td>
+            <td>
+                  <code><span title="magicclass.types.Path">Path</span> or <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path to template image.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>mask_params</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a> or (<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a>, <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a>)</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Mask image path or dilation/Gaussian blur parameters.
 If a path is given, image must in the same shape as the template.</p>
-            </div>
-          </td>
-          <td>
-                <code>None</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>size</code></td>
-          <td>
-                <code><span title="cylindra.const.nm">nm</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Size of the template in nm. Use the size of template image by default.</p>
-            </div>
-          </td>
-          <td>
-                <code>None</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>cutoff</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Cutoff frequency of low-pass filter applied in each subtomogram.</p>
-            </div>
-          </td>
-          <td>
-                <code>0.5</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>interpolation</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Interpolation order.</p>
-            </div>
-          </td>
-          <td>
-                <code>3</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>bin_size</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Bin size of multiscale image to be used. Set to &gt;1 to boost performance.</p>
-            </div>
-          </td>
-          <td>
-                <code>1</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>n_components</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>The number of PCA dimensions.</p>
-            </div>
-          </td>
-          <td>
-                <code>2</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>n_clusters</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>The number of clusters.</p>
-            </div>
-          </td>
-          <td>
-                <code>2</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>seed</code></td>
-          <td>
-                <code>(<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a>, default)</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Random seed.</p>
-            </div>
-          </td>
-          <td>
-                <code>0</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>size</code></td>
+            <td>
+                  <code><span title="cylindra.const.nm">nm</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Size of the template in nm. Use the size of template image by default.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>cutoff</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Cutoff frequency of low-pass filter applied in each subtomogram.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.5</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>interpolation</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Interpolation order.</p>
+              </div>
+            </td>
+            <td>
+                  <code>3</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>bin_size</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Bin size of multiscale image to be used. Set to &gt;1 to boost performance.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>n_components</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The number of PCA dimensions.</p>
+              </div>
+            </td>
+            <td>
+                  <code>2</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>n_clusters</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The number of clusters.</p>
+              </div>
+            </td>
+            <td>
+                  <code>2</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>seed</code></td>
+            <td>
+                  <code>(<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a>, default)</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Random seed.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">460</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">460</span>
 <span class="normal">461</span>
 <span class="normal">462</span>
 <span class="normal">463</span>
@@ -5569,74 +5537,71 @@ If a path is given, image must in the same shape as the template.</p>
 
     <span class="k">return</span> <span class="n">_on_return</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.batch.sta.BatchSubtomogramAveraging.filter_loader" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">filter_loader</span><span class="p">(</span><span class="n">loader_name</span><span class="p">,</span> <span class="n">expression</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">filter_loader</span><span class="p">(</span><span class="n">loader_name</span><span class="p">,</span> <span class="n">expression</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Filter the selected loader and add the filtered one to the list.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>loader_name</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Name of the input loader</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>expression</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>polars expression that will be used to filter the loader. For example,
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>loader_name</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Name of the input loader</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>expression</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>polars expression that will be used to filter the loader. For example,
 <code>col("score") &gt; 0.7</code> will filter out all low-score molecules.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">206</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">206</span>
 <span class="normal">207</span>
 <span class="normal">208</span>
 <span class="normal">209</span>
@@ -5694,29 +5659,27 @@ If a path is given, image must in the same shape as the template.</p>
     <span class="p">)</span>
     <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.batch.sta.BatchSubtomogramAveraging.get_loader" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">get_loader</span><span class="p">(</span><span class="n">name</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">get_loader</span><span class="p">(</span><span class="n">name</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Return the acryo.BatchLoader object with the given name</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">236</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">236</span>
 <span class="normal">237</span>
 <span class="normal">238</span>
 <span class="normal">239</span>
@@ -5728,29 +5691,27 @@ If a path is given, image must in the same shape as the template.</p>
         <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Name must be a string, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
     <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_parent</span><span class="p">()</span><span class="o">.</span><span class="n">loader_infos</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">loader</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.batch.sta.BatchSubtomogramAveraging.remove_loader" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">remove_loader</span><span class="p">(</span><span class="n">loader_name</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">remove_loader</span><span class="p">(</span><span class="n">loader_name</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Remove this loader</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">136</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">136</span>
 <span class="normal">137</span>
 <span class="normal">138</span>
 <span class="normal">139</span>
@@ -5762,29 +5723,27 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Remove this loader&quot;&quot;&quot;</span>
     <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_parent</span><span class="p">()</span><span class="o">.</span><span class="n">loader_infos</span><span class="p">[</span><span class="n">loader_name</span><span class="p">]</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.batch.sta.BatchSubtomogramAveraging.show_loader_info" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">show_loader_info</span><span class="p">()</span></code>
+            <code class="highlight language-python"><span class="n">show_loader_info</span><span class="p">()</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Show information about this loader</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">116</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">116</span>
 <span class="normal">117</span>
 <span class="normal">118</span>
 <span class="normal">119</span>
@@ -5822,29 +5781,27 @@ If a path is given, image must in the same shape as the template.</p>
     <span class="n">cnt</span><span class="o">.</span><span class="n">native</span><span class="o">.</span><span class="n">setParent</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">native</span><span class="p">,</span> <span class="n">cnt</span><span class="o">.</span><span class="n">native</span><span class="o">.</span><span class="n">windowFlags</span><span class="p">())</span>
     <span class="n">cnt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.batch.sta.BatchSubtomogramAveraging.show_mask" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">show_mask</span><span class="p">()</span></code>
+            <code class="highlight language-python"><span class="n">show_mask</span><span class="p">()</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Load and show mask image in the scale of the tomogram.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">563</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">563</span>
 <span class="normal">564</span>
 <span class="normal">565</span>
 <span class="normal">566</span>
@@ -5876,29 +5833,27 @@ If a path is given, image must in the same shape as the template.</p>
     <span class="n">mask</span> <span class="o">=</span> <span class="n">ip</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="s2">&quot;zyx&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">set_scale</span><span class="p">(</span><span class="n">zyx</span><span class="o">=</span><span class="n">loader</span><span class="o">.</span><span class="n">scale</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;nm&quot;</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_show_rec</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Mask image&quot;</span><span class="p">,</span> <span class="n">store</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.batch.sta.BatchSubtomogramAveraging.show_template" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">show_template</span><span class="p">()</span></code>
+            <code class="highlight language-python"><span class="n">show_template</span><span class="p">()</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Load and show template image in the scale of the tomogram.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">542</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">542</span>
 <span class="normal">543</span>
 <span class="normal">544</span>
 <span class="normal">545</span>
@@ -5910,29 +5865,27 @@ If a path is given, image must in the same shape as the template.</p>
     <span class="n">template</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_template_image</span><span class="p">()</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_show_rec</span><span class="p">(</span><span class="n">template</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Template image&quot;</span><span class="p">,</span> <span class="n">store</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.batch.sta.BatchSubtomogramAveraging.show_template_original" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">show_template_original</span><span class="p">()</span></code>
+            <code class="highlight language-python"><span class="n">show_template_original</span><span class="p">()</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Load and show template image in the original scale.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">549</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">549</span>
 <span class="normal">550</span>
 <span class="normal">551</span>
 <span class="normal">552</span>
@@ -5958,129 +5911,126 @@ If a path is given, image must in the same shape as the template.</p>
             <span class="n">img</span> <span class="o">=</span> <span class="n">ip</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">fp</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_show_rec</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Template image [</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">]&quot;</span><span class="p">,</span> <span class="n">store</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.batch.sta.BatchSubtomogramAveraging.split_and_average" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">split_and_average</span><span class="p">(</span><span class="n">loader_name</span><span class="p">,</span> <span class="n">n_pairs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">split_and_average</span><span class="p">(</span><span class="n">loader_name</span><span class="p">,</span> <span class="n">n_pairs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Split molecules into two groups and average separately.</p>
 
 
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>loader_name</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Name of the batch subtomogram loader to be used.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>size</code></td>
+            <td>
+                  <code><span title="cylindra.const.nm">nm</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Size of the template in nm. Use the size of template image by default.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>n_pairs</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>How many pairs of average will be calculated.</p>
+              </div>
+            </td>
+            <td>
+                  <code>is 1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>size</code></td>
+            <td>
+                  <code><span title="cylindra.const.nm">nm</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Size of the template in nm. Use the size of template image by default.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>interpolation</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Interpolation order.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>bin_size</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Bin size of multiscale image to be used. Set to &gt;1 to boost performance.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>loader_name</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Name of the batch subtomogram loader to be used.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>size</code></td>
-          <td>
-                <code><span title="cylindra.const.nm">nm</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Size of the template in nm. Use the size of template image by default.</p>
-            </div>
-          </td>
-          <td>
-                <code>None</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>n_pairs</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>How many pairs of average will be calculated.</p>
-            </div>
-          </td>
-          <td>
-                <code>is 1</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>size</code></td>
-          <td>
-                <code><span title="cylindra.const.nm">nm</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Size of the template in nm. Use the size of template image by default.</p>
-            </div>
-          </td>
-          <td>
-                <code>None</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>interpolation</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Interpolation order.</p>
-            </div>
-          </td>
-          <td>
-                <code>1</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>bin_size</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Bin size of multiscale image to be used. Set to &gt;1 to boost performance.</p>
-            </div>
-          </td>
-          <td>
-                <code>1</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
-
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">302</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">302</span>
 <span class="normal">303</span>
 <span class="normal">304</span>
 <span class="normal">305</span>
@@ -6146,87 +6096,84 @@ If a path is given, image must in the same shape as the template.</p>
     <span class="n">t0</span><span class="o">.</span><span class="n">toc</span><span class="p">()</span>
     <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_rec</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;[Split]</span><span class="si">{</span><span class="n">loader_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">store</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.batch.sta.BatchSubtomogramAveraging.split_loader" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">split_loader</span><span class="p">(</span><span class="n">loader_name</span><span class="p">,</span> <span class="n">by</span><span class="p">,</span> <span class="n">delete_old</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">split_loader</span><span class="p">(</span><span class="n">loader_name</span><span class="p">,</span> <span class="n">by</span><span class="p">,</span> <span class="n">delete_old</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Split the selected loader by the values of the given column.</p>
 
 
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>loader_name</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Name of the input loader</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>by</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Column name to split the loader</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>delete_old</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If true, the original loader will be deleted.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>loader_name</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Name of the input loader</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>by</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Column name to split the loader</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>delete_old</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>If true, the original loader will be deleted.</p>
-            </div>
-          </td>
-          <td>
-                <code>False</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
-
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">158</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">158</span>
 <span class="normal">159</span>
 <span class="normal">160</span>
 <span class="normal">161</span>
@@ -6320,8 +6267,8 @@ If a path is given, image must in the same shape as the template.</p>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Loader not found.&quot;</span><span class="p">)</span>
         <span class="k">del</span> <span class="n">loaders</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
 
@@ -6329,8 +6276,7 @@ If a path is given, image must in the same shape as the template.</p>
 
   </div>
 
-  </div>
-
+    </div>
 
 </div>
 
@@ -6410,7 +6356,7 @@ If a path is given, image must in the same shape as the template.</p>
     <script id="__config" type="application/json">{"base": "../../..", "features": ["content.code.annotate", "navigation.sections", "navigation.indexes", "navigation.footer", "toc.follow", "search.suggest", "search.share"], "search": "../../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.a7c05c9e.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.ebd0bdb7.min.js"></script>
       
         <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
       

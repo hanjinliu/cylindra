@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.21">
+      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.23">
     
     
       
@@ -26,7 +26,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.66ac8b77.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.6543a935.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
@@ -2474,9 +2474,9 @@
 
 
 <a id="cylindra.project"></a>
-  <div class="doc doc-contents first">
+    <div class="doc doc-contents first">
 
-  
+
 
   <div class="doc doc-children">
 
@@ -2492,20 +2492,20 @@
 
 
 <h4 id="cylindra.project.CylindraBatchProject" class="doc doc-heading">
-          <code>CylindraBatchProject</code>
+            <code>CylindraBatchProject</code>
 
 
 </h4>
 
 
-  <div class="doc doc-contents ">
+    <div class="doc doc-contents ">
 
-  
+
       <p>A project of cylindra batch processing.</p>
 
-            <details class="quote">
-              <summary>Source code in <code>cylindra/project/_batch.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 48</span>
+              <details class="quote">
+                <summary>Source code in <code>cylindra/project/_batch.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 48</span>
 <span class="normal"> 49</span>
 <span class="normal"> 50</span>
 <span class="normal"> 51</span>
@@ -2729,9 +2729,9 @@
         <span class="n">gui</span><span class="o">.</span><span class="n">reset_choices</span><span class="p">()</span>
         <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
-            </details>
+              </details>
 
-  
+
 
   <div class="doc doc-children">
 
@@ -2743,24 +2743,22 @@
 
 
 
-
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.CylindraBatchProject.resolve_path" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">resolve_path</span><span class="p">(</span><span class="n">file_dir</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">resolve_path</span><span class="p">(</span><span class="n">file_dir</span><span class="p">)</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Resolve the path of the project.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_batch.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">57</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_batch.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">57</span>
 <span class="normal">58</span>
 <span class="normal">59</span>
 <span class="normal">60</span>
@@ -2770,19 +2768,17 @@
     <span class="bp">self</span><span class="o">.</span><span class="n">loaders</span> <span class="o">=</span> <span class="p">[</span><span class="n">ldr</span><span class="o">.</span><span class="n">resolve_path</span><span class="p">(</span><span class="n">file_dir</span><span class="p">)</span> <span class="k">for</span> <span class="n">ldr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">loaders</span><span class="p">]</span>
     <span class="k">return</span> <span class="bp">self</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.CylindraBatchProject.save_gui" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">save_gui</span><span class="p">(</span><span class="n">gui</span><span class="p">,</span> <span class="n">project_dir</span><span class="p">,</span> <span class="n">mole_ext</span><span class="o">=</span><span class="s1">&#39;.csv&#39;</span><span class="p">)</span></code>
-  
+            <code class="highlight language-python"><span class="n">save_gui</span><span class="p">(</span><span class="n">gui</span><span class="p">,</span> <span class="n">project_dir</span><span class="p">,</span> <span class="n">mole_ext</span><span class="o">=</span><span class="s1">&#39;.csv&#39;</span><span class="p">)</span></code>
+
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
   </span>
@@ -2790,13 +2786,13 @@
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Save the GUI state to a project directory.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_batch.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">113</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_batch.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">113</span>
 <span class="normal">114</span>
 <span class="normal">115</span>
 <span class="normal">116</span>
@@ -2840,8 +2836,8 @@
     <span class="bp">self</span><span class="o">.</span><span class="n">to_json</span><span class="p">(</span><span class="n">project_dir</span> <span class="o">/</span> <span class="s2">&quot;project.json&quot;</span><span class="p">)</span>
     <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
 
@@ -2849,8 +2845,7 @@
 
   </div>
 
-  </div>
-
+    </div>
 
 </div>
 
@@ -2859,20 +2854,20 @@
 
 
 <h4 id="cylindra.project.CylindraProject" class="doc doc-heading">
-          <code>CylindraProject</code>
+            <code>CylindraProject</code>
 
 
 </h4>
 
 
-  <div class="doc doc-contents ">
+    <div class="doc doc-contents ">
 
-  
+
       <p>A project of cylindra.</p>
 
-            <details class="quote">
-              <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 26</span>
+              <details class="quote">
+                <summary>Source code in <code>cylindra/project/_single.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 26</span>
 <span class="normal"> 27</span>
 <span class="normal"> 28</span>
 <span class="normal"> 29</span>
@@ -3382,7 +3377,9 @@
 <span class="normal">533</span>
 <span class="normal">534</span>
 <span class="normal">535</span>
-<span class="normal">536</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">CylindraProject</span><span class="p">(</span><span class="n">BaseProject</span><span class="p">):</span>
+<span class="normal">536</span>
+<span class="normal">537</span>
+<span class="normal">538</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">CylindraProject</span><span class="p">(</span><span class="n">BaseProject</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A project of cylindra.&quot;&quot;&quot;</span>
 
     <span class="c1"># this allows extra fields in the json file, for backward compatibility</span>
@@ -3608,18 +3605,20 @@
             <span class="k">yield</span> <span class="n">_update_widget</span>
             <span class="n">_update_widget</span><span class="o">.</span><span class="n">await_call</span><span class="p">()</span>
 
-            <span class="c1"># load molecules</span>
+            <span class="c1"># load molecules and landscapes</span>
             <span class="n">_add_layer</span> <span class="o">=</span> <span class="n">thread_worker</span><span class="o">.</span><span class="n">callback</span><span class="p">(</span><span class="n">gui</span><span class="o">.</span><span class="n">parent_viewer</span><span class="o">.</span><span class="n">add_layer</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">info</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">molecules_info</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">landscape_info</span><span class="p">:</span>
-                <span class="n">layer</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">to_layer</span><span class="p">(</span><span class="n">gui</span><span class="p">,</span> <span class="n">project_dir</span><span class="p">)</span>
-                <span class="n">cb</span> <span class="o">=</span> <span class="n">_add_layer</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="n">layer</span><span class="p">)</span>
-                <span class="k">yield</span> <span class="n">cb</span>
-                <span class="n">cb</span><span class="o">.</span><span class="n">await_call</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+            <span class="k">with</span> <span class="n">gui</span><span class="o">.</span><span class="n">_pend_reset_choices</span><span class="p">():</span>
+                <span class="k">for</span> <span class="n">info</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">molecules_info</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">landscape_info</span><span class="p">:</span>
+                    <span class="n">layer</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">to_layer</span><span class="p">(</span><span class="n">gui</span><span class="p">,</span> <span class="n">project_dir</span><span class="p">)</span>
+                    <span class="n">cb</span> <span class="o">=</span> <span class="n">_add_layer</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="n">layer</span><span class="p">)</span>
+                    <span class="k">yield</span> <span class="n">cb</span>
+                    <span class="n">cb</span><span class="o">.</span><span class="n">await_call</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
 
         <span class="nd">@thread_worker</span><span class="o">.</span><span class="n">callback</span>
         <span class="k">def</span> <span class="nf">out</span><span class="p">():</span>
             <span class="c1"># update project description widget</span>
             <span class="n">gui</span><span class="o">.</span><span class="n">GeneralInfo</span><span class="o">.</span><span class="n">project_desc</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">project_description</span>
+            <span class="n">gui</span><span class="o">.</span><span class="n">reset_choices</span><span class="p">()</span>
 
         <span class="k">return</span> <span class="n">out</span>
 
@@ -3894,9 +3893,9 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Path to the project.json file.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="nb">dir</span> <span class="o">/</span> <span class="s2">&quot;project.json&quot;</span>
 </code></pre></div></td></tr></table></div>
-            </details>
+              </details>
 
-  
+
 
   <div class="doc doc-children">
 
@@ -3908,42 +3907,38 @@
 
 
 
-
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.CylindraProject.default_spline_config_path" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">default_spline_config_path</span><span class="p">(</span><span class="nb">dir</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">default_spline_config_path</span><span class="p">(</span><span class="nb">dir</span><span class="p">)</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Path to the default spline config file.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">526</span>
-<span class="normal">527</span>
-<span class="normal">528</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">default_spline_config_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_single.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">528</span>
+<span class="normal">529</span>
+<span class="normal">530</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">default_spline_config_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Path to the default spline config file.&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="nb">dir</span> <span class="o">/</span> <span class="s2">&quot;default_spline_config.json&quot;</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.CylindraProject.from_gui" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">from_gui</span><span class="p">(</span><span class="n">gui</span><span class="p">,</span> <span class="n">project_dir</span><span class="p">,</span> <span class="n">mole_ext</span><span class="o">=</span><span class="s1">&#39;.csv&#39;</span><span class="p">,</span> <span class="n">save_landscape</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
-  
+            <code class="highlight language-python"><span class="n">from_gui</span><span class="p">(</span><span class="n">gui</span><span class="p">,</span> <span class="n">project_dir</span><span class="p">,</span> <span class="n">mole_ext</span><span class="o">=</span><span class="s1">&#39;.csv&#39;</span><span class="p">,</span> <span class="n">save_landscape</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
   </span>
@@ -3951,13 +3946,13 @@
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Construct a project from a widget state.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">109</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_single.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">109</span>
 <span class="normal">110</span>
 <span class="normal">111</span>
 <span class="normal">112</span>
@@ -4055,59 +4050,53 @@
         <span class="n">project_path</span><span class="o">=</span><span class="n">project_dir</span><span class="p">,</span>
     <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
 
-
 <div class="doc doc-object doc-function">
-
 
 
 <h5 id="cylindra.project.CylindraProject.globalprops_path" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">globalprops_path</span><span class="p">(</span><span class="nb">dir</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">globalprops_path</span><span class="p">(</span><span class="nb">dir</span><span class="p">)</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Path to the spline global properties file.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">522</span>
-<span class="normal">523</span>
-<span class="normal">524</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">globalprops_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_single.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">524</span>
+<span class="normal">525</span>
+<span class="normal">526</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">globalprops_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Path to the spline global properties file.&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="nb">dir</span> <span class="o">/</span> <span class="s2">&quot;globalprops.csv&quot;</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.CylindraProject.iter_load_molecules" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">iter_load_molecules</span><span class="p">(</span><span class="nb">dir</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">iter_load_molecules</span><span class="p">(</span><span class="nb">dir</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Load all molecules iteratively.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">367</span>
-<span class="normal">368</span>
-<span class="normal">369</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_single.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">369</span>
 <span class="normal">370</span>
 <span class="normal">371</span>
 <span class="normal">372</span>
@@ -4125,7 +4114,9 @@
 <span class="normal">384</span>
 <span class="normal">385</span>
 <span class="normal">386</span>
-<span class="normal">387</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">iter_load_molecules</span><span class="p">(</span>
+<span class="normal">387</span>
+<span class="normal">388</span>
+<span class="normal">389</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">iter_load_molecules</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Iterable[tuple[MoleculesInfo, Molecules]]&quot;</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Load all molecules iteratively.&quot;&quot;&quot;</span>
@@ -4147,31 +4138,27 @@
         <span class="n">mole</span> <span class="o">=</span> <span class="n">Molecules</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
         <span class="k">yield</span> <span class="n">info</span><span class="p">,</span> <span class="n">mole</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.CylindraProject.iter_load_splines" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">iter_load_splines</span><span class="p">(</span><span class="nb">dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">drop_columns</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">iter_load_splines</span><span class="p">(</span><span class="nb">dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">drop_columns</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Load all splines including its properties iteratively.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">314</span>
-<span class="normal">315</span>
-<span class="normal">316</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_single.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">316</span>
 <span class="normal">317</span>
 <span class="normal">318</span>
 <span class="normal">319</span>
@@ -4220,7 +4207,9 @@
 <span class="normal">362</span>
 <span class="normal">363</span>
 <span class="normal">364</span>
-<span class="normal">365</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">iter_load_splines</span><span class="p">(</span>
+<span class="normal">365</span>
+<span class="normal">366</span>
+<span class="normal">367</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">iter_load_splines</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">drop_columns</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
@@ -4273,31 +4262,27 @@
         <span class="n">spl</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">glob</span> <span class="o">=</span> <span class="n">cast_dataframe</span><span class="p">(</span><span class="n">_glob</span><span class="p">)</span>
         <span class="k">yield</span> <span class="n">spl</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.CylindraProject.iter_spline_paths" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">iter_spline_paths</span><span class="p">(</span><span class="nb">dir</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">iter_spline_paths</span><span class="p">(</span><span class="nb">dir</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Iterate over the paths of splines and their indices.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">300</span>
-<span class="normal">301</span>
-<span class="normal">302</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_single.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">302</span>
 <span class="normal">303</span>
 <span class="normal">304</span>
 <span class="normal">305</span>
@@ -4307,7 +4292,9 @@
 <span class="normal">309</span>
 <span class="normal">310</span>
 <span class="normal">311</span>
-<span class="normal">312</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">iter_spline_paths</span><span class="p">(</span>
+<span class="normal">312</span>
+<span class="normal">313</span>
+<span class="normal">314</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">iter_spline_paths</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Iterable[tuple[int, Path]]&quot;</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Iterate over the paths of splines and their indices.&quot;&quot;&quot;</span>
@@ -4321,31 +4308,27 @@
     <span class="n">idx_paths</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
     <span class="k">yield from</span> <span class="n">idx_paths</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.CylindraProject.load_spline" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">load_spline</span><span class="p">(</span><span class="nb">dir</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">props</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">load_spline</span><span class="p">(</span><span class="nb">dir</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">props</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Load the spline with the given index.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">267</span>
-<span class="normal">268</span>
-<span class="normal">269</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_single.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">269</span>
 <span class="normal">270</span>
 <span class="normal">271</span>
 <span class="normal">272</span>
@@ -4374,7 +4357,9 @@
 <span class="normal">295</span>
 <span class="normal">296</span>
 <span class="normal">297</span>
-<span class="normal">298</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">load_spline</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">props</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;CylSpline&quot;</span><span class="p">:</span>
+<span class="normal">298</span>
+<span class="normal">299</span>
+<span class="normal">300</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">load_spline</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">props</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;CylSpline&quot;</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Load the spline with the given index.&quot;&quot;&quot;</span>
     <span class="kn">from</span> <span class="nn">cylindra.components</span> <span class="kn">import</span> <span class="n">CylSpline</span>
 
@@ -4407,75 +4392,70 @@
 
     <span class="k">return</span> <span class="n">spl</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.CylindraProject.load_tomogram" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">load_tomogram</span><span class="p">(</span><span class="nb">dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">load_tomogram</span><span class="p">(</span><span class="nb">dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Load the tomogram object of the project.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>dir</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" title="pathlib.Path" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path">Path</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Can be given if the project is already opened.</p>
-            </div>
-          </td>
-          <td>
-                <code>None</code>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>compute</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Whether to compute the binned tomograms.</p>
-            </div>
-          </td>
-          <td>
-                <code>True</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>dir</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" title="pathlib.Path" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path">Path</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Can be given if the project is already opened.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>compute</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Whether to compute the binned tomograms.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">389</span>
-<span class="normal">390</span>
-<span class="normal">391</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_single.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">391</span>
 <span class="normal">392</span>
 <span class="normal">393</span>
 <span class="normal">394</span>
@@ -4518,7 +4498,9 @@
 <span class="normal">431</span>
 <span class="normal">432</span>
 <span class="normal">433</span>
-<span class="normal">434</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">load_tomogram</span><span class="p">(</span>
+<span class="normal">434</span>
+<span class="normal">435</span>
+<span class="normal">436</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">load_tomogram</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">compute</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
@@ -4565,63 +4547,59 @@
     <span class="n">tomo</span><span class="o">.</span><span class="n">splines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">iter_load_splines</span><span class="p">(</span><span class="nb">dir</span><span class="p">))</span>
     <span class="k">return</span> <span class="n">tomo</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
 
-
 <div class="doc doc-object doc-function">
-
 
 
 <h5 id="cylindra.project.CylindraProject.localprops_path" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">localprops_path</span><span class="p">(</span><span class="nb">dir</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">localprops_path</span><span class="p">(</span><span class="nb">dir</span><span class="p">)</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Path to the spline local properties file.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">518</span>
-<span class="normal">519</span>
-<span class="normal">520</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">localprops_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_single.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">520</span>
+<span class="normal">521</span>
+<span class="normal">522</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">localprops_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Path to the spline local properties file.&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="nb">dir</span> <span class="o">/</span> <span class="s2">&quot;localprops.csv&quot;</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.CylindraProject.make_project_viewer" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">make_project_viewer</span><span class="p">()</span></code>
+            <code class="highlight language-python"><span class="n">make_project_viewer</span><span class="p">()</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Build a project viewer widget from this project.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">436</span>
-<span class="normal">437</span>
-<span class="normal">438</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_single.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">438</span>
 <span class="normal">439</span>
 <span class="normal">440</span>
 <span class="normal">441</span>
-<span class="normal">442</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">make_project_viewer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">442</span>
+<span class="normal">443</span>
+<span class="normal">444</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">make_project_viewer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a project viewer widget from this project.&quot;&quot;&quot;</span>
     <span class="kn">from</span> <span class="nn">cylindra.project._widgets</span> <span class="kn">import</span> <span class="n">ProjectViewer</span>
 
@@ -4629,19 +4607,17 @@
     <span class="n">pviewer</span><span class="o">.</span><span class="n">_from_project</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">pviewer</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.CylindraProject.new" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">new</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">multiscales</span><span class="p">,</span> <span class="n">missing_wedge</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">project_path</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
-  
+            <code class="highlight language-python"><span class="n">new</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">multiscales</span><span class="p">,</span> <span class="n">missing_wedge</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">project_path</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
   </span>
@@ -4649,13 +4625,13 @@
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Create a new project.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">51</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_single.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">51</span>
 <span class="normal">52</span>
 <span class="normal">53</span>
 <span class="normal">54</span>
@@ -4711,31 +4687,27 @@
         <span class="n">project_path</span><span class="o">=</span><span class="n">project_path</span><span class="p">,</span>
     <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.CylindraProject.open_project" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">open_project</span><span class="p">()</span></code>
+            <code class="highlight language-python"><span class="n">open_project</span><span class="p">()</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Open the project within this context.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">452</span>
-<span class="normal">453</span>
-<span class="normal">454</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_single.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">454</span>
 <span class="normal">455</span>
 <span class="normal">456</span>
 <span class="normal">457</span>
@@ -4761,7 +4733,9 @@
 <span class="normal">477</span>
 <span class="normal">478</span>
 <span class="normal">479</span>
-<span class="normal">480</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@contextmanager</span>
+<span class="normal">480</span>
+<span class="normal">481</span>
+<span class="normal">482</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@contextmanager</span>
 <span class="k">def</span> <span class="nf">open_project</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Generator</span><span class="p">[</span><span class="n">Path</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Open the project within this context.&quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">project_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -4791,57 +4765,53 @@
 
     <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
 
-
 <div class="doc doc-object doc-function">
-
 
 
 <h5 id="cylindra.project.CylindraProject.project_json_path" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">project_json_path</span><span class="p">(</span><span class="nb">dir</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">project_json_path</span><span class="p">(</span><span class="nb">dir</span><span class="p">)</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Path to the project.json file.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">534</span>
-<span class="normal">535</span>
-<span class="normal">536</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">project_json_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_single.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">536</span>
+<span class="normal">537</span>
+<span class="normal">538</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">project_json_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Path to the project.json file.&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="nb">dir</span> <span class="o">/</span> <span class="s2">&quot;project.json&quot;</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.CylindraProject.resolve_path" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">resolve_path</span><span class="p">(</span><span class="n">file_dir</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">resolve_path</span><span class="p">(</span><span class="n">file_dir</span><span class="p">)</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Resolve the path of the project.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">45</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_single.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">45</span>
 <span class="normal">46</span>
 <span class="normal">47</span>
 <span class="normal">48</span>
@@ -4851,33 +4821,29 @@
     <span class="bp">self</span><span class="o">.</span><span class="n">image</span> <span class="o">=</span> <span class="n">resolve_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">image</span><span class="p">,</span> <span class="n">file_dir</span><span class="p">)</span>
     <span class="k">return</span> <span class="bp">self</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.CylindraProject.rewrite" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">rewrite</span><span class="p">(</span><span class="nb">dir</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">rewrite</span><span class="p">(</span><span class="nb">dir</span><span class="p">)</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Rewrite tar/zip file using given temporary directory.</p>
 <p>This method is only used after some mutable operation on the
 project directory.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">482</span>
-<span class="normal">483</span>
-<span class="normal">484</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_single.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">484</span>
 <span class="normal">485</span>
 <span class="normal">486</span>
 <span class="normal">487</span>
@@ -4909,7 +4875,9 @@ project directory.</p>
 <span class="normal">513</span>
 <span class="normal">514</span>
 <span class="normal">515</span>
-<span class="normal">516</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">rewrite</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">):</span>
+<span class="normal">516</span>
+<span class="normal">517</span>
+<span class="normal">518</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">rewrite</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Rewrite tar/zip file using given temporary directory.</span>
 
@@ -4945,29 +4913,27 @@ project directory.</p>
 
     <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.CylindraProject.save" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">save</span><span class="p">(</span><span class="n">project_dir</span><span class="p">,</span> <span class="n">molecules</span><span class="o">=</span><span class="p">{})</span></code>
+            <code class="highlight language-python"><span class="n">save</span><span class="p">(</span><span class="n">project_dir</span><span class="p">,</span> <span class="n">molecules</span><span class="o">=</span><span class="p">{})</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Save this project.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 80</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_single.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 80</span>
 <span class="normal"> 81</span>
 <span class="normal"> 82</span>
 <span class="normal"> 83</span>
@@ -5023,19 +4989,17 @@ project directory.</p>
         <span class="n">self_copy</span><span class="o">.</span><span class="n">to_json</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">project_json_path</span><span class="p">(</span><span class="n">results_dir</span><span class="p">))</span>
     <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.CylindraProject.save_gui" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">save_gui</span><span class="p">(</span><span class="n">gui</span><span class="p">,</span> <span class="n">project_dir</span><span class="p">,</span> <span class="n">mole_ext</span><span class="o">=</span><span class="s1">&#39;.csv&#39;</span><span class="p">,</span> <span class="n">save_landscape</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
-  
+            <code class="highlight language-python"><span class="n">save_gui</span><span class="p">(</span><span class="n">gui</span><span class="p">,</span> <span class="n">project_dir</span><span class="p">,</span> <span class="n">mole_ext</span><span class="o">=</span><span class="s1">&#39;.csv&#39;</span><span class="p">,</span> <span class="n">save_landscape</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
   </span>
@@ -5043,57 +5007,56 @@ project directory.</p>
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Serialize the GUI state to a json file.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>gui</code></td>
-          <td>
-                <code><a class="autorefs autorefs-internal" title="cylindra.widgets.main.CylindraMainWidget" href="../widgets/main/#cylindra.widgets.main.CylindraMainWidget">CylindraMainWidget</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>The main widget from which project model will be constructed.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>project_dir</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" title="pathlib.Path" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path">Path</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>The path to the project json file.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>gui</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="cylindra.widgets.main.CylindraMainWidget" href="../widgets/main/#cylindra.widgets.main.CylindraMainWidget">CylindraMainWidget</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The main widget from which project model will be constructed.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>project_dir</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" title="pathlib.Path" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path">Path</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The path to the project json file.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">159</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_single.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">159</span>
 <span class="normal">160</span>
 <span class="normal">161</span>
 <span class="normal">162</span>
@@ -5183,36 +5146,34 @@ project directory.</p>
         <span class="bp">self</span><span class="o">.</span><span class="n">to_json</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">project_json_path</span><span class="p">(</span><span class="n">results_dir</span><span class="p">))</span>
     <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.CylindraProject.script_py_path" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">script_py_path</span><span class="p">(</span><span class="nb">dir</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">script_py_path</span><span class="p">(</span><span class="nb">dir</span><span class="p">)</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Path to the script.py file.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">530</span>
-<span class="normal">531</span>
-<span class="normal">532</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">script_py_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_single.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">532</span>
+<span class="normal">533</span>
+<span class="normal">534</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">script_py_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Path to the script.py file.&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="nb">dir</span> <span class="o">/</span> <span class="s2">&quot;script.py&quot;</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
 
@@ -5220,8 +5181,7 @@ project directory.</p>
 
   </div>
 
-  </div>
-
+    </div>
 
 </div>
 
@@ -5230,22 +5190,22 @@ project directory.</p>
 
 
 <h4 id="cylindra.project.ProjectSequence" class="doc doc-heading">
-          <code>ProjectSequence</code>
+            <code>ProjectSequence</code>
 
 
 </h4>
 
 
-  <div class="doc doc-contents ">
+    <div class="doc doc-contents ">
 
-  
+
       <p>Collection of Cylindra projects.</p>
 <p>This object is just for project management. BatchLoader, DataFrame and local/global
 properties can be generated from this object.</p>
 
-            <details class="quote">
-              <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 80</span>
+              <details class="quote">
+                <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 80</span>
 <span class="normal"> 81</span>
 <span class="normal"> 82</span>
 <span class="normal"> 83</span>
@@ -6195,12 +6155,11 @@ properties can be generated from this object.</p>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid id type </span><span class="si">{</span><span class="nb">id</span><span class="si">!r}</span><span class="s2">.&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">out</span>
 </code></pre></div></td></tr></table></div>
-            </details>
+              </details>
 
-  
+
 
   <div class="doc doc-children">
-
 
 
 
@@ -6213,20 +6172,19 @@ properties can be generated from this object.</p>
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.ProjectSequence.__add__" class="doc doc-heading">
-          <code class="highlight language-python"><span class="fm">__add__</span><span class="p">(</span><span class="n">other</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="fm">__add__</span><span class="p">(</span><span class="n">other</span><span class="p">)</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Concatenate two ProjectSequence objects.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">138</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">138</span>
 <span class="normal">139</span>
 <span class="normal">140</span>
 <span class="normal">141</span>
@@ -6248,29 +6206,27 @@ properties can be generated from this object.</p>
         <span class="n">new</span><span class="o">.</span><span class="n">_scale_validator</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">_scale_validator</span><span class="o">.</span><span class="n">value</span>
     <span class="k">return</span> <span class="n">new</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.ProjectSequence.append_file" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">append_file</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">append_file</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Add a project from a file path.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">169</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">169</span>
 <span class="normal">170</span>
 <span class="normal">171</span>
 <span class="normal">172</span>
@@ -6282,115 +6238,111 @@ properties can be generated from this object.</p>
     <span class="bp">self</span><span class="o">.</span><span class="n">_projects</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">prj</span><span class="p">)</span>
     <span class="k">return</span> <span class="bp">self</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.ProjectSequence.collect_globalprops" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">collect_globalprops</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="s1">&#39;int&#39;</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">collect_globalprops</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="s1">&#39;int&#39;</span><span class="p">)</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Collect all globalprops into a single dataframe.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>allow_none</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Continue data collection even if property table data file was not
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>allow_none</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Continue data collection even if property table data file was not
 found in any project. Raise error otherwise.</p>
-            </div>
-          </td>
-          <td>
-                <code>True</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>suffix</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Suffix to add to the column names that may be collide with the local
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>suffix</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Suffix to add to the column names that may be collide with the local
 properties.</p>
-            </div>
-          </td>
-          <td>
-                <code>&#34;&#34;</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>id</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>How to describe the source tomogram. If "int", each tomogram will
+              </div>
+            </td>
+            <td>
+                  <code>&#34;&#34;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>id</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>How to describe the source tomogram. If "int", each tomogram will
 be labeled with ascending integers. If "path", each tomogram will
 be labeled with the name of the project directory.</p>
-            </div>
-          </td>
-          <td>
-                <code>&#34;int&#34;</code>
-          </td>
+              </div>
+            </td>
+            <td>
+                  <code>&#34;int&#34;</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
         </tr>
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="polars.DataFrame">DataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Dataframe with all the properties.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-
-
-  <p><span class="doc-section-title">Returns:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td>
-                <code><span title="polars.DataFrame">DataFrame</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Dataframe with all the properties.</p>
-            </div>
-          </td>
-        </tr>
-    </tbody>
-  </table>
-
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">308</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">308</span>
 <span class="normal">309</span>
 <span class="normal">310</span>
 <span class="normal">311</span>
@@ -6490,24 +6442,22 @@ be labeled with the name of the project directory.</p>
         <span class="p">)</span>
     <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normalize_id</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="nb">id</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.ProjectSequence.collect_joinedprops" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">collect_joinedprops</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="s1">&#39;int&#39;</span><span class="p">,</span> <span class="n">spline_details</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">collect_joinedprops</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="s1">&#39;int&#39;</span><span class="p">,</span> <span class="n">spline_details</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Collect all the local and global properties into a single dataframe.</p>
 <p>The global properties are suffixed with "_glob". Note that these columns
 will repeat the same values for each spline. For instance, the "spacing"
@@ -6535,79 +6485,77 @@ columns will look like following.</p>
 </code></pre>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>allow_none</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Continue data collection even if property table data file was not
-found in any project. Raise error otherwise.</p>
-            </div>
-          </td>
-          <td>
-                <code>True</code>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>id</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>How to describe the source tomogram. If "int", each tomogram will
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>allow_none</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Continue data collection even if property table data file was not
+found in any project. Raise error otherwise.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>id</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>How to describe the source tomogram. If "int", each tomogram will
 be labeled with ascending integers. If "path", each tomogram will
 be labeled with the name of the project directory.</p>
-            </div>
-          </td>
-          <td>
-                <code>&#34;int&#34;</code>
-          </td>
+              </div>
+            </td>
+            <td>
+                  <code>&#34;int&#34;</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
         </tr>
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="polars.DataFrame">DataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Dataframe with all the properties.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-
-
-  <p><span class="doc-section-title">Returns:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td>
-                <code><span title="polars.DataFrame">DataFrame</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Dataframe with all the properties.</p>
-            </div>
-          </td>
-        </tr>
-    </tbody>
-  </table>
-
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">359</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">359</span>
 <span class="normal">360</span>
 <span class="normal">361</span>
 <span class="normal">362</span>
@@ -6721,115 +6669,111 @@ be labeled with the name of the project directory.</p>
     <span class="n">out</span> <span class="o">=</span> <span class="n">loc</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">glb</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">key</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;_glob&quot;</span><span class="p">)</span>
     <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normalize_id</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="nb">id</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.ProjectSequence.collect_localprops" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">collect_localprops</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="s1">&#39;int&#39;</span><span class="p">,</span> <span class="n">spline_details</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">collect_localprops</span><span class="p">(</span><span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="s1">&#39;int&#39;</span><span class="p">,</span> <span class="n">spline_details</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Collect all localprops into a single dataframe.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>allow_none</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Continue data collection even if property table data file was not
-found in any project. Raise error otherwise.</p>
-            </div>
-          </td>
-          <td>
-                <code>True</code>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>id</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>How to describe the source tomogram. If "int", each tomogram will
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>allow_none</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Continue data collection even if property table data file was not
+found in any project. Raise error otherwise.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>id</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>How to describe the source tomogram. If "int", each tomogram will
 be labeled with ascending integers. If "path", each tomogram will
 be labeled with the name of the project directory.</p>
-            </div>
-          </td>
-          <td>
-                <code>&#34;int&#34;</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>spline_details</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>If True, spline coordinates, its derivatives and the curvature
+              </div>
+            </td>
+            <td>
+                  <code>&#34;int&#34;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>spline_details</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If True, spline coordinates, its derivatives and the curvature
 will also be collected as well. This will take more memory and time.</p>
-            </div>
-          </td>
-          <td>
-                <code>False</code>
-          </td>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
         </tr>
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="polars.DataFrame">DataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Dataframe with all the properties.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-
-
-  <p><span class="doc-section-title">Returns:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td>
-                <code><span title="polars.DataFrame">DataFrame</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Dataframe with all the properties.</p>
-            </div>
-          </td>
-        </tr>
-    </tbody>
-  </table>
-
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">239</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">239</span>
 <span class="normal">240</span>
 <span class="normal">241</span>
 <span class="normal">242</span>
@@ -6965,75 +6909,72 @@ will also be collected as well. This will take more memory and time.</p>
     <span class="n">out</span> <span class="o">=</span> <span class="n">cast_dataframe</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">dfs_prj</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;diagonal&quot;</span><span class="p">))</span>
     <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normalize_id</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="nb">id</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.ProjectSequence.collect_molecules" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">collect_molecules</span><span class="p">(</span><span class="n">name_filter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">curvature</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">collect_molecules</span><span class="p">(</span><span class="n">name_filter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">curvature</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Collect all the molecules in this project sequence.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>name_filter</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#callable">callable</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Function that takes a molecule file name (without extension) and
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>name_filter</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#callable">callable</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Function that takes a molecule file name (without extension) and
 returns True if the molecule should be collected. Collect all the
 molecules by default.</p>
-            </div>
-          </td>
-          <td>
-                <code>None</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>curvature</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>If True, the spline curvature will be added to the molecule features.</p>
-            </div>
-          </td>
-          <td>
-                <code>False</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>curvature</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If True, the spline curvature will be added to the molecule features.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">417</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">417</span>
 <span class="normal">418</span>
 <span class="normal">419</span>
 <span class="normal">420</span>
@@ -7073,62 +7014,59 @@ molecules by default.</p>
     <span class="n">loader</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sta_loader</span><span class="p">(</span><span class="n">name_filter</span><span class="p">,</span> <span class="n">curvature</span><span class="o">=</span><span class="n">curvature</span><span class="p">,</span> <span class="n">allow_no_image</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">loader</span><span class="o">.</span><span class="n">molecules</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.ProjectSequence.collect_spline_coords" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">collect_spline_coords</span><span class="p">(</span><span class="n">ders</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">collect_spline_coords</span><span class="p">(</span><span class="n">ders</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Collect spline coordinates or its derivative(s) as a dataframe.</p>
 <p>Coordinates will be labeled as "z", "y", "x". The 1st derivative will be
 labeled as "dz", "dy", "dx", and so on.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>ders</code></td>
-          <td>
-                <code>int or iterable of int</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Derivative order(s) to collect. If multiple values are given, all the
-derivatives will be concatenated in a single dataframe.</p>
-            </div>
-          </td>
-          <td>
-                <code>0</code>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>ders</code></td>
+            <td>
+                  <code>int or iterable of int</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Derivative order(s) to collect. If multiple values are given, all the
+derivatives will be concatenated in a single dataframe.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">497</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">497</span>
 <span class="normal">498</span>
 <span class="normal">499</span>
 <span class="normal">500</span>
@@ -7196,19 +7134,17 @@ derivatives will be concatenated in a single dataframe.</p>
         <span class="n">dfs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">pl</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">dfs</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;vertical&quot;</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.ProjectSequence.from_paths" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">from_paths</span><span class="p">(</span><span class="n">paths</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">check_scale</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">skip_exc</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
-  
+            <code class="highlight language-python"><span class="n">from_paths</span><span class="p">(</span><span class="n">paths</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">check_scale</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">skip_exc</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
   </span>
@@ -7216,13 +7152,13 @@ derivatives will be concatenated in a single dataframe.</p>
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Add all the projects of the given paths.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">150</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">150</span>
 <span class="normal">151</span>
 <span class="normal">152</span>
 <span class="normal">153</span>
@@ -7258,29 +7194,27 @@ derivatives will be concatenated in a single dataframe.</p>
             <span class="bp">self</span><span class="o">.</span><span class="n">append_file</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
     <span class="k">return</span> <span class="bp">self</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.ProjectSequence.insert" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">insert</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">insert</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Insert a project at the given index.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">132</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">132</span>
 <span class="normal">133</span>
 <span class="normal">134</span>
 <span class="normal">135</span>
@@ -7290,61 +7224,58 @@ derivatives will be concatenated in a single dataframe.</p>
         <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Expected CylindraProject, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
     <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_projects</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.ProjectSequence.iter_molecules" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">iter_molecules</span><span class="p">(</span><span class="n">name_filter</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">iter_molecules</span><span class="p">(</span><span class="n">name_filter</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Iterate over all the molecules in all the projects.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>name_filter</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#callable">callable</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Function that takes a molecule file name (without extension) and
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>name_filter</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#callable">callable</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Function that takes a molecule file name (without extension) and
 returns True if the molecule should be collected. Collect all the
 molecules by default.</p>
-            </div>
-          </td>
-          <td>
-                <code>None</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">445</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">445</span>
 <span class="normal">446</span>
 <span class="normal">447</span>
 <span class="normal">448</span>
@@ -7380,75 +7311,72 @@ molecules by default.</p>
     <span class="p">):</span>
         <span class="k">yield</span> <span class="n">sl</span><span class="p">,</span> <span class="n">mole</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.ProjectSequence.iter_molecules_with_splines" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">iter_molecules_with_splines</span><span class="p">(</span><span class="n">name_filter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">skip_no_spline</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">iter_molecules_with_splines</span><span class="p">(</span><span class="n">name_filter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">skip_no_spline</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Iterate over all the molecules and its source spline.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>name_filter</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#callable">callable</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Function that takes a molecule file name (without extension) and
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>name_filter</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#callable">callable</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Function that takes a molecule file name (without extension) and
 returns True if the molecule should be collected. Collect all the
 molecules by default.</p>
-            </div>
-          </td>
-          <td>
-                <code>None</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>skip_no_spline</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>If True, molecules without a source spline will be skipped.</p>
-            </div>
-          </td>
-          <td>
-                <code>True</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>skip_no_spline</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If True, molecules without a source spline will be skipped.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">464</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">464</span>
 <span class="normal">465</span>
 <span class="normal">466</span>
 <span class="normal">467</span>
@@ -7512,29 +7440,27 @@ molecules by default.</p>
                 <span class="n">spl</span> <span class="o">=</span> <span class="n">prj</span><span class="o">.</span><span class="n">load_spline</span><span class="p">(</span><span class="n">dir_</span><span class="p">,</span> <span class="n">src</span><span class="p">)</span>
                 <span class="k">yield</span> <span class="n">MoleculesItem</span><span class="p">(</span><span class="n">MoleculesKey</span><span class="p">(</span><span class="n">i_prj</span><span class="p">,</span> <span class="n">info</span><span class="o">.</span><span class="n">stem</span><span class="p">),</span> <span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">))</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.ProjectSequence.iter_splines" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">iter_splines</span><span class="p">()</span></code>
+            <code class="highlight language-python"><span class="n">iter_splines</span><span class="p">()</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Iterate over all the splines in all the projects.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">438</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">438</span>
 <span class="normal">439</span>
 <span class="normal">440</span>
 <span class="normal">441</span>
@@ -7546,90 +7472,87 @@ molecules by default.</p>
             <span class="k">for</span> <span class="n">i_spl</span><span class="p">,</span> <span class="n">spl</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">prj</span><span class="o">.</span><span class="n">iter_load_splines</span><span class="p">(</span><span class="nb">dir</span><span class="p">)):</span>
                 <span class="k">yield</span> <span class="n">SplineKey</span><span class="p">(</span><span class="n">i_prj</span><span class="p">,</span> <span class="n">i_spl</span><span class="p">),</span> <span class="n">spl</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.project.ProjectSequence.sta_loader" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">sta_loader</span><span class="p">(</span><span class="n">name_filter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">curvature</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">allow_no_image</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">sta_loader</span><span class="p">(</span><span class="n">name_filter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">curvature</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">allow_no_image</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Construct a STA loader from all the projects.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>name_filter</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#callable">callable</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Function that takes a molecule file name (without extension) and
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>name_filter</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#callable">callable</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Function that takes a molecule file name (without extension) and
 returns True if the molecule should be collected. Collect all the
 molecules by default.</p>
-            </div>
-          </td>
-          <td>
-                <code>None</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>curvature</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>If True, the spline curvature will be added to the molecule features.</p>
-            </div>
-          </td>
-          <td>
-                <code>False</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>allow_no_image</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>If True, this method will not raise an error when the image file is not
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>curvature</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If True, the spline curvature will be added to the molecule features.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>allow_no_image</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If True, this method will not raise an error when the image file is not
 found.</p>
-            </div>
-          </td>
-          <td>
-                <code>False</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">176</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">176</span>
 <span class="normal">177</span>
 <span class="normal">178</span>
 <span class="normal">179</span>
@@ -7753,8 +7676,8 @@ found.</p>
                 <span class="n">col</span><span class="o">.</span><span class="n">add_tomogram</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">molecules</span><span class="o">=</span><span class="n">mole</span><span class="p">,</span> <span class="n">image_id</span><span class="o">=</span><span class="n">idx</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">col</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
 
@@ -7762,30 +7685,27 @@ found.</p>
 
   </div>
 
-  </div>
-
+    </div>
 
 </div>
-
 
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.project.extract" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">extract</span><span class="p">(</span><span class="n">text</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">extract</span><span class="p">(</span><span class="n">text</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Extract the content of main function.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_utils.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">25</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_utils.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">25</span>
 <span class="normal">26</span>
 <span class="normal">27</span>
 <span class="normal">28</span>
@@ -7807,29 +7727,27 @@ found.</p>
 
     <span class="k">return</span> <span class="n">macro_expr</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.project.get_project_file" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">get_project_file</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">get_project_file</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Return the path to the project file.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/project/_utils.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">38</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_utils.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">38</span>
 <span class="normal">39</span>
 <span class="normal">40</span>
 <span class="normal">41</span>
@@ -7851,8 +7769,8 @@ found.</p>
             <span class="p">)</span>
     <span class="k">return</span> <span class="n">path</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
 
@@ -7860,7 +7778,7 @@ found.</p>
 
   </div>
 
-  </div>
+    </div>
 
 </div>
 
@@ -7956,7 +7874,7 @@ found.</p>
     <script id="__config" type="application/json">{"base": "../..", "features": ["content.code.annotate", "navigation.sections", "navigation.indexes", "navigation.footer", "toc.follow", "search.suggest", "search.share"], "search": "../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.a7c05c9e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.ebd0bdb7.min.js"></script>
       
         <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
       

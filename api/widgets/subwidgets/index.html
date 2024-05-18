@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.21">
+      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.23">
     
     
       
@@ -26,7 +26,7 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.66ac8b77.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.6543a935.min.css">
       
         
         <link rel="stylesheet" href="../../../assets/stylesheets/palette.06af60db.min.css">
@@ -2040,12 +2040,12 @@
 
 
 <a id="cylindra.widgets.subwidgets.Simulator"></a>
-  <div class="doc doc-contents first">
+    <div class="doc doc-contents first">
 
 
-            <details class="quote">
-              <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">153</span>
+              <details class="quote">
+                <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">153</span>
 <span class="normal">154</span>
 <span class="normal">155</span>
 <span class="normal">156</span>
@@ -3459,12 +3459,11 @@
         <span class="p">)</span>
         <span class="k">return</span> <span class="n">_set_simulation_model</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">new_model</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-            </details>
+              </details>
 
-  
+
 
   <div class="doc doc-children">
-
 
 
 
@@ -3477,68 +3476,66 @@
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.subwidgets.Simulator.add_component" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">add_component</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">template_path</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">add_component</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">template_path</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Add a set of template and a molecules as a simulation component.</p>
 <p>A component defines which molecules corresponds to what template image.
 Multiple components can be added to simulate a tomogram with different
 materials.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>layer</code></td>
-          <td>
-                <code><span title="cylindra._napari.MoleculesLayer">MoleculesLayer</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Layer to be used for simulation.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>template_path</code></td>
-          <td>
-                <code><span title="magicclass.types.Path">Path</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Path to the template image that will be used to simulate the
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>layer</code></td>
+            <td>
+                  <code><span title="cylindra._napari.MoleculesLayer">MoleculesLayer</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Layer to be used for simulation.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>template_path</code></td>
+            <td>
+                  <code><span title="magicclass.types.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path to the template image that will be used to simulate the
 corresponding molecules layer.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">218</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">218</span>
 <span class="normal">219</span>
 <span class="normal">220</span>
 <span class="normal">221</span>
@@ -3588,73 +3585,70 @@ corresponding molecules layer.</p>
     <span class="bp">self</span><span class="o">.</span><span class="n">component_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Component</span><span class="p">(</span><span class="n">template_path</span><span class="p">,</span> <span class="n">layer</span><span class="p">))</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">component_list</span><span class="o">.</span><span class="n">_on_children_change</span><span class="p">()</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.subwidgets.Simulator.create_empty_image" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">create_empty_image</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mf">60.0</span><span class="p">,</span> <span class="mf">200.0</span><span class="p">,</span> <span class="mf">60.0</span><span class="p">),</span> <span class="n">scale</span><span class="o">=</span><span class="mf">0.25</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">create_empty_image</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mf">60.0</span><span class="p">,</span> <span class="mf">200.0</span><span class="p">,</span> <span class="mf">60.0</span><span class="p">),</span> <span class="n">scale</span><span class="o">=</span><span class="mf">0.25</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Create an empty image with the given size and scale, and send it to the viewer.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>size</code></td>
-          <td>
-                <code>(<span title="cylindra.const.nm">nm</span>, <span title="cylindra.const.nm">nm</span>, <span title="cylindra.const.nm">nm</span>)</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Size of the image in nm, of (Z, Y, X).</p>
-            </div>
-          </td>
-          <td>
-                <code>(100., 200., 100.)</code>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>scale</code></td>
-          <td>
-                <code><span title="cylindra.const.nm">nm</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Pixel size of the image.</p>
-            </div>
-          </td>
-          <td>
-                <code>0.25</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>size</code></td>
+            <td>
+                  <code>(<span title="cylindra.const.nm">nm</span>, <span title="cylindra.const.nm">nm</span>, <span title="cylindra.const.nm">nm</span>)</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Size of the image in nm, of (Z, Y, X).</p>
+              </div>
+            </td>
+            <td>
+                  <code>(100., 200., 100.)</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>scale</code></td>
+            <td>
+                  <code><span title="cylindra.const.nm">nm</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Pixel size of the image.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.25</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">244</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">244</span>
 <span class="normal">245</span>
 <span class="normal">246</span>
 <span class="normal">247</span>
@@ -3716,115 +3710,112 @@ corresponding molecules layer.</p>
     <span class="k">yield</span> <span class="n">main</span><span class="o">.</span><span class="n">_send_tomogram_to_viewer</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="n">tomo</span><span class="p">)</span>
     <span class="n">main</span><span class="o">.</span><span class="n">_reserved_layers</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">bounding_box</span><span class="o">.</span><span class="n">visible</span> <span class="o">=</span> <span class="kc">True</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.subwidgets.Simulator.create_image_with_straight_line" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">create_image_with_straight_line</span><span class="p">(</span><span class="n">length</span><span class="o">=</span><span class="mf">150.0</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mf">60.0</span><span class="p">,</span> <span class="mf">200.0</span><span class="p">,</span> <span class="mf">60.0</span><span class="p">),</span> <span class="n">scale</span><span class="o">=</span><span class="mf">0.25</span><span class="p">,</span> <span class="n">yxrotation</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">zxrotation</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">create_image_with_straight_line</span><span class="p">(</span><span class="n">length</span><span class="o">=</span><span class="mf">150.0</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mf">60.0</span><span class="p">,</span> <span class="mf">200.0</span><span class="p">,</span> <span class="mf">60.0</span><span class="p">),</span> <span class="n">scale</span><span class="o">=</span><span class="mf">0.25</span><span class="p">,</span> <span class="n">yxrotation</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">zxrotation</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Create a straight line as a cylinder spline.</p>
 
 
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>length</code></td>
+            <td>
+                  <code><span title="cylindra.const.nm">nm</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Length if the straight line in nm.</p>
+              </div>
+            </td>
+            <td>
+                  <code>150.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>size</code></td>
+            <td>
+                  <code>((<span title="cylindra.const.nm">nm</span>, <span title="cylindra.const.nm">nm</span>, <span title="cylindra.const.nm">nm</span>), (60.0, 200.0, 60.0))</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Size of the tomogram in which the spline will reside.</p>
+              </div>
+            </td>
+            <td>
+                  <code>(60.0, 200.0, 60.0)</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>scale</code></td>
+            <td>
+                  <code><span title="cylindra.const.nm">nm</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Scale of pixel in nm/pixel.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.25</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>yxrotation</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Rotation in YX plane. This rotation will be applied before ZX rotation.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>zxrotation</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Rotation in ZX plane. This rotation will be applied before YX rotation.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.0</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>length</code></td>
-          <td>
-                <code><span title="cylindra.const.nm">nm</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Length if the straight line in nm.</p>
-            </div>
-          </td>
-          <td>
-                <code>150.0</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>size</code></td>
-          <td>
-                <code>((<span title="cylindra.const.nm">nm</span>, <span title="cylindra.const.nm">nm</span>, <span title="cylindra.const.nm">nm</span>), (60.0, 200.0, 60.0))</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Size of the tomogram in which the spline will reside.</p>
-            </div>
-          </td>
-          <td>
-                <code>(60.0, 200.0, 60.0)</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>scale</code></td>
-          <td>
-                <code><span title="cylindra.const.nm">nm</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Scale of pixel in nm/pixel.</p>
-            </div>
-          </td>
-          <td>
-                <code>0.25</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>yxrotation</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Rotation in YX plane. This rotation will be applied before ZX rotation.</p>
-            </div>
-          </td>
-          <td>
-                <code>0.0</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>zxrotation</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Rotation in ZX plane. This rotation will be applied before YX rotation.</p>
-            </div>
-          </td>
-          <td>
-                <code>0.0</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
-
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">298</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">298</span>
 <span class="normal">299</span>
 <span class="normal">300</span>
 <span class="normal">301</span>
@@ -3900,73 +3891,70 @@ corresponding molecules layer.</p>
     <span class="n">cb</span> <span class="o">=</span> <span class="n">thread_worker</span><span class="o">.</span><span class="n">callback</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">create_straight_line</span><span class="p">)</span>
     <span class="k">yield</span> <span class="n">cb</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="n">start_shift</span> <span class="o">+</span> <span class="n">center</span><span class="p">,</span> <span class="n">end_shift</span> <span class="o">+</span> <span class="n">center</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.subwidgets.Simulator.create_straight_line" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">create_straight_line</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">create_straight_line</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Create a straight line as a spline.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>start</code></td>
-          <td>
-                <code>(<span title="cylindra.const.nm">nm</span>, <span title="cylindra.const.nm">nm</span>, <span title="cylindra.const.nm">nm</span>)</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Start point of the line.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>end</code></td>
-          <td>
-                <code>(<span title="cylindra.const.nm">nm</span>, <span title="cylindra.const.nm">nm</span>, <span title="cylindra.const.nm">nm</span>)</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>End point of the line.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>start</code></td>
+            <td>
+                  <code>(<span title="cylindra.const.nm">nm</span>, <span title="cylindra.const.nm">nm</span>, <span title="cylindra.const.nm">nm</span>)</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Start point of the line.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>end</code></td>
+            <td>
+                  <code>(<span title="cylindra.const.nm">nm</span>, <span title="cylindra.const.nm">nm</span>, <span title="cylindra.const.nm">nm</span>)</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>End point of the line.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">276</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">276</span>
 <span class="normal">277</span>
 <span class="normal">278</span>
 <span class="normal">279</span>
@@ -4008,116 +3996,113 @@ corresponding molecules layer.</p>
     <span class="n">main</span><span class="o">.</span><span class="n">_add_spline_instance</span><span class="p">(</span><span class="n">spl</span><span class="p">)</span>
     <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.subwidgets.Simulator.dilate" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">dilate</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">by</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">yrange</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">arange</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">allev</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">dilate</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">by</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">yrange</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">arange</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">allev</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Apply local dilation to molecules.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>layer</code></td>
-          <td>
-                <code><span title="cylindra._napari.MoleculesLayer">MoleculesLayer</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Layer to be transformed.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>by</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Amount of dilation in nm.</p>
-            </div>
-          </td>
-          <td>
-                <code>0.0</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>yrange</code></td>
-          <td>
-                <code>tuple of int</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Range of Y axis to be transformed. Range is [a, b).</p>
-            </div>
-          </td>
-          <td>
-                <code>(0, 1)</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>arange</code></td>
-          <td>
-                <code>tuple of int</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Range of angle axis to be transformed. Range is [a, b).</p>
-            </div>
-          </td>
-          <td>
-                <code>(0, 1)</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>allev</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Alleviation of the local expansion. If true, the surrounding molecules
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>layer</code></td>
+            <td>
+                  <code><span title="cylindra._napari.MoleculesLayer">MoleculesLayer</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Layer to be transformed.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>by</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Amount of dilation in nm.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>yrange</code></td>
+            <td>
+                  <code>tuple of int</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Range of Y axis to be transformed. Range is [a, b).</p>
+              </div>
+            </td>
+            <td>
+                  <code>(0, 1)</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>arange</code></td>
+            <td>
+                  <code>tuple of int</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Range of angle axis to be transformed. Range is [a, b).</p>
+              </div>
+            </td>
+            <td>
+                  <code>(0, 1)</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>allev</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Alleviation of the local expansion. If true, the surrounding molecules
 will be shifted to alleviate the local expansion.</p>
-            </div>
-          </td>
-          <td>
-                <code>False</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">793</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">793</span>
 <span class="normal">794</span>
 <span class="normal">795</span>
 <span class="normal">796</span>
@@ -4183,24 +4168,22 @@ will be shifted to alleviate the local expansion.</p>
     <span class="n">_set_simulation_model</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">model</span><span class="p">)</span>
     <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.subwidgets.Simulator.displace" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">displace</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">expand</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">twist</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">dilate</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">displace</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">expand</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">twist</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">dilate</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Detailed local transformation of molecules.</p>
 <p>In this method, you'll have to specify the displacement for each molecule
 using polars expressions. For example, if you want to expand the molecules
@@ -4214,80 +4197,79 @@ with odd numbering by 0.1 nm, you can set <code>expand</code> to</p>
 </blockquote>
 
 
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>layer</code></td>
+            <td>
+                  <code>ModelLayer</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Layer to be transformed.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>expand</code></td>
+            <td>
+                  <code>(<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a>, <span title="polars.Expr">Expr</span> or constant)</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Displacement in the longitudinal direction (nm).</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>twist</code></td>
+            <td>
+                  <code>(<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a>, <span title="polars.Expr">Expr</span> or constant)</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Displacement in the angular direction (degree).</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>dilate</code></td>
+            <td>
+                  <code>(<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a>, <span title="polars.Expr">Expr</span> or constant)</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Displacement from the center (nm).</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.0</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>layer</code></td>
-          <td>
-                <code>ModelLayer</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Layer to be transformed.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>expand</code></td>
-          <td>
-                <code>(<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a>, <span title="polars.Expr">Expr</span> or constant)</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Displacement in the longitudinal direction (nm).</p>
-            </div>
-          </td>
-          <td>
-                <code>0.0</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>twist</code></td>
-          <td>
-                <code>(<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a>, <span title="polars.Expr">Expr</span> or constant)</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Displacement in the angular direction (degree).</p>
-            </div>
-          </td>
-          <td>
-                <code>0.0</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>dilate</code></td>
-          <td>
-                <code>(<a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a>, <span title="polars.Expr">Expr</span> or constant)</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Displacement from the center (nm).</p>
-            </div>
-          </td>
-          <td>
-                <code>0.0</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
-
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">827</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">827</span>
 <span class="normal">828</span>
 <span class="normal">829</span>
 <span class="normal">830</span>
@@ -4353,116 +4335,113 @@ with odd numbering by 0.1 nm, you can set <code>expand</code> to</p>
     <span class="p">)</span>
     <span class="k">return</span> <span class="n">_set_simulation_model</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">new_model</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.subwidgets.Simulator.expand" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">expand</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">by</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">yrange</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">arange</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">allev</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">expand</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">by</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">yrange</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">arange</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">allev</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Apply local expansion to molecules.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>layer</code></td>
-          <td>
-                <code><span title="cylindra._napari.MoleculesLayer">MoleculesLayer</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Layer to be transformed.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>by</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Amount of expansion in nm.</p>
-            </div>
-          </td>
-          <td>
-                <code>0.0</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>yrange</code></td>
-          <td>
-                <code>tuple of int</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Range of Y axis to be transformed. Range is [a, b).</p>
-            </div>
-          </td>
-          <td>
-                <code>(0, 1)</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>arange</code></td>
-          <td>
-                <code>tuple of int</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Range of angle axis to be transformed. Range is [a, b).</p>
-            </div>
-          </td>
-          <td>
-                <code>(0, 1)</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>allev</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Alleviation of the local expansion. If true, the surrounding molecules
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>layer</code></td>
+            <td>
+                  <code><span title="cylindra._napari.MoleculesLayer">MoleculesLayer</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Layer to be transformed.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>by</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Amount of expansion in nm.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>yrange</code></td>
+            <td>
+                  <code>tuple of int</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Range of Y axis to be transformed. Range is [a, b).</p>
+              </div>
+            </td>
+            <td>
+                  <code>(0, 1)</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>arange</code></td>
+            <td>
+                  <code>tuple of int</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Range of angle axis to be transformed. Range is [a, b).</p>
+              </div>
+            </td>
+            <td>
+                  <code>(0, 1)</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>allev</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Alleviation of the local expansion. If true, the surrounding molecules
 will be shifted to alleviate the local expansion.</p>
-            </div>
-          </td>
-          <td>
-                <code>False</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">725</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">725</span>
 <span class="normal">726</span>
 <span class="normal">727</span>
 <span class="normal">728</span>
@@ -4528,117 +4507,114 @@ will be shifted to alleviate the local expansion.</p>
     <span class="n">_set_simulation_model</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">model</span><span class="p">)</span>
     <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.subwidgets.Simulator.generate_molecules" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">generate_molecules</span><span class="p">(</span><span class="n">spline</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">spacing</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">twist</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">npf</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="mf">10.0</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="n">update_glob</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">generate_molecules</span><span class="p">(</span><span class="n">spline</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">spacing</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">twist</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">npf</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="mf">10.0</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="n">update_glob</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Update cylinder model with new parameters.</p>
 <p>Local structural displacement will be deleted because this function may change
 the number of molecules. This function should be called first.</p>
 
 
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>spacing</code></td>
+            <td>
+                  <code><span title="cylindra.const.nm">nm</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Axial spacing between molecules.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>twist</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Monomer twist of the cylinder.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>start</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The start number.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>npf</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of protofilaments.</p>
+              </div>
+            </td>
+            <td>
+                  <code>2</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>radius</code></td>
+            <td>
+                  <code><span title="cylindra.const.nm">nm</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Radius of the cylinder.</p>
+              </div>
+            </td>
+            <td>
+                  <code>10.0</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>spacing</code></td>
-          <td>
-                <code><span title="cylindra.const.nm">nm</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Axial spacing between molecules.</p>
-            </div>
-          </td>
-          <td>
-                <code>1.0</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>twist</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Monomer twist of the cylinder.</p>
-            </div>
-          </td>
-          <td>
-                <code>0.0</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>start</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>The start number.</p>
-            </div>
-          </td>
-          <td>
-                <code>0</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>npf</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Number of protofilaments.</p>
-            </div>
-          </td>
-          <td>
-                <code>2</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>radius</code></td>
-          <td>
-                <code><span title="cylindra.const.nm">nm</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Radius of the cylinder.</p>
-            </div>
-          </td>
-          <td>
-                <code>10.0</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
-
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">340</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">340</span>
 <span class="normal">341</span>
 <span class="normal">342</span>
 <span class="normal">343</span>
@@ -4726,118 +4702,115 @@ the number of molecules. This function should be called first.</p>
         <span class="p">)</span>
         <span class="n">spl</span><span class="o">.</span><span class="n">update_glob_by_cylinder_params</span><span class="p">(</span><span class="n">cparams</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.subwidgets.Simulator.simulate_projection" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">simulate_projection</span><span class="p">(</span><span class="n">components</span><span class="p">,</span> <span class="n">save_dir</span><span class="p">,</span> <span class="n">nsr</span><span class="o">=</span><span class="p">[</span><span class="mf">1.5</span><span class="p">],</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">simulate_projection</span><span class="p">(</span><span class="n">components</span><span class="p">,</span> <span class="n">save_dir</span><span class="p">,</span> <span class="n">nsr</span><span class="o">=</span><span class="p">[</span><span class="mf">1.5</span><span class="p">],</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Simulate a projection without tilt (cryo-EM-like image).</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>components</code></td>
-          <td>
-                <code>list of (str, Path)</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>List of tuples of layer name and path to the template image.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>save_dir</code></td>
-          <td>
-                <code><span title="magicclass.types.Path">Path</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Path to the directory where the images will be saved.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>nsr</code></td>
-          <td>
-                <code>list of float</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Noise-to-signal ratio. It is defined by N/S, where S is the maximum
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>components</code></td>
+            <td>
+                  <code>list of (str, Path)</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>List of tuples of layer name and path to the template image.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>save_dir</code></td>
+            <td>
+                  <code><span title="magicclass.types.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path to the directory where the images will be saved.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>nsr</code></td>
+            <td>
+                  <code>list of float</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Noise-to-signal ratio. It is defined by N/S, where S is the maximum
 value of the true monomer density and N is the standard deviation of
 the Gaussian noise. Duplicate values are allowed, which is useful
 for simulation of multiple images with the same noise level.</p>
-            </div>
-          </td>
-          <td>
-                <code>[1.5]</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>interpolation</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Interpolation method used during the simulation.</p>
-            </div>
-          </td>
-          <td>
-                <code>3</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>seed</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Random seed used for the Gaussian noise.</p>
-            </div>
-          </td>
-          <td>
-                <code>None</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+              </div>
+            </td>
+            <td>
+                  <code>[1.5]</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>interpolation</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Interpolation method used during the simulation.</p>
+              </div>
+            </td>
+            <td>
+                  <code>3</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>seed</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Random seed used for the Gaussian noise.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">680</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">680</span>
 <span class="normal">681</span>
 <span class="normal">682</span>
 <span class="normal">683</span>
@@ -4925,115 +4898,112 @@ for simulation of multiple images with the same noise level.</p>
     <span class="bp">self</span><span class="o">.</span><span class="n">_get_main</span><span class="p">()</span><span class="o">.</span><span class="n">save_project</span><span class="p">(</span><span class="n">save_dir</span> <span class="o">/</span> <span class="n">PROJECT_NAME</span><span class="p">,</span> <span class="n">molecules_ext</span><span class="o">=</span><span class="s2">&quot;.parquet&quot;</span><span class="p">)</span>
     <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.subwidgets.Simulator.simulate_tilt_series" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">simulate_tilt_series</span><span class="p">(</span><span class="n">components</span><span class="p">,</span> <span class="n">save_dir</span><span class="p">,</span> <span class="n">tilt_range</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">60.0</span><span class="p">,</span> <span class="mf">60.0</span><span class="p">),</span> <span class="n">n_tilt</span><span class="o">=</span><span class="mi">21</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">simulate_tilt_series</span><span class="p">(</span><span class="n">components</span><span class="p">,</span> <span class="n">save_dir</span><span class="p">,</span> <span class="n">tilt_range</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">60.0</span><span class="p">,</span> <span class="mf">60.0</span><span class="p">),</span> <span class="n">n_tilt</span><span class="o">=</span><span class="mi">21</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Simulate tilt series using the current model and save the images.</p>
 
 
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>components</code></td>
+            <td>
+                  <code>list of (str, Path)</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>List of tuples of layer name and path to the template image.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>save_dir</code></td>
+            <td>
+                  <code><span title="magicclass.types.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Directory path where the tilt series will be saved.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>tilt_range</code></td>
+            <td>
+                  <code>tuple of float</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Minimum and maximum tilt angles in degree.</p>
+              </div>
+            </td>
+            <td>
+                  <code>(-60.0, 60.0)</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>n_tilt</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of tilt angles between minimum and maximum angles.</p>
+              </div>
+            </td>
+            <td>
+                  <code>21</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>interpolation</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Interpolation method used during the simulation.</p>
+              </div>
+            </td>
+            <td>
+                  <code>3</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>components</code></td>
-          <td>
-                <code>list of (str, Path)</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>List of tuples of layer name and path to the template image.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>save_dir</code></td>
-          <td>
-                <code><span title="magicclass.types.Path">Path</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Directory path where the tilt series will be saved.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>tilt_range</code></td>
-          <td>
-                <code>tuple of float</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Minimum and maximum tilt angles in degree.</p>
-            </div>
-          </td>
-          <td>
-                <code>(-60.0, 60.0)</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>n_tilt</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Number of tilt angles between minimum and maximum angles.</p>
-            </div>
-          </td>
-          <td>
-                <code>21</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>interpolation</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Interpolation method used during the simulation.</p>
-            </div>
-          </td>
-          <td>
-                <code>3</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
-
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">643</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">643</span>
 <span class="normal">644</span>
 <span class="normal">645</span>
 <span class="normal">646</span>
@@ -5105,148 +5075,145 @@ for simulation of multiple images with the same noise level.</p>
     <span class="bp">self</span><span class="o">.</span><span class="n">_get_main</span><span class="p">()</span><span class="o">.</span><span class="n">save_project</span><span class="p">(</span><span class="n">save_dir</span> <span class="o">/</span> <span class="n">PROJECT_NAME</span><span class="p">,</span> <span class="n">molecules_ext</span><span class="o">=</span><span class="s2">&quot;.parquet&quot;</span><span class="p">)</span>
     <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.subwidgets.Simulator.simulate_tomogram" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">simulate_tomogram</span><span class="p">(</span><span class="n">components</span><span class="p">,</span> <span class="n">save_dir</span><span class="p">,</span> <span class="n">nsr</span><span class="o">=</span><span class="p">[</span><span class="mf">1.5</span><span class="p">],</span> <span class="n">tilt_range</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">60.0</span><span class="p">,</span> <span class="mf">60.0</span><span class="p">),</span> <span class="n">n_tilt</span><span class="o">=</span><span class="mi">21</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">simulate_tomogram</span><span class="p">(</span><span class="n">components</span><span class="p">,</span> <span class="n">save_dir</span><span class="p">,</span> <span class="n">nsr</span><span class="o">=</span><span class="p">[</span><span class="mf">1.5</span><span class="p">],</span> <span class="n">tilt_range</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">60.0</span><span class="p">,</span> <span class="mf">60.0</span><span class="p">),</span> <span class="n">n_tilt</span><span class="o">=</span><span class="mi">21</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Simulate tomographic images using the current model and save the images.</p>
 <p>This function projects the template image to each tilt series, adding
 Gaussian noise, and back-projects the noisy tilt series to the tomogram.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>components</code></td>
-          <td>
-                <code>list of (str, Path)</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>List of tuples of layer name and path to the template image.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>save_dir</code></td>
-          <td>
-                <code><span title="magicclass.types.Path">Path</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Path to the directory where the images will be saved.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>nsr</code></td>
-          <td>
-                <code>list of float</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Noise-to-signal ratio. It is defined by N/S, where S is the maximum
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>components</code></td>
+            <td>
+                  <code>list of (str, Path)</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>List of tuples of layer name and path to the template image.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>save_dir</code></td>
+            <td>
+                  <code><span title="magicclass.types.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path to the directory where the images will be saved.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>nsr</code></td>
+            <td>
+                  <code>list of float</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Noise-to-signal ratio. It is defined by N/S, where S is the maximum
 value of the true monomer density and N is the standard deviation of
 the Gaussian noise. Duplicate values are allowed, which is useful
 for simulation of multiple images with the same noise level.</p>
-            </div>
-          </td>
-          <td>
-                <code>[1.5]</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>tilt_range</code></td>
-          <td>
-                <code>tuple of float</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Minimum and maximum tilt angles in degree.</p>
-            </div>
-          </td>
-          <td>
-                <code>(-60.0, 60.0)</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>n_tilt</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Number of tilt angles between minimum and maximum angles.</p>
-            </div>
-          </td>
-          <td>
-                <code>21</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>interpolation</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Interpolation method used during the simulation.</p>
-            </div>
-          </td>
-          <td>
-                <code>3</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>seed</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Random seed used for the Gaussian noise.</p>
-            </div>
-          </td>
-          <td>
-                <code>None</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+              </div>
+            </td>
+            <td>
+                  <code>[1.5]</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>tilt_range</code></td>
+            <td>
+                  <code>tuple of float</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Minimum and maximum tilt angles in degree.</p>
+              </div>
+            </td>
+            <td>
+                  <code>(-60.0, 60.0)</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>n_tilt</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of tilt angles between minimum and maximum angles.</p>
+              </div>
+            </td>
+            <td>
+                  <code>21</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>interpolation</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Interpolation method used during the simulation.</p>
+              </div>
+            </td>
+            <td>
+                  <code>3</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>seed</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Random seed used for the Gaussian noise.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">435</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">435</span>
 <span class="normal">436</span>
 <span class="normal">437</span>
 <span class="normal">438</span>
@@ -5380,147 +5347,144 @@ for simulation of multiple images with the same noise level.</p>
     <span class="n">main</span><span class="o">.</span><span class="n">save_project</span><span class="p">(</span><span class="n">save_dir</span> <span class="o">/</span> <span class="n">PROJECT_NAME</span><span class="p">,</span> <span class="n">molecules_ext</span><span class="o">=</span><span class="s2">&quot;.parquet&quot;</span><span class="p">)</span>
     <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.subwidgets.Simulator.simulate_tomogram_and_open" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">simulate_tomogram_and_open</span><span class="p">(</span><span class="n">components</span><span class="p">,</span> <span class="n">nsr</span><span class="o">=</span><span class="mf">1.5</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">tilt_range</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">60.0</span><span class="p">,</span> <span class="mf">60.0</span><span class="p">),</span> <span class="n">n_tilt</span><span class="o">=</span><span class="mi">21</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">simulate_tomogram_and_open</span><span class="p">(</span><span class="n">components</span><span class="p">,</span> <span class="n">nsr</span><span class="o">=</span><span class="mf">1.5</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">tilt_range</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">60.0</span><span class="p">,</span> <span class="mf">60.0</span><span class="p">),</span> <span class="n">n_tilt</span><span class="o">=</span><span class="mi">21</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Simulate a tomogram and open the image immediately.</p>
 <p>This function projects the template image to each tilt series, adding
 Gaussian noise, and back-projects the noisy tilt series to the tomogram.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>components</code></td>
-          <td>
-                <code>list of (str, Path)</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>List of tuples of layer name and path to the template image.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>nsr</code></td>
-          <td>
-                <code>list of float</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Noise-to-signal ratio. It is defined by N/S, where S is the maximum
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>components</code></td>
+            <td>
+                  <code>list of (str, Path)</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>List of tuples of layer name and path to the template image.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>nsr</code></td>
+            <td>
+                  <code>list of float</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Noise-to-signal ratio. It is defined by N/S, where S is the maximum
 value of the true monomer density and N is the standard deviation of
 the Gaussian noise.</p>
-            </div>
-          </td>
-          <td>
-                <code>1.5</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>bin_size</code></td>
-          <td>
-                <code>list of int</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Bin sizes used to create multi-scaled images from the simulated image.</p>
-            </div>
-          </td>
-          <td>
-                <code>[1]</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>tilt_range</code></td>
-          <td>
-                <code>tuple of float</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Minimum and maximum tilt angles in degree.</p>
-            </div>
-          </td>
-          <td>
-                <code>(-60.0, 60.0)</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>n_tilt</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Number of tilt angles between minimum and maximum angles.</p>
-            </div>
-          </td>
-          <td>
-                <code>21</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>interpolation</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Interpolation method used during the simulation.</p>
-            </div>
-          </td>
-          <td>
-                <code>3</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>seed</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Random seed used for the Gaussian noise.</p>
-            </div>
-          </td>
-          <td>
-                <code>None</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+              </div>
+            </td>
+            <td>
+                  <code>1.5</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>bin_size</code></td>
+            <td>
+                  <code>list of int</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Bin sizes used to create multi-scaled images from the simulated image.</p>
+              </div>
+            </td>
+            <td>
+                  <code>[1]</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>tilt_range</code></td>
+            <td>
+                  <code>tuple of float</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Minimum and maximum tilt angles in degree.</p>
+              </div>
+            </td>
+            <td>
+                  <code>(-60.0, 60.0)</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>n_tilt</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of tilt angles between minimum and maximum angles.</p>
+              </div>
+            </td>
+            <td>
+                  <code>21</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>interpolation</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Interpolation method used during the simulation.</p>
+              </div>
+            </td>
+            <td>
+                  <code>3</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>seed</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Random seed used for the Gaussian noise.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">567</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">567</span>
 <span class="normal">568</span>
 <span class="normal">569</span>
 <span class="normal">570</span>
@@ -5670,145 +5634,142 @@ the Gaussian noise.</p>
 
     <span class="k">return</span> <span class="n">_on_return</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.subwidgets.Simulator.simulate_tomogram_from_tilt_series" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">simulate_tomogram_from_tilt_series</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">nsr</span><span class="o">=</span><span class="mf">1.5</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">tilt_range</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">60.0</span><span class="p">,</span> <span class="mf">60.0</span><span class="p">),</span> <span class="n">height</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">simulate_tomogram_from_tilt_series</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">nsr</span><span class="o">=</span><span class="mf">1.5</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">tilt_range</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">60.0</span><span class="p">,</span> <span class="mf">60.0</span><span class="p">),</span> <span class="n">height</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Simulate tomographic images using a tilt series.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>path</code></td>
-          <td>
-                <code><span title="magicclass.types.Path">Path</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Path to the tilt series image.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>nsr</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Noise-to-signal ratio. It is defined by N/S, where S is the maximum
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>path</code></td>
+            <td>
+                  <code><span title="magicclass.types.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path to the tilt series image.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>nsr</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Noise-to-signal ratio. It is defined by N/S, where S is the maximum
 value of the tilt series. If the input image is already noisy, you
 can set this value to zero to avoid adding more noises.</p>
-            </div>
-          </td>
-          <td>
-                <code>1.5</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>bin_size</code></td>
-          <td>
-                <code>list of int</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Bin sizes used to create multi-scaled images from the simulated image.</p>
-            </div>
-          </td>
-          <td>
-                <code>[1]</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>tilt_range</code></td>
-          <td>
-                <code>tuple of float</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Minimum and maximum tilt angles in degree.</p>
-            </div>
-          </td>
-          <td>
-                <code>(-60.0, 60.0)</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>height</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Height of the simulated tomogram in nm.</p>
-            </div>
-          </td>
-          <td>
-                <code>50</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>interpolation</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Interpolation method used during the simulation.</p>
-            </div>
-          </td>
-          <td>
-                <code>3</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>seed</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Random seed used for the Gaussian noise.</p>
-            </div>
-          </td>
-          <td>
-                <code>None</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+              </div>
+            </td>
+            <td>
+                  <code>1.5</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>bin_size</code></td>
+            <td>
+                  <code>list of int</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Bin sizes used to create multi-scaled images from the simulated image.</p>
+              </div>
+            </td>
+            <td>
+                  <code>[1]</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>tilt_range</code></td>
+            <td>
+                  <code>tuple of float</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Minimum and maximum tilt angles in degree.</p>
+              </div>
+            </td>
+            <td>
+                  <code>(-60.0, 60.0)</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>height</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Height of the simulated tomogram in nm.</p>
+              </div>
+            </td>
+            <td>
+                  <code>50</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>interpolation</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Interpolation method used during the simulation.</p>
+              </div>
+            </td>
+            <td>
+                  <code>3</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>seed</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Random seed used for the Gaussian noise.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">503</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">503</span>
 <span class="normal">504</span>
 <span class="normal">505</span>
 <span class="normal">506</span>
@@ -5934,116 +5895,113 @@ can set this value to zero to avoid adding more noises.</p>
     <span class="n">main</span><span class="o">.</span><span class="n">_macro_offset</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">main</span><span class="o">.</span><span class="n">macro</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">main</span><span class="o">.</span><span class="n">_send_tomogram_to_viewer</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="n">tomo</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.widgets.subwidgets.Simulator.twist" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">twist</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">by</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">yrange</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">arange</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">allev</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">twist</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">by</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">yrange</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">arange</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">allev</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Apply local twist to molecules.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>layer</code></td>
-          <td>
-                <code><span title="cylindra._napari.MoleculesLayer">MoleculesLayer</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Layer to be transformed.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>by</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Amount of twist in degree.</p>
-            </div>
-          </td>
-          <td>
-                <code>0.0</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>yrange</code></td>
-          <td>
-                <code>tuple of int</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Range of Y axis to be transformed. Range is [a, b).</p>
-            </div>
-          </td>
-          <td>
-                <code>(0, 1)</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>arange</code></td>
-          <td>
-                <code>tuple of int</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Range of angle axis to be transformed. Range is [a, b).</p>
-            </div>
-          </td>
-          <td>
-                <code>(0, 1)</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>allev</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Alleviation of the local expansion. If true, the surrounding molecules
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>layer</code></td>
+            <td>
+                  <code><span title="cylindra._napari.MoleculesLayer">MoleculesLayer</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Layer to be transformed.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>by</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Amount of twist in degree.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>yrange</code></td>
+            <td>
+                  <code>tuple of int</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Range of Y axis to be transformed. Range is [a, b).</p>
+              </div>
+            </td>
+            <td>
+                  <code>(0, 1)</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>arange</code></td>
+            <td>
+                  <code>tuple of int</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Range of angle axis to be transformed. Range is [a, b).</p>
+              </div>
+            </td>
+            <td>
+                  <code>(0, 1)</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>allev</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Alleviation of the local expansion. If true, the surrounding molecules
 will be shifted to alleviate the local expansion.</p>
-            </div>
-          </td>
-          <td>
-                <code>False</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">759</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">759</span>
 <span class="normal">760</span>
 <span class="normal">761</span>
 <span class="normal">762</span>
@@ -6109,8 +6067,8 @@ will be shifted to alleviate the local expansion.</p>
     <span class="n">_set_simulation_model</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">model</span><span class="p">)</span>
     <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
 
@@ -6118,8 +6076,7 @@ will be shifted to alleviate the local expansion.</p>
 
   </div>
 
-  </div>
-
+    </div>
 
 </div>
 
@@ -6215,7 +6172,7 @@ will be shifted to alleviate the local expansion.</p>
     <script id="__config" type="application/json">{"base": "../../..", "features": ["content.code.annotate", "navigation.sections", "navigation.indexes", "navigation.footer", "toc.follow", "search.suggest", "search.share"], "search": "../../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.a7c05c9e.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.ebd0bdb7.min.js"></script>
       
         <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
       

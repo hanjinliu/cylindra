@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.21">
+      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.23">
     
     
       
@@ -26,7 +26,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.66ac8b77.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.6543a935.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
@@ -2060,9 +2060,9 @@
 
 
 <a id="cylindra.cylmeasure"></a>
-  <div class="doc doc-contents first">
+    <div class="doc doc-contents first">
 
-  
+
 
   <div class="doc doc-children">
 
@@ -2078,20 +2078,20 @@
 
 
 <h4 id="cylindra.cylmeasure.CylinderSurface" class="doc doc-heading">
-          <code>CylinderSurface</code>
+            <code>CylinderSurface</code>
 
 
 </h4>
 
 
-  <div class="doc doc-contents ">
+    <div class="doc doc-contents ">
 
-  
+
       <p>Class to define the surface of a spline cylinder.</p>
 
-            <details class="quote">
-              <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">195</span>
+              <details class="quote">
+                <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">195</span>
 <span class="normal">196</span>
 <span class="normal">197</span>
 <span class="normal">198</span>
@@ -2229,12 +2229,11 @@
         <span class="n">_spl_vec</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_spl</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">u</span><span class="p">,</span> <span class="n">der</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">_norm</span><span class="p">(</span><span class="n">_spl_vec</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-            </details>
+              </details>
 
-  
+
 
   <div class="doc doc-children">
-
 
 
 
@@ -2247,20 +2246,19 @@
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.cylmeasure.CylinderSurface.transform_vector" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">transform_vector</span><span class="p">(</span><span class="n">vec</span><span class="p">,</span> <span class="n">start</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">transform_vector</span><span class="p">(</span><span class="n">vec</span><span class="p">,</span> <span class="n">start</span><span class="p">)</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Transform vector(s) to (r, y, a).</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">204</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">204</span>
 <span class="normal">205</span>
 <span class="normal">206</span>
 <span class="normal">207</span>
@@ -2326,8 +2324,8 @@
     <span class="n">v_ang</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">v_ang</span><span class="p">)]</span> <span class="o">=</span> <span class="mf">0.0</span>
     <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">_dot</span><span class="p">(</span><span class="n">vec</span><span class="p">,</span> <span class="n">er</span><span class="p">),</span> <span class="n">dy</span><span class="p">,</span> <span class="n">v_ang</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
 
@@ -2335,8 +2333,7 @@
 
   </div>
 
-  </div>
-
+    </div>
 
 </div>
 
@@ -2345,18 +2342,18 @@
 
 
 <h4 id="cylindra.cylmeasure.LatticeParameters" class="doc doc-heading">
-          <code>LatticeParameters</code>
+            <code>LatticeParameters</code>
 
 
 </h4>
 
 
-  <div class="doc doc-contents ">
+    <div class="doc doc-contents ">
 
 
-            <details class="quote">
-              <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">365</span>
+              <details class="quote">
+                <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">365</span>
 <span class="normal">366</span>
 <span class="normal">367</span>
 <span class="normal">368</span>
@@ -2458,12 +2455,11 @@
     <span class="k">def</span> <span class="nf">choices</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">v</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">cls</span><span class="p">]</span>
 </code></pre></div></td></tr></table></div>
-            </details>
+              </details>
 
-  
+
 
   <div class="doc doc-children">
-
 
 
 
@@ -2476,20 +2472,19 @@
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.cylmeasure.LatticeParameters.calculate" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">calculate</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">calculate</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Calculate this lattice parameter for the given molecule.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">383</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">383</span>
 <span class="normal">384</span>
 <span class="normal">385</span>
 <span class="normal">386</span>
@@ -2547,8 +2542,8 @@
         <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown lattice parameter </span><span class="si">{</span><span class="bp">self</span><span class="si">!r}</span><span class="s2">.&quot;</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
 
@@ -2556,8 +2551,7 @@
 
   </div>
 
-  </div>
-
+    </div>
 
 </div>
 
@@ -2566,18 +2560,18 @@
 
 
 <h4 id="cylindra.cylmeasure.RegionProfiler" class="doc doc-heading">
-          <code>RegionProfiler</code>
+            <code>RegionProfiler</code>
 
 
 </h4>
 
 
-  <div class="doc doc-contents ">
+    <div class="doc doc-contents ">
 
 
-            <details class="quote">
-              <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">266</span>
+              <details class="quote">
+                <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">266</span>
 <span class="normal">267</span>
 <span class="normal">268</span>
 <span class="normal">269</span>
@@ -2771,12 +2765,11 @@
         <span class="n">_area</span> <span class="o">=</span> <span class="s2">&quot;area&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rust_obj</span><span class="o">.</span><span class="n">calculate</span><span class="p">([</span><span class="n">_area</span><span class="p">])[</span><span class="n">_area</span><span class="p">]</span><span class="o">.</span><span class="n">size</span>
 </code></pre></div></td></tr></table></div>
-            </details>
+              </details>
 
-  
+
 
   <div class="doc doc-children">
-
 
 
 
@@ -2789,38 +2782,36 @@
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.cylmeasure.RegionProfiler.calculate" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">calculate</span><span class="p">(</span><span class="n">props</span><span class="p">,</span> <span class="o">*</span><span class="n">more_props</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">calculate</span><span class="p">(</span><span class="n">props</span><span class="p">,</span> <span class="o">*</span><span class="n">more_props</span><span class="p">)</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Calculate properties for each region.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>props</code></td>
-          <td>
-                <code>str or list of str</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Property names. Must be chosen from following:
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>props</code></td>
+            <td>
+                  <code>str or list of str</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Property names. Must be chosen from following:
 - area: total number of molecules.
 - length: longitudinal length of the region.
 - width: lateral width of the region.
@@ -2830,42 +2821,41 @@
 - max: max of target values.
 - min: min of target values.
 - std: standard deviation of target values.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
         </tr>
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="polars.DataFrame">DataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>DataFrame with columns corresponding to the given property names.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-
-
-  <p><span class="doc-section-title">Returns:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td>
-                <code><span title="polars.DataFrame">DataFrame</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>DataFrame with columns corresponding to the given property names.</p>
-            </div>
-          </td>
-        </tr>
-    </tbody>
-  </table>
-
-          <details class="quote">
-            <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">323</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">323</span>
 <span class="normal">324</span>
 <span class="normal">325</span>
 <span class="normal">326</span>
@@ -2935,19 +2925,17 @@
     <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rust_obj</span><span class="o">.</span><span class="n">calculate</span><span class="p">(</span><span class="n">all_props</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">pl</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">out</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">all_props</span><span class="p">})</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.cylmeasure.RegionProfiler.from_components" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">from_components</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s1">&#39;nth&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;pf-id&#39;</span><span class="p">)</span></code>
-  
+            <code class="highlight language-python"><span class="n">from_components</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s1">&#39;nth&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;pf-id&#39;</span><span class="p">)</span></code>
+
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
   </span>
@@ -2955,86 +2943,85 @@
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Construct a region profiler from molecules and splines.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>mole</code></td>
-          <td>
-                <code><span title="acryo.Molecules">Molecules</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Molecules to be profiled. Must have features "nth", "pf-id".</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>spl</code></td>
-          <td>
-                <code><a class="autorefs autorefs-internal" title="cylindra.components.CylSpline" href="../components/#cylindra.components.spline.CylSpline">CylSpline</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Spline from which the molecules are generated.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>target</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Column name of the target values. This is not needed if properties that
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>mole</code></td>
+            <td>
+                  <code><span title="acryo.Molecules">Molecules</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Molecules to be profiled. Must have features "nth", "pf-id".</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>spl</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="cylindra.components.CylSpline" href="../components/#cylindra.components.spline.CylSpline">CylSpline</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Spline from which the molecules are generated.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>target</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Column name of the target values. This is not needed if properties that
 do not require target values are to be calculated.</p>
-            </div>
-          </td>
-          <td>
-                <code>&#39;nth&#39;</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>label</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Column name of the label values. Must be an integer column.</p>
-            </div>
-          </td>
-          <td>
-                <code>&#39;pf-id&#39;</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;nth&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>label</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Column name of the label values. Must be an integer column.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;pf-id&#39;</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">283</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">283</span>
 <span class="normal">284</span>
 <span class="normal">285</span>
 <span class="normal">286</span>
@@ -3112,29 +3099,27 @@ do not require target values are to be calculated.</p>
 
     <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">reg</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h5 id="cylindra.cylmeasure.RegionProfiler.n_regions" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">n_regions</span><span class="p">()</span></code>
+            <code class="highlight language-python"><span class="n">n_regions</span><span class="p">()</span></code>
 
 </h5>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Number of regions.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">359</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">359</span>
 <span class="normal">360</span>
 <span class="normal">361</span>
 <span class="normal">362</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">n_regions</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
@@ -3142,8 +3127,8 @@ do not require target values are to be calculated.</p>
     <span class="n">_area</span> <span class="o">=</span> <span class="s2">&quot;area&quot;</span>
     <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rust_obj</span><span class="o">.</span><span class="n">calculate</span><span class="p">([</span><span class="n">_area</span><span class="p">])[</span><span class="n">_area</span><span class="p">]</span><span class="o">.</span><span class="n">size</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
 
@@ -3151,33 +3136,30 @@ do not require target values are to be calculated.</p>
 
   </div>
 
-  </div>
-
+    </div>
 
 </div>
-
 
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.cylmeasure.calc_curve_index" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">calc_curve_index</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">calc_curve_index</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>The curve orientation index.</p>
 <p>The curve orientation is defined as the cosine of the angle between the
 second derivative and the relative molecule vector. That is, the inside
 of the curve is positive.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">132</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">132</span>
 <span class="normal">133</span>
 <span class="normal">134</span>
 <span class="normal">135</span>
@@ -3207,29 +3189,27 @@ of the curve is positive.</p>
     <span class="n">_cos</span> <span class="o">=</span> <span class="n">_dot</span><span class="p">(</span><span class="n">mole_vec_normed</span><span class="p">,</span> <span class="n">der2_normed</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">pl</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">Mole</span><span class="o">.</span><span class="n">curve_index</span><span class="p">,</span> <span class="n">_cos</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">Float32</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.cylmeasure.calc_elevation_angle" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">calc_elevation_angle</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">calc_elevation_angle</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Calculate the elevation angle of the longitudinal neighbors.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">36</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">36</span>
 <span class="normal">37</span>
 <span class="normal">38</span>
 <span class="normal">39</span>
@@ -3247,29 +3227,27 @@ of the curve is positive.</p>
         <span class="o">.</span><span class="n">to_series</span><span class="p">()</span>
     <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.cylmeasure.calc_radius" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">calc_radius</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">calc_radius</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Calculate the radius of each molecule.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">72</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">72</span>
 <span class="normal">73</span>
 <span class="normal">74</span>
 <span class="normal">75</span>
@@ -3287,29 +3265,27 @@ of the curve is positive.</p>
     <span class="n">result</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">_dot</span><span class="p">(</span><span class="n">_radius_vec</span><span class="p">,</span> <span class="n">_radius_vec</span><span class="p">)</span> <span class="o">-</span> <span class="n">_dot</span><span class="p">(</span><span class="n">_radius_vec</span><span class="p">,</span> <span class="n">_spl_vec_norm</span><span class="p">))</span>
     <span class="k">return</span> <span class="n">pl</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">Mole</span><span class="o">.</span><span class="n">radius</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">Float32</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.cylmeasure.calc_rise" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">calc_rise</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">calc_rise</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Add a column of rise angles of each molecule.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">83</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">83</span>
 <span class="normal">84</span>
 <span class="normal">85</span>
 <span class="normal">86</span>
@@ -3329,29 +3305,27 @@ of the curve is positive.</p>
         <span class="o">*</span> <span class="n">sign</span>
     <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.cylmeasure.calc_skew" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">calc_skew</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">calc_skew</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Calculate the skew of each molecule to the next one.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">47</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">47</span>
 <span class="normal">48</span>
 <span class="normal">49</span>
 <span class="normal">50</span>
@@ -3365,29 +3339,27 @@ of the curve is positive.</p>
         <span class="o">.</span><span class="n">to_series</span><span class="p">()</span>
     <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.cylmeasure.calc_spacing" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">calc_spacing</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">calc_spacing</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Calculate the interval of each molecule to the next one.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">22</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">22</span>
 <span class="normal">23</span>
 <span class="normal">24</span>
 <span class="normal">25</span>
@@ -3411,29 +3383,27 @@ of the curve is positive.</p>
         <span class="o">.</span><span class="n">to_series</span><span class="p">()</span>
     <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.cylmeasure.calc_twist" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">calc_twist</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">calc_twist</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Calculate the twist of each molecule to the next one.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">56</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">56</span>
 <span class="normal">57</span>
 <span class="normal">58</span>
 <span class="normal">59</span>
@@ -3461,8 +3431,8 @@ of the curve is positive.</p>
         <span class="o">.</span><span class="n">to_series</span><span class="p">()</span>
     <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
 
@@ -3470,7 +3440,7 @@ of the curve is positive.</p>
 
   </div>
 
-  </div>
+    </div>
 
 </div>
 
@@ -3566,7 +3536,7 @@ of the curve is positive.</p>
     <script id="__config" type="application/json">{"base": "../..", "features": ["content.code.annotate", "navigation.sections", "navigation.indexes", "navigation.footer", "toc.follow", "search.suggest", "search.share"], "search": "../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.a7c05c9e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.ebd0bdb7.min.js"></script>
       
         <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
       

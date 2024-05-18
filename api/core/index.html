@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.21">
+      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.23">
     
     
       
@@ -26,7 +26,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.66ac8b77.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.6543a935.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
@@ -1898,12 +1898,11 @@
 
 
 <a id="cylindra.core"></a>
-  <div class="doc doc-contents first">
+    <div class="doc doc-contents first">
 
-  
+
 
   <div class="doc doc-children">
-
 
 
 
@@ -1916,15 +1915,14 @@
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.core.collect_projects" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">collect_projects</span><span class="p">(</span><span class="n">files</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">skip_exc</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">collect_projects</span><span class="p">(</span><span class="n">files</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">skip_exc</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Collect project files into a ProjectSequence object.</p>
 <blockquote>
 <blockquote>
@@ -1935,38 +1933,37 @@
 </blockquote>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>files</code></td>
-          <td>
-                <code>path-like or iterable of path-like</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Project file paths or glob pattern(s).</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>files</code></td>
+            <td>
+                  <code>path-like or iterable of path-like</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Project file paths or glob pattern(s).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/core.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">239</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/core.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">239</span>
 <span class="normal">240</span>
 <span class="normal">241</span>
 <span class="normal">242</span>
@@ -2038,29 +2035,27 @@
     <span class="n">seq</span> <span class="o">=</span> <span class="n">ProjectSequence</span><span class="o">.</span><span class="n">from_paths</span><span class="p">(</span><span class="n">_files</span><span class="p">,</span> <span class="n">skip_exc</span><span class="o">=</span><span class="n">skip_exc</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">seq</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.core.instance" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">instance</span><span class="p">(</span><span class="n">create</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">instance</span><span class="p">(</span><span class="n">create</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Get the current CylindraMainWidget instance.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/core.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">166</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/core.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">166</span>
 <span class="normal">167</span>
 <span class="normal">168</span>
 <span class="normal">169</span>
@@ -2072,111 +2067,107 @@
         <span class="n">ins</span> <span class="o">=</span> <span class="n">start</span><span class="p">()</span>
     <span class="k">return</span> <span class="n">ins</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.core.read_molecules" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">read_molecules</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">pos_cols</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;z&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">),</span> <span class="n">rot_cols</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;zvec&#39;</span><span class="p">,</span> <span class="s1">&#39;yvec&#39;</span><span class="p">,</span> <span class="s1">&#39;xvec&#39;</span><span class="p">))</span></code>
+            <code class="highlight language-python"><span class="n">read_molecules</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">pos_cols</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;z&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">),</span> <span class="n">rot_cols</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;zvec&#39;</span><span class="p">,</span> <span class="s1">&#39;yvec&#39;</span><span class="p">,</span> <span class="s1">&#39;xvec&#39;</span><span class="p">))</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Read a molecules CSV file.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>file</code></td>
-          <td>
-                <code><span title="cylindra.core.PathLike">PathLike</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>File path.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>pos_cols</code></td>
-          <td>
-                <code>sequence of str</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Column names for the molecule positions.</p>
-            </div>
-          </td>
-          <td>
-                <code>(&#34;z&#34;, &#34;y&#34;, &#34;x&#34;)</code>
-          </td>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>file</code></td>
+            <td>
+                  <code><span title="cylindra.core.PathLike">PathLike</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>File path.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>pos_cols</code></td>
+            <td>
+                  <code>sequence of str</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Column names for the molecule positions.</p>
+              </div>
+            </td>
+            <td>
+                  <code>(&#34;z&#34;, &#34;y&#34;, &#34;x&#34;)</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>rot_cols</code></td>
+            <td>
+                  <code>sequence of str</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Column names for the molecule rotation vectors.</p>
+              </div>
+            </td>
+            <td>
+                  <code>(&#34;zvec&#34;, &#34;yvec&#34;, &#34;xvec&#34;)</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
         </tr>
-        <tr class="doc-section-item">
-          <td><code>rot_cols</code></td>
-          <td>
-                <code>sequence of str</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Column names for the molecule rotation vectors.</p>
-            </div>
-          </td>
-          <td>
-                <code>(&#34;zvec&#34;, &#34;yvec&#34;, &#34;xvec&#34;)</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="acryo.Molecules">Molecules</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Molecules object.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-
-
-  <p><span class="doc-section-title">Returns:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td>
-                <code><span title="acryo.Molecules">Molecules</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Molecules object.</p>
-            </div>
-          </td>
-        </tr>
-    </tbody>
-  </table>
-
-          <details class="quote">
-            <summary>Source code in <code>cylindra/core.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">192</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/core.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">192</span>
 <span class="normal">193</span>
 <span class="normal">194</span>
 <span class="normal">195</span>
@@ -2228,29 +2219,27 @@
     <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">Molecules</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">pos_cols</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">pos_cols</span><span class="p">),</span> <span class="n">rot_cols</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">rot_cols</span><span class="p">))</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.core.read_project" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">read_project</span><span class="p">(</span><span class="n">file</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">read_project</span><span class="p">(</span><span class="n">file</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Read the Cylindra project file.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/core.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">185</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/core.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">185</span>
 <span class="normal">186</span>
 <span class="normal">187</span>
 <span class="normal">188</span>
@@ -2260,83 +2249,79 @@
 
     <span class="k">return</span> <span class="n">CylindraProject</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.core.read_spline" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">read_spline</span><span class="p">(</span><span class="n">file</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">read_spline</span><span class="p">(</span><span class="n">file</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Read the spline file.</p>
 
 
-
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>file</code></td>
-          <td>
-                <code><span title="cylindra.core.PathLike">PathLike</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>File path.</p>
-            </div>
-          </td>
-          <td>
-              <em>required</em>
-          </td>
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
         </tr>
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>file</code></td>
+            <td>
+                  <code><span title="cylindra.core.PathLike">PathLike</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>File path.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
 
-
-  <p><span class="doc-section-title">Returns:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td>
-                <code><a class="autorefs autorefs-internal" title="cylindra.components.CylSpline" href="../components/#cylindra.components.spline.CylSpline">CylSpline</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>CylSpline object.</p>
-            </div>
-          </td>
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
         </tr>
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="cylindra.components.CylSpline" href="../components/#cylindra.components.spline.CylSpline">CylSpline</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>CylSpline object.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/core.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">220</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/core.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">220</span>
 <span class="normal">221</span>
 <span class="normal">222</span>
 <span class="normal">223</span>
@@ -2370,101 +2355,98 @@
 
     <span class="k">return</span> <span class="n">CylSpline</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.core.start" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">start</span><span class="p">(</span><span class="n">project_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">viewer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">log_level</span><span class="o">=</span><span class="s1">&#39;INFO&#39;</span><span class="p">,</span> <span class="n">headless</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">add_main_widget</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">run</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">start</span><span class="p">(</span><span class="n">project_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">viewer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">log_level</span><span class="o">=</span><span class="s1">&#39;INFO&#39;</span><span class="p">,</span> <span class="n">headless</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">add_main_widget</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">run</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Start napari viewer and dock cylindra widget as a dock widget.</p>
 
 
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>project_file</code></td>
+            <td>
+                  <code>path - like</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If given, load the project file.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>viewer</code></td>
+            <td>
+                  <code><span title="napari.Viewer">Viewer</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Give a viewer object and this viewer will be used as the parent.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>log_level</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a> or <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Log level. See <code>logging</code> module for details.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#34;INFO&#34;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>headless</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If True, do not show the viewer.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
-  <p><span class="doc-section-title">Parameters:</span></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Description</th>
-        <th>Default</th>
-      </tr>
-    </thead>
-    <tbody>
-        <tr class="doc-section-item">
-          <td><code>project_file</code></td>
-          <td>
-                <code>path - like</code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>If given, load the project file.</p>
-            </div>
-          </td>
-          <td>
-                <code>None</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>viewer</code></td>
-          <td>
-                <code><span title="napari.Viewer">Viewer</span></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Give a viewer object and this viewer will be used as the parent.</p>
-            </div>
-          </td>
-          <td>
-                <code>None</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>log_level</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a> or <a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>Log level. See <code>logging</code> module for details.</p>
-            </div>
-          </td>
-          <td>
-                <code>&#34;INFO&#34;</code>
-          </td>
-        </tr>
-        <tr class="doc-section-item">
-          <td><code>headless</code></td>
-          <td>
-                <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
-          </td>
-          <td>
-            <div class="doc-md-description">
-              <p>If True, do not show the viewer.</p>
-            </div>
-          </td>
-          <td>
-                <code>False</code>
-          </td>
-        </tr>
-    </tbody>
-  </table>
-
-          <details class="quote">
-            <summary>Source code in <code>cylindra/core.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 24</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/core.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 24</span>
 <span class="normal"> 25</span>
 <span class="normal"> 26</span>
 <span class="normal"> 27</span>
@@ -2694,29 +2676,27 @@
 
     <span class="k">return</span> <span class="n">ui</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.core.start_as_plugin" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">start_as_plugin</span><span class="p">(</span><span class="n">run</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">start_as_plugin</span><span class="p">(</span><span class="n">run</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>Start Cylindra as a napari plugin</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/core.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">141</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/core.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">141</span>
 <span class="normal">142</span>
 <span class="normal">143</span>
 <span class="normal">144</span>
@@ -2746,29 +2726,27 @@
     <span class="n">logger</span><span class="o">.</span><span class="n">widget</span><span class="o">.</span><span class="n">height</span> <span class="o">=</span> <span class="mi">160</span>
     <span class="k">return</span> <span class="n">ui</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
-
 
 <div class="doc doc-object doc-function">
 
 
-
 <h4 id="cylindra.core.view_project" class="doc doc-heading">
-          <code class="highlight language-python"><span class="n">view_project</span><span class="p">(</span><span class="n">project_file</span><span class="p">,</span> <span class="n">show</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">view_project</span><span class="p">(</span><span class="n">project_file</span><span class="p">,</span> <span class="n">show</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
 
 </h4>
 
 
-  <div class="doc doc-contents ">
-  
+    <div class="doc doc-contents ">
+
       <p>View the Cylindra project file.</p>
 
-          <details class="quote">
-            <summary>Source code in <code>cylindra/core.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">174</span>
+            <details class="quote">
+              <summary>Source code in <code>cylindra/core.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">174</span>
 <span class="normal">175</span>
 <span class="normal">176</span>
 <span class="normal">177</span>
@@ -2786,8 +2764,8 @@
     <span class="n">ACTIVE_WIDGETS</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">widget</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">widget</span>
 </code></pre></div></td></tr></table></div>
-          </details>
-  </div>
+            </details>
+    </div>
 
 </div>
 
@@ -2795,7 +2773,7 @@
 
   </div>
 
-  </div>
+    </div>
 
 </div>
 
@@ -2891,7 +2869,7 @@
     <script id="__config" type="application/json">{"base": "../..", "features": ["content.code.annotate", "navigation.sections", "navigation.indexes", "navigation.footer", "toc.follow", "search.suggest", "search.share"], "search": "../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.a7c05c9e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.ebd0bdb7.min.js"></script>
       
         <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
       
