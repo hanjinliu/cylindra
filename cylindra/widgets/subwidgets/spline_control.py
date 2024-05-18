@@ -23,6 +23,7 @@ from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 if TYPE_CHECKING:
     from cylindra.components import CylSpline
+
 _Logger = getLogger("cylindra")
 
 

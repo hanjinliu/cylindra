@@ -1,4 +1,4 @@
-from contextlib import suppress
+from contextlib import contextmanager, suppress
 from typing import TYPE_CHECKING, Annotated, Any, Literal, Sequence
 
 import impy as ip
@@ -1501,7 +1501,7 @@ class CylindraMainWidget(MagicTemplate):
                 radii = pl.Series(H.radius, radii, dtype=pl.Float32)
                 if radii.is_nan().any():
                     _Logger.print_html(f"<b>Spline-{i} contains NaN radius.</b>")
-                spl.props.update_loc([radii], depth)
+                spl.props.update_loc([radii], depth, bin_size=1)
                 if update_glob:
                     spl.radius = df[Mole.radius].mean()
             self._update_local_properties_in_widget(replot=True)
@@ -1609,16 +1609,15 @@ class CylindraMainWidget(MagicTemplate):
                 yield
 
             # show all in a table
-            df = (
-                self.tomogram.splines.collect_globalprops()
-                .drop(H.spline_id)
-                .to_pandas()
-                .transpose()
-            )
-            df.columns = [f"Spline-{i}" for i in range(len(df.columns))]
-
             @thread_worker.callback
             def _global_cft_analysis_on_return():
+                df = (
+                    self.tomogram.splines.collect_globalprops()
+                    .drop(H.spline_id, H.intensity_vertical, H.intensity_horizontal)
+                    .to_pandas()
+                    .transpose()
+                )
+                df.columns = [f"Spline-{i}" for i in range(len(df.columns))]
                 self.sample_subtomograms()
                 _Logger.print_table(df, precision=3)
                 self._update_global_properties_in_widget()
@@ -1651,7 +1650,7 @@ class CylindraMainWidget(MagicTemplate):
         mk.Expr(mk.Head.block, macro.args[1:]).eval({_ui_sym: self})
         return self.macro.clear_undo_stack()
 
-    @set_design(text="Re-analyze current tomogram with new config", location=_sw.AnalysisMenu)  # fmt: skip
+    @set_design(text="Re-analyze with new config", location=_sw.AnalysisMenu)
     @do_not_record
     def reanalyze_image_config_updated(self):
         """
@@ -2728,22 +2727,34 @@ class CylindraMainWidget(MagicTemplate):
             elif layer in (self._reserved_layers.prof, self._reserved_layers.work):
                 _layers_to_remove.append(layer.name)
 
-        for name in _layers_to_remove:
-            layer: Layer = viewer.layers[name]
-            viewer.layers.remove(layer)
-
-        self._reserved_layers.init_layers()
-        for layer in self._reserved_layers.to_be_removed:
-            if layer in viewer.layers:
+        with self._pend_reset_choices():
+            for name in _layers_to_remove:
+                layer: Layer = viewer.layers[name]
                 viewer.layers.remove(layer)
-        viewer.add_layer(self._reserved_layers.prof)
-        viewer.add_layer(self._reserved_layers.work)
+
+            self._reserved_layers.init_layers()
+            for layer in self._reserved_layers.to_be_removed:
+                if layer in viewer.layers:
+                    viewer.layers.remove(layer)
+            viewer.add_layer(self._reserved_layers.prof)
+            viewer.add_layer(self._reserved_layers.work)
         self.GlobalProperties._init_text()
+        self.reset_choices()
 
         # Connect layer events.
         viewer.layers.events.removing.connect(self._on_layer_removing)
         viewer.layers.events.inserted.connect(self._on_layer_inserted)
         return None
+
+    @contextmanager
+    def _pend_reset_choices(self):
+        """Temporarily disable the reset_choices method for better performance."""
+        reset_choices = self.reset_choices
+        self.reset_choices = lambda *_: None
+        try:
+            yield
+        finally:
+            self.reset_choices = reset_choices
 
     def _highlight_spline(self):
         i = self.SplineControl.num

@@ -106,7 +106,7 @@ class ReservedLayers:
         layer = self.prof
         spline_id = layer.features[SPLINE_ID]
         spec = spline_id == idx
-        symbol_arr = layer.symbol
+        symbol_arr = layer.symbol.copy()
 
         symbol_of_interest = symbol_arr[spec]
 

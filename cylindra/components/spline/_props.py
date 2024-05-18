@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from types import MappingProxyType
 from typing import Any, Iterable, Mapping, Sequence
 
+import numpy as np
 import polars as pl
 from typing_extensions import Self
 
@@ -20,6 +21,8 @@ class SplineProps:
         self._loc = pl.DataFrame([])
         self._glob = pl.DataFrame([])
         self._window_size = dict[str, nm]()
+        self._binsize_loc = dict[str, int]()
+        self._binsize_glob = dict[str, int]()
 
     def __repr__(self) -> str:
         loc = self.loc
@@ -62,12 +65,24 @@ class SplineProps:
         """Return the window size dict of the local properties"""
         return MappingProxyType(self._window_size)
 
+    @property
+    def binsize_loc(self) -> MappingProxyType[str, int]:
+        """Return the bin size dict of the local properties"""
+        return MappingProxyType(self._binsize_loc)
+
+    @property
+    def binsize_glob(self) -> MappingProxyType[str, int]:
+        """Return the bin size dict of the global properties"""
+        return MappingProxyType(self._binsize_glob)
+
     def copy(self) -> Self:
         """Copy this object"""
         new = self.__class__()
         new._loc = self._loc.clone()
         new._glob = self._glob.clone()
         new._window_size = self._window_size.copy()
+        new._binsize_loc = self._binsize_loc.copy()
+        new._binsize_glob = self._binsize_glob.copy()
         return new
 
     def __getitem__(self, key) -> Self:
@@ -75,6 +90,8 @@ class SplineProps:
         new._loc = self._loc[key]
         new._glob = self._glob[key]
         new._window_size = {key: self._window_size[key]}
+        new._binsize_loc = self._binsize_loc[key]
+        new._binsize_glob = self._binsize_glob[key]
         return new
 
     def select(self, keys: str | Iterable[str]) -> Self:
@@ -85,12 +102,15 @@ class SplineProps:
         new._loc = self._loc.select(keys)
         new._glob = self._glob.select(keys)
         new._window_size = {k: self._window_size[k] for k in keys}
+        new._binsize_loc = {k: self._binsize_loc[k] for k in keys}
+        new._binsize_glob = {k: self._binsize_glob[k] for k in keys}
         return new
 
     def update_loc(
         self,
         props: _DataFrameLike,
         window_size: nm | Mapping[str, nm],
+        bin_size: int | Mapping[str, int] | None = None,
     ) -> Self:
         """
         Set local properties of given window size.
@@ -115,9 +135,19 @@ class SplineProps:
         else:
             ws = _pos_float(window_size)
             self._window_size.update({c: ws for c in df.columns})
+        if isinstance(bin_size, (int, np.integer)):
+            for key in df.columns:
+                self._binsize_loc[key] = bin_size
+        elif isinstance(bin_size, Mapping):
+            self._binsize_loc.update(bin_size)
         return self
 
-    def update_glob(self, props: _DataFrameLike | None = None, **kwargs) -> Self:
+    def update_glob(
+        self,
+        props: _DataFrameLike | None = None,
+        bin_size: int | Mapping[str, int] | None = None,
+        **kwargs,
+    ) -> Self:
         """Update the global properties."""
         if kwargs:
             if props is not None:
@@ -130,10 +160,15 @@ class SplineProps:
         if df.shape[0] > 1:
             raise ValueError("Global properties must be a single row.")
         self._glob = self._glob.with_columns(df)
+        if isinstance(bin_size, (int, np.integer)):
+            for key in df.columns:
+                self._binsize_glob[key] = bin_size
+        elif isinstance(bin_size, Mapping):
+            self._binsize_glob.update(bin_size)
         return self
 
     @contextmanager
-    def temp_glob(self, props: _DataFrameLike | None = None, **kwargs) -> Self:
+    def temp_glob(self, props: _DataFrameLike | None = None, **kwargs):
         """Temporarily update the global properties."""
         if kwargs:
             if props is not None:

@@ -25,6 +25,15 @@ install from [PyPI](https://pypi.org), you'll need [`git`](https://git-scm.com) 
     pip install cylindra[all] -U
     ```
 
+=== "From napari hub"
+
+    `cylindra` is available as a [napari plugin](https://napari-hub.org/plugins/cylindra).
+    You can install it from the napari plugin manager.
+
+    1. Launch `napari`.
+    2. Click `Plugins > Install/Uninstall plugins...`.
+    3. Type "cylindra" in the filter box. Click the "Install" button.
+
 === "From the GitHub main branch"
 
     ```shell
@@ -41,9 +50,9 @@ install from [PyPI](https://pypi.org), you'll need [`git`](https://git-scm.com) 
 
 ??? info "Avoid installing optional dependencies"
 
-    The "all" option tells `pip` to install everything that will be used in
-    `cylindra`. If you don't want all of these, you can manually select the
-    dependencies. The optional dependencies are:
+    The "all" option tells `pip` to install everything that will be used in `cylindra`.
+    If you don't want all of these, you can manually select the dependencies. The
+    optional dependencies are:
 
     - `pyqt5` ... This is the default GUI backend. You can also use `pyqt6` or
       `pyside6`.

@@ -27,7 +27,7 @@ from typing_extensions import Concatenate, ParamSpec
 
 from cylindra._dask import Delayed, compute, delayed
 from cylindra.components._ftprops import LatticeAnalyzer, LatticeParams, get_polar_image
-from cylindra.components._peak import find_centroid_peak
+from cylindra.components._peak import FTPeakInfo, find_centroid_peak
 from cylindra.components.spline import CylSpline
 from cylindra.components.tomogram import _straighten
 from cylindra.components.tomogram._spline_list import SplineList
@@ -141,6 +141,13 @@ class FitResult:
     def rmsd(self) -> float:
         """Root mean square deviation."""
         return np.sqrt(np.sum(self.residual**2) / self.residual.shape[0])
+
+
+class ImageWithPeak:
+    def __init__(self, image: ip.ImgArray, power: ip.ImgArray, peaks: list[FTPeakInfo]):
+        self.image = image
+        self.power = power
+        self.peaks = peaks
 
 
 class CylTomogram(Tomogram):
@@ -581,7 +588,10 @@ class CylTomogram(Tomogram):
         offset_px = _get_radius_offset(min_radius_px, max_radius_px)
         radius = (imax_sub + offset_px) * _scale
         if update:
-            spl.radius = radius
+            spl.props.update_glob(
+                [pl.Series(H.radius, [radius], dtype=pl.Float32)],
+                bin_size=binsize,
+            )
         LOGGER.info(f" >> Radius = {radius:.3f} nm")
         return radius
 
@@ -647,9 +657,9 @@ class CylTomogram(Tomogram):
 
         out = pl.Series(H.radius, radii, dtype=pl.Float32)
         if update:
-            spl.props.update_loc([out], depth)
+            spl.props.update_loc([out], depth, bin_size=binsize)
         if update_glob:
-            spl.props.update_glob([pl.Series(H.radius, [out.mean()])])
+            spl.props.update_glob([pl.Series(H.radius, [out.mean()])], bin_size=binsize)
         return out
 
     @batch_process
@@ -716,7 +726,7 @@ class CylTomogram(Tomogram):
             schema=LatticeParams.polars_schema(),
         )
         if update:
-            spl.props.update_loc(lprops, depth)
+            spl.props.update_loc(lprops, depth, bin_size=binsize)
         if update_glob:
             gprops = lprops.select(
                 pl.col(H.spacing).mean(),
@@ -728,9 +738,35 @@ class CylTomogram(Tomogram):
                 pl.col(H.npf).mode().first(),
                 pl.col(H.start).mode().first(),
             )
-            spl.props.update_glob(gprops)
+            spl.props.update_glob(gprops, bin_size=binsize)
 
         return lprops
+
+    def iter_local_image(
+        self,
+        i: int,
+        depth: nm = 50.0,
+        pos: int | None = None,
+        binsize: int = 1,
+    ) -> Iterable[ip.ImgArray]:
+        spl = self.splines[i]
+        if spl.radius is None:
+            raise ValueError("Radius has not been determined yet.")
+
+        input_img = self._get_multiscale_or_original(binsize)
+        _scale = input_img.scale.x
+        rmin, rmax = spl.radius_range()
+        rc = (rmin + rmax) / 2
+        if pos is None:
+            anchors = spl.anchors
+        else:
+            anchors = [spl.anchors[pos]]
+        spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
+        for anc in anchors:
+            coords = spl_trans.local_cylindrical((rmin, rmax), depth, anc, scale=_scale)
+            polar = get_polar_image(input_img, coords, rc)
+            polar[:] -= np.mean(polar)
+            yield polar
 
     @batch_process
     def local_cft(
@@ -762,29 +798,10 @@ class CylTomogram(Tomogram):
         ip.ImgArray
             FT images stacked along "p" axis.
         """
-        spl = self.splines[i]
-        if spl.radius is None:
-            raise ValueError("Radius has not been determined yet.")
-
-        input_img = self._get_multiscale_or_original(binsize)
-        _scale = input_img.scale.x
-        rmin, rmax = spl.radius_range()
-        rc = (rmin + rmax) / 2
         out = list[ip.ImgArray]()
-        if pos is None:
-            anchors = spl.anchors
-        else:
-            anchors = [spl.anchors[pos]]
-        spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
         with set_gpu():
-            for anc in anchors:
-                coords = spl_trans.local_cylindrical(
-                    (rmin, rmax), depth, anc, scale=_scale
-                )
-                polar = get_polar_image(input_img, coords, rc)
-                polar[:] -= np.mean(polar)
+            for polar in self.iter_local_image(i, depth, pos, binsize):
                 out.append(polar.fft(dims="rya"))
-
         return np.stack(out, axis="p")
 
     @batch_process
@@ -817,6 +834,105 @@ class CylTomogram(Tomogram):
         """
         cft = self.local_cft(i=i, depth=depth, pos=pos, binsize=binsize)
         return cft.real**2 + cft.imag**2
+
+    @batch_process
+    def local_image_with_peaks(
+        self,
+        *,
+        i: int = None,
+        binsize: int | None = None,
+    ) -> list[ImageWithPeak]:
+        spl = self.splines[i]
+        depth = spl.props.window_size[H.twist]
+        if binsize is None:
+            binsize = spl.props.binsize_loc[H.twist]
+        df_loc = spl.props.loc
+        out = list[ImageWithPeak]()
+        for j, polar_img in enumerate(self.iter_local_image(i, depth, binsize=binsize)):
+            cparams = spl.cylinder_params(
+                spacing=_get_component(df_loc, H.spacing, j),
+                pitch=_get_component(df_loc, H.pitch, j),
+                twist=_get_component(df_loc, H.twist, j),
+                skew=_get_component(df_loc, H.skew, j),
+                rise_angle=_get_component(df_loc, H.rise, j),
+                start=_get_component(df_loc, H.start, j),
+                npf=_get_component(df_loc, H.npf, j),
+            )
+            analyzer = LatticeAnalyzer(spl.config)
+            cft = polar_img.fft(dims="rya")
+            cps_proj = (cft.real**2 + cft.imag**2).mean(axis="r")
+            peakv, peakh = analyzer.params_to_peaks(
+                cps_proj,
+                cparams,
+                intensity_vertical=_get_component(df_loc, H.intensity_vertical, j),
+                intensity_horizontal=_get_component(df_loc, H.intensity_horizontal, j),
+            )
+            peakv = peakv.shift_to_center()
+            peakh = peakh.shift_to_center()
+            out.append(ImageWithPeak(polar_img, cps_proj, [peakv, peakh]))
+        return out
+
+    @batch_process
+    def global_cps(
+        self,
+        *,
+        i: int = None,
+        binsize: int = 1,
+    ) -> ip.ImgArray:
+        """
+        Calculate global cylindrical power spectra.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Spline ID that you want to analyze.
+        binsize : int, default 1
+            Multiscale bin size used for calculation.
+
+        Returns
+        -------
+        ip.ImgArray
+            Complex image.
+        """
+        cft = self.global_cft(i=i, binsize=binsize)
+        return cft.real**2 + cft.imag**2
+
+    @batch_process
+    def global_image_with_peaks(
+        self,
+        *,
+        i: int = None,
+        binsize: int | None = None,
+    ) -> ImageWithPeak:
+        spl = self.splines[i]
+        if binsize is None:
+            binsize = spl.props.binsize_glob[H.twist]
+        img_st = self.straighten_cylindric(i, binsize=binsize)
+        img_st -= np.mean(img_st)
+        cft = img_st.fft(dims="rya")
+        cps = cft.real**2 + cft.imag**2
+        cps_proj = cps.mean(axis="r")
+        cparams = spl.cylinder_params(
+            spacing=spl.props.get_glob(H.spacing, default=None),
+            pitch=spl.props.get_glob(H.pitch, default=None),
+            twist=spl.props.get_glob(H.twist, default=None),
+            skew=spl.props.get_glob(H.skew, default=None),
+            rise_angle=spl.props.get_glob(H.rise, default=None),
+            start=spl.props.get_glob(H.start, default=None),
+            npf=spl.props.get_glob(H.npf, default=None),
+        )
+        analyzer = LatticeAnalyzer(spl.config)
+        peakv, peakh = analyzer.params_to_peaks(
+            cps_proj,
+            cparams,
+            intensity_vertical=spl.props.get_glob(H.intensity_vertical, default=None),
+            intensity_horizontal=spl.props.get_glob(
+                H.intensity_horizontal, default=None
+            ),
+        )
+        peakv = peakv.shift_to_center()
+        peakh = peakh.shift_to_center()
+        return ImageWithPeak(img_st, cps_proj, [peakv, peakh])
 
     @batch_process
     def global_cft_params(
@@ -859,11 +975,14 @@ class CylTomogram(Tomogram):
         img_st = self.straighten_cylindric(i, radii=(rmin, rmax), binsize=binsize)
         rc = (rmin + rmax) / 2
         analyzer = LatticeAnalyzer(spl.config)
-        out = analyzer.estimate_lattice_params_polar(
-            img_st, rc, nsamples=nsamples
-        ).to_polars()
+        lparams = analyzer.estimate_lattice_params_polar(img_st, rc, nsamples=nsamples)
+        out = lparams.to_polars()
+        LOGGER.info(
+            f" >> Peak intensity: vertical={lparams.intensity_vertical:.3g}, "
+            f"horizontal={lparams.intensity_horizontal:.3g}"
+        )
         if update:
-            spl.props.glob = spl.props.glob.with_columns(out)
+            spl.props.update_glob(spl.props.glob.with_columns(out), bin_size=binsize)
         return out
 
     @batch_process
@@ -883,7 +1002,7 @@ class CylTomogram(Tomogram):
         ip.ImgArray
             Complex image.
         """
-        img_st: ip.ImgArray = self.straighten_cylindric(i, binsize=binsize)
+        img_st = self.straighten_cylindric(i, binsize=binsize)
         img_st -= np.mean(img_st)
         return img_st.fft(dims="rya")
 
@@ -1472,3 +1591,10 @@ def _normalize_chunk_length(img, chunk_length: nm | None) -> nm:
         else:
             chunk_length = 999999
     return chunk_length
+
+
+def _get_component(df: pl.DataFrame, key: str, idx: int, default=None):
+    try:
+        return df[key][idx]
+    except (KeyError, IndexError):
+        return default

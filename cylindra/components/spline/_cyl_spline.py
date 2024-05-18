@@ -97,6 +97,7 @@ class CylSpline(Spline):
         clipped = super().clip(start, stop)
 
         clipped.props.glob = self.props.glob.clone()
+        clipped.props._binsize_glob = self.props._binsize_glob.copy()
         if start > stop:
             clipped.orientation = Ori.invert(self.orientation)
         else:

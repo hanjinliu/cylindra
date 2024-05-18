@@ -71,12 +71,13 @@ class PeakDetector:
         """
         ps, y0, a0 = self._local_ps_and_offset(range_y, range_a, up_y, up_a)
         ymax, amax = np.unravel_index(np.argmax(ps), ps.shape)
-        (ymaxsub, amaxsub), _ = find_peak(ps, index=(ymax, amax), nrepeat=1)
+        (ymaxsub, amaxsub), value = find_peak(ps, index=(ymax, amax), nrepeat=1)
         return FTPeakInfo(
             ymaxsub + y0,
             amaxsub + a0,
             (self._img.shape.y, self._img.shape.a),
             (up_y, up_a),
+            intensity=value,
         )
 
     def get_local_power_spectrum(
@@ -127,12 +128,14 @@ class FTPeakInfo:
         y: float,
         a: float,
         shape: tuple[int, int],
-        upsampling: tuple[int, int],
+        upsampling: tuple[int, int] = (1, 1),
+        intensity: float | None = None,
     ):
         self._y_abs = y
         self._a_abs = a
         self._shape = shape
         self._upsampling = upsampling
+        self._intensity = intensity
 
     @property
     def y(self) -> float:
@@ -156,14 +159,40 @@ class FTPeakInfo:
         size = self._shape[1] * self._upsampling[1]
         return get_fftfreq(self._a_abs, size)
 
+    @property
+    def intensity(self) -> float | None:
+        """The intensity of the peak."""
+        return self._intensity
+
+    def shift_to_center(self) -> FTPeakInfo:
+        """Shift the peak to the center of the image."""
+        fcenter0 = (self._shape[0] * self._upsampling[0] - 1) // 2 + 1
+        y1 = self._y_abs + fcenter0
+        if y1 >= self._shape[0] * self._upsampling[0]:
+            y1 -= self._shape[0] * self._upsampling[0]
+        return FTPeakInfo(
+            shift_to_center(self._y_abs, self._shape[0] * self._upsampling[0]),
+            shift_to_center(self._a_abs, self._shape[1] * self._upsampling[1]),
+            self._shape,
+            self._upsampling,
+        )
+
 
 def get_fftfreq(f: float, size: int) -> float:
     """Equivalent to np.fft.fftfreq(size)[f] but allow f to be float."""
-    n = (size - 1) // 2 + 1
-    if f < n:
+    fcenter = (size - 1) // 2 + 1
+    if f < fcenter:
         return f / size
     else:
-        return (f - n - size // 2) / size
+        return (f - fcenter - size // 2) / size
+
+
+def shift_to_center(idx: int, size: int):
+    fcenter = size // 2
+    pos = idx + fcenter
+    if pos >= size:
+        pos -= size
+    return pos
 
 
 class NDPeak(NamedTuple):

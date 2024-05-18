@@ -29,6 +29,8 @@ class LatticeParams(NamedTuple):
     twist: float
     npf: int
     start: int
+    intensity_vertical: float = 0.0
+    intensity_horizontal: float = 0.0
 
     def to_polars(self) -> pl.DataFrame:
         """Convert named tuple into a polars DataFrame."""
@@ -46,6 +48,8 @@ class LatticeParams(NamedTuple):
             (H.twist, pl.Float32),
             (H.npf, pl.UInt8),
             (H.start, pl.Int8),
+            (H.intensity_vertical, pl.Float32),
+            (H.intensity_horizontal, pl.Float32),
         ]
 
 
@@ -82,7 +86,12 @@ class LatticeAnalyzer:
         self, img: ip.ImgArray, radius: nm, nsamples: int = 8
     ) -> LatticeParams:
         """Estimate lattice parameters from a cylindric input."""
-        cparams = self.estimate_params_polar(img, radius, nsamples)
+        img = img - float(img.mean())  # normalize.
+        peak_det = PeakDetector(img, nsamples=nsamples)
+        peakh = self.get_peak_h(peak_det, img, radius)
+        peakv = self.get_peak_v(peak_det, img, peakh.a)
+
+        cparams = self.get_params(img, peakh, peakv, radius)
         return LatticeParams(
             rise_angle=cparams.rise_angle,
             rise_length=cparams.rise_length,
@@ -92,36 +101,34 @@ class LatticeAnalyzer:
             twist=cparams.twist,
             npf=cparams.npf,
             start=cparams.start,
+            intensity_vertical=peakv.intensity,
+            intensity_horizontal=peakh.intensity,
         )
 
     estimate_lattice_params_polar_delayed = delayed(estimate_lattice_params_polar)
 
-    def estimate_params_polar(
-        self, img: ip.ImgArray, radius: nm, nsamples: int = 8
-    ) -> CylinderParameters:
-        """Estimate cylindric parameter object from a cylindric input."""
-        img = img - float(img.mean())  # normalize.
-        peak_det = PeakDetector(img, nsamples=nsamples)
-        peakh = self.get_peak_h(peak_det, img, radius)
-        peakv = self.get_peak_v(peak_det, img, peakh.a)
+    # y-axis
+    # ^           + <- peakv
+    # |
+    # |  +      +      + <- peakh
+    # |
+    # |       +
+    # +--------------------> a-axis
 
-        return self.get_params(img, peakh, peakv, radius)
+    # Transformation around `peakh``.
+    # This analysis measures skew angle and protofilament number.
 
     def get_peak_h(self, peak_det: PeakDetector, img: ip.ImgArray, radius: nm):
-        # y-axis
-        # ^           + <- peakv
-        # |
-        # |  +      +      + <- peakh
-        # |
-        # |       +
-        # +--------------------> a-axis
-
-        # Transformation around `peakh``.
-        # This analysis measures skew angle and protofilament number.
         return peak_det.get_peak(**self._params_h(img, radius))
+
+    def get_peak_v(self, peak_det: PeakDetector, img: ip.ImgArray, npf: float):
+        return peak_det.get_peak(**self._params_v(img, npf))
 
     def get_ps_h(self, peak_det: PeakDetector, img: ip.ImgArray, radius: nm):
         return peak_det.get_local_power_spectrum(**self._params_h(img, radius))
+
+    def get_ps_v(self, peak_det: PeakDetector, img: ip.ImgArray, npf: float):
+        return peak_det.get_local_power_spectrum(**self._params_v(img, npf))
 
     def _params_h(self, img: ip.ImgArray, radius: nm):
         spacing_arr = self._cfg.spacing_range.asarray()[np.newaxis]
@@ -139,12 +146,6 @@ class LatticeAnalyzer:
             "up_y": max(int(21600 / img.shape.y), 1),
             "up_a": 20,
         }
-
-    def get_peak_v(self, peak_det: PeakDetector, img: ip.ImgArray, npf: float):
-        return peak_det.get_peak(**self._params_v(img, npf))
-
-    def get_ps_v(self, peak_det: PeakDetector, img: ip.ImgArray, npf: float):
-        return peak_det.get_local_power_spectrum(**self._params_v(img, npf))
 
     def _params_v(self, img: ip.ImgArray, npf: float):
         tan_rise_min, tan_rise_max = (
@@ -193,20 +194,28 @@ class LatticeAnalyzer:
             rise_sign=self._cfg.rise_sign,
         )
 
-    def get_lattice_params(
-        self, img: ip.ImgArray, peakh: FTPeakInfo, peakv: FTPeakInfo, radius: nm
-    ):
-        cparams = self.get_params(img, peakh, peakv, radius)
-        return LatticeParams(
-            rise_angle=cparams.rise_angle,
-            rise_length=cparams.rise_length,
-            pitch=cparams.pitch,
-            spacing=cparams.spacing,
-            skew=cparams.skew,
-            twist=cparams.twist,
-            npf=cparams.npf,
-            start=cparams.start,
+    def params_to_peaks(
+        self,
+        img: ip.ImgArray,
+        params: CylinderParameters,
+        intensity_vertical: float = 0.0,
+        intensity_horizontal: float = 0.0,
+    ) -> tuple[FTPeakInfo, FTPeakInfo]:
+        ya_scale_ratio = img.scale.y / img.scale.a
+        tan_skew = math.tan(math.radians(params.skew))
+        peakv = FTPeakInfo(
+            y=img.scale.y / params.pitch * img.shape.y,
+            a=params.start * params.rise_sign,
+            shape=img.shape,
+            intensity=intensity_vertical,
         )
+        peakh = FTPeakInfo(
+            y=tan_skew * ya_scale_ratio * params.npf / img.shape.a * img.shape.y,
+            a=params.npf,
+            shape=img.shape,
+            intensity=intensity_horizontal,
+        )
+        return peakh, peakv
 
     def get_yrange(self, img: ip.ImgArray) -> tuple[int, int]:
         """Get the range of y-axis in the polar image."""
