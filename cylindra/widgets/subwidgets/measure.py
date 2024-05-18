@@ -184,6 +184,7 @@ class PeakInspector(ChildWidget):
 
     @pos.connect
     def _pos_changed(self, pos: int):
+        self._upsampled_image_item.setImage(None)
         if len(self._power_spectra) == 0:
             return None
         _next_image = self._power_spectra[pos]
@@ -390,6 +391,8 @@ class SpectraInspector(ChildWidget):
         btn_axial = get_button(self.select_axial_peak)
         btn_angular = get_button(self.select_angular_peak)
         btn_upsample = get_button(self.upsample_spectrum)
+        if value is not MouseMode.none and self.mode is value:
+            value = MouseMode.none
         match value:
             case MouseMode.none:
                 btn_axial.text = "Select axial peak"

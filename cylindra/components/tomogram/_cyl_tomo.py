@@ -856,6 +856,7 @@ class CylTomogram(Tomogram):
                 skew=_get_component(df_loc, H.skew, j),
                 rise_angle=_get_component(df_loc, H.rise, j),
                 start=_get_component(df_loc, H.start, j),
+                npf=_get_component(df_loc, H.npf, j),
             )
             analyzer = LatticeAnalyzer(spl.config)
             cft = polar_img.fft(dims="rya")
@@ -918,6 +919,7 @@ class CylTomogram(Tomogram):
             skew=spl.props.get_glob(H.skew, default=None),
             rise_angle=spl.props.get_glob(H.rise, default=None),
             start=spl.props.get_glob(H.start, default=None),
+            npf=spl.props.get_glob(H.npf, default=None),
         )
         analyzer = LatticeAnalyzer(spl.config)
         peakv, peakh = analyzer.params_to_peaks(
