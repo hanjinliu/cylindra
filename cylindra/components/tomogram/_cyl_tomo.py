@@ -835,9 +835,9 @@ class CylTomogram(Tomogram):
         binsize: int | None = None,
     ) -> list[PowerSpectrumWithPeak]:
         spl = self.splines[i]
-        depth = spl.props.window_size[H.spacing]
+        depth = spl.props.window_size[H.twist]
         if binsize is None:
-            binsize = spl.props.binsize_loc[H.spacing]
+            binsize = spl.props.binsize_loc[H.twist]
         cps = self.local_cps(i=i, depth=depth, binsize=binsize)
         df_loc = spl.props.loc
         out = list[PowerSpectrumWithPeak]()
@@ -862,6 +862,31 @@ class CylTomogram(Tomogram):
             peakh = peakh.shift_to_center()
             out.append(PowerSpectrumWithPeak(cps_proj, [peakv, peakh]))
         return out
+
+    @batch_process
+    def global_cps(
+        self,
+        *,
+        i: int = None,
+        binsize: int = 1,
+    ) -> ip.ImgArray:
+        """
+        Calculate global cylindrical power spectra.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Spline ID that you want to analyze.
+        binsize : int, default 1
+            Multiscale bin size used for calculation.
+
+        Returns
+        -------
+        ip.ImgArray
+            Complex image.
+        """
+        cft = self.global_cft(i=i, binsize=binsize)
+        return cft.real**2 + cft.imag**2
 
     @batch_process
     def global_cps_with_peaks(

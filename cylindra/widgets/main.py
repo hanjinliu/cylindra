@@ -1,4 +1,4 @@
-from contextlib import suppress
+from contextlib import contextmanager, suppress
 from typing import TYPE_CHECKING, Annotated, Any, Literal, Sequence
 
 import impy as ip
@@ -2727,22 +2727,34 @@ class CylindraMainWidget(MagicTemplate):
             elif layer in (self._reserved_layers.prof, self._reserved_layers.work):
                 _layers_to_remove.append(layer.name)
 
-        for name in _layers_to_remove:
-            layer: Layer = viewer.layers[name]
-            viewer.layers.remove(layer)
-
-        self._reserved_layers.init_layers()
-        for layer in self._reserved_layers.to_be_removed:
-            if layer in viewer.layers:
+        with self._pend_reset_choices():
+            for name in _layers_to_remove:
+                layer: Layer = viewer.layers[name]
                 viewer.layers.remove(layer)
-        viewer.add_layer(self._reserved_layers.prof)
-        viewer.add_layer(self._reserved_layers.work)
+
+            self._reserved_layers.init_layers()
+            for layer in self._reserved_layers.to_be_removed:
+                if layer in viewer.layers:
+                    viewer.layers.remove(layer)
+            viewer.add_layer(self._reserved_layers.prof)
+            viewer.add_layer(self._reserved_layers.work)
         self.GlobalProperties._init_text()
 
         # Connect layer events.
         viewer.layers.events.removing.connect(self._on_layer_removing)
         viewer.layers.events.inserted.connect(self._on_layer_inserted)
         return None
+    
+    @contextmanager
+    def _pend_reset_choices(self):
+        """Temporarily disable the reset_choices method for better performance."""
+        reset_choices = self.reset_choices
+        self.reset_choices = lambda *_: None
+        try:
+            yield
+        finally:
+            self.reset_choices = reset_choices
+        self.reset_choices()
 
     def _highlight_spline(self):
         i = self.SplineControl.num

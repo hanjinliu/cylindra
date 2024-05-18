@@ -249,13 +249,14 @@ class CylindraProject(BaseProject):
             yield _update_widget
             _update_widget.await_call()
 
-            # load molecules
+            # load molecules and landscapes
             _add_layer = thread_worker.callback(gui.parent_viewer.add_layer)
-            for info in self.molecules_info + self.landscape_info:
-                layer = info.to_layer(gui, project_dir)
-                cb = _add_layer.with_args(layer)
-                yield cb
-                cb.await_call(timeout=10)
+            with gui._pend_reset_choices():
+                for info in self.molecules_info + self.landscape_info:
+                    layer = info.to_layer(gui, project_dir)
+                    cb = _add_layer.with_args(layer)
+                    yield cb
+                    cb.await_call(timeout=10)
 
         @thread_worker.callback
         def out():
