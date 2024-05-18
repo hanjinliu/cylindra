@@ -53,10 +53,12 @@ class PeakInspector(ChildWidget):
         self._image = np.zeros((1, 1))
         self._is_log_scale = False
         self._current_binsize = 1
+        self._last_upsample_params = {}
 
     def __post_init__(self):
         self._upsampled_image_item = pg.ImageItem()
         self.canvas._viewbox.addItem(self._upsampled_image_item)
+        self._upsampled_image_item.setVisible(False)
         self._infline_x = self.canvas.add_infline(1, 0, color="yellow")
         self._infline_y = self.canvas.add_infline(1, 90, color="yellow")
         self._layer_axial = self.canvas.add_scatter(
@@ -88,7 +90,7 @@ class PeakInspector(ChildWidget):
         spl = main.splines[i]
         self._layer_axial.data = [], []
         self._layer_angular.data = [], []
-        self._upsampled_image_item.setImage(None)
+        self._upsampled_image_item.setVisible(False)
         if self.show_what == "Local-CFT":
             if spl.props.has_loc(H.twist) and spl.has_anchors:
                 # has local-CFT results
@@ -136,7 +138,7 @@ class PeakInspector(ChildWidget):
             self._infline_x.pos = center
             self._infline_y.angle = 90
             self._infline_y.pos = center
-        self._upsampled_image_item.setImage(None)
+        self._upsampled_image_item.setVisible(False)
 
     def _update_image(self):
         if self._is_log_scale:
@@ -181,10 +183,16 @@ class PeakInspector(ChildWidget):
         tr.setMatrix(scale, 0, 0, 0, scale, 0, a0, y0, 1)
         self._upsampled_image_item.setTransform(tr)
         self._upsampled_image_item.setLevels(self.canvas.contrast_limits)
+        self._upsampled_image_item.setVisible(True)
+        self._last_upsample_params = {
+            "a": a,
+            "y": y,
+            "radius": radius,
+            "upsample": upsample,
+        }
 
     @pos.connect
     def _pos_changed(self, pos: int):
-        self._upsampled_image_item.setImage(None)
         if len(self._power_spectra) == 0:
             return None
         _next_image = self._power_spectra[pos]
@@ -203,6 +211,8 @@ class PeakInspector(ChildWidget):
             y = [peak.y for peak in self._peaks[pos].peaks]
             self._markers.data = (x, y)
             self._markers.visible = True
+        if self._upsampled_image_item.isVisible() and self._last_upsample_params:
+            self._upsample_and_update_image(**self._last_upsample_params)
         return None
 
     @show_what.connect
@@ -398,17 +408,17 @@ class SpectraInspector(ChildWidget):
                 btn_axial.text = "Select axial peak"
                 btn_angular.text = "Select angular peak"
                 btn_upsample.text = "Upsample spectrum"
-                self.peak_viewer._upsampled_image_item.setImage(None)
+                self.peak_viewer._upsampled_image_item.setVisible(False)
             case MouseMode.axial:
                 btn_axial.text = "Selecting ..."
                 btn_angular.text = "Select angular peak"
                 btn_upsample.text = "Upsample spectrum"
-                self.peak_viewer._upsampled_image_item.setImage(None)
+                self.peak_viewer._upsampled_image_item.setVisible(False)
             case MouseMode.angular:
                 btn_axial.text = "Select axial peak"
                 btn_angular.text = "Selecting ..."
                 btn_upsample.text = "Upsample spectrum"
-                self.peak_viewer._upsampled_image_item.setImage(None)
+                self.peak_viewer._upsampled_image_item.setVisible(False)
             case MouseMode.upsample:
                 btn_axial.text = "Select axial peak"
                 btn_angular.text = "Select angular peak"
@@ -438,9 +448,14 @@ class SpectraInspector(ChildWidget):
         spl = tomo.splines[idx]
         self.parameters.radius = spl.radius
         self.parameters.rise_sign = spl.config.rise_sign
+        self.parameters.spacing = None
+        self.parameters.rise = None
+        self.parameters.twist = None
+        self.parameters.npf = None
 
         self._on_log_scale_changed(self.log_scale)
         self.peak_viewer._set_spline(idx, binsize)
+
         self.canvas.mouse_clicked.connect(self._on_mouse_clicked, unique=True)
         self.mode = MouseMode.none
 
