@@ -534,6 +534,7 @@ class CylTomogram(Tomogram):
         binsize: int = 1,
         positions: NDArray[np.float32] | Literal["auto", "anchor"] = "auto",
         min_radius: nm = 1.0,
+        max_radius: nm = 100.0,
         update: bool = True,
     ) -> nm:
         """
@@ -551,6 +552,8 @@ class CylTomogram(Tomogram):
             three positions along the spline will be used.
         min_radius : nm, default 1.0
             Minimum radius of the cylinder.
+        max_radius : nm, default 100.0
+            Maximum radius of the cylinder.
         update : bool, default True
             If True, global radius property will be updated.
 
@@ -575,7 +578,7 @@ class CylTomogram(Tomogram):
         depth = spl.config.fit_depth
         _scale = input_img.scale.x
         min_radius_px = min_radius / _scale
-        max_radius = spl.config.fit_width / 2
+        max_radius = min(max_radius, spl.config.fit_width / 2)
         max_radius_px = max_radius / _scale
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
         tasks = [
@@ -603,6 +606,7 @@ class CylTomogram(Tomogram):
         depth: nm = 50.0,
         binsize: int = 1,
         min_radius: nm = 1.0,
+        max_radius: nm = 100.0,
         update: bool = True,
         update_glob: bool = True,
     ) -> pl.Series:
@@ -619,6 +623,8 @@ class CylTomogram(Tomogram):
             Multiscale binsize to be used.
         min_radius : nm, default 1.0
             Minimum radius of the cylinder.
+        max_radius : nm, default 100.0
+            Maximum radius of the cylinder.
         update : bool, default True
             If True, spline properties will be updated.
         update_glob : bool, default True
@@ -639,7 +645,7 @@ class CylTomogram(Tomogram):
         _scale = input_img.scale.x
         thickness = _get_thickness(spl, _scale)
         min_radius_px = min_radius / _scale
-        max_radius = spl.config.fit_width / 2
+        max_radius = min(max_radius, spl.config.fit_width / 2)
         max_radius_px = max_radius / _scale
         offset_px = _get_radius_offset(min_radius_px, max_radius_px)
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)

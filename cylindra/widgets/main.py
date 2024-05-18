@@ -1357,18 +1357,21 @@ class CylindraMainWidget(MagicTemplate):
         splines: _Splines = None,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         min_radius: Annotated[nm, {"min": 0.1, "step": 0.1}] = 1.0,
+        max_radius: Annotated[nm, {"min": 0.1, "step": 0.1}] = 100.0,
     ):  # fmt: skip
         """
         Measure cylinder radius for each spline curve.
 
         Parameters
         ----------
-        {splines}{bin_size}{min_radius}
+        {splines}{bin_size}{min_radius}{max_radius}
         """
         splines = self._norm_splines(splines)
         with SplineTracker(widget=self, indices=splines, sample=True) as tracker:
             for i in splines:
-                self.tomogram.measure_radius(i, binsize=bin_size, min_radius=min_radius)
+                self.tomogram.measure_radius(
+                    i, binsize=bin_size, min_radius=min_radius, max_radius=max_radius
+                )
                 yield
 
             return tracker.as_undo_callback()
@@ -1416,6 +1419,7 @@ class CylindraMainWidget(MagicTemplate):
         depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 50.0,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         min_radius: Annotated[nm, {"min": 0.1, "step": 0.1}] = 1.0,
+        max_radius: Annotated[nm, {"min": 0.1, "step": 0.1}] = 100.0,
         update_glob: Annotated[bool, {"text": "Also update the global radius"}] = True,
     ):  # fmt: skip
         """
@@ -1423,7 +1427,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {splines}{interval}{depth}{bin_size}{min_radius}{update_glob}
+        {splines}{interval}{depth}{bin_size}{min_radius}{max_radius}{update_glob}
         """
         tomo = self.tomogram
         splines = self._norm_splines(splines)
@@ -1441,6 +1445,7 @@ class CylindraMainWidget(MagicTemplate):
                     depth=depth,
                     binsize=bin_size,
                     min_radius=min_radius,
+                    max_radius=max_radius,
                     update_glob=update_glob,
                 )
                 if i == splines[-1]:
