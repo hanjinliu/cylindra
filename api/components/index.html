@@ -13193,7 +13193,13 @@ than spline order.</p>
 <span class="normal">1367</span>
 <span class="normal">1368</span>
 <span class="normal">1369</span>
-<span class="normal">1370</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">CylTomogram</span><span class="p">(</span><span class="n">Tomogram</span><span class="p">):</span>
+<span class="normal">1370</span>
+<span class="normal">1371</span>
+<span class="normal">1372</span>
+<span class="normal">1373</span>
+<span class="normal">1374</span>
+<span class="normal">1375</span>
+<span class="normal">1376</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">CylTomogram</span><span class="p">(</span><span class="n">Tomogram</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Tomogram with cylindrical splines.&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -13577,6 +13583,7 @@ than spline order.</p>
         <span class="n">binsize</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
         <span class="n">positions</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">]</span> <span class="o">|</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span> <span class="s2">&quot;anchor&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;auto&quot;</span><span class="p">,</span>
         <span class="n">min_radius</span><span class="p">:</span> <span class="n">nm</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">max_radius</span><span class="p">:</span> <span class="n">nm</span> <span class="o">=</span> <span class="mf">100.0</span><span class="p">,</span>
         <span class="n">update</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nm</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -13594,6 +13601,8 @@ than spline order.</p>
 <span class="sd">            three positions along the spline will be used.</span>
 <span class="sd">        min_radius : nm, default 1.0</span>
 <span class="sd">            Minimum radius of the cylinder.</span>
+<span class="sd">        max_radius : nm, default 100.0</span>
+<span class="sd">            Maximum radius of the cylinder.</span>
 <span class="sd">        update : bool, default True</span>
 <span class="sd">            If True, global radius property will be updated.</span>
 
@@ -13618,7 +13627,7 @@ than spline order.</p>
         <span class="n">depth</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">fit_depth</span>
         <span class="n">_scale</span> <span class="o">=</span> <span class="n">input_img</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">x</span>
         <span class="n">min_radius_px</span> <span class="o">=</span> <span class="n">min_radius</span> <span class="o">/</span> <span class="n">_scale</span>
-        <span class="n">max_radius</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">fit_width</span> <span class="o">/</span> <span class="mi">2</span>
+        <span class="n">max_radius</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">max_radius</span><span class="p">,</span> <span class="n">spl</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">fit_width</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
         <span class="n">max_radius_px</span> <span class="o">=</span> <span class="n">max_radius</span> <span class="o">/</span> <span class="n">_scale</span>
         <span class="n">spl_trans</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">translate</span><span class="p">([</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">multiscale_translation</span><span class="p">(</span><span class="n">binsize</span><span class="p">)]</span> <span class="o">*</span> <span class="mi">3</span><span class="p">)</span>
         <span class="n">tasks</span> <span class="o">=</span> <span class="p">[</span>
@@ -13646,6 +13655,7 @@ than spline order.</p>
         <span class="n">depth</span><span class="p">:</span> <span class="n">nm</span> <span class="o">=</span> <span class="mf">50.0</span><span class="p">,</span>
         <span class="n">binsize</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
         <span class="n">min_radius</span><span class="p">:</span> <span class="n">nm</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">max_radius</span><span class="p">:</span> <span class="n">nm</span> <span class="o">=</span> <span class="mf">100.0</span><span class="p">,</span>
         <span class="n">update</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">update_glob</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pl</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
@@ -13662,6 +13672,8 @@ than spline order.</p>
 <span class="sd">            Multiscale binsize to be used.</span>
 <span class="sd">        min_radius : nm, default 1.0</span>
 <span class="sd">            Minimum radius of the cylinder.</span>
+<span class="sd">        max_radius : nm, default 100.0</span>
+<span class="sd">            Maximum radius of the cylinder.</span>
 <span class="sd">        update : bool, default True</span>
 <span class="sd">            If True, spline properties will be updated.</span>
 <span class="sd">        update_glob : bool, default True</span>
@@ -13682,7 +13694,7 @@ than spline order.</p>
         <span class="n">_scale</span> <span class="o">=</span> <span class="n">input_img</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">x</span>
         <span class="n">thickness</span> <span class="o">=</span> <span class="n">_get_thickness</span><span class="p">(</span><span class="n">spl</span><span class="p">,</span> <span class="n">_scale</span><span class="p">)</span>
         <span class="n">min_radius_px</span> <span class="o">=</span> <span class="n">min_radius</span> <span class="o">/</span> <span class="n">_scale</span>
-        <span class="n">max_radius</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">fit_width</span> <span class="o">/</span> <span class="mi">2</span>
+        <span class="n">max_radius</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">max_radius</span><span class="p">,</span> <span class="n">spl</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">fit_width</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
         <span class="n">max_radius_px</span> <span class="o">=</span> <span class="n">max_radius</span> <span class="o">/</span> <span class="n">_scale</span>
         <span class="n">offset_px</span> <span class="o">=</span> <span class="n">_get_radius_offset</span><span class="p">(</span><span class="n">min_radius_px</span><span class="p">,</span> <span class="n">max_radius_px</span><span class="p">)</span>
         <span class="n">spl_trans</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">translate</span><span class="p">([</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">multiscale_translation</span><span class="p">(</span><span class="n">binsize</span><span class="p">)]</span> <span class="o">*</span> <span class="mi">3</span><span class="p">)</span>
@@ -15208,13 +15220,7 @@ cross correlation.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1205</span>
-<span class="normal">1206</span>
-<span class="normal">1207</span>
-<span class="normal">1208</span>
-<span class="normal">1209</span>
-<span class="normal">1210</span>
-<span class="normal">1211</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1211</span>
 <span class="normal">1212</span>
 <span class="normal">1213</span>
 <span class="normal">1214</span>
@@ -15229,7 +15235,13 @@ cross correlation.</p>
 <span class="normal">1223</span>
 <span class="normal">1224</span>
 <span class="normal">1225</span>
-<span class="normal">1226</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_cylinder_model</span><span class="p">(</span>
+<span class="normal">1226</span>
+<span class="normal">1227</span>
+<span class="normal">1228</span>
+<span class="normal">1229</span>
+<span class="normal">1230</span>
+<span class="normal">1231</span>
+<span class="normal">1232</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_cylinder_model</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="n">offsets</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
@@ -15338,13 +15350,7 @@ cross correlation.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 988</span>
-<span class="normal"> 989</span>
-<span class="normal"> 990</span>
-<span class="normal"> 991</span>
-<span class="normal"> 992</span>
-<span class="normal"> 993</span>
-<span class="normal"> 994</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 994</span>
 <span class="normal"> 995</span>
 <span class="normal"> 996</span>
 <span class="normal"> 997</span>
@@ -15357,7 +15363,13 @@ cross correlation.</p>
 <span class="normal">1004</span>
 <span class="normal">1005</span>
 <span class="normal">1006</span>
-<span class="normal">1007</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
+<span class="normal">1007</span>
+<span class="normal">1008</span>
+<span class="normal">1009</span>
+<span class="normal">1010</span>
+<span class="normal">1011</span>
+<span class="normal">1012</span>
+<span class="normal">1013</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
 <span class="k">def</span> <span class="nf">global_cft</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">binsize</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ip</span><span class="o">.</span><span class="n">ImgArray</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Calculate global cylindrical fast Fourier tranformation.</span>
@@ -15498,13 +15510,7 @@ inputs, unlike FFT. Larger <code>nsamples</code> reduces the error but is slower
 
             <details class="quote">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">937</span>
-<span class="normal">938</span>
-<span class="normal">939</span>
-<span class="normal">940</span>
-<span class="normal">941</span>
-<span class="normal">942</span>
-<span class="normal">943</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">943</span>
 <span class="normal">944</span>
 <span class="normal">945</span>
 <span class="normal">946</span>
@@ -15547,7 +15553,13 @@ inputs, unlike FFT. Larger <code>nsamples</code> reduces the error but is slower
 <span class="normal">983</span>
 <span class="normal">984</span>
 <span class="normal">985</span>
-<span class="normal">986</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
+<span class="normal">986</span>
+<span class="normal">987</span>
+<span class="normal">988</span>
+<span class="normal">989</span>
+<span class="normal">990</span>
+<span class="normal">991</span>
+<span class="normal">992</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
 <span class="k">def</span> <span class="nf">global_cft_params</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -15684,13 +15696,7 @@ inputs, unlike FFT. Larger <code>nsamples</code> reduces the error but is slower
 
             <details class="quote">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">875</span>
-<span class="normal">876</span>
-<span class="normal">877</span>
-<span class="normal">878</span>
-<span class="normal">879</span>
-<span class="normal">880</span>
-<span class="normal">881</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">881</span>
 <span class="normal">882</span>
 <span class="normal">883</span>
 <span class="normal">884</span>
@@ -15707,7 +15713,13 @@ inputs, unlike FFT. Larger <code>nsamples</code> reduces the error but is slower
 <span class="normal">895</span>
 <span class="normal">896</span>
 <span class="normal">897</span>
-<span class="normal">898</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
+<span class="normal">898</span>
+<span class="normal">899</span>
+<span class="normal">900</span>
+<span class="normal">901</span>
+<span class="normal">902</span>
+<span class="normal">903</span>
+<span class="normal">904</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
 <span class="k">def</span> <span class="nf">global_cps</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -15832,13 +15844,7 @@ inputs, unlike FFT. Larger <code>nsamples</code> reduces the error but is slower
 
             <details class="quote">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1009</span>
-<span class="normal">1010</span>
-<span class="normal">1011</span>
-<span class="normal">1012</span>
-<span class="normal">1013</span>
-<span class="normal">1014</span>
-<span class="normal">1015</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1015</span>
 <span class="normal">1016</span>
 <span class="normal">1017</span>
 <span class="normal">1018</span>
@@ -15909,7 +15915,13 @@ inputs, unlike FFT. Larger <code>nsamples</code> reduces the error but is slower
 <span class="normal">1083</span>
 <span class="normal">1084</span>
 <span class="normal">1085</span>
-<span class="normal">1086</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
+<span class="normal">1086</span>
+<span class="normal">1087</span>
+<span class="normal">1088</span>
+<span class="normal">1089</span>
+<span class="normal">1090</span>
+<span class="normal">1091</span>
+<span class="normal">1092</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
 <span class="k">def</span> <span class="nf">infer_polarity</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -16103,13 +16115,7 @@ inputs, unlike FFT. Larger <code>nsamples</code> reduces the error but is slower
 
             <details class="quote">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">771</span>
-<span class="normal">772</span>
-<span class="normal">773</span>
-<span class="normal">774</span>
-<span class="normal">775</span>
-<span class="normal">776</span>
-<span class="normal">777</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">777</span>
 <span class="normal">778</span>
 <span class="normal">779</span>
 <span class="normal">780</span>
@@ -16137,7 +16143,13 @@ inputs, unlike FFT. Larger <code>nsamples</code> reduces the error but is slower
 <span class="normal">802</span>
 <span class="normal">803</span>
 <span class="normal">804</span>
-<span class="normal">805</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
+<span class="normal">805</span>
+<span class="normal">806</span>
+<span class="normal">807</span>
+<span class="normal">808</span>
+<span class="normal">809</span>
+<span class="normal">810</span>
+<span class="normal">811</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
 <span class="k">def</span> <span class="nf">local_cft</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -16336,13 +16348,7 @@ properties.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">665</span>
-<span class="normal">666</span>
-<span class="normal">667</span>
-<span class="normal">668</span>
-<span class="normal">669</span>
-<span class="normal">670</span>
-<span class="normal">671</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">671</span>
 <span class="normal">672</span>
 <span class="normal">673</span>
 <span class="normal">674</span>
@@ -16414,7 +16420,13 @@ properties.</p>
 <span class="normal">740</span>
 <span class="normal">741</span>
 <span class="normal">742</span>
-<span class="normal">743</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
+<span class="normal">743</span>
+<span class="normal">744</span>
+<span class="normal">745</span>
+<span class="normal">746</span>
+<span class="normal">747</span>
+<span class="normal">748</span>
+<span class="normal">749</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
 <span class="k">def</span> <span class="nf">local_cft_params</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -16608,13 +16620,7 @@ properties.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">807</span>
-<span class="normal">808</span>
-<span class="normal">809</span>
-<span class="normal">810</span>
-<span class="normal">811</span>
-<span class="normal">812</span>
-<span class="normal">813</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">813</span>
 <span class="normal">814</span>
 <span class="normal">815</span>
 <span class="normal">816</span>
@@ -16637,7 +16643,13 @@ properties.</p>
 <span class="normal">833</span>
 <span class="normal">834</span>
 <span class="normal">835</span>
-<span class="normal">836</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
+<span class="normal">836</span>
+<span class="normal">837</span>
+<span class="normal">838</span>
+<span class="normal">839</span>
+<span class="normal">840</span>
+<span class="normal">841</span>
+<span class="normal">842</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
 <span class="k">def</span> <span class="nf">local_cps</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -16677,7 +16689,7 @@ properties.</p>
 
 
 <h5 id="cylindra.components.tomogram.CylTomogram.local_radii" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">local_radii</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">i</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">depth</span><span class="o">=</span><span class="mf">50.0</span><span class="p">,</span> <span class="n">binsize</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">min_radius</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">update_glob</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">local_radii</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">i</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">depth</span><span class="o">=</span><span class="mf">50.0</span><span class="p">,</span> <span class="n">binsize</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">min_radius</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">max_radius</span><span class="o">=</span><span class="mf">100.0</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">update_glob</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
 
 </h5>
 
@@ -16755,6 +16767,20 @@ properties.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
+            <td><code>max_radius</code></td>
+            <td>
+                  <code><span title="cylindra.const.nm">nm</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Maximum radius of the cylinder.</p>
+              </div>
+            </td>
+            <td>
+                  <code>100.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
             <td><code>update</code></td>
             <td>
                   <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
@@ -16811,10 +16837,7 @@ radii.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">598</span>
-<span class="normal">599</span>
-<span class="normal">600</span>
-<span class="normal">601</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">601</span>
 <span class="normal">602</span>
 <span class="normal">603</span>
 <span class="normal">604</span>
@@ -16876,7 +16899,13 @@ radii.</p>
 <span class="normal">660</span>
 <span class="normal">661</span>
 <span class="normal">662</span>
-<span class="normal">663</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
+<span class="normal">663</span>
+<span class="normal">664</span>
+<span class="normal">665</span>
+<span class="normal">666</span>
+<span class="normal">667</span>
+<span class="normal">668</span>
+<span class="normal">669</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
 <span class="k">def</span> <span class="nf">local_radii</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -16884,6 +16913,7 @@ radii.</p>
     <span class="n">depth</span><span class="p">:</span> <span class="n">nm</span> <span class="o">=</span> <span class="mf">50.0</span><span class="p">,</span>
     <span class="n">binsize</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
     <span class="n">min_radius</span><span class="p">:</span> <span class="n">nm</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="n">max_radius</span><span class="p">:</span> <span class="n">nm</span> <span class="o">=</span> <span class="mf">100.0</span><span class="p">,</span>
     <span class="n">update</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="n">update_glob</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pl</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
@@ -16900,6 +16930,8 @@ radii.</p>
 <span class="sd">        Multiscale binsize to be used.</span>
 <span class="sd">    min_radius : nm, default 1.0</span>
 <span class="sd">        Minimum radius of the cylinder.</span>
+<span class="sd">    max_radius : nm, default 100.0</span>
+<span class="sd">        Maximum radius of the cylinder.</span>
 <span class="sd">    update : bool, default True</span>
 <span class="sd">        If True, spline properties will be updated.</span>
 <span class="sd">    update_glob : bool, default True</span>
@@ -16920,7 +16952,7 @@ radii.</p>
     <span class="n">_scale</span> <span class="o">=</span> <span class="n">input_img</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">x</span>
     <span class="n">thickness</span> <span class="o">=</span> <span class="n">_get_thickness</span><span class="p">(</span><span class="n">spl</span><span class="p">,</span> <span class="n">_scale</span><span class="p">)</span>
     <span class="n">min_radius_px</span> <span class="o">=</span> <span class="n">min_radius</span> <span class="o">/</span> <span class="n">_scale</span>
-    <span class="n">max_radius</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">fit_width</span> <span class="o">/</span> <span class="mi">2</span>
+    <span class="n">max_radius</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">max_radius</span><span class="p">,</span> <span class="n">spl</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">fit_width</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
     <span class="n">max_radius_px</span> <span class="o">=</span> <span class="n">max_radius</span> <span class="o">/</span> <span class="n">_scale</span>
     <span class="n">offset_px</span> <span class="o">=</span> <span class="n">_get_radius_offset</span><span class="p">(</span><span class="n">min_radius_px</span><span class="p">,</span> <span class="n">max_radius_px</span><span class="p">)</span>
     <span class="n">spl_trans</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">translate</span><span class="p">([</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">multiscale_translation</span><span class="p">(</span><span class="n">binsize</span><span class="p">)]</span> <span class="o">*</span> <span class="mi">3</span><span class="p">)</span>
@@ -17168,13 +17200,7 @@ radii.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1166</span>
-<span class="normal">1167</span>
-<span class="normal">1168</span>
-<span class="normal">1169</span>
-<span class="normal">1170</span>
-<span class="normal">1171</span>
-<span class="normal">1172</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1172</span>
 <span class="normal">1173</span>
 <span class="normal">1174</span>
 <span class="normal">1175</span>
@@ -17205,7 +17231,13 @@ radii.</p>
 <span class="normal">1200</span>
 <span class="normal">1201</span>
 <span class="normal">1202</span>
-<span class="normal">1203</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
+<span class="normal">1203</span>
+<span class="normal">1204</span>
+<span class="normal">1205</span>
+<span class="normal">1206</span>
+<span class="normal">1207</span>
+<span class="normal">1208</span>
+<span class="normal">1209</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
 <span class="k">def</span> <span class="nf">map_centers</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -17344,13 +17376,7 @@ radii.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1228</span>
-<span class="normal">1229</span>
-<span class="normal">1230</span>
-<span class="normal">1231</span>
-<span class="normal">1232</span>
-<span class="normal">1233</span>
-<span class="normal">1234</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1234</span>
 <span class="normal">1235</span>
 <span class="normal">1236</span>
 <span class="normal">1237</span>
@@ -17383,7 +17409,13 @@ radii.</p>
 <span class="normal">1264</span>
 <span class="normal">1265</span>
 <span class="normal">1266</span>
-<span class="normal">1267</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
+<span class="normal">1267</span>
+<span class="normal">1268</span>
+<span class="normal">1269</span>
+<span class="normal">1270</span>
+<span class="normal">1271</span>
+<span class="normal">1272</span>
+<span class="normal">1273</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
 <span class="k">def</span> <span class="nf">map_monomers</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -17538,13 +17570,7 @@ radii.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1269</span>
-<span class="normal">1270</span>
-<span class="normal">1271</span>
-<span class="normal">1272</span>
-<span class="normal">1273</span>
-<span class="normal">1274</span>
-<span class="normal">1275</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1275</span>
 <span class="normal">1276</span>
 <span class="normal">1277</span>
 <span class="normal">1278</span>
@@ -17573,7 +17599,13 @@ radii.</p>
 <span class="normal">1301</span>
 <span class="normal">1302</span>
 <span class="normal">1303</span>
-<span class="normal">1304</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
+<span class="normal">1304</span>
+<span class="normal">1305</span>
+<span class="normal">1306</span>
+<span class="normal">1307</span>
+<span class="normal">1308</span>
+<span class="normal">1309</span>
+<span class="normal">1310</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
 <span class="k">def</span> <span class="nf">map_on_grid</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -17699,13 +17731,7 @@ microtubule.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1306</span>
-<span class="normal">1307</span>
-<span class="normal">1308</span>
-<span class="normal">1309</span>
-<span class="normal">1310</span>
-<span class="normal">1311</span>
-<span class="normal">1312</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1312</span>
 <span class="normal">1313</span>
 <span class="normal">1314</span>
 <span class="normal">1315</span>
@@ -17742,7 +17768,13 @@ microtubule.</p>
 <span class="normal">1346</span>
 <span class="normal">1347</span>
 <span class="normal">1348</span>
-<span class="normal">1349</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
+<span class="normal">1349</span>
+<span class="normal">1350</span>
+<span class="normal">1351</span>
+<span class="normal">1352</span>
+<span class="normal">1353</span>
+<span class="normal">1354</span>
+<span class="normal">1355</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
 <span class="k">def</span> <span class="nf">map_pf_line</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -17796,7 +17828,7 @@ microtubule.</p>
 
 
 <h5 id="cylindra.components.tomogram.CylTomogram.measure_radius" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">measure_radius</span><span class="p">(</span><span class="n">i</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">binsize</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">positions</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span> <span class="n">min_radius</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">measure_radius</span><span class="p">(</span><span class="n">i</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">binsize</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">positions</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span> <span class="n">min_radius</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">max_radius</span><span class="o">=</span><span class="mf">100.0</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
 
 </h5>
 
@@ -17873,6 +17905,20 @@ three positions along the spline will be used.</p>
             </td>
             <td>
                   <code>1.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>max_radius</code></td>
+            <td>
+                  <code><span title="cylindra.const.nm">nm</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Maximum radius of the cylinder.</p>
+              </div>
+            </td>
+            <td>
+                  <code>100.0</code>
             </td>
           </tr>
           <tr class="doc-section-item">
@@ -17984,7 +18030,10 @@ three positions along the spline will be used.</p>
 <span class="normal">593</span>
 <span class="normal">594</span>
 <span class="normal">595</span>
-<span class="normal">596</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
+<span class="normal">596</span>
+<span class="normal">597</span>
+<span class="normal">598</span>
+<span class="normal">599</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
 <span class="k">def</span> <span class="nf">measure_radius</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -17992,6 +18041,7 @@ three positions along the spline will be used.</p>
     <span class="n">binsize</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
     <span class="n">positions</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">]</span> <span class="o">|</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span> <span class="s2">&quot;anchor&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;auto&quot;</span><span class="p">,</span>
     <span class="n">min_radius</span><span class="p">:</span> <span class="n">nm</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="n">max_radius</span><span class="p">:</span> <span class="n">nm</span> <span class="o">=</span> <span class="mf">100.0</span><span class="p">,</span>
     <span class="n">update</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nm</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -18009,6 +18059,8 @@ three positions along the spline will be used.</p>
 <span class="sd">        three positions along the spline will be used.</span>
 <span class="sd">    min_radius : nm, default 1.0</span>
 <span class="sd">        Minimum radius of the cylinder.</span>
+<span class="sd">    max_radius : nm, default 100.0</span>
+<span class="sd">        Maximum radius of the cylinder.</span>
 <span class="sd">    update : bool, default True</span>
 <span class="sd">        If True, global radius property will be updated.</span>
 
@@ -18033,7 +18085,7 @@ three positions along the spline will be used.</p>
     <span class="n">depth</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">fit_depth</span>
     <span class="n">_scale</span> <span class="o">=</span> <span class="n">input_img</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">x</span>
     <span class="n">min_radius_px</span> <span class="o">=</span> <span class="n">min_radius</span> <span class="o">/</span> <span class="n">_scale</span>
-    <span class="n">max_radius</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">fit_width</span> <span class="o">/</span> <span class="mi">2</span>
+    <span class="n">max_radius</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">max_radius</span><span class="p">,</span> <span class="n">spl</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">fit_width</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
     <span class="n">max_radius_px</span> <span class="o">=</span> <span class="n">max_radius</span> <span class="o">/</span> <span class="n">_scale</span>
     <span class="n">spl_trans</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">translate</span><span class="p">([</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">multiscale_translation</span><span class="p">(</span><span class="n">binsize</span><span class="p">)]</span> <span class="o">*</span> <span class="mi">3</span><span class="p">)</span>
     <span class="n">tasks</span> <span class="o">=</span> <span class="p">[</span>
@@ -18571,13 +18623,7 @@ afterward, to avoid loading entire image into memory.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1088</span>
-<span class="normal">1089</span>
-<span class="normal">1090</span>
-<span class="normal">1091</span>
-<span class="normal">1092</span>
-<span class="normal">1093</span>
-<span class="normal">1094</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1094</span>
 <span class="normal">1095</span>
 <span class="normal">1096</span>
 <span class="normal">1097</span>
@@ -18608,7 +18654,13 @@ afterward, to avoid loading entire image into memory.</p>
 <span class="normal">1122</span>
 <span class="normal">1123</span>
 <span class="normal">1124</span>
-<span class="normal">1125</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
+<span class="normal">1125</span>
+<span class="normal">1126</span>
+<span class="normal">1127</span>
+<span class="normal">1128</span>
+<span class="normal">1129</span>
+<span class="normal">1130</span>
+<span class="normal">1131</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
 <span class="k">def</span> <span class="nf">straighten</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -18778,13 +18830,7 @@ afterward, to avoid loading entire image into memory.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1127</span>
-<span class="normal">1128</span>
-<span class="normal">1129</span>
-<span class="normal">1130</span>
-<span class="normal">1131</span>
-<span class="normal">1132</span>
-<span class="normal">1133</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1133</span>
 <span class="normal">1134</span>
 <span class="normal">1135</span>
 <span class="normal">1136</span>
@@ -18815,7 +18861,13 @@ afterward, to avoid loading entire image into memory.</p>
 <span class="normal">1161</span>
 <span class="normal">1162</span>
 <span class="normal">1163</span>
-<span class="normal">1164</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
+<span class="normal">1164</span>
+<span class="normal">1165</span>
+<span class="normal">1166</span>
+<span class="normal">1167</span>
+<span class="normal">1168</span>
+<span class="normal">1169</span>
+<span class="normal">1170</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@batch_process</span>
 <span class="k">def</span> <span class="nf">straighten_cylindric</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
