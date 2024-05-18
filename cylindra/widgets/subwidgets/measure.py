@@ -106,6 +106,8 @@ class PeakInspector(ChildWidget):
         else:
             if spl.props.has_glob(H.twist):
                 # has global-CFT results
+                if binsize is None:
+                    binsize = spl.props.binsize_glob[H.twist]
                 peak = [main.tomogram.global_image_with_peaks(i=i, binsize=binsize)]
                 self._set_peaks(peak)
             else:
@@ -127,12 +129,13 @@ class PeakInspector(ChildWidget):
         self.canvas.auto_range()
         self._current_binsize = binsize
 
-        shape = self._power_spectra[0].shape
-        center = np.ceil(np.array(shape) / 2 - 0.5)[::-1]
-        self._infline_x.angle = 0
-        self._infline_x.pos = center
-        self._infline_y.angle = 90
-        self._infline_y.pos = center
+        if (img := self._power_spectra[0]) is not None:
+            shape = img.shape
+            center = np.ceil(np.array(shape) / 2 - 0.5)[::-1]
+            self._infline_x.angle = 0
+            self._infline_x.pos = center
+            self._infline_y.angle = 90
+            self._infline_y.pos = center
         self._upsampled_image_item.setImage(None)
 
     def _update_image(self):
@@ -150,6 +153,8 @@ class PeakInspector(ChildWidget):
     ):
         from cylindra.components._peak import PeakDetector
 
+        if self._peaks is None:
+            return None
         img = self._peaks[self.pos].image
         det = PeakDetector(img, nsamples=2)
         if (

@@ -1650,7 +1650,7 @@ class CylindraMainWidget(MagicTemplate):
         mk.Expr(mk.Head.block, macro.args[1:]).eval({_ui_sym: self})
         return self.macro.clear_undo_stack()
 
-    @set_design(text="Re-analyze current tomogram with new config", location=_sw.AnalysisMenu)  # fmt: skip
+    @set_design(text="Re-analyze with new config", location=_sw.AnalysisMenu)
     @do_not_record
     def reanalyze_image_config_updated(self):
         """
@@ -2739,12 +2739,13 @@ class CylindraMainWidget(MagicTemplate):
             viewer.add_layer(self._reserved_layers.prof)
             viewer.add_layer(self._reserved_layers.work)
         self.GlobalProperties._init_text()
+        self.reset_choices()
 
         # Connect layer events.
         viewer.layers.events.removing.connect(self._on_layer_removing)
         viewer.layers.events.inserted.connect(self._on_layer_inserted)
         return None
-    
+
     @contextmanager
     def _pend_reset_choices(self):
         """Temporarily disable the reset_choices method for better performance."""
@@ -2754,7 +2755,6 @@ class CylindraMainWidget(MagicTemplate):
             yield
         finally:
             self.reset_choices = reset_choices
-        self.reset_choices()
 
     def _highlight_spline(self):
         i = self.SplineControl.num

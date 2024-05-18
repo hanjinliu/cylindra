@@ -577,6 +577,7 @@ def test_sub_widgets(ui: CylindraMainWidget):
         assert ui.splines[0].length() == pytest.approx(len_old - 2.4, abs=0.02)
 
         # spectra inspector
+        ui.local_cft_analysis(interval=25)
         ui.AnalysisMenu.open_spectra_inspector()
         ui.spectra_inspector.log_scale = True
         ui.spectra_inspector.log_scale = False
@@ -584,6 +585,10 @@ def test_sub_widgets(ui: CylindraMainWidget):
         ui.spectra_inspector._click_at((20, 10))
         ui.spectra_inspector.select_angular_peak()
         ui.spectra_inspector._click_at((10, 20))
+        ui.spectra_inspector.upsample_spectrum()
+        ui.spectra_inspector._click_at((15, 25))
+        ui.spectra_inspector.peak_viewer.show_what = "Local-CFT"
+        ui.spectra_inspector._click_at((5, 5))
 
         # file iterator
         ui.FileMenu.open_file_iterator()

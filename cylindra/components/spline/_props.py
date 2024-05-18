@@ -81,6 +81,8 @@ class SplineProps:
         new._loc = self._loc.clone()
         new._glob = self._glob.clone()
         new._window_size = self._window_size.copy()
+        new._binsize_loc = self._binsize_loc.copy()
+        new._binsize_glob = self._binsize_glob.copy()
         return new
 
     def __getitem__(self, key) -> Self:
@@ -88,6 +90,8 @@ class SplineProps:
         new._loc = self._loc[key]
         new._glob = self._glob[key]
         new._window_size = {key: self._window_size[key]}
+        new._binsize_loc = self._binsize_loc[key]
+        new._binsize_glob = self._binsize_glob[key]
         return new
 
     def select(self, keys: str | Iterable[str]) -> Self:
@@ -98,6 +102,8 @@ class SplineProps:
         new._loc = self._loc.select(keys)
         new._glob = self._glob.select(keys)
         new._window_size = {k: self._window_size[k] for k in keys}
+        new._binsize_loc = {k: self._binsize_loc[k] for k in keys}
+        new._binsize_glob = {k: self._binsize_glob[k] for k in keys}
         return new
 
     def update_loc(

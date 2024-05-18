@@ -262,6 +262,7 @@ class CylindraProject(BaseProject):
         def out():
             # update project description widget
             gui.GeneralInfo.project_desc.value = self.project_description
+            gui.reset_choices()
 
         return out
 

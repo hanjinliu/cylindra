@@ -905,7 +905,7 @@ class CylTomogram(Tomogram):
     ) -> ImageWithPeak:
         spl = self.splines[i]
         if binsize is None:
-            binsize = spl.props.binsize_loc[H.spacing]
+            binsize = spl.props.binsize_glob[H.twist]
         img_st = self.straighten_cylindric(i, binsize=binsize)
         img_st -= np.mean(img_st)
         cft = img_st.fft(dims="rya")
@@ -980,7 +980,7 @@ class CylTomogram(Tomogram):
             f"horizontal={lparams.intensity_horizontal:.3g}"
         )
         if update:
-            spl.props.glob = spl.props.glob.with_columns(out)
+            spl.props.update_glob(spl.props.glob.with_columns(out), bin_size=binsize)
         return out
 
     @batch_process
