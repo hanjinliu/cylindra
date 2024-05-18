@@ -1364,7 +1364,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {splines}{bin_size}{min_radius}
+        {splines}{bin_size}{min_radius}{max_radius}
         """
         splines = self._norm_splines(splines)
         with SplineTracker(widget=self, indices=splines, sample=True) as tracker:
@@ -1427,7 +1427,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {splines}{interval}{depth}{bin_size}{min_radius}{update_glob}
+        {splines}{interval}{depth}{bin_size}{min_radius}{max_radius}{update_glob}
         """
         tomo = self.tomogram
         splines = self._norm_splines(splines)
