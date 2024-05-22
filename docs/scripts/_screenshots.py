@@ -82,6 +82,24 @@ def main():
 
     ui._runner.run(interval=12, n_refine=0, map_monomers=True)
 
+    # inspect local CFT
+    ui.spectra_inspector.show()
+    ui.spectra_inspector.load_spline(0)
+    ui.spectra_inspector.peak_viewer.show_what = "Local-CFT"
+    ui.spectra_inspector.width = 500
+    ui.spectra_inspector.height = 525
+    QtW.QApplication.processEvents()
+    ui.spectra_inspector.peak_viewer.canvas.ylim = (16, 33)
+    ui.spectra_inspector.peak_viewer.canvas.xlim = (28, 52)
+    QtW.QApplication.processEvents()
+    _imsave(ui.spectra_inspector.native, "inspect_local_cft")
+    ui.spectra_inspector.peak_viewer._upsample_and_update_image(45, 23)
+    ui.spectra_inspector.peak_viewer.canvas.xlim = (41, 49)
+    ui.spectra_inspector.peak_viewer.canvas.ylim = (18, 28)
+    QtW.QApplication.processEvents()
+    _imsave(ui.spectra_inspector.native, "inspect_local_cft_upsampled")
+    ui.spectra_inspector.peak_viewer.show_what = "Global-CFT"  # will be used later
+
     for meth in [
         ui.load_project,
         # fit, CFT, etc.
