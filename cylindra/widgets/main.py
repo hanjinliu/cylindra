@@ -1330,17 +1330,21 @@ class CylindraMainWidget(MagicTemplate):
         """
         Convert protofilaments to splines.
 
+        If no IDs are given, all the molecules will be fitted to a spline, therefore
+        essentially the same as manual filament picking. If IDs are given, selected
+        protofilaments will be fitted to a spline separately.
+
         Parameters
         ----------
         {layer}{err_max}
         ids : list of int, default ()
             Protofilament IDs to be converted.
         """
-        if len(ids) == 0:
-            raise ValueError("No protofilament ID is given.")
         layer = assert_layer(layer, self.parent_viewer)
         tomo = self.tomogram
         mole = layer.molecules
+        if len(ids) == 0:
+            tomo.add_spline(mole.pos, err_max=err_max, config=config)
         for i in ids:
             sub = mole.filter(pl.col(Mole.pf) == i)
             if sub.count() == 0:
@@ -1807,7 +1811,7 @@ class CylindraMainWidget(MagicTemplate):
         interv_expr = widget_utils.norm_scalar_expr(molecule_interval)
         splines = self._norm_splines(splines)
         _Logger.print_html("<code>map_along_spline</code>")
-        _added_layers = []
+        _added_layers = list[MoleculesLayer]()
         for idx in splines:
             spl = tomo.splines[idx]
             interv = spl.props.get_glob(interv_expr)
@@ -1889,6 +1893,8 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {layers}
+        name : str, default "Mole-concat"
+            Name of the new molecules layer.
         """
         layers = assert_list_of_layers(layers, self.parent_viewer)
         all_molecules = Molecules.concat([layer.molecules for layer in layers])

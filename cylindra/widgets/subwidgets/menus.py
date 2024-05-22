@@ -43,7 +43,7 @@ from cylindra.core import ACTIVE_WIDGETS
 from cylindra.ext import IMOD, RELION
 from cylindra.project import CylindraProject, extract
 from cylindra.types import ColoredLayer
-from cylindra.utils import roundint, str_color
+from cylindra.utils import str_color
 from cylindra.widget_utils import capitalize, get_code_theme
 from cylindra.widgets._annotated import assert_layer
 from cylindra.widgets._widget_ext import CheckBoxes
@@ -771,12 +771,12 @@ class AnalysisMenu(ChildWidget):
 
     @set_design(text=capitalize)
     @do_not_record
+    @bind_key("Ctrl+K, V")
     def open_spectra_inspector(self):
-        """Open the spectra measurer widget to determine cylindric parameters."""
+        """Open the spectra inspector widget."""
         main = self._get_main()
         if len(main.tomogram.splines) > 0:
-            binsize = roundint(main._reserved_layers.scale / main.tomogram.scale)
-            main.spectra_inspector.load_spline(main.SplineControl.num, binsize)
+            main.spectra_inspector.load_spline(main.SplineControl.num)
         return main.spectra_inspector.show()
 
     @set_design(text="Open STA widget")

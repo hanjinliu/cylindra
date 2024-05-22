@@ -23,6 +23,7 @@ from cylindra.components.spline._config import SplineConfig
 from cylindra.components.spline._props import SplineProps
 from cylindra.components.spline._types import SplineFitResult, SplineInfo, TCKType
 from cylindra.const import ExtrapolationMode, nm
+from cylindra.const import MoleculesHeader as Mole
 from cylindra.cyltransform import polar_coords_2d
 from cylindra.utils import ceilint, interval_divmod, roundint
 
@@ -1003,7 +1004,7 @@ class Spline(BaseComponent):
             rotvec = np.zeros((len(rot), 3), dtype=np.float32)
             rotvec[:, 1] = rotation
             rot = rot * Rotation.from_rotvec(rotvec)
-        return Molecules(pos=pos, rot=rot)
+        return Molecules(pos=pos, rot=rot, features={Mole.nth: np.arange(len(pos))})
 
     def cylindrical_to_molecules(
         self,

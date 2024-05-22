@@ -15,6 +15,7 @@ from magicclass import (
 )
 from magicclass.ext.pyqtgraph import QtImageCanvas, mouse_event
 from magicclass.types import Path
+from qtpy.QtCore import Qt
 
 from cylindra.const import FileFilter
 from cylindra.const import PropertyNames as H
@@ -127,7 +128,10 @@ class PeakInspector(ChildWidget):
                 ]
                 self._peaks = None
             self["pos"].visible = False
-        self._pos_changed(0)
+        if self.pos == 0 or self.show_what == "global-CFT":
+            self._pos_changed(0)
+        else:
+            self.pos = 0
         self.canvas.auto_range()
         self._current_binsize = binsize
 
@@ -358,6 +362,7 @@ class SpectraInspector(ChildWidget):
 
     def __post_init__(self) -> None:
         self.mode = MouseMode.none
+        self.SidePanel.native.layout().setAlignment(Qt.AlignmentFlag.AlignTop)
 
     @magicclass(properties={"min_width": 200})
     class SidePanel(MagicTemplate):
@@ -366,6 +371,11 @@ class SpectraInspector(ChildWidget):
 
         Attributes
         ----------
+        current_spline : str
+            Current spline whose power spectrum is being displayed.
+        current_bin_size : str
+            Current bin size used for calculating the power spectrum (maybe different
+            from the bin size of the tomogram).
         radius : float
             Radius to upsample locally.
         factor : int
@@ -374,7 +384,9 @@ class SpectraInspector(ChildWidget):
 
         parameters = abstractapi()
         load_spline = abstractapi()
+        current_spline = vfield("").with_options(enabled=False)
         set_bin_size = abstractapi()
+        current_bin_size = vfield("").with_options(enabled=False)
         select_axial_peak = abstractapi()
         select_angular_peak = abstractapi()
         upsample_spectrum = abstractapi()
@@ -427,9 +439,10 @@ class SpectraInspector(ChildWidget):
                 raise ValueError(f"Invalid mode: {value}")
         self._mode = value
 
-    def _get_current_index(self, *_) -> int:
-        parent = self._get_main()
-        return parent.SplineControl.num
+    def _get_splines(self, _=None) -> list[tuple[str, int]]:
+        """Get list of spline objects for categorical widgets."""
+        tomo = self._get_main().tomogram
+        return [(f"({i}) {spl}", i) for i, spl in enumerate(tomo.splines)]
 
     def _get_binsize_choices(self, *_) -> list[int]:
         parent = self._get_main()
@@ -438,10 +451,10 @@ class SpectraInspector(ChildWidget):
     @set_design(text="Load spline", location=SidePanel)
     def load_spline(
         self,
-        idx: Annotated[int, {"bind": _get_current_index}],
+        idx: Annotated[int, {"choices": _get_splines}],
         binsize: Annotated[int, {"bind": None}] = None,
     ):
-        """Load current spline to the canvas."""
+        """Load a spline from the spline list to this widget."""
         self.canvas.mouse_clicked.disconnect(self._on_mouse_clicked, missing_ok=True)
         parent = self._get_main()
         tomo = parent.tomogram
@@ -458,27 +471,29 @@ class SpectraInspector(ChildWidget):
 
         self.canvas.mouse_clicked.connect(self._on_mouse_clicked, unique=True)
         self.mode = MouseMode.none
+        self.SidePanel.current_bin_size = str(self.peak_viewer._current_binsize)
+        self.SidePanel.current_spline = str(idx)
 
     @set_design(text=capitalize, location=SidePanel)
     def set_bin_size(self, binsize: Annotated[int, {"choices": _get_binsize_choices}]):
         """Override the current bin size."""
-        self.load_spline(self._get_current_index(), binsize)
+        self.load_spline(int(self.SidePanel.current_spline), binsize)
 
     @set_design(text=capitalize, location=SidePanel)
     def select_axial_peak(self):
-        """Click to start selecting the axial peak."""
+        """Click to start selecting the axial peak for measurement."""
         self.mode = MouseMode.axial
 
     @set_design(text=capitalize, location=SidePanel)
     def select_angular_peak(self):
-        """Click to start selecting the angular peak."""
+        """Click to start selecting the angular peak for measurement."""
         if self.parameters.spacing is None:
             raise ValueError("Select the axial peak first.")
         self.mode = MouseMode.angular
 
     @set_design(text=capitalize, location=SidePanel)
     def upsample_spectrum(self):
-        """Click to upsample the power spectrum."""
+        """Click to turn on upsampling the power spectrum."""
         if self.mode is MouseMode.upsample:
             self.mode = MouseMode.none
         else:
@@ -506,8 +521,8 @@ class SpectraInspector(ChildWidget):
 
         match self.mode:
             case MouseMode.axial:
-                self.parameters.spacing = (
-                    abs(1.0 / yfreq * scale) * self.peak_viewer._current_binsize
+                self.parameters.spacing = abs(1.0 / yfreq * scale) * int(
+                    self.SidePanel.current_bin_size
                 )
                 _sign = self.parameters.rise_sign
                 self.parameters.rise = np.rad2deg(np.arctan(afreq / yfreq)) * _sign
