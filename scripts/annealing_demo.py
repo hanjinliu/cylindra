@@ -1,13 +1,16 @@
 import warnings
 from typing import NamedTuple
 
+import napari
 import numpy as np
 from acryo import Molecules
 from magicclass.ext.pyqtgraph import plot_api as plt
 from magicgui import magicgui
 
+from cylindra import start
 from cylindra._napari import MoleculesLayer
 from cylindra.widgets.sta import SubtomogramAveraging
+from scripts.user_consts import TEMPLATE_X
 
 
 class DemoResult(NamedTuple):
@@ -68,6 +71,8 @@ def mesh_annealing_demo(
 
         all_molecules.append(molecules.translate_internal(all_shifts))
         temps.append(_model.temperature())
+        if temps[-1] / temps[0] < 1e-4:
+            break
 
     result = DemoResult(all_molecules, np.array(energies), np.array(temps))
 
@@ -87,19 +92,68 @@ def mesh_annealing_demo(
     viewer.window.add_dock_widget(pltw, area="right", name="Energy")
     viewer.window.add_dock_widget(plt_temp, area="right", name="Temperature")
 
-    mole_layer: MoleculesLayer = viewer.layers[-1]
-    mole_layer.shading = "none"
+    mole_layer = parent.mole_layers.last()
+    mole_layer.point_size = 5.0
+    mole_layer.view_ndim = 2
 
-    @magicgui(auto_call=True, x={"max": 1000, "widget_type": "Slider"})
+    @magicgui(
+        auto_call=True, x={"max": len(result.molecules) - 1, "widget_type": "Slider"}
+    )
     def fn(x: int):
-        with warnings.catch_warnings():
+        with warnings.catch_warnings(), parent.macro.blocked():
             warnings.simplefilter("ignore")
             layer0.pos = (x, 0)
             layer1.pos = (x, 0)
             mole_layer.molecules = result.molecules[x]
             parent.calculate_lattice_structure(mole_layer)
-            parent.paint_molecules(mole_layer, color_by="spacing", limits=(3.95, 4.28))
+            parent.convolve_feature(
+                mole_layer, "spacing", footprint=[[1, 1, 1], [1, 1, 1], [0, 0, 0]]
+            )
+            parent.paint_molecules(
+                mole_layer, color_by="spacing_mean", limits=(4.0, 4.28)
+            )
             mole_layer.edge_color = "black"
 
     viewer.window.add_dock_widget(fn, area="right")
     return result
+
+
+if __name__ == "__main__":
+    ui = start()
+    ui.simulator.create_empty_image(size=(60.0, 180.0, 60.0), scale=0.2615)
+    ui.simulator.create_straight_line(start=(30.0, 15.0, 30.0), end=(30.0, 165.0, 30.0))
+    ui.simulator.generate_molecules(
+        spline=0,
+        spacing=4.08,
+        twist=0.04,
+        start=3,
+        npf=13,
+        radius=11.0,
+        offsets=(0.0, 0.0),
+        update_glob=True,
+    )
+    ui.simulator.expand(
+        layer="Mole(Sim)-0", by=0.1, yrange=(6, 16), arange=(0, 6), allev=True
+    )
+    ui.simulator.expand(
+        layer="Mole(Sim)-0", by=0.1, yrange=(22, 32), arange=(7, 13), allev=True
+    )
+    ui.simulator.simulate_tomogram_and_open(
+        components=[("Mole(Sim)-0", TEMPLATE_X)],
+        nsr=1.5,
+        bin_size=[4],
+        tilt_range=(-60.0, 60.0),
+        n_tilt=41,
+        interpolation=3,
+        seed=36,
+    )
+    mesh_annealing_demo(
+        ui.sta,
+        ui.mole_layers.last(),
+        template_path=TEMPLATE_X,
+        mask_params=(0.3, 0.8),
+        distance_range_long=(4.00, 4.28),
+        distance_range_lat=("-0.1", "+0.1"),
+    )
+    ui.parent_viewer.show(block=True)
+    napari.run()
