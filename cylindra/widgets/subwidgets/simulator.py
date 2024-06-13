@@ -150,7 +150,7 @@ class ComponentList(ChildWidget):
         self._empty_label.visible = len(list(self._iter_components())) == 0
 
 
-@magicclass
+@magicclass(use_native_menubar=False)
 class Simulator(ChildWidget):
     @magicmenu(name="Create")
     class CreateMenu(ChildWidget):

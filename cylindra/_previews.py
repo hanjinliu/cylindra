@@ -23,7 +23,7 @@ from magicgui.widgets import Slider
 from cylindra.core import ACTIVE_WIDGETS
 
 
-@magicclass(record=False, name="Image Preview")
+@magicclass(record=False, name="Image Preview", use_native_menubar=False)
 class ImagePreview(MagicTemplate):
     """A widget to preview 3D image by 2D slices."""
 

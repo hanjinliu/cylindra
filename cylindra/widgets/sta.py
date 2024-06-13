@@ -489,7 +489,7 @@ class StaParameters(MagicTemplate):
         )
 
 
-@magicclass(widget_type="scrollable")
+@magicclass(widget_type="scrollable", use_native_menubar=False)
 @_shared_doc.update_cls
 class SubtomogramAveraging(ChildWidget):
     """Widget for subtomogram averaging."""

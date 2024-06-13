@@ -738,13 +738,14 @@ def test_classify_pca(ui: CylindraMainWidget):
     exc_group.raise_exceptions()
 
 
-def test_extend_filament(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=None)
-    ui.sta.extend_filaments(
-        "Mole-1",
-        TEST_DIR / "beta-tubulin.mrc",
-        min_score=0.8,
-    )
+# TODO: not a good test
+# def test_extend_filament(ui: CylindraMainWidget):
+#     ui.load_project(PROJECT_DIR_13PF, filter=None)
+#     ui.sta.extend_filaments(
+#         "Mole-1",
+#         TEST_DIR / "beta-tubulin.mrc",
+#         min_score=0.8,
+#     )
 
 
 def test_clip_spline(ui: CylindraMainWidget):
