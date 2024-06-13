@@ -83,7 +83,7 @@ impl CylindricArray {
 
     /// Convert the CylindricArray to a 2D numpy array.
     pub fn asarray(&self, py: Python) -> Py<PyArray2<f32>> {
-        self.array.clone().into_pyarray(py).to_owned()
+        self.array.clone().into_pyarray_bound(py).unbind()
     }
 
     pub fn as1d(&self, py: Python) -> Py<PyArray1<f32>> {
@@ -91,7 +91,7 @@ impl CylindricArray {
         for i in 0..self.ycoords.len() {
             out[[i]] = self.array[[self.ycoords[[i]], self.acoords[[i]]]];
         }
-        out.into_pyarray(py).to_owned()
+        out.into_pyarray_bound(py).unbind()
     }
 
     /// Convolution on the cylinder surface.

@@ -77,8 +77,10 @@ SplineConfig(
 
 ![spectra_inspector](../images/spectra_inspector.png){ lazy loading, width=480px }
 
-This widget is used to measure lattice parameters by clicking the peak positions on the
-power spectrum.
+The widget for inspecting the power spectrum of the spline can also be used to measure
+lattice parameters. After enabling "Select axial peak" mode, you can manally select the
+peak position to measure the lattice parameters. After selecting the axial peak, you can
+then "Select angular peak".
 
 ### Load presets
 

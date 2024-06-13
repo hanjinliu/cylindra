@@ -39,6 +39,7 @@ nav:
     - open_image.md
     - fit_splines.md
     - lattice_params.md
+    - inspect_results.md
     - project_io.md
     - workflows.md
     - Spline:

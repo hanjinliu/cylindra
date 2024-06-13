@@ -1,4 +1,4 @@
-use pyo3::{pymodule, types::PyModule, PyResult, Python};
+use pyo3::prelude::*;
 pub mod viterbi;
 pub mod coordinates;
 pub mod cylindric;
@@ -9,9 +9,9 @@ pub mod filters;
 pub mod exceptions;
 pub mod regionprops;
 
-/// A Python module implemented in Rust.
+// Python module
 #[pymodule]
-fn _cylindra_ext(_py: Python, m: &PyModule) -> PyResult<()> {
+fn _cylindra_ext(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Add __version__
     let mut version = env!("CARGO_PKG_VERSION").to_string();
     version = version.replace("-alpha", "a").replace("-beta", "b");

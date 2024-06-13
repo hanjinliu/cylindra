@@ -147,7 +147,12 @@ def _choice_getter(method_name: str, dtype_kind: str = ""):
 ############################################################################################
 
 
-@magicclass(widget_type="scrollable", stylesheet=_STYLE, name="cylindra")
+@magicclass(
+    widget_type="scrollable",
+    stylesheet=_STYLE,
+    name="cylindra",
+    use_native_menubar=False,
+)
 @_shared_doc.update_cls
 class CylindraMainWidget(MagicTemplate):
     # Main GUI class.

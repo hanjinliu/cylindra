@@ -246,7 +246,7 @@ class ProjectPaths(MagicTemplate):
         return [Path(wdt.path) for wdt in self]
 
 
-@magicclass(name="Projects", record=False)
+@magicclass(name="Projects", record=False, use_native_menubar=False)
 class ProjectSequenceEdit(MagicTemplate):
     """
     Attributes

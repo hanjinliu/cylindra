@@ -48,6 +48,9 @@ class PeakInspector(ChildWidget):
         self._power_spectra = [peak.power for peak in peaks]
         self._peaks = peaks
 
+    def reset_choices(self, *_):
+        pass
+
     def __init__(self):
         self._peaks: "list[ImageWithPeak] | None" = None
         self._power_spectra = list[ip.ImgArray | None]()

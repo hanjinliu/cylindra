@@ -278,7 +278,7 @@ impl RegionProfiler {
 impl RegionProfiler {
     #[classmethod]
     fn from_arrays(
-        _: &PyType,
+        _: &Bound<'_, PyType>,
         image: PyReadonlyArray2<f32>,
         label_image: PyReadonlyArray2<u32>,
         nrise: isize,
@@ -290,7 +290,7 @@ impl RegionProfiler {
 
     #[classmethod]
     fn from_features(
-        _: &PyType,
+        _: &Bound<'_, PyType>,
         nth: PyReadonlyArray1<i32>,
         npf: PyReadonlyArray1<i32>,
         values: PyReadonlyArray1<f32>,
@@ -341,7 +341,7 @@ impl RegionProfiler {
                 "std" => self.intensity_std(),
                 _ => return value_error!(format!("Unknown property: {}", prop)),
             };
-            out.insert(prop, Array1::from(vec).into_pyarray(py).to_owned());
+            out.insert(prop, Array1::from(vec).into_pyarray_bound(py).unbind());
         }
         Ok(out)
     }

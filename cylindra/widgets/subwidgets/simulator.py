@@ -150,7 +150,7 @@ class ComponentList(ChildWidget):
         self._empty_label.visible = len(list(self._iter_components())) == 0
 
 
-@magicclass
+@magicclass(use_native_menubar=False)
 class Simulator(ChildWidget):
     @magicmenu(name="Create")
     class CreateMenu(ChildWidget):
@@ -610,6 +610,7 @@ class Simulator(ChildWidget):
         main = self._get_main()
         degrees = np.linspace(*tilt_range, n_tilt)
         mole_layers = [main.mole_layers[layer_name] for layer_name, _ in components]
+        sources = [layer.source_spline for layer in mole_layers]
         sino = self._prep_radon(components, degrees, order=interpolation)
 
         yield _on_radon_finished.with_args(sino, degrees)
@@ -631,12 +632,17 @@ class Simulator(ChildWidget):
         tomo = CylTomogram.from_image(
             rec, scale=sino.scale.x, tilt=tilt_range, binsize=bin_size
         )
+        tomo.splines.extend(sources)
         yield main._send_tomogram_to_viewer.with_args(tomo)
 
         @thread_worker.callback
         def _on_return():
-            for layer in mole_layers:
+            for layer, source_spline in zip(mole_layers, sources, strict=True):
                 main.parent_viewer.add_layer(layer)
+                if source_spline is not None:
+                    layer.source_component = source_spline
+            if len(main.splines) > 0:
+                main._update_splines_in_images()
 
         return _on_return
 

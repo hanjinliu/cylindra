@@ -38,7 +38,10 @@ def calc_elevation_angle(mole: Molecules, spl: CylSpline) -> pl.Series:
     return (
         calc_localvec_long(mole, spl, fill=np.nan)
         .select(
-            pl.arctan2d("vecr", "vecy").fill_nan(-float("inf")).alias(Mole.elev_angle)
+            pl.arctan2("vecr", "vecy")
+            .degrees()
+            .fill_nan(-float("inf"))
+            .alias(Mole.elev_angle)
         )
         .to_series()
     )
@@ -48,7 +51,12 @@ def calc_skew(mole: Molecules, spl: CylSpline) -> pl.Series:
     """Calculate the skew of each molecule to the next one."""
     return (
         calc_localvec_long(mole, spl, fill=np.nan)
-        .select(pl.arctan2d("veca", "vecy").fill_nan(-float("inf")).alias(Mole.skew))
+        .select(
+            pl.arctan2("veca", "vecy")
+            .degrees()
+            .fill_nan(-float("inf"))
+            .alias(Mole.skew)
+        )
         .to_series()
     )
 
@@ -86,7 +94,12 @@ def calc_rise(mole: Molecules, spl: CylSpline) -> pl.Series:
     sign = spl.config.rise_sign
     return (
         calc_localvec_lat(mole, spl, fill=np.nan)
-        .select(pl.arctan2d("vecy", "veca").fill_nan(-float("inf")).alias(Mole.rise))
+        .select(
+            pl.arctan2("vecy", "veca")
+            .degrees()
+            .fill_nan(-float("inf"))
+            .alias(Mole.rise)
+        )
         .to_series()
         * sign
     )
