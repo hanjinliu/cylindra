@@ -480,7 +480,7 @@ class CylTomogram(Tomogram):
         twists = _get_twists(spl.length(), ancs.size, space, twist, npf)
         scale = self.scale * binsize
         loader = _prep_loader_for_refine(self, spl, ancs, binsize, twists)
-        subtomograms = ip.asarray(loader.asnumpy(), axes="pzyx")
+        subtomograms = ip.asarray(loader.asnumpy(), axes="pzyx", dtype=np.float32)
         subtomograms[:] -= subtomograms.mean()  # normalize
         subtomograms.set_scale(zyx=scale)
 

@@ -241,7 +241,7 @@ class Tomogram:
         if eager:
             img = img.compute()
         return cls.from_image(
-            img.as_float(),  # TODO: support int8
+            _norm_dtype(img),
             scale=scale,
             tilt=tilt,
             binsize=binsize,
@@ -262,7 +262,7 @@ class Tomogram:
 
     def _set_image(self, img: ip.LazyImgArray | np.ndarray) -> None:
         if isinstance(img, ip.LazyImgArray):
-            _img = img.as_float()
+            _img = _norm_dtype(img)
         elif isinstance(img, np.ndarray):
             if img.ndim != 3:
                 raise ValueError("Can only set 3-D image.")
@@ -398,3 +398,9 @@ class Tomogram:
             mole,
             **kwargs,
         )
+
+
+def _norm_dtype(img: ip.LazyImgArray):
+    if img.dtype not in (np.float32, np.int8, np.int16):
+        img = img.as_float()
+    return img
