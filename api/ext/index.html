@@ -1281,7 +1281,85 @@
   
   
     <li class="md-nav__item">
-      <a href="../../seam_search/" class="md-nav__link">
+      <a href="../../cli/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CLI Usage
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_15" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../case_studies/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Case Studies
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_15" id="__nav_4_15_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_15_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_15">
+            <span class="md-nav__icon md-icon"></span>
+            Case Studies
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../case_studies/seam_search/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1302,15 +1380,23 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cli/" class="md-nav__link">
+      <a href="../../case_studies/ssta/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    CLI Usage
+    Segmented Subtomogram Averaging (SSTA)
   </span>
   
 
       </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -2321,7 +2407,7 @@
 
         <span class="n">mod_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">mod_path</span><span class="p">)</span>
         <span class="n">df</span> <span class="o">=</span> <span class="n">read_mod</span><span class="p">(</span><span class="n">mod_path</span><span class="p">)</span>
-        <span class="n">mod</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+        <span class="n">mod</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">writable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">mod</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">:]</span> <span class="o">-=</span> <span class="mf">0.5</span>  <span class="c1"># shift to center of voxel</span>
         <span class="n">shifts</span><span class="p">,</span> <span class="n">angs</span> <span class="o">=</span> <span class="n">_read_shift_and_angle</span><span class="p">(</span><span class="n">ang_path</span><span class="p">)</span>
         <span class="n">mol</span> <span class="o">=</span> <span class="n">Molecules</span><span class="o">.</span><span class="n">from_euler</span><span class="p">(</span><span class="n">pos</span><span class="o">=</span><span class="n">mod</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span><span class="p">,</span> <span class="n">angles</span><span class="o">=</span><span class="n">angs</span><span class="p">,</span> <span class="n">degrees</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -2341,7 +2427,7 @@
         <span class="n">df</span> <span class="o">=</span> <span class="n">read_mod</span><span class="p">(</span><span class="n">mod_path</span><span class="p">)</span>
         <span class="n">main</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_main</span><span class="p">()</span>
         <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">sub</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="s2">&quot;object_id&quot;</span><span class="p">,</span> <span class="s2">&quot;contour_id&quot;</span><span class="p">,</span> <span class="n">maintain_order</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-            <span class="n">coords</span> <span class="o">=</span> <span class="n">sub</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+            <span class="n">coords</span> <span class="o">=</span> <span class="n">sub</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">writable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
             <span class="n">coords</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">:]</span> <span class="o">-=</span> <span class="mf">0.5</span>  <span class="c1"># shift YX to center of voxel</span>
             <span class="n">main</span><span class="o">.</span><span class="n">register_path</span><span class="p">(</span><span class="n">coords</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span><span class="p">,</span> <span class="n">err_max</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">)</span>
 
@@ -2945,7 +3031,7 @@ be directly applied to the molecule coordinates.</p>
 
     <span class="n">mod_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">mod_path</span><span class="p">)</span>
     <span class="n">df</span> <span class="o">=</span> <span class="n">read_mod</span><span class="p">(</span><span class="n">mod_path</span><span class="p">)</span>
-    <span class="n">mod</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+    <span class="n">mod</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">writable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="n">mod</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">:]</span> <span class="o">-=</span> <span class="mf">0.5</span>  <span class="c1"># shift to center of voxel</span>
     <span class="n">shifts</span><span class="p">,</span> <span class="n">angs</span> <span class="o">=</span> <span class="n">_read_shift_and_angle</span><span class="p">(</span><span class="n">ang_path</span><span class="p">)</span>
     <span class="n">mol</span> <span class="o">=</span> <span class="n">Molecules</span><span class="o">.</span><span class="n">from_euler</span><span class="p">(</span><span class="n">pos</span><span class="o">=</span><span class="n">mod</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span><span class="p">,</span> <span class="n">angles</span><span class="o">=</span><span class="n">angs</span><span class="p">,</span> <span class="n">degrees</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -2998,7 +3084,7 @@ be directly applied to the molecule coordinates.</p>
     <span class="n">df</span> <span class="o">=</span> <span class="n">read_mod</span><span class="p">(</span><span class="n">mod_path</span><span class="p">)</span>
     <span class="n">main</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_main</span><span class="p">()</span>
     <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">sub</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">group_by</span><span class="p">(</span><span class="s2">&quot;object_id&quot;</span><span class="p">,</span> <span class="s2">&quot;contour_id&quot;</span><span class="p">,</span> <span class="n">maintain_order</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-        <span class="n">coords</span> <span class="o">=</span> <span class="n">sub</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">sub</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">writable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">coords</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">:]</span> <span class="o">-=</span> <span class="mf">0.5</span>  <span class="c1"># shift YX to center of voxel</span>
         <span class="n">main</span><span class="o">.</span><span class="n">register_path</span><span class="p">(</span><span class="n">coords</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span><span class="p">,</span> <span class="n">err_max</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>

@@ -1281,7 +1281,85 @@
   
   
     <li class="md-nav__item">
-      <a href="../../seam_search/" class="md-nav__link">
+      <a href="../../cli/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CLI Usage
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_15" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../case_studies/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Case Studies
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_15" id="__nav_4_15_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_15_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_15">
+            <span class="md-nav__icon md-icon"></span>
+            Case Studies
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../case_studies/seam_search/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1302,15 +1380,23 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cli/" class="md-nav__link">
+      <a href="../../case_studies/ssta/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    CLI Usage
+    Segmented Subtomogram Averaging (SSTA)
   </span>
   
 
       </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -19602,7 +19688,7 @@ subtomogram cache will automatically deleted from the old ones.</p>
         <span class="k">if</span> <span class="n">eager</span><span class="p">:</span>
             <span class="n">img</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">compute</span><span class="p">()</span>
         <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">from_image</span><span class="p">(</span>
-            <span class="n">img</span><span class="o">.</span><span class="n">as_float</span><span class="p">(),</span>
+            <span class="n">img</span><span class="o">.</span><span class="n">as_float</span><span class="p">(),</span>  <span class="c1"># TODO: support int8</span>
             <span class="n">scale</span><span class="o">=</span><span class="n">scale</span><span class="p">,</span>
             <span class="n">tilt</span><span class="o">=</span><span class="n">tilt</span><span class="p">,</span>
             <span class="n">binsize</span><span class="o">=</span><span class="n">binsize</span><span class="p">,</span>
@@ -20723,7 +20809,7 @@ into the memory.</p>
     <span class="k">if</span> <span class="n">eager</span><span class="p">:</span>
         <span class="n">img</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">compute</span><span class="p">()</span>
     <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">from_image</span><span class="p">(</span>
-        <span class="n">img</span><span class="o">.</span><span class="n">as_float</span><span class="p">(),</span>
+        <span class="n">img</span><span class="o">.</span><span class="n">as_float</span><span class="p">(),</span>  <span class="c1"># TODO: support int8</span>
         <span class="n">scale</span><span class="o">=</span><span class="n">scale</span><span class="p">,</span>
         <span class="n">tilt</span><span class="o">=</span><span class="n">tilt</span><span class="p">,</span>
         <span class="n">binsize</span><span class="o">=</span><span class="n">binsize</span><span class="p">,</span>

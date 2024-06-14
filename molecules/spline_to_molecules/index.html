@@ -1394,7 +1394,85 @@
   
   
     <li class="md-nav__item">
-      <a href="../../seam_search/" class="md-nav__link">
+      <a href="../../cli/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CLI Usage
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_15" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../case_studies/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Case Studies
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_15" id="__nav_4_15_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_15_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_15">
+            <span class="md-nav__icon md-icon"></span>
+            Case Studies
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../case_studies/seam_search/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1415,15 +1493,23 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cli/" class="md-nav__link">
+      <a href="../../case_studies/ssta/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    CLI Usage
+    Segmented Subtomogram Averaging (SSTA)
   </span>
   
 
       </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -1901,6 +1987,13 @@ can precisely determine the cylindric lattice parameters. These parameters are v
 useful for this purpose. For example, lattice spacing tells you in what interval you
 should place molecules, and the twist angle indicates how much you should rotate the
 coordinates for every molecule.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Following methods are prefixed with <code>map_</code> but it does not mean these methods are
+only for microtubule-associated proteins (MAPs). The "map" here came from the
+mathematical term, as each method defines a map <span class="arithmatex">\(f\colon \mathbb{R} \to \mathbb{R}^3\)</span>
+from the spline coordinate to the world Cartesian coordinate.</p>
+</div>
 <h2 id="molecules-on-the-cylinder-surface">Molecules on the Cylinder Surface</h2>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03-4.41 0-8.03 3.62-8.03 8.03 0 4.41 3.62 8.03 8.03 8.03 4.41 0 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" href="../../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.map_monomers"><code>map_monomers</code></a></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03-4.41 0-8.03 3.62-8.03 8.03 0 4.41 3.62 8.03 8.03 8.03 4.41 0 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Molecules &gt; From/To Splines &gt; Map monomers</code></p>
