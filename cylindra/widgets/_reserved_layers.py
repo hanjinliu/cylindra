@@ -166,4 +166,4 @@ def _calc_contrast_limits(arr: np.ndarray) -> tuple[float, float]:
     cmin, cmax = np.min(arr), np.max(arr)
     if cmin >= cmax:
         cmax = cmin + 1
-    return cmin, cmax
+    return float(cmin), float(cmax)

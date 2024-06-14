@@ -121,8 +121,7 @@ def crop_tomogram(
     pads = [pad_z, pad_y, pad_x]
     if np.any(np.array(pads) > 0):
         reg = reg.pad(pads, dims="zyx", constant_values=reg.mean())
-
-    return reg
+    return reg.astype(np.float32, copy=False)
 
 
 def crop_tomograms(
@@ -148,9 +147,9 @@ def crop_tomograms(
             reg = pad_fn(reg, pads, mode="constant", constant_values=reg.mean())
         regs.append(reg)
     if isinstance(img, ip.ImgArray):
-        return ip.asarray(np.stack(regs, axis=0), axes="pzyx")
+        return ip.asarray(np.stack(regs, axis=0), axes="pzyx", dtype=np.float32)
     else:
-        return ip.asarray(np.stack(compute(*regs), axis=0))
+        return ip.asarray(np.stack(compute(*regs), axis=0), dtype=np.float32)
 
 
 def centroid(arr: NDArray[np.floating], xmin: int, xmax: int) -> float:
@@ -238,6 +237,7 @@ def _delayed_map_coordinates(
     prefilter: bool | None = None,
     like: ip.ImgArray | ip.LazyImgArray | None = None,
 ):
+    img = img.astype(np.float32, copy=False)
     if callable(cval):
         cval = cval(img)
     if prefilter is None:
@@ -317,8 +317,8 @@ class Projections:
     """
 
     def __init__(self, image: ip.ImgArray | ip.LazyImgArray, npf: int = 13):
-        self.yx = image.mean(axis="z")
-        self.zx = image.mean(axis="y")[FLIP_X]
+        self.yx = image.mean(axis="z", dtype=np.float32)
+        self.zx = image.mean(axis="y", dtype=np.float32)[FLIP_X]
         self.zx_ave = None
         self.npf = int(npf)
 
