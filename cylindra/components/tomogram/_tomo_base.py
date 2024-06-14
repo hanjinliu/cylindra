@@ -241,7 +241,7 @@ class Tomogram:
         if eager:
             img = img.compute()
         return cls.from_image(
-            img.as_float(),
+            img.as_float(),  # TODO: support int8
             scale=scale,
             tilt=tilt,
             binsize=binsize,

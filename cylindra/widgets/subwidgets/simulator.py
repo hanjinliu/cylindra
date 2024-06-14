@@ -257,7 +257,7 @@ class Simulator(ChildWidget):
 
         Parameters
         ----------
-        size : (nm, nm, nm), default (100., 200., 100.)
+        size : (nm, nm, nm), default (60., 200., 60.)
             Size of the image in nm, of (Z, Y, X).
         scale : nm, default 0.25
             Pixel size of the image.

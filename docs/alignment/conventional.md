@@ -23,7 +23,8 @@ This method uses one or more molecules-layer to calculate the subtomogram averag
        volumes.
     5. "bin size" is the binning factor for resampling.
 
-After running the method, a new `napari` viewer will be opened to show the average image. This viewer can be accessed via `ui.sta.sub_viewer`.
+After running the method, a new `napari` viewer will be opened to show the average
+image. This viewer can be accessed via `ui.sta.sub_viewer`.
 
 ![Averaged tubulin](../images/average_tubulin.png){ loading=lazy, width=300px }
 

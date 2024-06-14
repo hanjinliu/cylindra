@@ -25,7 +25,7 @@ structures are implemented.
 - [Working with External Softwares](extern/index.md)
 - [Tomogram Simulation](simulate.md)
 - [Process Images](process_images.md)
-- [Microtubule Seam Search](seam_search.md)
+- [Case Studies](case_studies/index.md)
 
 #### Others
 

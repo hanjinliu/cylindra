@@ -166,24 +166,6 @@ class SplineControl(ChildWidget):
         return self.canvas[0].image is not None
 
     @num.connect
-    def _update_pos_max(self, i: int | None):
-        if i is None:
-            return
-        tomo = self._get_main().tomogram
-        if i >= len(tomo.splines):
-            return
-        spl = tomo.splines[i]
-
-        if len(spl.props.loc) > 0:
-            self["pos"].max = len(spl.props.loc) - 1
-        elif spl.has_anchors:
-            self["pos"].max = spl.anchors.size - 1
-        else:
-            self.pos = 0
-            self["pos"].max = 0
-            return
-
-    @num.connect
     def _num_changed(self):
         num = self.num
         if num is None:
@@ -196,12 +178,16 @@ class SplineControl(ChildWidget):
         if len(spl.props.loc) == 0:
             parent.LocalProperties._init_text()
             parent.LocalProperties._init_plot()
-
-        if not spl.has_anchors:
-            return
-
-        self._load_projection(spl)
-        self._update_canvas(num=num)
+        if len(spl.props.loc) > 0:
+            self["pos"].max = len(spl.props.loc) - 1
+        elif spl.has_anchors:
+            self["pos"].max = spl.anchors.size - 1
+        else:
+            self.pos = 0
+            self["pos"].max = 0
+        if spl.has_anchors:
+            self._load_projection(spl)
+            self._update_canvas(num=num)
         return None
 
     def _load_projection(self, spl: "CylSpline"):

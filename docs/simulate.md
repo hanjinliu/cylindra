@@ -87,7 +87,7 @@ and the preview is also available.
 
 ??? example "simulate supertwist"
 
-    After [seam-searching](seam_search.md), column "isotype-id" will be added to the
+    After [seam-searching](case_studies/seam_search.md), column "isotype-id" will be added to the
     molecules layer, which indicates the alpha/beta isotype of each molecule.
 
     ``` python

@@ -11,6 +11,12 @@ useful for this purpose. For example, lattice spacing tells you in what interval
 should place molecules, and the twist angle indicates how much you should rotate the
 coordinates for every molecule.
 
+!!! note
+    Following methods are prefixed with `map_` but it does not mean these methods are
+    only for microtubule-associated proteins (MAPs). The "map" here came from the
+    mathematical term, as each method defines a map $f\colon \mathbb{R} \to \mathbb{R}^3$
+    from the spline coordinate to the world Cartesian coordinate.
+
 ## Molecules on the Cylinder Surface
 
 :material-arrow-right-thin-circle-outline: API: [`map_monomers`][cylindra.widgets.main.CylindraMainWidget.map_monomers]

@@ -72,8 +72,11 @@ nav:
       - extern/relion.md
     - process_images.md
     - simulate.md
-    - seam_search.md
     - cli.md
+    - Case Studies:
+      - Case Studies: case_studies/index.md
+      - case_studies/seam_search.md
+      - case_studies/ssta.md
   - API References:
     - api/index.md
     - api/components.md

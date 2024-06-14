@@ -16,7 +16,7 @@ Although the structure of &alpha;/&beta;-tubulins are very similar, it is known 
 trying all the possible patterns and comparing the cross-correlation is useful to
 distinguish them.
 
-![Seam search](images/seam_search.png){ loading=lazy, width=400px }
+![Seam search](../images/seam_search.png){ loading=lazy, width=400px }
 
 ??? info "List of parameters"
 
@@ -26,7 +26,7 @@ distinguish them.
     4. "interpolation" is the interpolation method used for resampling the sub-
        volumes.
     5. "npf" is the number of protofilaments. If molecules are created in `cylindra`,
-       this value should already be determined by [CFT](lattice_params.md).
+       this value should already be determined by [CFT](../lattice_params.md).
     6. You can select how to (or not to) show all the averages for different seam
        locations by the "show averages as" combobox.
     7. "cutoff" is the relative cutoff frequency of the low-pass filter. This value is

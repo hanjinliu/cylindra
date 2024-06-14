@@ -46,14 +46,21 @@ class SplineFitter(ChildWidget):
     def __post_init__(self):
         self.shifts: list[np.ndarray] = None
         self.canvas.min_height = 160
-        self.canvas.add_infline(pos=[0, 0], degree=90, color="lime", lw=2)
-        self.canvas.add_infline(pos=[0, 0], degree=0, color="lime", lw=2)
+        self._infline_v = self.canvas.add_infline(
+            pos=[0, 0], degree=90, color="lime", lw=2
+        )
+        self._infline_h = self.canvas.add_infline(
+            pos=[0, 0], degree=0, color="lime", lw=2
+        )
         theta = np.linspace(0, 2 * np.pi, 100, endpoint=False)
         cos = np.cos(theta)
         sin = np.sin(theta)
-        kwargs = {"color": "lime", "lw": 2, "ls": "--"}
-        self.canvas.add_curve(cos, sin, **kwargs, antialias=True)
-        self.canvas.add_curve(2 * cos, 2 * sin, **kwargs, antialias=True)
+        self._circ_inner = self.canvas.add_curve(
+            cos, sin, color="lime", lw=2, ls="--", antialias=True
+        )
+        self._circ_outer = self.canvas.add_curve(
+            2 * cos, 2 * sin, color="lime", lw=2, ls="--", antialias=True
+        )
 
         @self.canvas.mouse_clicked.connect
         def _(e: mouse_event.MouseClickEvent):
@@ -208,20 +215,16 @@ class SplineFitter(ChildWidget):
     def _update_cross(self, x: float, z: float):
         i = self.num.value
         j = self.pos.value
-        if self.shifts[i] is None:
+        tomo = self._get_main().tomogram
+        if self.shifts[i] is None or i >= len(tomo.splines):
             return
         binsize = self._get_binsize()
-        itemv = self.canvas.layers[0]
-        itemh = self.canvas.layers[1]
-        item_circ_inner = self.canvas.layers[2]
-        item_circ_outer = self.canvas.layers[3]
 
-        tomo = self._get_main().tomogram
         lz, lx = self.subtomograms.sizesof("zx")
         if not (0 <= x < lx and 0 <= z < lz):
             return
-        itemv.pos = [x, z]
-        itemh.pos = [x, z]
+        self._infline_v.pos = [x, z]
+        self._infline_h.pos = [x, z]
         spl = tomo.splines[i]
         r_max: nm = spl.config.fit_width / 2
         nbin = max(roundint(r_max / tomo.scale / binsize / 2), 8)
@@ -236,10 +239,10 @@ class SplineFitter(ChildWidget):
         r_outer = (r_peak + spl.config.thickness_outer) / _scale
 
         theta = np.linspace(0, 2 * np.pi, 100, endpoint=False)
-        item_circ_inner.xdata = r_inner * np.cos(theta) + x
-        item_circ_inner.ydata = r_inner * np.sin(theta) + z
-        item_circ_outer.xdata = r_outer * np.cos(theta) + x
-        item_circ_outer.ydata = r_outer * np.sin(theta) + z
+        self._circ_inner.xdata = r_inner * np.cos(theta) + x
+        self._circ_inner.ydata = r_inner * np.sin(theta) + z
+        self._circ_outer.xdata = r_outer * np.cos(theta) + x
+        self._circ_outer.ydata = r_outer * np.sin(theta) + z
 
         self.shifts[i][j, :] = z - lz / 2 + 0.5, x - lx / 2 + 0.5
         return None

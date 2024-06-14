@@ -186,7 +186,9 @@ class GeneralInfo(MagicTemplate):
         value = (
             f"File: {source}\n"
             f"Scale: {scale:.4f} nm/pixel\n"
-            f"ZYX-Shape: ({shape_px}), ({shape_nm})\n"
+            f"ZYX-Shape: ({shape_px})\n"
+            f"ZYX-Shape (nm): ({shape_nm})\n"
+            f"Data type: {img.dtype}\n"
             f"Tilt range: {tilt_range}"
         )
         self.image_info.value = value

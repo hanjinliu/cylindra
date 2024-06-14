@@ -48,7 +48,7 @@ class IMOD(ChildWidget):
 
         mod_path = Path(mod_path)
         df = read_mod(mod_path)
-        mod = df.select("z", "y", "x").to_numpy()
+        mod = df.select("z", "y", "x").to_numpy(writable=True)
         mod[:, 1:] -= 0.5  # shift to center of voxel
         shifts, angs = _read_shift_and_angle(ang_path)
         mol = Molecules.from_euler(pos=mod * self.scale, angles=angs, degrees=True)
@@ -68,7 +68,7 @@ class IMOD(ChildWidget):
         df = read_mod(mod_path)
         main = self._get_main()
         for _, sub in df.group_by("object_id", "contour_id", maintain_order=True):
-            coords = sub.select("z", "y", "x").to_numpy()
+            coords = sub.select("z", "y", "x").to_numpy(writable=True)
             coords[:, 1:] -= 0.5  # shift YX to center of voxel
             main.register_path(coords * self.scale, err_max=1e-8)
 
