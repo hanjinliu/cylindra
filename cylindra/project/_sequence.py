@@ -387,31 +387,58 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         Parameters
         ----------
         allow_none : bool, default True
-            Continue data collection even if property table data file was not
-            found in any project. Raise error otherwise.
+            Forwarded to `collect_localprops` and `collect_globalprops`.
         id : str, default "int"
             How to describe the source tomogram. If "int", each tomogram will
             be labeled with ascending integers. If "path", each tomogram will
             be labeled with the name of the project directory.
+        spline_details : bool, default False
+            Forwarded to `collect_localprops`.
 
         Returns
         -------
         pl.DataFrame
             Dataframe with all the properties.
         """
+        props = self.collect_props(
+            allow_none=allow_none, spline_details=spline_details, suffix="_glob"
+        )
+        on = [H.spline_id, Mole.image]
+        out = props.loc.join(props.glob, on=on, suffix="_glob")
+        return self._normalize_id(out, id)
+
+    def collect_props(
+        self,
+        allow_none: bool = True,
+        spline_details: bool = False,
+        suffix="",
+    ) -> CollectedProps:
+        """
+        Collect all the local and global properties.
+
+        Parameters
+        ----------
+        allow_none : bool, default True
+            Forwarded to `collect_localprops` and `collect_globalprops`.
+        spline_details : bool, default False
+            Forwarded to `collect_localprops`.
+
+        Returns
+        -------
+        CollectedProps
+            Tuple of the collected local and global properties.
+        """
         loc = self.collect_localprops(
             allow_none=allow_none, id="int", spline_details=spline_details
         )
-        glb = self.collect_globalprops(allow_none=allow_none, id="int", suffix="_glob")
+        glb = self.collect_globalprops(allow_none=allow_none, id="int", suffix=suffix)
         if spline_details:
             lengths = list[float]()
             for _, spl in self.iter_splines():
                 lengths.append(spl.length())
             col = pl.Series("spline_length", lengths, dtype=pl.Float32)
             glb = glb.with_columns(col)
-        key = [H.spline_id, Mole.image]
-        out = loc.join(glb, on=key, suffix="_glob")
-        return self._normalize_id(out, id)
+        return CollectedProps(loc, glb)
 
     def collect_molecules(
         self,
@@ -624,3 +651,12 @@ class MoleculesItem(NamedTuple):
         """Return the local vectors in the lateral direction."""
         df = calc_localvec_lat(self.molecules, self.spline, fill=fill_value)
         return df.to_numpy()
+
+
+class CollectedProps(NamedTuple):
+    """Tuple of the collected local and global properties."""
+
+    loc: pl.DataFrame
+    """Collected local properties."""
+    glob: pl.DataFrame
+    """Collected global properties."""
