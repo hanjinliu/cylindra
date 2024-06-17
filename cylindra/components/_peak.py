@@ -77,7 +77,6 @@ class PeakDetector:
             amaxsub + a0,
             (self._img.shape.y, self._img.shape.a),
             (up_y, up_a),
-            intensity=value,
         )
 
     def get_local_power_spectrum(
@@ -129,13 +128,11 @@ class FTPeakInfo:
         a: float,
         shape: tuple[int, int],
         upsampling: tuple[int, int] = (1, 1),
-        intensity: float | None = None,
     ):
         self._y_abs = y
         self._a_abs = a
         self._shape = shape
         self._upsampling = upsampling
-        self._intensity = intensity
 
     @property
     def y(self) -> float:
@@ -158,11 +155,6 @@ class FTPeakInfo:
         """The a peak frequency."""
         size = self._shape[1] * self._upsampling[1]
         return get_fftfreq(self._a_abs, size)
-
-    @property
-    def intensity(self) -> float | None:
-        """The intensity of the peak."""
-        return self._intensity
 
     def shift_to_center(self) -> FTPeakInfo:
         """Shift the peak to the center of the image."""

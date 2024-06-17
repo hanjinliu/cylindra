@@ -29,8 +29,6 @@ class LatticeParams(NamedTuple):
     twist: float
     npf: int
     start: int
-    intensity_vertical: float = 0.0
-    intensity_horizontal: float = 0.0
 
     def to_polars(self) -> pl.DataFrame:
         """Convert named tuple into a polars DataFrame."""
@@ -48,8 +46,6 @@ class LatticeParams(NamedTuple):
             (H.twist, pl.Float32),
             (H.npf, pl.UInt8),
             (H.start, pl.Int8),
-            (H.intensity_vertical, pl.Float32),
-            (H.intensity_horizontal, pl.Float32),
         ]
 
 
@@ -101,8 +97,6 @@ class LatticeAnalyzer:
             twist=cparams.twist,
             npf=cparams.npf,
             start=cparams.start,
-            intensity_vertical=peakv.intensity,
-            intensity_horizontal=peakh.intensity,
         )
 
     estimate_lattice_params_polar_delayed = delayed(estimate_lattice_params_polar)
@@ -198,8 +192,6 @@ class LatticeAnalyzer:
         self,
         img: ip.ImgArray,
         params: CylinderParameters,
-        intensity_vertical: float = 0.0,
-        intensity_horizontal: float = 0.0,
     ) -> tuple[FTPeakInfo, FTPeakInfo]:
         ya_scale_ratio = img.scale.y / img.scale.a
         tan_skew = math.tan(math.radians(params.skew))
@@ -207,13 +199,11 @@ class LatticeAnalyzer:
             y=img.scale.y / params.pitch * img.shape.y,
             a=params.start * params.rise_sign,
             shape=img.shape,
-            intensity=intensity_vertical,
         )
         peakh = FTPeakInfo(
             y=tan_skew * ya_scale_ratio * params.npf / img.shape.a * img.shape.y,
             a=params.npf,
             shape=img.shape,
-            intensity=intensity_horizontal,
         )
         return peakh, peakv
 

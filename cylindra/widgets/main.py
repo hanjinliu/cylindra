@@ -1223,6 +1223,8 @@ class CylindraMainWidget(MagicTemplate):
         ----------
         npf : int, optional
             If given, update the number of protofilaments.
+        start : int, optional
+            If given, update the start number of the spline.
         orientation : str, optional
             If given, update the spline orientation.
         """
@@ -1627,7 +1629,7 @@ class CylindraMainWidget(MagicTemplate):
             def _global_cft_analysis_on_return():
                 df = (
                     self.tomogram.splines.collect_globalprops()
-                    .drop(H.spline_id, H.intensity_vertical, H.intensity_horizontal)
+                    .drop(H.spline_id)
                     .to_pandas()
                     .transpose()
                 )

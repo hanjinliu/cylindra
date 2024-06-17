@@ -207,7 +207,7 @@ class CylSpline(Spline):
             glob.append(pl.Series([start]).cast(pl.Int8).alias(H.start))
         if orientation is not None:
             glob.append(
-                pl.Series([str(orientation)]).cast(pl.Utf8).alias(H.orientation)
+                pl.Series([str(orientation)]).cast(pl.String).alias(H.orientation)
             )
 
         self.props.loc = self.props.loc.with_columns(loc)

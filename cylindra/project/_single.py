@@ -552,9 +552,9 @@ def _get_instance(gui: "CylindraMainWidget | None" = None):
 def _drop_null_columns(df: pl.DataFrame) -> pl.DataFrame:
     nrows = df.shape[0]
     to_drop = list[str]()
-    for count in df.null_count().row(0):
+    for idx, count in enumerate(df.null_count().row(0)):
         if count == nrows:
-            to_drop.append(df.columns[count])
+            to_drop.append(df.columns[idx])
     if to_drop:
         return df.drop(to_drop)
     return df

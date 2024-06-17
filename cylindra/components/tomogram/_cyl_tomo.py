@@ -2,44 +2,27 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
-from functools import partial, wraps
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Protocol,
-    Sequence,
-    TypeVar,
-    overload,
-)
+from typing import TYPE_CHECKING, Any
 
 import impy as ip
 import numpy as np
 import polars as pl
-from acryo import Molecules, SubtomogramLoader
-from acryo.tilt import TiltSeriesModel
-from dask import array as da
+from acryo import Molecules
 from numpy.typing import ArrayLike, NDArray
-from scipy import ndimage as ndi
-from scipy.fft import fft2, ifft2
-from scipy.spatial.transform import Rotation
-from typing_extensions import Concatenate, ParamSpec
 
-from cylindra._dask import Delayed, compute, delayed
+from cylindra._dask import Delayed, compute
 from cylindra.components._ftprops import LatticeAnalyzer, LatticeParams, get_polar_image
-from cylindra.components._peak import FTPeakInfo, find_centroid_peak
+from cylindra.components._peak import find_centroid_peak
 from cylindra.components.spline import CylSpline
-from cylindra.components.tomogram import _straighten
+from cylindra.components.tomogram import _misc, _straighten
 from cylindra.components.tomogram._spline_list import SplineList
 from cylindra.components.tomogram._tomo_base import Tomogram
 from cylindra.const import ExtrapolationMode, Mode, Ori, nm
 from cylindra.const import PropertyNames as H
 from cylindra.utils import (
-    angle_corr,
     ceilint,
     centroid_2d,
     crop_tomograms,
-    map_coordinates_task,
     rotated_auto_zncc,
     roundint,
     set_gpu,
@@ -51,103 +34,7 @@ if TYPE_CHECKING:
     from cylindra.components.cylindric import CylinderModel
     from cylindra.components.spline import SplineConfig
 
-    Degenerative = Callable[[ArrayLike], Any]
-
-
 LOGGER = logging.getLogger("cylindra")
-
-
-_P = ParamSpec("_P")
-_R = TypeVar("_R")
-
-
-class BatchCallable(Protocol[_P, _R]):
-    """
-    This protocol enables static type checking of methods decorated with ``@batch_process``.
-    The parameter specifier ``_KW`` does not add any information but currently there is not
-    quick solution.
-    """
-
-    @overload
-    def __call__(
-        self, i: Literal[None], *args: _P.args, **kwargs: _P.kwargs
-    ) -> list[_R]:
-        ...
-
-    @overload
-    def __call__(self, i: int, *args: _P.args, **kwargs: _P.kwargs) -> _R:
-        ...
-
-    @overload
-    def __call__(
-        self, i: Iterable[int] | None, *args: _P.args, **kwargs: _P.kwargs
-    ) -> list[_R]:
-        ...
-
-    def __call__(self, i, *args, **kwargs):
-        ...
-
-
-def batch_process(
-    func: Callable[Concatenate[CylTomogram, Any, _P], _R]
-) -> BatchCallable[_P, _R]:
-    """Enable running function for every splines."""
-
-    @wraps(func)
-    def _func(self: CylTomogram, i=None, **kwargs):
-        if isinstance(i, int):
-            out = func(self, i=i, **kwargs)
-            return out
-
-        # Determine along which spline function will be executed.
-        if i is None:
-            i_list = range(len(self.splines))
-        elif not hasattr(i, "__iter__"):
-            raise TypeError("'i' must be int or iterable of int if specified")
-        else:
-            i_list = []
-            for i_ in i:
-                if -len(self.splines) <= i_ < 0:
-                    i_list.append(i_ + len(self.splines))
-                elif 0 <= i_ < len(self.splines):
-                    i_list.append(i_)
-                else:
-                    raise ValueError(f"Index {i_} is out of bound")
-
-            if len(i_list) > len(set(i_list)):
-                raise ValueError("Indices cannot contain duplicated values.")
-
-        # Run function along each spline
-        out = []
-        for i_ in i_list:
-            try:
-                result = func(self, i=i_, **kwargs)
-            except Exception as e:
-                e.args = (f"{e} (Exception at spline-{i_})",)
-                raise e
-            else:
-                out.append(result)
-
-        return out
-
-    return _func
-
-
-class FitResult:
-    def __init__(self, residual: NDArray[np.float64]):
-        self.residual = residual
-
-    @property
-    def rmsd(self) -> float:
-        """Root mean square deviation."""
-        return np.sqrt(np.sum(self.residual**2) / self.residual.shape[0])
-
-
-class ImageWithPeak:
-    def __init__(self, image: ip.ImgArray, power: ip.ImgArray, peaks: list[FTPeakInfo]):
-        self.image = image
-        self.power = power
-        self.peaks = peaks
 
 
 class CylTomogram(Tomogram):
@@ -209,7 +96,7 @@ class CylTomogram(Tomogram):
         self.splines.append(spl)
         return None
 
-    @batch_process
+    @_misc.batch_process
     def make_anchors(
         self,
         i: int = None,
@@ -261,7 +148,7 @@ class CylTomogram(Tomogram):
                     raise type(e)(f"Cannot invert spline-{i}: {e}")
         return self
 
-    @batch_process
+    @_misc.batch_process
     def fit(
         self,
         i: int = None,
@@ -273,7 +160,7 @@ class CylTomogram(Tomogram):
         edge_sigma: nm = 2.0,
         max_shift: nm = 5.0,
         n_rotations: int = 5,
-    ) -> FitResult:
+    ) -> _misc.FitResult:
         """
         Roughly fit splines to cylindrical structures.
 
@@ -313,14 +200,16 @@ class CylTomogram(Tomogram):
         subtomograms, interval, scale = self._prep_fit_spline(spl, anc, binsize)
 
         with set_gpu():
-            subtomograms = _soft_mask_edges(subtomograms, spl, anc, scale, edge_sigma)
+            subtomograms = _misc.soft_mask_edges(
+                subtomograms, spl, anc, scale, edge_sigma
+            )
             ds = spl.map(anc, der=1)
             yx_tilt = np.rad2deg(np.arctan2(-ds[:, 2], ds[:, 1]))
             degree_max = 14.0
             nrots = roundint(degree_max / degree_precision) + 1
 
             # Angular correlation
-            out = dask_angle_corr(subtomograms, yx_tilt, nrots=nrots)
+            out = _misc.dask_angle_corr(subtomograms, yx_tilt, nrots=nrots)
             refined_tilt_deg = np.array(out)
             refined_tilt_rad = np.deg2rad(refined_tilt_deg)
 
@@ -329,7 +218,7 @@ class CylTomogram(Tomogram):
             size = 2 * roundint(48.0 / interval) + 1
             if size > 1:
                 # Mirror-mode padding is "a b c d | c b a".
-                refined_tilt_rad = angle_uniform_filter(
+                refined_tilt_rad = _misc.angle_uniform_filter(
                     refined_tilt_rad, size=size, mode=Mode.mirror
                 )
                 refined_tilt_deg = np.rad2deg(refined_tilt_rad)
@@ -352,22 +241,22 @@ class CylTomogram(Tomogram):
             max_shift_px = max_shift / scale * 2
             pf_ang = 360 / spl.config.npf_range.center
             degrees = np.linspace(-pf_ang / 2, pf_ang / 2, n_rotations) + 180
-            shifts = _multi_rotated_auto_zncc(subtomo_proj, degrees, max_shift_px)
+            shifts = _misc.multi_rotated_auto_zncc(subtomo_proj, degrees, max_shift_px)
 
         # Update spline coordinates.
         # Because centers of subtomogram are on lattice points of pixel coordinate,
         # coordinates that will be shifted should be converted to integers.
         coords_px = self.nm2pixel(spl.map(anc), binsize=binsize).astype(np.float32)
-        coords_px_new = _shift_coords(coords_px, shifts, refined_tilt_rad)
+        coords_px_new = _misc.shift_coords(coords_px, shifts, refined_tilt_rad)
         coords = coords_px_new * scale + self.multiscale_translation(binsize)
 
         # Update spline parameters
         self.splines[i] = spl.fit(coords, err_max=err_max)
-        result = FitResult(shifts * scale)
+        result = _misc.FitResult(shifts * scale)
         LOGGER.info(f" >> Shift RMSD = {result.rmsd:.3f} nm")
         return result
 
-    @batch_process
+    @_misc.batch_process
     def fit_centroid(
         self,
         i: int = None,
@@ -376,14 +265,14 @@ class CylTomogram(Tomogram):
         binsize: int = 1,
         err_max: nm = 1.0,
         max_shift: nm = 5.0,
-    ) -> FitResult:
+    ) -> _misc.FitResult:
         LOGGER.info(f"Running: {self.__class__.__name__}.fit_centroid, i={i}")
         spl = self.splines[i]
         anc = spl.prep_anchor_positions(max_interval=max_interval)
         scale = self.scale * binsize
 
         # sample subtomograms
-        loader = _prep_loader_for_refine(self, spl, anc, binsize)
+        loader = _misc.prep_loader_for_refine(self, spl, anc, binsize)
         subtomograms = ip.asarray(loader.asnumpy(), axes="pzyx").mean(axis="y")[
             ip.slicer.x[::-1]
         ]
@@ -401,11 +290,11 @@ class CylTomogram(Tomogram):
             ]
         )
         self.splines[i] = spl.shift(anc, shifts=shifts * scale, err_max=err_max)
-        result = FitResult(shifts * scale)
+        result = _misc.FitResult(shifts * scale)
         LOGGER.info(f" >> Shift RMSD = {result.rmsd:.3f} nm")
         return result
 
-    @batch_process
+    @_misc.batch_process
     def refine(
         self,
         i: int = None,
@@ -416,7 +305,7 @@ class CylTomogram(Tomogram):
         corr_allowed: float = 0.9,
         max_shift: nm = 2.0,
         n_rotations: int = 3,
-    ) -> FitResult:
+    ) -> _misc.FitResult:
         """
         Spline refinement using global lattice structural parameters.
 
@@ -477,9 +366,9 @@ class CylTomogram(Tomogram):
 
         # complement twisting
         pf_ang = 360 / npf
-        twists = _get_twists(spl.length(), ancs.size, space, twist, npf)
+        twists = _misc.get_twists(spl.length(), ancs.size, space, twist, npf)
         scale = self.scale * binsize
-        loader = _prep_loader_for_refine(self, spl, ancs, binsize, twists)
+        loader = _misc.prep_loader_for_refine(self, spl, ancs, binsize, twists)
         subtomograms = ip.asarray(loader.asnumpy(), axes="pzyx", dtype=np.float32)
         subtomograms[:] -= subtomograms.mean()  # normalize
         subtomograms.set_scale(zyx=scale)
@@ -490,9 +379,9 @@ class CylTomogram(Tomogram):
             inputs = subtomograms.mean(axis="y")[ip.slicer.x[::-1]]
 
             # Align twist-corrected images
-            shifts_loc = _multi_rotated_auto_zncc(inputs, degrees, max_shift_px)
+            shifts_loc = _misc.multi_rotated_auto_zncc(inputs, degrees, max_shift_px)
             tasks = [
-                _delayed_translate(inputs[_j], shifts_loc[_j])
+                _misc.delayed_translate(inputs[_j], shifts_loc[_j])
                 for _j in range(ancs.size)
             ]
             imgs_aligned = _filter_by_corr(
@@ -510,9 +399,9 @@ class CylTomogram(Tomogram):
             # Align twist-corrected images to the template
             quat = loader.molecules.quaternion()
             tasks = [
-                _delayed_zncc_maximum(
+                _misc.delayed_zncc_maximum(
                     inputs[_j],
-                    _mask_missing_wedge(template, self.tilt_model, quat[_j]),
+                    _misc.mask_missing_wedge(template, self.tilt_model, quat[_j]),
                     max_shift_px,
                     twists[_j],
                 )
@@ -522,11 +411,11 @@ class CylTomogram(Tomogram):
 
         # Update spline parameters
         self.splines[i] = spl.shift(ancs, shifts=shifts * scale, err_max=err_max)
-        result = FitResult(shifts * scale)
+        result = _misc.FitResult(shifts * scale)
         LOGGER.info(f" >> Shift RMSD = {result.rmsd:.3f} nm")
         return result
 
-    @batch_process
+    @_misc.batch_process
     def measure_radius(
         self,
         i: int = None,
@@ -582,13 +471,15 @@ class CylTomogram(Tomogram):
         max_radius_px = max_radius / _scale
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
         tasks = [
-            _get_radial_prof(input_img, spl_trans, anc, (min_radius, max_radius), depth)
+            _misc.get_radial_prof(
+                input_img, spl_trans, anc, (min_radius, max_radius), depth
+            )
             for anc in pos
         ]
         profs: list[NDArray[np.float32]] = compute(*tasks)
         prof = np.stack(profs, axis=0).mean(axis=0)
-        imax_sub = find_centroid_peak(prof, *_get_thickness(spl, _scale))
-        offset_px = _get_radius_offset(min_radius_px, max_radius_px)
+        imax_sub = find_centroid_peak(prof, *_misc.get_thickness(spl, _scale))
+        offset_px = _misc.get_radius_offset(min_radius_px, max_radius_px)
         radius = (imax_sub + offset_px) * _scale
         if update:
             spl.props.update_glob(
@@ -598,7 +489,7 @@ class CylTomogram(Tomogram):
         LOGGER.info(f" >> Radius = {radius:.3f} nm")
         return radius
 
-    @batch_process
+    @_misc.batch_process
     def local_radii(
         self,
         *,
@@ -643,15 +534,15 @@ class CylTomogram(Tomogram):
 
         depth = spl.config.fit_depth
         _scale = input_img.scale.x
-        thickness = _get_thickness(spl, _scale)
+        thickness = _misc.get_thickness(spl, _scale)
         min_radius_px = min_radius / _scale
         max_radius = min(max_radius, spl.config.fit_width / 2)
         max_radius_px = max_radius / _scale
-        offset_px = _get_radius_offset(min_radius_px, max_radius_px)
+        offset_px = _misc.get_radius_offset(min_radius_px, max_radius_px)
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
         tasks = []
         for anc in spl_trans.anchors:
-            task = _get_radial_prof(
+            task = _misc.get_radial_prof(
                 input_img, spl_trans, anc, (min_radius, max_radius), depth
             )
             tasks.append(task)
@@ -668,7 +559,7 @@ class CylTomogram(Tomogram):
             spl.props.update_glob([pl.Series(H.radius, [out.mean()])], bin_size=binsize)
         return out
 
-    @batch_process
+    @_misc.batch_process
     def local_cft_params(
         self,
         *,
@@ -715,7 +606,7 @@ class CylTomogram(Tomogram):
         """
         LOGGER.info(f"Running: {self.__class__.__name__}.local_cft_params, i={i}")
         spl = self.splines[i]
-        radii = _prepare_radii(spl, radius)
+        radii = _misc.prepare_radii(spl, radius)
         input_img = self._get_multiscale_or_original(binsize)
         _scale = input_img.scale.x
         tasks: list[Delayed[LatticeParams]] = []
@@ -774,7 +665,7 @@ class CylTomogram(Tomogram):
             polar[:] -= np.mean(polar)
             yield polar
 
-    @batch_process
+    @_misc.batch_process
     def local_cft(
         self,
         *,
@@ -810,7 +701,7 @@ class CylTomogram(Tomogram):
                 out.append(polar.fft(dims="rya"))
         return np.stack(out, axis="p")
 
-    @batch_process
+    @_misc.batch_process
     def local_cps(
         self,
         *,
@@ -841,44 +732,39 @@ class CylTomogram(Tomogram):
         cft = self.local_cft(i=i, depth=depth, pos=pos, binsize=binsize)
         return cft.real**2 + cft.imag**2
 
-    @batch_process
+    @_misc.batch_process
     def local_image_with_peaks(
         self,
         *,
         i: int = None,
         binsize: int | None = None,
-    ) -> list[ImageWithPeak]:
+    ) -> list[_misc.ImageWithPeak]:
         spl = self.splines[i]
         depth = spl.props.window_size[H.twist]
         if binsize is None:
             binsize = spl.props.binsize_loc[H.twist]
         df_loc = spl.props.loc
-        out = list[ImageWithPeak]()
+        out = list[_misc.ImageWithPeak]()
         for j, polar_img in enumerate(self.iter_local_image(i, depth, binsize=binsize)):
             cparams = spl.cylinder_params(
-                spacing=_get_component(df_loc, H.spacing, j),
-                pitch=_get_component(df_loc, H.pitch, j),
-                twist=_get_component(df_loc, H.twist, j),
-                skew=_get_component(df_loc, H.skew, j),
-                rise_angle=_get_component(df_loc, H.rise, j),
-                start=_get_component(df_loc, H.start, j),
-                npf=_get_component(df_loc, H.npf, j),
+                spacing=_misc.get_component(df_loc, H.spacing, j),
+                pitch=_misc.get_component(df_loc, H.pitch, j),
+                twist=_misc.get_component(df_loc, H.twist, j),
+                skew=_misc.get_component(df_loc, H.skew, j),
+                rise_angle=_misc.get_component(df_loc, H.rise, j),
+                start=_misc.get_component(df_loc, H.start, j),
+                npf=_misc.get_component(df_loc, H.npf, j),
             )
             analyzer = LatticeAnalyzer(spl.config)
             cft = polar_img.fft(dims="rya")
             cps_proj = (cft.real**2 + cft.imag**2).mean(axis="r")
-            peakv, peakh = analyzer.params_to_peaks(
-                cps_proj,
-                cparams,
-                intensity_vertical=_get_component(df_loc, H.intensity_vertical, j),
-                intensity_horizontal=_get_component(df_loc, H.intensity_horizontal, j),
-            )
+            peakv, peakh = analyzer.params_to_peaks(cps_proj, cparams)
             peakv = peakv.shift_to_center()
             peakh = peakh.shift_to_center()
-            out.append(ImageWithPeak(polar_img, cps_proj, [peakv, peakh]))
+            out.append(_misc.ImageWithPeak(polar_img, cps_proj, [peakv, peakh]))
         return out
 
-    @batch_process
+    @_misc.batch_process
     def global_cps(
         self,
         *,
@@ -903,13 +789,13 @@ class CylTomogram(Tomogram):
         cft = self.global_cft(i=i, binsize=binsize)
         return cft.real**2 + cft.imag**2
 
-    @batch_process
+    @_misc.batch_process
     def global_image_with_peaks(
         self,
         *,
         i: int = None,
         binsize: int | None = None,
-    ) -> ImageWithPeak:
+    ) -> _misc.ImageWithPeak:
         spl = self.splines[i]
         if binsize is None:
             binsize = spl.props.binsize_glob[H.twist]
@@ -928,19 +814,12 @@ class CylTomogram(Tomogram):
             npf=spl.props.get_glob(H.npf, default=None),
         )
         analyzer = LatticeAnalyzer(spl.config)
-        peakv, peakh = analyzer.params_to_peaks(
-            cps_proj,
-            cparams,
-            intensity_vertical=spl.props.get_glob(H.intensity_vertical, default=None),
-            intensity_horizontal=spl.props.get_glob(
-                H.intensity_horizontal, default=None
-            ),
-        )
+        peakv, peakh = analyzer.params_to_peaks(cps_proj, cparams)
         peakv = peakv.shift_to_center()
         peakh = peakh.shift_to_center()
-        return ImageWithPeak(img_st, cps_proj, [peakv, peakh])
+        return _misc.ImageWithPeak(img_st, cps_proj, [peakv, peakh])
 
-    @batch_process
+    @_misc.batch_process
     def global_cft_params(
         self,
         *,
@@ -983,15 +862,11 @@ class CylTomogram(Tomogram):
         analyzer = LatticeAnalyzer(spl.config)
         lparams = analyzer.estimate_lattice_params_polar(img_st, rc, nsamples=nsamples)
         out = lparams.to_polars()
-        LOGGER.info(
-            f" >> Peak intensity: vertical={lparams.intensity_vertical:.3g}, "
-            f"horizontal={lparams.intensity_horizontal:.3g}"
-        )
         if update:
             spl.props.update_glob(spl.props.glob.with_columns(out), bin_size=binsize)
         return out
 
-    @batch_process
+    @_misc.batch_process
     def global_cft(self, i: int = None, binsize: int = 1) -> ip.ImgArray:
         """
         Calculate global cylindrical fast Fourier tranformation.
@@ -1012,7 +887,7 @@ class CylTomogram(Tomogram):
         img_st -= np.mean(img_st)
         return img_st.fft(dims="rya")
 
-    @batch_process
+    @_misc.batch_process
     def infer_polarity(
         self,
         i: int = None,
@@ -1091,7 +966,7 @@ class CylTomogram(Tomogram):
             spl.orientation = ori
         return ori
 
-    @batch_process
+    @_misc.batch_process
     def straighten(
         self,
         i: int = None,
@@ -1127,10 +1002,10 @@ class CylTomogram(Tomogram):
         """
         spl = self.splines[i]
         input_img = self._get_multiscale_or_original(binsize)
-        chunk_length = _normalize_chunk_length(input_img, chunk_length)
+        chunk_length = _misc.normalize_chunk_length(input_img, chunk_length)
         return _straighten.straighten(input_img, spl, range_, size)
 
-    @batch_process
+    @_misc.batch_process
     def straighten_cylindric(
         self,
         i: int = None,
@@ -1166,10 +1041,10 @@ class CylTomogram(Tomogram):
         """
         spl = self.splines[i]
         input_img = self._get_multiscale_or_original(binsize)
-        chunk_length = _normalize_chunk_length(input_img, chunk_length)
+        chunk_length = _misc.normalize_chunk_length(input_img, chunk_length)
         return _straighten.straighten_cylindric(input_img, spl, range_, radii)
 
-    @batch_process
+    @_misc.batch_process
     def map_centers(
         self,
         i: int = None,
@@ -1231,7 +1106,7 @@ class CylTomogram(Tomogram):
         """
         return self.splines[i].cylinder_model(offsets=offsets, **kwargs)
 
-    @batch_process
+    @_misc.batch_process
     def map_monomers(
         self,
         i: int = None,
@@ -1272,7 +1147,7 @@ class CylTomogram(Tomogram):
             mole = mole.rotate_by_rotvec_internal([np.pi, 0, 0])
         return mole
 
-    @batch_process
+    @_misc.batch_process
     def map_on_grid(
         self,
         i: int = None,
@@ -1309,7 +1184,7 @@ class CylTomogram(Tomogram):
             mole = mole.rotate_by_rotvec_internal([np.pi, 0, 0])
         return mole
 
-    @batch_process
+    @_misc.batch_process
     def map_pf_line(
         self,
         i: int = None,
@@ -1376,231 +1251,13 @@ class CylTomogram(Tomogram):
         return subtomograms, interval, scale
 
 
-def dask_angle_corr(
-    imgs, ang_centers, drot: float = 7, nrots: int = 29
-) -> NDArray[np.float32]:
-    _angle_corr = delayed(partial(angle_corr, drot=drot, nrots=nrots))
-    tasks = []
-    for img, ang in zip(imgs, ang_centers, strict=True):
-        tasks.append(da.from_delayed(_angle_corr(img, ang), shape=(), dtype=np.float32))
-    return da.compute(tasks)[0]
-
-
-def _prepare_radii(
-    spl: CylSpline, radius: nm | Literal["local", "global"]
-) -> Sequence[float]:
-    if isinstance(radius, str):
-        if radius == "global":
-            if spl.radius is None:
-                raise ValueError("Global radius is not measured yet.")
-            radii = np.full(spl.anchors.size, spl.radius, dtype=np.float32)
-        elif radius == "local":
-            if not spl.props.has_loc(H.radius):
-                raise ValueError("Local radii is not measured yet.")
-            radii = spl.props.loc[H.radius].to_numpy()
-        else:
-            raise ValueError("`radius` must be 'local' or 'global' if string.")
-    else:
-        if radius <= 0:
-            raise ValueError("`radius` must be a positive float.")
-        radii = np.full(spl.anchors.size, radius, dtype=np.float32)
-    return radii
-
-
-def angle_uniform_filter(input, size, mode=Mode.mirror, cval=0):
-    """Uniform filter of angles."""
-    phase = np.exp(1j * input)
-    out = ndi.convolve1d(phase, np.ones(size), mode=mode, cval=cval)
-    return np.angle(out)
-
-
-def _soft_mask_edges(
-    subtomograms: ip.ImgArray,
-    spl: CylSpline,
-    anc: NDArray[np.float32],
-    scale: float,
-    edge_sigma: float | None,
-) -> ip.ImgArray:
-    if edge_sigma is None:
-        return subtomograms
-    # mask XY-region outside the cylinders with sigmoid function.
-    yy, xx = np.indices(subtomograms.sizesof("yx"))
-    yc, xc = np.array(subtomograms.sizesof("yx")) / 2 - 0.5
-    yr = yy - yc
-    xr = xx - xc
-    for _j, ds in enumerate(spl.map(anc, der=1)):
-        _, vy, vx = ds
-        distance: NDArray[np.float64] = (
-            np.abs(-xr * vy + yr * vx) / np.sqrt(vx**2 + vy**2) * scale
-        )
-        distance_cutoff = spl.config.fit_width / 2
-        if edge_sigma == 0:
-            mask_yx = (distance > distance_cutoff).astype(np.float32)
-        else:
-            mask_yx = 1 / (1 + np.exp((distance - distance_cutoff) / edge_sigma))
-        mask = np.stack([mask_yx] * subtomograms.shape.z, axis=0)
-        subtomograms[_j] *= mask
-    return subtomograms
-
-
-def _shift_coords(
-    coords_px: NDArray[np.float32],
-    shifts: NDArray[np.float32],
-    refined_tilt_rad: NDArray[np.float32],
-) -> NDArray[np.float32]:
-    shifts_3d = np.stack(
-        [shifts[:, 0], np.zeros(shifts.shape[0]), shifts[:, 1]], axis=1
-    )
-    rotvec = np.zeros(shifts_3d.shape, dtype=np.float32)
-    rotvec[:, 0] = -refined_tilt_rad
-    rot = Rotation.from_rotvec(rotvec)
-    return coords_px + rot.apply(shifts_3d)
-
-
-def _prep_loader_for_refine(
-    self: CylTomogram,
-    spl: CylSpline,
-    ancs: NDArray[np.float32],
-    binsize: int,
-    twists: NDArray[np.float32] | None = None,
-) -> SubtomogramLoader:
-    input_img = self._get_multiscale_or_original(binsize)
-
-    depth_px = self.nm2pixel(spl.config.fit_depth, binsize=binsize)
-    width_px = self.nm2pixel(spl.config.fit_width, binsize=binsize)
-
-    if twists is None:
-        rotation = None
-    else:
-        rotation = -np.deg2rad(twists)
-    mole = spl.anchors_to_molecules(ancs, rotation=rotation)
-    if binsize > 1:
-        mole = mole.translate(-self.multiscale_translation(binsize))
-    scale = input_img.scale.x
-
-    # Load subtomograms rotated by twisting. All the subtomograms should look similar.
-    arr = input_img.value
-    loader = SubtomogramLoader(
-        arr,
-        mole,
-        order=1,
-        scale=scale,
-        output_shape=(width_px, depth_px, width_px),
-        corner_safe=True,
-    )
-    return loader
-
-
-def _get_twists(
-    length: float,
-    nancs: int,
-    space: float,
-    twist: float,
-    npf: int,
-):
-    twist_interv = length / (nancs - 1)
-    twists = np.arange(nancs) * twist_interv / space * twist
-    pf_ang = 360 / npf
-    twists %= pf_ang
-    twists[twists > pf_ang / 2] -= pf_ang
-    return twists
-
-
-@delayed
-def _delayed_translate(img: ip.ImgArray, shift) -> ip.ImgArray:
-    return img.affine(translation=shift, mode=Mode.constant, cval=0)
-
-
-@delayed
-def _delayed_zncc_maximum(
-    img: ip.ImgArray,
-    tmp: ip.ImgArray,
-    max_shifts: int,
-    twist: float,
-):
-    shift = -ip.zncc_maximum(tmp, img, max_shifts=max_shifts)
-    rad = np.deg2rad(twist)
-    cos, sin = np.cos(rad), np.sin(rad)
-    zxrot = np.array([[cos, sin], [-sin, cos]], dtype=np.float32)
-    return shift @ zxrot
-
-
-_FLIP_ZX = ip.slicer.z[::-1].x[::-1]
-
-
 def _filter_by_corr(imgs_aligned: ip.ImgArray, corr_allowed: float) -> ip.ImgArray:
     if corr_allowed >= 1:
         return imgs_aligned
-    corrs = np.asarray(ip.zncc(imgs_aligned, imgs_aligned[_FLIP_ZX]))
+    _flip_zx = ip.slicer.z[::-1].x[::-1]
+    corrs = np.asarray(ip.zncc(imgs_aligned, imgs_aligned[_flip_zx]))
     threshold = np.quantile(corrs, 1 - corr_allowed)
     indices: np.ndarray = np.where(corrs >= threshold)[0]
     imgs_aligned = imgs_aligned[indices.tolist()]
     LOGGER.info(f" >> Correlation: {np.mean(corrs):.3f} ± {np.std(corrs):.3f}")
     return imgs_aligned
-
-
-def _mask_missing_wedge(
-    img: ip.ImgArray,
-    tilt_model: TiltSeriesModel,
-    quat: NDArray[np.float32],
-) -> ip.ImgArray:
-    """Mask the missing wedge of the image and return the real image."""
-    shape = (img.shape[0], 1, img.shape[1])
-    # central slice theorem
-    mask3d = tilt_model.create_mask(Rotation(quat), shape)
-    mask = mask3d[:, 0, :]
-    return ip.asarray(ifft2(fft2(img.value) * mask).real, like=img)
-
-
-def _get_thickness(spl: CylSpline, scale: nm) -> tuple[nm, nm]:
-    thick_inner_px = spl.config.thickness_inner / scale
-    thick_outer_px = spl.config.thickness_outer / scale
-    return thick_inner_px, thick_outer_px
-
-
-def _get_radial_prof(
-    input_img: ip.ImgArray | ip.LazyImgArray,
-    spl: CylSpline,
-    anc: float,
-    r_range: tuple[nm, nm],
-    depth: nm,
-) -> da.Array[np.float32]:
-    coords = spl.local_cylindrical(r_range, depth, anc, scale=input_img.scale.x)
-    task = map_coordinates_task(input_img, coords)
-    prof = da.mean(
-        da.from_delayed(task, shape=coords.shape[1:], dtype=np.float32), axis=(1, 2)
-    )
-    return prof
-
-
-def _get_radius_offset(min_radius_px, max_radius_px) -> nm:
-    n_radius = roundint(max_radius_px - min_radius_px)
-    return (min_radius_px + max_radius_px - n_radius + 1) / 2
-
-
-@delayed
-def _lazy_rotated_auto_zncc(img, degrees, max_shifts):
-    return rotated_auto_zncc(img, degrees, max_shifts=max_shifts)
-
-
-def _multi_rotated_auto_zncc(
-    imgs: ip.ImgArray, degrees: NDArray[np.float32], max_shift_px: int
-) -> NDArray[np.float32]:
-    tasks = [_lazy_rotated_auto_zncc(subimg, degrees, max_shift_px) for subimg in imgs]
-    return np.stack(compute(*tasks), axis=0)
-
-
-def _normalize_chunk_length(img, chunk_length: nm | None) -> nm:
-    if chunk_length is None:
-        if isinstance(img, ip.LazyImgArray):
-            chunk_length = 72.0
-        else:
-            chunk_length = 999999
-    return chunk_length
-
-
-def _get_component(df: pl.DataFrame, key: str, idx: int, default=None):
-    try:
-        return df[key][idx]
-    except (KeyError, IndexError):
-        return default

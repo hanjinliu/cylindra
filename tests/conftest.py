@@ -31,7 +31,6 @@ def ui(make_napari_viewer, request: pytest.FixtureRequest):
         with suppress(RuntimeError):
             batch.constructor.close()
             batch.close()
-            # batch.constructor.native.deleteLater()
     del _ui.tomogram._image
     _ui.close()
     if sv := StaParameters._viewer:

@@ -278,8 +278,8 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                     if spline_details:
                         if not spl.has_anchors:
                             raise ValueError(
-                                f"Cannot collect spline details because spline {spl!r} does "
-                                "not have anchors."
+                                f"Cannot collect spline details because spline {spl!r} "
+                                "does not have anchors."
                             )
                         _crds = [spl.map(der=der) for der in [0, 1, 2]]
                         _cv = spl.curvature()
@@ -351,9 +351,8 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                 H.spacing, H.twist, H.npf, H.rise, H.skew,
                 H.rise_length, H.radius, H.start,
             ]  # fmt: skip
-            out = out.rename(
-                {col: col + suffix for col in need_rename if col in out.columns}
-            )
+            nmap = {col: col + suffix for col in need_rename if col in out.columns}
+            out = out.rename(nmap)
         return self._normalize_id(out, id)
 
     def collect_joinedprops(
