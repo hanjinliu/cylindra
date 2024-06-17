@@ -1312,6 +1312,8 @@
       
         
       
+        
+      
     
     
       
@@ -1385,6 +1387,27 @@
   
   <span class="md-ellipsis">
     Segmented Subtomogram Averaging (SSTA)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../case_studies/make_figure/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Microtubule for Figures
   </span>
   
 
@@ -1803,6 +1826,15 @@
   
     <nav class="md-nav" aria-label="ProjectSequence">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cylindra.project.ProjectSequence.__add__" class="md-nav__link">
+    <span class="md-ellipsis">
+      __add__
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#cylindra.project.ProjectSequence.append_file" class="md-nav__link">
@@ -2416,6 +2448,15 @@
   
     <nav class="md-nav" aria-label="ProjectSequence">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cylindra.project.ProjectSequence.__add__" class="md-nav__link">
+    <span class="md-ellipsis">
+      __add__
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#cylindra.project.ProjectSequence.append_file" class="md-nav__link">
@@ -6333,6 +6374,48 @@ properties can be generated from this object.</p>
 <div class="doc doc-object doc-function">
 
 
+<h5 id="cylindra.project.ProjectSequence.__add__" class="doc doc-heading">
+            <code class="highlight language-python"><span class="fm">__add__</span><span class="p">(</span><span class="n">other</span><span class="p">)</span></code>
+
+</h5>
+
+
+    <div class="doc doc-contents ">
+
+      <p>Concatenate two ProjectSequence objects.</p>
+
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_sequence.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">138</span>
+<span class="normal">139</span>
+<span class="normal">140</span>
+<span class="normal">141</span>
+<span class="normal">142</span>
+<span class="normal">143</span>
+<span class="normal">144</span>
+<span class="normal">145</span>
+<span class="normal">146</span>
+<span class="normal">147</span>
+<span class="normal">148</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__add__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">ProjectSequence</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ProjectSequence</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Concatenate two ProjectSequence objects.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">ProjectSequence</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Expected ProjectSequence, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">other</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+    <span class="n">new</span> <span class="o">=</span> <span class="n">ProjectSequence</span><span class="p">(</span><span class="n">check_scale</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">new</span><span class="o">.</span><span class="n">_projects</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_projects</span> <span class="o">+</span> <span class="n">other</span><span class="o">.</span><span class="n">_projects</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">new</span><span class="o">.</span><span class="n">_scale_validator</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scale_validator</span><span class="o">.</span><span class="n">value</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">other</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">new</span><span class="o">.</span><span class="n">_scale_validator</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">_scale_validator</span><span class="o">.</span><span class="n">value</span>
+    <span class="k">return</span> <span class="n">new</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h5 id="cylindra.project.ProjectSequence.append_file" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">append_file</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></code>
 
@@ -8139,7 +8222,7 @@ found.</p>
     </div>
     
     
-    <script id="__config" type="application/json">{"base": "../..", "features": ["content.code.annotate", "navigation.sections", "navigation.indexes", "navigation.footer", "toc.follow", "search.suggest", "search.share"], "search": "../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "../..", "features": ["content.code.annotate", "content.code.copy", "navigation.sections", "navigation.indexes", "navigation.footer", "toc.follow", "search.suggest", "search.share"], "search": "../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
       <script src="../../assets/javascripts/bundle.ad660dcc.min.js"></script>

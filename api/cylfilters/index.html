@@ -1312,6 +1312,8 @@
       
         
       
+        
+      
     
     
       
@@ -1385,6 +1387,27 @@
   
   <span class="md-ellipsis">
     Segmented Subtomogram Averaging (SSTA)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../case_studies/make_figure/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Microtubule for Figures
   </span>
   
 
@@ -1659,15 +1682,6 @@
   
 </li>
       
-        <li class="md-nav__item">
-  <a href="#cylindra.cylfilters.Mole" class="md-nav__link">
-    <span class="md-ellipsis">
-      Mole
-    </span>
-  </a>
-  
-</li>
-      
     </ul>
   
 </nav>
@@ -1909,15 +1923,6 @@
         
       </ul>
     </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#cylindra.cylfilters.Mole" class="md-nav__link">
-    <span class="md-ellipsis">
-      Mole
-    </span>
-  </a>
   
 </li>
       
@@ -2303,96 +2308,6 @@
 
 </div>
 
-<div class="doc doc-object doc-class">
-
-
-
-<h4 id="cylindra.cylfilters.Mole" class="doc doc-heading">
-            <code>Mole</code>
-
-
-</h4>
-
-
-    <div class="doc doc-contents ">
-
-
-      <p>Feature header names for Molecules.</p>
-
-              <details class="quote">
-                <summary>Source code in <code>cylindra/const.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">126</span>
-<span class="normal">127</span>
-<span class="normal">128</span>
-<span class="normal">129</span>
-<span class="normal">130</span>
-<span class="normal">131</span>
-<span class="normal">132</span>
-<span class="normal">133</span>
-<span class="normal">134</span>
-<span class="normal">135</span>
-<span class="normal">136</span>
-<span class="normal">137</span>
-<span class="normal">138</span>
-<span class="normal">139</span>
-<span class="normal">140</span>
-<span class="normal">141</span>
-<span class="normal">142</span>
-<span class="normal">143</span>
-<span class="normal">144</span>
-<span class="normal">145</span>
-<span class="normal">146</span>
-<span class="normal">147</span>
-<span class="normal">148</span>
-<span class="normal">149</span>
-<span class="normal">150</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">MoleculesHeader</span><span class="p">(</span><span class="n">SimpleNamespace</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Feature header names for Molecules.&quot;&quot;&quot;</span>
-
-    <span class="n">nth</span> <span class="o">=</span> <span class="s2">&quot;nth&quot;</span>  <span class="c1"># n-th molecule of a protofilament</span>
-    <span class="n">pf</span> <span class="o">=</span> <span class="s2">&quot;pf-id&quot;</span>  <span class="c1"># protofilament ID</span>
-    <span class="n">isotype</span> <span class="o">=</span> <span class="s2">&quot;isotype-id&quot;</span>
-    <span class="n">score</span> <span class="o">=</span> <span class="s2">&quot;score&quot;</span>  <span class="c1"># alignment score</span>
-    <span class="n">spacing</span> <span class="o">=</span> <span class="n">PropertyNames</span><span class="o">.</span><span class="n">spacing</span>  <span class="c1"># interval between two molecules</span>
-    <span class="n">twist</span> <span class="o">=</span> <span class="n">PropertyNames</span><span class="o">.</span><span class="n">twist</span>  <span class="c1"># twist between two molecules</span>
-    <span class="n">skew</span> <span class="o">=</span> <span class="n">PropertyNames</span><span class="o">.</span><span class="n">skew</span>  <span class="c1"># skew tilt angle between two molecules</span>
-    <span class="n">rise</span> <span class="o">=</span> <span class="n">PropertyNames</span><span class="o">.</span><span class="n">rise</span>  <span class="c1"># rise angle between two molecules</span>
-    <span class="n">lateral_interval</span> <span class="o">=</span> <span class="s2">&quot;lateral-interval&quot;</span>  <span class="c1"># lateral interval between two molecules</span>
-    <span class="n">radius</span> <span class="o">=</span> <span class="s2">&quot;radius&quot;</span>  <span class="c1"># distance between the molecule and the spline</span>
-    <span class="n">curve_index</span> <span class="o">=</span> <span class="s2">&quot;curve-index&quot;</span>  <span class="c1"># curve index (1 is the inside of curve)</span>
-    <span class="n">lateral_angle</span> <span class="o">=</span> <span class="s2">&quot;lateral-angle&quot;</span>  <span class="c1"># lateral angle between molecules</span>
-    <span class="n">elev_angle</span> <span class="o">=</span> <span class="s2">&quot;elevation-angle&quot;</span>  <span class="c1"># elevation angle between molecules</span>
-    <span class="n">position</span> <span class="o">=</span> <span class="s2">&quot;position-nm&quot;</span>  <span class="c1"># position of the molecule along the spline</span>
-    <span class="nb">id</span> <span class="o">=</span> <span class="s2">&quot;molecules-id&quot;</span>
-    <span class="n">image</span> <span class="o">=</span> <span class="s2">&quot;image-id&quot;</span>
-    <span class="n">z</span> <span class="o">=</span> <span class="s2">&quot;z&quot;</span>
-    <span class="n">y</span> <span class="o">=</span> <span class="s2">&quot;y&quot;</span>
-    <span class="n">x</span> <span class="o">=</span> <span class="s2">&quot;x&quot;</span>
-    <span class="n">zvec</span> <span class="o">=</span> <span class="s2">&quot;zvec&quot;</span>
-    <span class="n">yvec</span> <span class="o">=</span> <span class="s2">&quot;yvec&quot;</span>
-    <span class="n">xvec</span> <span class="o">=</span> <span class="s2">&quot;xvec&quot;</span>
-</code></pre></div></td></tr></table></div>
-              </details>
-
-
-
-  <div class="doc doc-children">
-
-
-
-
-
-
-
-
-
-
-
-  </div>
-
-    </div>
-
-</div>
-
 
 
 
@@ -2491,7 +2406,7 @@
     </div>
     
     
-    <script id="__config" type="application/json">{"base": "../..", "features": ["content.code.annotate", "navigation.sections", "navigation.indexes", "navigation.footer", "toc.follow", "search.suggest", "search.share"], "search": "../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "../..", "features": ["content.code.annotate", "content.code.copy", "navigation.sections", "navigation.indexes", "navigation.footer", "toc.follow", "search.suggest", "search.share"], "search": "../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
       <script src="../../assets/javascripts/bundle.ad660dcc.min.js"></script>

@@ -1310,16 +1310,16 @@
         <li class="md-nav__item">
   <a href="#open-simulator-widget" class="md-nav__link">
     <span class="md-ellipsis">
-      Open Simulator Widget
+      Open simulator widget
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#simulate-cylinders-with-arbitrary-shape" class="md-nav__link">
+  <a href="#prepare-a-spline-with-arbitrary-shape" class="md-nav__link">
     <span class="md-ellipsis">
-      Simulate Cylinders with Arbitrary Shape
+      Prepare a spline with arbitrary shape
     </span>
   </a>
   
@@ -1501,6 +1501,8 @@
       
         
       
+        
+      
     
     
       
@@ -1574,6 +1576,27 @@
   
   <span class="md-ellipsis">
     Segmented Subtomogram Averaging (SSTA)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../case_studies/make_figure/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Microtubule for Figures
   </span>
   
 
@@ -1969,16 +1992,16 @@
         <li class="md-nav__item">
   <a href="#open-simulator-widget" class="md-nav__link">
     <span class="md-ellipsis">
-      Open Simulator Widget
+      Open simulator widget
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#simulate-cylinders-with-arbitrary-shape" class="md-nav__link">
+  <a href="#prepare-a-spline-with-arbitrary-shape" class="md-nav__link">
     <span class="md-ellipsis">
-      Simulate Cylinders with Arbitrary Shape
+      Prepare a spline with arbitrary shape
     </span>
   </a>
   
@@ -2133,12 +2156,13 @@
 
 <h1 id="simulate-tomograms">Simulate Tomograms</h1>
 <p><code>cylindra</code> implements several methods to simulate cylindric structures.</p>
-<h2 id="open-simulator-widget">Open Simulator Widget</h2>
+<h2 id="open-simulator-widget">Open simulator widget</h2>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03-4.41 0-8.03 3.62-8.03 8.03 0 4.41 3.62 8.03 8.03 8.03 4.41 0 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Image &gt; Simulate cylindric structure</code> or <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-k">K</kbd></span> &rarr; <span class="keys"><kbd class="key-i">I</kbd></span></p>
 <p>The simulator widget is available at <code>ui.simulator</code>.</p>
-<h2 id="simulate-cylinders-with-arbitrary-shape">Simulate Cylinders with Arbitrary Shape</h2>
+<h2 id="prepare-a-spline-with-arbitrary-shape">Prepare a spline with arbitrary shape</h2>
 <p>Before running simulation, you have to place molecules at the desired positions and
 orientations. To do this, you can first create an empty image, and <a href="../fit_splines/#draw-splines">draw splines</a> of any shape on it.</p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03-4.41 0-8.03 3.62-8.03 8.03 0 4.41 3.62 8.03 8.03 8.03 4.41 0 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" href="../api/widgets/subwidgets/#cylindra.widgets.subwidgets.Simulator.create_empty_image"><code>create_empty_image</code></a></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03-4.41 0-8.03 3.62-8.03 8.03 0 4.41 3.62 8.03 8.03 8.03 4.41 0 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Simulator widget &gt; Create &gt; Create empty image</code></p>
 <p><img alt="create_empty_image" loading="lazy," src="../images/create_empty_image.png" width="480px" /></p>
 <p>The image size and the pixel scale will be directly used as the simulated tomograms.</p>
@@ -2316,7 +2340,7 @@ automatically be rescaled to the pixel scale of the tomogram.</p>
     </div>
     
     
-    <script id="__config" type="application/json">{"base": "..", "features": ["content.code.annotate", "navigation.sections", "navigation.indexes", "navigation.footer", "toc.follow", "search.suggest", "search.share"], "search": "../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "..", "features": ["content.code.annotate", "content.code.copy", "navigation.sections", "navigation.indexes", "navigation.footer", "toc.follow", "search.suggest", "search.share"], "search": "../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
       <script src="../assets/javascripts/bundle.ad660dcc.min.js"></script>
