@@ -21,6 +21,7 @@ theme:
         name: Switch to dark mode
   features:
     - content.code.annotate
+    - content.code.copy
     - navigation.sections
     - navigation.indexes
     - navigation.footer
@@ -77,6 +78,7 @@ nav:
       - Case Studies: case_studies/index.md
       - case_studies/seam_search.md
       - case_studies/ssta.md
+      - case_studies/make_figure.md
   - API References:
     - api/index.md
     - api/components.md

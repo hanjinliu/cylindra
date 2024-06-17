@@ -2,16 +2,18 @@
 
 `cylindra` implements several methods to simulate cylindric structures.
 
-## Open Simulator Widget
+## Open simulator widget
 
 :material-arrow-right-thin-circle-outline: GUI: `Image > Simulate cylindric structure` or ++ctrl+k++ &rarr; ++i++
 
 The simulator widget is available at `ui.simulator`.
 
-## Simulate Cylinders with Arbitrary Shape
+## Prepare a spline with arbitrary shape
 
 Before running simulation, you have to place molecules at the desired positions and
 orientations. To do this, you can first create an empty image, and [draw splines](fit_splines.md#draw-splines) of any shape on it.
+
+:material-arrow-right-thin-circle-outline: API: [`create_empty_image`][cylindra.widgets.subwidgets.Simulator.create_empty_image]
 
 :material-arrow-right-thin-circle-outline: GUI: `Simulator widget > Create > Create empty image`
 
