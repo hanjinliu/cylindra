@@ -38,6 +38,7 @@ class ReservedLayers:
         )
         self.highlight.editable = False
         self.to_be_removed = WeakSet[Layer]()
+        self.is_lazy = False
 
     def update_image(self, img: ip.ImgArray, tr: float):
         """Update the reserved image layer"""
