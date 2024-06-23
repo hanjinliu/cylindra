@@ -237,7 +237,9 @@ def read_spline(file: PathLike) -> CylSpline:
 
 
 def collect_projects(
-    files: PathLike | Iterable[PathLike], *, skip_exc: bool = False
+    files: PathLike | Iterable[PathLike],
+    *,
+    skip_exc: bool = False,
 ) -> ProjectSequence:
     """
     Collect project files into a ProjectSequence object.
@@ -270,5 +272,5 @@ def collect_projects(
         raise TypeError(f"files must be path or iterable of paths, got {type(files)}")
     if len(_files) == 0:
         raise FileNotFoundError(f"No project files found from the input {files!r}.")
-    seq = ProjectSequence.from_paths(_files, skip_exc=skip_exc)
+    seq = ProjectSequence.from_paths(_files, check_scale=False, skip_exc=skip_exc)
     return seq
