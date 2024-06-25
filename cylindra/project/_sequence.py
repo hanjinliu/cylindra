@@ -107,7 +107,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
     def __getitem__(self, key: int):
         out = self._projects[key]
         if isinstance(key, slice):
-            out = ProjectSequence(check_scale=True)
+            out = ProjectSequence(check_scale=self._scale_validator._check)
             out._projects = self._projects[key]
         return out
 

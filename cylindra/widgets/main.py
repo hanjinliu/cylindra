@@ -744,19 +744,26 @@ class CylindraMainWidget(MagicTemplate):
     def invert_image(self):
         """Invert the intensity of the images."""
         self.tomogram.invert()
-        img_inv = -self._reserved_layers.image.data
-        cmin, cmax = np.percentile(img_inv, [1, 99.9])
-        if cmin >= cmax:
-            cmax = cmin + 1
+        if self._reserved_layers.is_lazy:
 
-        @thread_worker.callback
-        def _invert_image_on_return():
-            self._reserved_layers.image.data = img_inv
-            self._reserved_layers.image.contrast_limits = (cmin, cmax)
-            self.Overview.image = -self.Overview.image
-            clow, chigh = self.Overview.contrast_limits
-            self.Overview.contrast_limits = -chigh, -clow
-            return undo_callback(self.invert_image)
+            @thread_worker.callback
+            def _invert_image_on_return():
+                return undo_callback(self.invert_image)
+
+        else:
+            img_inv = -self._reserved_layers.image.data
+            cmin, cmax = np.percentile(img_inv, [1, 99.9])
+            if cmin >= cmax:
+                cmax = cmin + 1
+
+            @thread_worker.callback
+            def _invert_image_on_return():
+                self._reserved_layers.image.data = img_inv
+                self._reserved_layers.image.contrast_limits = (cmin, cmax)
+                self.Overview.image = -self.Overview.image
+                clow, chigh = self.Overview.contrast_limits
+                self.Overview.contrast_limits = -chigh, -clow
+                return undo_callback(self.invert_image)
 
         return _invert_image_on_return
 
@@ -2598,8 +2605,10 @@ class CylindraMainWidget(MagicTemplate):
             nonlocal layers
             if isinstance(layers, Layer):
                 layers = [layers]
-            for layer in layers:
-                self.parent_viewer.add_layer(layer)
+            with self._pend_reset_choices():
+                for layer in layers:
+                    self.parent_viewer.add_layer(layer)
+            self.reset_choices()
 
         return future_func
 
@@ -2670,6 +2679,7 @@ class CylindraMainWidget(MagicTemplate):
         if bin_size is None:
             bin_size = round(img.scale.x / self.tomogram.scale, 2)
         _is_lazy = isinstance(img, ip.LazyImgArray)
+        self._reserved_layers.is_lazy = _is_lazy
         if _is_lazy:
             img = ip.zeros(img.shape, dtype=np.int8, like=img)
             img[0, [0, 0, 1, 1], [0, 1, 0, 1]] = 1
@@ -2678,7 +2688,8 @@ class CylindraMainWidget(MagicTemplate):
         # update image layer
         if self._reserved_layers.image not in viewer.layers:
             self._reserved_layers.reset_image(img, tr)
-            viewer.add_layer(self._reserved_layers.image)  # TODO: <-- tomogram sampled
+            with self._pend_reset_choices():
+                viewer.add_layer(self._reserved_layers.image)
         else:
             self._reserved_layers.update_image(img, tr)
         if self._reserved_layers.highlight in viewer.layers:
@@ -2686,9 +2697,11 @@ class CylindraMainWidget(MagicTemplate):
         self._reserved_layers.image.bounding_box.visible = _is_lazy
 
         # update overview
-        proj = img.mean(axis="z")
-        self.Overview.image = proj
-        self.Overview.ylim = (0, proj.shape[0])
+        if _is_lazy:
+            self.Overview.image = np.zeros((1, 1), dtype=np.float32)
+        else:
+            self.Overview.image = img.mean(axis="z")
+        self.Overview.ylim = (0, img.shape[1])
 
     def _on_layer_removing(self, event: "Event"):
         # NOTE: To make recorded macro completely reproducible, removing molecules

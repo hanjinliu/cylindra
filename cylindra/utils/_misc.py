@@ -7,6 +7,7 @@ from typing import Callable, Sequence, TypeVar
 import impy as ip
 import numpy as np
 import polars as pl
+from dask import array as da
 from numpy.typing import NDArray
 from scipy import ndimage as ndi
 
@@ -284,9 +285,6 @@ def map_coordinates_task(
     return task
 
 
-FLIP_X = ip.slicer.x[::-1]
-
-
 class Projections:
     """
     Class that stores projections of a 3D image, calculated lazily.
@@ -316,9 +314,9 @@ class Projections:
     in ``pyqtgraph``, we must **flip along X axis**.
     """
 
-    def __init__(self, image: ip.ImgArray | ip.LazyImgArray, npf: int = 13):
-        self.yx = image.mean(axis="z", dtype=np.float32)
-        self.zx = image.mean(axis="y", dtype=np.float32)[FLIP_X]
+    def __init__(self, image: da.Array, npf: int = 13):
+        self.yx = image.mean(axis=0, dtype=np.float32)
+        self.zx = image.mean(axis=1, dtype=np.float32)[:, ::-1]
         self.zx_ave = None
         self.npf = int(npf)
 
@@ -326,10 +324,8 @@ class Projections:
 
     def compute(self) -> Projections:
         """Compute the projection if needed."""
-        if isinstance(self.yx, ip.LazyImgArray):
-            self.yx = self.yx.compute()
-        if isinstance(self.zx, ip.LazyImgArray):
-            self.zx = self.zx.compute()
+        if isinstance(self.yx, da.Array) and isinstance(self.zx, da.Array):
+            self.yx, self.zx = compute(self.yx, self.zx)
         if self.zx_ave is None and self.npf > 1:
             self.zx_ave = rotational_average(self.zx, fold=self.npf)
         return self

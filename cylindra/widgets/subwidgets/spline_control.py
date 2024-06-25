@@ -226,10 +226,8 @@ class SplineControl(ChildWidget):
         projections = list[Projections]()
         for crds, npf in zip(coords, npf_list, strict=True):
             mapped = delayed_map_coordinates(imgb, crds)
-            vol = ip.LazyImgArray(
-                da.from_delayed(mapped, shape=loc_shape, dtype=imgb.dtype), axes="zyx"
-            )
-            projections.append(Projections(vol, npf=npf))
+            dsk = da.from_delayed(mapped, shape=loc_shape, dtype=imgb.dtype)
+            projections.append(Projections(dsk, npf=npf))
 
         self._projections = projections
         return None
