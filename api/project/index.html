@@ -5885,7 +5885,7 @@ properties can be generated from this object.</p>
     <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
         <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_projects</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">slice</span><span class="p">):</span>
-            <span class="n">out</span> <span class="o">=</span> <span class="n">ProjectSequence</span><span class="p">(</span><span class="n">check_scale</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">ProjectSequence</span><span class="p">(</span><span class="n">check_scale</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_scale_validator</span><span class="o">.</span><span class="n">_check</span><span class="p">)</span>
             <span class="n">out</span><span class="o">.</span><span class="n">_projects</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_projects</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">out</span>
 

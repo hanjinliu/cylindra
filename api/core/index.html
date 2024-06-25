@@ -2130,8 +2130,12 @@
 <span class="normal">271</span>
 <span class="normal">272</span>
 <span class="normal">273</span>
-<span class="normal">274</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">collect_projects</span><span class="p">(</span>
-    <span class="n">files</span><span class="p">:</span> <span class="n">PathLike</span> <span class="o">|</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">PathLike</span><span class="p">],</span> <span class="o">*</span><span class="p">,</span> <span class="n">skip_exc</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="normal">274</span>
+<span class="normal">275</span>
+<span class="normal">276</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">collect_projects</span><span class="p">(</span>
+    <span class="n">files</span><span class="p">:</span> <span class="n">PathLike</span> <span class="o">|</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">PathLike</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">skip_exc</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ProjectSequence</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Collect project files into a ProjectSequence object.</span>
@@ -2164,7 +2168,7 @@
         <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;files must be path or iterable of paths, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">files</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">_files</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No project files found from the input </span><span class="si">{</span><span class="n">files</span><span class="si">!r}</span><span class="s2">.&quot;</span><span class="p">)</span>
-    <span class="n">seq</span> <span class="o">=</span> <span class="n">ProjectSequence</span><span class="o">.</span><span class="n">from_paths</span><span class="p">(</span><span class="n">_files</span><span class="p">,</span> <span class="n">skip_exc</span><span class="o">=</span><span class="n">skip_exc</span><span class="p">)</span>
+    <span class="n">seq</span> <span class="o">=</span> <span class="n">ProjectSequence</span><span class="o">.</span><span class="n">from_paths</span><span class="p">(</span><span class="n">_files</span><span class="p">,</span> <span class="n">check_scale</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">skip_exc</span><span class="o">=</span><span class="n">skip_exc</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">seq</span>
 </code></pre></div></td></tr></table></div>
             </details>
