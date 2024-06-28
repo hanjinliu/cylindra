@@ -10,8 +10,13 @@ def _get_name(layer) -> str:
         return layer
     elif isinstance(layer, Layer):
         return layer.name
-    elif isinstance(layer, list) and len(layer) > 0:
-        return f"{_get_name(layer[0])} etc."
+    elif isinstance(layer, list):
+        if len(layer) == 0:
+            return "no layer"
+        elif len(layer) == 1:
+            return _get_name(layer[0])
+        else:
+            return f"{_get_name(layer[0])} etc."
     return repr(layer)
 
 
@@ -45,6 +50,12 @@ def align_averaged_fmt(layers: list[Layer]):
         yield f"({i * 2 + 1}/{total}) Subtomogram averaging of {name!r}"
         yield f"({i * 2 + 2}/{total}) Aligning template to the average image of {name!r}"
     yield f"({total}/{total}) Finishing"
+
+
+def align_all_fmt(layers: list[Layer]):
+    name = _get_name(layers)
+    yield f"(0/2) Preparing template images for {name!r}"
+    yield f"(1/2) Alignment of {name!r}"
 
 
 def align_template_free_fmt(layers: list[Layer]):

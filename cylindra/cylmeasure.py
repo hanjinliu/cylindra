@@ -18,6 +18,17 @@ if TYPE_CHECKING:
     from cylindra._napari import MoleculesLayer
     from cylindra.components import CylSpline
 
+INTEGER_DTYPES = (
+    pl.Int8,
+    pl.Int16,
+    pl.Int32,
+    pl.Int64,
+    pl.UInt8,
+    pl.UInt16,
+    pl.UInt32,
+    pl.UInt64,
+)
+
 
 def calc_spacing(mole: Molecules, spl: CylSpline) -> pl.Series:
     """Calculate the interval of each molecule to the next one."""
@@ -320,7 +331,7 @@ class RegionProfiler:
         assert_column_exists(feat, [target, label])
         feat_label = feat[label]
 
-        if (dtype := feat_label.dtype) not in pl.INTEGER_DTYPES:
+        if (dtype := feat_label.dtype) not in INTEGER_DTYPES:
             raise TypeError(f"label must be an integer column, got {dtype}.")
         nth = feat[Mole.nth].cast(pl.Int32).to_numpy()
         pf = feat[Mole.pf].cast(pl.Int32).to_numpy()

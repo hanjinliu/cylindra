@@ -931,7 +931,7 @@ class SubtomogramAveraging(ChildWidget):
     sep0 = field(Separator)
 
     @set_design(text="Align all molecules", location=Alignment)
-    @dask_worker.with_progress(desc=_pdesc.fmt_layers("Alignment of {}"))
+    @dask_worker.with_progress(descs=_pdesc.align_all_fmt)
     def align_all(
         self,
         layers: MoleculesLayersType,
@@ -949,7 +949,8 @@ class SubtomogramAveraging(ChildWidget):
 
         Parameters
         ----------
-        {layers}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}{method}{bin_size}
+        {layers}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}
+        {interpolation}{method}{bin_size}
         """
         t0 = timer()
         layers = assert_list_of_layers(layers, self.parent_viewer)

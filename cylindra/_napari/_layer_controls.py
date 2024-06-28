@@ -86,7 +86,10 @@ class QtMoleculesControls(QtPointsControls):
 
         layout.removeRow(self.sizeSlider)
         layout.removeRow(self.symbolComboBox)
-        layout.removeRow(self.edgeColorEdit)
+        try:
+            layout.removeRow(self.edgeColorEdit)
+        except AttributeError:  # napari>=0.5
+            layout.removeRow(self.borderColorEdit)
         layer.events.point_size.connect(self._on_point_size_change)
         layer.events.view_ndim.connect(self._on_dim_change)
 

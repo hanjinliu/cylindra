@@ -786,7 +786,7 @@ def test_radius_methods(ui: CylindraMainWidget):
 
     # Expr returns a non-numeric value
     with pytest.raises(ValueError):
-        ui.set_radius([0], "pl.col('npf').replace({100: 13}, default=None)")
+        ui.set_radius([0], "pl.col('npf').replace_strict({100: 13}, default=None)")
     # Expr returns a negative value
     with pytest.raises(ValueError):
         ui.set_radius([0], "pl.col('npf').cast(pl.Float32) * -1")

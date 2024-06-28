@@ -760,8 +760,8 @@ class CylindraMainWidget(MagicTemplate):
             def _invert_image_on_return():
                 self._reserved_layers.image.data = img_inv
                 self._reserved_layers.image.contrast_limits = (cmin, cmax)
-                self.Overview.image = -self.Overview.image
                 clow, chigh = self.Overview.contrast_limits
+                self.Overview.image = -self.Overview.image
                 self.Overview.contrast_limits = -chigh, -clow
                 return undo_callback(self.invert_image)
 

@@ -132,8 +132,8 @@ def start(
             print("Failed to disconnect the close/hide button of the dock widget.")
 
     # Programmatically run `%matplotlib inline` magic
-    ipy = get_ipython()
-    ipy.run_line_magic("matplotlib", "inline")
+    if ipy := get_ipython():
+        ipy.run_line_magic("matplotlib", "inline")
 
     return ui
 
