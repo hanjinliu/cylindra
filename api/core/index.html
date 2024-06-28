@@ -2807,8 +2807,8 @@
             <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Failed to disconnect the close/hide button of the dock widget.&quot;</span><span class="p">)</span>
 
     <span class="c1"># Programmatically run `%matplotlib inline` magic</span>
-    <span class="n">ipy</span> <span class="o">=</span> <span class="n">get_ipython</span><span class="p">()</span>
-    <span class="n">ipy</span><span class="o">.</span><span class="n">run_line_magic</span><span class="p">(</span><span class="s2">&quot;matplotlib&quot;</span><span class="p">,</span> <span class="s2">&quot;inline&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">ipy</span> <span class="o">:=</span> <span class="n">get_ipython</span><span class="p">():</span>
+        <span class="n">ipy</span><span class="o">.</span><span class="n">run_line_magic</span><span class="p">(</span><span class="s2">&quot;matplotlib&quot;</span><span class="p">,</span> <span class="s2">&quot;inline&quot;</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">ui</span>
 </code></pre></div></td></tr></table></div>
