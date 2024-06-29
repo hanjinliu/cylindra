@@ -15,6 +15,8 @@ use crate::{
     }
 };
 
+use super::potential::StiffFilamentPotential;
+
 
 pub struct ShiftResult<S> {
     pub index: usize,
@@ -554,5 +556,28 @@ impl CylindricGraph {
             return value_error!("Graph has less than 2 nodes");
         }
         Ok(())
+    }
+}
+
+
+#[derive(Clone)]
+pub struct FilamentousGraph {
+    components: GraphComponents<NodeState, EdgeType>,
+    coords: Arc<HashMap<u32, CoordinateSystem<f32>>>,
+    energy: Arc<HashMap<u32, Array<f32, Ix3>>>,
+    pub binding_potential: StiffFilamentPotential,
+    pub local_shape: Vector3D<isize>,
+}
+
+impl FilamentousGraph {
+    /// Create a graph with no nodes or edges.
+    pub fn empty() -> Self {
+        Self {
+            components: GraphComponents::empty(),
+            coords: Arc::new(HashMap::new()),
+            energy: Arc::new(HashMap::new()),
+            binding_potential: StiffFilamentPotential::unbounded(),
+            local_shape: Vector3D::new(0, 0, 0),
+        }
     }
 }

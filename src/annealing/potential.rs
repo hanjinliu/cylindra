@@ -196,3 +196,57 @@ impl BindingPotential2D for TrapezoidalPotential2D {
         self.angle.slope = slope;
     }
 }
+
+#[derive(Clone)]
+pub struct StiffFilamentPotential {
+    lon: TrapezoidalBoundary,
+    angle: TrapezoidalCosineBoundary,
+    cooling_rate: f32,
+}
+
+impl StiffFilamentPotential {
+    pub fn new(
+        lon_dist_min: f32,
+        lon_dist_max: f32,
+        lon_ang_max: f32,
+        cooling_rate: f32,
+    ) -> PyResult<Self> {
+        if cooling_rate < 0.0 {
+            return value_error!("Cooling rate must be non-negative");
+        }
+
+        Ok(
+            Self {
+                lon: TrapezoidalBoundary::new(lon_dist_min, lon_dist_max, 0.0)?,
+                angle: TrapezoidalCosineBoundary::new(lon_ang_max, 0.0)?,
+                cooling_rate,
+            }
+        )
+    }
+
+    pub fn unbounded() -> Self {
+        Self {
+            lon: TrapezoidalBoundary::unbounded(),
+            angle: TrapezoidalCosineBoundary::unbounded(),
+            cooling_rate: 0.0,
+        }
+    }
+
+    pub fn with_lon_dist(&self, min: f32, max: f32) -> PyResult<Self> {
+        let mut new = self.clone();
+        new.lon = TrapezoidalBoundary::new(min, max, self.lon.slope)?;
+        Ok(new)
+    }
+
+    pub fn with_lon_ang(&self, max: f32) -> PyResult<Self> {
+        let mut new = self.clone();
+        new.angle = TrapezoidalCosineBoundary::new(max, self.angle.slope)?;
+        Ok(new)
+    }
+
+    pub fn with_cooling_rate(&self, cooling_rate: f32) -> Self {
+        let mut new = self.clone();
+        new.cooling_rate = cooling_rate;
+        new
+    }
+}

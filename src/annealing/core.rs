@@ -339,3 +339,70 @@ impl CylindricAnnealingModel {
         }
     }
 }
+
+
+#[pyclass]
+/// A class to perform simulated annealing on a cylindric lattice.
+pub struct FilamentousAnnealingModel {
+    rng: RandomNumberGenerator,
+    optimization_state: OptimizationState,
+    reservoir: Reservoir,
+    iteration: usize,
+    reject_limit: usize,
+}
+
+impl FilamentousAnnealingModel {
+    pub fn new(seed: u64) -> Self {
+        let rng = RandomNumberGenerator::new(seed);
+        let optimization_state = OptimizationState::NotConverged;
+        Self {
+            rng,
+            optimization_state,
+            reservoir: Reservoir::new(1.0, 1.0, 0.0),
+            iteration: 0,
+            reject_limit: 1000,
+        }
+    }
+
+    pub fn with_seed(&self, seed: u64) -> Self {
+        let mut out = Self {
+            rng: self.rng.with_seed(seed),
+            optimization_state: self.optimization_state.clone(),
+            reservoir: self.reservoir.clone(),
+            iteration: self.iteration,
+            reject_limit: self.reject_limit,
+        };
+        out.reservoir.initialize();
+        out
+    }
+
+    pub fn with_reject_limit(&self, reject_limit: usize) -> Self {
+        let mut out = Self {
+            rng: self.rng.clone(),
+            optimization_state: self.optimization_state.clone(),
+            reservoir: self.reservoir.clone(),
+            iteration: self.iteration,
+            reject_limit,
+        };
+        out.reservoir.initialize();
+        out
+    }
+
+    pub fn set_reservoir(
+        mut slf: Self,
+        temperature: f32,
+        time_constant: f32,
+        min_temperature: f32,
+    ) -> Self {
+        slf.reservoir = Reservoir::new(temperature, time_constant, min_temperature);
+        slf
+    }
+
+    pub fn init_shift_random(&mut self) -> PyResult<()> {
+        Ok(())
+    }
+
+    pub fn energy(&self) -> f32 {
+        0.0
+    }
+}
