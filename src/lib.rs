@@ -8,6 +8,7 @@ pub mod annealing;
 pub mod filters;
 pub mod exceptions;
 pub mod regionprops;
+pub mod hash_2d;
 
 // Python module
 #[pymodule]

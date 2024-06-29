@@ -35,6 +35,10 @@ impl Index {
 }
 
 impl Index {
+    pub fn as_tuple_usize(&self) -> (usize, usize) {
+        (self.y as usize, self.a as usize)
+    }
+
     pub fn get_neighbors(&self, na: isize, nrise: isize) -> Neighbors {
         let y_fw = Index::new(self.y + 1, self.a);
         let y_bw = Index::new(self.y - 1, self.a);
