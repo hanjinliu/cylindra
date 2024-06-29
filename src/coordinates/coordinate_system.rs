@@ -14,6 +14,17 @@ pub struct CoordinateSystem<T> {
     pub ex: Vector3D<T>,
 }
 
+impl<T: Default> Default for CoordinateSystem<T> {
+    fn default() -> Self {
+        Self {
+            origin: Vector3D::default(),
+            ez: Vector3D::default(),
+            ey: Vector3D::default(),
+            ex: Vector3D::default(),
+        }
+    }
+}
+
 impl<T> CoordinateSystem<T> {
     pub fn new(origin: Vector3D<T>, ez: Vector3D<T>, ey: Vector3D<T>, ex: Vector3D<T>) -> Self {
         Self { origin, ez, ey, ex }
