@@ -14,6 +14,7 @@ from napari.utils.events import Event
 from napari.utils.status_messages import generate_layer_coords_status
 
 from cylindra._config import get_config
+from cylindra.const import POLARS_FLOAT_DTYPES, POLARS_INTEGER_DTYPES
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.utils import assert_column_exists, str_color
 
@@ -309,12 +310,12 @@ class MoleculesLayer(_FeatureBoundLayer, Points, _SourceBoundLayer):
         if cmap is None:
             cmap = {0: "black", 1: "white"}
         _cmap = _normalize_colormap(cmap)
-        if column.dtype in pl.INTEGER_DTYPES:
+        if column.dtype in POLARS_INTEGER_DTYPES:
             cmin, cmax = limits
             arr = (column.cast(pl.Float32).clip(cmin, cmax) - cmin) / (cmax - cmin)
             colors = _cmap.map(arr)
             self.face_color = colors
-        elif column.dtype in pl.FLOAT_DTYPES:
+        elif column.dtype in POLARS_FLOAT_DTYPES:
             self.face_color = column.name
             self.face_colormap = _cmap
             self.face_contrast_limits = limits

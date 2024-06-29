@@ -556,27 +556,33 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         return pl.concat(dfs, how="vertical")
 
     def _normalize_id(self, out: pl.DataFrame, id: _IDTYPE) -> pl.DataFrame:
-        if id == "int":
-            pass
-        elif id == "path":
-            _map = dict[int, str]()
-            _appeared = set[str]()
-            for i, prj in enumerate(self._projects):
-                path = prj.project_path
-                if path is None:
-                    raise ValueError(
-                        f"The {i}-th project {prj!r} does not have a path."
+        match id:
+            case "int":
+                pass
+            case "path":
+                _map = dict[int, str]()
+                _appeared = set[str]()
+                for i, prj in enumerate(self._projects):
+                    path = prj.project_path
+                    if path is None:
+                        raise ValueError(
+                            f"The {i}-th project {prj!r} does not have a path."
+                        )
+                    label = _make_unique_label(Path(path).parent.name, _appeared)
+                    _map[i] = label
+                    _appeared.add(label)
+                _image_col = pl.col(Mole.image)
+                if hasattr(_image_col, "replace_strict"):  # polars>=1.0.0
+                    _image_col = _image_col.replace_strict(
+                        _map, return_dtype=pl.Enum(list(_map.values()))
                     )
-                label = _make_unique_label(Path(path).parent.name, _appeared)
-                _map[i] = label
-                _appeared.add(label)
-            out = out.with_columns(
-                pl.col(Mole.image).replace_strict(
-                    _map, default=None, return_dtype=pl.Enum(list(_map.values()))
-                )
-            )
-        else:
-            raise ValueError(f"Invalid id type {id!r}.")
+                else:
+                    _image_col = _image_col.replace(
+                        _map, return_dtype=pl.Enum(list(_map.values()))
+                    )
+                out = out.with_columns(_image_col)
+            case _:
+                raise ValueError(f"Invalid id type {id!r}.")
         return out
 
 

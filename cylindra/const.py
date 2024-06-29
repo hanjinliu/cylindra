@@ -226,12 +226,26 @@ _POLARS_DTYPES = {
 }
 
 
+POLARS_INTEGER_DTYPES = (
+    pl.Int8,
+    pl.Int16,
+    pl.Int32,
+    pl.Int64,
+    pl.UInt8,
+    pl.UInt16,
+    pl.UInt32,
+    pl.UInt64,
+)
+
+POLARS_FLOAT_DTYPES = (pl.Float32, pl.Float64)
+
+
 def cast_dataframe(df: pl.DataFrame) -> pl.DataFrame:
     """Cast the dataframe to the appropriate dtype based on the columns."""
     out = list[pl.Expr]()
     for cname in df.columns:
         if dtype := _POLARS_DTYPES.get(cname, None):
             out.append(pl.col(cname).cast(dtype))
-        elif df[cname].dtype in pl.FLOAT_DTYPES:
+        elif df[cname].dtype in POLARS_FLOAT_DTYPES:
             out.append(pl.col(cname).cast(pl.Float32))
     return df.with_columns(out)
