@@ -1044,6 +1044,7 @@ class SubtomogramAveraging(ChildWidget):
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         range_long: _DistRangeLon = (4.0, 4.28),
         angle_max: _AngleMaxLon = 5.0,
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
     ):  # fmt: skip
         """
@@ -1058,7 +1059,7 @@ class SubtomogramAveraging(ChildWidget):
         Parameters
         ----------
         {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}
-        {interpolation}{range_long}{angle_max}{upsample_factor}
+        {interpolation}{range_long}{angle_max}{bin_size}{upsample_factor}
         """
         t0 = timer()
         layer = assert_layer(layer, self.parent_viewer)
@@ -1071,6 +1072,7 @@ class SubtomogramAveraging(ChildWidget):
             cutoff=cutoff,
             order=interpolation,
             upsample_factor=upsample_factor,
+            bin_size=bin_size,
         )
 
         yield
@@ -1096,6 +1098,7 @@ class SubtomogramAveraging(ChildWidget):
         range_long: _DistRangeLon = (4.0, 4.28),
         range_lat: _DistRangeLat = (5.1, 5.3),
         angle_max: _AngleMaxLon = 5.0,
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
@@ -1110,8 +1113,8 @@ class SubtomogramAveraging(ChildWidget):
         Parameters
         ----------
         {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}
-        {interpolation}{range_long}{range_lat}{angle_max}{temperature_time_const}
-        {upsample_factor}{random_seeds}
+        {interpolation}{range_long}{range_lat}{angle_max}{bin_size}
+        {temperature_time_const}{upsample_factor}{random_seeds}
         """
         t0 = timer()
         layer = assert_layer(layer, self.parent_viewer)
@@ -1126,6 +1129,7 @@ class SubtomogramAveraging(ChildWidget):
             rotations=rotations,
             cutoff=cutoff,
             order=interpolation,
+            bin_size=bin_size,
             upsample_factor=upsample_factor,
         )
         yield
@@ -1231,15 +1235,16 @@ class SubtomogramAveraging(ChildWidget):
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
     ):
         """
-        Construct a landscape for subtomogram alignment.
+        Construct a cross-correlation landscape for subtomogram alignment.
 
         Parameters
         ----------
         {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}
-        {interpolation}{upsample_factor}
+        {interpolation}{bin_size}{upsample_factor}
         """
         layer = assert_layer(layer, self.parent_viewer)
         lnd = self._construct_landscape(
@@ -1250,6 +1255,7 @@ class SubtomogramAveraging(ChildWidget):
             rotations=rotations,
             cutoff=cutoff,
             order=interpolation,
+            bin_size=bin_size,
             upsample_factor=upsample_factor,
         )
         surf = LandscapeSurface(lnd, name=f"{LANDSCAPE_PREFIX}{layer.name}")
@@ -1386,6 +1392,7 @@ class SubtomogramAveraging(ChildWidget):
         template_path: Annotated[_PathOrPathsOrNone, {"bind": _template_params}],
         mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         metric: Literal["zncc", "ncc"] = "zncc",
         column_prefix: str = "score",
     ):
@@ -1398,7 +1405,7 @@ class SubtomogramAveraging(ChildWidget):
 
         Parameters
         ----------
-        {layers}{template_path}{mask_params}{interpolation}
+        {layers}{template_path}{mask_params}{interpolation}{bin_size}
         metric : str, default "zncc"
             Metric to calculate correlation.
         column_prefix : str, default "score"
@@ -1439,6 +1446,7 @@ class SubtomogramAveraging(ChildWidget):
                 mole,
                 order=interpolation,
                 output_shape=output_shape,
+                binsize=bin_size,
             ).apply(
                 funcs,
                 schema=[f"{column_prefix}_{i}" for i in range(len(template_path))],
