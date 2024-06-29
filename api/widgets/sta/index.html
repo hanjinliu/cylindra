@@ -3996,7 +3996,15 @@
 <span class="normal">2013</span>
 <span class="normal">2014</span>
 <span class="normal">2015</span>
-<span class="normal">2016</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">widget_type</span><span class="o">=</span><span class="s2">&quot;scrollable&quot;</span><span class="p">,</span> <span class="n">use_native_menubar</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="normal">2016</span>
+<span class="normal">2017</span>
+<span class="normal">2018</span>
+<span class="normal">2019</span>
+<span class="normal">2020</span>
+<span class="normal">2021</span>
+<span class="normal">2022</span>
+<span class="normal">2023</span>
+<span class="normal">2024</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">widget_type</span><span class="o">=</span><span class="s2">&quot;scrollable&quot;</span><span class="p">,</span> <span class="n">use_native_menubar</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="nd">@_shared_doc</span><span class="o">.</span><span class="n">update_cls</span>
 <span class="k">class</span> <span class="nc">SubtomogramAveraging</span><span class="p">(</span><span class="n">ChildWidget</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Widget for subtomogram averaging.&quot;&quot;&quot;</span>
@@ -4551,6 +4559,7 @@
         <span class="n">interpolation</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;choices&quot;</span><span class="p">:</span> <span class="n">INTERPOLATION_CHOICES</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
         <span class="n">range_long</span><span class="p">:</span> <span class="n">_DistRangeLon</span> <span class="o">=</span> <span class="p">(</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">4.28</span><span class="p">),</span>
         <span class="n">angle_max</span><span class="p">:</span> <span class="n">_AngleMaxLon</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span>
+        <span class="n">bin_size</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;choices&quot;</span><span class="p">:</span> <span class="n">_get_available_binsize</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
         <span class="n">upsample_factor</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
     <span class="p">):</span>  <span class="c1"># fmt: skip</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -4565,7 +4574,7 @@
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}</span>
-<span class="sd">        {interpolation}{range_long}{angle_max}{upsample_factor}</span>
+<span class="sd">        {interpolation}{range_long}{angle_max}{bin_size}{upsample_factor}</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">t0</span> <span class="o">=</span> <span class="n">timer</span><span class="p">()</span>
         <span class="n">layer</span> <span class="o">=</span> <span class="n">assert_layer</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
@@ -4578,6 +4587,7 @@
             <span class="n">cutoff</span><span class="o">=</span><span class="n">cutoff</span><span class="p">,</span>
             <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">,</span>
             <span class="n">upsample_factor</span><span class="o">=</span><span class="n">upsample_factor</span><span class="p">,</span>
+            <span class="n">bin_size</span><span class="o">=</span><span class="n">bin_size</span><span class="p">,</span>
         <span class="p">)</span>
 
         <span class="k">yield</span>
@@ -4603,6 +4613,7 @@
         <span class="n">range_long</span><span class="p">:</span> <span class="n">_DistRangeLon</span> <span class="o">=</span> <span class="p">(</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">4.28</span><span class="p">),</span>
         <span class="n">range_lat</span><span class="p">:</span> <span class="n">_DistRangeLat</span> <span class="o">=</span> <span class="p">(</span><span class="mf">5.1</span><span class="p">,</span> <span class="mf">5.3</span><span class="p">),</span>
         <span class="n">angle_max</span><span class="p">:</span> <span class="n">_AngleMaxLon</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span>
+        <span class="n">bin_size</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;choices&quot;</span><span class="p">:</span> <span class="n">_get_available_binsize</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
         <span class="n">temperature_time_const</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mf">10.0</span><span class="p">}]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
         <span class="n">upsample_factor</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
         <span class="n">random_seeds</span><span class="p">:</span> <span class="n">_RandomSeeds</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
@@ -4617,8 +4628,8 @@
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}</span>
-<span class="sd">        {interpolation}{range_long}{range_lat}{angle_max}{temperature_time_const}</span>
-<span class="sd">        {upsample_factor}{random_seeds}</span>
+<span class="sd">        {interpolation}{range_long}{range_lat}{angle_max}{bin_size}</span>
+<span class="sd">        {temperature_time_const}{upsample_factor}{random_seeds}</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">t0</span> <span class="o">=</span> <span class="n">timer</span><span class="p">()</span>
         <span class="n">layer</span> <span class="o">=</span> <span class="n">assert_layer</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
@@ -4633,6 +4644,7 @@
             <span class="n">rotations</span><span class="o">=</span><span class="n">rotations</span><span class="p">,</span>
             <span class="n">cutoff</span><span class="o">=</span><span class="n">cutoff</span><span class="p">,</span>
             <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">,</span>
+            <span class="n">bin_size</span><span class="o">=</span><span class="n">bin_size</span><span class="p">,</span>
             <span class="n">upsample_factor</span><span class="o">=</span><span class="n">upsample_factor</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="k">yield</span>
@@ -4738,15 +4750,16 @@
         <span class="n">rotations</span><span class="p">:</span> <span class="n">_Rotations</span> <span class="o">=</span> <span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)),</span>
         <span class="n">cutoff</span><span class="p">:</span> <span class="n">_CutoffFreq</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
         <span class="n">interpolation</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;choices&quot;</span><span class="p">:</span> <span class="n">INTERPOLATION_CHOICES</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="n">bin_size</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;choices&quot;</span><span class="p">:</span> <span class="n">_get_available_binsize</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
         <span class="n">upsample_factor</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Construct a landscape for subtomogram alignment.</span>
+<span class="sd">        Construct a cross-correlation landscape for subtomogram alignment.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}</span>
-<span class="sd">        {interpolation}{upsample_factor}</span>
+<span class="sd">        {interpolation}{bin_size}{upsample_factor}</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">layer</span> <span class="o">=</span> <span class="n">assert_layer</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
         <span class="n">lnd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_construct_landscape</span><span class="p">(</span>
@@ -4757,6 +4770,7 @@
             <span class="n">rotations</span><span class="o">=</span><span class="n">rotations</span><span class="p">,</span>
             <span class="n">cutoff</span><span class="o">=</span><span class="n">cutoff</span><span class="p">,</span>
             <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">,</span>
+            <span class="n">bin_size</span><span class="o">=</span><span class="n">bin_size</span><span class="p">,</span>
             <span class="n">upsample_factor</span><span class="o">=</span><span class="n">upsample_factor</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="n">surf</span> <span class="o">=</span> <span class="n">LandscapeSurface</span><span class="p">(</span><span class="n">lnd</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">LANDSCAPE_PREFIX</span><span class="si">}{</span><span class="n">layer</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -4893,6 +4907,7 @@
         <span class="n">template_path</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">_PathOrPathsOrNone</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;bind&quot;</span><span class="p">:</span> <span class="n">_template_params</span><span class="p">}],</span>
         <span class="n">mask_params</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;bind&quot;</span><span class="p">:</span> <span class="n">_get_mask_params</span><span class="p">}]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">interpolation</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;choices&quot;</span><span class="p">:</span> <span class="n">INTERPOLATION_CHOICES</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="n">bin_size</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;choices&quot;</span><span class="p">:</span> <span class="n">_get_available_binsize</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
         <span class="n">metric</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;zncc&quot;</span><span class="p">,</span> <span class="s2">&quot;ncc&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;zncc&quot;</span><span class="p">,</span>
         <span class="n">column_prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;score&quot;</span><span class="p">,</span>
     <span class="p">):</span>
@@ -4905,7 +4920,7 @@
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        {layers}{template_path}{mask_params}{interpolation}</span>
+<span class="sd">        {layers}{template_path}{mask_params}{interpolation}{bin_size}</span>
 <span class="sd">        metric : str, default &quot;zncc&quot;</span>
 <span class="sd">            Metric to calculate correlation.</span>
 <span class="sd">        column_prefix : str, default &quot;score&quot;</span>
@@ -4946,6 +4961,7 @@
                 <span class="n">mole</span><span class="p">,</span>
                 <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">,</span>
                 <span class="n">output_shape</span><span class="o">=</span><span class="n">output_shape</span><span class="p">,</span>
+                <span class="n">binsize</span><span class="o">=</span><span class="n">bin_size</span><span class="p">,</span>
             <span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
                 <span class="n">funcs</span><span class="p">,</span>
                 <span class="n">schema</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">column_prefix</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">template_path</span><span class="p">))],</span>
@@ -5838,7 +5854,7 @@ If a path is given, image must in the same shape as the template.</p>
 
 
 <h4 id="cylindra.widgets.sta.SubtomogramAveraging.align_all_annealing" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">align_all_annealing</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">template_path</span><span class="p">,</span> <span class="n">mask_params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_shifts</span><span class="o">=</span><span class="p">(</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">),</span> <span class="n">rotations</span><span class="o">=</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)),</span> <span class="n">cutoff</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">range_long</span><span class="o">=</span><span class="p">(</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">4.28</span><span class="p">),</span> <span class="n">range_lat</span><span class="o">=</span><span class="p">(</span><span class="mf">5.1</span><span class="p">,</span> <span class="mf">5.3</span><span class="p">),</span> <span class="n">angle_max</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">temperature_time_const</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">upsample_factor</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">random_seeds</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">))</span></code>
+            <code class="highlight language-python"><span class="n">align_all_annealing</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">template_path</span><span class="p">,</span> <span class="n">mask_params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_shifts</span><span class="o">=</span><span class="p">(</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">),</span> <span class="n">rotations</span><span class="o">=</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)),</span> <span class="n">cutoff</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">range_long</span><span class="o">=</span><span class="p">(</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">4.28</span><span class="p">),</span> <span class="n">range_lat</span><span class="o">=</span><span class="p">(</span><span class="mf">5.1</span><span class="p">,</span> <span class="mf">5.3</span><span class="p">),</span> <span class="n">angle_max</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">temperature_time_const</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">upsample_factor</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">random_seeds</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">))</span></code>
 
 </h4>
 
@@ -6004,6 +6020,20 @@ If a path is given, image must in the same shape as the template.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
+            <td><code>bin_size</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Bin size of multiscale image to be used. Set to &gt;1 to boost performance.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
             <td><code>temperature_time_const</code></td>
             <td>
                   <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
@@ -6051,9 +6081,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1085</span>
-<span class="normal">1086</span>
-<span class="normal">1087</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1087</span>
 <span class="normal">1088</span>
 <span class="normal">1089</span>
 <span class="normal">1090</span>
@@ -6122,7 +6150,11 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">1153</span>
 <span class="normal">1154</span>
 <span class="normal">1155</span>
-<span class="normal">1156</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Simulated annealing&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
+<span class="normal">1156</span>
+<span class="normal">1157</span>
+<span class="normal">1158</span>
+<span class="normal">1159</span>
+<span class="normal">1160</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Simulated annealing&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">descs</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_annealing_fmt</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">align_all_annealing</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -6136,6 +6168,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
     <span class="n">range_long</span><span class="p">:</span> <span class="n">_DistRangeLon</span> <span class="o">=</span> <span class="p">(</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">4.28</span><span class="p">),</span>
     <span class="n">range_lat</span><span class="p">:</span> <span class="n">_DistRangeLat</span> <span class="o">=</span> <span class="p">(</span><span class="mf">5.1</span><span class="p">,</span> <span class="mf">5.3</span><span class="p">),</span>
     <span class="n">angle_max</span><span class="p">:</span> <span class="n">_AngleMaxLon</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span>
+    <span class="n">bin_size</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;choices&quot;</span><span class="p">:</span> <span class="n">_get_available_binsize</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
     <span class="n">temperature_time_const</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mf">10.0</span><span class="p">}]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
     <span class="n">upsample_factor</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
     <span class="n">random_seeds</span><span class="p">:</span> <span class="n">_RandomSeeds</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
@@ -6150,8 +6183,8 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}</span>
-<span class="sd">    {interpolation}{range_long}{range_lat}{angle_max}{temperature_time_const}</span>
-<span class="sd">    {upsample_factor}{random_seeds}</span>
+<span class="sd">    {interpolation}{range_long}{range_lat}{angle_max}{bin_size}</span>
+<span class="sd">    {temperature_time_const}{upsample_factor}{random_seeds}</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">t0</span> <span class="o">=</span> <span class="n">timer</span><span class="p">()</span>
     <span class="n">layer</span> <span class="o">=</span> <span class="n">assert_layer</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
@@ -6166,6 +6199,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
         <span class="n">rotations</span><span class="o">=</span><span class="n">rotations</span><span class="p">,</span>
         <span class="n">cutoff</span><span class="o">=</span><span class="n">cutoff</span><span class="p">,</span>
         <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">,</span>
+        <span class="n">bin_size</span><span class="o">=</span><span class="n">bin_size</span><span class="p">,</span>
         <span class="n">upsample_factor</span><span class="o">=</span><span class="n">upsample_factor</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="k">yield</span>
@@ -6466,7 +6500,7 @@ If a path is given, image must in the same shape as the template.</p>
 
 
 <h4 id="cylindra.widgets.sta.SubtomogramAveraging.align_all_viterbi" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">align_all_viterbi</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">template_path</span><span class="p">,</span> <span class="n">mask_params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_shifts</span><span class="o">=</span><span class="p">(</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">),</span> <span class="n">rotations</span><span class="o">=</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)),</span> <span class="n">cutoff</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">range_long</span><span class="o">=</span><span class="p">(</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">4.28</span><span class="p">),</span> <span class="n">angle_max</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">upsample_factor</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">align_all_viterbi</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">template_path</span><span class="p">,</span> <span class="n">mask_params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_shifts</span><span class="o">=</span><span class="p">(</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">),</span> <span class="n">rotations</span><span class="o">=</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)),</span> <span class="n">cutoff</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">range_long</span><span class="o">=</span><span class="p">(</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">4.28</span><span class="p">),</span> <span class="n">angle_max</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">upsample_factor</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span></code>
 
 </h4>
 
@@ -6620,6 +6654,20 @@ If a path is given, image must in the same shape as the template.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
+            <td><code>bin_size</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Bin size of multiscale image to be used. Set to &gt;1 to boost performance.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
             <td><code>upsample_factor</code></td>
             <td>
                   <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
@@ -6688,7 +6736,9 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">1080</span>
 <span class="normal">1081</span>
 <span class="normal">1082</span>
-<span class="normal">1083</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Viterbi Alignment&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
+<span class="normal">1083</span>
+<span class="normal">1084</span>
+<span class="normal">1085</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Viterbi Alignment&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">descs</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_viterbi_fmt</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">align_all_viterbi</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -6701,6 +6751,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
     <span class="n">interpolation</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;choices&quot;</span><span class="p">:</span> <span class="n">INTERPOLATION_CHOICES</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
     <span class="n">range_long</span><span class="p">:</span> <span class="n">_DistRangeLon</span> <span class="o">=</span> <span class="p">(</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">4.28</span><span class="p">),</span>
     <span class="n">angle_max</span><span class="p">:</span> <span class="n">_AngleMaxLon</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span>
+    <span class="n">bin_size</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;choices&quot;</span><span class="p">:</span> <span class="n">_get_available_binsize</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
     <span class="n">upsample_factor</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
 <span class="p">):</span>  <span class="c1"># fmt: skip</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -6715,7 +6766,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}</span>
-<span class="sd">    {interpolation}{range_long}{angle_max}{upsample_factor}</span>
+<span class="sd">    {interpolation}{range_long}{angle_max}{bin_size}{upsample_factor}</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">t0</span> <span class="o">=</span> <span class="n">timer</span><span class="p">()</span>
     <span class="n">layer</span> <span class="o">=</span> <span class="n">assert_layer</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
@@ -6728,6 +6779,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
         <span class="n">cutoff</span><span class="o">=</span><span class="n">cutoff</span><span class="p">,</span>
         <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">,</span>
         <span class="n">upsample_factor</span><span class="o">=</span><span class="n">upsample_factor</span><span class="p">,</span>
+        <span class="n">bin_size</span><span class="o">=</span><span class="n">bin_size</span><span class="p">,</span>
     <span class="p">)</span>
 
     <span class="k">yield</span>
@@ -7847,7 +7899,7 @@ be concatenated before choosing a subset.</p>
 
 
 <h4 id="cylindra.widgets.sta.SubtomogramAveraging.calculate_correlation" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">calculate_correlation</span><span class="p">(</span><span class="n">layers</span><span class="p">,</span> <span class="n">template_path</span><span class="p">,</span> <span class="n">mask_params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">metric</span><span class="o">=</span><span class="s1">&#39;zncc&#39;</span><span class="p">,</span> <span class="n">column_prefix</span><span class="o">=</span><span class="s1">&#39;score&#39;</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">calculate_correlation</span><span class="p">(</span><span class="n">layers</span><span class="p">,</span> <span class="n">template_path</span><span class="p">,</span> <span class="n">mask_params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">metric</span><span class="o">=</span><span class="s1">&#39;zncc&#39;</span><span class="p">,</span> <span class="n">column_prefix</span><span class="o">=</span><span class="s1">&#39;score&#39;</span><span class="p">)</span></code>
 
 </h4>
 
@@ -7929,6 +7981,20 @@ If a path is given, image must in the same shape as the template.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
+            <td><code>bin_size</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Bin size of multiscale image to be used. Set to &gt;1 to boost performance.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
             <td><code>metric</code></td>
             <td>
                   <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
@@ -7961,13 +8027,7 @@ If a path is given, image must in the same shape as the template.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1381</span>
-<span class="normal">1382</span>
-<span class="normal">1383</span>
-<span class="normal">1384</span>
-<span class="normal">1385</span>
-<span class="normal">1386</span>
-<span class="normal">1387</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1387</span>
 <span class="normal">1388</span>
 <span class="normal">1389</span>
 <span class="normal">1390</span>
@@ -8027,7 +8087,15 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="normal">1444</span>
 <span class="normal">1445</span>
 <span class="normal">1446</span>
-<span class="normal">1447</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
+<span class="normal">1447</span>
+<span class="normal">1448</span>
+<span class="normal">1449</span>
+<span class="normal">1450</span>
+<span class="normal">1451</span>
+<span class="normal">1452</span>
+<span class="normal">1453</span>
+<span class="normal">1454</span>
+<span class="normal">1455</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">fmt_layers</span><span class="p">(</span><span class="s2">&quot;Calculating correlations of </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="p">))</span>  <span class="c1"># fmt: skip</span>
 <span class="k">def</span> <span class="nf">calculate_correlation</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -8035,6 +8103,7 @@ If a path is given, image must in the same shape as the template.</p>
     <span class="n">template_path</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">_PathOrPathsOrNone</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;bind&quot;</span><span class="p">:</span> <span class="n">_template_params</span><span class="p">}],</span>
     <span class="n">mask_params</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;bind&quot;</span><span class="p">:</span> <span class="n">_get_mask_params</span><span class="p">}]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">interpolation</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;choices&quot;</span><span class="p">:</span> <span class="n">INTERPOLATION_CHOICES</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+    <span class="n">bin_size</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;choices&quot;</span><span class="p">:</span> <span class="n">_get_available_binsize</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
     <span class="n">metric</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;zncc&quot;</span><span class="p">,</span> <span class="s2">&quot;ncc&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;zncc&quot;</span><span class="p">,</span>
     <span class="n">column_prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;score&quot;</span><span class="p">,</span>
 <span class="p">):</span>
@@ -8047,7 +8116,7 @@ If a path is given, image must in the same shape as the template.</p>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
-<span class="sd">    {layers}{template_path}{mask_params}{interpolation}</span>
+<span class="sd">    {layers}{template_path}{mask_params}{interpolation}{bin_size}</span>
 <span class="sd">    metric : str, default &quot;zncc&quot;</span>
 <span class="sd">        Metric to calculate correlation.</span>
 <span class="sd">    column_prefix : str, default &quot;score&quot;</span>
@@ -8088,6 +8157,7 @@ If a path is given, image must in the same shape as the template.</p>
             <span class="n">mole</span><span class="p">,</span>
             <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">,</span>
             <span class="n">output_shape</span><span class="o">=</span><span class="n">output_shape</span><span class="p">,</span>
+            <span class="n">binsize</span><span class="o">=</span><span class="n">bin_size</span><span class="p">,</span>
         <span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
             <span class="n">funcs</span><span class="p">,</span>
             <span class="n">schema</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">column_prefix</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">template_path</span><span class="p">))],</span>
@@ -8258,15 +8328,7 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1449</span>
-<span class="normal">1450</span>
-<span class="normal">1451</span>
-<span class="normal">1452</span>
-<span class="normal">1453</span>
-<span class="normal">1454</span>
-<span class="normal">1455</span>
-<span class="normal">1456</span>
-<span class="normal">1457</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1457</span>
 <span class="normal">1458</span>
 <span class="normal">1459</span>
 <span class="normal">1460</span>
@@ -8334,7 +8396,15 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 <span class="normal">1522</span>
 <span class="normal">1523</span>
 <span class="normal">1524</span>
-<span class="normal">1525</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Calculate FSC&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
+<span class="normal">1525</span>
+<span class="normal">1526</span>
+<span class="normal">1527</span>
+<span class="normal">1528</span>
+<span class="normal">1529</span>
+<span class="normal">1530</span>
+<span class="normal">1531</span>
+<span class="normal">1532</span>
+<span class="normal">1533</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Calculate FSC&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">fmt_layers</span><span class="p">(</span><span class="s2">&quot;Calculating FSC of </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="p">))</span>
 <span class="k">def</span> <span class="nf">calculate_fsc</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -8588,15 +8658,7 @@ If a path is given, image must in the same shape as the template.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1527</span>
-<span class="normal">1528</span>
-<span class="normal">1529</span>
-<span class="normal">1530</span>
-<span class="normal">1531</span>
-<span class="normal">1532</span>
-<span class="normal">1533</span>
-<span class="normal">1534</span>
-<span class="normal">1535</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1535</span>
 <span class="normal">1536</span>
 <span class="normal">1537</span>
 <span class="normal">1538</span>
@@ -8662,7 +8724,15 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="normal">1598</span>
 <span class="normal">1599</span>
 <span class="normal">1600</span>
-<span class="normal">1601</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;PCA/K-means classification&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
+<span class="normal">1601</span>
+<span class="normal">1602</span>
+<span class="normal">1603</span>
+<span class="normal">1604</span>
+<span class="normal">1605</span>
+<span class="normal">1606</span>
+<span class="normal">1607</span>
+<span class="normal">1608</span>
+<span class="normal">1609</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;PCA/K-means classification&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">descs</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">classify_pca_fmt</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">classify_pca</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -8747,14 +8817,14 @@ If a path is given, image must in the same shape as the template.</p>
 
 
 <h4 id="cylindra.widgets.sta.SubtomogramAveraging.construct_landscape" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">construct_landscape</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">template_path</span><span class="p">,</span> <span class="n">mask_params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_shifts</span><span class="o">=</span><span class="p">(</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">),</span> <span class="n">rotations</span><span class="o">=</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)),</span> <span class="n">cutoff</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">upsample_factor</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">construct_landscape</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">template_path</span><span class="p">,</span> <span class="n">mask_params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_shifts</span><span class="o">=</span><span class="p">(</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">),</span> <span class="n">rotations</span><span class="o">=</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)),</span> <span class="n">cutoff</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">upsample_factor</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span></code>
 
 </h4>
 
 
     <div class="doc doc-contents ">
 
-      <p>Construct a landscape for subtomogram alignment.</p>
+      <p>Construct a cross-correlation landscape for subtomogram alignment.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -8868,6 +8938,20 @@ If a path is given, image must in the same shape as the template.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
+            <td><code>bin_size</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Bin size of multiscale image to be used. Set to &gt;1 to boost performance.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
             <td><code>upsample_factor</code></td>
             <td>
                   <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
@@ -8887,11 +8971,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1223</span>
-<span class="normal">1224</span>
-<span class="normal">1225</span>
-<span class="normal">1226</span>
-<span class="normal">1227</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1227</span>
 <span class="normal">1228</span>
 <span class="normal">1229</span>
 <span class="normal">1230</span>
@@ -8928,7 +9008,13 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">1261</span>
 <span class="normal">1262</span>
 <span class="normal">1263</span>
-<span class="normal">1264</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
+<span class="normal">1264</span>
+<span class="normal">1265</span>
+<span class="normal">1266</span>
+<span class="normal">1267</span>
+<span class="normal">1268</span>
+<span class="normal">1269</span>
+<span class="normal">1270</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">descs</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">construct_landscape_fmt</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">construct_landscape</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -8939,15 +9025,16 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
     <span class="n">rotations</span><span class="p">:</span> <span class="n">_Rotations</span> <span class="o">=</span> <span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)),</span>
     <span class="n">cutoff</span><span class="p">:</span> <span class="n">_CutoffFreq</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
     <span class="n">interpolation</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;choices&quot;</span><span class="p">:</span> <span class="n">INTERPOLATION_CHOICES</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+    <span class="n">bin_size</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;choices&quot;</span><span class="p">:</span> <span class="n">_get_available_binsize</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
     <span class="n">upsample_factor</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Construct a landscape for subtomogram alignment.</span>
+<span class="sd">    Construct a cross-correlation landscape for subtomogram alignment.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}</span>
-<span class="sd">    {interpolation}{upsample_factor}</span>
+<span class="sd">    {interpolation}{bin_size}{upsample_factor}</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">layer</span> <span class="o">=</span> <span class="n">assert_layer</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
     <span class="n">lnd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_construct_landscape</span><span class="p">(</span>
@@ -8958,6 +9045,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
         <span class="n">rotations</span><span class="o">=</span><span class="n">rotations</span><span class="p">,</span>
         <span class="n">cutoff</span><span class="o">=</span><span class="n">cutoff</span><span class="p">,</span>
         <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">,</span>
+        <span class="n">bin_size</span><span class="o">=</span><span class="n">bin_size</span><span class="p">,</span>
         <span class="n">upsample_factor</span><span class="o">=</span><span class="n">upsample_factor</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">surf</span> <span class="o">=</span> <span class="n">LandscapeSurface</span><span class="p">(</span><span class="n">lnd</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">LANDSCAPE_PREFIX</span><span class="si">}{</span><span class="n">layer</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -9179,11 +9267,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1158</span>
-<span class="normal">1159</span>
-<span class="normal">1160</span>
-<span class="normal">1161</span>
-<span class="normal">1162</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1162</span>
 <span class="normal">1163</span>
 <span class="normal">1164</span>
 <span class="normal">1165</span>
@@ -9242,7 +9326,11 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">1218</span>
 <span class="normal">1219</span>
 <span class="normal">1220</span>
-<span class="normal">1221</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
+<span class="normal">1221</span>
+<span class="normal">1222</span>
+<span class="normal">1223</span>
+<span class="normal">1224</span>
+<span class="normal">1225</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Extending filaments&quot;</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">extend_filaments</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -9327,15 +9415,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1915</span>
-<span class="normal">1916</span>
-<span class="normal">1917</span>
-<span class="normal">1918</span>
-<span class="normal">1919</span>
-<span class="normal">1920</span>
-<span class="normal">1921</span>
-<span class="normal">1922</span>
-<span class="normal">1923</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1923</span>
 <span class="normal">1924</span>
 <span class="normal">1925</span>
 <span class="normal">1926</span>
@@ -9350,7 +9430,15 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">1935</span>
 <span class="normal">1936</span>
 <span class="normal">1937</span>
-<span class="normal">1938</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+<span class="normal">1938</span>
+<span class="normal">1939</span>
+<span class="normal">1940</span>
+<span class="normal">1941</span>
+<span class="normal">1942</span>
+<span class="normal">1943</span>
+<span class="normal">1944</span>
+<span class="normal">1945</span>
+<span class="normal">1946</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span> <span class="nf">get_mask</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -9489,15 +9577,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1940</span>
-<span class="normal">1941</span>
-<span class="normal">1942</span>
-<span class="normal">1943</span>
-<span class="normal">1944</span>
-<span class="normal">1945</span>
-<span class="normal">1946</span>
-<span class="normal">1947</span>
-<span class="normal">1948</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1948</span>
 <span class="normal">1949</span>
 <span class="normal">1950</span>
 <span class="normal">1951</span>
@@ -9523,7 +9603,15 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">1971</span>
 <span class="normal">1972</span>
 <span class="normal">1973</span>
-<span class="normal">1974</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+<span class="normal">1974</span>
+<span class="normal">1975</span>
+<span class="normal">1976</span>
+<span class="normal">1977</span>
+<span class="normal">1978</span>
+<span class="normal">1979</span>
+<span class="normal">1980</span>
+<span class="normal">1981</span>
+<span class="normal">1982</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span> <span class="nf">get_subtomograms</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -9579,16 +9667,16 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1904</span>
-<span class="normal">1905</span>
-<span class="normal">1906</span>
-<span class="normal">1907</span>
-<span class="normal">1908</span>
-<span class="normal">1909</span>
-<span class="normal">1910</span>
-<span class="normal">1911</span>
-<span class="normal">1912</span>
-<span class="normal">1913</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1912</span>
+<span class="normal">1913</span>
+<span class="normal">1914</span>
+<span class="normal">1915</span>
+<span class="normal">1916</span>
+<span class="normal">1917</span>
+<span class="normal">1918</span>
+<span class="normal">1919</span>
+<span class="normal">1920</span>
+<span class="normal">1921</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span> <span class="nf">get_template</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">template_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">,</span> <span class="n">scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
@@ -9619,17 +9707,17 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1266</span>
-<span class="normal">1267</span>
-<span class="normal">1268</span>
-<span class="normal">1269</span>
-<span class="normal">1270</span>
-<span class="normal">1271</span>
-<span class="normal">1272</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1272</span>
 <span class="normal">1273</span>
 <span class="normal">1274</span>
 <span class="normal">1275</span>
-<span class="normal">1276</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Run alignment on landscape&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
+<span class="normal">1276</span>
+<span class="normal">1277</span>
+<span class="normal">1278</span>
+<span class="normal">1279</span>
+<span class="normal">1280</span>
+<span class="normal">1281</span>
+<span class="normal">1282</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Run alignment on landscape&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Peak detection on landscape&quot;</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">run_align_on_landscape</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">landscape_layer</span><span class="p">:</span> <span class="n">_LandscapeLayer</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Find the optimal displacement for each molecule on the landscape.&quot;&quot;&quot;</span>
@@ -9760,13 +9848,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1306</span>
-<span class="normal">1307</span>
-<span class="normal">1308</span>
-<span class="normal">1309</span>
-<span class="normal">1310</span>
-<span class="normal">1311</span>
-<span class="normal">1312</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1312</span>
 <span class="normal">1313</span>
 <span class="normal">1314</span>
 <span class="normal">1315</span>
@@ -9805,7 +9887,13 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">1348</span>
 <span class="normal">1349</span>
 <span class="normal">1350</span>
-<span class="normal">1351</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Run annealing on landscape&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
+<span class="normal">1351</span>
+<span class="normal">1352</span>
+<span class="normal">1353</span>
+<span class="normal">1354</span>
+<span class="normal">1355</span>
+<span class="normal">1356</span>
+<span class="normal">1357</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Run annealing on landscape&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Running simulated annealing&quot;</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">run_annealing_on_landscape</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -9929,13 +10017,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1278</span>
-<span class="normal">1279</span>
-<span class="normal">1280</span>
-<span class="normal">1281</span>
-<span class="normal">1282</span>
-<span class="normal">1283</span>
-<span class="normal">1284</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1284</span>
 <span class="normal">1285</span>
 <span class="normal">1286</span>
 <span class="normal">1287</span>
@@ -9955,7 +10037,13 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">1301</span>
 <span class="normal">1302</span>
 <span class="normal">1303</span>
-<span class="normal">1304</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Run Viterbi alignment on landscape&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
+<span class="normal">1304</span>
+<span class="normal">1305</span>
+<span class="normal">1306</span>
+<span class="normal">1307</span>
+<span class="normal">1308</span>
+<span class="normal">1309</span>
+<span class="normal">1310</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Run Viterbi alignment on landscape&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Running Viterbi alignment&quot;</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">run_viterbi_on_landscape</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -10003,13 +10091,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1362</span>
-<span class="normal">1363</span>
-<span class="normal">1364</span>
-<span class="normal">1365</span>
-<span class="normal">1366</span>
-<span class="normal">1367</span>
-<span class="normal">1368</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1368</span>
 <span class="normal">1369</span>
 <span class="normal">1370</span>
 <span class="normal">1371</span>
@@ -10020,7 +10102,13 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">1376</span>
 <span class="normal">1377</span>
 <span class="normal">1378</span>
-<span class="normal">1379</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
+<span class="normal">1379</span>
+<span class="normal">1380</span>
+<span class="normal">1381</span>
+<span class="normal">1382</span>
+<span class="normal">1383</span>
+<span class="normal">1384</span>
+<span class="normal">1385</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span> <span class="nf">save_annealing_scores</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -10059,16 +10147,16 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1780</span>
-<span class="normal">1781</span>
-<span class="normal">1782</span>
-<span class="normal">1783</span>
-<span class="normal">1784</span>
-<span class="normal">1785</span>
-<span class="normal">1786</span>
-<span class="normal">1787</span>
-<span class="normal">1788</span>
-<span class="normal">1789</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Save last average&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1788</span>
+<span class="normal">1789</span>
+<span class="normal">1790</span>
+<span class="normal">1791</span>
+<span class="normal">1792</span>
+<span class="normal">1793</span>
+<span class="normal">1794</span>
+<span class="normal">1795</span>
+<span class="normal">1796</span>
+<span class="normal">1797</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Save last average&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">save_last_average</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Save</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">IMAGE</span><span class="p">]):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Save the lastly generated average image.&quot;&quot;&quot;</span>
     <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
@@ -10142,15 +10230,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1747</span>
-<span class="normal">1748</span>
-<span class="normal">1749</span>
-<span class="normal">1750</span>
-<span class="normal">1751</span>
-<span class="normal">1752</span>
-<span class="normal">1753</span>
-<span class="normal">1754</span>
-<span class="normal">1755</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1755</span>
 <span class="normal">1756</span>
 <span class="normal">1757</span>
 <span class="normal">1758</span>
@@ -10163,7 +10243,15 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">1765</span>
 <span class="normal">1766</span>
 <span class="normal">1767</span>
-<span class="normal">1768</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Save seam search result&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
+<span class="normal">1768</span>
+<span class="normal">1769</span>
+<span class="normal">1770</span>
+<span class="normal">1771</span>
+<span class="normal">1772</span>
+<span class="normal">1773</span>
+<span class="normal">1774</span>
+<span class="normal">1775</span>
+<span class="normal">1776</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Save seam search result&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span> <span class="nf">save_seam_search_result</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -10338,15 +10426,7 @@ corresponding spline will be used.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1603</span>
-<span class="normal">1604</span>
-<span class="normal">1605</span>
-<span class="normal">1606</span>
-<span class="normal">1607</span>
-<span class="normal">1608</span>
-<span class="normal">1609</span>
-<span class="normal">1610</span>
-<span class="normal">1611</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1611</span>
 <span class="normal">1612</span>
 <span class="normal">1613</span>
 <span class="normal">1614</span>
@@ -10419,7 +10499,15 @@ corresponding spline will be used.</p>
 <span class="normal">1681</span>
 <span class="normal">1682</span>
 <span class="normal">1683</span>
-<span class="normal">1684</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Seam search by correlation&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
+<span class="normal">1684</span>
+<span class="normal">1685</span>
+<span class="normal">1686</span>
+<span class="normal">1687</span>
+<span class="normal">1688</span>
+<span class="normal">1689</span>
+<span class="normal">1690</span>
+<span class="normal">1691</span>
+<span class="normal">1692</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Seam search by correlation&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">fmt_layer</span><span class="p">(</span><span class="s2">&quot;Seam search of </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="p">))</span>
 <span class="k">def</span> <span class="nf">seam_search</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -10565,15 +10653,7 @@ corresponding spline will be used.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1686</span>
-<span class="normal">1687</span>
-<span class="normal">1688</span>
-<span class="normal">1689</span>
-<span class="normal">1690</span>
-<span class="normal">1691</span>
-<span class="normal">1692</span>
-<span class="normal">1693</span>
-<span class="normal">1694</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1694</span>
 <span class="normal">1695</span>
 <span class="normal">1696</span>
 <span class="normal">1697</span>
@@ -10589,7 +10669,15 @@ corresponding spline will be used.</p>
 <span class="normal">1707</span>
 <span class="normal">1708</span>
 <span class="normal">1709</span>
-<span class="normal">1710</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
+<span class="normal">1710</span>
+<span class="normal">1711</span>
+<span class="normal">1712</span>
+<span class="normal">1713</span>
+<span class="normal">1714</span>
+<span class="normal">1715</span>
+<span class="normal">1716</span>
+<span class="normal">1717</span>
+<span class="normal">1718</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">seam_search_by_feature</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
@@ -10679,15 +10767,7 @@ corresponding spline will be used.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1712</span>
-<span class="normal">1713</span>
-<span class="normal">1714</span>
-<span class="normal">1715</span>
-<span class="normal">1716</span>
-<span class="normal">1717</span>
-<span class="normal">1718</span>
-<span class="normal">1719</span>
-<span class="normal">1720</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1720</span>
 <span class="normal">1721</span>
 <span class="normal">1722</span>
 <span class="normal">1723</span>
@@ -10703,7 +10783,15 @@ corresponding spline will be used.</p>
 <span class="normal">1733</span>
 <span class="normal">1734</span>
 <span class="normal">1735</span>
-<span class="normal">1736</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
+<span class="normal">1736</span>
+<span class="normal">1737</span>
+<span class="normal">1738</span>
+<span class="normal">1739</span>
+<span class="normal">1740</span>
+<span class="normal">1741</span>
+<span class="normal">1742</span>
+<span class="normal">1743</span>
+<span class="normal">1744</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">seam_search_manually</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
