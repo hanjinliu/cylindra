@@ -56,7 +56,7 @@ impl Clone for RandomNumberGenerator {
     }
 }
 
-const BUF: usize = 1;
+const BUF: usize = 2;
 const SCALE: f32 = (1 << (24 - BUF)) as f32;
 
 impl RandomNumberGenerator {
