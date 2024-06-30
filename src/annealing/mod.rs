@@ -4,4 +4,4 @@ pub mod graph;
 pub mod reservoir;
 pub mod random;
 
-pub use self::core::CylindricAnnealingModel;
+pub use self::core::{CylindricAnnealingModel, FilamentousAnnealingModel};
