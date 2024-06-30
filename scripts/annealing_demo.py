@@ -48,7 +48,7 @@ def mesh_annealing_demo(
         upsample_factor=upsample_factor,
     )
     spl = layer.source_spline
-    annealing = landscape.annealing_model(
+    annealing = landscape.cylindric_annealing_model(
         spl,
         distance_range_long,
         distance_range_lat,

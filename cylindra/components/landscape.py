@@ -24,7 +24,10 @@ if TYPE_CHECKING:
     from acryo.loader._base import LoaderBase, MaskInputType, TemplateInputType
     from dask import array as da
 
-    from cylindra._cylindra_ext import CylindricAnnealingModel
+    from cylindra._cylindra_ext import (
+        CylindricAnnealingModel,
+        FilamentousAnnealingModel,
+    )
 
     _DistLike = nm | str
 
@@ -316,7 +319,7 @@ class Landscape:
         molecules_opt = self.transform_molecules(mole, inds)
         return molecules_opt
 
-    def annealing_model(
+    def cylindric_annealing_model(
         self,
         spl: CylSpline,
         distance_range_long: tuple[_DistLike, _DistLike],
@@ -362,8 +365,54 @@ class Landscape:
                 time_constant=time_const,
             )
             .set_box_potential(
-                *self._norm_distance_range_long(distance_range_long, model),
-                *self._norm_distance_range_lat(distance_range_lat, model),
+                *self._norm_distance_range(
+                    distance_range_long, model.longitudinal_distances().mean()
+                ),
+                *self._norm_distance_range(
+                    distance_range_lat, model.lateral_distances().mean()
+                ),
+                float(np.deg2rad(angle_max)),
+                cooling_rate=cooling_rate,
+            )
+            .with_reject_limit(reject_limit)
+        )
+
+    def filamentous_annealing_model(
+        self,
+        distance_range: tuple[_DistLike, _DistLike],
+        angle_max: float | None = None,
+        temperature_time_const: float = 1.0,
+        temperature: float | None = None,
+        cooling_rate: float | None = None,
+        reject_limit: int | None = None,
+    ) -> FilamentousAnnealingModel:
+        from cylindra._cylindra_ext import FilamentousAnnealingModel
+
+        molecules = self.molecules
+        mole = molecules.translate_internal(-self.offset_nm)
+        if angle_max is None:
+            angle_max = 90.0
+
+        time_const, temperature, cooling_rate, reject_limit = self._normalize_args(
+            temperature_time_const, temperature, cooling_rate, reject_limit
+        )
+
+        model = FilamentousAnnealingModel().construct_graph(mole.count())
+
+        return (
+            model.set_graph_coordinates(
+                origin=mole.pos,
+                zvec=(mole.z * self.scale_factor).astype(np.float32),
+                yvec=(mole.y * self.scale_factor).astype(np.float32),
+                xvec=(mole.x * self.scale_factor).astype(np.float32),
+            )
+            .set_energy_landscape(self.energies)
+            .set_reservoir(
+                temperature=temperature,
+                time_constant=time_const,
+            )
+            .set_box_potential(
+                *self._norm_distance_range(distance_range, model.distances().mean()),
                 float(np.deg2rad(angle_max)),
                 cooling_rate=cooling_rate,
             )
@@ -387,7 +436,7 @@ class Landscape:
         if angle_max is None:
             angle_max = 90.0
         random_seeds = _normalize_random_seeds(random_seeds)
-        annealing = self.annealing_model(
+        annealing = self.cylindric_annealing_model(
             spl,
             distance_range_long=distance_range_long,
             distance_range_lat=distance_range_lat,
@@ -409,16 +458,16 @@ class Landscape:
         return compute(*tasks)
 
     def run_annealing_along_spline(
-        landscape: Landscape,
+        self,
         spl: CylSpline,
-        range_long: tuple[float, float],
+        range_long: tuple[float | str, float | str],
         range_lat: tuple[float | str, float | str],
         angle_max: float,
         temperature_time_const: float = 1.0,
         random_seeds: Sequence[int] = (0, 1, 2, 3, 4),
-    ):
-        mole = landscape.molecules
-        results = landscape.run_annealing(
+    ) -> tuple[Molecules, list[AnnealingResult]]:
+        mole = self.molecules
+        results = self.run_annealing(
             spl,
             range_long,
             range_lat,
@@ -441,8 +490,52 @@ class Landscape:
             }
         )
         results = sorted(results, key=lambda r: r.energies[-1])
-        mole_opt = landscape.transform_molecules(mole, results[0].indices)
+        mole_opt = self.transform_molecules(mole, results[0].indices)
         mole_opt = _update_mole_pos(mole_opt, mole, spl)
+        return mole_opt, results
+
+    def run_filamentous_annealing(
+        self,
+        range: tuple[float | str, float | str],
+        angle_max: float | None = None,
+        temperature_time_const: float = 1.0,
+        random_seeds: Sequence[int] = (0, 1, 2, 3, 4),
+    ) -> tuple[Molecules, list[AnnealingResult]]:
+        mole = self.molecules
+        if angle_max is None:
+            angle_max = 90.0
+        random_seeds = _normalize_random_seeds(random_seeds)
+        annealing = self.filamentous_annealing_model(
+            distance_range=range,
+            angle_max=angle_max,
+            temperature_time_const=temperature_time_const,
+        )
+
+        batch_size = _to_batch_size(annealing.time_constant())
+        temp0 = annealing.temperature()
+        _Logger.info("Running annealing")
+        _Logger.info(f"  shape: {self.energies.shape[1:]!r}")
+        tasks = [
+            _run_annealing(annealing.with_seed(s), batch_size, temp0)
+            for s in random_seeds
+        ]
+        results = compute(*tasks)
+        if all(result.state == "failed" for result in results):
+            raise RuntimeError(
+                "Failed to optimize for all trials. You may check the distance range."
+            )
+        elif not any(result.state == "converged" for result in results):
+            _Logger.print("Optimization did not converge for any trial.")
+
+        _Logger.print_table(
+            {
+                "Iteration": [r.niter for r in results],
+                "Score": [-float(r.energies[-1]) for r in results],
+                "State": [r.state for r in results],
+            }
+        )
+        results = sorted(results, key=lambda r: r.energies[-1])
+        mole_opt = self.transform_molecules(mole, results[0].indices)
         return mole_opt, results
 
     def _normalize_args(
@@ -554,34 +647,17 @@ class Landscape:
         self.quaternions.tofile(path / "quaternions.txt", sep=",")
         return None
 
-    def _norm_distance_range_long(
+    def _norm_distance_range(
         self,
         rng: tuple[nm | str, nm | str],
-        model: CylindricAnnealingModel,
+        mean: nm,
     ) -> tuple[nm, nm]:
         rng0, rng1 = rng
         if isinstance(rng0, str) or isinstance(rng1, str):
-            long_dist = model.longitudinal_distances().mean()
             if isinstance(rng0, str):
-                rng0 = _norm_distance(rng0, long_dist)
+                rng0 = _norm_distance(rng0, mean)
             if isinstance(rng1, str):
-                rng1 = _norm_distance(rng1, long_dist)
-        if not rng0 < rng1:
-            raise ValueError(f"Lower is larger than the upper: {(rng0, rng1)}")
-        return rng0, rng1
-
-    def _norm_distance_range_lat(
-        self,
-        rng: tuple[nm | str, nm | str],
-        model: CylindricAnnealingModel,
-    ) -> tuple[nm, nm]:
-        rng0, rng1 = rng
-        if isinstance(rng0, str) or isinstance(rng1, str):
-            lat_dist = model.lateral_distances().mean()
-            if isinstance(rng0, str):
-                rng0 = _norm_distance(rng0, lat_dist)
-            if isinstance(rng1, str):
-                rng1 = _norm_distance(rng1, lat_dist)
+                rng1 = _norm_distance(rng1, mean)
         if not rng0 < rng1:
             raise ValueError(f"Lower is larger than the upper: {(rng0, rng1)}")
         return rng0, rng1
