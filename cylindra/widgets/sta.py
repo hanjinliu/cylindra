@@ -286,6 +286,7 @@ class Alignment(MagicTemplate):
     sep0 = field(Separator)
     align_all_viterbi = abstractapi()
     align_all_annealing = abstractapi()
+    align_all_rfa = abstractapi()
     save_annealing_scores = abstractapi()
     sep1 = field(Separator)
     TemplateImage = TemplateImage
@@ -300,6 +301,7 @@ class LandscapeMenu(MagicTemplate):
     run_align_on_landscape = abstractapi()
     run_viterbi_on_landscape = abstractapi()
     run_annealing_on_landscape = abstractapi()
+    run_rfa_on_landscape = abstractapi()
 
 
 @magicclass(record=False, properties={"margins": (0, 0, 0, 0)})
@@ -1084,7 +1086,7 @@ class SubtomogramAveraging(ChildWidget):
         t0.toc()
         return self._align_all_on_return.with_args([mole], [layer])
 
-    @set_design(text="Simulated annealing", location=Alignment)
+    @set_design(text="Simulated annealing (RMA)", location=Alignment)
     @dask_worker.with_progress(descs=_pdesc.align_annealing_fmt)
     def align_all_annealing(
         self,
@@ -1137,6 +1139,76 @@ class SubtomogramAveraging(ChildWidget):
             layer.source_spline,
             range_long=range_long,
             range_lat=range_lat,
+            angle_max=angle_max,
+            temperature_time_const=temperature_time_const,
+            random_seeds=random_seeds,
+        )
+        t0.toc()
+
+        @thread_worker.callback
+        def _on_return():
+            points = main.add_molecules(
+                mole,
+                name=_coerce_aligned_name(layer.name, self.parent_viewer),
+                source=layer.source_component,
+                metadata={ANNEALING_RESULT: results[0]},
+            )
+            layer.visible = False
+            with _Logger.set_plt():
+                _annealing.plot_annealing_result(results)
+
+            return self._undo_for_new_layer([layer.name], [points])
+
+        return _on_return
+
+    @set_design(text="Simulated annealing (RFA)", location=Alignment)
+    @dask_worker.with_progress(descs=_pdesc.align_annealing_fmt)
+    def align_all_rfa(
+        self,
+        layer: MoleculesLayerType,
+        template_path: Annotated[_PathOrPathsOrNone, {"bind": _template_params}],
+        mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
+        max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
+        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
+        cutoff: _CutoffFreq = 0.5,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        range_long: _DistRangeLon = (4.0, 4.28),
+        angle_max: _AngleMaxLon = 5.0,
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
+        upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
+        random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
+    ):
+        """
+        1D-constrained subtomogram alignment on a filament using simulated annealing.
+
+        This alignment method considers the distance between every adjacent monomers.
+
+        Parameters
+        ----------
+        {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}
+        {interpolation}{range_long}{angle_max}{bin_size}{temperature_time_const}
+        {upsample_factor}{random_seeds}
+        """
+        t0 = timer()
+        layer = assert_layer(layer, self.parent_viewer)
+        if layer.source_spline is None:
+            raise ValueError("RMA requires a spline.")
+        main = self._get_main()
+        landscape = self._construct_landscape(
+            molecules=layer.molecules,
+            template_path=template_path,
+            mask_params=mask_params,
+            max_shifts=max_shifts,
+            rotations=rotations,
+            cutoff=cutoff,
+            order=interpolation,
+            bin_size=bin_size,
+            upsample_factor=upsample_factor,
+        )
+        yield
+        mole, results = landscape.run_filamentous_annealing(
+            range=range_long,
             angle_max=angle_max,
             temperature_time_const=temperature_time_const,
             random_seeds=random_seeds,
@@ -1269,7 +1341,7 @@ class SubtomogramAveraging(ChildWidget):
 
         return _on_return
 
-    @set_design(text="Run alignment on landscape", location=LandscapeMenu)
+    @set_design(text="Run alignment", location=LandscapeMenu)
     @dask_worker.with_progress(desc="Peak detection on landscape")
     def run_align_on_landscape(self, landscape_layer: _LandscapeLayer):
         """Find the optimal displacement for each molecule on the landscape."""
@@ -1281,7 +1353,7 @@ class SubtomogramAveraging(ChildWidget):
             mole_opt, landscape_layer.name, spl
         )
 
-    @set_design(text="Run Viterbi alignment on landscape", location=LandscapeMenu)
+    @set_design(text="Run Viterbi alignment", location=LandscapeMenu)
     @dask_worker.with_progress(desc="Running Viterbi alignment")
     def run_viterbi_on_landscape(
         self,
@@ -1309,7 +1381,7 @@ class SubtomogramAveraging(ChildWidget):
             mole, landscape_layer.name, spl
         )
 
-    @set_design(text="Run annealing on landscape", location=LandscapeMenu)
+    @set_design(text="Run annealing (RMA)", location=LandscapeMenu)
     @dask_worker.with_progress(desc="Running simulated annealing")
     def run_annealing_on_landscape(
         self,
@@ -1321,7 +1393,7 @@ class SubtomogramAveraging(ChildWidget):
         random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
     ):
         """
-        Run simulated annealing on the landscape.
+        Run simulated annealing on the landscape, supposing a cylindric structure.
 
         Parameters
         ----------
@@ -1353,6 +1425,46 @@ class SubtomogramAveraging(ChildWidget):
             mole,
             landscape_layer.name,
             source=spl,
+            metadata={ANNEALING_RESULT: results[0]},
+        )
+
+    @set_design(text="Run annealing (RFA)", location=LandscapeMenu)
+    @dask_worker.with_progress(desc="Running simulated annealing")
+    def run_rfa_on_landscape(
+        self,
+        landscape_layer: _LandscapeLayer,
+        range_long: _DistRangeLon = (4.0, 4.28),
+        angle_max: _AngleMaxLon = 5.0,
+        temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
+        random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
+    ):
+        """
+        Run simulated annealing on the landscape, supposing a filamentous structure.
+
+        Parameters
+        ----------
+        {landscape_layer}{range_long}{angle_max}{temperature_time_const}{random_seeds}
+        """
+        t0 = timer()
+        landscape_layer = _assert_landscape_layer(landscape_layer, self.parent_viewer)
+        mole, results = landscape_layer.landscape.run_filamentous_annealing(
+            range=range_long,
+            angle_max=angle_max,
+            temperature_time_const=temperature_time_const,
+            random_seeds=random_seeds,
+        )
+        t0.toc()
+
+        @thread_worker.callback
+        def _plot_result():
+            with _Logger.set_plt():
+                _annealing.plot_annealing_result(results)
+
+        yield _plot_result
+        return self._align_on_landscape_on_return.with_args(
+            mole,
+            landscape_layer.name,
+            source=landscape_layer.source_spline,
             metadata={ANNEALING_RESULT: results[0]},
         )
 

@@ -369,6 +369,8 @@ impl FilamentousAnnealingModel {
         }
     }
 
+    #[pyo3(signature = (seed))]
+    /// Return a new instance with different random seed.
     pub fn with_seed(&self, seed: u64) -> Self {
         let mut out = Self {
             rng: self.rng.with_seed(seed),
@@ -382,6 +384,8 @@ impl FilamentousAnnealingModel {
         out
     }
 
+    #[pyo3(signature = (reject_limit))]
+    /// Return a new instance with different reject limit.
     pub fn with_reject_limit(&self, reject_limit: usize) -> Self {
         let mut out = Self {
             rng: self.rng.clone(),
@@ -395,6 +399,7 @@ impl FilamentousAnnealingModel {
         out
     }
 
+    #[pyo3(signature = (temperature, time_constant, min_temperature=0.0))]
     pub fn set_reservoir(
         mut slf: PyRefMut<Self>,
         temperature: f32,

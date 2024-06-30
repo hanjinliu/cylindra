@@ -1080,6 +1080,8 @@ def test_molecules_to_spline(ui: CylindraMainWidget):
     assert ["npf", "orientation"] == sorted(new_spl1.props.glob.columns)
 
     ui.protofilaments_to_spline(layer=layer_trans, ids=[1, 4])
+    ui.filter_molecules("Mole-0", "pl.col('pf-id') == 2")
+    ui.filament_to_spline(ui.mole_layers.last())
 
 
 def test_calc_lattice_structures(ui: CylindraMainWidget):
@@ -1363,7 +1365,7 @@ def test_viterbi_alignment(ui: CylindraMainWidget):
         assert np.all(sub.features["align-dz"].to_numpy() <= 2.3)
 
 
-def test_mesh_annealing(ui: CylindraMainWidget):
+def test_annealing(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None)
     layer = ui.parent_viewer.layers["Mole-0"]
     ui.filter_molecules(layer, "pl.col('nth') < 3")
@@ -1411,6 +1413,18 @@ def test_mesh_annealing(ui: CylindraMainWidget):
     )
     ui.macro.undo()
     ui.macro.redo()
+    ui.filter_molecules(layer, "pl.col('pf-id') == 4")
+    layer_filament = ui.mole_layers.last()
+    ui.sta.align_all_rfa(
+        layer_filament,
+        template_path=[TEST_DIR / "beta-tubulin.mrc", TEST_DIR / "beta-tubulin.mrc"],
+        mask_params=(0.3, 0.8),
+        max_shifts=(1.2, 1.2, 1.2),
+        rotations=((0, 0), (5, 5), (0, 0)),
+        range_long=(dist_lon - 0.1, dist_lon + 0.1),
+        angle_max=20,
+        random_seeds=[0, 1],
+    )
 
 
 def test_landscape(ui: CylindraMainWidget):
@@ -1460,6 +1474,23 @@ def test_landscape(ui: CylindraMainWidget):
         dirpath = Path(dirpath)
         ui.save_project(dirpath / "test-project.tar", save_landscape=True)
         ui.load_project(dirpath / "test-project.tar", filter=None)
+
+    ui.filter_molecules("Mole-0", "pl.col('pf-id') == 4")
+    layer_filt = ui.mole_layers.last()
+    ui.sta.construct_landscape(
+        layer_filt,
+        template_path=TEST_DIR / "beta-tubulin.mrc",
+        mask_params=(0.3, 0.8),
+        max_shifts=(1.2, 1.2, 1.2),
+        upsample_factor=2,
+    )
+    layer_land = ui.parent_viewer.layers[-1]
+    assert isinstance(layer_land, LandscapeSurface)
+    ui.sta.run_rfa_on_landscape(
+        layer_land,
+        range_long=("-0.1", "+0.1"),
+        angle_max=5,
+    )
 
 
 def test_regionprops(ui: CylindraMainWidget):

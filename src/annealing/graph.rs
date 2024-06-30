@@ -108,6 +108,18 @@ pub struct NodeState {
     shift: Vector3D<isize>,
 }
 
+pub trait Graph {
+    fn empty() -> Self;
+    fn set_coordinates(
+        &mut self,
+        origin: ArcArray2<f32>,
+        zvec: ArcArray2<f32>,
+        yvec: ArcArray2<f32>,
+        xvec: ArcArray2<f32>,
+    ) -> PyResult<&Self>;
+    fn set_energy_landscape(&mut self, energy: ArcArray<f32, Ix4>) -> PyResult<&Self>;
+    fn cool(&mut self, n: usize);
+}
 
 #[derive(Clone)]
 pub struct CylindricGraph {
