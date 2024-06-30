@@ -276,14 +276,14 @@ impl CylindricAnnealingModel {
                         reject_count = 0;
                     } else {
                         reject_count += 1;
-                    }
-                    if reject_count > self.reject_limit {
-                        if self.graph.energy() == std::f32::INFINITY {
-                            self.optimization_state = OptimizationState::Failed;
-                        } else {
-                            self.optimization_state = OptimizationState::Converged;
+                        if reject_count > self.reject_limit {
+                            if self.graph.energy() == std::f32::INFINITY {
+                                self.optimization_state = OptimizationState::Failed;
+                            } else {
+                                self.optimization_state = OptimizationState::Converged;
+                            }
+                            break;
                         }
-                        break;
                     }
                     self.iteration += 1;
                     self.reservoir.cool(self.iteration);

@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from acryo import Molecules
     from napari.layers import Layer
     from pydantic import BaseModel
 
@@ -75,10 +76,8 @@ class MoleculesInfo(LayerInfo):
             point_size=layer.point_size,
         )
 
-    def to_layer(self, gui: "CylindraMainWidget", project_dir: Path):
+    def to_molecules(self, project_dir: Path) -> "Molecules":
         from acryo import Molecules
-
-        from cylindra._napari import MoleculesLayer
 
         path = project_dir / self.name
         if not path.exists():
@@ -88,7 +87,12 @@ class MoleculesInfo(LayerInfo):
                 stacklevel=2,
             )
             return
-        mole = Molecules.from_file(path)
+        return Molecules.from_file(path)
+
+    def to_layer(self, gui: "CylindraMainWidget", project_dir: Path):
+        from cylindra._napari import MoleculesLayer
+
+        mole = self.to_molecules(project_dir)
 
         if self.source is not None:
             src = gui.tomogram.splines[self.source]

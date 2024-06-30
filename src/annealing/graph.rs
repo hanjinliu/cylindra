@@ -1,5 +1,5 @@
 use core::slice::Iter;
-use std::{sync::Arc, collections::HashMap};
+use std::sync::Arc;
 use numpy::{
     ndarray::{Array1, Array2, Array, s, ArcArray, ArcArray2}, Ix3, Ix4
 };
@@ -9,6 +9,7 @@ use crate::{
     value_error,
     coordinates::{Vector3D, CoordinateSystem, list_neighbors},
     cylindric::Index,
+    hash_2d::HashMap2D,
     annealing::{
         potential::{TrapezoidalPotential2D, BindingPotential2D, EdgeType},
         random::RandomNumberGenerator,
@@ -113,8 +114,8 @@ pub struct NodeState {
 #[derive(Clone)]
 pub struct CylindricGraph {
     components: GraphComponents<NodeState, EdgeType>,
-    coords: Arc<HashMap<Index, CoordinateSystem<f32>>>,
-    energy: Arc<HashMap<Index, Array<f32, Ix3>>>,
+    coords: Arc<HashMap2D<CoordinateSystem<f32>>>,
+    energy: Arc<HashMap2D<Array<f32, Ix3>>>,
     pub binding_potential: TrapezoidalPotential2D,
     pub local_shape: Vector3D<isize>,
 }
@@ -124,8 +125,8 @@ impl CylindricGraph {
     pub fn empty() -> Self {
         Self {
             components: GraphComponents::empty(),
-            coords: Arc::new(HashMap::new()),
-            energy: Arc::new(HashMap::new()),
+            coords: Arc::new(HashMap2D::new()),
+            energy: Arc::new(HashMap2D::new()),
             binding_potential: TrapezoidalPotential2D::unbounded(),
             local_shape: Vector3D::new(0, 0, 0),
         }
@@ -139,18 +140,17 @@ impl CylindricGraph {
         nrise: isize,
     ) -> PyResult<&Self> {
         self.components.clear();
-
-        let mut index_to_id: HashMap<Index, usize> = HashMap::new();
+        let ny = indices.len() / na as usize;
+        let mut index_to_id: HashMap2D<usize> = HashMap2D::from_shape(ny, na as usize);
         for i in 0..indices.len() {
             let idx = indices[i].clone();
-            index_to_id.insert(idx.clone(), i);
+            index_to_id.insert(idx.as_tuple_usize(), i);
             self.components.add_node(NodeState { index: idx, shift: Vector3D::new(0, 0, 0) });
         }
-
         for (idx, i) in index_to_id.iter() {
-            let neighbors = idx.get_neighbors(na, nrise);
+            let neighbors = Index::new(idx.0 as isize, idx.1 as isize).get_neighbors(na, nrise);
             for neighbor in neighbors.y_iter() {
-                match index_to_id.get(&neighbor) {
+                match index_to_id.get((neighbor.y, neighbor.a)) {
                     Some(j) => {
                         if i < j {
                             self.components.add_edge(*i, *j, EdgeType::Longitudinal);
@@ -160,7 +160,7 @@ impl CylindricGraph {
                 }
             }
             for neighbor in neighbors.a_iter() {
-                match index_to_id.get(&neighbor) {
+                match index_to_id.get((neighbor.y, neighbor.a)) {
                     Some(j) => {
                         if i < j {
                             self.components.add_edge(*i, *j, EdgeType::Lateral);
@@ -190,13 +190,13 @@ impl CylindricGraph {
         } else if xvec.shape() != [n_nodes, 3] {
             return value_error!("xvec has wrong shape");
         }
-        let mut _coords: HashMap<Index, CoordinateSystem<f32>> = HashMap::new();
+
+        let (ny, na) = self.outer_shape();
+        let mut _coords: HashMap2D<CoordinateSystem<f32>> = HashMap2D::from_shape(ny, na);
         for i in 0..n_nodes {
             let node = self.components.node_state(i);
-            let idx = node.index.clone();
-
             _coords.insert(
-                idx,
+                node.index.as_tuple_usize(),
                 CoordinateSystem::new(
                     origin.slice(s![i, ..]).into(),
                     zvec.slice(s![i, ..]).into(),
@@ -222,11 +222,12 @@ impl CylindricGraph {
         let (_nz, _ny, _nx) = (shape[1], shape[2], shape[3]);
         self.local_shape = Vector3D::new(_nz, _ny, _nx).into();
         let center: Vector3D<isize> = Vector3D::new(_nz / 2, _ny / 2, _nx / 2).into();
-        let mut _energy: HashMap<Index, Array<f32, Ix3>> = HashMap::new();
+        let (ny_out, na_out) = self.outer_shape();
+        let mut _energy: HashMap2D<Array<f32, Ix3>> = HashMap2D::from_shape(ny_out, na_out);
         for i in 0..n_nodes {
             let node_state = self.components.node_state(i);
             let idx = &node_state.index;
-            _energy.insert(idx.clone(), energy.slice(s![i, .., .., ..]).to_owned());
+            _energy.insert(idx.as_tuple_usize(), energy.slice(s![i, .., .., ..]).to_owned());
             self.components.set_node_state(i, NodeState { index: idx.clone(), shift: center.clone() })
         }
         self.energy = Arc::new(_energy);
@@ -249,7 +250,7 @@ impl CylindricGraph {
     pub fn internal(&self, node_state: &NodeState) -> f32 {
         let idx = &node_state.index;
         let vec = node_state.shift;
-        self.energy[&idx][[vec.z as usize, vec.y as usize, vec.x as usize]]
+        self.energy[(idx.y, idx.a)][[vec.z as usize, vec.y as usize, vec.x as usize]]
     }
 
     /// Calculate the binding energy between two nodes.
@@ -260,8 +261,8 @@ impl CylindricGraph {
     pub fn binding(&self, node_state0: &NodeState, node_state1: &NodeState, typ: &EdgeType) -> f32 {
         let vec1 = node_state0.shift;
         let vec2 = node_state1.shift;
-        let coord1 = &self.coords[&node_state0.index];
-        let coord2 = &self.coords[&node_state1.index];
+        let coord1 = &self.coords[(node_state0.index.y, node_state0.index.a)];
+        let coord2 = &self.coords[(node_state1.index.y, node_state1.index.a)];
         let dr = coord1.at_vec(vec1.into()) - coord2.at_vec(vec2.into());
         // ey is required for the angle constraint.
         let ey = coord2.origin - coord1.origin;
@@ -322,6 +323,22 @@ impl CylindricGraph {
         Ok(self)
     }
 
+    /// If the graph is a cylinder with (ny, na) nodes, return (ny, na).
+    fn outer_shape(&self) -> (usize, usize) {
+        let mut ny = 0;
+        let mut na = 0;
+        for node in self.components.node_states.iter() {
+            let idx = &node.index;
+            if idx.y > ny {
+                ny = idx.y;
+            }
+            if idx.a > na {
+                na = idx.a;
+            }
+        }
+        (ny as usize + 1, na as usize + 1)
+    }
+
     fn get_distances(&self, typ: &EdgeType) -> Array1<f32> {
         if self.coords.len() == 0 {
             panic!("Coordinates not set.")
@@ -336,8 +353,8 @@ impl CylindricGraph {
             let pos0 = graph.node_state(edge.0);
             let pos1 = graph.node_state(edge.1);
 
-            let coord0 = &self.coords[&pos0.index];
-            let coord1 = &self.coords[&pos1.index];
+            let coord0 = &self.coords[(pos0.index.y, pos0.index.a)];
+            let coord1 = &self.coords[(pos1.index.y, pos1.index.a)];
             let dr = coord0.at_vec(pos0.shift.into()) - coord1.at_vec(pos1.shift.into());
             distances.push(dr.length())
         }
@@ -373,9 +390,9 @@ impl CylindricGraph {
                 let pos_l = graph.node_state(neighbors[0]);
                 let pos_r = graph.node_state(neighbors[1]);
 
-                let coord_c = &self.coords[&pos_c.index];
-                let coord_l = &self.coords[&pos_l.index];
-                let coord_r = &self.coords[&pos_r.index];
+                let coord_c = &self.coords[(pos_c.index.y, pos_c.index.a)];
+                let coord_l = &self.coords[(pos_l.index.y, pos_l.index.a)];
+                let coord_r = &self.coords[(pos_r.index.y, pos_r.index.a)];
 
                 let dr_l = coord_c.at_vec(pos_c.shift.into()) - coord_l.at_vec(pos_l.shift.into());
                 let dr_r = coord_c.at_vec(pos_c.shift.into()) - coord_r.at_vec(pos_r.shift.into());
@@ -534,8 +551,8 @@ impl CylindricGraph {
             let ends = self.components.edge_end(i);
             let node0 = self.components.node_state(ends.0);
             let node1 = self.components.node_state(ends.1);
-            let coord0 = self.coords[&node0.index].at_vec(node0.shift.into());
-            let coord1 = self.coords[&node1.index].at_vec(node1.shift.into());
+            let coord0 = self.coords[(node0.index.y, node0.index.a)].at_vec(node0.shift.into());
+            let coord1 = self.coords[(node1.index.y, node1.index.a)].at_vec(node1.shift.into());
             out0[[i, 0]] = coord0.z;
             out0[[i, 1]] = coord0.y;
             out0[[i, 2]] = coord0.x;
