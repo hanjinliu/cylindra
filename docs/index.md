@@ -16,6 +16,7 @@ structures are implemented.
 - [Open an image](open_image.md)
 - [Fit splines](fit_splines.md)
 - [Measure lattice parameters](lattice_params.md)
+- [Inspect CFT Results](inspect_results.md)
 - [Load & Save Projects](project_io.md)
 - [Custom Workflows](workflows.md)
 - [Spline](spline/index.md)
