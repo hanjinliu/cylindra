@@ -100,10 +100,13 @@ def main():
     _imsave(ui.spectra_inspector.native, "inspect_local_cft_upsampled")
     ui.spectra_inspector.peak_viewer.show_what = "Global-CFT"  # will be used later
     ui.copy_spline(0)
-    ui.spline_fitter.fit(1, [[2, 1.5], [-1.2, 2.8], [1, 2.3]])
-    ui.tomogram.splines[1].radius = ui.tomogram.splines[0].radius
+    ui.spline_fitter.fit(1, [[1, 0.5], [-0.2, 0.8], [1, 0.3]])
+    ui.measure_radius(1)
+    ui.local_cft_analysis(1, interval=50)
     ui.spectra_inspector.load_spline(1)
     ui.spectra_inspector.peak_viewer.show_what = "Local-CFT"
+    ui.spectra_inspector.width = 500
+    ui.spectra_inspector.height = 525
     QtW.QApplication.processEvents()
     ui.spectra_inspector.peak_viewer._upsample_and_update_image(45, 23)
     ui.spectra_inspector.peak_viewer.canvas.xlim = (41, 49)
