@@ -597,7 +597,7 @@ pub struct FilamentousGraph {
     components: GraphComponents<NodeState1D, EdgeType>,
     coords: Arc<HashMap1D<CoordinateSystem<f32>>>,
     energy: Arc<HashMap1D<Array<f32, Ix3>>>,
-    pub binding_potential: StiffFilamentPotential,
+    pub potential: StiffFilamentPotential,
     pub local_shape: Vector3D<isize>,
 }
 
@@ -608,7 +608,7 @@ impl FilamentousGraph {
             components: GraphComponents::empty(),
             coords: Arc::new(HashMap1D::new()),
             energy: Arc::new(HashMap1D::new()),
-            binding_potential: StiffFilamentPotential::unbounded(),
+            potential: StiffFilamentPotential::unbounded(),
             local_shape: Vector3D::new(0, 0, 0),
         }
     }
@@ -685,7 +685,7 @@ impl FilamentousGraph {
 
     /// Cool down the binding potential.
     pub fn cool(&mut self, n: usize) {
-        self.binding_potential.cool(n);
+        self.potential.cool(n);
     }
 
     /// Get the graph components.
@@ -707,15 +707,35 @@ impl FilamentousGraph {
     /// * `node_state0` - The node state of the first node.
     /// * `node_state1` - The node state of the second node.
     /// * `typ` - The type of the edge between the two nodes.
-    pub fn binding(&self, node_state0: &NodeState1D, node_state1: &NodeState1D, _: &EdgeType) -> f32 {
+    pub fn binding(
+        &self,
+        node_state0: &NodeState1D,
+        node_state1: &NodeState1D,
+    ) -> f32 {
         let vec1 = node_state0.shift;
         let vec2 = node_state1.shift;
         let coord1 = &self.coords[node_state0.index as isize];
         let coord2 = &self.coords[node_state1.index as isize];
         let dr = coord1.at_vec(vec1.into()) - coord2.at_vec(vec2.into());
-        // ey is required for the angle constraint.
-        let ey = coord2.origin - coord1.origin;
-        self.binding_potential.calculate(&dr, &ey)
+        self.potential.calculate_bind(&dr)
+    }
+
+    /// Calculate the deformation energy of three nodes.
+    pub fn deformation(
+        &self,
+        node_state: &NodeState1D,
+        node_state_prev: &NodeState1D,
+        node_state_next: &NodeState1D,
+    ) -> f32 {
+        let vec = node_state.shift;
+        let vec1 = node_state_prev.shift;
+        let vec2 = node_state_next.shift;
+        let coord = &self.coords[node_state.index as isize];
+        let coord1 = &self.coords[node_state_prev.index as isize];
+        let coord2 = &self.coords[node_state_next.index as isize];
+        let dr1 = coord.at_vec(vec.into()) - coord1.at_vec(vec1.into());
+        let dr2 = coord.at_vec(vec.into()) - coord2.at_vec(vec2.into());
+        self.potential.calculate_deform(&dr1, &dr2)
     }
 
     /// Return a random neighbor state of a given node state.
@@ -831,7 +851,7 @@ impl FilamentousGraph {
 
     /// Set a box potential model to the graph.
     pub fn set_potential_model(&mut self, model: StiffFilamentPotential) -> &Self {
-        self.binding_potential = model;
+        self.potential = model;
         self
     }
 
@@ -844,7 +864,7 @@ impl FilamentousGraph {
             let edge = graph.edge_end(*j);
             let node_state0 = graph.node_state(edge.0);
             let node_state1 = graph.node_state(edge.1);
-            energy += self.binding(&node_state0, &node_state1, &graph.edge_state(i));
+            energy += self.binding(&node_state0, &node_state1);
         }
         energy
     }
@@ -860,7 +880,13 @@ impl FilamentousGraph {
             let edge = graph.edge_end(i);
             let node_state0 = graph.node_state(edge.0);
             let node_state1 = graph.node_state(edge.1);
-            energy += self.binding(&node_state0, &node_state1, &graph.edge_state(i));
+            energy += self.binding(&node_state0, &node_state1);
+        }
+        for i in 1..graph.node_count() - 1 {
+            let node_state = graph.node_state(i);
+            let node_state_prev = graph.node_state(i - 1);
+            let node_state_next = graph.node_state(i + 1);
+            energy += self.deformation(&node_state, &node_state_prev, &node_state_next);
         }
         energy
     }
@@ -871,10 +897,9 @@ impl FilamentousGraph {
         for idx in 0..graph.edge_count() {
             // node0 ---- edge ---- node1
             let edge = graph.edge_end(idx);
-            let estate = graph.edge_state(idx);
             let node_state0 = graph.node_state(edge.0);
             let node_state1 = graph.node_state(edge.1);
-            let eng = self.binding(&node_state0, &node_state1, &estate);
+            let eng = self.binding(&node_state0, &node_state1);
             engs[edge.0] += eng;
             engs[edge.1] += eng;
         }
@@ -902,8 +927,14 @@ impl FilamentousGraph {
             let ends = graph.edge_end(edge_id);
             let other_idx = if ends.0 == idx { ends.1 } else { ends.0 };
             let other_state = graph.node_state(other_idx);
-            e_old += self.binding(&state_old, &other_state, &graph.edge_state(edge_id));
-            e_new += self.binding(&state_new, &other_state, &graph.edge_state(edge_id));
+            e_old += self.binding(&state_old, &other_state);
+            e_new += self.binding(&state_new, &other_state);
+        }
+        if 0 < idx && idx < graph.node_count() - 1 {
+            let prev_state = graph.node_state(idx - 1);
+            let next_state = graph.node_state(idx + 1);
+            e_old += self.deformation(&state_old, &prev_state, &next_state);
+            e_new += self.deformation(&state_new, &prev_state, &next_state);
         }
         e_new - e_old
     }

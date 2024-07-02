@@ -19,7 +19,7 @@ class DemoResult(NamedTuple):
     temps: np.ndarray
 
 
-def mesh_annealing_demo(
+def run_rma_demo(
     self: SubtomogramAveraging,
     layer: MoleculesLayer,
     template_path,
@@ -147,7 +147,7 @@ if __name__ == "__main__":
         interpolation=3,
         seed=36,
     )
-    mesh_annealing_demo(
+    run_rma_demo(
         ui.sta,
         ui.mole_layers.last(),
         template_path=TEMPLATE_X,

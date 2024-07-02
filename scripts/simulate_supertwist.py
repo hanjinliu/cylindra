@@ -82,7 +82,7 @@ def run_one(
     landscape_layer = ui.parent_viewer.layers[-1]
     ui.sta.run_align_on_landscape(landscape_layer)
     mole_cnv = post_process_layer(ui, ui.mole_layers.last()).molecules
-    ui.sta.run_annealing_on_landscape(
+    ui.sta.run_rma_on_landscape(
         landscape_layer,
         range_long=(4.0, 4.28),
         range_lat=("-0.1", "+0.1"),

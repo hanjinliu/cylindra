@@ -6,11 +6,11 @@ between molecules and optimize the alignment score using simulated annealing.
 
 ## Run RMA on a Landscape
 
-:material-arrow-right-thin-circle-outline: API: [`run_annealing_on_landscape`][cylindra.widgets.sta.SubtomogramAveraging.run_annealing_on_landscape]
+:material-arrow-right-thin-circle-outline: API: [`run_rma_on_landscape`][cylindra.widgets.sta.SubtomogramAveraging.run_rma_on_landscape]
 
-:material-arrow-right-thin-circle-outline: GUI: `Subtomogram Averaging > Landscape > Run annealing on landscape`
+:material-arrow-right-thin-circle-outline: GUI: `Subtomogram Averaging > Landscape > Run annealing (RMA)`
 
-![Run RMA on a Landscape](../images/run_annealing_on_landscape.png){ loading=lazy, width=400px }
+![Run RMA on a Landscape](../images/run_rma_on_landscape.png){ loading=lazy, width=400px }
 
 ??? info "List of Parameters"
 
@@ -30,8 +30,8 @@ between molecules and optimize the alignment score using simulated annealing.
 
 ## Run RMA without Constructing a Landscape
 
-:material-arrow-right-thin-circle-outline: API: [`align_all_annealing`][cylindra.widgets.sta.SubtomogramAveraging.align_all_annealing]
+:material-arrow-right-thin-circle-outline: API: [`align_all_rma`][cylindra.widgets.sta.SubtomogramAveraging.align_all_rma]
 
 :material-arrow-right-thin-circle-outline: GUI: `Subtomogram Averaging > Alignment > Simulated Annealing`
 
-![Run RMA](../images/align_all_annealing.png){ loading=lazy, width=480px }
+![Run RMA](../images/align_all_rma.png){ loading=lazy, width=480px }

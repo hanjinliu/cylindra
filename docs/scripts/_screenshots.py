@@ -154,14 +154,16 @@ def main():
         # align
         ui.sta.align_all,
         ui.sta.align_all_viterbi,
-        ui.sta.align_all_annealing,
+        ui.sta.align_all_rma,
+        ui.sta.align_all_rfa,
         # seam search
         ui.sta.seam_search,
         # landscape
         ui.sta.construct_landscape,
         ui.sta.run_align_on_landscape,
         ui.sta.run_viterbi_on_landscape,
-        ui.sta.run_annealing_on_landscape,
+        ui.sta.run_rma_on_landscape,
+        ui.sta.run_rfa_on_landscape,
         # simulator
         ui.simulator.create_empty_image,
         ui.simulator.generate_molecules,

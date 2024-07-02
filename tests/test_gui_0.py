@@ -1376,13 +1376,13 @@ def test_annealing(ui: CylindraMainWidget):
     assert dist_lon == pytest.approx(4.09, abs=0.2)
 
     # click preview
-    tester = mcls_testing.FunctionGuiTester(ui.sta.align_all_annealing)
+    tester = mcls_testing.FunctionGuiTester(ui.sta.align_all_rma)
     tester.click_preview()
 
     # test return same results with same random seeds
     trajectories = []
     for _ in range(2):
-        ui.sta.align_all_annealing(
+        ui.sta.align_all_rma(
             layer_filt,
             template_path=TEST_DIR / "beta-tubulin.mrc",
             mask_params=(0.3, 0.8),
@@ -1397,7 +1397,7 @@ def test_annealing(ui: CylindraMainWidget):
     assert trajectories[0] is not trajectories[1]
     assert_allclose(trajectories[0], trajectories[1])
 
-    ui.sta.align_all_annealing(
+    ui.sta.align_all_rma(
         layer_filt,
         template_path=[TEST_DIR / "beta-tubulin.mrc", TEST_DIR / "beta-tubulin.mrc"],
         mask_params=(0.3, 0.8),
@@ -1460,10 +1460,10 @@ def test_landscape(ui: CylindraMainWidget):
         angle_max=10,
     )
     # click preview
-    tester = mcls_testing.FunctionGuiTester(ui.sta.run_annealing_on_landscape)
+    tester = mcls_testing.FunctionGuiTester(ui.sta.run_rma_on_landscape)
     tester.gui  # noqa: B018
     tester.click_preview()
-    ui.sta.run_annealing_on_landscape(
+    ui.sta.run_rma_on_landscape(
         layer_land.name,
         range_long=("-0.1", "+0.1"),
         range_lat=("-0.1", "+0.1"),

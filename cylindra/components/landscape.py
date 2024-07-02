@@ -389,6 +389,8 @@ class Landscape:
         from cylindra._cylindra_ext import FilamentousAnnealingModel
 
         molecules = self.molecules
+        if molecules.count() < 3:
+            raise ValueError("At least 3 molecules are required for RFA.")
         mole = molecules.translate_internal(-self.offset_nm)
         if angle_max is None:
             angle_max = 90.0

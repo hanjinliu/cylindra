@@ -73,7 +73,7 @@ def run_one(
     )
 
     layer = ui.mole_layers.last()
-    ui.sta.align_all_annealing(
+    ui.sta.align_all_rma(
         layer=layer,
         template_path=TEMPLATE_X,
         mask_params=(0.3, 0.8),

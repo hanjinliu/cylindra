@@ -1,4 +1,5 @@
 import re
+import warnings
 from enum import Enum
 from typing import TYPE_CHECKING, Annotated, Any, Callable, Iterable, Literal
 
@@ -285,7 +286,7 @@ class Alignment(MagicTemplate):
     align_all_template_free = abstractapi()
     sep0 = field(Separator)
     align_all_viterbi = abstractapi()
-    align_all_annealing = abstractapi()
+    align_all_rma = abstractapi()
     align_all_rfa = abstractapi()
     save_annealing_scores = abstractapi()
     sep1 = field(Separator)
@@ -300,7 +301,7 @@ class LandscapeMenu(MagicTemplate):
     construct_landscape = abstractapi()
     run_align_on_landscape = abstractapi()
     run_viterbi_on_landscape = abstractapi()
-    run_annealing_on_landscape = abstractapi()
+    run_rma_on_landscape = abstractapi()
     run_rfa_on_landscape = abstractapi()
 
 
@@ -1086,9 +1087,18 @@ class SubtomogramAveraging(ChildWidget):
         t0.toc()
         return self._align_all_on_return.with_args([mole], [layer])
 
+    @property
+    def align_all_annealing(self):  # pragma: no cover
+        warnings.warn(
+            "align_all_annealing is deprecated. Use align_all_rma instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.align_all_rma
+
     @set_design(text="Simulated annealing (RMA)", location=Alignment)
     @dask_worker.with_progress(descs=_pdesc.align_annealing_fmt)
-    def align_all_annealing(
+    def align_all_rma(
         self,
         layer: MoleculesLayerType,
         template_path: Annotated[_PathOrPathsOrNone, {"bind": _template_params}],
@@ -1381,9 +1391,18 @@ class SubtomogramAveraging(ChildWidget):
             mole, landscape_layer.name, spl
         )
 
+    @property
+    def run_annealing_on_landscape(self):  # pragma: no cover
+        warnings.warn(
+            "run_annealing_on_landscape is deprecated. Use run_rma_on_landscape instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.run_rma_on_landscape
+
     @set_design(text="Run annealing (RMA)", location=LandscapeMenu)
     @dask_worker.with_progress(desc="Running simulated annealing")
-    def run_annealing_on_landscape(
+    def run_rma_on_landscape(
         self,
         landscape_layer: _LandscapeLayer,
         range_long: _DistRangeLon = (4.0, 4.28),
@@ -2290,9 +2309,9 @@ class MoleculesCombiner:
         return out
 
 
-impl_preview(SubtomogramAveraging.align_all_annealing, text="Preview molecule network")(
+impl_preview(SubtomogramAveraging.align_all_rma, text="Preview molecule network")(
     _annealing.preview_single
 )
 impl_preview(
-    SubtomogramAveraging.run_annealing_on_landscape, text="Preview molecule network"
+    SubtomogramAveraging.run_rma_on_landscape, text="Preview molecule network"
 )(_annealing.preview_landscape_function)

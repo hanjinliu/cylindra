@@ -255,11 +255,15 @@ impl StiffFilamentPotential {
         new
     }
 
-    pub fn calculate(&self, dr: &Vector3D<f32>, vec: &Vector3D<f32>) -> f32 {
-        // Energy coming from longitudinal distance
-        let eng_dist = self.lon.energy(dr);
-        let eng_ang = self.angle.energy(dr, vec);
-        eng_dist + eng_ang
+    /// Energy coming from longitudinal distance
+    pub fn calculate_bind(&self, dr: &Vector3D<f32>) -> f32 {
+        self.lon.energy(dr)
+    }
+
+    /// Energy coming from deformation (curvature of the filament)
+    pub fn calculate_deform(&self, dr1: &Vector3D<f32>, dr2: &Vector3D<f32>) -> f32 {
+        let eng_ang = self.angle.energy(dr1, dr2);
+        eng_ang
     }
 }
 

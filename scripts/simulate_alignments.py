@@ -139,7 +139,7 @@ def run_one(
     interv_mean = intervs.filter(intervs.is_finite()).mean()
     dx = 0.1
     t3 = default_timer()
-    ui.sta.run_annealing_on_landscape(
+    ui.sta.run_rma_on_landscape(
         land_layer,
         range_long=(4.0, 4.28),
         range_lat=(interv_mean - dx, interv_mean + dx),

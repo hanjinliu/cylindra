@@ -488,7 +488,7 @@ impl FilamentousAnnealingModel {
         ang_max: f32,
         cooling_rate: f32,
     ) -> PyResult<PyRefMut<Self>>{
-        let model = slf.graph.binding_potential
+        let model = slf.graph.potential
             .with_dist(dist_min, dist_max)?
             .with_ang(ang_max)?
             .with_cooling_rate(cooling_rate);
