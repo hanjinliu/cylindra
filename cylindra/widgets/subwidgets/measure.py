@@ -24,7 +24,7 @@ from cylindra.widget_utils import capitalize
 from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 if TYPE_CHECKING:
-    from cylindra.components.tomogram._cyl_tomo import ImageWithPeak
+    from cylindra.components.tomogram._misc import ImageWithPeak
 
 
 class MouseMode(Enum):
@@ -56,6 +56,7 @@ class PeakInspector(ChildWidget):
         self._power_spectra = list[ip.ImgArray | None]()
         self._image = np.zeros((1, 1))
         self._is_log_scale = False
+        self._current_spline_index = 0
         self._current_binsize = 1
         self._last_upsample_params = {}
 
@@ -63,8 +64,8 @@ class PeakInspector(ChildWidget):
         self._upsampled_image_item = pg.ImageItem()
         self.canvas._viewbox.addItem(self._upsampled_image_item)
         self._upsampled_image_item.setVisible(False)
-        self._infline_x = self.canvas.add_infline(1, 0, color="yellow")
-        self._infline_y = self.canvas.add_infline(1, 90, color="yellow")
+        self._infline_x = self.canvas.add_infline((0, 0), 0, color="yellow")
+        self._infline_y = self.canvas.add_infline((0, 0), 90, color="yellow")
         self._layer_axial = self.canvas.add_scatter(
             [], [], color="cyan", symbol="+", size=12
         )
@@ -90,11 +91,14 @@ class PeakInspector(ChildWidget):
                 self._power_spectra = []
                 self._peaks = None
                 self._image = np.zeros((1, 1))
-            return None
+                return None
+            else:
+                raise ValueError(f"Invalid spline index: {i}")
         spl = main.splines[i]
         self._layer_axial.data = [], []
         self._layer_angular.data = [], []
         self._upsampled_image_item.setVisible(False)
+        self._current_spline_index = i
         if self.show_what == "Local-CFT":
             if spl.props.has_loc(H.twist) and spl.has_anchors:
                 # has local-CFT results
@@ -110,6 +114,10 @@ class PeakInspector(ChildWidget):
             self["pos"].visible = True
             self["pos"].max = len(self._power_spectra) - 1
         else:
+            if self._may_show_text_overlay(
+                spl.radius is None, "No CFT available (radius not set)"
+            ):
+                return
             if spl.props.has_glob(H.twist):
                 # has global-CFT results
                 if binsize is None:
@@ -203,12 +211,8 @@ class PeakInspector(ChildWidget):
         if len(self._power_spectra) == 0:
             return None
         _next_image = self._power_spectra[pos]
-        if _next_image is None:
-            self.canvas.text_overlay.text = "No CFT available"
-            self.canvas.text_overlay.visible = True
-            self.canvas.text_overlay.color = "lime"
-            return
-        self.canvas.text_overlay.visible = False
+        if self._may_show_text_overlay(_next_image is None, "No CFT available"):
+            return None
         self._image = np.asarray(_next_image)
         self._update_image()
         if self._peaks is None:
@@ -225,7 +229,19 @@ class PeakInspector(ChildWidget):
     @show_what.connect
     def _show_what_changed(self, value: str):
         if len(self._power_spectra) > 0:
-            self._set_spline(self.pos, binsize=None)
+            self._set_spline(self._current_spline_index, binsize=None)
+
+    def _may_show_text_overlay(self, when: bool, text: str) -> bool:
+        if when:
+            self.canvas.text_overlay.text = text
+            self.canvas.text_overlay.visible = True
+            self.canvas.text_overlay.color = "lime"
+            del self.canvas.image
+            self._markers.visible = False
+            self._image = np.zeros((1, 1))
+        else:
+            self.canvas.text_overlay.visible = False
+        return when
 
 
 @magicclass(widget_type="groupbox", record=False)

@@ -82,7 +82,7 @@ def main():
 
     ui._runner.run(interval=12, n_refine=0, map_monomers=True)
 
-    # inspect local CFT
+    ### inspect local CFT ###
     ui.spectra_inspector.show()
     ui.spectra_inspector.load_spline(0)
     ui.spectra_inspector.peak_viewer.show_what = "Local-CFT"
@@ -99,7 +99,19 @@ def main():
     QtW.QApplication.processEvents()
     _imsave(ui.spectra_inspector.native, "inspect_local_cft_upsampled")
     ui.spectra_inspector.peak_viewer.show_what = "Global-CFT"  # will be used later
+    ui.copy_spline(0)
+    ui.spline_fitter.fit(1, [[2, 1.5], [-1.2, 2.8], [1, 2.3]])
+    ui.tomogram.splines[1].radius = ui.tomogram.splines[0].radius
+    ui.spectra_inspector.load_spline(1)
+    ui.spectra_inspector.peak_viewer.show_what = "Local-CFT"
+    QtW.QApplication.processEvents()
+    ui.spectra_inspector.peak_viewer._upsample_and_update_image(45, 23)
+    ui.spectra_inspector.peak_viewer.canvas.xlim = (41, 49)
+    ui.spectra_inspector.peak_viewer.canvas.ylim = (18, 28)
+    QtW.QApplication.processEvents()
+    _imsave(ui.spectra_inspector.native, "inspect_local_cft_bad")
 
+    ### magicgui widgets ###
     for meth in [
         ui.load_project,
         # fit, CFT, etc.
@@ -142,10 +154,12 @@ def main():
         _imsave(gui.native, method)
         gui.close()
 
+    ### canvas with monomers ###
     ui.parent_viewer.dims.ndisplay = 3
     _viewer_screenshot(ui, "viewer_01_monomer_mapped", canvas_only=True)
     ui.parent_viewer.dims.ndisplay = 2
 
+    ### magicgui widgets ###
     for meth in [
         ui.sta.average_all,
         ui.sta.calculate_fsc,
@@ -171,6 +185,7 @@ def main():
         _imsave(gui.native, meth.__name__)
         gui.close()
 
+    ### Bigger widgets ###
     # Runner
     ui._runner.show()
     _imsave(ui._runner.native, "run_workflow_dialog")
