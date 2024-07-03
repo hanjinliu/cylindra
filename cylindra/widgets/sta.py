@@ -32,6 +32,7 @@ from scipy.spatial.transform import Rotation
 
 from cylindra import _config, _shared_doc, cylmeasure, utils, widget_utils
 from cylindra._napari import LandscapeSurface
+from cylindra.components import CylSpline
 from cylindra.components.landscape import Landscape
 from cylindra.components.seam_search import (
     BooleanSeamSearcher,
@@ -53,7 +54,12 @@ from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import PropertyNames as H
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.types import MoleculesLayer
-from cylindra.widget_utils import PolarsExprStr, capitalize, timer
+from cylindra.widget_utils import (
+    PolarsExprStr,
+    PolarsExprStrOrScalar,
+    capitalize,
+    timer,
+)
 from cylindra.widgets import _annealing
 from cylindra.widgets import _progress_desc as _pdesc
 from cylindra.widgets._annotated import (
@@ -72,7 +78,6 @@ if TYPE_CHECKING:
     from napari.layers import Image
     from numpy.typing import NDArray
 
-    from cylindra.components import CylSpline
     from cylindra.components.landscape import AnnealingResult
 
 
@@ -1238,6 +1243,114 @@ class SubtomogramAveraging(ChildWidget):
                 _annealing.plot_annealing_result(results)
 
             return self._undo_for_new_layer([layer.name], [points])
+
+        return _on_return
+
+    def _get_splines(self, *_) -> list[int]:
+        return self._get_main()._get_splines()
+
+    @set_design(text="Fit spline by RFA", location=Alignment)
+    @dask_worker.with_progress(descs=_pdesc.fit_spline_rfa_fmt)
+    def fit_spline_rfa(
+        self,
+        spline: Annotated[int, {"choices": _get_splines}],
+        template_path: Annotated[_PathOrPathsOrNone, {"bind": _template_params}],
+        forward_is: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus",
+        interval: PolarsExprStrOrScalar = "8.2",
+        err_max: Annotated[nm, {"label": "Max fit error (nm)", "step": 0.1}] = 0.5,
+        mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
+        max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
+        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
+        cutoff: _CutoffFreq = 0.5,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        range_long: _DistRangeLon = (4.0, 4.28),
+        angle_max: _AngleMaxLon = 5.0,
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        temperature_time_const: Annotated[float, {"min": 0.01, "max": 100.0}] = 10.0,
+        upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
+        random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
+    ):
+        """
+        Fit spline by RFA.
+
+        This algorithm uses a template image to precisely determine the center line of
+        filaments. By comparing the score, the orientation of the filament will also be
+        determined.
+
+        Parameters
+        ----------
+        {spline}{template_path}
+        forward_is : "PlusToMinus" or "MinusToPlus", default "MinusToPlus"
+            Which orientation is the forward direction. Set "PlusToMinus" if the
+            template image is oriented from the plus end to the minus end in the y
+            direction.
+        interval : float or str expression, default 8.2
+            Interval of the sampling points along the spline.
+        {err_max}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}{range_long}
+        {angle_max}{bin_size}{temperature_time_const}{upsample_factor}{random_seeds}
+        """
+        t0 = timer()
+        main = self._get_main()
+        tomo = main.tomogram
+        spl = tomo.splines[spline]
+        interv_expr = widget_utils.norm_scalar_expr(interval)
+        mole_fw = tomo.map_centers(
+            i=spline,
+            interval=spl.props.get_glob(interv_expr),
+            rotate_molecules=False,
+        )
+        mole_rv = mole_fw.rotate_by_rotvec([np.pi, 0, 0])  # invert
+
+        @thread_worker.callback
+        def _on_yield(results):
+            with _Logger.set_plt():
+                _annealing.plot_annealing_result(results)
+
+        def _construct_landscape(mole_):
+            landscape_ = self._construct_landscape(
+                molecules=mole_,
+                template_path=template_path,
+                mask_params=mask_params,
+                max_shifts=max_shifts,
+                rotations=rotations,
+                cutoff=cutoff,
+                order=interpolation,
+                bin_size=bin_size,
+                upsample_factor=upsample_factor,
+            )
+            yield
+            mole, results = landscape_.run_filamentous_annealing(
+                range=range_long,
+                angle_max=angle_max,
+                temperature_time_const=temperature_time_const,
+                random_seeds=random_seeds,
+            )
+            yield _on_yield.with_args(results)
+            return mole, results
+
+        mole_opt_fw, results_fw = yield from _construct_landscape(mole_fw)
+        mole_opt_rv, results_rv = yield from _construct_landscape(mole_rv)
+
+        if results_fw[0].energies[-1] < results_rv[0].energies[-1]:  # fw is better
+            mole_opt = mole_opt_fw
+            ori = Ori(forward_is)
+        else:
+            mole_opt = mole_opt_rv
+            ori = Ori.invert(Ori(forward_is))
+
+        spl = CylSpline(
+            order=spl.order,
+            config=spl.config,
+            extrapolate=spl.extrapolate,
+        ).fit(mole_opt.pos, err_max=err_max)
+        spl.orientation = ori
+        tomo.splines[spline] = spl
+        t0.toc()
+
+        @thread_worker.callback
+        def _on_return():
+            main._update_splines_in_images()
+            main.reset_choices()
 
         return _on_return
 
