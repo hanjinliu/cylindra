@@ -279,6 +279,7 @@ class ProjectSequenceEdit(MagicTemplate):
     @magicmenu
     class Select(MagicTemplate):
         select_all_projects = abstractapi()
+        deselect_all_projects = abstractapi()
         select_projects_by_pattern = abstractapi()
         select_molecules_by_pattern = abstractapi()
 
