@@ -21560,7 +21560,9 @@ coordinate to pixel position.</p>
 
               <details class="quote">
                 <summary>Source code in <code>cylindra/components/landscape.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">702</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">700</span>
+<span class="normal">701</span>
+<span class="normal">702</span>
 <span class="normal">703</span>
 <span class="normal">704</span>
 <span class="normal">705</span>
@@ -21584,9 +21586,7 @@ coordinate to pixel position.</p>
 <span class="normal">723</span>
 <span class="normal">724</span>
 <span class="normal">725</span>
-<span class="normal">726</span>
-<span class="normal">727</span>
-<span class="normal">728</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="normal">726</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
 <span class="k">class</span> <span class="nc">AnnealingResult</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Dataclass for storing the annealing results.</span>
@@ -22295,9 +22295,7 @@ coordinate to pixel position.</p>
 <span class="normal">582</span>
 <span class="normal">583</span>
 <span class="normal">584</span>
-<span class="normal">585</span>
-<span class="normal">586</span>
-<span class="normal">587</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="normal">585</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
 <span class="k">class</span> <span class="nc">Landscape</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Energy landscape array.</span>
@@ -22606,13 +22604,11 @@ coordinate to pixel position.</p>
         <span class="n">time_const</span><span class="p">,</span> <span class="n">temperature</span><span class="p">,</span> <span class="n">cooling_rate</span><span class="p">,</span> <span class="n">reject_limit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normalize_args</span><span class="p">(</span>
             <span class="n">temperature_time_const</span><span class="p">,</span> <span class="n">temperature</span><span class="p">,</span> <span class="n">cooling_rate</span><span class="p">,</span> <span class="n">reject_limit</span>
         <span class="p">)</span>
-
+        <span class="n">ind</span> <span class="o">=</span> <span class="n">molecules</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">select</span><span class="p">([</span><span class="n">Mole</span><span class="o">.</span><span class="n">nth</span><span class="p">,</span> <span class="n">Mole</span><span class="o">.</span><span class="n">pf</span><span class="p">])</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+        <span class="n">ind</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-=</span> <span class="n">ind</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+        <span class="n">ind</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-=</span> <span class="n">ind</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
         <span class="n">model</span> <span class="o">=</span> <span class="n">CylindricAnnealingModel</span><span class="p">()</span><span class="o">.</span><span class="n">construct_graph</span><span class="p">(</span>
-            <span class="n">indices</span><span class="o">=</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">select</span><span class="p">([</span><span class="n">Mole</span><span class="o">.</span><span class="n">nth</span><span class="p">,</span> <span class="n">Mole</span><span class="o">.</span><span class="n">pf</span><span class="p">])</span>
-            <span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
-            <span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">),</span>
-            <span class="n">npf</span><span class="o">=</span><span class="n">_npf</span><span class="p">,</span>
-            <span class="n">nrise</span><span class="o">=</span><span class="n">_nrise</span><span class="p">,</span>
+            <span class="n">indices</span><span class="o">=</span><span class="n">ind</span><span class="p">,</span> <span class="n">npf</span><span class="o">=</span><span class="n">_npf</span><span class="p">,</span> <span class="n">nrise</span><span class="o">=</span><span class="n">_nrise</span>
         <span class="p">)</span>
 
         <span class="k">return</span> <span class="p">(</span>
@@ -23013,9 +23009,7 @@ coordinate to pixel position.</p>
 <span class="normal">366</span>
 <span class="normal">367</span>
 <span class="normal">368</span>
-<span class="normal">369</span>
-<span class="normal">370</span>
-<span class="normal">371</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">annealing_model</span><span class="p">(</span>
+<span class="normal">369</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">annealing_model</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">spl</span><span class="p">:</span> <span class="n">CylSpline</span><span class="p">,</span>
     <span class="n">distance_range_long</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">_DistLike</span><span class="p">,</span> <span class="n">_DistLike</span><span class="p">],</span>
@@ -23039,13 +23033,11 @@ coordinate to pixel position.</p>
     <span class="n">time_const</span><span class="p">,</span> <span class="n">temperature</span><span class="p">,</span> <span class="n">cooling_rate</span><span class="p">,</span> <span class="n">reject_limit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normalize_args</span><span class="p">(</span>
         <span class="n">temperature_time_const</span><span class="p">,</span> <span class="n">temperature</span><span class="p">,</span> <span class="n">cooling_rate</span><span class="p">,</span> <span class="n">reject_limit</span>
     <span class="p">)</span>
-
+    <span class="n">ind</span> <span class="o">=</span> <span class="n">molecules</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">select</span><span class="p">([</span><span class="n">Mole</span><span class="o">.</span><span class="n">nth</span><span class="p">,</span> <span class="n">Mole</span><span class="o">.</span><span class="n">pf</span><span class="p">])</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+    <span class="n">ind</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-=</span> <span class="n">ind</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+    <span class="n">ind</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-=</span> <span class="n">ind</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
     <span class="n">model</span> <span class="o">=</span> <span class="n">CylindricAnnealingModel</span><span class="p">()</span><span class="o">.</span><span class="n">construct_graph</span><span class="p">(</span>
-        <span class="n">indices</span><span class="o">=</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">select</span><span class="p">([</span><span class="n">Mole</span><span class="o">.</span><span class="n">nth</span><span class="p">,</span> <span class="n">Mole</span><span class="o">.</span><span class="n">pf</span><span class="p">])</span>
-        <span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
-        <span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">),</span>
-        <span class="n">npf</span><span class="o">=</span><span class="n">_npf</span><span class="p">,</span>
-        <span class="n">nrise</span><span class="o">=</span><span class="n">_nrise</span><span class="p">,</span>
+        <span class="n">indices</span><span class="o">=</span><span class="n">ind</span><span class="p">,</span> <span class="n">npf</span><span class="o">=</span><span class="n">_npf</span><span class="p">,</span> <span class="n">nrise</span><span class="o">=</span><span class="n">_nrise</span>
     <span class="p">)</span>
 
     <span class="k">return</span> <span class="p">(</span>
@@ -23089,7 +23081,9 @@ coordinate to pixel position.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/components/landscape.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">482</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">480</span>
+<span class="normal">481</span>
+<span class="normal">482</span>
 <span class="normal">483</span>
 <span class="normal">484</span>
 <span class="normal">485</span>
@@ -23125,9 +23119,7 @@ coordinate to pixel position.</p>
 <span class="normal">515</span>
 <span class="normal">516</span>
 <span class="normal">517</span>
-<span class="normal">518</span>
-<span class="normal">519</span>
-<span class="normal">520</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">create_surface</span><span class="p">(</span>
+<span class="normal">518</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">create_surface</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">level</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">resolution</span><span class="p">:</span> <span class="n">nm</span> <span class="o">=</span> <span class="mf">0.25</span><span class="p">,</span>
@@ -23191,7 +23183,9 @@ coordinate to pixel position.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/components/landscape.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">522</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">520</span>
+<span class="normal">521</span>
+<span class="normal">522</span>
 <span class="normal">523</span>
 <span class="normal">524</span>
 <span class="normal">525</span>
@@ -23204,9 +23198,7 @@ coordinate to pixel position.</p>
 <span class="normal">532</span>
 <span class="normal">533</span>
 <span class="normal">534</span>
-<span class="normal">535</span>
-<span class="normal">536</span>
-<span class="normal">537</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">535</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span> <span class="nf">from_dir</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Landscape</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Load a landscape from a directory.&quot;&quot;&quot;</span>
     <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
@@ -23490,7 +23482,9 @@ coordinate to pixel position.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/components/landscape.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">462</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">460</span>
+<span class="normal">461</span>
+<span class="normal">462</span>
 <span class="normal">463</span>
 <span class="normal">464</span>
 <span class="normal">465</span>
@@ -23506,9 +23500,7 @@ coordinate to pixel position.</p>
 <span class="normal">475</span>
 <span class="normal">476</span>
 <span class="normal">477</span>
-<span class="normal">478</span>
-<span class="normal">479</span>
-<span class="normal">480</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">normed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sd</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Landscape</span><span class="p">:</span>
+<span class="normal">478</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">normed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sd</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Landscape</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Return a landscape with normalized mean energy.&quot;&quot;&quot;</span>
     <span class="n">each_mean</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">energies</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
     <span class="n">all_mean</span> <span class="o">=</span> <span class="n">each_mean</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
@@ -23548,7 +23540,9 @@ coordinate to pixel position.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/components/landscape.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">373</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">371</span>
+<span class="normal">372</span>
+<span class="normal">373</span>
 <span class="normal">374</span>
 <span class="normal">375</span>
 <span class="normal">376</span>
@@ -23582,9 +23576,7 @@ coordinate to pixel position.</p>
 <span class="normal">404</span>
 <span class="normal">405</span>
 <span class="normal">406</span>
-<span class="normal">407</span>
-<span class="normal">408</span>
-<span class="normal">409</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">run_annealing</span><span class="p">(</span>
+<span class="normal">407</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">run_annealing</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">spl</span><span class="p">:</span> <span class="n">CylSpline</span><span class="p">,</span>
     <span class="n">distance_range_long</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">_DistLike</span><span class="p">,</span> <span class="n">_DistLike</span><span class="p">],</span>
@@ -23810,7 +23802,9 @@ coordinate to pixel position.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/components/landscape.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">539</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">537</span>
+<span class="normal">538</span>
+<span class="normal">539</span>
 <span class="normal">540</span>
 <span class="normal">541</span>
 <span class="normal">542</span>
@@ -23824,9 +23818,7 @@ coordinate to pixel position.</p>
 <span class="normal">550</span>
 <span class="normal">551</span>
 <span class="normal">552</span>
-<span class="normal">553</span>
-<span class="normal">554</span>
-<span class="normal">555</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">553</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Save the landscape to a directory.&quot;&quot;&quot;</span>
     <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">suffix</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
@@ -24085,12 +24077,12 @@ peak usually does not represent the optimal result.</p>
 
               <details class="quote">
                 <summary>Source code in <code>cylindra/components/landscape.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">663</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">661</span>
+<span class="normal">662</span>
+<span class="normal">663</span>
 <span class="normal">664</span>
 <span class="normal">665</span>
-<span class="normal">666</span>
-<span class="normal">667</span>
-<span class="normal">668</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">SurfaceData</span><span class="p">(</span><span class="n">NamedTuple</span><span class="p">):</span>
+<span class="normal">666</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">SurfaceData</span><span class="p">(</span><span class="n">NamedTuple</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Tuple for storing isosurface data for landscapes.&quot;&quot;&quot;</span>
 
     <span class="n">vertices</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">]</span>
@@ -24184,7 +24176,9 @@ peak usually does not represent the optimal result.</p>
 
               <details class="quote">
                 <summary>Source code in <code>cylindra/components/landscape.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">748</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">746</span>
+<span class="normal">747</span>
+<span class="normal">748</span>
 <span class="normal">749</span>
 <span class="normal">750</span>
 <span class="normal">751</span>
@@ -24196,9 +24190,7 @@ peak usually does not represent the optimal result.</p>
 <span class="normal">757</span>
 <span class="normal">758</span>
 <span class="normal">759</span>
-<span class="normal">760</span>
-<span class="normal">761</span>
-<span class="normal">762</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="normal">760</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
 <span class="k">class</span> <span class="nc">ViterbiResult</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Dataclass for storing the Viterbi alignment results.</span>
@@ -24252,7 +24244,9 @@ peak usually does not represent the optimal result.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/components/landscape.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">671</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">669</span>
+<span class="normal">670</span>
+<span class="normal">671</span>
 <span class="normal">672</span>
 <span class="normal">673</span>
 <span class="normal">674</span>
@@ -24272,9 +24266,7 @@ peak usually does not represent the optimal result.</p>
 <span class="normal">688</span>
 <span class="normal">689</span>
 <span class="normal">690</span>
-<span class="normal">691</span>
-<span class="normal">692</span>
-<span class="normal">693</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@delayed</span>
+<span class="normal">691</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@delayed</span>
 <span class="k">def</span> <span class="nf">delayed_isosurface</span><span class="p">(</span>
     <span class="n">arr</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">],</span>
     <span class="n">level</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
