@@ -16,7 +16,11 @@ from napari.utils.colormaps import label_colormap
 from cylindra import _config, utils, widget_utils
 from cylindra._napari import MoleculesLayer
 from cylindra._previews import view_tables
-from cylindra.const import PREVIEW_LAYER_NAME
+from cylindra.const import (
+    POLARS_INTEGER_DTYPES,
+    POLARS_NUMERIC_DTYPES,
+    PREVIEW_LAYER_NAME,
+)
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import PropertyNames as H
 from cylindra.core import ACTIVE_WIDGETS
@@ -355,7 +359,7 @@ def _setup_paint_molecules(self: CylindraMainWidget, gui: FunctionGui):
             return
         layer: MoleculesLayer = gui.layer.value
         series = layer.molecules.features[color_by]
-        if series.dtype in pl.NUMERIC_DTYPES:
+        if series.dtype in POLARS_NUMERIC_DTYPES:
             series = series.filter(~series.is_infinite())
             min_, max_ = series.min(), series.max()
             offset_ = (max_ - min_) / 2
@@ -363,7 +367,7 @@ def _setup_paint_molecules(self: CylindraMainWidget, gui: FunctionGui):
             lim_l.max = lim_h.max = max_ + offset_
             lim_l.value = min_
             lim_h.value = max_
-            if series.dtype in pl.INTEGER_DTYPES:
+            if series.dtype in POLARS_INTEGER_DTYPES:
                 lim_l.step = lim_h.step = 1
             else:
                 lim_l.step = lim_h.step = None

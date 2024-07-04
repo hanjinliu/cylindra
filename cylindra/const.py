@@ -238,6 +238,7 @@ POLARS_INTEGER_DTYPES = (
 )
 
 POLARS_FLOAT_DTYPES = (pl.Float32, pl.Float64)
+POLARS_NUMERIC_DTYPES = POLARS_INTEGER_DTYPES + POLARS_FLOAT_DTYPES
 
 
 def cast_dataframe(df: pl.DataFrame) -> pl.DataFrame:
