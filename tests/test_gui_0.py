@@ -658,6 +658,11 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
         mask_params=(1, 1),
         bin_size=bin_size,
     )
+    assert "offset_axial" in ui.splines[0].props.glob.columns
+    ui.macro.undo()
+    assert "offset_axial" not in ui.splines[0].props.glob.columns
+    ui.macro.redo()
+    assert "offset_axial" in ui.splines[0].props.glob.columns
     ui.sta.split_and_average(layers=["Mole-0"], size=12.0, bin_size=bin_size)
     ui.sta.align_all(
         layers=["Mole-0"],
