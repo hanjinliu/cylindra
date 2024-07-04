@@ -245,6 +245,11 @@ class ProjectPaths(MagicTemplate):
     def paths(self) -> list[Path]:
         return [Path(wdt.path) for wdt in self]
 
+    def _set_checked(self, checked: bool):
+        for wdt in self:
+            wdt.check = checked
+        return None
+
 
 @magicclass(name="Projects", record=False, use_native_menubar=False)
 class ProjectSequenceEdit(MagicTemplate):
@@ -299,9 +304,7 @@ class ProjectSequenceEdit(MagicTemplate):
     @do_not_record
     def select_all_projects(self):
         """Select all projects."""
-        for wdt in self.projects:
-            wdt.check = True
-        return None
+        return self.projects._set_checked(True)
 
     @set_design(text="Select projects by pattern", location=Select)
     @do_not_record
@@ -319,6 +322,12 @@ class ProjectSequenceEdit(MagicTemplate):
             for mole in prj.molecules:
                 mole.check = fnmatch(mole.line.value, pattern)
         return None
+
+    @set_design(text="Deselect all projects", location=Select)
+    @do_not_record
+    def deselect_all_projects(self):
+        """Deselect all projects."""
+        return self.projects._set_checked(False)
 
     def _get_project_paths(self, _=None) -> list[Path]:
         return [wdt.path for wdt in self.projects]

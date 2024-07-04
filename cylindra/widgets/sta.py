@@ -1,4 +1,5 @@
 import re
+import weakref
 from enum import Enum
 from typing import TYPE_CHECKING, Annotated, Any, Callable, Iterable, Literal
 
@@ -864,6 +865,9 @@ class SubtomogramAveraging(ChildWidget):
             rotations=rotations,
             tilt=None,  # NOTE: because input is an average
         )
+        _spl_globs = list[
+            tuple[weakref.ReferenceType["CylSpline"], pl.DataFrame, pl.DataFrame]
+        ]()
         for layer in layers:
             mole = layer.molecules
             loader = self._get_loader(bin_size, mole, order=1)
@@ -877,14 +881,16 @@ class SubtomogramAveraging(ChildWidget):
             _mole_trans = mole.linear_transform(result.shift * _scale, rotator)
 
             # write offsets to spline globalprops if available
-            # TODO: Undo cannot catch this change. Need to fix.
             if spl := layer.source_spline:
                 _mole_trans = _update_mole_pos(_mole_trans, mole, spl)
                 if spl.radius is None:
                     _radius: nm = cylmeasure.calc_radius(mole, spl).mean()
                 else:
                     _radius = spl.radius
-                spl.props.glob = _update_offset(spl, rotator.apply(svec), _radius)
+                _glob_old = spl.props.glob.clone()
+                _glob_new = _update_offset(spl, rotator.apply(svec), _radius)
+                spl.props.glob = _glob_new
+                _spl_globs.append((weakref.ref(spl), _glob_old, _glob_new))
 
             yield _on_yield.with_args(_mole_trans, layer)
 
@@ -896,21 +902,12 @@ class SubtomogramAveraging(ChildWidget):
 
             # logging
             rvec = rotator.as_rotvec()
+            _fmt = "  {:.2f}  ".format
             _Logger.print_table(
                 [
                     ["", "X", "Y", "Z"],
-                    [
-                        "Shift (nm)",
-                        f"  {svec[2]:.2f}  ",
-                        f"  {svec[1]:.2f}  ",
-                        f"  {svec[0]:.2f}  ",
-                    ],
-                    [
-                        "Rot vector",
-                        f"  {rvec[2]:.2f}  ",
-                        f"  {rvec[1]:.2f}  ",
-                        f"  {rvec[0]:.2f}  ",
-                    ],
+                    ["Shift (nm)", _fmt(svec[2]), _fmt(svec[1]), _fmt(svec[0])],
+                    ["Rot vector", _fmt(rvec[2]), _fmt(rvec[1]), _fmt(rvec[0])],
                 ],
                 header=False,
                 index=False,
@@ -920,11 +917,21 @@ class SubtomogramAveraging(ChildWidget):
 
         @thread_worker.callback
         def _align_averaged_on_return():
-            return (
-                undo_callback(parent._try_removing_layers)
-                .with_args(new_layers)
-                .with_redo(parent._add_layers_future(new_layers))
-            )
+            @undo_callback
+            def _out():
+                parent._try_removing_layers(new_layers)
+                for spl_ref, old, _ in _spl_globs:
+                    if spl := spl_ref():
+                        spl.props.glob = old
+
+            @_out.with_redo
+            def _out():
+                parent._add_layers_future(new_layers)()
+                for spl_ref, _, new in _spl_globs:
+                    if spl := spl_ref():
+                        spl.props.glob = new
+
+            return _out
 
         return _align_averaged_on_return
 
