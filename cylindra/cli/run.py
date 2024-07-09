@@ -36,7 +36,7 @@ class ParserRun(ParserBase):
         if Path(path).suffix in ("", ".tar", ".zip", ".json"):
             prj = read_project(path)
             with prj.open_project() as d:
-                py_path = str(prj.script_py_path(d))
+                py_path = str(prj._script_py_path(d))
                 out_globs = run_path(py_path, {"ui": ui})
             is_project = True
         else:

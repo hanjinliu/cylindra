@@ -110,9 +110,9 @@ class ParserConfig(ParserBase):
                 for prj in collect_projects(path):
                     assert prj.project_path is not None
                     with prj.open_project() as dir:
-                        py_path = prj.script_py_path(dir)
+                        py_path = prj._script_py_path(dir)
                         self.remove_project_config_kwargs(Path(py_path))
-                        cfg_path = prj.default_spline_config_path(dir)
+                        cfg_path = prj._default_spline_config_path(dir)
                         if cfg_path.exists():
                             cfg_path.unlink()
                         prj.rewrite(dir)
@@ -127,7 +127,7 @@ class ParserConfig(ParserBase):
             if project_path := prj.project_path:
                 _p = Path(project_path).as_posix()
                 rich.print(f"[bold green]{_p}[/bold green]:")
-            with open(prj.default_spline_config_path(dir)) as f:
+            with open(prj._default_spline_config_path(dir)) as f:
                 js = json.load(f)
             assert isinstance(js, dict)
             for k, v in js.items():

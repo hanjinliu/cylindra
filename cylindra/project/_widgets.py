@@ -52,7 +52,7 @@ class TextInfo(MagicTemplate):
 
         self.project_text.read_only = True
         self.project_text.syntax_highlight("json", theme=theme)
-        cfg_path = project.default_spline_config_path(dir)
+        cfg_path = project._default_spline_config_path(dir)
         if cfg_path.exists():
             self.Right.config.value = cfg_path.read_text()
         self.Right.config.read_only = True
@@ -123,8 +123,8 @@ class Properties(MagicTemplate):
     table_global = field(widget_type=DataFrameView)
 
     def _from_project(self, project: "CylindraProject", dir: Path):
-        localprops_path = project.localprops_path(dir)
-        globalprops_path = project.globalprops_path(dir)
+        localprops_path = project._localprops_path(dir)
+        globalprops_path = project._globalprops_path(dir)
         if localprops_path.exists():
             df = pl.read_csv(localprops_path)
             self.table_local.value = df

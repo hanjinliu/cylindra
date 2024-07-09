@@ -12,4 +12,6 @@ def test_read_spline():
 
 
 def test_read_project():
-    read_project(PROJECT_DIR_13PF)
+    proj = read_project(PROJECT_DIR_13PF)
+    proj.load_molecules("Mole-0")
+    proj.load_spline(0)
