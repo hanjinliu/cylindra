@@ -340,7 +340,7 @@ def get_code_theme(self: MagicTemplate) -> str:
     from napari.utils.theme import get_theme
 
     if (viewer := self.parent_viewer) or (viewer := napari.current_viewer()):
-        theme = get_theme(viewer.theme).syntax_style
+        theme = get_theme(viewer.theme, as_dict=False).syntax_style
     else:
         bg_color = self.native.palette().color(self.native.backgroundRole())
         if bg_color.lightness() > 128:

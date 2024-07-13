@@ -44,6 +44,10 @@ class QtMoleculesControls(QtPointsControls):
         self.select_button.hide()
         self.addition_button.hide()
         self.delete_button.hide()
+        try:
+            self.transform_button.hide()
+        except AttributeError:  # napari<0.5
+            pass
 
         self.faceColorEdit.color_changed.disconnect()
         self.faceColorEdit.color_changed.connect(self._change_face_color)
