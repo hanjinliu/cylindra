@@ -224,7 +224,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                         and (_spl_i := info.source) is not None
                         and Mole.position in mole.features.columns
                     ):
-                        _spl = prj.load_spline(dir, _spl_i, props=False)
+                        _spl = prj.load_spline(_spl_i, dir=dir, props=False)
                         _u = _spl.y_to_position(mole.features[Mole.position])
                         cv = _spl.curvature(_u)
                         mole.features = mole.features.with_columns(
@@ -266,7 +266,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         dfs_prj = list[pl.DataFrame]()  # localprops of each project
         for idx, prj in enumerate(self._projects):
             with prj.open_project() as dir:
-                if not prj.localprops_path(dir).exists():
+                if not prj._localprops_path(dir).exists():
                     if not allow_none:
                         raise ValueError(
                             f"Localprops not found in project at {prj.project_path}."
@@ -335,7 +335,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         dataframes = list[pl.DataFrame]()
         for idx, prj in enumerate(self._projects):
             with prj.open_project() as dir:
-                path = prj.globalprops_path(dir)
+                path = prj._globalprops_path(dir)
                 if path is None:
                     if not allow_none:
                         raise ValueError(
@@ -517,7 +517,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                         continue
                     if (src := info.source) is None and skip_no_spline:
                         continue
-                    spl = prj.load_spline(dir_, src)
+                    spl = prj.load_spline(src, dir=dir_)
                     yield MoleculesItem(MoleculesKey(i_prj, info.stem), (mole, spl))
 
     def collect_spline_coords(self, ders: int | Iterable[int] = 0) -> pl.DataFrame:

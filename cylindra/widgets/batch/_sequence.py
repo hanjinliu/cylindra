@@ -218,7 +218,7 @@ class Project(MagicTemplate):
     def _get_localprops(self) -> pl.DataFrame:
         project = CylindraProject.from_file(self.path)
         with project.open_project() as dir:
-            localprops_path = project.localprops_path(dir)
+            localprops_path = project._localprops_path(dir)
             if not localprops_path.exists():
                 raise ValueError("No localprops file found.")
 

@@ -118,5 +118,5 @@ def _find_source(
             source = info.source
             if source is None:
                 return None
-            return project.load_spline(dir, source)
+            return project.load_spline(source, dir=dir)
     return None
