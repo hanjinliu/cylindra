@@ -343,11 +343,11 @@ class Landscape:
         time_const, temperature, cooling_rate, reject_limit = self._normalize_args(
             temperature_time_const, temperature, cooling_rate, reject_limit
         )
-        indices = molecules.features.select([Mole.nth, Mole.pf])
+        ind = molecules.features.select([Mole.nth, Mole.pf]).to_numpy().astype(np.int32)
+        ind[:, 0] -= ind[:, 0].min()
+        ind[:, 1] -= ind[:, 1].min()
         model = CylindricAnnealingModel().construct_graph(
-            indices=indices.to_numpy().astype(np.int32),
-            npf=_npf,
-            nrise=_nrise,
+            indices=ind, npf=_npf, nrise=_nrise
         )
 
         return (

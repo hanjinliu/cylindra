@@ -131,7 +131,7 @@ class ParserFind(ParserBase):
                 continue
             with prj.open_project() as d:
                 if called is not None:
-                    if not ptn.match(prj.script_py_path(d).read_text()):
+                    if not ptn.match(prj._script_py_path(d).read_text()):
                         continue
                 if props is not None:
                     for spl in prj.iter_load_splines(d, drop_columns=False):
@@ -152,7 +152,7 @@ class ParserFind(ParserBase):
                     rich.print(f"[bold cyan]{path.as_posix()}[/bold cyan]")
                 if image and (img_path := prj.image) is not None:
                     print(f"[image] {Path(img_path).as_posix()}")
-                if config and (cpath := prj.default_spline_config_path(d)).exists():
+                if config and (cpath := prj._default_spline_config_path(d)).exists():
                     txt = json.loads(cpath.read_text().strip())
                     print(f"[config] {txt}")
                 if description:
