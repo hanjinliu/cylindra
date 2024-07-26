@@ -84,6 +84,7 @@ class ComponentsViewer(MagicTemplate):
             def _on_visible_change(value: bool):
                 layer.visible = value
 
+            layer.visible = visible
             self.append(cont)
 
     def _from_project(self, project: "CylindraProject", dir: Path):
