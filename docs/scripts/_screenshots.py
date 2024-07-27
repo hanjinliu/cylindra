@@ -6,7 +6,7 @@ from magicclass import get_button, get_function_gui, logging
 from magicgui import magicgui
 from qtpy import QtWidgets as QtW
 
-from cylindra import instance
+from cylindra import instance, widgets
 
 DOCS = Path(__file__).parent.parent
 PATH_13_3 = DOCS.parent / "tests" / "13pf_MT.tif"
@@ -22,9 +22,11 @@ def _imsave(widget: QtW.QWidget, name: str):
         widget.grab().save(f.name, "png")
 
 
-def _viewer_screenshot(ui, name: str, canvas_only: bool = True):
+def _viewer_screenshot(
+    ui: widgets.CylindraMainWidget, name: str, canvas_only: bool = True
+):
     with mkdocs_gen_files.FilesEditor.current().open(f"images/{name}.png", "wb") as f:
-        ui.parent_viewer.screenshot(f.name, canvas_only=canvas_only)
+        ui.parent_viewer.screenshot(f.name, canvas_only=canvas_only, flash=False)
 
 
 def main():
