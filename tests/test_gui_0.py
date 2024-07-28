@@ -1323,7 +1323,10 @@ def test_function_menu(make_napari_viewer):
 def test_viterbi_alignment(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None)
     layer = ui.parent_viewer.layers["Mole-0"]
-    ui.filter_molecules(layer, "(pl.col('nth') < 4) & (pl.col('pf-id') < 2)")
+    ui.filter_molecules(
+        layer,
+        "pl.col('nth').lt(4) & pl.col('pf-id').eq(1) | pl.col('nth').lt(5) & pl.col('pf-id').eq(4)",
+    )
     layer_filt = ui.mole_layers.last()
     ui.sta.align_all_viterbi(
         layer_filt,
@@ -1371,7 +1374,9 @@ def test_viterbi_alignment(ui: CylindraMainWidget):
 def test_mesh_annealing(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None)
     layer = ui.parent_viewer.layers["Mole-0"]
-    ui.filter_molecules(layer, "pl.col('nth') < 3")
+    ui.filter_molecules(
+        layer, "pl.col('nth').lt(3) | (pl.col('nth').eq(3) & pl.col('pf-id').lt(2))"
+    )
     layer_filt = ui.mole_layers.last()
     mole = layer_filt.molecules
     dist_lon = np.sqrt(np.sum((mole.pos[0] - mole.pos[13]) ** 2))

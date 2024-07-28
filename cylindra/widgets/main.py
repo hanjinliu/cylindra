@@ -2466,8 +2466,8 @@ class CylindraMainWidget(MagicTemplate):
         """
         Label a binarized feature column based on the molecules structure.
 
-        This method does the similar task as `scipy.ndimage.label`, where the isolated "islands"
-        of True values will be labeled by position integers.
+        This method does the similar task as `scipy.ndimage.label`, where the isolated
+        "islands" of True values will be labeled by position integers.
 
         Parameters
         ----------
