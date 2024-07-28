@@ -134,19 +134,19 @@ impl CylindricGraph {
     pub fn construct(
         &mut self,
         indices: Vec<Index>,
-        na: isize,
+        npf: isize,
         nrise: isize,
     ) -> PyResult<&Self> {
         self.components.clear();
-        let ny = indices.len() / na as usize;
-        let mut index_to_id: HashMap2D<usize> = HashMap2D::from_shape(ny, na as usize);
+        let (ny, na) = shape_for_indices(&indices);
+        let mut index_to_id: HashMap2D<usize> = HashMap2D::from_shape(ny, na);
         for i in 0..indices.len() {
             let idx = indices[i].clone();
             index_to_id.insert(idx.as_tuple_usize(), i);
             self.components.add_node(NodeState { index: idx, shift: Vector3D::new(0, 0, 0) });
         }
         for (idx, i) in index_to_id.iter() {
-            let neighbors = Index::new(idx.0 as isize, idx.1 as isize).get_neighbors(na, nrise);
+            let neighbors = Index::new(idx.0 as isize, idx.1 as isize).get_neighbors(npf, nrise);
             for neighbor in neighbors.y_iter() {
                 match index_to_id.get((neighbor.y, neighbor.a)) {
                     Some(j) => {
@@ -572,4 +572,19 @@ impl CylindricGraph {
         }
         Ok(())
     }
+}
+
+/// The minimum but enough shape of HashMap2D for the given indices.
+fn shape_for_indices(indices: &Vec<Index>) -> (usize, usize) {
+    let mut max_y = 0;
+    let mut max_a = 0;
+    for idx in indices.iter() {
+        if idx.y > max_y {
+            max_y = idx.y;
+        }
+        if idx.a > max_a {
+            max_a = idx.a;
+        }
+    }
+    ((max_y + 1) as usize, (max_a + 1) as usize)
 }
