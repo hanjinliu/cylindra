@@ -328,6 +328,8 @@ def _save_molecules(
 
     pos = mol.pos[:, ::-1] / scale
     pos[:, :2] += 0.5  # shift XY to center of voxel
+    if not save_dir.exists():  # will happen if methods are called programmatically
+        save_dir.mkdir()
     save_mod(
         save_dir / mod_name,
         pl.DataFrame({"z": pos[:, 0], "y": pos[:, 1], "x": pos[:, 2]}),
