@@ -332,7 +332,7 @@ def _save_molecules(
         save_dir.mkdir()
     save_mod(
         save_dir / mod_name,
-        pl.DataFrame({"z": pos[:, 0], "y": pos[:, 1], "x": pos[:, 2]}),
+        pl.DataFrame({"x": pos[:, 0], "y": pos[:, 1], "z": pos[:, 2]}),
     )
     save_angles(save_dir / csv_name, mol.euler_angle("ZXZ", degrees=True))
     return None

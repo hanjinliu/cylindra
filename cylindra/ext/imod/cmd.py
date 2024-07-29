@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import tempfile
-from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
@@ -11,6 +10,7 @@ import pandas as pd
 import polars as pl
 
 from cylindra.ext._utils import CommandNotFound, translate_command
+from cylindra.ext.imod._mod_file import write_array
 
 
 class IMODCommand(SimpleNamespace):
@@ -33,8 +33,6 @@ def read_mod(path: str) -> pl.DataFrame:
     ----------
     path : str
         Path to mod file.
-    order : str, default "zyx"
-        The order of dimension of output data frame.
 
     Returns
     -------
@@ -76,17 +74,7 @@ def save_mod(path: str, data: pl.DataFrame):
     path = str(path)
     if not path.endswith(".mod"):
         raise ValueError("File path must end with '.mod'.")
-
-    with tempfile.TemporaryDirectory() as tempdir:
-        tempdir = Path(tempdir)
-        input_path = tempdir / "input.txt"
-        text = data.write_csv(separator=",", include_header=False, float_precision=5)
-        bk = "     "
-        text = (
-            "\n".join(bk + line.replace(",", bk) for line in text.splitlines()) + "\n"
-        )
-        Path(input_path).write_text(text)
-        IMODCommand.point2model(input=input_path, output=path)
+    write_array(data.select(["x", "y", "z"]).to_numpy(), path)
     return None
 
 
