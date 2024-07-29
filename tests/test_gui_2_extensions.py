@@ -1,12 +1,10 @@
 import tempfile
-from contextlib import suppress
 from pathlib import Path
 
 import numpy as np
 from numpy.testing import assert_allclose
 
 from cylindra.components import CylSpline
-from cylindra.ext import CommandNotFound
 from cylindra.types import MoleculesLayer
 from cylindra.widgets import CylindraMainWidget
 
@@ -21,21 +19,18 @@ def test_IMOD(ui: CylindraMainWidget):
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir = Path(tmpdir)
         spline_path = tmpdir / "splines.mod"
-        with suppress(CommandNotFound):
-            imod.save_molecules(tmpdir, ui.mole_layers.nth(0))
-            imod.load_molecules(tmpdir / "coordinates.mod", tmpdir / "angles.csv")
-            _assert_molecules_equal(ui.mole_layers.nth(0), ui.mole_layers.nth(1))
-        with suppress(CommandNotFound):
-            imod.save_splines(spline_path, interval=1.0)
-            imod.load_splines(spline_path)
-            _assert_splines_close(ui.splines[0], ui.splines[1], tol=0.06)
-        with suppress(CommandNotFound):
-            imod.export_project(
-                ui.mole_layers.nth(0),
-                tmpdir,
-                template_path=TEST_DIR / "beta-tubulin.mrc",
-                mask_params=(0.3, 0.8),
-            )
+        imod.save_molecules(tmpdir, ui.mole_layers.nth(0))
+        imod.load_molecules(tmpdir / "coordinates.mod", tmpdir / "angles.csv")
+        _assert_molecules_equal(ui.mole_layers.nth(0), ui.mole_layers.nth(1))
+        imod.save_splines(spline_path, interval=1.0)
+        imod.load_splines(spline_path)
+        _assert_splines_close(ui.splines[0], ui.splines[1], tol=0.06)
+        imod.export_project(
+            ui.mole_layers.nth(0),
+            tmpdir,
+            template_path=TEST_DIR / "beta-tubulin.mrc",
+            mask_params=(0.3, 0.8),
+        )
 
 
 def test_RELION(ui: CylindraMainWidget):
