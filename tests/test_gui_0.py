@@ -696,6 +696,14 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
     assert "score_0" in ui.mole_layers["Mole-0-ALN1"].features
     ui.sta.params.template_choice = TemplateChoice.from_files
 
+    ui.sta.align_averaged(
+        layers=["Mole-0"],
+        template_path=template_path,
+        rotations=[(0.0, 0.0), (0.0, 0.0), (0.0, 0.0)],
+        mask_params=(1, 1),
+        bin_size=bin_size,
+    )
+
 
 def test_seam_search(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None)
@@ -776,7 +784,9 @@ def test_radius_methods(ui: CylindraMainWidget):
     mole_tr = mole.translate_internal(shifts)
 
     ui.add_molecules(mole_tr, "Corn", source=ui.splines[0])
-    layer = ui.parent_viewer.layers["Corn"]
+    layer = ui.mole_layers["Corn"]
+    layer.get_status([15, 100, 50])
+    layer._get_properties([15, 100, 50])
     ui.measure_radius_by_molecules([layer], interval=8, depth=12)
     radii = ui.splines[0].props.loc[H.radius]
     assert all(np.diff(radii) > 0)
