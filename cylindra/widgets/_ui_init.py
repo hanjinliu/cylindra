@@ -239,9 +239,9 @@ def _preview_rotate_molecules(
     else:
         layer = viewer.add_vectors(
             vector_data,
-            border_width=0.3,
-            border_color="direction",
-            border_color_cycle=["crimson", "cyan", "orange"],
+            edge_width=0.3,
+            edge_color="direction",
+            edge_color_cycle=["crimson", "cyan", "orange"],
             features={"direction": ["z"] * nmol + ["y"] * nmol + ["x"] * nmol},
             length=_config.get_config().point_size * 0.8,
             name=PREVIEW_LAYER_NAME,

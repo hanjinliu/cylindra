@@ -602,17 +602,17 @@ class MoleculesMenu(ChildWidget):
             nmol = len(mol)
             name = f"Axes of {layer.name}"
 
-            zvec = np.stack([mol.pos, mol.z], axis=1)
-            yvec = np.stack([mol.pos, mol.y], axis=1)
-            xvec = np.stack([mol.pos, mol.x], axis=1)
+            zvec = np.stack([mol.pos, mol.z], axis=1, dtype=np.float32)
+            yvec = np.stack([mol.pos, mol.y], axis=1, dtype=np.float32)
+            xvec = np.stack([mol.pos, mol.x], axis=1, dtype=np.float32)
 
             vector_data = np.concatenate([zvec, yvec, xvec], axis=0)
 
             layer = main.parent_viewer.add_vectors(
                 vector_data,
-                border_width=0.3,
-                border_color="direction",
-                border_color_cycle=[z_color, y_color, x_color],
+                edge_width=0.3,
+                edge_color="direction",
+                edge_color_cycle=[z_color, y_color, x_color],
                 features={"direction": ["z"] * nmol + ["y"] * nmol + ["x"] * nmol},
                 length=_config.get_config().point_size * 0.8,
                 name=name,
