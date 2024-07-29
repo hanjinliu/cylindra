@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import struct
+from struct import Struct
 
 import numpy as np
 
+MODEL_NAME = b"IMODV1.2IMOD-NewModel" + b" " * 115
 OBJECT_BYTES = (
     b"OBJT\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
     b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
@@ -18,22 +19,15 @@ OBJECT_BYTES = (
 CONT = b"CONT"
 IEOF = b"IEOF"
 
-
-def i32(i: int):
-    return i.to_bytes(4, signed=True)
-
-
-def u32(i: int):
-    return i.to_bytes(4, signed=False)
-
-
-def f32(f: float):
-    return struct.pack(">f", f)
+_I32 = Struct(">i")
+_U32 = Struct(">I")
+_F32 = Struct(">f")
 
 
 def f32s(fs):
     n = len(fs)
-    return struct.pack(">" + "f" * n, *fs)
+    st = Struct(">" + "f" * n)
+    return st.pack(*fs)
 
 
 def write_array(arr: np.ndarray, path: str):
@@ -42,34 +36,33 @@ def write_array(arr: np.ndarray, path: str):
     ymax = int(arr[:, 1].max()) + 1
     zmax = int(arr[:, 2].max()) + 1
     val = (
-        b"IMODV1.2IMOD-NewModel"
-        + b" " * 115  # model name
-        + i32(xmax)
-        + i32(ymax)
-        + i32(zmax)
-        + i32(1)  # obj size
-        + u32(15360)  # flags
-        + i32(1)  # drawmode
-        + i32(2)  # mousemode
-        + i32(0)  # blacklevel
-        + i32(255)  # whitelevel
-        + f32(0.0) * 3  # offsets
-        + f32(1.0) * 3  # scales
-        + i32(0)  # current object
-        + i32(0)  # current contour
-        + i32(0)  # current point
-        + i32(3)  # res
-        + i32(128)  # threshold
-        + f32(1.0)  # pixsize
-        + i32(0)  # unit, 0 = pixels
-        + i32(0)  # Checksum storage
-        + f32(0.0) * 3  # alpha, beta, gamma
+        MODEL_NAME
+        + _I32.pack(xmax)
+        + _I32.pack(ymax)
+        + _I32.pack(zmax)
+        + _I32.pack(1)  # obj size
+        + _U32.pack(15360)  # flags
+        + _I32.pack(1)  # drawmode
+        + _I32.pack(2)  # mousemode
+        + _I32.pack(0)  # blacklevel
+        + _I32.pack(255)  # whitelevel
+        + _F32.pack(0.0) * 3  # offsets
+        + _F32.pack(1.0) * 3  # scales
+        + _I32.pack(0)  # current object
+        + _I32.pack(0)  # current contour
+        + _I32.pack(0)  # current point
+        + _I32.pack(3)  # res
+        + _I32.pack(128)  # threshold
+        + _F32.pack(1.0)  # pixsize
+        + _I32.pack(0)  # unit, 0 = pixels
+        + _I32.pack(0)  # Checksum storage
+        + _F32.pack(0.0) * 3  # alpha, beta, gamma
         + OBJECT_BYTES
         + CONT
-        + i32(npoints)
-        + u32(3)
-        + i32(0)
-        + i32(0)
+        + _I32.pack(npoints)
+        + _U32.pack(3)
+        + _I32.pack(0)
+        + _I32.pack(0)
         + f32s(arr.ravel().tolist())
         + IEOF
     )
