@@ -31,8 +31,8 @@ class ReservedLayers:
             name="Highlight",
             face_color="transparent",
             border_color="crimson",
-            edge_width=0.16,
-            edge_width_is_relative=True,
+            border_width=0.16,
+            border_width_is_relative=True,
             out_of_slice_display=True,
             blending="translucent_no_depth",
         )

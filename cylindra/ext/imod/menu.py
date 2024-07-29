@@ -174,7 +174,7 @@ class IMOD(ChildWidget):
             else:
                 self.parent_viewer.add_vectors(
                     vector_data,
-                    edge_width=0.3,
+                    border_width=0.3,
                     border_color="crimson",
                     length=2.4,
                     name=vector_layer_name,

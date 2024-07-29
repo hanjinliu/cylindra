@@ -72,7 +72,7 @@ def _preview_clip_spline(
             verts_2d,
             shape_type="path",
             border_color="crimson",
-            edge_width=3,
+            border_width=3,
             name=name,
         )
     is_active = yield
@@ -239,7 +239,7 @@ def _preview_rotate_molecules(
     else:
         layer = viewer.add_vectors(
             vector_data,
-            edge_width=0.3,
+            border_width=0.3,
             border_color="direction",
             border_color_cycle=["crimson", "cyan", "orange"],
             features={"direction": ["z"] * nmol + ["y"] * nmol + ["x"] * nmol},

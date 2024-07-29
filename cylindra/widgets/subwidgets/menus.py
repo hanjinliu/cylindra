@@ -299,7 +299,7 @@ class SplinesMenu(ChildWidget):
                 shape_type="path",
                 name="Spline Curves",
                 border_color="lime",
-                edge_width=1,
+                border_width=1,
             )
             main._reserved_layers.to_be_removed.add(paths)
             return paths
@@ -610,7 +610,7 @@ class MoleculesMenu(ChildWidget):
 
             layer = main.parent_viewer.add_vectors(
                 vector_data,
-                edge_width=0.3,
+                border_width=0.3,
                 border_color="direction",
                 border_color_cycle=[z_color, y_color, x_color],
                 features={"direction": ["z"] * nmol + ["y"] * nmol + ["x"] * nmol},
