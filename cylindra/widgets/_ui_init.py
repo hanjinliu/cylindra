@@ -71,8 +71,8 @@ def _preview_clip_spline(
         layer = viewer.add_shapes(
             verts_2d,
             shape_type="path",
-            border_color="crimson",
-            border_width=3,
+            edge_color="crimson",
+            edge_width=3,
             name=name,
         )
     is_active = yield

@@ -298,8 +298,8 @@ class SplinesMenu(ChildWidget):
                 paths,
                 shape_type="path",
                 name="Spline Curves",
-                border_color="lime",
-                border_width=1,
+                edge_color="lime",
+                edge_width=1,
             )
             main._reserved_layers.to_be_removed.add(paths)
             return paths
