@@ -602,9 +602,9 @@ class MoleculesMenu(ChildWidget):
             nmol = len(mol)
             name = f"Axes of {layer.name}"
 
-            zvec = np.stack([mol.pos, mol.z], axis=1)
-            yvec = np.stack([mol.pos, mol.y], axis=1)
-            xvec = np.stack([mol.pos, mol.x], axis=1)
+            zvec = np.stack([mol.pos, mol.z], axis=1, dtype=np.float32)
+            yvec = np.stack([mol.pos, mol.y], axis=1, dtype=np.float32)
+            xvec = np.stack([mol.pos, mol.x], axis=1, dtype=np.float32)
 
             vector_data = np.concatenate([zvec, yvec, xvec], axis=0)
 

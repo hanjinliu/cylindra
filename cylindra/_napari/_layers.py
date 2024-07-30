@@ -320,7 +320,7 @@ class MoleculesLayer(_FeatureBoundLayer, Points, _SourceBoundLayer):
             self.face_colormap = _cmap
             self.face_contrast_limits = limits
             if self._view_ndim == 3:
-                self.edge_colormap = _cmap
+                self.border_colormap = _cmap
                 self.edge_contrast_limits = limits
         elif column.dtype == pl.Boolean:  # NOTE: since polars>=0.20, `is` fails
             cfalse, ctrue = _cmap.map([0, 1])
@@ -368,10 +368,10 @@ class MoleculesLayer(_FeatureBoundLayer, Points, _SourceBoundLayer):
         match ndim:
             case 2:
                 self.shading = "none"
-                self.edge_color = "#222222"
+                self.border_color = "#222222"
             case 3:
                 self.shading = "spherical"
-                self.edge_color = self.face_color
+                self.border_color = self.face_color
             case _:
                 raise ValueError("ndim must be 2 or 3")
         self.events.view_ndim(value=ndim)
@@ -381,7 +381,7 @@ class MoleculesLayer(_FeatureBoundLayer, Points, _SourceBoundLayer):
     def face_color(self, color: Any):
         Points.face_color.fset(self, color)
         if self._view_ndim == 3:
-            self.edge_color = color
+            self.border_color = color
         if isinstance(color, str):
             self._colormap_info = color
         elif isinstance(color[0], (int, float, np.number)):

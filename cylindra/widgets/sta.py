@@ -482,7 +482,7 @@ class StaParameters(MagicTemplate):
 
         return StaParameters._viewer.add_image(
             image,
-            scale=image.scale,
+            scale=list(image.scale.values()),
             name=name,
             rendering="iso",
             iso_threshold=threshold_yen(image.value),

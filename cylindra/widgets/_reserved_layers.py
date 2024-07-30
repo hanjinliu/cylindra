@@ -30,9 +30,9 @@ class ReservedLayers:
             ndim=3,
             name="Highlight",
             face_color="transparent",
-            edge_color="crimson",
-            edge_width=0.16,
-            edge_width_is_relative=True,
+            border_color="crimson",
+            border_width=0.16,
+            border_width_is_relative=True,
             out_of_slice_display=True,
             blending="translucent_no_depth",
         )
@@ -140,7 +140,7 @@ def _prof_layer() -> Points:
         name=SELECTION_LAYER_NAME,
         features={SPLINE_ID: []},
         opacity=0.4,
-        edge_color="black",
+        border_color="black",
         face_color=SplineColor.DEFAULT,
         text={"color": "yellow"},
     )

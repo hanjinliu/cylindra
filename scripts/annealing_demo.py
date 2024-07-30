@@ -112,7 +112,7 @@ def mesh_annealing_demo(
             parent.paint_molecules(
                 mole_layer, color_by="spacing_mean", limits=(4.0, 4.28)
             )
-            mole_layer.edge_color = "black"
+            mole_layer.border_color = "black"
 
     viewer.window.add_dock_widget(fn, area="right")
     return result
