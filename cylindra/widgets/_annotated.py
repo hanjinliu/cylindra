@@ -34,7 +34,6 @@ def _splines_validator(self: BaseGui, splines) -> list[int] | Literal["all"]:
 
     parent = self
     while parent is not None:
-        parent = parent.__magicclass_parent__
         if isinstance(parent, CylindraMainWidget):
             nspl = parent.splines.count()
             if splines is None:
@@ -58,6 +57,7 @@ def _splines_validator(self: BaseGui, splines) -> list[int] | Literal["all"]:
                 # For better reusabiligy, recording as 'all' is better.
                 return "all"
             return splines
+        parent = parent.__magicclass_parent__
     return splines
 
 

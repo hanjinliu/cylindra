@@ -43,6 +43,7 @@ nav:
     - inspect_results.md
     - project_io.md
     - workflows.md
+    - plugins.md
     - Spline:
       - Spline: spline/index.md
       - spline/clip.md

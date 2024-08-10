@@ -19,6 +19,7 @@ structures are implemented.
 - [Inspect CFT Results](inspect_results.md)
 - [Load & Save Projects](project_io.md)
 - [Custom Workflows](workflows.md)
+- [The Plugin System](plugins.md)
 - [Spline](spline/index.md)
 - [Molecules](molecules/index.md)
 - [Subtomogram Alignment and Averaging](alignment/index.md)
