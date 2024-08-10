@@ -22,7 +22,7 @@ from magicclass.ext.dask import dask_thread_worker
 from magicclass.logging import getLogger
 from magicclass.types import ExprStr, Optional, Path
 from magicclass.utils import thread_worker
-from magicclass.widgets import Separator
+from magicgui.types import Separator
 from magicgui.widgets import FunctionGui, Label, RangeSlider
 from numpy.typing import NDArray
 from scipy.spatial.transform import Rotation
@@ -169,7 +169,7 @@ class Simulator(ChildWidget):
     @magictoolbar
     class SimulatorTools(ChildWidget):
         add_component = abstractapi()
-        sep0 = field(Separator)
+        sep0 = Separator
         generate_molecules = abstractapi()
         expand = abstractapi()
         twist = abstractapi()
@@ -269,7 +269,7 @@ class Simulator(ChildWidget):
         # NOTE: zero-filled image breaks contrast limit calculation, and bad for
         # visual detection of the image edges.
         tomo = CylTomogram.dummy(scale=scale, binsize=binsize, shape=shape)
-        main._macro_offset = len(main.macro)
+        main._init_macro_state()
         yield main._send_tomogram_to_viewer.with_args(tomo)
         main._reserved_layers.image.bounding_box.visible = True
 
@@ -561,7 +561,7 @@ class Simulator(ChildWidget):
         tomo = CylTomogram.from_image(
             rec, scale=scale, tilt=tilt_range, binsize=bin_size
         )
-        main._macro_offset = len(main.macro)
+        main._init_macro_state()
         return main._send_tomogram_to_viewer.with_args(tomo)
 
     @set_design(text=capitalize, location=SimulateMenu)

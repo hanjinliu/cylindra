@@ -5,9 +5,9 @@ import numpy as np
 import pandas as pd
 import polars as pl
 from acryo import Molecules
-from magicclass import field, magicmenu, set_design
+from magicclass import magicmenu, set_design
 from magicclass.types import Path
-from magicclass.widgets import Separator
+from magicgui.types import Separator
 
 from cylindra.const import FileFilter
 from cylindra.widget_utils import add_molecules, capitalize
@@ -69,7 +69,7 @@ class RELION(ChildWidget):
                 main.register_path(each.pos, err_max=1e-8)
         return None
 
-    sep0 = field(Separator)
+    sep0 = Separator
 
     @set_design(text=capitalize)
     def save_molecules(

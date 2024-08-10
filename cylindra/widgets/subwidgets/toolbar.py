@@ -2,14 +2,13 @@ from magicclass import (
     abstractapi,
     bind_key,
     do_not_record,
-    field,
     magicmenu,
     magictoolbar,
     set_design,
     vfield,
 )
 from magicclass.logging import getLogger
-from magicclass.widgets import Separator
+from magicgui.types import Separator
 
 from cylindra.components.picker import AutoCorrelationPicker
 from cylindra.widget_utils import change_viewer_focus
@@ -31,7 +30,7 @@ class CylindraToolbar(ChildWidget):
         """Run cylindrical fitting algorithm with various settings."""
         return self._get_main()._runner.show(run=False)
 
-    sep0 = field(Separator)
+    sep0 = Separator
 
     @set_design(icon="fe:target")
     @bind_key("F3")
@@ -77,12 +76,12 @@ class CylindraToolbar(ChildWidget):
             cfg = self._get_main().default_config
             return AutoCorrelationPicker(self.interval, self.max_angle, self.angle_step, self.max_shifts, cfg)  # fmt: skip
 
-    sep1 = field(Separator)
+    sep1 = Separator
 
     clear_current = abstractapi()
     clear_all = abstractapi()
 
-    sep2 = field(Separator)
+    sep2 = Separator
 
     @do_not_record
     @set_design(icon="gg:undo")

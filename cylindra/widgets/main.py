@@ -27,7 +27,7 @@ from magicclass.undo import undo_callback
 from magicclass.utils import thread_worker
 from napari.layers import Layer
 
-from cylindra import _config, _shared_doc, cylmeasure, utils, widget_utils
+from cylindra import _config, _shared_doc, cylmeasure, plugin, utils, widget_utils
 from cylindra._napari import LandscapeSurface, MoleculesLayer
 from cylindra.components import CylSpline, CylTomogram, SplineConfig
 from cylindra.const import (
@@ -79,6 +79,7 @@ if TYPE_CHECKING:
     from napari.utils.events import Event
 
     from cylindra.components._base import BaseComponent
+    from cylindra.plugin import CylindraPluginFunction
     from cylindra.widgets.batch import CylindraBatchWidget
 
 DEFAULT_COLORMAP = {
@@ -208,6 +209,7 @@ class CylindraMainWidget(MagicTemplate):
         self._reserved_layers = ReservedLayers()
         self._macro_offset: int = 1
         self._macro_image_load_offset: int = 1
+        self._plugins_called: list[CylindraPluginFunction] = []
         self._need_save: bool = False
         self._batch: "CylindraBatchWidget | None" = None
         self._project_dir: "Path | None" = None
@@ -255,6 +257,10 @@ class CylindraMainWidget(MagicTemplate):
             self._auto_saver.save()
 
         self.default_config = SplineConfig.from_file(cfg.default_spline_config_path)
+
+        # load plugins
+        for plugin_name in cfg.plugins:
+            plugin.load_plugin(self, plugin_name)
         return None
 
     @property
@@ -283,6 +289,10 @@ class CylindraMainWidget(MagicTemplate):
     def sub_viewer(self) -> "napari.Viewer":
         """The sub-viewer for subtomogram averages."""
         return self.sta.sub_viewer
+
+    def _init_macro_state(self):
+        self._macro_offset = len(self.macro)
+        self._plugins_called.clear()
 
     def _get_splines(self, widget=None) -> list[tuple[str, int]]:
         """Get list of spline objects for categorical widgets."""
@@ -491,7 +501,7 @@ class CylindraMainWidget(MagicTemplate):
             binsize=bin_size,
             eager=eager,
         )
-        self._macro_offset = len(self.macro)
+        self._init_macro_state()
         self._project_dir = None
         return self._send_tomogram_to_viewer.with_args(tomo, filter, invert=invert)
 

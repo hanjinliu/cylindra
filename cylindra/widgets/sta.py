@@ -27,7 +27,8 @@ from magicclass.logging import getLogger
 from magicclass.types import Optional, Path
 from magicclass.undo import undo_callback
 from magicclass.utils import thread_worker
-from magicclass.widgets import HistoryFileEdit, Separator
+from magicclass.widgets import HistoryFileEdit
+from magicgui.types import Separator
 from scipy.spatial.transform import Rotation
 
 from cylindra import _config, _shared_doc, cylmeasure, utils, widget_utils
@@ -264,7 +265,7 @@ class STAnalysis(MagicTemplate):
     calculate_correlation = abstractapi()
     calculate_fsc = abstractapi()
     classify_pca = abstractapi()
-    sep0 = field(Separator)
+    sep0 = Separator
 
     @magicmenu(name="Seam search")
     class SeamSearch(MagicTemplate):
@@ -273,7 +274,7 @@ class STAnalysis(MagicTemplate):
         seam_search_manually = abstractapi()
         save_seam_search_result = abstractapi()
 
-    sep1 = field(Separator)
+    sep1 = Separator
     save_last_average = abstractapi()
 
 
@@ -284,11 +285,11 @@ class Alignment(MagicTemplate):
     align_averaged = abstractapi()
     align_all = abstractapi()
     align_all_template_free = abstractapi()
-    sep0 = field(Separator)
+    sep0 = Separator
     align_all_viterbi = abstractapi()
     align_all_annealing = abstractapi()
     save_annealing_scores = abstractapi()
-    sep1 = field(Separator)
+    sep1 = Separator
     TemplateImage = TemplateImage
     extend_filaments = abstractapi()
 
@@ -935,7 +936,7 @@ class SubtomogramAveraging(ChildWidget):
 
         return _align_averaged_on_return
 
-    sep0 = field(Separator)
+    sep0 = Separator
 
     @set_design(text="Align all molecules", location=Alignment)
     @dask_worker.with_progress(descs=_pdesc.align_all_fmt)
@@ -1036,7 +1037,7 @@ class SubtomogramAveraging(ChildWidget):
         t0.toc()
         return self._align_all_on_return.with_args(molecules, layers)
 
-    sep1 = field(Separator)
+    sep1 = Separator
 
     @set_design(text="Viterbi Alignment", location=Alignment)
     @dask_worker.with_progress(descs=_pdesc.align_viterbi_fmt)

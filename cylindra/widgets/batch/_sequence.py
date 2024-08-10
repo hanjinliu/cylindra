@@ -19,7 +19,8 @@ from magicclass import (
 )
 from magicclass.ext.polars import DataFrameView
 from magicclass.types import ExprStr, Path
-from magicclass.widgets import ConsoleTextEdit, Separator
+from magicclass.widgets import ConsoleTextEdit
+from magicgui.types import Separator
 from magicgui.widgets import ComboBox, Container, Widget
 
 from cylindra._config import get_config
@@ -269,10 +270,10 @@ class ProjectSequenceEdit(MagicTemplate):
         add_projects = abstractapi()
         add_projects_glob = abstractapi()
         clear_projects = abstractapi()
-        sep0 = field(Separator)
+        sep0 = Separator
         load_batch_project = abstractapi()
         save_batch_project = abstractapi()
-        sep1 = field(Separator)
+        sep1 = Separator
         construct_loader_by_list = abstractapi()
         construct_loader_by_pattern = abstractapi()
 
