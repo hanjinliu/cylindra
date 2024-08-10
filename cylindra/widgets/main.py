@@ -54,6 +54,7 @@ from cylindra.widgets._accessors import MoleculesLayerAccessor
 from cylindra.widgets._annotated import (
     MoleculesLayersType,
     MoleculesLayerType,
+    SplinesType,
     assert_layer,
     assert_list_of_layers,
 )
@@ -325,44 +326,10 @@ class CylindraMainWidget(MagicTemplate):
             raise TypeError(f"Invalid config type: {type(config)}")
         return config
 
-    def _splines_validator(self, splines) -> list[int] | Literal["all"]:
-        """Validate list input, or 'all' if all splines are selected."""
-        nspl = self.splines.count()
-        if splines is None:
-            splines = list(range(nspl))
-        elif isinstance(splines, str):
-            if splines == "all":
-                return splines
-            raise TypeError("Only 'all' is allow for a string input")
-        elif splines is all:
-            return "all"
-        elif not hasattr(splines, "__iter__"):
-            splines = [int(splines)]
-        else:
-            for i in splines:
-                if i >= nspl:
-                    raise ValueError(f"Spline index {i} is out of range.")
-            splines = sorted(splines)
-        if len(splines) == 0:
-            raise ValueError("No spline is selected.")
-        if splines == list(range(nspl)):
-            # For better reusabiligy, recording as 'all' is better.
-            return "all"
-        return splines
-
     def _norm_splines(self, splines: list[int] | Literal["all"]) -> list[int]:
         if isinstance(splines, str) and splines == "all":
             return list(range(self.splines.count()))
         return splines
-
-    _Splines = Annotated[
-        list[int],
-        {
-            "choices": _get_splines,
-            "widget_type": CheckBoxes,
-            "validator": _splines_validator,
-        },
-    ]
 
     @set_design(icon="mdi:pen-add", location=Toolbar)
     @bind_key("F1")
@@ -903,7 +870,7 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker.with_progress(desc="Auto-detecting polarities...", total=_NSPLINES)
     def infer_polarity(
         self,
-        splines: _Splines = None,
+        splines: SplinesType = None,
         depth: Annotated[nm, {"min": 5.0, "max": 500.0, "step": 5.0}] = 40,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
@@ -1059,7 +1026,7 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker.with_progress(desc="Spline Fitting", total=_NSPLINES)
     def fit_splines(
         self,
-        splines: _Splines = None,
+        splines: SplinesType = None,
         max_interval: Annotated[nm, {"label": "max interval (nm)"}] = 30,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1.0,
         err_max: Annotated[nm, {"label": "max fit error (nm)", "step": 0.1}] = 1.0,
@@ -1108,7 +1075,7 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker.with_progress(desc="Spline Fitting", total=_NSPLINES)
     def fit_splines_by_centroid(
         self,
-        splines: _Splines = None,
+        splines: SplinesType = None,
         max_interval: Annotated[nm, {"label": "max interval (nm)"}] = 30,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1.0,
         err_max: Annotated[nm, {"label": "max fit error (nm)", "step": 0.1}] = 1.0,
@@ -1147,7 +1114,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text=capitalize, location=_sw.SplinesMenu)
     def add_anchors(
         self,
-        splines: _Splines = None,
+        splines: SplinesType = None,
         interval: Annotated[nm, {"label": "Interval between anchors (nm)", "min": 1.0}] = 25.0,
         how: Literal["pack", "equal"] = "pack",
     ):  # fmt: skip
@@ -1182,7 +1149,7 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker.with_progress(desc="Refining splines", total=_NSPLINES)
     def refine_splines(
         self,
-        splines: _Splines = None,
+        splines: SplinesType = None,
         max_interval: Annotated[nm, {"label": "maximum interval (nm)"}] = 30,
         err_max: Annotated[nm, {"label": "max fit error (nm)", "step": 0.1}] = 0.8,
         corr_allowed: Annotated[float, {"label": "correlation allowed", "max": 1.0, "step": 0.1}] = 0.9,
@@ -1382,7 +1349,7 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker.with_progress(desc="Measuring Radius", total=_NSPLINES)
     def measure_radius(
         self,
-        splines: _Splines = None,
+        splines: SplinesType = None,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         min_radius: Annotated[nm, {"min": 0.1, "step": 0.1}] = 1.0,
         max_radius: Annotated[nm, {"min": 0.1, "step": 0.1}] = 100.0,
@@ -1407,7 +1374,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text=capitalize, location=_sw.AnalysisMenu.Radius)
     def set_radius(
         self,
-        splines: _Splines = None,
+        splines: SplinesType = None,
         radius: PolarsExprStrOrScalar = 10.0,
     ):  # fmt: skip
         """
@@ -1442,7 +1409,7 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker.with_progress(desc="Measuring local radii", total=_NSPLINES)
     def measure_local_radius(
         self,
-        splines: _Splines = None,
+        splines: SplinesType = None,
         interval: _Interval = None,
         depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 50.0,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
@@ -1544,7 +1511,7 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker.with_progress(desc="Local Cylindric Fourier transform", total=_NSPLINES)  # fmt: skip
     def local_cft_analysis(
         self,
-        splines: _Splines = None,
+        splines: SplinesType = None,
         interval: _Interval = None,
         depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 50.0,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
@@ -1620,7 +1587,7 @@ class CylindraMainWidget(MagicTemplate):
     )
     def global_cft_analysis(
         self,
-        splines: _Splines = None,
+        splines: SplinesType = None,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
         """
@@ -1724,7 +1691,7 @@ class CylindraMainWidget(MagicTemplate):
     @thread_worker.with_progress(desc="Mapping monomers", total=_NSPLINES)
     def map_monomers(
         self,
-        splines: _Splines = None,
+        splines: SplinesType = None,
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
         offsets: _OffsetType = None,
         radius: Optional[nm] = None,
@@ -1815,7 +1782,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text=capitalize, location=_sw.MoleculesMenu.FromToSpline)
     def map_along_spline(
         self,
-        splines: _Splines = None,
+        splines: SplinesType = None,
         molecule_interval: PolarsExprStrOrScalar = "col('spacing')",
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
         rotate_molecules: bool = True,

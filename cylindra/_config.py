@@ -42,7 +42,7 @@ class AppConfig:
     molecules_ndim: int = 3
     autosave_interval: float = 60.0
     default_dask_n_workers: int | None = None
-    plugins: list[str] = field(default_factory=list)
+    plugins: list[str] = field(default_factory=lambda: ["cylindra.plugin.builtins"])
     use_gpu: bool = True
 
     @classmethod
@@ -58,7 +58,7 @@ class AppConfig:
             self = AppConfig(**js)
         except Exception as e:
             if ignore_error:
-                print("Failed to load user settings. Initialize AppConfig.")
+                print(f"Failed to load user settings. Initialize AppConfig: {e}")
                 self = AppConfig()
             else:
                 raise e

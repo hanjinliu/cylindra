@@ -35,6 +35,17 @@ def get_monomer_layers(gui: "CategoricalWidget") -> list[MoleculesLayer]:
     ]
 
 
+def get_splines(gui: "CategoricalWidget") -> list[tuple[str, int]]:
+    """Get list of spline objects for categorical widgets."""
+    from cylindra.core import instance
+
+    match instance():
+        case None:
+            return []
+        case tomo:
+            return [(f"({i}) {spl}", i) for i, spl in enumerate(tomo.splines)]
+
+
 if TYPE_CHECKING:
     ColoredLayer = MoleculesLayer
 else:

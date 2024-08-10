@@ -16,7 +16,9 @@ _R = TypeVar("_R")
 @overload
 def register_function(
     func: Callable[_P, _R],
+    *,
     record: bool = True,
+    name: str | None = None,
     import_from: str | ModuleType | None = None,
 ) -> CylindraPluginFunction[_P, _R]:
     ...
@@ -25,7 +27,9 @@ def register_function(
 @overload
 def register_function(
     func: Literal[None],
+    *,
     record: bool = True,
+    name: str | None = None,
     import_from: str | ModuleType | None = None,
 ) -> Callable[..., CylindraPluginFunction[_P, _R]]:
     ...
@@ -33,13 +37,37 @@ def register_function(
 
 def register_function(
     func=None,
+    *,
     record=True,
+    name=None,
     import_from=None,
 ):
+    """
+    Register a function as a plugin function.
+
+    The registered function will be added to the plugin menu when the module is
+    installed as a plugin.
+
+    Parameters
+    ----------
+    func : callable, optional
+        The plugin function. If the function is to be called in the GUI, its signature
+        must be interpretable for `magicgui`. The first argument of the function must be
+        the `CylindraMainWidget` instance.
+    record : bool, default True
+        If False, the function will not be recorded in the macro.
+    name : str, optional
+        Name to display in the menu. If None, the capitalized function name will be
+        used.
+    import_from : str or ModuleType, optional
+        Module to import the function from when macro containing the function calls is
+        created. If None, the function will be imported from the place defined in the
+        source code.
+    """
     import_from = _norm_import_from(import_from)
 
     def _inner(func: Callable[_P, _R]) -> CylindraPluginFunction[_P, _R]:
-        f = CylindraPluginFunction(func, module=import_from)
+        f = CylindraPluginFunction(func, name=name, module=import_from)
         if not record:
             f._is_recordable = record
         return f
