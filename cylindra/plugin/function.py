@@ -4,6 +4,7 @@ import ast
 import inspect
 import warnings
 from functools import wraps
+from types import ModuleType
 from typing import Callable, Generic, ParamSpec, TypeVar
 
 from macrokit import Expr
@@ -22,12 +23,25 @@ class CylindraPluginFunction(Generic[_P, _R]):
     ):
         if not callable(func):
             raise TypeError("func must be a callable")
+        if not hasattr(func, "__name__"):
+            raise ValueError("func must have a __name__ attribute.")
         self._func = func
         if name is None:
             name = func.__name__.replace("_", " ").capitalize()
         self._name = name
         if module is None:
             module = func.__module__
+        self._is_recordable = _is_recordable(func)
+        if module == "__main__" and self._is_recordable:
+            warnings.warn(
+                f"Plugin function {func!r} is in the top-level module '__main__', "
+                "which means it is only defined during this session. Calls of this "
+                "function will be recorded in the macro but the script will not work. "
+                "Add 'record=False' to the `register_function` decorator, or define "
+                "plugin function in a separate module.",
+                UserWarning,
+                stacklevel=2,
+            )
         self._module = module
         wraps(func)(self)
         self.__signature__ = inspect.signature(func)
@@ -45,8 +59,6 @@ class CylindraPluginFunction(Generic[_P, _R]):
                     stacklevel=2,
                 )
 
-        self._is_recordable = _is_recordable(func)
-
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}<{self._name}>"
 
@@ -58,6 +70,11 @@ class CylindraPluginFunction(Generic[_P, _R]):
         except SyntaxError:
             raise ValueError(f"Invalid import statement: {expr}") from None
         return expr
+
+    def update_module(self, mod: ModuleType):
+        """Update the module name of the plugin function"""
+        self._module = mod.__name__
+        return self
 
     def as_method(self, ui):
         def _method(*args: _P.args, **kwargs: _P.kwargs) -> _R:

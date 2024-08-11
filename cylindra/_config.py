@@ -3,7 +3,7 @@ from __future__ import annotations
 import atexit
 import json
 from contextlib import contextmanager
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from functools import wraps
 from pathlib import Path
 from typing import Callable
@@ -42,7 +42,6 @@ class AppConfig:
     molecules_ndim: int = 3
     autosave_interval: float = 60.0
     default_dask_n_workers: int | None = None
-    plugins: list[str] = field(default_factory=lambda: ["cylindra.plugin.builtins"])
     use_gpu: bool = True
 
     @classmethod

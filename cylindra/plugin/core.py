@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from types import ModuleType
 from typing import TYPE_CHECKING, Callable, Literal, ParamSpec, TypeVar, overload
 
@@ -40,7 +39,6 @@ def register_function(
     *,
     record=True,
     name=None,
-    import_from=None,
 ):
     """
     Register a function as a plugin function.
@@ -59,15 +57,10 @@ def register_function(
     name : str, optional
         Name to display in the menu. If None, the capitalized function name will be
         used.
-    import_from : str or ModuleType, optional
-        Module to import the function from when macro containing the function calls is
-        created. If None, the function will be imported from the place defined in the
-        source code.
     """
-    import_from = _norm_import_from(import_from)
 
     def _inner(func: Callable[_P, _R]) -> CylindraPluginFunction[_P, _R]:
-        f = CylindraPluginFunction(func, name=name, module=import_from)
+        f = CylindraPluginFunction(func, name=name)
         if not record:
             f._is_recordable = record
         return f
@@ -75,51 +68,9 @@ def register_function(
     return _inner if func is None else _inner(func)
 
 
-def load_plugin(
-    ui: CylindraMainWidget,
-    plugin_name: str,
-    raises: bool = False,
-) -> bool:
-    import importlib
+def load_plugin(ui: CylindraMainWidget) -> None:
+    from cylindra.plugin._find import iter_plugin_info
 
-    from magicclass import magicmenu
-
-    try:
-        mod = importlib.import_module(plugin_name)
-    except ImportError as e:
-        if raises:
-            raise
-        else:
-            warnings.warn(
-                f"Could not load plugin {plugin_name!r}: {e}",
-                UserWarning,
-                stacklevel=2,
-            )
-            return False
-
-    @magicmenu(name=plugin_name, record=False)
-    class newmenu:
-        pass
-
-    _newmenu = newmenu()
-    ui.OthersMenu.Plugins.append(_newmenu)
-    _newmenu.native.setParent(
-        ui.OthersMenu.Plugins.native, _newmenu.native.windowFlags()
-    )
-    for attr in dir(mod):
-        obj = getattr(mod, attr)
-        if isinstance(obj, CylindraPluginFunction):
-            _newmenu.append(obj.as_method(ui))
-    return True
-
-
-def _norm_import_from(mod: str | ModuleType | None) -> str | None:
-    if mod is None:
-        return None
-    if isinstance(mod, str):
-        return mod
-    elif isinstance(mod, ModuleType):
-        return mod.__name__
-    raise TypeError(
-        f"import_from must be a string or a module, not {type(mod).__name__}"
-    )
+    for plugin_info in iter_plugin_info():
+        plugin_info.load(ui)
+    return None

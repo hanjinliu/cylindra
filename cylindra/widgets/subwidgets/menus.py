@@ -29,7 +29,7 @@ from magicclass.widgets import CodeEdit, ConsoleTextEdit
 from magicgui.types import Separator
 from magicgui.widgets import ComboBox, Container
 
-from cylindra import _config, plugin
+from cylindra import _config
 from cylindra._napari import MoleculesLayer
 from cylindra.components.spline import SplineConfig
 from cylindra.const import (
@@ -1015,35 +1015,32 @@ class OthersMenu(ChildWidget):
 
     @magicmenu
     class Plugins(ChildWidget):
-        def _get_plugin_names(self, *_) -> list[str]:
-            return _config.get_config().plugins
-
         @set_design(text=capitalize)
         @do_not_record
-        def install(self, plugin_name: str):
-            """Install a plugin."""
-            cfg = _config.get_config()
-            main = self._get_main()
-            if plugin_name in cfg.plugins:
-                raise ValueError(f"Plugin {plugin_name!r} is already installed.")
-            plugin.load_plugin(main, plugin_name)
-            cfg.plugins.append(plugin_name)
+        def reload_plugins(self):
+            from cylindra.plugin._find import iter_plugin_info
 
-        @set_design(text=capitalize)
-        @do_not_record
-        def uninstall(
-            self,
-            plugins: Annotated[
-                list[str], {"widget_types": CheckBoxes, "choices": _get_plugin_names}
-            ],
-        ):
-            """Uninstall plugins."""
-            cfg = _config.get_config()
-            for plugin_name in plugins:
-                self.remove(plugin_name)
-                cfg.plugins.remove(plugin_name)
+            for plugin_info in iter_plugin_info():
+                plugin_info.reload(self._get_main())
+            return None
 
-        sep0 = Separator
+        # @set_design(text=capitalize)
+        # @do_not_record
+        # def install(self, plugin_name: Annotated[list[str], {"layout": "vertical", "value": [""]}]):
+        #     """Install a plugin."""
+        #     plugin_name = [each for each in plugin_name if each != ""]
+        #     return plugin.install_plugin(plugin_name)
+
+        # @set_design(text=capitalize)
+        # @do_not_record
+        # def uninstall(
+        #     self,
+        #     plugins: Annotated[list[str], {"widget_types": CheckBoxes, "choices": _get_plugin_names}],
+        # ):  # fmt: skip
+        #     """Uninstall plugins."""
+        #     return plugin.uninstall_plugin(plugins)
+
+        # sep0 = Separator
 
     sep0 = Separator
 

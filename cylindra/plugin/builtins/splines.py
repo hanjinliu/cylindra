@@ -10,7 +10,7 @@ from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets._annotated import SplinesType
 
 
-@register_function(import_from="cylindra.plugin.builtins")
+@register_function
 def intensity_statistics_along_spline(
     ui: CylindraMainWidget,
     spline: SplinesType,
@@ -51,7 +51,7 @@ def intensity_statistics_along_spline(
     return None
 
 
-@register_function(import_from="cylindra.plugin.builtins")
+@register_function
 def calculate_spline_tilt(
     ui: CylindraMainWidget,
     spline: SplinesType,

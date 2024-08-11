@@ -88,6 +88,9 @@ cylindra = "cylindra.__main__:main"
 [project.entry-points."napari.manifest"]
 cylindra = "cylindra:napari.yaml"
 
+[project.entry-points."cylindra.plugin"]
+cylindra-builtins = "cylindra.plugin.builtins"
+
 [tool.maturin]
 include = ["**/*.pyi", "*.pyi", "**/*.svg", "**/*.yaml", "**/*.qss", "**/*.json"]
 features = ["pyo3/extension-module"]

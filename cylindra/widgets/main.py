@@ -27,7 +27,7 @@ from magicclass.undo import undo_callback
 from magicclass.utils import thread_worker
 from napari.layers import Layer
 
-from cylindra import _config, _shared_doc, cylmeasure, plugin, utils, widget_utils
+from cylindra import _config, _shared_doc, cylmeasure, utils, widget_utils
 from cylindra._napari import LandscapeSurface, MoleculesLayer
 from cylindra.components import CylSpline, CylTomogram, SplineConfig
 from cylindra.const import (
@@ -40,6 +40,7 @@ from cylindra.const import (
 )
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import PropertyNames as H
+from cylindra.plugin.core import load_plugin
 from cylindra.project import CylindraProject, extract
 from cylindra.widget_utils import (
     PolarsExprStr,
@@ -260,8 +261,7 @@ class CylindraMainWidget(MagicTemplate):
         self.default_config = SplineConfig.from_file(cfg.default_spline_config_path)
 
         # load plugins
-        for plugin_name in cfg.plugins:
-            plugin.load_plugin(self, plugin_name)
+        load_plugin(self)
         return None
 
     @property
@@ -273,6 +273,11 @@ class CylindraMainWidget(MagicTemplate):
     def splines(self):
         """The spline list."""
         return self.tomogram.splines
+
+    @property
+    def logger(self):
+        """The logger instance."""
+        return _Logger
 
     @property
     def default_config(self) -> SplineConfig:
@@ -423,7 +428,7 @@ class CylindraMainWidget(MagicTemplate):
         path: Annotated[str | Path, {"bind": _image_loader.path}],
         scale: Annotated[nm, {"bind": _image_loader.scale.scale_value}] = None,
         tilt_range: Annotated[Any, {"bind": _image_loader.tilt_model}] = None,
-        bin_size: Annotated[Sequence[int], {"bind": _image_loader.bin_size}] = [1],
+        bin_size: Annotated[int | Sequence[int], {"bind": _image_loader.bin_size}] = [1],
         filter: Annotated[ImageFilter | None, {"bind": _image_loader.filter}] = ImageFilter.Lowpass,
         invert: Annotated[bool, {"bind": _image_loader.invert}] = False,
         eager: Annotated[bool, {"bind": _image_loader.eager}] = False
