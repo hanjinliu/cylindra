@@ -188,6 +188,7 @@ class CylindraMainWidget(MagicTemplate):
     SplinesMenu = field(_sw.SplinesMenu, name="Splines")
     MoleculesMenu = field(_sw.MoleculesMenu, name="Molecules")
     AnalysisMenu = field(_sw.AnalysisMenu, name="Analysis")
+    PluginsMenu = field(_sw.PluginsMenu, name="Plugins")
     OthersMenu = field(_sw.OthersMenu, name="Others")
 
     # Toolbar

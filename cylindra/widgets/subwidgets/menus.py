@@ -40,7 +40,6 @@ from cylindra.const import (
     nm,
 )
 from cylindra.core import ACTIVE_WIDGETS
-from cylindra.ext import IMOD, RELION
 from cylindra.project import CylindraProject, extract
 from cylindra.types import ColoredLayer
 from cylindra.utils import str_color
@@ -208,10 +207,6 @@ class FileMenu(ChildWidget):
         pviewer.native.setParent(main.native, pviewer.native.windowFlags())
         ACTIVE_WIDGETS.add(pviewer)
         return pviewer.show()
-
-    sep3 = Separator
-    IMOD = IMOD
-    RELION = RELION
 
 
 @magicmenu
@@ -813,6 +808,20 @@ class AnalysisMenu(ChildWidget):
 
 
 @magicmenu
+class PluginsMenu(ChildWidget):
+    @set_design(text=capitalize)
+    @do_not_record
+    def reload_plugins(self):
+        from cylindra.plugin._find import iter_plugin_info
+
+        for plugin_info in iter_plugin_info():
+            plugin_info.reload(self._get_main())
+        return None
+
+    sep0 = Separator
+
+
+@magicmenu
 class OthersMenu(ChildWidget):
     """Other functions."""
 
@@ -1012,35 +1021,6 @@ class OthersMenu(ChildWidget):
             return to_clipboard(str(_config.WORKFLOWS_DIR))
 
         sep1 = Separator
-
-    @magicmenu
-    class Plugins(ChildWidget):
-        @set_design(text=capitalize)
-        @do_not_record
-        def reload_plugins(self):
-            from cylindra.plugin._find import iter_plugin_info
-
-            for plugin_info in iter_plugin_info():
-                plugin_info.reload(self._get_main())
-            return None
-
-        # @set_design(text=capitalize)
-        # @do_not_record
-        # def install(self, plugin_name: Annotated[list[str], {"layout": "vertical", "value": [""]}]):
-        #     """Install a plugin."""
-        #     plugin_name = [each for each in plugin_name if each != ""]
-        #     return plugin.install_plugin(plugin_name)
-
-        # @set_design(text=capitalize)
-        # @do_not_record
-        # def uninstall(
-        #     self,
-        #     plugins: Annotated[list[str], {"widget_types": CheckBoxes, "choices": _get_plugin_names}],
-        # ):  # fmt: skip
-        #     """Uninstall plugins."""
-        #     return plugin.uninstall_plugin(plugins)
-
-        # sep0 = Separator
 
     sep0 = Separator
 

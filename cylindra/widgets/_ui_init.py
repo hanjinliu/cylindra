@@ -522,7 +522,7 @@ def _temp_layer_colors(layer: MoleculesLayer):
     fcmap = layer.face_colormap
     ecmap = layer.border_colormap
     fclim = layer.face_contrast_limits
-    eclim = layer.edge_contrast_limits
+    eclim = layer.border_contrast_limits
     info = layer.colormap_info
     try:
         yield
@@ -532,7 +532,7 @@ def _temp_layer_colors(layer: MoleculesLayer):
         layer.face_colormap = fcmap
         layer.border_colormap = ecmap
         layer.face_contrast_limits = fclim
-        layer.edge_contrast_limits = eclim
+        layer.border_contrast_limits = eclim
         layer._colormap_info = info
 
 

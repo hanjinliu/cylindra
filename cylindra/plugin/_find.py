@@ -53,8 +53,8 @@ def load_plugin(
             )
             return False
 
-    if display_name in ui.OthersMenu.Plugins:
-        _newmenu = ui.OthersMenu.Plugins[display_name]
+    if display_name in ui.PluginsMenu:
+        _newmenu = ui.PluginsMenu[display_name]
     else:
 
         @magicmenu(name=display_name, record=False)
@@ -62,10 +62,8 @@ def load_plugin(
             pass
 
         _newmenu = newmenu()
-        ui.OthersMenu.Plugins.append(_newmenu)
-        _newmenu.native.setParent(
-            ui.OthersMenu.Plugins.native, _newmenu.native.windowFlags()
-        )
+        ui.PluginsMenu.append(_newmenu)
+        _newmenu.native.setParent(ui.PluginsMenu.native, _newmenu.native.windowFlags())
     for attr in _dir_or_all(mod):
         obj = getattr(mod, attr)
         if isinstance(obj, CylindraPluginFunction):
@@ -83,7 +81,7 @@ def reload_plugin(
     mod = importlib.import_module(module_name)
     mod = importlib.reload(mod)
 
-    _newmenu = ui.OthersMenu.Plugins[display_name]
+    _newmenu = ui.PluginsMenu[display_name]
     _newmenu.clear()
     for attr in _dir_or_all(mod):
         obj = getattr(mod, attr)

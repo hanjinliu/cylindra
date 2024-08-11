@@ -7,7 +7,7 @@ from functools import wraps
 from types import ModuleType
 from typing import Callable, Generic, ParamSpec, TypeVar
 
-from macrokit import Expr
+from macrokit import Expr, Symbol
 from magicclass.undo import UndoCallback
 
 _P = ParamSpec("_P")
@@ -64,7 +64,7 @@ class CylindraPluginFunction(Generic[_P, _R]):
 
     def import_statement(self) -> str:
         """Make an import statement for the plugin"""
-        expr = f"from {self._module} import {self._func.__name__}"
+        expr = f"import {self._module}"
         try:
             ast.parse(expr)
         except SyntaxError:
@@ -77,12 +77,15 @@ class CylindraPluginFunction(Generic[_P, _R]):
         return self
 
     def as_method(self, ui):
+        from magicclass.signature import upgrade_signature
+
         def _method(*args: _P.args, **kwargs: _P.kwargs) -> _R:
             return self(ui, *args, **kwargs)
 
         params = list(self.__signature__.parameters.values())
         _method.__signature__ = inspect.Signature(params[1:])
         _method.__name__ = self._name
+        upgrade_signature(_method)
         return _method
 
     def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _R:
@@ -109,7 +112,8 @@ class CylindraPluginFunction(Generic[_P, _R]):
                 _args.append(bound.arguments[name])
             else:
                 _kwargs[name] = bound.arguments[name]
-        expr = Expr.parse_call(self._func, tuple(_args), _kwargs)
+        fn_expr = Expr("getattr", [Symbol(self._module), self._func.__name__])
+        expr = Expr.parse_call(fn_expr, tuple(_args), _kwargs)
         ui.macro.append(expr)
         ui.macro._last_setval = None
         if self not in ui._plugins_called:

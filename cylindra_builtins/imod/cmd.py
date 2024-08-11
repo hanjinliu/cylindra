@@ -4,13 +4,10 @@ import tempfile
 from types import SimpleNamespace
 
 import numpy as np
-
-# NOTE: output of model2point has separator "\s+". This is only supported in pandas.
-import pandas as pd
 import polars as pl
 
-from cylindra.ext._utils import CommandNotFound, translate_command
-from cylindra.ext.imod._mod_file import write_array
+from cylindra_builtins.imod._mod_file import write_array
+from cylindra_builtins.imod._utils import CommandNotFound, translate_command
 
 
 class IMODCommand(SimpleNamespace):
@@ -42,6 +39,10 @@ def read_mod(path: str) -> pl.DataFrame:
     path = str(path)
     if IMODCommand.model2point.available():
         with tempfile.NamedTemporaryFile(mode="r+") as fh:
+            # NOTE: output of model2point has separator "\s+". This is only supported in
+            # pandas.
+            import pandas as pd
+
             output_path = fh.name
             IMODCommand.model2point(
                 input=path, output=output_path, object=True, contour=True
