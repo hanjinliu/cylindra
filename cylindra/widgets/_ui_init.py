@@ -40,16 +40,15 @@ if TYPE_CHECKING:
 
 @impl_preview(CylindraMainWidget.load_molecules)
 def _preview_load_molecules(self: CylindraMainWidget, paths: list[str]):
-    w = view_tables(paths, parent=self)
-    ACTIVE_WIDGETS.add(w)
+    view_tables(paths, parent=self)
 
 
 @impl_preview(CylindraMainWidget.load_project)
 def _preview_load_project(self: CylindraMainWidget, path: str):
     pviewer = CylindraProject.from_file(path).make_project_viewer()
     pviewer.native.setParent(self.native, pviewer.native.windowFlags())
+    pviewer.show()
     ACTIVE_WIDGETS.add(pviewer)
-    return pviewer.show()
 
 
 @impl_preview(CylindraMainWidget.clip_spline, auto_call=True)

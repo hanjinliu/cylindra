@@ -2,7 +2,6 @@ from typing import Annotated, Any
 
 import impy as ip
 import numpy as np
-import pandas as pd
 import polars as pl
 from acryo import Molecules
 from magicclass.types import Path
@@ -268,6 +267,8 @@ def export_project(
 
 
 def _read_angle(ang_path: str) -> np.ndarray:
+    import pandas as pd
+
     line1 = str(pd.read_csv(ang_path, nrows=1).values[0, 0])  # determine sep
     if "\t" in line1:
         sep = "\t"
@@ -293,6 +294,8 @@ def _read_angle(ang_path: str) -> np.ndarray:
 
 def _read_shift_and_angle(path: str) -> tuple["np.ndarray | None", np.ndarray]:
     """Read offsets and angles from PEET project"""
+    import pandas as pd
+
     csv: pd.DataFrame = pd.read_csv(path)
     if "CCC" in csv.columns:
         ang_data = -csv[["EulerZ(1)", "EulerX(2)", "EulerZ(3)"]].values

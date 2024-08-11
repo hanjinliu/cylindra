@@ -71,7 +71,7 @@ def test_tooltip(ui: CylindraMainWidget):
     mcls_testing.check_tooltip(ui.simulator)
 
 
-def test_plugin(make_napari_viewer):
+def test_start_as_napari_plugin(make_napari_viewer):
     from cylindra.core import start_as_plugin
 
     make_napari_viewer()
@@ -1598,3 +1598,7 @@ def test_stash(ui: CylindraMainWidget):
         ui.FileMenu.Stash.clear_stash_projects()
     ui.OthersMenu.configure_dask(num_workers=2)
     ui.OthersMenu.configure_dask(num_workers=None)
+
+
+def test_plugin(ui: CylindraMainWidget):
+    ui.PluginsMenu.reload_plugins()

@@ -85,6 +85,7 @@ class CylindraPluginFunction(Generic[_P, _R]):
         params = list(self.__signature__.parameters.values())
         _method.__signature__ = inspect.Signature(params[1:])
         _method.__name__ = self._name
+        _method.__doc__ = getattr(self._func, "__doc__", "")
         upgrade_signature(_method)
         return _method
 

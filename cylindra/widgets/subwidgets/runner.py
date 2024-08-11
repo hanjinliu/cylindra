@@ -127,7 +127,7 @@ class Runner(ChildWidget):
     )
     def run(
         self,
-        splines: Annotated[Sequence[int], {"bind": splines}] = (),
+        splines: Annotated[Sequence[int], {"bind": splines, "widget_type": "EmptyWidget"}] = (),
         bin_size: Annotated[int, {"bind": bin_size}] = 1,
         max_shift: Annotated[nm, {"bind": _get_max_shift}] = 5.0,
         edge_sigma: Annotated[nm, {"bind": params1.edge_sigma}] = 2.0,
@@ -138,7 +138,7 @@ class Runner(ChildWidget):
         global_props: Annotated[bool, {"bind": global_props}] = True,
         infer_polarity: Annotated[bool, {"bind": infer_polarity}] = True,
         map_monomers: Annotated[bool, {"bind": map_monomers}] = False,
-    ):
+    ):  # fmt: skip
         """Run workflow."""
         main = self._get_main()
         if main._reserved_layers.work.data.size > 0:
