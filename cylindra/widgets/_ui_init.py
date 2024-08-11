@@ -10,7 +10,6 @@ import polars as pl
 from acryo import Molecules
 from magicclass import impl_preview, setup_function_gui
 from magicclass.widgets import ConsoleTextEdit
-from magicgui.application import use_app
 from magicgui.widgets import FunctionGui, Label, PushButton
 from napari.utils.colormaps import label_colormap
 
@@ -49,7 +48,6 @@ def _preview_load_project(self: CylindraMainWidget, path: str):
     pviewer = CylindraProject.from_file(path).make_project_viewer()
     ACTIVE_WIDGETS.add(pviewer)
     pviewer.native.setParent(self.native, pviewer.native.windowFlags())
-    use_app().process_events()
     pviewer.show()
 
 

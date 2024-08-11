@@ -1,3 +1,4 @@
+import sys
 import tempfile
 from itertools import product
 from pathlib import Path
@@ -521,9 +522,11 @@ def test_preview(ui: CylindraMainWidget):
     )
     tester.click_preview()
 
-    tester = mcls_testing.FunctionGuiTester(ui.load_project)
-    tester.update_parameters(path=PROJECT_DIR_13PF)
-    tester.click_preview()
+    if sys.platform != "darwin":
+        # NOTE: On macOS, the draw event of vispy causes segmentation fault.
+        tester = mcls_testing.FunctionGuiTester(ui.load_project)
+        tester.update_parameters(path=PROJECT_DIR_13PF)
+        tester.click_preview()
 
     tester = mcls_testing.FunctionGuiTester(ui.clip_spline)
     tester.click_preview()
