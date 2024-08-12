@@ -93,7 +93,7 @@ IMOD = "cylindra_builtins.imod"
 RELION = "cylindra_builtins.relion"
 
 [project.entry-points.pytest11]
-cylindra = "cylindra.utils.testing"
+cylindra = "cylindra.utils._test_utils"
 
 [tool.maturin]
 include = [
