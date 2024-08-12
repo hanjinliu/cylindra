@@ -112,8 +112,8 @@ module-name = "cylindra._cylindra_ext"
 include-package-data = true
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "cylindra_builtins/*/tests"]
-addopts = "-v"
+testpaths = ["tests", "cylindra_builtins"]
+addopts = ["-v", "--maxfail=5"]
 filterwarnings = [
     "ignore::DeprecationWarning:qtpy",
     "ignore::DeprecationWarning:ipykernel",
