@@ -679,7 +679,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
     ui.macro.undo()
     ui.macro.redo()
     ui.sta.align_all_template_free(
-        layers=["Mole-0"],
+        layers=["Mole-0-ALN1"],
         mask_params=(1, 1),
         size=12.0,
         bin_size=bin_size,
@@ -689,6 +689,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
         template_path=[template_path, template_path],
         mask_params=(1, 1),
         bin_size=bin_size,
+        method="pcc",
     )
     ui.sta.calculate_correlation(
         layers=["Mole-0-ALN1"],
@@ -697,7 +698,11 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
     )
     ui.sta.get_subtomograms("Mole-0", shape=(5, 5, 5), bin_size=bin_size, order=1)
     assert "score_0" in ui.mole_layers["Mole-0-ALN1"].features
+    ui.sta._template_param()
     ui.sta.params.template_choice = TemplateChoice.from_files
+    ui.sta.params.template_paths.value = [template_path, template_path]
+    ui.sta._template_params()
+    ui.sta._get_mask_params()
 
     ui.sta.align_averaged(
         layers=["Mole-0"],
@@ -728,6 +733,8 @@ def test_seam_search(ui: CylindraMainWidget):
         (pl.col("nth") * pl.col("pf-id") % 3 < 2).cast(pl.UInt8).alias("seam-label")
     )
     ui.sta.seam_search_by_feature(layer, by="seam-label")
+    mgui = get_function_gui(ui.sta.seam_search_by_feature)
+    mgui.reset_choices()
     ui.sta.seam_search_manually(layer, 3)
 
     image_layer_name = ui.parent_viewer.layers[0].name
@@ -1165,6 +1172,9 @@ def test_calc_misc(ui: CylindraMainWidget):
     ui.paint_molecules(layer, color_by=Mole.nth, limits=(0, 10))
     colors = ui.mole_layers.last().face_color
     ui.MoleculesMenu.View.plot_molecule_feature(layer, backend="qt")
+    ui.MoleculesMenu.View.plot_molecule_feature(
+        layer, backend="inline", show_title=False, show_axis=False
+    )
     with tempfile.TemporaryDirectory() as dirpath:
         fp = Path(dirpath) / "test-project.tar"
         ui.save_project(fp)
@@ -1603,6 +1613,7 @@ def test_stash(ui: CylindraMainWidget):
         ui.FileMenu.Stash.clear_stash_projects()
     ui.OthersMenu.configure_dask(num_workers=2)
     ui.OthersMenu.configure_dask(num_workers=None)
+    ui.FileMenu.recover_last_project()
 
 
 def test_plugin(ui: CylindraMainWidget):
