@@ -607,12 +607,12 @@ class CylindraMainWidget(MagicTemplate):
         return None
 
     @set_design(text=capitalize, location=_sw.FileMenu)
-    def load_molecules(self, paths: Path.Multiple[FileFilter.CSV]):
+    def load_molecules(self, paths: Path.Multiple[FileFilter.MOLE]):
         """Load molecules from a csv file."""
         if isinstance(paths, (str, Path, bytes)):
             paths = [paths]
-        for path in paths:
-            mole = Molecules.from_file(path)
+        moles = [Molecules.from_file(path) for path in paths]
+        for mole, path in zip(moles, paths, strict=False):
             name = Path(path).stem
             add_molecules(self.parent_viewer, mole, name)
         return None
@@ -632,7 +632,7 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     @set_design(text=capitalize, location=_sw.FileMenu)
     def save_molecules(
-        self, layer: MoleculesLayerType, save_path: Path.Save[FileFilter.CSV]
+        self, layer: MoleculesLayerType, save_path: Path.Save[FileFilter.MOLE]
     ):
         """
         Save monomer coordinates, orientation and features as a csv file.
