@@ -1,7 +1,7 @@
 import tempfile
 from pathlib import Path
 
-from cylindra.utils.testing import (
+from cylindra.utils._test_utils import (
     PROJECT_DIR_14PF,
     TEST_DIR,
     assert_molecules_equal,

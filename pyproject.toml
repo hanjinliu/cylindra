@@ -93,7 +93,7 @@ IMOD = "cylindra_builtins.imod"
 RELION = "cylindra_builtins.relion"
 
 [project.entry-points.pytest11]
-cylindra = "cylindra.utils.testing"
+cylindra = "cylindra_builtins._pytest_fixtures"
 
 [tool.maturin]
 include = [
@@ -112,8 +112,8 @@ module-name = "cylindra._cylindra_ext"
 include-package-data = true
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "cylindra_builtins/*/tests"]
-addopts = "-v"
+testpaths = ["tests", "cylindra_builtins"]
+addopts = ["-v", "--maxfail=5"]
 filterwarnings = [
     "ignore::DeprecationWarning:qtpy",
     "ignore::DeprecationWarning:ipykernel",
@@ -126,12 +126,13 @@ filterwarnings = [
 ]
 
 [tool.coverage.run]
-source_pkgs = ["cylindra", "cylindra_builtins"]
+source = ["cylindra", "cylindra_builtins"]
 branch = true
 parallel = true
 
 [tool.coverage.paths]
-cylindra = ["*/cylindra/cylindra", "*/cylindra/cylindra_builtins"]
+cylindra = ["cylindra/"]
+cylindra_builtins = ["cylindra_builtins/"]
 
 [tool.coverage.report]
 exclude_lines = [
