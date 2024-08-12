@@ -131,8 +131,8 @@ branch = true
 parallel = true
 
 [tool.coverage.paths]
-cylindra = ["*/cylindra/cylindra"]
-cylindra_builtins = ["*/cylindra/cylindra_builtins"]
+cylindra = ["cylindra/"]
+cylindra_builtins = ["cylindra_builtins/"]
 
 [tool.coverage.report]
 exclude_lines = [
