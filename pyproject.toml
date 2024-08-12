@@ -126,12 +126,13 @@ filterwarnings = [
 ]
 
 [tool.coverage.run]
-source_pkgs = ["cylindra", "cylindra_builtins"]
+source = ["cylindra", "cylindra_builtins"]
 branch = true
 parallel = true
 
 [tool.coverage.paths]
-cylindra = ["*/cylindra/cylindra", "*/cylindra/cylindra_builtins"]
+cylindra = ["*/cylindra/cylindra"]
+cylindra_builtins = ["*/cylindra/cylindra_builtins"]
 
 [tool.coverage.report]
 exclude_lines = [
