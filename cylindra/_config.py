@@ -57,7 +57,7 @@ class AppConfig:
             self = AppConfig(**js)
         except Exception as e:
             if ignore_error:
-                print("Failed to load user settings. Initialize AppConfig.")
+                print(f"Failed to load user settings. Initialize AppConfig: {e}")
                 self = AppConfig()
             else:
                 raise e

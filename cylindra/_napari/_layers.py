@@ -321,7 +321,7 @@ class MoleculesLayer(_FeatureBoundLayer, Points, _SourceBoundLayer):
             self.face_contrast_limits = limits
             if self._view_ndim == 3:
                 self.border_colormap = _cmap
-                self.edge_contrast_limits = limits
+                self.border_contrast_limits = limits
         elif column.dtype == pl.Boolean:  # NOTE: since polars>=0.20, `is` fails
             cfalse, ctrue = _cmap.map([0, 1])
             column2d = np.repeat(column.to_numpy()[:, np.newaxis], 4, axis=1)

@@ -14,7 +14,6 @@ from magicclass import (
     bind_key,
     confirm,
     do_not_record,
-    field,
     get_function_gui,
     magicmenu,
     nogui,
@@ -26,7 +25,8 @@ from magicclass.ext.polars import DataFrameView
 from magicclass.logging import getLogger
 from magicclass.types import Color, Optional, Path
 from magicclass.utils import thread_worker
-from magicclass.widgets import CodeEdit, ConsoleTextEdit, Separator
+from magicclass.widgets import CodeEdit, ConsoleTextEdit
+from magicgui.types import Separator
 from magicgui.widgets import ComboBox, Container
 
 from cylindra import _config
@@ -40,7 +40,6 @@ from cylindra.const import (
     nm,
 )
 from cylindra.core import ACTIVE_WIDGETS
-from cylindra.ext import IMOD, RELION
 from cylindra.project import CylindraProject, extract
 from cylindra.types import ColoredLayer
 from cylindra.utils import str_color
@@ -74,16 +73,16 @@ class FileMenu(ChildWidget):
 
     open_reference_image = abstractapi()
     open_label_image = abstractapi()
-    sep0 = field(Separator)
+    sep0 = Separator
     load_project = abstractapi()
     load_splines = abstractapi()
     load_molecules = abstractapi()
-    sep1 = field(Separator)
+    sep1 = Separator
     save_project = abstractapi()
     overwrite_project = abstractapi()
     save_spline = abstractapi()
     save_molecules = abstractapi()
-    sep2 = field(Separator)
+    sep2 = Separator
 
     @set_design(text=capitalize)
     @do_not_record
@@ -209,10 +208,6 @@ class FileMenu(ChildWidget):
         ACTIVE_WIDGETS.add(pviewer)
         return pviewer.show()
 
-    sep3 = field(Separator)
-    IMOD = IMOD
-    RELION = RELION
-
 
 @magicmenu
 class ImageMenu(ChildWidget):
@@ -222,7 +217,7 @@ class ImageMenu(ChildWidget):
     invert_image = abstractapi()
     add_multiscale = abstractapi()
     set_multiscale = abstractapi()
-    sep0 = field(Separator)
+    sep0 = Separator
 
     @do_not_record
     @set_design(text="Open spline slicer")
@@ -240,7 +235,7 @@ class ImageMenu(ChildWidget):
         """Open the simulator widget."""
         return self._get_main().simulator.show()
 
-    sep1 = field(Separator)
+    sep1 = Separator
     sample_subtomograms = abstractapi()
 
     @set_design(text=capitalize)
@@ -378,7 +373,7 @@ class SplinesMenu(ChildWidget):
             return None
 
     add_anchors = abstractapi()
-    sep0 = field(Separator)
+    sep0 = Separator
 
     @magicmenu
     class Orientation(MagicTemplate):
@@ -439,7 +434,7 @@ class SplinesMenu(ChildWidget):
             self._get_main().default_config = SplineConfig().updated(**loc)
             return None
 
-        sep0 = field(Separator)
+        sep0 = Separator
 
         @set_design(text=capitalize)
         def load_default_config(
@@ -499,7 +494,7 @@ class SplinesMenu(ChildWidget):
 
         refine_splines = abstractapi()
 
-    sep1 = field(Separator)
+    sep1 = Separator
     clip_spline = abstractapi()
 
     @set_design(text=capitalize)
@@ -515,7 +510,7 @@ class SplinesMenu(ChildWidget):
     delete_spline = abstractapi()
     copy_spline = abstractapi()
     copy_spline_new_config = abstractapi()
-    sep2 = field(Separator)
+    sep2 = Separator
 
     set_spline_props = abstractapi()
 
@@ -529,10 +524,10 @@ class MoleculesMenu(ChildWidget):
     rotate_molecules = abstractapi()
     filter_molecules = abstractapi()
     split_molecules = abstractapi()
-    sep0 = field(Separator)
+    sep0 = Separator
     rename_molecules = abstractapi()
     delete_molecules = abstractapi()
-    sep1 = field(Separator)
+    sep1 = Separator
 
     @magicmenu(name="From/To spline")
     class FromToSpline(MagicTemplate):
@@ -542,7 +537,7 @@ class MoleculesMenu(ChildWidget):
         map_monomers_with_extensions = abstractapi()
         map_along_spline = abstractapi()
         map_along_pf = abstractapi()
-        sep0 = field(Separator)
+        sep0 = Separator
         set_source_spline = abstractapi()
         molecules_to_spline = abstractapi()
         protofilaments_to_spline = abstractapi()
@@ -563,7 +558,7 @@ class MoleculesMenu(ChildWidget):
         interpolate_spline_properties = abstractapi()
         calculate_lattice_structure = abstractapi()
         distance_from_spline = abstractapi()
-        sep0 = field(Separator)
+        sep0 = Separator
         convolve_feature = abstractapi()
         count_neighbors = abstractapi()
         binarize_feature = abstractapi()
@@ -763,11 +758,11 @@ class AnalysisMenu(ChildWidget):
 
     local_cft_analysis = abstractapi()
     global_cft_analysis = abstractapi()
-    sep1 = field(Separator)
+    sep1 = Separator
     reanalyze_image = abstractapi()
     reanalyze_image_config_updated = abstractapi()
     load_project_for_reanalysis = abstractapi()
-    sep2 = field(Separator)
+    sep2 = Separator
 
     @set_design(text=capitalize)
     @do_not_record
@@ -802,7 +797,7 @@ class AnalysisMenu(ChildWidget):
         main._batch.show()
         return main._batch
 
-    sep2 = field(Separator)
+    sep2 = Separator
 
     @set_design(text=capitalize)
     @do_not_record(recursive=False)
@@ -810,6 +805,20 @@ class AnalysisMenu(ChildWidget):
     def repeat_command(self):
         """Repeat the last command."""
         return self.macro.repeat_method(same_args=False, raise_parse_error=False)
+
+
+@magicmenu
+class PluginsMenu(ChildWidget):
+    @set_design(text=capitalize)
+    @do_not_record
+    def reload_plugins(self):
+        from cylindra.plugin._find import iter_plugin_info
+
+        for plugin_info in iter_plugin_info():
+            plugin_info.reload(self._get_main())
+        return None
+
+    sep0 = Separator
 
 
 @magicmenu
@@ -863,7 +872,7 @@ class OthersMenu(ChildWidget):
             ACTIVE_WIDGETS.add(main.macro.widget)
             return None
 
-        sep0 = field(Separator)
+        sep0 = Separator
 
         @set_design(text="Load Python file")
         @do_not_record
@@ -959,7 +968,7 @@ class OthersMenu(ChildWidget):
             """View or edit a workflow script."""
             return self.define_workflow(filename, workflow)
 
-        sep0 = field(Separator)
+        sep0 = Separator
 
         @set_design(text=capitalize)
         def import_workflow(
@@ -1011,9 +1020,9 @@ class OthersMenu(ChildWidget):
 
             return to_clipboard(str(_config.WORKFLOWS_DIR))
 
-        sep1 = field(Separator)
+        sep1 = Separator
 
-    sep0 = field(Separator)
+    sep0 = Separator
 
     @set_design(text="Command palette")
     @do_not_record

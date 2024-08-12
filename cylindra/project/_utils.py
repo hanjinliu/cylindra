@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Iterable
 
 from macrokit import Expr, Head, parse
 
 _MACRO_FORMAT = """import polars as pl
 from cylindra.widgets import CylindraMainWidget
 from cylindra import instance
-
+{}
 def main(ui: CylindraMainWidget):
 {}
 
@@ -17,9 +18,10 @@ if __name__ == "__main__":
 """
 
 
-def as_main_function(expr: Expr) -> str:
+def as_main_function(expr: Expr, imports: Iterable[str] = ()) -> str:
     txt = "\n".join(f"    {line}" for line in expr.args)
-    return _MACRO_FORMAT.format(txt)
+    import_statements = "\n".join(imports) + "\n"
+    return _MACRO_FORMAT.format(import_statements, txt)
 
 
 def extract(text: str) -> Expr:

@@ -88,8 +88,23 @@ cylindra = "cylindra.__main__:main"
 [project.entry-points."napari.manifest"]
 cylindra = "cylindra:napari.yaml"
 
+[project.entry-points."cylindra.plugin"]
+IMOD = "cylindra_builtins.imod"
+RELION = "cylindra_builtins.relion"
+
+[project.entry-points.pytest11]
+cylindra = "cylindra.utils.testing"
+
 [tool.maturin]
-include = ["**/*.pyi", "*.pyi", "**/*.svg", "**/*.yaml", "**/*.qss", "**/*.json"]
+include = [
+    "**/*.pyi",
+    "*.pyi",
+    "**/*.svg",
+    "**/*.yaml",
+    "**/*.qss",
+    "**/*.json",
+    "cylindra_builtins/**/*",
+]
 features = ["pyo3/extension-module"]
 module-name = "cylindra._cylindra_ext"
 
@@ -97,7 +112,7 @@ module-name = "cylindra._cylindra_ext"
 include-package-data = true
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "cylindra_builtins/*/tests"]
 addopts = "-v"
 filterwarnings = [
     "ignore::DeprecationWarning:qtpy",
@@ -111,7 +126,7 @@ filterwarnings = [
 ]
 
 [tool.coverage.run]
-source_pkgs = ["cylindra"]
+source_pkgs = ["cylindra", "cylindra_builtins"]
 branch = true
 parallel = true
 

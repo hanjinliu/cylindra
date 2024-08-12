@@ -43,6 +43,7 @@ nav:
     - inspect_results.md
     - project_io.md
     - workflows.md
+    - plugins.md
     - Spline:
       - Spline: spline/index.md
       - spline/clip.md
@@ -86,12 +87,15 @@ nav:
     - api/project.md
     - api/cylmeasure.md
     - api/cylfilters.md
-    - api/ext.md
+    - api/plugin.md
     - Widgets:
       - api/widgets/main.md
       - api/widgets/sta.md
       - api/widgets/subwidgets.md
       - api/widgets/batch.md
+    - Builtin Plugins:
+      - api/builtins/imod.md
+      - api/builtins/relion.md
 
 hooks:
   - docs/scripts/_dynamic_doc.py

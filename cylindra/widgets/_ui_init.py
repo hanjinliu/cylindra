@@ -40,16 +40,15 @@ if TYPE_CHECKING:
 
 @impl_preview(CylindraMainWidget.load_molecules)
 def _preview_load_molecules(self: CylindraMainWidget, paths: list[str]):
-    w = view_tables(paths, parent=self)
-    ACTIVE_WIDGETS.add(w)
+    view_tables(paths, parent=self)
 
 
 @impl_preview(CylindraMainWidget.load_project)
 def _preview_load_project(self: CylindraMainWidget, path: str):
     pviewer = CylindraProject.from_file(path).make_project_viewer()
-    pviewer.native.setParent(self.native, pviewer.native.windowFlags())
     ACTIVE_WIDGETS.add(pviewer)
-    return pviewer.show()
+    pviewer.native.setParent(self.native, pviewer.native.windowFlags())
+    pviewer.show()
 
 
 @impl_preview(CylindraMainWidget.clip_spline, auto_call=True)
@@ -522,7 +521,7 @@ def _temp_layer_colors(layer: MoleculesLayer):
     fcmap = layer.face_colormap
     ecmap = layer.border_colormap
     fclim = layer.face_contrast_limits
-    eclim = layer.edge_contrast_limits
+    eclim = layer.border_contrast_limits
     info = layer.colormap_info
     try:
         yield
@@ -532,7 +531,7 @@ def _temp_layer_colors(layer: MoleculesLayer):
         layer.face_colormap = fcmap
         layer.border_colormap = ecmap
         layer.face_contrast_limits = fclim
-        layer.edge_contrast_limits = eclim
+        layer.border_contrast_limits = eclim
         layer._colormap_info = info
 
 

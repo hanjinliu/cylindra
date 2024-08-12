@@ -190,12 +190,14 @@ class CylindraProject(BaseProject):
             for info in self.molecules_info + self.landscape_info:
                 info.save_layer(gui, results_dir)
 
-            self._default_spline_config_path(results_dir).write_text(
-                gui.default_config.json_dumps()
-            )
+            _cfg_json = gui.default_config.json_dumps()
+            self._default_spline_config_path(results_dir).write_text(_cfg_json)
 
             # save macro
-            expr = as_main_function(gui._format_macro(gui.macro[gui._macro_offset :]))
+            expr = as_main_function(
+                gui._format_macro(gui.macro[gui._macro_offset :]),
+                imports=[plg.import_statement() for plg in gui._plugins_called],
+            )
             self._script_py_path(results_dir).write_text(expr)
 
             self.project_description = gui.GeneralInfo.project_desc.value
@@ -229,7 +231,7 @@ class CylindraProject(BaseProject):
             )
             yield cb
             cb.await_call()
-            gui._macro_offset = len(gui.macro)
+            gui._init_macro_state()
 
             @thread_worker.callback
             def _update_widget():
