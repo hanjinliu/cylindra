@@ -167,6 +167,6 @@ class AutoSaver:
             )
             if viewer := ui.parent_viewer:
                 viewer.status = "Project autosaved."
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             print("AutosaveError: ", e)
         self._last_saved = default_timer()
