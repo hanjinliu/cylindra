@@ -17,6 +17,7 @@ ENTRY_POINT_GROUP_NAME = "cylindra.plugin"
 class PluginInfo(NamedTuple):
     name: str
     value: str
+    version: str
 
     def load(self, ui: CylindraMainWidget) -> bool:
         return load_plugin(ui, module_name=self.value, display_name=self.name)
@@ -29,7 +30,7 @@ def iter_plugin_info() -> Iterator[PluginInfo]:
     for dist in distributions():
         for ep in dist.entry_points:
             if ep.group == ENTRY_POINT_GROUP_NAME:
-                yield PluginInfo(ep.name, ep.value)
+                yield PluginInfo(ep.name, ep.value, dist.version)
 
 
 def load_plugin(

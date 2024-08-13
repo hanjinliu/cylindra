@@ -19,34 +19,46 @@ Plugins must be defined in a python package, as they must be importable by the
 The file structure of a package should be as follows:
 
 ```
-my_first_plugin/
+my-first-plugin/
 ├── LICENSE
 ├── pyproject.toml
 ├── README.md
-├── src/
-│   └── my_first_plugin/
-│       ├── __init__.py
-:       :
+├── my_first_plugin/
+│   ├── __init__.py
+:   :
 │
 └── tests/
 ```
 
-One of the easiest ways to create a package is to use the [`hatch`](https://hatch.pypa.io/latest/) command. It automatically creates the necessary files and directories for you.
+The easiest way to create a package is to use the `cylindra plugin` command. It uses
+[cookiecutter](https://github.com/cookiecutter/cookiecutter) to automatically create the
+necessary files and directories for you.
 
 ```bash
-pip install hatch -U
-hatch new my_first_plugin
+pip install cookiecutter -U
+cylindra plugin new .
 ```
+
+??? note "Other ways?"
+    Alternatively, you can also use [`hatch`](https://hatch.pypa.io/latest/).
+
+    ```bash
+    pip install hatch -U
+    hatch new my-first-plugin
+    ```
+
+!!! note
+    If your plugin needs special build steps, such as compiling C or Rust code, you will
+    need to rewrite the `pyproject.toml` file.
 
 ### Step 2. Define Plugin Functions
 
 ```
-my_first_plugin/
+my-first-plugin/
 :
-├── src/
-│   └── my_first_plugin/
-│       ├── __init__.py
-:       └── main.py
+├── my_first_plugin/
+│   ├── __init__.py
+:   └── core.py
 ```
 
 When `cylindra` looks for the plugins, it searches for the variables defined under your
@@ -59,10 +71,10 @@ modules.
 Let's start with a simple plugin function that prints a message and a random array.
 
 ``` python title="my_first_plugin/__init__.py"
-from .main import my_plugin_function
+from .core import my_plugin_function
 ```
 
-``` python title="my_first_plugin/main.py"
+``` python title="my_first_plugin/core.py"
 import numpy as np
 from cylindra.plugin import register_function
 
@@ -75,34 +87,19 @@ def my_plugin_function(ui):
 ### Step 3. Metadata
 
 The "pyproject.toml" file describes the metadata of the package. The mandatory fields
-are
+are alreadly filled by the `cylindra plugin new` command, but there are still some
+fields that are needed to be updated.
 
-```toml
-[project]
-dependencies = ...
-
-[project.entry-points."cylindra.plugin"]
-...
-```
-
-The `dependencies` field under the `project` section should include the dependencies
-required for your plugin. All the packages imported in your package should be listed.
-
-Under the `project.entry-points."cylindra.plugin"` section, you should define the
-display name and the location of the plugin functions. Fields listed here will be used
-to search for the plugin functions.
-
-In this example, this section will be as follows:
+If your plugin depends on other packages, you should list them in the `dependencies`.
+Because `cylindra` plugins always depend on `cylindra`, `"cylindra"` is already included
+by default. If there are others, add them like below:
 
 ```toml
 [project]
 dependencies = [
     "cylindra",
-    "numpy",
+    "numpy>=1.25.0",
 ]
-
-[project.entry-points."cylindra.plugin"]
-"Run my first plugin" = "my_first_plugin"
 ```
 
 ### Step 4. Install the Plugin
@@ -113,10 +110,8 @@ Now, your package is ready to be installed by Python package manager.
 pip install -e my_first_plugin
 ```
 
-.. note::
+??? note "The `-e` option"
     The `-e` option installs the package in the editable mode, so you can modify the
     plugin functions without reinstalling the package. This is very useful during the
     development. However, if you modified the pyproject.toml itself, you'll have to
     reinstall the package.
-
-```

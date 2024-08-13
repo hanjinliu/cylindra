@@ -1,0 +1,16 @@
+{
+    "full_name": "Your Full Name",
+    "email": "yourname@example.com",
+    "github_username_or_organization": "githubuser",
+    "plugin_name": "cylindra-test-plugin",
+    "github_repository_url": ["https://github.com/{{cookiecutter.github_username_or_organization}}/{{cookiecutter.plugin_name}}", "provide later"],
+    "module_name": "{{ cookiecutter.plugin_name|lower|replace('-', '_') }}",
+    "display_name": "{{ cookiecutter.plugin_name|lower|replace('-', ' ')|replace('_', ' ')|title }}",
+    "short_description": "A test plugin for cylindra",
+    "license": [
+        "BSD-3",
+        "MIT",
+        "Apache Software License 2.0",
+        "GNU GPL v3.0"
+    ]
+}

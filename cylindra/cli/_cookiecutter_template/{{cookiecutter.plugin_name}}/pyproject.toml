@@ -1,0 +1,108 @@
+[project]
+name = "{{cookiecutter.plugin_name}}"
+dynamic = ["version"]
+description = "{{cookiecutter.short_description}}"
+readme = "README.md"
+license = {file = "LICENSE"}
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "cylindra",
+]
+authors = [
+    {name = "{{cookiecutter.full_name}}"},
+    {email = "{{cookiecutter.email}}"},
+]
+
+[build-system]
+requires = ["setuptools>=42.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.dynamic.version]
+attr = "{{cookiecutter.module_name}}.__version__"
+
+[project.entry-points."cylindra.plugin"]
+"{{cookiecutter.display_name}}" = "{{cookiecutter.module_name}}"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["-v", "--maxfail=5"]
+filterwarnings = [
+    "ignore::DeprecationWarning:qtpy",
+    "ignore::DeprecationWarning:ipykernel",
+    "ignore::DeprecationWarning:pkg_resources",
+    "ignore::DeprecationWarning:qtconsole",
+    "ignore:Deprecated call to `pkg_resources.declare_namespace:DeprecationWarning",
+    "ignore:distutils Version classes are deprecated",
+    "ignore:path is deprecated:DeprecationWarning",
+    "ignore:Jupyter is migrating its paths to use standard platformdirs:DeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["cylindra", "cylindra_builtins"]
+branch = true
+parallel = true
+
+[tool.coverage.paths]
+cylindra = ["cylindra/"]
+cylindra_builtins = ["cylindra_builtins/"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    'if __name__ == "__main__":',
+    'if sys.platform == "darwin":',
+    'def __repr__(self)',
+    "@overload",
+    "except ImportError",
+    "except ImportError*",
+    "except PackageNotFoundError",
+    "raise NotImplementedError",
+    "pass",
+]
+
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+select = [
+  "A",
+  "ARG",
+  "B",
+  "C",
+  "E",
+  "F",
+  "I",
+  "ICN",
+  "ISC",
+  "PLC",
+  "PLE",
+  "PLW",
+  "Q",
+  "T",
+  "TID",
+  "UP",
+  "W",
+  "YTT",
+]
+ignore = [
+  "A001", "A002", "A003", "ARG001", "ARG002",
+  # Allow non-abstract empty methods in abstract base classes
+  "B027", "B904", "B006",
+  "E501", "E741",
+  # Ignore complexity
+  "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915",
+  "UP038", "RUF001", "PLC1901", "N814", "UP035",
+  "T201", "PLW0603", "PLW2901",
+]
