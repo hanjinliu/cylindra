@@ -2093,28 +2093,40 @@ works as other methods in <code>cylindra</code>.</p>
 <code>from XXX import YYY</code> statement.</p>
 <h3 id="step-1-make-a-package">Step 1. Make a Package</h3>
 <p>The file structure of a package should be as follows:</p>
-<div class="highlight"><pre><span></span><code>my_first_plugin/
+<div class="highlight"><pre><span></span><code>my-first-plugin/
 ├── LICENSE
 ├── pyproject.toml
 ├── README.md
-├── src/
-│   └── my_first_plugin/
-│       ├── __init__.py
-:       :
+├── my_first_plugin/
+│   ├── __init__.py
+:   :
 │
 └── tests/
 </code></pre></div>
-<p>One of the easiest ways to create a package is to use the <a href="https://hatch.pypa.io/latest/"><code>hatch</code></a> command. It automatically creates the necessary files and directories for you.</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>hatch<span class="w"> </span>-U
-hatch<span class="w"> </span>new<span class="w"> </span>my_first_plugin
+<p>The easiest way to create a package is to use the <code>cylindra plugin</code> command. It uses
+<a href="https://github.com/cookiecutter/cookiecutter">cookiecutter</a> to automatically create the
+necessary files and directories for you.</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>cookiecutter<span class="w"> </span>-U
+cylindra<span class="w"> </span>plugin<span class="w"> </span>new<span class="w"> </span>.
 </code></pre></div>
+<details class="note">
+<summary>Other ways?</summary>
+<p>Alternatively, you can also use <a href="https://hatch.pypa.io/latest/"><code>hatch</code></a>.</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>hatch<span class="w"> </span>-U
+hatch<span class="w"> </span>new<span class="w"> </span>my-first-plugin
+</code></pre></div>
+</details>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If your plugin needs special build steps, such as compiling C or Rust code, you will
+need to rewrite the <code>pyproject.toml</code> file.</p>
+</div>
 <h3 id="step-2-define-plugin-functions">Step 2. Define Plugin Functions</h3>
-<div class="highlight"><pre><span></span><code>my_first_plugin/
+<div class="highlight"><pre><span></span><code>my-first-plugin/
 :
-├── src/
-│   └── my_first_plugin/
-│       ├── __init__.py
-:       └── main.py
+├── my_first_plugin/
+│   ├── __init__.py
+:   └── core.py
 </code></pre></div>
 <p>When <code>cylindra</code> looks for the plugins, it searches for the variables defined under your
 modules.</p>
@@ -2124,9 +2136,9 @@ modules.</p>
 <li>Plugin functions should be decorated with <code>cylindra.plugin.register_function</code>.</li>
 </ul>
 <p>Let's start with a simple plugin function that prints a message and a random array.</p>
-<div class="highlight"><span class="filename">my_first_plugin/__init__.py</span><pre><span></span><code><span class="kn">from</span> <span class="nn">.main</span> <span class="kn">import</span> <span class="n">my_plugin_function</span>
+<div class="highlight"><span class="filename">my_first_plugin/__init__.py</span><pre><span></span><code><span class="kn">from</span> <span class="nn">.core</span> <span class="kn">import</span> <span class="n">my_plugin_function</span>
 </code></pre></div>
-<div class="highlight"><span class="filename">my_first_plugin/main.py</span><pre><span></span><code><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<div class="highlight"><span class="filename">my_first_plugin/core.py</span><pre><span></span><code><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">cylindra.plugin</span> <span class="kn">import</span> <span class="n">register_function</span>
 
 <span class="nd">@register_function</span>
@@ -2136,38 +2148,28 @@ modules.</p>
 </code></pre></div>
 <h3 id="step-3-metadata">Step 3. Metadata</h3>
 <p>The "pyproject.toml" file describes the metadata of the package. The mandatory fields
-are</p>
-<div class="highlight"><pre><span></span><code><span class="k">[project]</span>
-<span class="n">dependencies</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">...</span>
-
-<span class="k">[project.entry-points.</span><span class="s2">&quot;cylindra.plugin&quot;</span><span class="k">]</span>
-<span class="p">...</span>
-</code></pre></div>
-<p>The <code>dependencies</code> field under the <code>project</code> section should include the dependencies
-required for your plugin. All the packages imported in your package should be listed.</p>
-<p>Under the <code>project.entry-points."cylindra.plugin"</code> section, you should define the
-display name and the location of the plugin functions. Fields listed here will be used
-to search for the plugin functions.</p>
-<p>In this example, this section will be as follows:</p>
+are alreadly filled by the <code>cylindra plugin new</code> command, but there are still some
+fields that are needed to be updated.</p>
+<p>If your plugin depends on other packages, you should list them in the <code>dependencies</code>.
+Because <code>cylindra</code> plugins always depend on <code>cylindra</code>, <code>"cylindra"</code> is already included
+by default. If there are others, add them like below:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[project]</span>
 <span class="n">dependencies</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
 <span class="w">    </span><span class="s2">&quot;cylindra&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="s2">&quot;numpy&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">&quot;numpy&gt;=1.25.0&quot;</span><span class="p">,</span>
 <span class="p">]</span>
-
-<span class="k">[project.entry-points.</span><span class="s2">&quot;cylindra.plugin&quot;</span><span class="k">]</span>
-<span class="s2">&quot;Run my first plugin&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;my_first_plugin&quot;</span>
 </code></pre></div>
 <h3 id="step-4-install-the-plugin">Step 4. Install the Plugin</h3>
 <p>Now, your package is ready to be installed by Python package manager.</p>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>my_first_plugin
 </code></pre></div>
-<p>.. note::
-    The <code>-e</code> option installs the package in the editable mode, so you can modify the
-    plugin functions without reinstalling the package. This is very useful during the
-    development. However, if you modified the pyproject.toml itself, you'll have to
-    reinstall the package.</p>
-<p>```</p>
+<details class="note">
+<summary>The <code>-e</code> option</summary>
+<p>The <code>-e</code> option installs the package in the editable mode, so you can modify the
+plugin functions without reinstalling the package. This is very useful during the
+development. However, if you modified the pyproject.toml itself, you'll have to
+reinstall the package.</p>
+</details>
 
 
 
