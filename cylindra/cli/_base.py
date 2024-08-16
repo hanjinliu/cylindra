@@ -24,6 +24,10 @@ class ParserBase(argparse.ArgumentParser):
         """The subcommand actions."""
         raise NotImplementedError
 
+    def print_help(self):
+        help_action = HelpAction(option_strings=["-h", "--help"], dest="help")
+        help_action(self, None, None)
+
 
 def coerce_output_filename(name: str, ext: str = ".tif"):
     cwd = Path.cwd()

@@ -7,9 +7,6 @@ from functools import wraps
 from types import ModuleType
 from typing import Callable, Generic, ParamSpec, TypeVar
 
-from macrokit import Expr, Symbol
-from magicclass.undo import UndoCallback
-
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
 
@@ -90,6 +87,9 @@ class CylindraPluginFunction(Generic[_P, _R]):
         return _method
 
     def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _R:
+        from macrokit import Expr, Symbol
+        from magicclass.undo import UndoCallback
+
         from cylindra.widgets import CylindraMainWidget
 
         bound = self.__signature__.bind(*args, **kwargs)
