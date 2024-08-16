@@ -1,5 +1,6 @@
 import sys
 import tempfile
+import warnings
 from itertools import product
 from pathlib import Path
 
@@ -1622,4 +1623,33 @@ def test_stash(ui: CylindraMainWidget):
 
 
 def test_plugin(ui: CylindraMainWidget):
+    from cylindra.plugin import register_function
+
     ui.PluginsMenu.reload_plugins()
+
+    @register_function
+    def test_func(ui):
+        pass
+
+    @register_function(record=False)
+    def test_func_no_record(ui):
+        pass
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=UserWarning)
+
+        @register_function
+        def wrong_signature(a: int):
+            pass
+
+    repr(test_func)
+    test_func(ui)
+    test_func_no_record(ui)
+    with pytest.raises(TypeError):
+        wrong_signature(3)
+
+    assert str(ui.macro[1]) == "tests.test_gui_0.test_func(ui)"
+    assert str(ui.macro[2]) == "tests.test_gui_0.test_func_no_record(ui)"
+    with tempfile.TemporaryDirectory() as dirpath:
+        dirpath = Path(dirpath)
+        ui.save_project(dirpath / "test-project.tar")
