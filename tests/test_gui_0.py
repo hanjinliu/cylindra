@@ -922,8 +922,7 @@ def test_simulate_tilt_series(ui: CylindraMainWidget):
 
 def test_project_viewer():
     pviewer = view_project(PROJECT_DIR_14PF)
-    # TODO: fails due to delayed returned callback
-    # pviewer.load_this_project(path=pviewer._get_project_path())
+    pviewer.load_this_project(path=pviewer._get_project_path())
     pviewer.preview_image().close()
     pviewer.close()
 
