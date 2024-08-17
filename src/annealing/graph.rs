@@ -103,15 +103,111 @@ impl<Sn, Se> GraphComponents<Sn, Se> {
 }
 
 #[derive(Clone)]
-pub struct NodeState {
+pub struct Node<S: Clone> {
     index: Index,
-    shift: Vector3D<isize>,
+    state: S,
 }
+
+pub trait CylindricGraphTrait<S: Clone, E: Clone> {
+    fn components(&self) -> &GraphComponents<Node<S>, E>;
+    fn components_mut(&mut self) -> &mut GraphComponents<Node<S>, E>;
+    fn internal(&self, node_state: &Node<S>) -> f32;
+    fn binding(&self, node_state0: &Node<S>, node_state1: &Node<S>, typ: &E) -> f32;
+    fn random_local_neighbor_state(&self, node_state: &Node<S>, rng: &mut RandomNumberGenerator) -> Node<S>;
+    fn initialize(&mut self) -> &Self;
+    fn local_shape(&self) -> Vector3D<isize>;
+    fn binding_energies(&self) -> (Array1<f32>, Array1<f32>);
+    fn list_neighbors(&self, node_state: &Node<S>) -> Vec<S>;
+
+    fn energy(&self) -> f32 {
+        let mut energy = 0.0;
+        let graph = self.components();
+        for i in 0..graph.node_count() {
+            energy += self.internal(&graph.node_state(i));
+        }
+        for i in 0..graph.edge_count() {
+            let edge = graph.edge_end(i);
+            let node_state0 = graph.node_state(edge.0);
+            let node_state1 = graph.node_state(edge.1);
+            energy += self.binding(&node_state0, &node_state1, &graph.edge_state(i));
+        }
+        energy
+    }
+
+    /// Calculate the total energy of the graph.
+    fn check_graph(&self) -> PyResult<()> {
+        if self.components().node_count() < 2 {
+            return value_error!("Graph has less than 2 nodes");
+        }
+        Ok(())
+    }
+
+    /// Apply the shift result to the graph.
+    fn apply_shift(&mut self, result: &ShiftResult<Node<S>>) {
+        self.components_mut().set_node_state(result.index, result.state.clone());
+    }
+
+
+    /// Randomly choose a node and a possible neighbor shift. This method does not actually
+    /// update the graph but just calculate the resulting energy difference.
+    fn try_random_shift(
+        &self,
+        rng: &mut RandomNumberGenerator,
+    ) -> ShiftResult<Node<S>> {
+        let graph = self.components();
+        let idx = rng.uniform_int(graph.node_count());
+        let state_old = graph.node_state(idx);
+        let state_new = self.random_local_neighbor_state(&state_old, rng);
+        let de = self.energy_diff_by_shift(idx, &state_old, &state_new);
+        ShiftResult { index: idx, state: state_new, energy_diff: de }
+    }
+
+    /// Energy difference by shifting a state of node at idx.
+    fn energy_diff_by_shift(
+        &self,
+        idx: usize,
+        state_old: &Node<S>,
+        state_new: &Node<S>,
+    ) -> f32 {
+        let graph = self.components();
+        let mut e_old = self.internal(&state_old);
+        let mut e_new = self.internal(&state_new);
+        for edge_id in graph.connected_edge_indices(idx) {
+            let edge_id = *edge_id;
+            let ends = graph.edge_end(edge_id);
+            let other_idx = if ends.0 == idx { ends.1 } else { ends.0 };
+            let other_state = graph.node_state(other_idx);
+            e_old += self.binding(&state_old, &other_state, graph.edge_state(edge_id));
+            e_new += self.binding(&state_new, &other_state, graph.edge_state(edge_id));
+        }
+        e_new - e_old
+    }
+
+    /// Try all the available shifts and return the best shift.
+    fn try_all_shifts(&self) -> ShiftResult<Node<S>> {
+        let graph = self.components();
+        let mut best_shift = ShiftResult { index: 0, state: graph.node_state(0).clone(), energy_diff: f32::INFINITY };
+        for idx in 0..graph.node_count() {
+            let state_old = graph.node_state(idx);
+            let neighbors = self.list_neighbors(&state_old);
+            for nbr in neighbors.iter() {
+                let index = state_old.index.clone();
+                let state_new = Node { index, state: nbr.clone() };
+                let de = self.energy_diff_by_shift(idx, &state_old, &state_new);
+                if best_shift.energy_diff > de {
+                    best_shift = ShiftResult { index: idx, state: state_new, energy_diff: de };
+                }
+            }
+        }
+        best_shift
+    }
+}
+
 
 
 #[derive(Clone)]
 pub struct CylindricGraph {
-    components: GraphComponents<NodeState, EdgeType>,
+    components: GraphComponents<Node<Vector3D<isize>>, EdgeType>,
     coords: Arc<HashMap2D<CoordinateSystem<f32>>>,
     energy: Arc<HashMap2D<Array<f32, Ix3>>>,
     pub binding_potential: TrapezoidalPotential2D,
@@ -143,7 +239,7 @@ impl CylindricGraph {
         for i in 0..indices.len() {
             let idx = indices[i].clone();
             index_to_id.insert(idx.as_tuple_usize(), i);
-            self.components.add_node(NodeState { index: idx, shift: Vector3D::new(0, 0, 0) });
+            self.components.add_node(Node { index: idx, state: Vector3D::new(0, 0, 0) });
         }
         for (idx, i) in index_to_id.iter() {
             let neighbors = Index::new(idx.0 as isize, idx.1 as isize).get_neighbors(npf, nrise);
@@ -226,7 +322,7 @@ impl CylindricGraph {
             let node_state = self.components.node_state(i);
             let idx = &node_state.index;
             _energy.insert(idx.as_tuple_usize(), energy.slice(s![i, .., .., ..]).to_owned());
-            self.components.set_node_state(i, NodeState { index: idx.clone(), shift: center.clone() })
+            self.components.set_node_state(i, Node { index: idx.clone(), state: center.clone() })
         }
         self.energy = Arc::new(_energy);
         Ok(self)
@@ -235,90 +331,6 @@ impl CylindricGraph {
     /// Cool down the binding potential.
     pub fn cool(&mut self, n: usize) {
         self.binding_potential.cool(n);
-    }
-
-    /// Get the graph components.
-    pub fn components(&self) -> &GraphComponents<NodeState, EdgeType> {
-        &self.components
-    }
-
-    /// Calculate the internal energy of a node state.
-    /// # Arguments
-    /// * `node_state` - The node state of interest.
-    pub fn internal(&self, node_state: &NodeState) -> f32 {
-        let idx = &node_state.index;
-        let vec = node_state.shift;
-        self.energy[(idx.y, idx.a)][[vec.z as usize, vec.y as usize, vec.x as usize]]
-    }
-
-    /// Calculate the binding energy between two nodes.
-    /// # Arguments
-    /// * `node_state0` - The node state of the first node.
-    /// * `node_state1` - The node state of the second node.
-    /// * `typ` - The type of the edge between the two nodes.
-    pub fn binding(&self, node_state0: &NodeState, node_state1: &NodeState, typ: &EdgeType) -> f32 {
-        let vec1 = node_state0.shift;
-        let vec2 = node_state1.shift;
-        let coord1 = &self.coords[(node_state0.index.y, node_state0.index.a)];
-        let coord2 = &self.coords[(node_state1.index.y, node_state1.index.a)];
-        let dr = coord1.at_vec(vec1.into()) - coord2.at_vec(vec2.into());
-        // ey is required for the angle constraint.
-        let ey = coord2.origin - coord1.origin;
-        self.binding_potential.calculate(&dr, &ey, typ)
-    }
-
-    /// Return a random neighbor state of a given node state.
-    pub fn random_local_neighbor_state(&self, node_state: &NodeState, rng: &mut RandomNumberGenerator) -> NodeState {
-        let idx = node_state.index.clone();
-        let shift = node_state.shift;
-        let shift_new = rng.rand_shift(&shift);
-        NodeState { index: idx, shift: shift_new }
-    }
-
-    /// Return the current shifts of the graph.
-    pub fn get_shifts(&self) -> Array2<isize> {
-        let graph = self.components();
-        let n_nodes = graph.node_count();
-        let mut shifts = Array2::<isize>::zeros((n_nodes as usize, 3));
-        for i in 0..n_nodes {
-            let state = graph.node_state(i);
-            let shift = state.shift;
-            shifts[[i, 0]] = shift.z;
-            shifts[[i, 1]] = shift.y;
-            shifts[[i, 2]] = shift.x;
-        }
-        shifts
-    }
-
-    /// Set shifts to each node.
-    pub fn set_shifts(&mut self, shifts: &Array2<isize>) -> PyResult<&Self> {
-        let n_nodes = self.components.node_count();
-        if shifts.shape() != [n_nodes as usize, 3] {
-            return value_error!("shifts has wrong shape");
-        }
-        for i in 0..n_nodes {
-            let mut state = self.components.node_state(i).clone();
-            state.shift.z = shifts[[i, 0]];
-            state.shift.y = shifts[[i, 1]];
-            state.shift.x = shifts[[i, 2]];
-            self.components.set_node_state(i, state);
-        }
-        Ok(self)
-    }
-
-    pub fn set_shifts_arc(&mut self, shifts: &ArcArray2<isize>) -> PyResult<&Self> {
-        let n_nodes = self.components.node_count();
-        if shifts.shape() != [n_nodes as usize, 3] {
-            return value_error!("shifts has wrong shape");
-        }
-        for i in 0..n_nodes {
-            let mut state = self.components.node_state(i).clone();
-            state.shift.z = shifts[[i, 0]];
-            state.shift.y = shifts[[i, 1]];
-            state.shift.x = shifts[[i, 2]];
-            self.components.set_node_state(i, state);
-        }
-        Ok(self)
     }
 
     /// If the graph is a cylinder with (ny, na) nodes, return (ny, na).
@@ -353,7 +365,7 @@ impl CylindricGraph {
 
             let coord0 = &self.coords[(pos0.index.y, pos0.index.a)];
             let coord1 = &self.coords[(pos1.index.y, pos1.index.a)];
-            let dr = coord0.at_vec(pos0.shift.into()) - coord1.at_vec(pos1.shift.into());
+            let dr = coord0.at_vec(pos0.state.into()) - coord1.at_vec(pos1.state.into());
             distances.push(dr.length())
         }
         Array1::from(distances)
@@ -392,8 +404,8 @@ impl CylindricGraph {
                 let coord_l = &self.coords[(pos_l.index.y, pos_l.index.a)];
                 let coord_r = &self.coords[(pos_r.index.y, pos_r.index.a)];
 
-                let dr_l = coord_c.at_vec(pos_c.shift.into()) - coord_l.at_vec(pos_l.shift.into());
-                let dr_r = coord_c.at_vec(pos_c.shift.into()) - coord_r.at_vec(pos_r.shift.into());
+                let dr_l = coord_c.at_vec(pos_c.state.into()) - coord_l.at_vec(pos_l.state.into());
+                let dr_r = coord_c.at_vec(pos_c.state.into()) - coord_r.at_vec(pos_r.state.into());
                 angles[i] = dr_l.angle(&dr_r);
             }
 
@@ -407,64 +419,12 @@ impl CylindricGraph {
         self
     }
 
-    /// Calculate the local energy at the given index.
-    pub fn energy_at(&self, i: usize) -> f32 {
-        let mut energy = 0.0;
-        let graph = self.components();
-        energy += self.internal(&graph.node_state(i));
-        for j in graph.connected_edge_indices(i) {
-            let edge = graph.edge_end(*j);
-            let node_state0 = graph.node_state(edge.0);
-            let node_state1 = graph.node_state(edge.1);
-            energy += self.binding(&node_state0, &node_state1, &graph.edge_state(i));
-        }
-        energy
-    }
-
-    /// Calculate the total energy of the graph.
-    pub fn energy(&self) -> f32 {
-        let mut energy = 0.0;
-        let graph = self.components();
-        for i in 0..graph.node_count() {
-            energy += self.internal(&graph.node_state(i));
-        }
-        for i in 0..graph.edge_count() {
-            let edge = graph.edge_end(i);
-            let node_state0 = graph.node_state(edge.0);
-            let node_state1 = graph.node_state(edge.1);
-            energy += self.binding(&node_state0, &node_state1, &graph.edge_state(i));
-        }
-        energy
-    }
-
-    pub fn binding_energies(&self) -> (Array1<f32>, Array1<f32>) {
-        let graph = self.components();
-        let mut eng_lon = Array1::zeros(graph.node_count());
-        let mut eng_lat = Array1::zeros(graph.node_count());
-        for idx in 0..graph.edge_count() {
-            // node0 ---- edge ---- node1
-            let edge = graph.edge_end(idx);
-            let estate = graph.edge_state(idx);
-            let node_state0 = graph.node_state(edge.0);
-            let node_state1 = graph.node_state(edge.1);
-            let eng = self.binding(&node_state0, &node_state1, &estate);
-            match estate {
-                EdgeType::Longitudinal => {
-                    eng_lon[edge.0] += eng;
-                    eng_lon[edge.1] += eng;
-                }
-                EdgeType::Lateral => {
-                    eng_lat[edge.0] += eng;
-                    eng_lat[edge.1] += eng;
-                }
-            }
-        }
-        (eng_lon, eng_lat)
-    }
-
     /// Randomly choose a node and a possible neighbor shift. This method does not actually
     /// update the graph but just calculate the resulting energy difference.
-    pub fn try_random_shift(&self, rng: &mut RandomNumberGenerator) -> ShiftResult<NodeState> {
+    pub fn try_random_shift(
+        &self,
+        rng: &mut RandomNumberGenerator,
+    ) -> ShiftResult<Node<Vector3D<isize>>> {
         let graph = self.components();
         let idx = rng.uniform_int(graph.node_count());
         let state_old = graph.node_state(idx);
@@ -473,55 +433,9 @@ impl CylindricGraph {
         ShiftResult { index: idx, state: state_new, energy_diff: de }
     }
 
-    /// Energy difference by shifting a state of node at idx.
-    fn energy_diff_by_shift(&self, idx: usize, state_old: &NodeState, state_new: &NodeState) -> f32 {
-        let graph = self.components();
-        let mut e_old = self.internal(&state_old);
-        let mut e_new = self.internal(&state_new);
-        for edge_id in graph.connected_edge_indices(idx) {
-            let edge_id = *edge_id;
-            let ends = graph.edge_end(edge_id);
-            let other_idx = if ends.0 == idx { ends.1 } else { ends.0 };
-            let other_state = graph.node_state(other_idx);
-            e_old += self.binding(&state_old, &other_state, &graph.edge_state(edge_id));
-            e_new += self.binding(&state_new, &other_state, &graph.edge_state(edge_id));
-        }
-        e_new - e_old
-    }
-
-    /// Try all the available shifts and return the best shift.
-    pub fn try_all_shifts(&self) -> ShiftResult<NodeState> {
-        let graph = self.components();
-        let mut best_shift = ShiftResult { index: 0, state: graph.node_state(0).clone(), energy_diff: f32::INFINITY };
-        for idx in 0..graph.node_count() {
-            let state_old = graph.node_state(idx);
-            let neighbors = list_neighbors(&state_old.shift, &self.local_shape);
-            for nbr in neighbors.iter() {
-                let index = state_old.index.clone();
-                let state_new = NodeState { index: index, shift: nbr.clone() };
-                let de = self.energy_diff_by_shift(idx, &state_old, &state_new);
-                if best_shift.energy_diff > de {
-                    best_shift = ShiftResult { index: idx, state: state_new, energy_diff: de };
-                }
-            }
-        }
-        best_shift
-    }
-
     /// Apply the shift result to the graph.
-    pub fn apply_shift(&mut self, result: &ShiftResult<NodeState>) {
+    pub fn apply_shift(&mut self, result: &ShiftResult<Node<Vector3D<isize>>>) {
         self.components.set_node_state(result.index, result.state.clone());
-    }
-
-    /// Initialize the node states to the center of each local coordinates.
-    pub fn initialize(&mut self) -> &Self {
-        let center = Vector3D::new(self.local_shape.z / 2, self.local_shape.y / 2, self.local_shape.x / 2);
-        for i in 0..self.components.node_count() {
-            let node = self.components.node_state(i);
-            let idx = node.index.clone();
-            self.components.set_node_state(i, NodeState { index: idx, shift: center.clone() });
-        }
-        self
     }
 
     pub fn get_longitudinal_distances(&self) -> Array1<f32> {
@@ -549,8 +463,8 @@ impl CylindricGraph {
             let ends = self.components.edge_end(i);
             let node0 = self.components.node_state(ends.0);
             let node1 = self.components.node_state(ends.1);
-            let coord0 = self.coords[(node0.index.y, node0.index.a)].at_vec(node0.shift.into());
-            let coord1 = self.coords[(node1.index.y, node1.index.a)].at_vec(node1.shift.into());
+            let coord0 = self.coords[(node0.index.y, node0.index.a)].at_vec(node0.state.into());
+            let coord1 = self.coords[(node1.index.y, node1.index.a)].at_vec(node1.state.into());
             out0[[i, 0]] = coord0.z;
             out0[[i, 1]] = coord0.y;
             out0[[i, 2]] = coord0.x;
@@ -571,6 +485,153 @@ impl CylindricGraph {
             return value_error!("Graph has less than 2 nodes");
         }
         Ok(())
+    }
+
+
+    /// Return the current shifts of the graph.
+    pub fn get_shifts(&self) -> Array2<isize> {
+        let graph = self.components();
+        let n_nodes = graph.node_count();
+        let mut shifts = Array2::<isize>::zeros((n_nodes as usize, 3));
+        for i in 0..n_nodes {
+            let state = graph.node_state(i);
+            let shift = state.state;
+            shifts[[i, 0]] = shift.z;
+            shifts[[i, 1]] = shift.y;
+            shifts[[i, 2]] = shift.x;
+        }
+        shifts
+    }
+
+    /// Set shifts to each node.
+    pub fn set_shifts(&mut self, shifts: &Array2<isize>) -> PyResult<&Self> {
+        let n_nodes = self.components().node_count();
+        if shifts.shape() != [n_nodes as usize, 3] {
+            return value_error!("shifts has wrong shape");
+        }
+        for i in 0..n_nodes {
+            let mut state = self.components().node_state(i).clone();
+            state.state.z = shifts[[i, 0]];
+            state.state.y = shifts[[i, 1]];
+            state.state.x = shifts[[i, 2]];
+            self.components_mut().set_node_state(i, state);
+        }
+        Ok(self)
+    }
+
+    pub fn set_shifts_arc(&mut self, shifts: &ArcArray2<isize>) -> PyResult<&Self> {
+        let n_nodes = self.components().node_count();
+        if shifts.shape() != [n_nodes as usize, 3] {
+            return value_error!("shifts has wrong shape");
+        }
+        for i in 0..n_nodes {
+            let mut state = self.components().node_state(i).clone();
+            state.state.z = shifts[[i, 0]];
+            state.state.y = shifts[[i, 1]];
+            state.state.x = shifts[[i, 2]];
+            self.components_mut().set_node_state(i, state);
+        }
+        Ok(self)
+    }
+
+}
+
+impl CylindricGraphTrait<Vector3D<isize>, EdgeType> for CylindricGraph {
+
+    /// Get the graph components.
+    fn components(&self) -> &GraphComponents<Node<Vector3D<isize>>, EdgeType> {
+        &self.components
+    }
+
+    fn components_mut(&mut self) -> &mut GraphComponents<Node<Vector3D<isize>>, EdgeType> {
+        &mut self.components
+    }
+
+    /// Calculate the internal energy of a node state.
+    /// # Arguments
+    /// * `node_state` - The node state of interest.
+    fn internal(&self, node_state: &Node<Vector3D<isize>>) -> f32 {
+        let idx = &node_state.index;
+        let vec = node_state.state;
+        self.energy[(idx.y, idx.a)][[vec.z as usize, vec.y as usize, vec.x as usize]]
+    }
+
+    /// Calculate the binding energy between two nodes.
+    /// # Arguments
+    /// * `node_state0` - The node state of the first node.
+    /// * `node_state1` - The node state of the second node.
+    /// * `typ` - The type of the edge between the two nodes.
+    fn binding(
+        &self,
+        node_state0: &Node<Vector3D<isize>>,
+        node_state1: &Node<Vector3D<isize>>,
+        typ: &EdgeType,
+    ) -> f32 {
+        let vec1 = node_state0.state;
+        let vec2 = node_state1.state;
+        let coord1 = &self.coords[(node_state0.index.y, node_state0.index.a)];
+        let coord2 = &self.coords[(node_state1.index.y, node_state1.index.a)];
+        let dr = coord1.at_vec(vec1.into()) - coord2.at_vec(vec2.into());
+        // ey is required for the angle constraint.
+        let ey = coord2.origin - coord1.origin;
+        self.binding_potential.calculate(&dr, &ey, typ)
+    }
+
+    /// Return a random neighbor state of a given node state.
+    fn random_local_neighbor_state(
+        &self,
+        node_state: &Node<Vector3D<isize>>,
+        rng: &mut RandomNumberGenerator,
+    ) -> Node<Vector3D<isize>> {
+        let idx = node_state.index.clone();
+        let shift = node_state.state;
+        let shift_new = rng.rand_shift(&shift);
+        Node { index: idx, state: shift_new }
+    }
+
+
+    fn binding_energies(&self) -> (Array1<f32>, Array1<f32>) {
+        let graph = self.components();
+        let mut eng_lon = Array1::zeros(graph.node_count());
+        let mut eng_lat = Array1::zeros(graph.node_count());
+        for idx in 0..graph.edge_count() {
+            // node0 ---- edge ---- node1
+            let edge = graph.edge_end(idx);
+            let estate = graph.edge_state(idx);
+            let node_state0 = graph.node_state(edge.0);
+            let node_state1 = graph.node_state(edge.1);
+            let eng = self.binding(&node_state0, &node_state1, &estate);
+            match estate {
+                EdgeType::Longitudinal => {
+                    eng_lon[edge.0] += eng;
+                    eng_lon[edge.1] += eng;
+                }
+                EdgeType::Lateral => {
+                    eng_lat[edge.0] += eng;
+                    eng_lat[edge.1] += eng;
+                }
+            }
+        }
+        (eng_lon, eng_lat)
+    }
+
+    fn list_neighbors(&self, node_state: &Node<Vector3D<isize>>) -> Vec<Vector3D<isize>> {
+        list_neighbors(&node_state.state, &self.local_shape)
+    }
+
+    /// Initialize the node states to the center of each local coordinates.
+    fn initialize(&mut self) -> &Self {
+        let center = Vector3D::new(self.local_shape.z / 2, self.local_shape.y / 2, self.local_shape.x / 2);
+        for i in 0..self.components.node_count() {
+            let node = self.components.node_state(i);
+            let idx = node.index.clone();
+            self.components.set_node_state(i, Node { index: idx, state: center.clone() });
+        }
+        self
+    }
+
+    fn local_shape(&self) -> Vector3D<isize> {
+        self.local_shape
     }
 }
 

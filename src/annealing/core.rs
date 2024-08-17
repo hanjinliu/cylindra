@@ -9,7 +9,7 @@ use numpy::{
 
 use super::{
     random::RandomNumberGenerator,
-    graph::CylindricGraph,
+    graph::{CylindricGraph, CylindricGraphTrait},
     reservoir::Reservoir,
 };
 use crate::{value_error, cylindric::Index};
