@@ -504,6 +504,8 @@ class IndexEdit(LineEdit):
             "__builtins__": {},
             "int": int,
             "slice": slice,
+            "None": None,
+            "round": round,
         }
     )
 
