@@ -361,8 +361,11 @@ def _setup_paint_molecules(self: CylindraMainWidget, gui: FunctionGui):
         if series.dtype in POLARS_NUMERIC_DTYPES:
             series = series.filter(~series.is_infinite())
             min_, max_ = series.min(), series.max()
-            offset_ = (max_ - min_) / 2
-            step_ = 10 ** int(np.log10(max_ - min_) - 2)
+            range_ = max_ - min_
+            if range_ == 0:
+                range_ = 0.0001
+            offset_ = range_ / 2
+            step_ = 10 ** int(np.log10(range_) - 2)
             lim_l.min = lim_h.min = min_ - offset_
             lim_l.max = lim_h.max = max_ + offset_
             lim_l.step = lim_h.step = step_

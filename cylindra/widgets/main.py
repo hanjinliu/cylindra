@@ -1619,8 +1619,10 @@ class CylindraMainWidget(MagicTemplate):
             @thread_worker.callback
             def _global_cft_analysis_on_return():
                 df = (
-                    self.tomogram.splines.collect_globalprops()
-                    .drop(H.spline_id)
+                    pl.concat(
+                        [tomo.splines[i].props.glob for i in splines],
+                        how="vertical_relaxed",
+                    )
                     .to_pandas()
                     .transpose()
                 )

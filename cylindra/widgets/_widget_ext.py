@@ -546,6 +546,8 @@ class IndexEdit(LineEdit):
 
     @classmethod
     def eval(cls, string: str, npf: int | None, N: int) -> list[int | slice]:
+        if string == "":
+            return []
         ns = dict(**cls._BASIC_NAMESPACE, N=N)
         if npf is not None:
             ns["npf"] = npf
