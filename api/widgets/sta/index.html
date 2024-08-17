@@ -4002,7 +4002,9 @@
 <span class="normal">1919</span>
 <span class="normal">1920</span>
 <span class="normal">1921</span>
-<span class="normal">1922</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">widget_type</span><span class="o">=</span><span class="s2">&quot;scrollable&quot;</span><span class="p">,</span> <span class="n">use_native_menubar</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="normal">1922</span>
+<span class="normal">1923</span>
+<span class="normal">1924</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">widget_type</span><span class="o">=</span><span class="s2">&quot;scrollable&quot;</span><span class="p">,</span> <span class="n">use_native_menubar</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="nd">@_shared_doc</span><span class="o">.</span><span class="n">update_cls</span>
 <span class="k">class</span> <span class="nc">SubtomogramAveraging</span><span class="p">(</span><span class="n">ChildWidget</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Widget for subtomogram averaging.&quot;&quot;&quot;</span>
@@ -4867,9 +4869,9 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">layers</span> <span class="o">=</span> <span class="n">assert_list_of_layers</span><span class="p">(</span><span class="n">layers</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
         <span class="n">main</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_main</span><span class="p">()</span>
-        <span class="n">scale</span> <span class="o">=</span> <span class="n">main</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">scale</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="n">main</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">scale</span> <span class="o">*</span> <span class="n">bin_size</span>
         <span class="n">tmps</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">_shapes</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="n">_shapes</span> <span class="o">=</span> <span class="nb">set</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]()</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">template_path</span><span class="p">,</span> <span class="p">(</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">)):</span>
             <span class="n">template_path</span> <span class="o">=</span> <span class="p">[</span><span class="n">template_path</span><span class="p">]</span>
         <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">template_path</span><span class="p">:</span>
@@ -4878,7 +4880,7 @@
             <span class="n">_shapes</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">template_image</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">_shapes</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Inconsistent shapes: </span><span class="si">{</span><span class="n">_shapes</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="n">output_shape</span> <span class="o">=</span> <span class="n">_shapes</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+        <span class="n">output_shape</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">_s</span> <span class="o">*</span> <span class="n">scale</span> <span class="k">for</span> <span class="n">_s</span> <span class="ow">in</span> <span class="n">_shapes</span><span class="o">.</span><span class="n">pop</span><span class="p">())</span>
         <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">_get_mask</span><span class="p">(</span><span class="n">mask_params</span><span class="p">)</span>
         <span class="k">match</span> <span class="n">mask</span><span class="p">:</span>
             <span class="k">case</span> <span class="kc">None</span><span class="p">:</span>
@@ -4905,7 +4907,9 @@
                 <span class="n">funcs</span><span class="p">,</span>
                 <span class="n">schema</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">column_prefix</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">template_path</span><span class="p">))],</span>
             <span class="p">)</span>
-            <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">with_features</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">Float32</span><span class="p">))</span>
+            <span class="n">layer</span><span class="o">.</span><span class="n">set_molecules_with_new_features</span><span class="p">(</span>
+                <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">with_features</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">Float32</span><span class="p">))</span>
+            <span class="p">)</span>
         <span class="k">return</span> <span class="kc">None</span>
 
     <span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Calculate FSC&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
@@ -8003,7 +8007,9 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="normal">1393</span>
 <span class="normal">1394</span>
 <span class="normal">1395</span>
-<span class="normal">1396</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
+<span class="normal">1396</span>
+<span class="normal">1397</span>
+<span class="normal">1398</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">fmt_layers</span><span class="p">(</span><span class="s2">&quot;Calculating correlations of </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="p">))</span>  <span class="c1"># fmt: skip</span>
 <span class="k">def</span> <span class="nf">calculate_correlation</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -8032,9 +8038,9 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">layers</span> <span class="o">=</span> <span class="n">assert_list_of_layers</span><span class="p">(</span><span class="n">layers</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
     <span class="n">main</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_main</span><span class="p">()</span>
-    <span class="n">scale</span> <span class="o">=</span> <span class="n">main</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">scale</span>
+    <span class="n">scale</span> <span class="o">=</span> <span class="n">main</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">scale</span> <span class="o">*</span> <span class="n">bin_size</span>
     <span class="n">tmps</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="n">_shapes</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="n">_shapes</span> <span class="o">=</span> <span class="nb">set</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]()</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">template_path</span><span class="p">,</span> <span class="p">(</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">)):</span>
         <span class="n">template_path</span> <span class="o">=</span> <span class="p">[</span><span class="n">template_path</span><span class="p">]</span>
     <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">template_path</span><span class="p">:</span>
@@ -8043,7 +8049,7 @@ If a path is given, image must in the same shape as the template.</p>
         <span class="n">_shapes</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">template_image</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">_shapes</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Inconsistent shapes: </span><span class="si">{</span><span class="n">_shapes</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="n">output_shape</span> <span class="o">=</span> <span class="n">_shapes</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+    <span class="n">output_shape</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">_s</span> <span class="o">*</span> <span class="n">scale</span> <span class="k">for</span> <span class="n">_s</span> <span class="ow">in</span> <span class="n">_shapes</span><span class="o">.</span><span class="n">pop</span><span class="p">())</span>
     <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">_get_mask</span><span class="p">(</span><span class="n">mask_params</span><span class="p">)</span>
     <span class="k">match</span> <span class="n">mask</span><span class="p">:</span>
         <span class="k">case</span> <span class="kc">None</span><span class="p">:</span>
@@ -8070,7 +8076,9 @@ If a path is given, image must in the same shape as the template.</p>
             <span class="n">funcs</span><span class="p">,</span>
             <span class="n">schema</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">column_prefix</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">template_path</span><span class="p">))],</span>
         <span class="p">)</span>
-        <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">with_features</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">Float32</span><span class="p">))</span>
+        <span class="n">layer</span><span class="o">.</span><span class="n">set_molecules_with_new_features</span><span class="p">(</span>
+            <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">with_features</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">Float32</span><span class="p">))</span>
+        <span class="p">)</span>
     <span class="k">return</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -8236,9 +8244,7 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1398</span>
-<span class="normal">1399</span>
-<span class="normal">1400</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1400</span>
 <span class="normal">1401</span>
 <span class="normal">1402</span>
 <span class="normal">1403</span>
@@ -8312,7 +8318,9 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 <span class="normal">1471</span>
 <span class="normal">1472</span>
 <span class="normal">1473</span>
-<span class="normal">1474</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Calculate FSC&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
+<span class="normal">1474</span>
+<span class="normal">1475</span>
+<span class="normal">1476</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Calculate FSC&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">fmt_layers</span><span class="p">(</span><span class="s2">&quot;Calculating FSC of </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="p">))</span>
 <span class="k">def</span> <span class="nf">calculate_fsc</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -8566,9 +8574,7 @@ If a path is given, image must in the same shape as the template.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1476</span>
-<span class="normal">1477</span>
-<span class="normal">1478</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1478</span>
 <span class="normal">1479</span>
 <span class="normal">1480</span>
 <span class="normal">1481</span>
@@ -8640,7 +8646,9 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="normal">1547</span>
 <span class="normal">1548</span>
 <span class="normal">1549</span>
-<span class="normal">1550</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;PCA/K-means classification&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
+<span class="normal">1550</span>
+<span class="normal">1551</span>
+<span class="normal">1552</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;PCA/K-means classification&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">descs</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">classify_pca_fmt</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">classify_pca</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -8987,9 +8995,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1821</span>
-<span class="normal">1822</span>
-<span class="normal">1823</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1823</span>
 <span class="normal">1824</span>
 <span class="normal">1825</span>
 <span class="normal">1826</span>
@@ -9010,7 +9016,9 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">1841</span>
 <span class="normal">1842</span>
 <span class="normal">1843</span>
-<span class="normal">1844</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+<span class="normal">1844</span>
+<span class="normal">1845</span>
+<span class="normal">1846</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span> <span class="nf">get_mask</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -9149,9 +9157,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1846</span>
-<span class="normal">1847</span>
-<span class="normal">1848</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1848</span>
 <span class="normal">1849</span>
 <span class="normal">1850</span>
 <span class="normal">1851</span>
@@ -9183,7 +9189,9 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">1877</span>
 <span class="normal">1878</span>
 <span class="normal">1879</span>
-<span class="normal">1880</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+<span class="normal">1880</span>
+<span class="normal">1881</span>
+<span class="normal">1882</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span> <span class="nf">get_subtomograms</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -9239,16 +9247,16 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1810</span>
-<span class="normal">1811</span>
-<span class="normal">1812</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1812</span>
 <span class="normal">1813</span>
 <span class="normal">1814</span>
 <span class="normal">1815</span>
 <span class="normal">1816</span>
 <span class="normal">1817</span>
 <span class="normal">1818</span>
-<span class="normal">1819</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+<span class="normal">1819</span>
+<span class="normal">1820</span>
+<span class="normal">1821</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span> <span class="nf">get_template</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">template_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">,</span> <span class="n">scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
@@ -9719,16 +9727,16 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1729</span>
-<span class="normal">1730</span>
-<span class="normal">1731</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1731</span>
 <span class="normal">1732</span>
 <span class="normal">1733</span>
 <span class="normal">1734</span>
 <span class="normal">1735</span>
 <span class="normal">1736</span>
 <span class="normal">1737</span>
-<span class="normal">1738</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Save last average&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
+<span class="normal">1738</span>
+<span class="normal">1739</span>
+<span class="normal">1740</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Save last average&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">save_last_average</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Save</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">IMAGE</span><span class="p">]):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Save the lastly generated average image.&quot;&quot;&quot;</span>
     <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
@@ -9802,9 +9810,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1696</span>
-<span class="normal">1697</span>
-<span class="normal">1698</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1698</span>
 <span class="normal">1699</span>
 <span class="normal">1700</span>
 <span class="normal">1701</span>
@@ -9823,7 +9829,9 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">1714</span>
 <span class="normal">1715</span>
 <span class="normal">1716</span>
-<span class="normal">1717</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Save seam search result&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
+<span class="normal">1717</span>
+<span class="normal">1718</span>
+<span class="normal">1719</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Save seam search result&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span> <span class="nf">save_seam_search_result</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -9998,9 +10006,7 @@ corresponding spline will be used.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1552</span>
-<span class="normal">1553</span>
-<span class="normal">1554</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1554</span>
 <span class="normal">1555</span>
 <span class="normal">1556</span>
 <span class="normal">1557</span>
@@ -10079,7 +10085,9 @@ corresponding spline will be used.</p>
 <span class="normal">1630</span>
 <span class="normal">1631</span>
 <span class="normal">1632</span>
-<span class="normal">1633</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Seam search by correlation&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
+<span class="normal">1633</span>
+<span class="normal">1634</span>
+<span class="normal">1635</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Seam search by correlation&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">fmt_layer</span><span class="p">(</span><span class="s2">&quot;Seam search of </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="p">))</span>
 <span class="k">def</span> <span class="nf">seam_search</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -10225,9 +10233,7 @@ corresponding spline will be used.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1635</span>
-<span class="normal">1636</span>
-<span class="normal">1637</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1637</span>
 <span class="normal">1638</span>
 <span class="normal">1639</span>
 <span class="normal">1640</span>
@@ -10249,7 +10255,9 @@ corresponding spline will be used.</p>
 <span class="normal">1656</span>
 <span class="normal">1657</span>
 <span class="normal">1658</span>
-<span class="normal">1659</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
+<span class="normal">1659</span>
+<span class="normal">1660</span>
+<span class="normal">1661</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">seam_search_by_feature</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
@@ -10339,9 +10347,7 @@ corresponding spline will be used.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1661</span>
-<span class="normal">1662</span>
-<span class="normal">1663</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1663</span>
 <span class="normal">1664</span>
 <span class="normal">1665</span>
 <span class="normal">1666</span>
@@ -10363,7 +10369,9 @@ corresponding spline will be used.</p>
 <span class="normal">1682</span>
 <span class="normal">1683</span>
 <span class="normal">1684</span>
-<span class="normal">1685</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
+<span class="normal">1685</span>
+<span class="normal">1686</span>
+<span class="normal">1687</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">seam_search_manually</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
