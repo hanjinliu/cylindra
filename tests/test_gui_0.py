@@ -696,6 +696,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
         layers=["Mole-0-ALN1"],
         template_path=template_path,
         column_prefix="score",
+        bin_size=bin_size,
     )
     ui.sta.get_subtomograms("Mole-0", shape=(5, 5, 5), bin_size=bin_size, order=1)
     assert "score_0" in ui.mole_layers["Mole-0-ALN1"].features

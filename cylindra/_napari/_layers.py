@@ -226,6 +226,10 @@ class MoleculesLayer(_FeatureBoundLayer, Points, _SourceBoundLayer):
         self._molecules = mole
         Points.features.fset(self, mole.features.to_pandas())
 
+    def set_molecules_with_new_features(self, mole: Molecules):
+        self._molecules = mole
+        Points.features.fset(self, mole.features.to_pandas())
+
     @property
     def features(self):
         return Points.features.fget(self)
