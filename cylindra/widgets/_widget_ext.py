@@ -3,6 +3,7 @@ from __future__ import annotations
 import random
 from contextlib import contextmanager
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any, Callable, Iterable
 
 import numpy as np
@@ -495,6 +496,60 @@ class KernelEdit(Container[Container[CheckBox]]):
                 for x in range(nx):
                     self._cboxes[y + yoffset][x + xoffset].value = bool(val[y, x])
         self.changed.emit(val.tolist())
+
+
+class IndexEdit(LineEdit):
+    _BASIC_NAMESPACE = MappingProxyType(
+        {
+            "__builtins__": {},
+            "int": int,
+            "slice": slice,
+        }
+    )
+
+    @classmethod
+    def validate(cls, value: str) -> str:
+        value = value.strip()
+        val_eval = cls.eval(value, npf=2, N=10)  # dry-run
+        if isinstance(val_eval, (list, tuple, set)):
+            for i, each in enumerate(val_eval):
+                cls._validater_element(each, i)
+        else:
+            cls._validater_element(val_eval, 0)
+        return value
+
+    @classmethod
+    def _validater_element(cls, value, elem: int):
+        if isinstance(value, slice):
+            return cls._validate_slice(value, elem)
+        return cls._validate_scalar(value, elem)
+
+    @classmethod
+    def _validate_scalar(cls, value, elem: int):
+        if not isinstance(value, int):
+            raise ValueError(f"Got invalid type at {elem}-th element: {type(value)}")
+        return value
+
+    @classmethod
+    def _validate_slice(cls, value, elem: int):
+        if (
+            isinstance(value, slice)
+            and isinstance(value.start, (int, type(None)))
+            and isinstance(value.stop, (int, type(None)))
+            and isinstance(value.step, (int, type(None)))
+        ):
+            return value
+        raise ValueError(f"Got invalid type at {elem}-th element: {type(value)}")
+
+    def get_value(self) -> str:
+        return self.validate(super().get_value())
+
+    @classmethod
+    def eval(cls, string: str, npf: int | None, N: int) -> list[int | slice]:
+        ns = dict(**cls._BASIC_NAMESPACE, N=N)
+        if npf is not None:
+            ns["npf"] = npf
+        return eval(string.strip(), ns, {})
 
 
 @contextmanager
