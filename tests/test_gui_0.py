@@ -696,6 +696,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
         layers=["Mole-0-ALN1"],
         template_path=template_path,
         column_prefix="score",
+        bin_size=bin_size,
     )
     ui.sta.get_subtomograms("Mole-0", shape=(5, 5, 5), bin_size=bin_size, order=1)
     assert "score_0" in ui.mole_layers["Mole-0-ALN1"].features
@@ -760,16 +761,6 @@ def test_classify_pca(ui: CylindraMainWidget):
                 bin_size=binsize,
             )
     exc_group.raise_exceptions()
-
-
-# TODO: not a good test
-# def test_extend_filament(ui: CylindraMainWidget):
-#     ui.load_project(PROJECT_DIR_13PF, filter=None)
-#     ui.sta.extend_filaments(
-#         "Mole-1",
-#         TEST_DIR / "beta-tubulin.mrc",
-#         min_score=0.8,
-#     )
 
 
 def test_clip_spline(ui: CylindraMainWidget):
@@ -1045,8 +1036,6 @@ def test_merge_molecules(ui: CylindraMainWidget):
 
 
 def test_molecule_features(ui: CylindraMainWidget):
-    import polars as pl
-
     ui.load_project(PROJECT_DIR_14PF, filter=None)
     layer = ui.mole_layers["Mole-0"]
     ui.filter_molecules("Mole-0", predicate='pl.col("position-nm") < 9.2')
@@ -1063,6 +1052,30 @@ def test_molecule_features(ui: CylindraMainWidget):
     ui.macro.undo()
     ui.macro.redo()
     ui.mole_layers.last().point_size = 3.5
+    assert ui.mole_layers.last().point_size == pytest.approx(3.5)
+
+    # test drop molecules
+    def get_index():
+        return ui.mole_layers.last().molecules.features["index"].to_list()
+
+    def get_expected(to_drop: list[int]):
+        out = [i for i in range(nmole) if i not in to_drop]
+        return out
+
+    nmole = layer.molecules.count()
+    ui.calculate_molecule_features(
+        "Mole-1",
+        column_name="index",
+        expression="pl.int_range(0, pl.len())",
+    )
+    ui.drop_molecules("Mole-1", indices=[0, 1, 2])
+    assert get_index() == get_expected([0, 1, 2])
+    ui.macro.undo()
+    ui.drop_molecules("Mole-1", indices=[3, slice(6, 9)])
+    assert get_index() == get_expected([3, 6, 7, 8])
+    ui.macro.undo()
+    ui.drop_molecules("Mole-1", indices="5, 5 + npf")
+    assert get_index() == get_expected([5, 5 + 14])
 
 
 def test_auto_align(ui: CylindraMainWidget):

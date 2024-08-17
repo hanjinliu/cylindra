@@ -524,6 +524,7 @@ class MoleculesMenu(ChildWidget):
     rotate_molecules = abstractapi()
     filter_molecules = abstractapi()
     split_molecules = abstractapi()
+    drop_molecules = abstractapi()
     sep0 = Separator
     rename_molecules = abstractapi()
     delete_molecules = abstractapi()

@@ -1354,9 +1354,9 @@ class SubtomogramAveraging(ChildWidget):
         """
         layers = assert_list_of_layers(layers, self.parent_viewer)
         main = self._get_main()
-        scale = main.tomogram.scale
+        scale = main.tomogram.scale * bin_size
         tmps = []
-        _shapes = set()
+        _shapes = set[tuple[int, int, int]]()
         if isinstance(template_path, (Path, str)):
             template_path = [template_path]
         for path in template_path:
@@ -1365,7 +1365,7 @@ class SubtomogramAveraging(ChildWidget):
             _shapes.add(template_image.shape)
         if len(_shapes) != 1:
             raise ValueError(f"Inconsistent shapes: {_shapes}")
-        output_shape = _shapes.pop()
+        output_shape = tuple(_s * scale for _s in _shapes.pop())
         mask = self.params._get_mask(mask_params)
         match mask:
             case None:
@@ -1392,7 +1392,9 @@ class SubtomogramAveraging(ChildWidget):
                 funcs,
                 schema=[f"{column_prefix}_{i}" for i in range(len(template_path))],
             )
-            layer.molecules = layer.molecules.with_features(out.cast(pl.Float32))
+            layer.set_molecules_with_new_features(
+                layer.molecules.with_features(out.cast(pl.Float32))
+            )
         return None
 
     @set_design(text="Calculate FSC", location=STAnalysis)

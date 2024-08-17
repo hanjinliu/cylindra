@@ -69,6 +69,7 @@ from cylindra.widgets._main_utils import (
 from cylindra.widgets._reserved_layers import ReservedLayers
 from cylindra.widgets._widget_ext import (
     CheckBoxes,
+    IndexEdit,
     KernelEdit,
     OffsetEdit,
     ProtofilamentEdit,
@@ -1618,8 +1619,10 @@ class CylindraMainWidget(MagicTemplate):
             @thread_worker.callback
             def _global_cft_analysis_on_return():
                 df = (
-                    self.tomogram.splines.collect_globalprops()
-                    .drop(H.spline_id)
+                    pl.concat(
+                        [tomo.splines[i].props.glob for i in splines],
+                        how="vertical_relaxed",
+                    )
                     .to_pandas()
                     .transpose()
                 )
@@ -2049,10 +2052,7 @@ class CylindraMainWidget(MagicTemplate):
                 if Mole.position in out.features.columns:
                     # spline position is not predictable.
                     out = out.drop_features([Mole.position])
-            if inherit_source:
-                source = layer.source_component
-            else:
-                source = None
+            source = layer.source_component if inherit_source else None
             new = self.add_molecules(out, name=f"{layer.name}-Shift", source=source)
             new_layers.append(new)
         return self._undo_callback_for_layer(new_layers)
@@ -2086,10 +2086,7 @@ class CylindraMainWidget(MagicTemplate):
         rotvec = degrees_to_rotator(degrees).as_rotvec()
         for layer in layers:
             mole = layer.molecules.rotate_by_rotvec_internal(rotvec)
-            if inherit_source:
-                source = layer.source_component
-            else:
-                source = None
+            source = layer.source_component if inherit_source else None
             new = self.add_molecules(mole, name=f"{layer.name}-Rot", source=source)
             new_layers.append(new)
         return self._undo_callback_for_layer(new_layers)
@@ -2170,11 +2167,54 @@ class CylindraMainWidget(MagicTemplate):
         layer = assert_layer(layer, self.parent_viewer)
         mole = layer.molecules
         out = mole.filter(widget_utils.norm_expr(predicate))
-        if inherit_source:
-            source = layer.source_component
-        else:
-            source = None
+        source = layer.source_component if inherit_source else None
         new = self.add_molecules(out, name=f"{layer.name}-Filt", source=source)
+        return self._undo_callback_for_layer(new)
+
+    @set_design(text=capitalize, location=_sw.MoleculesMenu)
+    def drop_molecules(
+        self,
+        layer: MoleculesLayerType,
+        indices: Annotated[str | Sequence[int | slice], {"widget_type": IndexEdit}] = "",
+        inherit_source: Annotated[bool, {"label": "Inherit source spline"}] = True,
+    ):  # fmt: skip
+        """
+        Drop a subset of molecules from a molecules layer by indices.
+
+        Note that the indices start from 0. `ui.drop_molecules(layer, [0, 2, 6])` will
+        drop 0th, 2nd, and 6th molecules.
+
+        Parameters
+        ----------
+        {layer}
+        indices : str, int, slice or sequence of int or slice, optional
+            A sequence of molecule indices to drop. You can use `npf` for the number
+            of protofilaments and `N` for the number of molecules. `slice` is also
+            allowed for dropping a range of indices. In GUI, this parameter must a
+            string of comma-separated integers/slices (e.g. `3, N - 3`,
+            `1, slice(12, 12 + npf)`).
+        {inherit_source}
+        """
+        layer = assert_layer(layer, self.parent_viewer)
+        mole = layer.molecules
+        _to_drop = set[int]()
+        if isinstance(indices, str):
+            if spl := layer.source_spline:
+                npf = spl.props.get_glob(H.npf, None)
+            else:
+                npf = None
+            indices = IndexEdit.eval(indices, npf=npf, N=mole.count())
+        for i in indices:
+            if isinstance(i, slice):
+                _to_drop.update(range(*i.indices(mole.count())))
+            elif isinstance(i, (int, np.integer)):
+                _to_drop.add(int(i))
+            else:
+                raise ValueError(f"Indices must be integers, got {type(i)!r}.")
+        sl = np.array([i for i in range(mole.count()) if i not in _to_drop])
+        out = mole.subset(sl)
+        source = layer.source_component if inherit_source else None
+        new = self.add_molecules(out, name=f"{layer.name}-Drop", source=source)
         return self._undo_callback_for_layer(new)
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu.View)
