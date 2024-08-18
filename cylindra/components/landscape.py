@@ -528,8 +528,8 @@ class Landscape:
         argmax = None
         if (fp := path / "argmax.parquet").exists():
             argmax = pl.read_parquet(fp).to_series().to_numpy()
-        quaternions = np.loadtxt(
-            path / "quaternions.txt", delimiter=",", dtype=np.float32
+        quaternions = np.atleast_2d(
+            np.loadtxt(path / "quaternions.txt", delimiter=",", dtype=np.float32)
         )
         scale_factor = energies.scale["x"]
         return cls(energies.value, molecules, argmax, quaternions, scale_factor)
