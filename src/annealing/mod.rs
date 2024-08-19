@@ -5,3 +5,4 @@ pub mod reservoir;
 pub mod random;
 
 pub use self::models::basic::CylindricAnnealingModel;
+pub use self::models::defective::DefectiveCylindricAnnealingModel;

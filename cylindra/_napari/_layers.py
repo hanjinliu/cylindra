@@ -423,7 +423,7 @@ class LandscapeSurface(Surface, _SourceBoundLayer):
         self._resolution = 0.25
         self._energy_level = level
         self._show_min = True
-        data = landscape.create_surface(level=level, resolution=0.25)
+        data = landscape.create_surface(level=level)
         super().__init__(data, **kwargs)
         self.events.add(level=Event, resolution=Event, show_min=Event)
         self._landscape = landscape

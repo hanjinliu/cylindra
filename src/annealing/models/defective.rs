@@ -331,6 +331,23 @@ impl DefectiveCylindricAnnealingModel {
 }
 
 impl DefectiveCylindricAnnealingModel {
+    pub fn new_internal(
+        rng: RandomNumberGenerator,
+        optimization_state: OptimizationState,
+        graph: DefectiveCylindricGraph,
+        reservoir: Reservoir,
+        iteration: usize,
+        reject_limit: usize,
+    ) -> Self {
+        DefectiveCylindricAnnealingModel {
+            rng,
+            optimization_state,
+            graph,
+            reservoir,
+            iteration,
+            reject_limit,
+        }
+    }
     /// Proceed one step of simulation. Return true if the shift is accepted.
     fn proceed(&mut self) -> bool {
         // Randomly shift a node.

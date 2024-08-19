@@ -55,6 +55,23 @@ impl DefectiveCylindricGraph {
         }
     }
 
+    pub fn new(
+        components: GraphComponents<Node2D<Option<Shift>>, EdgeType>,
+        coords: Arc<HashMap2D<CoordinateSystem<f32>>>,
+        energy: Arc<HashMap2D<Array<f32, Ix3>>>,
+        binding_potential: TrapezoidalPotential2D,
+        local_shape: Vector3D<isize>,
+    ) -> Self {
+        Self {
+            components,
+            coords,
+            energy,
+            binding_potential,
+            local_shape,
+            null_energy: NullEnergyConst::default(),
+        }
+    }
+
     /// Construct a graph from a cylindric parameters.
     pub fn construct(
         &mut self,
@@ -401,7 +418,7 @@ impl GraphTrait<Node2D<Option<Shift>>, EdgeType> for DefectiveCylindricGraph {
         let shift = node_state.state;
         let shift_new = match shift {
             Some(shift) => rng.rand_shift_or_none(&shift),
-            None => Some(rng.uniform_vec(&self.local_shape)),
+            None => Some(rng.uniform_vec(&self.local_shape())),
         };
         Node2D { index: idx, state: shift_new }
     }
