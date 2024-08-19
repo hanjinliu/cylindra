@@ -440,7 +440,7 @@ class Landscape:
         _Logger.print_table(
             {
                 "Iteration": [r.niter for r in results],
-                "Score": [-f"{float(r.energies[-1]):.3g}" for r in results],
+                "Score": [f"{-float(r.energies[-1]):.3g}" for r in results],
                 "State": [r.state for r in results],
             }
         )
