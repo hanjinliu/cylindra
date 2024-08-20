@@ -113,14 +113,9 @@ class QtMoleculesControls(QtPointsControls):
         with qt_signals_blocked(self.dimComboBox):
             self.dimComboBox.setCurrentEnum(ViewDimension(event.value))
 
-    def _on_face_color_change(self, event):
-        with qt_signals_blocked(self.faceColorEdit):
-            self.layer.face_color = _first_or(event.value, "lime")
-            self.layer._update_thumbnail()
-
     def _on_border_width_change(self, event):
         with qt_signals_blocked(self.borderWidth):
-            self.borderWidth.setValue(_first_or(event.value, 0.05))
+            self.borderWidth.setValue(_first_or(self.layer.border_width, 0.05))
 
     def _change_point_size(self, value: float):
         self.layer.point_size = value

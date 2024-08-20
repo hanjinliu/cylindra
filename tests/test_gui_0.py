@@ -1491,6 +1491,7 @@ def test_landscape(ui: CylindraMainWidget):
     layer_land.show_min = False
     layer_land.show_min = True
     layer_land.resolution = 2.1
+    layer_land.wireframe.width = 1.2
 
     ui.sta.run_align_on_landscape(layer_land)
     ui.sta.run_viterbi_on_landscape(
