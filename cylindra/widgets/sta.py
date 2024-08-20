@@ -300,6 +300,9 @@ class LandscapeMenu(MagicTemplate):
     run_align_on_landscape = abstractapi()
     run_viterbi_on_landscape = abstractapi()
     run_annealing_on_landscape = abstractapi()
+    sep0 = Separator
+    remove_landscape_outliers = abstractapi()
+    normalize_landscape = abstractapi()
 
 
 @magicclass(record=False, properties={"margins": (0, 0, 0, 0)})
@@ -1178,6 +1181,8 @@ class SubtomogramAveraging(ChildWidget):
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
+        method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
+        norm: bool = True,
     ):
         """
         Construct a cross-correlation landscape for subtomogram alignment.
@@ -1185,7 +1190,10 @@ class SubtomogramAveraging(ChildWidget):
         Parameters
         ----------
         {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}
-        {interpolation}{bin_size}{upsample_factor}
+        {interpolation}{bin_size}{upsample_factor}{method}
+        norm: bool, default True
+            If true, each landscape will be normalized by its mean and standard
+            deviation.
         """
         layer = assert_layer(layer, self.parent_viewer)
         lnd = self._construct_landscape(
@@ -1198,6 +1206,8 @@ class SubtomogramAveraging(ChildWidget):
             order=interpolation,
             bin_size=bin_size,
             upsample_factor=upsample_factor,
+            norm=norm,
+            method=method,
         )
         surf = LandscapeSurface(lnd, name=f"{LANDSCAPE_PREFIX}{layer.name}")
         surf.source_component = layer.source_component
@@ -1296,6 +1306,60 @@ class SubtomogramAveraging(ChildWidget):
             source=spl,
             metadata={ANNEALING_RESULT: results[0]},
         )
+
+    @set_design(text=capitalize, location=LandscapeMenu)
+    def remove_landscape_outliers(
+        self,
+        landscape_layer: _LandscapeLayer,
+        lower: Annotated[Optional[float], {"text": "Do not process lower outliers"}] = None,
+        upper: Annotated[Optional[float], {"text": "Do not process upper outliers"}] = None,
+    ):  # fmt: skip
+        """
+        Remove outliers from the landscape.
+
+        This method will replace energy (inverse score) outliers with the thresholds.
+        This method is useful for lattice with such as defects or strong artifacts.
+
+        Parameters
+        ----------
+        {landscape_layer}
+        lower : float, optional
+            Lower limit of the energy.
+        upper : float, optional
+            Upper limit of the energy.
+        """
+        landscape_layer = _assert_landscape_layer(landscape_layer, self.parent_viewer)
+        new = landscape_layer.landscape.clip_energies(lower, upper)
+        surf = LandscapeSurface(new, name=f"{landscape_layer}-Clip")
+        return self._add_new_landscape_layer(landscape_layer, surf)
+
+    @set_design(text=capitalize, location=LandscapeMenu)
+    def normalize_landscape(
+        self,
+        landscape_layer: _LandscapeLayer,
+        norm_sd: bool = True,
+    ):
+        """
+        Normalize the landscape.
+
+        Parameters
+        ----------
+        {landscape_layer}
+        norm_sd : bool, default True
+            If true, each landscape will also be normalized by its standard deviation.
+        """
+        landscape_layer = _assert_landscape_layer(landscape_layer, self.parent_viewer)
+        new = landscape_layer.landscape.normed(sd=norm_sd)
+        surf = LandscapeSurface(new, name=f"{landscape_layer}-Norm")
+        return self._add_new_landscape_layer(landscape_layer, surf)
+
+    def _add_new_landscape_layer(self, old: LandscapeSurface, new: LandscapeSurface):
+        new.source_component = old.source_component
+
+        self.parent_viewer.add_layer(new)
+        self._get_main()._reserved_layers.to_be_removed.add(new)
+        old.visible = False
+        return None
 
     def _get_layers_with_annealing_result(self, *_) -> list[MoleculesLayer]:
         if self.parent_viewer is None:
@@ -1905,23 +1969,27 @@ class SubtomogramAveraging(ChildWidget):
         order: int = 3,
         upsample_factor: int = 5,
         bin_size: int = 1,
+        method: str = "zncc",
+        norm: bool = True,
     ):  # fmt: skip
         parent = self._get_main()
         loader = parent.tomogram.get_subtomogram_loader(
             molecules, binsize=bin_size, order=order
         )
-        return Landscape.from_loader(
+        model = _get_alignment(method)
+        landscape = Landscape.from_loader(
             loader=loader,
             template=template_path,
             mask=self.params._get_mask(params=mask_params),
             max_shifts=max_shifts,
             upsample_factor=upsample_factor,
-            alignment_model=alignment.ZNCCAlignment.with_params(
+            alignment_model=model.with_params(
                 rotations=rotations,
                 cutoff=cutoff,
                 tilt=parent.tomogram.tilt_model,
             ),
-        ).normed()
+        )
+        return landscape.normed() if norm else landscape
 
 
 def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):

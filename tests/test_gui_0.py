@@ -1513,6 +1513,8 @@ def test_landscape(ui: CylindraMainWidget):
         dirpath = Path(dirpath)
         ui.save_project(dirpath / "test-project.tar", save_landscape=True)
         ui.load_project(dirpath / "test-project.tar", filter=None)
+    ui.sta.remove_landscape_outliers(layer_land, upper=0.0)
+    ui.sta.normalize_landscape(layer_land, norm_sd=False)
 
 
 def test_regionprops(ui: CylindraMainWidget):

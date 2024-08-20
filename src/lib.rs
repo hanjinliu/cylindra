@@ -22,6 +22,7 @@ fn _cylindra_ext(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<cylindric::CylinderGeometry>()?;
     m.add_class::<cylindric::Index>()?;
     m.add_class::<annealing::CylindricAnnealingModel>()?;
+    m.add_class::<annealing::DefectiveCylindricAnnealingModel>()?;
     m.add_class::<filters::CylindricArray>()?;
     m.add_class::<regionprops::RegionProfiler>()?;
     m.add_function(pyo3::wrap_pyfunction!(alleviate::alleviate, m)?)?;

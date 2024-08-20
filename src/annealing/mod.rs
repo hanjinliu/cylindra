@@ -1,7 +1,8 @@
-pub mod core;
+pub mod models;
 pub mod potential;
-pub mod graph;
+pub mod graphs;
 pub mod reservoir;
 pub mod random;
 
-pub use self::core::CylindricAnnealingModel;
+pub use self::models::basic::CylindricAnnealingModel;
+pub use self::models::defective::DefectiveCylindricAnnealingModel;
