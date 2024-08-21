@@ -28,7 +28,7 @@ class ParserRun(ParserBase):
         self.add_argument("--output", "-o", type=str, default=None)
 
     def run_action(
-        self, path: str, headless: bool = False, output: str = None, **kwargs
+        self, path: str, headless: bool = False, output: str | None = None, **kwargs
     ):
         from runpy import run_path
 
