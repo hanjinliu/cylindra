@@ -11,7 +11,7 @@ class ParserRun(ParserBase):
     cylindra run [bold green]path[/bold green] [bold cyan]options[/bold cyan]
 
     [u bold green]path[/u bold green]
-        Path to the project/image file.
+        Path to the project/python file.
 
     [u bold cyan]options[/u bold cyan]
         [bold]--headless[/bold]
@@ -33,17 +33,21 @@ class ParserRun(ParserBase):
         from runpy import run_path
 
         ui = start(viewer=self.viewer, headless=headless)
+        project_path = None
         if Path(path).suffix in ("", ".tar", ".zip", ".json"):
             prj = read_project(path)
             with prj.open_project() as d:
                 py_path = str(prj._script_py_path(d))
                 out_globs = run_path(py_path, {"ui": ui})
             is_project = True
+            project_path = prj.project_path
         else:
             out_globs = run_path(path, {"ui": ui})
             is_project = False
         if callable(main := out_globs.get("main")):
             main(ui)  # script.py style
+        if project_path is not None:
+            ui._project_dir = project_path
         if output is None:
             if is_project:
                 ui.overwrite_project()
