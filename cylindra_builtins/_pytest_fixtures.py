@@ -1,3 +1,4 @@
+import sys
 from contextlib import suppress
 
 import pytest
@@ -33,3 +34,29 @@ def ui(make_napari_viewer, request: "pytest.FixtureRequest"):
             sv.close()
         StaParameters._viewer = None
     viewer.close()
+
+
+@pytest.fixture
+def run_cli(make_napari_viewer, monkeypatch):
+    from magicclass.utils import thread_worker
+    from magicgui.application import use_app
+
+    from cylindra.__main__ import main
+    from cylindra.cli import set_testing
+    from cylindra.core import ACTIVE_WIDGETS
+
+    viewer = make_napari_viewer()
+    set_testing(True)
+    monkeypatch.setattr("builtins.input", lambda *_: "")
+
+    def _run_cli(*args):
+        sys.argv = [str(a) for a in args]
+        main(viewer, ignore_sys_exit=True)
+
+    with thread_worker.blocking_mode():
+        yield _run_cli
+
+    for widget in ACTIVE_WIDGETS:
+        widget.close()
+    ACTIVE_WIDGETS.clear()
+    use_app().process_events()
