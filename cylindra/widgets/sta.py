@@ -188,6 +188,30 @@ class MaskChoice(Enum):
     no_mask = "no mask"
     blur_template = "blur template"
     from_file = "from file"
+    spherical = "spherical"
+
+
+@pipe.converter_function
+def spherical_mask(
+    img: "NDArray[np.float32]",
+    scale: nm,
+    radius: nm,
+    sigma: nm = 0.8,
+) -> "NDArray[np.float32]":
+    """Generate a spherical soft mask that matches the input image shape."""
+    lz, ly, lx = img.shape
+    zz, yy, xx = np.indices((lz, ly, lx), dtype=np.float32)
+    zz -= (lz - 1) / 2
+    yy -= (ly - 1) / 2
+    xx -= (lx - 1) / 2
+    binary = zz**2 + yy**2 + xx**2 <= (radius / scale) ** 2
+    return pipe.gaussian_smooth(sigma).convert(binary, scale)
+
+
+def _drop_kind(d: dict[str, Any]) -> dict[str, Any]:
+    out = d.copy()
+    out.pop("kind", None)
+    return out
 
 
 def _choice_getter(method_name: str, dtype_kind: str = ""):
@@ -205,13 +229,7 @@ def _choice_getter(method_name: str, dtype_kind: str = ""):
     return _get_choice
 
 
-@magicclass(
-    layout="horizontal",
-    widget_type="groupbox",
-    name="Parameters",
-    visible=False,
-    record=False,
-)
+@magicclass(layout="horizontal", widget_type="groupbox", visible=False, record=False)
 class MaskParameters(MagicTemplate):
     """
     Parameters for soft mask creation.
@@ -232,12 +250,38 @@ class MaskParameters(MagicTemplate):
     dilate_radius = vfield(0.3, record=False).with_options(min=-20, max=20, step=0.1)
     sigma = vfield(0.8, record=False).with_options(max=20, step=0.1)
 
+    def _to_params(self) -> tuple[nm, nm]:
+        return (self.dilate_radius, self.sigma)
+
 
 @magicclass(layout="horizontal", widget_type="frame", visible=False, record=False)
 class mask_path(MagicTemplate):
     """Path to the mask image."""
 
     mask_path = vfield(Path.Read[FileFilter.IMAGE])
+
+    def _to_params(self) -> Path:
+        return self.mask_path
+
+
+@magicclass(layout="horizontal", widget_type="groupbox", visible=False, record=False)
+class SphericalMaskParameters(MagicTemplate):
+    """
+    Parameters for spherical mask creation.
+
+    Attributes
+    ----------
+    radius : nm
+        Radius of the sphere (nm).
+    sigma : nm
+        Standard deviation (nm) of Gaussian blur applied to the edge of the sphere.
+    """
+
+    radius = vfield(2.0, record=False).with_options(min=0, max=50, step=0.05)
+    sigma = vfield(0.8, record=False).with_options(max=20, step=0.1)
+
+    def _to_params(self) -> dict[str, Any]:
+        return {"kind": "spherical", "radius": self.radius, "sigma": self.sigma}
 
 
 @magicmenu
@@ -324,8 +368,9 @@ class StaParameters(MagicTemplate):
     ).with_options(filter=FileFilter.IMAGE, visible=False)
 
     mask_choice = vfield(MaskChoice.no_mask, label="Mask")
-    params = field(MaskParameters, name="Parameters")
+    params = field(MaskParameters, name="blur parameters")
     mask_path = field(mask_path)
+    params_spherical = field(SphericalMaskParameters, name="sphere parameters")
 
     _last_average: ip.ImgArray | None = None  # the global average result
     _viewer: "napari.Viewer | None" = None
@@ -353,6 +398,7 @@ class StaParameters(MagicTemplate):
         v = self.mask_choice
         self.params.visible = v is MaskChoice.blur_template
         self.mask_path.visible = v is MaskChoice.from_file
+        self.params_spherical.visible = v is MaskChoice.spherical
 
     def _set_last_average(self, img: ip.ImgArray):
         assert img.ndim == 3
@@ -419,9 +465,11 @@ class StaParameters(MagicTemplate):
             case MaskChoice.no_mask:
                 params = None
             case MaskChoice.blur_template:
-                params = (self.params.dilate_radius, self.params.sigma)
+                params = self.params._to_params()
             case MaskChoice.from_file:
-                params = self.mask_path.mask_path
+                params = self.mask_path._to_params()
+            case MaskChoice.spherical:
+                params = self.params_spherical._to_params()
             case v:  # pragma: no cover
                 raise ValueError(f"Unknown mask choice: {v!r}")
         return params
@@ -436,11 +484,17 @@ class StaParameters(MagicTemplate):
         elif isinstance(params, tuple):
             radius, sigma = params
             return pipe.soft_otsu(radius=radius, sigma=sigma)
+        elif isinstance(params, dict) and params.get("kind") == "spherical":
+            return spherical_mask(**_drop_kind(params))
         else:
             return pipe.from_file(params)
 
     def _show_reconstruction(
-        self, image: ip.ImgArray, name: str, store: bool = True
+        self,
+        image: ip.ImgArray,
+        name: str,
+        store: bool = True,
+        threshold: float | None = None,
     ) -> "Image":
         from skimage.filters.thresholding import threshold_yen
 
@@ -475,13 +529,15 @@ class StaParameters(MagicTemplate):
         StaParameters._viewer.scale_bar.unit = "nm"
         if store:
             self._set_last_average(image)
+        if threshold is None:
+            threshold = threshold_yen(image.value)
 
         return StaParameters._viewer.add_image(
             image,
             scale=list(image.scale.values()),
             name=name,
             rendering="iso",
-            iso_threshold=threshold_yen(image.value),
+            iso_threshold=threshold,
             blending="opaque",
         )
 
@@ -568,14 +624,14 @@ class SubtomogramAveraging(ChildWidget):
     def show_mask(self):
         """Load and show mask image in the scale of the tomogram."""
         mask = self._get_mask_image(self._template_params())
-        self._show_rec(mask, name="Mask image", store=False)
+        self._show_rec(mask, name="Mask image", store=False, threshold=0.5)
 
     @property
     def last_average(self) -> "ip.ImgArray | None":
         """Last averaged image if exists."""
         return StaParameters._last_average
 
-    def _get_shape_in_nm(self, default: int = None) -> tuple[nm, nm, nm]:
+    def _get_shape_in_nm(self, default: int | None = None) -> tuple[nm, nm, nm]:
         if default is None:
             tmp = self._get_template_image()
             return tuple(np.array(tmp.sizesof("zyx")) * tmp.scale.x)
@@ -583,8 +639,8 @@ class SubtomogramAveraging(ChildWidget):
             return (default,) * 3
 
     @thread_worker.callback
-    def _show_rec(self, img: ip.ImgArray, name: str, store: bool = True):
-        return self.params._show_reconstruction(img, name, store)
+    def _show_rec(self, img: ip.ImgArray, name: str, store=True, threshold=None):
+        return self.params._show_reconstruction(img, name, store, threshold=threshold)
 
     def _get_loader(
         self,
