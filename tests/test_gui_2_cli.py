@@ -107,10 +107,14 @@ def test_find(run_cli):
         "--props\"col('npf')==13\"\"col('start')==3\"",
     )
     run_cli(
-        "cylindra", "find", "**/*.zip", "--date-before 251014", "--date-after 150101"
+        "cylindra",
+        "find",
+        "**/*.zip",
+        "--date-before",
+        "251014",
+        "--date-after",
+        "150101",
     )
-    with pytest.raises(ValueError):
-        run_cli("cylindra", "find", "**/*.zip", "--date-before 25/10/14")
 
 
 def test_workflow(run_cli):

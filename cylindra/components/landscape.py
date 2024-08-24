@@ -287,7 +287,7 @@ class Landscape:
     def run_viterbi_fixed_start(
         self,
         first: NDArray[np.float32],
-        range_long: tuple[nm, nm] = (4.0, 4.28),
+        range_long: tuple[_DistLike, _DistLike] = (4.0, 4.28),
         angle_max: float | None = 5.0,
     ):
         """Run Viterbi alignment with a fixed start edge."""
@@ -416,8 +416,8 @@ class Landscape:
     def run_annealing_along_spline(
         self,
         spl: CylSpline,
-        range_long: tuple[float, float],
-        range_lat: tuple[float | str, float | str],
+        range_long: tuple[_DistLike, _DistLike],
+        range_lat: tuple[_DistLike, _DistLike],
         angle_max: float,
         temperature_time_const: float = 1.0,
         random_seeds: Sequence[int] = (0, 1, 2, 3, 4),
