@@ -649,6 +649,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
     ui.sta.params.template_path.value = template_path
     ui.sta.params.mask_choice = MaskChoice.from_file
     ui.sta.params.mask_choice = MaskChoice.blur_template
+    ui.sta.params.mask_choice = MaskChoice.spherical
     ui.sta.show_template()
     ui.sta.show_template_original()
     ui.sta.show_mask()
@@ -679,7 +680,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
     ui.macro.redo()
     ui.sta.align_all_template_free(
         layers=["Mole-0-ALN1"],
-        mask_params=(1, 1),
+        mask_params={"kind": "spherical", "radius": 2.3, "sigma": 0.7},
         size=12.0,
         bin_size=bin_size,
     )

@@ -1,6 +1,8 @@
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from cylindra import _config
 
 from ._const import PROJECT_DIR_13PF, PROJECT_DIR_14PF, TEST_DIR
@@ -33,6 +35,10 @@ def test_preview(run_cli):
     run_cli("cylindra", "preview", PROJECT_DIR_14PF / "test_zip.zip")
     run_cli("cylindra", "preview", PROJECT_DIR_14PF / "test_tar.tar::project.json")
     run_cli("cylindra", "preview", PROJECT_DIR_14PF / "test_tar.tar::Mole-0.csv")
+    with pytest.raises(ValueError):
+        run_cli("cylindra", "preview", PROJECT_DIR_14PF / "script.py")
+    with pytest.raises(FileNotFoundError):
+        run_cli("cylindra", "preview", PROJECT_DIR_14PF.with_name("NOT_EXISTS"))
 
 
 def test_new_and_open(run_cli):
@@ -93,6 +99,18 @@ def test_run(run_cli):
 def test_find(run_cli):
     run_cli("cylindra", "find", "**/*.zip")
     run_cli("cylindra", "find", "**/*.zip", "--called", "register_path")
+    run_cli("cylindra", "find", "**/*.zip", "--called", "ui.register_path", "--abs")
+    run_cli(
+        "cylindra",
+        "find",
+        "**/*.zip",
+        "--props\"col('npf')==13\"\"col('start')==3\"",
+    )
+    run_cli(
+        "cylindra", "find", "**/*.zip", "--date-before 251014", "--date-after 150101"
+    )
+    with pytest.raises(ValueError):
+        run_cli("cylindra", "find", "**/*.zip", "--date-before 25/10/14")
 
 
 def test_workflow(run_cli):

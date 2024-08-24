@@ -637,7 +637,6 @@ class Landscape:
 
 
 def _norm_distance(v: str | nm, arr) -> nm:
-    print(v)
     if not isinstance(v, str):
         return v
     if v.startswith(("*", "+", "-")):
