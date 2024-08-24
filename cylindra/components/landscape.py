@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import (
@@ -577,11 +578,11 @@ class Landscape:
     ) -> tuple[nm, nm]:
         rng0, rng1 = rng
         if isinstance(rng0, str) or isinstance(rng1, str):
-            long_dist = model.longitudinal_distances().mean()
+            long_dist_arr = model.longitudinal_distances()
             if isinstance(rng0, str):
-                rng0 = _norm_distance(rng0, long_dist)
+                rng0 = _norm_distance(rng0, long_dist_arr)
             if isinstance(rng1, str):
-                rng1 = _norm_distance(rng1, long_dist)
+                rng1 = _norm_distance(rng1, long_dist_arr)
         if not rng0 < rng1:
             raise ValueError(f"Lower is larger than the upper: {(rng0, rng1)}")
         return rng0, rng1
@@ -593,11 +594,11 @@ class Landscape:
     ) -> tuple[nm, nm]:
         rng0, rng1 = rng
         if isinstance(rng0, str) or isinstance(rng1, str):
-            lat_dist = model.lateral_distances().mean()
+            lat_dist_arr = model.lateral_distances()
             if isinstance(rng0, str):
-                rng0 = _norm_distance(rng0, lat_dist)
+                rng0 = _norm_distance(rng0, lat_dist_arr)
             if isinstance(rng1, str):
-                rng1 = _norm_distance(rng1, lat_dist)
+                rng1 = _norm_distance(rng1, lat_dist_arr)
         if not rng0 < rng1:
             raise ValueError(f"Lower is larger than the upper: {(rng0, rng1)}")
         return rng0, rng1
@@ -619,11 +620,9 @@ class Landscape:
     def _norm_dist(self, dist_range: tuple[_DistLike, _DistLike]) -> tuple[nm, nm]:
         dist_min, dist_max = dist_range
         # normalize distance limits
-        dist_mean = np.mean(
-            np.sqrt(np.sum(np.diff(self.molecules.pos, axis=0) ** 2, axis=1))
-        )
-        dist_min = _norm_distance(dist_min, dist_mean)
-        dist_max = _norm_distance(dist_max, dist_mean)
+        dist_arr = np.sqrt(np.sum(np.diff(self.molecules.pos, axis=0) ** 2, axis=1))
+        dist_min = _norm_distance(dist_min, dist_arr)
+        dist_max = _norm_distance(dist_max, dist_arr)
         return dist_min / self.scale_factor, dist_max / self.scale_factor
 
     def _prep_viterbi_grid(self):
@@ -637,21 +636,25 @@ class Landscape:
         return ViterbiGrid(-self.energies, origin, zvec, yvec, xvec)
 
 
-def _norm_distance(v: str | nm, ref: nm) -> nm:
+def _norm_distance(v: str | nm, arr) -> nm:
+    print(v)
     if not isinstance(v, str):
         return v
-    if v.startswith(("x", "*")):
-        ntimes = float(v[1:])
-        if ntimes < 0.0:
-            raise ValueError(f"Invalid bound: {v}")
-        v = float(v[1:]) * ref
-    elif v.startswith("-"):
-        v = ref - float(v[1:])
-    elif v.startswith("+"):
-        v = ref + float(v[1:])
-    else:
-        raise ValueError(f"Invalid bound: {v}")
-    return v
+    if v.startswith(("*", "+", "-")):
+        warnings.warn(
+            f"Distance specification using relative values like {v!r} is deprecated. "
+            f"Please use the numpy array object `d` for the array of distance. For "
+            "example, `d.mean()` for the mean distance.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        v = f"d.mean(){v}"
+    ns = {"__builtins__": {}, "d": arr, "np": np}
+    out = eval(v, ns, {})
+    out_float = float(out)
+    if out_float < 0:
+        raise ValueError(f"Distance must be non-negative, got {out_float}")
+    return out_float
 
 
 def _check_viterbi_shift(shift: NDArray[np.int32], offset: NDArray[np.int32], i):

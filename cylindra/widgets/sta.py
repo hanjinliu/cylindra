@@ -53,7 +53,7 @@ from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import PropertyNames as H
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.types import MoleculesLayer
-from cylindra.widget_utils import PolarsExprStr, capitalize, timer
+from cylindra.widget_utils import DistExprStr, PolarsExprStr, capitalize, timer
 from cylindra.widgets import _annealing
 from cylindra.widgets import _progress_desc as _pdesc
 from cylindra.widgets._annotated import (
@@ -141,18 +141,12 @@ _SubVolumeSize = Annotated[
     },
 ]
 _DistRangeLon = Annotated[
-    tuple[nm, nm],
-    {
-        "options": {"min": 0.1, "max": 1000.0, "step": 0.05},
-        "label": "longitudinal range (nm)",
-    },
+    tuple[DistExprStr, DistExprStr],
+    {"label": "longitudinal range (nm)"},
 ]
 _DistRangeLat = Annotated[
-    tuple[nm, nm],
-    {
-        "options": {"min": 0.1, "max": 1000.0, "step": 0.05},
-        "label": "lateral range (nm)",
-    },
+    tuple[DistExprStr, DistExprStr],
+    {"label": "lateral range (nm)"},
 ]
 _AngleMaxLon = Annotated[
     float, {"max": 90.0, "step": 0.5, "label": "maximum angle (deg)"}
