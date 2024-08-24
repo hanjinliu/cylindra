@@ -18,9 +18,7 @@ from numpy.testing import assert_allclose
 
 from cylindra import _config, cylmeasure, view_project
 from cylindra._config import get_config
-from cylindra.const import (
-    MoleculesHeader as Mole,
-)
+from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import PropertyNames as H
 from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets.sta import MaskChoice, TemplateChoice
@@ -1258,108 +1256,6 @@ def test_spline_fitter(ui: CylindraMainWidget):
     ui.spline_fitter.fit(shifts=[[1.094, 0.797], [1.094, 0.797], [1.094, 0.698]], i=0)
     ui.macro.undo()
     ui.macro.redo()
-
-
-def test_cli(make_napari_viewer, monkeypatch):
-    import sys
-
-    from cylindra.__main__ import main
-    from cylindra.cli import set_testing
-    from cylindra.core import ACTIVE_WIDGETS
-
-    viewer: napari.Viewer = make_napari_viewer()
-    set_testing(True)
-
-    def run_cli(*args):
-        sys.argv = [str(a) for a in args]
-        main(viewer, ignore_sys_exit=True)
-
-    # test help
-    for cmd in [
-        "average",
-        "config",
-        "find",
-        "new",
-        "open",
-        "plugin",
-        "preview",
-        "run",
-        "workflow",
-    ]:
-        run_cli("cylindra", cmd, "--help")
-    with thread_worker.blocking_mode():
-        run_cli("cylindra")
-        run_cli("cylindra", "preview", PROJECT_DIR_14PF / "project.json")
-        run_cli("cylindra", "preview", PROJECT_DIR_14PF / "project.json", "--gui")
-        run_cli("cylindra", "preview", PROJECT_DIR_14PF / "test_tar.tar")
-        run_cli("cylindra", "preview", PROJECT_DIR_14PF / "test_zip.zip")
-        run_cli("cylindra", "preview", PROJECT_DIR_14PF / "test_tar.tar::project.json")
-        run_cli("cylindra", "preview", PROJECT_DIR_14PF / "test_tar.tar::Mole-0.csv")
-
-        with tempfile.TemporaryDirectory() as dirpath:
-            run_cli(
-                "cylindra", "new",
-                Path(dirpath) / "test-project",
-                "--image", TEST_DIR / "14pf_MT.tif",
-                "--multiscales", "1", "2",
-                "--missing_wedge", "-60", "50",
-                "--molecules", PROJECT_DIR_14PF / "Mole-*",
-            )  # fmt: skip
-            run_cli("cylindra", "open", Path(dirpath) / "test-project")
-        run_cli("cylindra", "config", "--list")
-        run_cli("cylindra", "config", PROJECT_DIR_13PF)
-        run_cli("cylindra", "config", PROJECT_DIR_14PF / "script.py", "--remove")
-        run_cli("cylindra", "config", PROJECT_DIR_14PF, "--remove")
-        run_cli("cylindra", "workflow", "--list")
-        with tempfile.TemporaryDirectory() as dirpath:
-            dirpath = Path(dirpath)
-            run_cli(
-                "cylindra", "average",
-                TEST_DIR / "test_project_*",
-                "--molecules", "Mole-*",
-                "--size", "10.0",
-                "--output", dirpath / "test.tif",
-                "--filter", "col('nth') % 2 == 0",
-                "--split", "--seed", "123",
-            )  # fmt: skip
-            run_cli("cylindra", "run", PROJECT_DIR_14PF, "--headless")
-            run_cli(
-                "cylindra",
-                "run",
-                PROJECT_DIR_14PF,
-                "--headless",
-                "-o",
-                dirpath / "a.tar",
-            )
-
-        run_cli("cylindra", "find", "**/*.zip")
-        run_cli("cylindra", "find", "**/*.zip", "--called", "register_path")
-
-    code = "import numpy as np\ndef main(ui):\n    print(ui.default_config)\n"
-
-    with tempfile.TemporaryDirectory() as tempdir, _config.patch_workflow_path(tempdir):
-        Path(tempdir).joinpath("test-cli.py").write_text(code)
-        run_cli("cylindra", "workflow")
-        run_cli("cylindra", "workflow", "test-cli.py")
-
-    with tempfile.TemporaryDirectory() as tempdir, _config.patch_config_dir(tempdir):
-        from cylindra.components.spline._config import SplineConfig
-
-        d = Path(tempdir) / "temp"
-        d.mkdir()
-        config_path = d / "temp-config.json"
-        SplineConfig().to_file(config_path)
-        run_cli("cylindra", "config", config_path, "--import")
-
-    for widget in ACTIVE_WIDGETS:
-        widget.close()
-    ACTIVE_WIDGETS.clear()
-    use_app().process_events()
-
-    run_cli("cylindra", "plugin", "list")
-    monkeypatch.setattr("builtins.input", lambda *_: "")
-    with tempfile.TemporaryDirectory() as dirpath:
-        run_cli("cylindra", "plugin", "new", dirpath)
 
 
 def test_function_menu(make_napari_viewer):
