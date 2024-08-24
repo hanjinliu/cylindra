@@ -21678,7 +21678,8 @@ coordinate to pixel position.</p>
 
               <details class="quote">
                 <summary>Source code in <code>cylindra/components/landscape.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">755</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">754</span>
+<span class="normal">755</span>
 <span class="normal">756</span>
 <span class="normal">757</span>
 <span class="normal">758</span>
@@ -21703,8 +21704,7 @@ coordinate to pixel position.</p>
 <span class="normal">777</span>
 <span class="normal">778</span>
 <span class="normal">779</span>
-<span class="normal">780</span>
-<span class="normal">781</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="normal">780</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
 <span class="k">class</span> <span class="nc">AnnealingResult</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Dataclass for storing the annealing results.</span>
@@ -22696,7 +22696,7 @@ coordinate to pixel position.</p>
     <span class="k">def</span> <span class="nf">run_viterbi_fixed_start</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">first</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">],</span>
-        <span class="n">range_long</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">nm</span><span class="p">,</span> <span class="n">nm</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">4.28</span><span class="p">),</span>
+        <span class="n">range_long</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">_DistLike</span><span class="p">,</span> <span class="n">_DistLike</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">4.28</span><span class="p">),</span>
         <span class="n">angle_max</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Run Viterbi alignment with a fixed start edge.&quot;&quot;&quot;</span>
@@ -22825,8 +22825,8 @@ coordinate to pixel position.</p>
     <span class="k">def</span> <span class="nf">run_annealing_along_spline</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">spl</span><span class="p">:</span> <span class="n">CylSpline</span><span class="p">,</span>
-        <span class="n">range_long</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span>
-        <span class="n">range_lat</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span> <span class="o">|</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">float</span> <span class="o">|</span> <span class="nb">str</span><span class="p">],</span>
+        <span class="n">range_long</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">_DistLike</span><span class="p">,</span> <span class="n">_DistLike</span><span class="p">],</span>
+        <span class="n">range_lat</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">_DistLike</span><span class="p">,</span> <span class="n">_DistLike</span><span class="p">],</span>
         <span class="n">angle_max</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
         <span class="n">temperature_time_const</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
         <span class="n">random_seeds</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
@@ -23885,7 +23885,7 @@ coordinate to pixel position.</p>
 <span class="normal">309</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">run_viterbi_fixed_start</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">first</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">],</span>
-    <span class="n">range_long</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">nm</span><span class="p">,</span> <span class="n">nm</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">4.28</span><span class="p">),</span>
+    <span class="n">range_long</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">_DistLike</span><span class="p">,</span> <span class="n">_DistLike</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">4.28</span><span class="p">),</span>
     <span class="n">angle_max</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Run Viterbi alignment with a fixed start edge.&quot;&quot;&quot;</span>
@@ -24201,12 +24201,12 @@ peak usually does not represent the optimal result.</p>
 
               <details class="quote">
                 <summary>Source code in <code>cylindra/components/landscape.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">716</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">715</span>
+<span class="normal">716</span>
 <span class="normal">717</span>
 <span class="normal">718</span>
 <span class="normal">719</span>
-<span class="normal">720</span>
-<span class="normal">721</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">SurfaceData</span><span class="p">(</span><span class="n">NamedTuple</span><span class="p">):</span>
+<span class="normal">720</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">SurfaceData</span><span class="p">(</span><span class="n">NamedTuple</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Tuple for storing isosurface data for landscapes.&quot;&quot;&quot;</span>
 
     <span class="n">vertices</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">]</span>
@@ -24300,7 +24300,8 @@ peak usually does not represent the optimal result.</p>
 
               <details class="quote">
                 <summary>Source code in <code>cylindra/components/landscape.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">801</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">800</span>
+<span class="normal">801</span>
 <span class="normal">802</span>
 <span class="normal">803</span>
 <span class="normal">804</span>
@@ -24313,8 +24314,7 @@ peak usually does not represent the optimal result.</p>
 <span class="normal">811</span>
 <span class="normal">812</span>
 <span class="normal">813</span>
-<span class="normal">814</span>
-<span class="normal">815</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="normal">814</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
 <span class="k">class</span> <span class="nc">ViterbiResult</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Dataclass for storing the Viterbi alignment results.</span>
@@ -24368,7 +24368,8 @@ peak usually does not represent the optimal result.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/components/landscape.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">724</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">723</span>
+<span class="normal">724</span>
 <span class="normal">725</span>
 <span class="normal">726</span>
 <span class="normal">727</span>
@@ -24389,8 +24390,7 @@ peak usually does not represent the optimal result.</p>
 <span class="normal">742</span>
 <span class="normal">743</span>
 <span class="normal">744</span>
-<span class="normal">745</span>
-<span class="normal">746</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@delayed</span>
+<span class="normal">745</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@delayed</span>
 <span class="k">def</span> <span class="nf">delayed_isosurface</span><span class="p">(</span>
     <span class="n">arr</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">],</span>
     <span class="n">level</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
