@@ -568,18 +568,19 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                         raise ValueError(
                             f"The {i}-th project {prj!r} does not have a path."
                         )
-                    label = _make_unique_label(Path(path).parent.name, _appeared)
+                    path = Path(path)
+                    if path.suffix == ".json":
+                        label = path.parent.name
+                    elif path.suffix == "":
+                        label = path.name
+                    else:
+                        label = path.stem
+                    label = _make_unique_label(label, _appeared)
                     _map[i] = label
                     _appeared.add(label)
-                _image_col = pl.col(Mole.image)
-                if hasattr(_image_col, "replace_strict"):  # polars>=1.0.0
-                    _image_col = _image_col.replace_strict(
-                        _map, return_dtype=pl.Enum(list(_map.values()))
-                    )
-                else:
-                    _image_col = _image_col.replace(
-                        _map, return_dtype=pl.Enum(list(_map.values()))
-                    )
+                _image_col = pl.col(Mole.image).replace_strict(
+                    _map, return_dtype=pl.Enum(list(_map.values()))
+                )
                 out = out.with_columns(_image_col)
             case _:
                 raise ValueError(f"Invalid id type {id!r}.")
