@@ -496,8 +496,6 @@ class StaParameters(MagicTemplate):
         store: bool = True,
         threshold: float | None = None,
     ) -> "Image":
-        from skimage.filters.thresholding import threshold_yen
-
         if StaParameters._viewer is not None:
             try:
                 # This line will raise RuntimeError if viewer window had been closed by user.
@@ -525,16 +523,22 @@ class StaParameters(MagicTemplate):
             viewer.layers.events.connect(volume_menu.reset_choices)
             viewer.window.resize(10, 10)
             viewer.window.activate()
-        StaParameters._viewer.scale_bar.visible = True
-        StaParameters._viewer.scale_bar.unit = "nm"
+        image.scale_unit = "nm"
+        _viewer: "napari.Viewer" = StaParameters._viewer
+        _viewer.scale_bar.visible = True
+        _viewer.scale_bar.unit = "nm"
         if store:
             self._set_last_average(image)
         if threshold is None:
+            from skimage.filters.thresholding import threshold_yen
+
             threshold = threshold_yen(image.value)
 
-        return StaParameters._viewer.add_image(
+        _scale = np.array(image.scale)
+        return _viewer.add_image(
             image,
-            scale=list(image.scale.values()),
+            scale=_scale,
+            translate=-(np.array(image.shape, dtype=np.float32) - 1) / 2 * _scale,
             name=name,
             rendering="iso",
             iso_threshold=threshold,
