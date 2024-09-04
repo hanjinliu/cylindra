@@ -64,6 +64,7 @@ class ImportAction(argparse.Action):
         with open(save_path, mode="w") as f:
             json.dump(cfg.asdict(), f, indent=4, separators=(", ", ": "))
         print(f"Config file imported: {save_path.as_posix()}")
+        parser.exit()
 
 
 class ParserConfig(ParserBase):

@@ -145,6 +145,20 @@ PolarsExprStr = Annotated[
         "widget_type": EvalLineEdit,
         "namespace": POLARS_NAMESPACE,
         "validator": _validate_expr,
+        "tooltip": "Values or polars expressions.",
+    },
+]
+
+
+DistExprStr = Annotated[
+    float | str,
+    {
+        "widget_type": EvalLineEdit,
+        "namespace": {"d": np.ones(1), "np": np, "__builtins__": {}},
+        "tooltip": (
+            "Distance in nm. Variable `d` is available as a numpy array of the current "
+            "distance values. `np` is also available as the numpy module."
+        ),
     },
 ]
 

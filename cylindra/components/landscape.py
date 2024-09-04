@@ -1,8 +1,16 @@
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, NamedTuple, Sequence, SupportsIndex, SupportsInt
+from typing import (
+    TYPE_CHECKING,
+    NamedTuple,
+    Sequence,
+    SupportsIndex,
+    SupportsInt,
+    TypeVar,
+)
 
 import impy as ip
 import numpy as np
@@ -24,9 +32,13 @@ if TYPE_CHECKING:
     from acryo.loader._base import LoaderBase, MaskInputType, TemplateInputType
     from dask import array as da
 
-    from cylindra._cylindra_ext import CylindricAnnealingModel
+    from cylindra._cylindra_ext import (
+        BaseCylindricAnnealingModel,
+        CylindricAnnealingModel,
+    )
 
     _DistLike = nm | str
+    _ANN = TypeVar("_ANN", bound=BaseCylindricAnnealingModel)
 
 _Logger = getLogger("cylindra")
 
@@ -232,26 +244,6 @@ class Landscape:
             mole_opt = _update_mole_pos(mole_opt, self.molecules, spl)
         return mole_opt, result
 
-    def _norm_dist(self, dist_range: tuple[_DistLike, _DistLike]) -> tuple[nm, nm]:
-        dist_min, dist_max = dist_range
-        # normalize distance limits
-        dist_mean = np.mean(
-            np.sqrt(np.sum(np.diff(self.molecules.pos, axis=0) ** 2, axis=1))
-        )
-        dist_min = _norm_distance(dist_min, dist_mean)
-        dist_max = _norm_distance(dist_max, dist_mean)
-        return dist_min / self.scale_factor, dist_max / self.scale_factor
-
-    def _prep_viterbi_grid(self):
-        from cylindra._cylindra_ext import ViterbiGrid
-
-        mole = self.molecules.translate_internal(-self.offset_nm)
-        origin = (mole.pos / self.scale_factor).astype(np.float32)
-        zvec = mole.z.astype(np.float32)
-        yvec = mole.y.astype(np.float32)
-        xvec = mole.x.astype(np.float32)
-        return ViterbiGrid(-self.energies, origin, zvec, yvec, xvec)
-
     def run_viterbi(
         self, dist_range: tuple[_DistLike, _DistLike], angle_max: float | None = None
     ):
@@ -295,7 +287,7 @@ class Landscape:
     def run_viterbi_fixed_start(
         self,
         first: NDArray[np.float32],
-        range_long: tuple[nm, nm] = (4.0, 4.28),
+        range_long: tuple[_DistLike, _DistLike] = (4.0, 4.28),
         angle_max: float | None = 5.0,
     ):
         """Run Viterbi alignment with a fixed start edge."""
@@ -316,8 +308,9 @@ class Landscape:
         molecules_opt = self.transform_molecules(mole, inds)
         return molecules_opt
 
-    def annealing_model(
+    def _prep_annealing_model(
         self,
+        cls: type[_ANN],
         spl: CylSpline,
         distance_range_long: tuple[_DistLike, _DistLike],
         distance_range_lat: tuple[_DistLike, _DistLike],
@@ -326,10 +319,7 @@ class Landscape:
         temperature: float | None = None,
         cooling_rate: float | None = None,
         reject_limit: int | None = None,
-    ) -> CylindricAnnealingModel:
-        """Get an annealing model using the landscape."""
-        from cylindra._cylindra_ext import CylindricAnnealingModel
-
+    ) -> _ANN:
         cyl = spl.cylinder_model()
         _nrise, _npf = cyl.nrise, cyl.shape[1]
         molecules = self.molecules
@@ -343,10 +333,7 @@ class Landscape:
         ind = molecules.features.select([Mole.nth, Mole.pf]).to_numpy().astype(np.int32)
         ind[:, 0] -= ind[:, 0].min()
         ind[:, 1] -= ind[:, 1].min()
-        model = CylindricAnnealingModel().construct_graph(
-            indices=ind, npf=_npf, nrise=_nrise
-        )
-
+        model = cls().construct_graph(indices=ind, npf=_npf, nrise=_nrise)
         return (
             model.set_graph_coordinates(
                 origin=mole.pos,
@@ -367,6 +354,26 @@ class Landscape:
             )
             .with_reject_limit(reject_limit)
         )
+
+    def annealing_model(
+        self,
+        spl: CylSpline,
+        distance_range_long: tuple[_DistLike, _DistLike],
+        distance_range_lat: tuple[_DistLike, _DistLike],
+        angle_max: float | None = None,
+        temperature_time_const: float = 1.0,
+        temperature: float | None = None,
+        cooling_rate: float | None = None,
+        reject_limit: int | None = None,
+    ) -> CylindricAnnealingModel:
+        """Get an annealing model using the landscape."""
+        from cylindra._cylindra_ext import CylindricAnnealingModel
+
+        return self._prep_annealing_model(
+            CylindricAnnealingModel,
+            spl, distance_range_long, distance_range_lat, angle_max,
+            temperature_time_const, temperature, cooling_rate, reject_limit,
+        )  # fmt: skip
 
     def run_annealing(
         self,
@@ -407,16 +414,16 @@ class Landscape:
         return compute(*tasks)
 
     def run_annealing_along_spline(
-        landscape: Landscape,
+        self,
         spl: CylSpline,
-        range_long: tuple[float, float],
-        range_lat: tuple[float | str, float | str],
+        range_long: tuple[_DistLike, _DistLike],
+        range_lat: tuple[_DistLike, _DistLike],
         angle_max: float,
         temperature_time_const: float = 1.0,
         random_seeds: Sequence[int] = (0, 1, 2, 3, 4),
     ):
-        mole = landscape.molecules
-        results = landscape.run_annealing(
+        mole = self.molecules
+        results = self.run_annealing(
             spl,
             range_long,
             range_lat,
@@ -434,28 +441,14 @@ class Landscape:
         _Logger.print_table(
             {
                 "Iteration": [r.niter for r in results],
-                "Score": [-float(r.energies[-1]) for r in results],
+                "Score": [f"{-float(r.energies[-1]):.3g}" for r in results],
                 "State": [r.state for r in results],
             }
         )
         results = sorted(results, key=lambda r: r.energies[-1])
-        mole_opt = landscape.transform_molecules(mole, results[0].indices)
+        mole_opt = self.transform_molecules(mole, results[0].indices)
         mole_opt = _update_mole_pos(mole_opt, mole, spl)
         return mole_opt, results
-
-    def _normalize_args(
-        self, temperature_time_const, temperature, cooling_rate, reject_limit
-    ):
-        nmole = self.molecules.count()
-        time_const = nmole * np.prod(self.energies.shape[1:]) * temperature_time_const
-        _energy_std = np.std(self.energies)
-        if temperature is None:
-            temperature = _energy_std * 2
-        if cooling_rate is None:
-            cooling_rate = _energy_std / time_const * 8
-        if reject_limit is None:
-            reject_limit = nmole * 50
-        return time_const, temperature, cooling_rate, reject_limit
 
     def normed(self, sd: bool = True) -> Landscape:
         """Return a landscape with normalized mean energy."""
@@ -464,13 +457,35 @@ class Landscape:
         sl = (slice(None), np.newaxis, np.newaxis, np.newaxis)
         if sd:
             each_sd: NDArray[np.float32] = self.energies.std(axis=(1, 2, 3))
-            all_sd = each_sd.std()
+            all_sd = each_sd.mean()
             dif = self.energies - each_mean[sl]
             new_array = dif * all_sd / each_sd[sl] + all_mean
         else:
             new_array = self.energies + all_mean - each_mean[sl]
+        return self.replace_energies(new_array)
+
+    def clip_energies(
+        self,
+        low: float | None = None,
+        high: float | None = None,
+    ) -> Landscape:
+        low = np.float32(low) if low is not None else None
+        high = np.float32(high) if high is not None else None
+        energy = np.clip(self.energies, a_min=low, a_max=high)
+        return self.replace_energies(energy)
+
+    def replace_energies(self, energies: NDArray[np.float32]) -> Landscape:
+        if energies.dtype != self.energies.dtype:
+            raise ValueError(
+                f"The dtype of energies must be float32, got {energies.dtype}"
+            )
+        if energies.shape != self.energies.shape:
+            raise ValueError(
+                f"The shape of energies must be {self.energies.shape}, got "
+                f"{energies.shape}"
+            )
         return Landscape(
-            new_array,
+            energies,
             self.molecules,
             self.argmax,
             self.quaternions,
@@ -480,7 +495,7 @@ class Landscape:
     def create_surface(
         self,
         level: float | None = None,
-        resolution: nm = 0.25,
+        resolution: nm | None = None,
         show_min: bool = True,
     ) -> SurfaceData:
         """Create a isosurface data from the landscape"""
@@ -491,6 +506,8 @@ class Landscape:
             level = -level
         else:
             intensity = self.energies
+        if resolution is None:
+            resolution = np.min(self.energies.shape[1:]) * self.scale_factor / 4
 
         step_size = max(int(resolution / self.scale_factor), 1)
         spacing = (self.scale_factor,) * 3
@@ -517,6 +534,8 @@ class Landscape:
         values = np.concatenate([s.values for s in surfs], axis=0)
         return SurfaceData(vertices, faces, values)
 
+    ### IO ###
+
     @classmethod
     def from_dir(cls, path: str | Path) -> Landscape:
         """Load a landscape from a directory."""
@@ -528,8 +547,8 @@ class Landscape:
         argmax = None
         if (fp := path / "argmax.parquet").exists():
             argmax = pl.read_parquet(fp).to_series().to_numpy()
-        quaternions = np.loadtxt(
-            path / "quaternions.txt", delimiter=",", dtype=np.float32
+        quaternions = np.atleast_2d(
+            np.loadtxt(path / "quaternions.txt", delimiter=",", dtype=np.float32)
         )
         scale_factor = energies.scale["x"]
         return cls(energies.value, molecules, argmax, quaternions, scale_factor)
@@ -559,11 +578,11 @@ class Landscape:
     ) -> tuple[nm, nm]:
         rng0, rng1 = rng
         if isinstance(rng0, str) or isinstance(rng1, str):
-            long_dist = model.longitudinal_distances().mean()
+            long_dist_arr = model.longitudinal_distances()
             if isinstance(rng0, str):
-                rng0 = _norm_distance(rng0, long_dist)
+                rng0 = _norm_distance(rng0, long_dist_arr)
             if isinstance(rng1, str):
-                rng1 = _norm_distance(rng1, long_dist)
+                rng1 = _norm_distance(rng1, long_dist_arr)
         if not rng0 < rng1:
             raise ValueError(f"Lower is larger than the upper: {(rng0, rng1)}")
         return rng0, rng1
@@ -575,31 +594,66 @@ class Landscape:
     ) -> tuple[nm, nm]:
         rng0, rng1 = rng
         if isinstance(rng0, str) or isinstance(rng1, str):
-            lat_dist = model.lateral_distances().mean()
+            lat_dist_arr = model.lateral_distances()
             if isinstance(rng0, str):
-                rng0 = _norm_distance(rng0, lat_dist)
+                rng0 = _norm_distance(rng0, lat_dist_arr)
             if isinstance(rng1, str):
-                rng1 = _norm_distance(rng1, lat_dist)
+                rng1 = _norm_distance(rng1, lat_dist_arr)
         if not rng0 < rng1:
             raise ValueError(f"Lower is larger than the upper: {(rng0, rng1)}")
         return rng0, rng1
 
+    def _normalize_args(
+        self, temperature_time_const, temperature, cooling_rate, reject_limit
+    ):
+        nmole = self.molecules.count()
+        time_const = nmole * np.prod(self.energies.shape[1:]) * temperature_time_const
+        _energy_std = np.std(self.energies)
+        if temperature is None:
+            temperature = _energy_std * 2
+        if cooling_rate is None:
+            cooling_rate = _energy_std / time_const * 8
+        if reject_limit is None:
+            reject_limit = nmole * 50
+        return time_const, temperature, cooling_rate, reject_limit
 
-def _norm_distance(v: str | nm, ref: nm) -> nm:
+    def _norm_dist(self, dist_range: tuple[_DistLike, _DistLike]) -> tuple[nm, nm]:
+        dist_min, dist_max = dist_range
+        # normalize distance limits
+        dist_arr = np.sqrt(np.sum(np.diff(self.molecules.pos, axis=0) ** 2, axis=1))
+        dist_min = _norm_distance(dist_min, dist_arr)
+        dist_max = _norm_distance(dist_max, dist_arr)
+        return dist_min / self.scale_factor, dist_max / self.scale_factor
+
+    def _prep_viterbi_grid(self):
+        from cylindra._cylindra_ext import ViterbiGrid
+
+        mole = self.molecules.translate_internal(-self.offset_nm)
+        origin = (mole.pos / self.scale_factor).astype(np.float32)
+        zvec = mole.z.astype(np.float32)
+        yvec = mole.y.astype(np.float32)
+        xvec = mole.x.astype(np.float32)
+        return ViterbiGrid(-self.energies, origin, zvec, yvec, xvec)
+
+
+def _norm_distance(v: str | nm, arr) -> nm:
     if not isinstance(v, str):
         return v
-    if v.startswith(("x", "*")):
-        ntimes = float(v[1:])
-        if ntimes < 0.0:
-            raise ValueError(f"Invalid bound: {v}")
-        v = float(v[1:]) * ref
-    elif v.startswith("-"):
-        v = ref - float(v[1:])
-    elif v.startswith("+"):
-        v = ref + float(v[1:])
-    else:
-        raise ValueError(f"Invalid bound: {v}")
-    return v
+    if v.startswith(("*", "+", "-")):
+        warnings.warn(
+            f"Distance specification using relative values like {v!r} is deprecated. "
+            f"Please use the numpy array object `d` for the array of distance. For "
+            "example, `d.mean()` for the mean distance.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        v = f"d.mean(){v}"
+    ns = {"__builtins__": {}, "d": arr, "np": np}
+    out = eval(v, ns, {})
+    out_float = float(out)
+    if out_float < 0:
+        raise ValueError(f"Distance must be non-negative, got {out_float}")
+    return out_float
 
 
 def _check_viterbi_shift(shift: NDArray[np.int32], offset: NDArray[np.int32], i):

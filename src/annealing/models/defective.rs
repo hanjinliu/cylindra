@@ -7,34 +7,28 @@ use numpy::{
     ndarray::Array2, PyUntypedArrayMethods
 };
 
-use super::{
+use crate::annealing::{
     random::RandomNumberGenerator,
-    graph::CylindricGraph,
+    graphs::{DefectiveCylindricGraph, GraphTrait, CylindricGraphTrait},
     reservoir::Reservoir,
 };
 use crate::{value_error, cylindric::Index};
+use super::misc::OptimizationState;
 
-#[derive(Clone, PartialEq, Eq)]
-/// Current state of the annealing model
-enum OptimizationState {
-    NotConverged,  // Optimization is not converged yet
-    Converged,  // Optimization converged
-    Failed,  // Optimization failed due to wrong parameters
-}
 
 #[pyclass]
-/// A class to perform simulated annealing on a cylindric lattice.
-pub struct CylindricAnnealingModel {
+/// A class to perform simulated annealing on a cylindric lattice with defects.
+pub struct DefectiveCylindricAnnealingModel {
     rng: RandomNumberGenerator,
     optimization_state: OptimizationState,
-    graph: CylindricGraph,
+    graph: DefectiveCylindricGraph,
     reservoir: Reservoir,
     iteration: usize,
     reject_limit: usize,
 }
 
 #[pymethods]
-impl CylindricAnnealingModel {
+impl DefectiveCylindricAnnealingModel {
     #[new]
     #[pyo3(signature = (seed=0))]
     pub fn new(seed: u64) -> Self {
@@ -43,7 +37,7 @@ impl CylindricAnnealingModel {
         Self {
             rng,
             optimization_state,
-            graph: CylindricGraph::empty(),
+            graph: DefectiveCylindricGraph::empty(),
             reservoir: Reservoir::new(1.0, 1.0, 0.0),
             iteration: 0,
             reject_limit: 1000,
@@ -78,6 +72,25 @@ impl CylindricAnnealingModel {
         };
         out.reservoir.initialize();
         Py::new(py, out).unwrap()
+    }
+
+    #[pyo3(signature = (internal=0.0, binding=0.0))]
+    pub fn with_null_energy<'py>(
+        &mut self,
+        py: Python<'py>,
+        internal: f32,
+        binding: f32,
+    ) -> Py<Self> {
+        let out = Self {
+            rng: self.rng.clone(),
+            optimization_state: self.optimization_state.clone(),
+            graph: self.graph.with_null_energy(internal, binding).clone(),
+            reservoir: self.reservoir.clone(),
+            iteration: self.iteration,
+            reject_limit: self.reject_limit,
+        };
+        Py::new(py, out).unwrap()
+
     }
 
     #[pyo3(signature = (temperature, time_constant, min_temperature=0.0))]
@@ -317,7 +330,24 @@ impl CylindricAnnealingModel {
     }
 }
 
-impl CylindricAnnealingModel {
+impl DefectiveCylindricAnnealingModel {
+    pub fn new_internal(
+        rng: RandomNumberGenerator,
+        optimization_state: OptimizationState,
+        graph: DefectiveCylindricGraph,
+        reservoir: Reservoir,
+        iteration: usize,
+        reject_limit: usize,
+    ) -> Self {
+        DefectiveCylindricAnnealingModel {
+            rng,
+            optimization_state,
+            graph,
+            reservoir,
+            iteration,
+            reject_limit,
+        }
+    }
     /// Proceed one step of simulation. Return true if the shift is accepted.
     fn proceed(&mut self) -> bool {
         // Randomly shift a node.

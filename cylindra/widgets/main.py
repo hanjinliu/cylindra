@@ -677,7 +677,7 @@ class CylindraMainWidget(MagicTemplate):
             label,
             name=label.name,
             translate=[tr, tr, tr],
-            scale=list(label.scale),
+            scale=list(label.scale.values()),
             opacity=0.4,
         )
         self._reserved_layers.to_be_removed.add(label)

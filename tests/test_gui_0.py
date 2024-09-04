@@ -18,9 +18,7 @@ from numpy.testing import assert_allclose
 
 from cylindra import _config, cylmeasure, view_project
 from cylindra._config import get_config
-from cylindra.const import (
-    MoleculesHeader as Mole,
-)
+from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import PropertyNames as H
 from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets.sta import MaskChoice, TemplateChoice
@@ -651,6 +649,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
     ui.sta.params.template_path.value = template_path
     ui.sta.params.mask_choice = MaskChoice.from_file
     ui.sta.params.mask_choice = MaskChoice.blur_template
+    ui.sta.params.mask_choice = MaskChoice.spherical
     ui.sta.show_template()
     ui.sta.show_template_original()
     ui.sta.show_mask()
@@ -681,7 +680,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
     ui.macro.redo()
     ui.sta.align_all_template_free(
         layers=["Mole-0-ALN1"],
-        mask_params=(1, 1),
+        mask_params={"kind": "spherical", "radius": 2.3, "sigma": 0.7},
         size=12.0,
         bin_size=bin_size,
     )
@@ -835,6 +834,11 @@ def test_simulator(ui: CylindraMainWidget):
         radius=6,
         offsets=(0.0, 0.18),
     )
+    assert ui.splines[0].props.get_glob("npf") == 2
+    ui.macro.undo()
+    assert ui.splines[0].props.get_glob("npf") == 14
+    ui.macro.redo()
+    assert ui.splines[0].props.get_glob("npf") == 2
     ui.simulator._get_components()
     ui.simulator.expand(layer, by=0.1, yrange=(11, 15), arange=(0, 14), allev=True)
     ui.simulator.twist(layer, by=0.3, yrange=(11, 15), arange=(0, 14), allev=True)
@@ -870,6 +874,8 @@ def test_simulator(ui: CylindraMainWidget):
 @pytest_group("simulate", maxfail=1)
 def test_simulate_tomogram(ui: CylindraMainWidget):
     ui.simulator.create_image_with_straight_line(25, (40, 42, 42), scale=0.5)
+    ui.macro.undo()
+    ui.macro.redo()
     ui.simulator.generate_molecules(
         spline=0,
         spacing=4.06,
@@ -1259,79 +1265,6 @@ def test_spline_fitter(ui: CylindraMainWidget):
     ui.macro.redo()
 
 
-def test_cli(make_napari_viewer, monkeypatch):
-    import sys
-
-    from cylindra.__main__ import main
-    from cylindra.cli import set_testing
-    from cylindra.core import ACTIVE_WIDGETS
-
-    viewer: napari.Viewer = make_napari_viewer()
-    set_testing(True)
-
-    def run_cli(*args):
-        sys.argv = [str(a) for a in args]
-        main(viewer, ignore_sys_exit=True)
-
-    # test help
-    for cmd in [
-        "average",
-        "config",
-        "find",
-        "new",
-        "open",
-        "plugin",
-        "preview",
-        "run",
-        "workflow",
-    ]:
-        run_cli("cylindra", cmd, "--help")
-    with thread_worker.blocking_mode():
-        run_cli("cylindra")
-        run_cli("cylindra", "preview", PROJECT_DIR_14PF / "project.json")
-        run_cli("cylindra", "preview", PROJECT_DIR_14PF / "project.json", "--gui")
-        run_cli("cylindra", "preview", PROJECT_DIR_14PF / "test_tar.tar")
-        run_cli("cylindra", "preview", PROJECT_DIR_14PF / "test_zip.zip")
-        run_cli("cylindra", "preview", PROJECT_DIR_14PF / "test_tar.tar::project.json")
-        run_cli("cylindra", "preview", PROJECT_DIR_14PF / "test_tar.tar::Mole-0.csv")
-
-        with tempfile.TemporaryDirectory() as dirpath:
-            run_cli(
-                "cylindra", "new",
-                Path(dirpath) / "test-project",
-                "--image", TEST_DIR / "14pf_MT.tif",
-                "--multiscales", "1", "2",
-                "--missing_wedge", "-60", "50",
-                "--molecules", PROJECT_DIR_14PF / "Mole-*",
-            )  # fmt: skip
-            run_cli("cylindra", "open", Path(dirpath) / "test-project")
-        run_cli("cylindra", "config", "--list")
-        run_cli("cylindra", "config", PROJECT_DIR_14PF, "--remove")
-        run_cli("cylindra", "workflow", "--list")
-        with tempfile.TemporaryDirectory() as dirpath:
-            run_cli(
-                "cylindra", "average",
-                TEST_DIR / "test_project_*",
-                "--molecules", "Mole-*",
-                "--size", "10.0",
-                "--output", Path(dirpath) / "test.tif",
-                "--filter", "col('nth') % 2 == 0",
-                "--split", "--seed", "123",
-            )  # fmt: skip
-        run_cli("cylindra", "find", "**/*.zip")
-        run_cli("cylindra", "find", "**/*.zip", "--called", "register_path")
-
-    for widget in ACTIVE_WIDGETS:
-        widget.close()
-    ACTIVE_WIDGETS.clear()
-    use_app().process_events()
-
-    run_cli("cylindra plugin list")
-    monkeypatch.setattr("builtins.input", lambda _: "")
-    with tempfile.TemporaryDirectory() as dirpath:
-        run_cli(f"cylindra plugin new {dirpath}")
-
-
 def test_function_menu(make_napari_viewer):
     from cylindra.widgets.subwidgets import Volume
 
@@ -1428,6 +1361,17 @@ def test_mesh_annealing(ui: CylindraMainWidget):
     # click preview
     tester = mcls_testing.FunctionGuiTester(ui.sta.align_all_annealing)
     tester.click_preview()
+    tester.update_parameters(layer=ui.mole_layers.first())
+    tester.update_parameters(layer=ui.mole_layers.last())
+    tester.update_parameters(range_long=("d.mean() - 0.1", "d.mean() + 0.1"))
+    tester.update_parameters(range_long=("4.05", "d.mean() + 0.1"))
+    tester.update_parameters(range_long=("4.05", "4.3"))
+    tester.update_parameters(range_long=("d.mean() - ", "4.3"))  # syntax error
+    tester.update_parameters(range_lat=("d.mean() - 0.1", "d.mean() + 0.1"))
+    tester.update_parameters(range_lat=("4.05", "d.mean() + 0.1"))
+    tester.update_parameters(range_lat=("4.05", "4.3"))
+    tester.update_parameters(range_lat=("d.mean() - ", "4.3"))  # syntax error
+    tester.click_preview()
 
     # test return same results with same random seeds
     trajectories = []
@@ -1512,6 +1456,8 @@ def test_landscape(ui: CylindraMainWidget):
         dirpath = Path(dirpath)
         ui.save_project(dirpath / "test-project.tar", save_landscape=True)
         ui.load_project(dirpath / "test-project.tar", filter=None)
+    ui.sta.remove_landscape_outliers(layer_land, upper=0.0)
+    ui.sta.normalize_landscape(layer_land, norm_sd=False)
 
 
 def test_regionprops(ui: CylindraMainWidget):

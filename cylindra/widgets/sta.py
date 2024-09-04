@@ -53,7 +53,7 @@ from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import PropertyNames as H
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.types import MoleculesLayer
-from cylindra.widget_utils import PolarsExprStr, capitalize, timer
+from cylindra.widget_utils import DistExprStr, PolarsExprStr, capitalize, timer
 from cylindra.widgets import _annealing
 from cylindra.widgets import _progress_desc as _pdesc
 from cylindra.widgets._annotated import (
@@ -141,18 +141,12 @@ _SubVolumeSize = Annotated[
     },
 ]
 _DistRangeLon = Annotated[
-    tuple[nm, nm],
-    {
-        "options": {"min": 0.1, "max": 1000.0, "step": 0.05},
-        "label": "longitudinal range (nm)",
-    },
+    tuple[DistExprStr, DistExprStr],
+    {"label": "longitudinal range (nm)"},
 ]
 _DistRangeLat = Annotated[
-    tuple[nm, nm],
-    {
-        "options": {"min": 0.1, "max": 1000.0, "step": 0.05},
-        "label": "lateral range (nm)",
-    },
+    tuple[DistExprStr, DistExprStr],
+    {"label": "lateral range (nm)"},
 ]
 _AngleMaxLon = Annotated[
     float, {"max": 90.0, "step": 0.5, "label": "maximum angle (deg)"}
@@ -194,6 +188,30 @@ class MaskChoice(Enum):
     no_mask = "no mask"
     blur_template = "blur template"
     from_file = "from file"
+    spherical = "spherical"
+
+
+@pipe.converter_function
+def spherical_mask(
+    img: "NDArray[np.float32]",
+    scale: nm,
+    radius: nm,
+    sigma: nm = 0.8,
+) -> "NDArray[np.float32]":
+    """Generate a spherical soft mask that matches the input image shape."""
+    lz, ly, lx = img.shape
+    zz, yy, xx = np.indices((lz, ly, lx), dtype=np.float32)
+    zz -= (lz - 1) / 2
+    yy -= (ly - 1) / 2
+    xx -= (lx - 1) / 2
+    binary = zz**2 + yy**2 + xx**2 <= (radius / scale) ** 2
+    return pipe.gaussian_smooth(sigma).convert(binary, scale)
+
+
+def _drop_kind(d: dict[str, Any]) -> dict[str, Any]:
+    out = d.copy()
+    out.pop("kind", None)
+    return out
 
 
 def _choice_getter(method_name: str, dtype_kind: str = ""):
@@ -211,13 +229,7 @@ def _choice_getter(method_name: str, dtype_kind: str = ""):
     return _get_choice
 
 
-@magicclass(
-    layout="horizontal",
-    widget_type="groupbox",
-    name="Parameters",
-    visible=False,
-    record=False,
-)
+@magicclass(layout="horizontal", widget_type="groupbox", visible=False, record=False)
 class MaskParameters(MagicTemplate):
     """
     Parameters for soft mask creation.
@@ -238,12 +250,38 @@ class MaskParameters(MagicTemplate):
     dilate_radius = vfield(0.3, record=False).with_options(min=-20, max=20, step=0.1)
     sigma = vfield(0.8, record=False).with_options(max=20, step=0.1)
 
+    def _to_params(self) -> tuple[nm, nm]:
+        return (self.dilate_radius, self.sigma)
+
 
 @magicclass(layout="horizontal", widget_type="frame", visible=False, record=False)
 class mask_path(MagicTemplate):
     """Path to the mask image."""
 
     mask_path = vfield(Path.Read[FileFilter.IMAGE])
+
+    def _to_params(self) -> Path:
+        return self.mask_path
+
+
+@magicclass(layout="horizontal", widget_type="groupbox", visible=False, record=False)
+class SphericalMaskParameters(MagicTemplate):
+    """
+    Parameters for spherical mask creation.
+
+    Attributes
+    ----------
+    radius : nm
+        Radius of the sphere (nm).
+    sigma : nm
+        Standard deviation (nm) of Gaussian blur applied to the edge of the sphere.
+    """
+
+    radius = vfield(2.0, record=False).with_options(min=0, max=50, step=0.05)
+    sigma = vfield(0.8, record=False).with_options(max=20, step=0.1)
+
+    def _to_params(self) -> dict[str, Any]:
+        return {"kind": "spherical", "radius": self.radius, "sigma": self.sigma}
 
 
 @magicmenu
@@ -300,6 +338,9 @@ class LandscapeMenu(MagicTemplate):
     run_align_on_landscape = abstractapi()
     run_viterbi_on_landscape = abstractapi()
     run_annealing_on_landscape = abstractapi()
+    sep0 = Separator
+    remove_landscape_outliers = abstractapi()
+    normalize_landscape = abstractapi()
 
 
 @magicclass(record=False, properties={"margins": (0, 0, 0, 0)})
@@ -327,8 +368,9 @@ class StaParameters(MagicTemplate):
     ).with_options(filter=FileFilter.IMAGE, visible=False)
 
     mask_choice = vfield(MaskChoice.no_mask, label="Mask")
-    params = field(MaskParameters, name="Parameters")
+    params = field(MaskParameters, name="blur parameters")
     mask_path = field(mask_path)
+    params_spherical = field(SphericalMaskParameters, name="sphere parameters")
 
     _last_average: ip.ImgArray | None = None  # the global average result
     _viewer: "napari.Viewer | None" = None
@@ -356,6 +398,7 @@ class StaParameters(MagicTemplate):
         v = self.mask_choice
         self.params.visible = v is MaskChoice.blur_template
         self.mask_path.visible = v is MaskChoice.from_file
+        self.params_spherical.visible = v is MaskChoice.spherical
 
     def _set_last_average(self, img: ip.ImgArray):
         assert img.ndim == 3
@@ -422,9 +465,11 @@ class StaParameters(MagicTemplate):
             case MaskChoice.no_mask:
                 params = None
             case MaskChoice.blur_template:
-                params = (self.params.dilate_radius, self.params.sigma)
+                params = self.params._to_params()
             case MaskChoice.from_file:
-                params = self.mask_path.mask_path
+                params = self.mask_path._to_params()
+            case MaskChoice.spherical:
+                params = self.params_spherical._to_params()
             case v:  # pragma: no cover
                 raise ValueError(f"Unknown mask choice: {v!r}")
         return params
@@ -439,14 +484,18 @@ class StaParameters(MagicTemplate):
         elif isinstance(params, tuple):
             radius, sigma = params
             return pipe.soft_otsu(radius=radius, sigma=sigma)
+        elif isinstance(params, dict) and params.get("kind") == "spherical":
+            return spherical_mask(**_drop_kind(params))
         else:
             return pipe.from_file(params)
 
     def _show_reconstruction(
-        self, image: ip.ImgArray, name: str, store: bool = True
+        self,
+        image: ip.ImgArray,
+        name: str,
+        store: bool = True,
+        threshold: float | None = None,
     ) -> "Image":
-        from skimage.filters.thresholding import threshold_yen
-
         if StaParameters._viewer is not None:
             try:
                 # This line will raise RuntimeError if viewer window had been closed by user.
@@ -474,17 +523,25 @@ class StaParameters(MagicTemplate):
             viewer.layers.events.connect(volume_menu.reset_choices)
             viewer.window.resize(10, 10)
             viewer.window.activate()
-        StaParameters._viewer.scale_bar.visible = True
-        StaParameters._viewer.scale_bar.unit = "nm"
+        image.scale_unit = "nm"
+        _viewer: "napari.Viewer" = StaParameters._viewer
+        _viewer.scale_bar.visible = True
+        _viewer.scale_bar.unit = "nm"
         if store:
             self._set_last_average(image)
+        if threshold is None:
+            from skimage.filters.thresholding import threshold_yen
 
-        return StaParameters._viewer.add_image(
+            threshold = threshold_yen(image.value)
+
+        _scale = np.array(image.scale)
+        return _viewer.add_image(
             image,
-            scale=list(image.scale.values()),
+            scale=_scale,
+            translate=-(np.array(image.shape, dtype=np.float32) - 1) / 2 * _scale,
             name=name,
             rendering="iso",
-            iso_threshold=threshold_yen(image.value),
+            iso_threshold=threshold,
             blending="opaque",
         )
 
@@ -571,14 +628,14 @@ class SubtomogramAveraging(ChildWidget):
     def show_mask(self):
         """Load and show mask image in the scale of the tomogram."""
         mask = self._get_mask_image(self._template_params())
-        self._show_rec(mask, name="Mask image", store=False)
+        self._show_rec(mask, name="Mask image", store=False, threshold=0.5)
 
     @property
     def last_average(self) -> "ip.ImgArray | None":
         """Last averaged image if exists."""
         return StaParameters._last_average
 
-    def _get_shape_in_nm(self, default: int = None) -> tuple[nm, nm, nm]:
+    def _get_shape_in_nm(self, default: int | None = None) -> tuple[nm, nm, nm]:
         if default is None:
             tmp = self._get_template_image()
             return tuple(np.array(tmp.sizesof("zyx")) * tmp.scale.x)
@@ -586,8 +643,8 @@ class SubtomogramAveraging(ChildWidget):
             return (default,) * 3
 
     @thread_worker.callback
-    def _show_rec(self, img: ip.ImgArray, name: str, store: bool = True):
-        return self.params._show_reconstruction(img, name, store)
+    def _show_rec(self, img: ip.ImgArray, name: str, store=True, threshold=None):
+        return self.params._show_reconstruction(img, name, store, threshold=threshold)
 
     def _get_loader(
         self,
@@ -1178,6 +1235,8 @@ class SubtomogramAveraging(ChildWidget):
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
+        method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
+        norm: bool = True,
     ):
         """
         Construct a cross-correlation landscape for subtomogram alignment.
@@ -1185,7 +1244,10 @@ class SubtomogramAveraging(ChildWidget):
         Parameters
         ----------
         {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}
-        {interpolation}{bin_size}{upsample_factor}
+        {interpolation}{bin_size}{upsample_factor}{method}
+        norm: bool, default True
+            If true, each landscape will be normalized by its mean and standard
+            deviation.
         """
         layer = assert_layer(layer, self.parent_viewer)
         lnd = self._construct_landscape(
@@ -1198,6 +1260,8 @@ class SubtomogramAveraging(ChildWidget):
             order=interpolation,
             bin_size=bin_size,
             upsample_factor=upsample_factor,
+            norm=norm,
+            method=method,
         )
         surf = LandscapeSurface(lnd, name=f"{LANDSCAPE_PREFIX}{layer.name}")
         surf.source_component = layer.source_component
@@ -1296,6 +1360,60 @@ class SubtomogramAveraging(ChildWidget):
             source=spl,
             metadata={ANNEALING_RESULT: results[0]},
         )
+
+    @set_design(text=capitalize, location=LandscapeMenu)
+    def remove_landscape_outliers(
+        self,
+        landscape_layer: _LandscapeLayer,
+        lower: Annotated[Optional[float], {"text": "Do not process lower outliers"}] = None,
+        upper: Annotated[Optional[float], {"text": "Do not process upper outliers"}] = None,
+    ):  # fmt: skip
+        """
+        Remove outliers from the landscape.
+
+        This method will replace energy (inverse score) outliers with the thresholds.
+        This method is useful for lattice with such as defects or strong artifacts.
+
+        Parameters
+        ----------
+        {landscape_layer}
+        lower : float, optional
+            Lower limit of the energy.
+        upper : float, optional
+            Upper limit of the energy.
+        """
+        landscape_layer = _assert_landscape_layer(landscape_layer, self.parent_viewer)
+        new = landscape_layer.landscape.clip_energies(lower, upper)
+        surf = LandscapeSurface(new, name=f"{landscape_layer}-Clip")
+        return self._add_new_landscape_layer(landscape_layer, surf)
+
+    @set_design(text=capitalize, location=LandscapeMenu)
+    def normalize_landscape(
+        self,
+        landscape_layer: _LandscapeLayer,
+        norm_sd: bool = True,
+    ):
+        """
+        Normalize the landscape.
+
+        Parameters
+        ----------
+        {landscape_layer}
+        norm_sd : bool, default True
+            If true, each landscape will also be normalized by its standard deviation.
+        """
+        landscape_layer = _assert_landscape_layer(landscape_layer, self.parent_viewer)
+        new = landscape_layer.landscape.normed(sd=norm_sd)
+        surf = LandscapeSurface(new, name=f"{landscape_layer}-Norm")
+        return self._add_new_landscape_layer(landscape_layer, surf)
+
+    def _add_new_landscape_layer(self, old: LandscapeSurface, new: LandscapeSurface):
+        new.source_component = old.source_component
+
+        self.parent_viewer.add_layer(new)
+        self._get_main()._reserved_layers.to_be_removed.add(new)
+        old.visible = False
+        return None
 
     def _get_layers_with_annealing_result(self, *_) -> list[MoleculesLayer]:
         if self.parent_viewer is None:
@@ -1905,23 +2023,27 @@ class SubtomogramAveraging(ChildWidget):
         order: int = 3,
         upsample_factor: int = 5,
         bin_size: int = 1,
+        method: str = "zncc",
+        norm: bool = True,
     ):  # fmt: skip
         parent = self._get_main()
         loader = parent.tomogram.get_subtomogram_loader(
             molecules, binsize=bin_size, order=order
         )
-        return Landscape.from_loader(
+        model = _get_alignment(method)
+        landscape = Landscape.from_loader(
             loader=loader,
             template=template_path,
             mask=self.params._get_mask(params=mask_params),
             max_shifts=max_shifts,
             upsample_factor=upsample_factor,
-            alignment_model=alignment.ZNCCAlignment.with_params(
+            alignment_model=model.with_params(
                 rotations=rotations,
                 cutoff=cutoff,
                 tilt=parent.tomogram.tilt_model,
             ),
-        ).normed()
+        )
+        return landscape.normed() if norm else landscape
 
 
 def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):

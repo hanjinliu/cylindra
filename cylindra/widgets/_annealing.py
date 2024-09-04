@@ -70,8 +70,8 @@ def get_distances(
 def preview_single(
     self: SubtomogramAveraging,
     layer: MoleculesLayer,
-    range_long: tuple[nm, nm],
-    range_lat: tuple[nm, nm],
+    range_long: tuple[str, str],
+    range_lat: tuple[str, str],
     upsample_factor: int,
 ):
     fgui = get_function_gui(self.align_all_annealing)
@@ -90,8 +90,8 @@ def preview_single(
 def preview_landscape_function(
     self: SubtomogramAveraging,
     landscape_layer: LandscapeSurface,
-    range_long: tuple[nm, nm],
-    range_lat: tuple[nm, nm],
+    range_long: tuple[str, str],
+    range_lat: tuple[str, str],
 ):
     fgui = get_function_gui(self.run_annealing_on_landscape)
     yield from _preview_function(
@@ -110,8 +110,8 @@ def _preview_function(
     fgui: FunctionGui,
     molecules: Molecules,
     spline: CylSpline,
-    range_long: tuple[nm, nm],
-    range_lat: tuple[nm, nm],
+    range_long: tuple[str, str],
+    range_lat: tuple[str, str],
     scale_factor: nm,
 ):
     parent = widget._get_main()
@@ -119,14 +119,28 @@ def _preview_function(
 
     canvas = QtMultiPlotCanvas(ncols=2)
     ACTIVE_WIDGETS.add(canvas)
+    min_lon = _eval_dist_like(range_long[0], data_lon)
+    max_lon = _eval_dist_like(range_long[1], data_lon)
+    min_lat = _eval_dist_like(range_lat[0], data_lat)
+    max_lat = _eval_dist_like(range_lat[1], data_lat)
     lon_hist = canvas[0].add_hist(data_lon, bins=24, density=False, name="Longitudinal")
-    lon_low = canvas[0].add_infline((range_long[0], 0), 90, color="yellow", ls=":")
-    lon_high = canvas[0].add_infline((range_long[1], 0), 90, color="yellow", ls=":")
+    color_ok = "yellow"
+    color_ng = "red"
+    if min_lon is None:
+        min_lon = data_lon.min()
+    if max_lon is None:
+        max_lon = data_lon.max()
+    if min_lat is None:
+        min_lat = data_lat.min()
+    if max_lat is None:
+        max_lat = data_lat.max()
+    lon_low = canvas[0].add_infline((min_lon, 0), 90, color=color_ok, ls=":")
+    lon_high = canvas[0].add_infline((max_lon, 0), 90, color=color_ok, ls=":")
     canvas[0].add_infline((0, 0), 0, color="gray")
     canvas[0].title = "Longitudinal distances"
     lat_hist = canvas[1].add_hist(data_lat, bins=24, density=False, name="Lateral")
-    lat_low = canvas[1].add_infline((range_lat[0], 0), 90, color="yellow", ls=":")
-    lat_high = canvas[1].add_infline((range_lat[1], 0), 90, color="yellow", ls=":")
+    lat_low = canvas[1].add_infline((min_lat, 0), 90, color=color_ok, ls=":")
+    lat_high = canvas[1].add_infline((max_lat, 0), 90, color=color_ok, ls=":")
     canvas[1].add_infline((0, 0), 0, color="gray")
     canvas[1].title = "Lateral distances"
     canvas.native.setParent(parent.native, canvas.native.windowFlags())
@@ -149,15 +163,51 @@ def _preview_function(
 
     @fgui.range_long.changed.connect
     def _long_changed(val: tuple[float, float]):
-        lon_low.pos = (val[0], 0)
-        lon_high.pos = (val[1], 0)
+        min_lon = _eval_dist_like(val[0], data_lon)
+        max_lon = _eval_dist_like(val[1], data_lon)
+        if min_lon is None:
+            lon_low.color = color_ng
+        else:
+            lon_low.pos = (min_lon, 0)
+            lon_low.color = color_ok
+        if max_lon is None:
+            lon_high.color = color_ng
+        else:
+            lon_high.pos = (max_lon, 0)
+            lon_high.color = color_ok
+        if min_lon is not None and max_lon is not None:
+            if min_lon >= max_lon:
+                lon_low.color = color_ng
+                lon_high.color = color_ng
+            else:
+                lon_low.color = color_ok
+                lon_high.color = color_ok
 
     @fgui.range_lat.changed.connect
     def _lat_changed(val: tuple[float, float]):
-        lat_low.pos = (val[0], 0)
-        lat_high.pos = (val[1], 0)
+        min_lat = _eval_dist_like(val[0], data_lat)
+        max_lat = _eval_dist_like(val[1], data_lat)
+        if min_lat is None:
+            lat_low.color = color_ng
+        else:
+            lat_low.pos = (min_lat, 0)
+            lat_low.color = color_ok
+        if max_lat is None:
+            lat_high.color = color_ng
+        else:
+            lat_high.pos = (max_lat, 0)
+            lat_high.color = color_ok
+        if min_lat is not None and max_lat is not None:
+            if min_lat >= max_lat:
+                lat_low.color = color_ng
+                lat_high.color = color_ng
+            else:
+                lat_low.color = color_ok
+                lat_high.color = color_ok
 
     canvas.show()
+    canvas.width = 600
+    canvas.height = 400
 
     is_active = yield
     if not is_active:
@@ -166,6 +216,17 @@ def _preview_function(
         fgui.range_lat.changed.disconnect(_lat_changed)
         canvas.close()
     return None
+
+
+def _eval_dist_like(val: str, data: np.ndarray) -> float | None:
+    try:
+        out = eval(val, {"d": data, "np": np, "__builtins__": {}})
+    except Exception:
+        out = None
+    if not isinstance(out, (int, float, np.number)):
+        return None
+    else:
+        return float(out)
 
 
 def plot_annealing_result(results: list[AnnealingResult]):

@@ -43,7 +43,7 @@ class ReservedLayers:
     def update_image(self, img: ip.ImgArray, tr: float):
         """Update the reserved image layer"""
         self.image.data = img
-        self.image.scale = img.scale
+        self.image.scale = list(img.scale.values())
         self.image.name = img.name
         self.image.translate = [tr] * 3
         self.image.contrast_limits = _calc_contrast_limits(img)
@@ -52,12 +52,14 @@ class ReservedLayers:
         """Reset the reserved image layer"""
         self.image = Image(
             img,
-            scale=img.scale,
+            scale=list(img.scale.values()),
             name=img.name,
             translate=[tr, tr, tr],
             contrast_limits=_calc_contrast_limits(img),
             blending="translucent_no_depth",
         )
+        self.image.bounding_box.points = False
+        self.image.bounding_box.line_color = "#a0a0a0"
 
     def highlight_spline(self, i: int):
         """Highlight the current spline."""
