@@ -58,6 +58,8 @@ class ReservedLayers:
             contrast_limits=_calc_contrast_limits(img),
             blending="translucent_no_depth",
         )
+        self.image.bounding_box.points = False
+        self.image.bounding_box.line_color = "#a0a0a0"
 
     def highlight_spline(self, i: int):
         """Highlight the current spline."""
