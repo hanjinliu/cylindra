@@ -6,6 +6,7 @@ from fnmatch import fnmatch
 from typing import TYPE_CHECKING
 
 import napari
+import numpy as np
 from magicclass.ext.polars import DataFrameView
 from napari._qt.layer_controls.qt_points_controls import QtPointsControls
 from napari._qt.layer_controls.qt_surface_controls import QtSurfaceControls
@@ -30,6 +31,8 @@ def qt_signals_blocked(obj: QtCore.QObject):
 
 
 class ViewDimension(Enum):
+    """Enum for how to display the molecules."""
+
     flat = 2
     sphere = 3
 
@@ -48,6 +51,9 @@ class QtMoleculesControls(QtPointsControls):
 
         self.faceColorEdit.color_changed.disconnect()
         self.faceColorEdit.color_changed.connect(self._change_face_color)
+        self.borderColorEdit.color_changed.disconnect()
+        self.borderColorEdit.setColor(_first_or(layer.border_color, "dimgray"))
+        self.borderColorEdit.color_changed.connect(self._change_border_color)
 
         slider = QLabeledDoubleSlider(orientation=Qt.Orientation.Horizontal)
         slider.setRange(0.1, 12.0)
@@ -57,12 +63,21 @@ class QtMoleculesControls(QtPointsControls):
         slider.valueChanged.connect(self._change_point_size)
         self.pointSizeSlider = slider
 
+        self.borderWidth = QtW.QDoubleSpinBox()
+        self.borderWidth.setRange(0.0, 1.0)
+        self.borderWidth.valueChanged.connect(self._change_border_width)
+        self.borderWidth.setSingleStep(0.05)
+        self.borderWidth.setValue(_first_or(layer.border_width, 0.05))
+        self.borderWidth.setToolTip("Width of the molecule borders")
+        layer.events.border_width.connect(self._on_border_width_change)
+
         self.dimComboBox = QEnumComboBox(enum_class=ViewDimension)
         self.dimComboBox.currentEnumChanged.connect(self._change_dim)
         self.dimComboBox.setCurrentEnum(ViewDimension(layer.view_ndim))
 
         layout: QFormLayout = self.layout()
         layout.addRow("point size:", self.pointSizeSlider)
+        layout.addRow("border width:", self.borderWidth)
         layout.addRow("view mode:", self.dimComboBox)
 
         btns = QtW.QHBoxLayout()
@@ -87,7 +102,6 @@ class QtMoleculesControls(QtPointsControls):
 
         layout.removeRow(self.sizeSlider)
         layout.removeRow(self.symbolComboBox)
-        layout.removeRow(self.borderColorEdit)
         layer.events.point_size.connect(self._on_point_size_change)
         layer.events.view_ndim.connect(self._on_dim_change)
 
@@ -95,23 +109,28 @@ class QtMoleculesControls(QtPointsControls):
         with qt_signals_blocked(self.pointSizeSlider):
             self.pointSizeSlider.setValue(event.value)
 
-    def _change_point_size(self, value: float):
-        self.layer.point_size = value
-
     def _on_dim_change(self, event):
         with qt_signals_blocked(self.dimComboBox):
             self.dimComboBox.setCurrentEnum(ViewDimension(event.value))
 
-    def _on_face_color_change(self, value):
-        with qt_signals_blocked(self.faceColorEdit):
-            self.layer.face_color = value
-            self.layer._update_thumbnail()
+    def _on_border_width_change(self, event):
+        with qt_signals_blocked(self.borderWidth):
+            self.borderWidth.setValue(_first_or(self.layer.border_width, 0.05))
+
+    def _change_point_size(self, value: float):
+        self.layer.point_size = value
+
+    def _change_border_width(self, value: float):
+        self.layer.border_width = value
 
     def _change_dim(self, value: ViewDimension):
         self.layer.view_ndim = value.value
 
     def _change_face_color(self, value):
         self.layer.face_color = value
+
+    def _change_border_color(self, value):
+        self.layer.border_color = value
 
     def _on_current_face_color_change(self):
         pass
@@ -160,6 +179,15 @@ class QtLandscapeSurfaceControls(QtSurfaceControls):
         self.resolution.valueChanged.connect(self._change_resolution)
         layer.events.resolution.connect(self._on_resolution_change)
 
+        self.wireWidth = QtW.QDoubleSpinBox()
+        self.wireWidth.setRange(0.0, 10.0)
+        layout.addRow("wire width:", self.wireWidth)
+        self.wireWidth.valueChanged.connect(self._change_wire_width)
+        self.wireWidth.setSingleStep(0.05)
+        self.wireWidth.setValue(layer.wireframe.width)
+        self.wireWidth.setToolTip("Width of the wireframe")
+        layer.wireframe.events.width.connect(self._on_wire_width_change)
+
         self.showMinCheckBox = QtW.QCheckBox("show min")
         layout.addRow(self.showMinCheckBox)
         self.showMinCheckBox.setChecked(layer.show_min)
@@ -181,6 +209,10 @@ class QtLandscapeSurfaceControls(QtSurfaceControls):
         with qt_signals_blocked(self.showMinCheckBox):
             self.showMinCheckBox.setChecked(bool(event.value))
 
+    def _on_wire_width_change(self, event):
+        with qt_signals_blocked(self.wireWidth):
+            self.wireWidth.setValue(event.value)
+
     def _change_level(self):
         self.layer.level = self.levelSlider.value()
 
@@ -189,6 +221,16 @@ class QtLandscapeSurfaceControls(QtSurfaceControls):
 
     def _change_show_min(self, state):
         self.layer.show_min = state == Qt.CheckState.Checked
+
+    def _change_wire_width(self, value):
+        self.layer.wireframe.width = value
+
+
+def _first_or(arr: np.ndarray, default):
+    """Get the first element of the array or the default value."""
+    if arr.size > 0:
+        return arr[0]
+    return default
 
 
 def install_custom_layers():
