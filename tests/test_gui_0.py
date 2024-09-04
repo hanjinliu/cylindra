@@ -834,6 +834,11 @@ def test_simulator(ui: CylindraMainWidget):
         radius=6,
         offsets=(0.0, 0.18),
     )
+    assert ui.splines[0].props.get_glob("npf") == 2
+    ui.macro.undo()
+    assert ui.splines[0].props.get_glob("npf") == 14
+    ui.macro.redo()
+    assert ui.splines[0].props.get_glob("npf") == 2
     ui.simulator._get_components()
     ui.simulator.expand(layer, by=0.1, yrange=(11, 15), arange=(0, 14), allev=True)
     ui.simulator.twist(layer, by=0.3, yrange=(11, 15), arange=(0, 14), allev=True)
@@ -869,6 +874,8 @@ def test_simulator(ui: CylindraMainWidget):
 @pytest_group("simulate", maxfail=1)
 def test_simulate_tomogram(ui: CylindraMainWidget):
     ui.simulator.create_image_with_straight_line(25, (40, 42, 42), scale=0.5)
+    ui.macro.undo()
+    ui.macro.redo()
     ui.simulator.generate_molecules(
         spline=0,
         spacing=4.06,
