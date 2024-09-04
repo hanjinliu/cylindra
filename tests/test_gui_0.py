@@ -941,7 +941,7 @@ def test_project_viewer():
             raise TimeoutError("Project viewer did not start.")
 
     total_time = 0.0
-    while ui.tomogram.is_dummy:
+    while ui.Overview.ylim[1] > 50:
         time.sleep(0.1)
         total_time += 0.1
         if total_time > 30:
