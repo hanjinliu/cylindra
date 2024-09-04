@@ -927,8 +927,25 @@ def test_simulate_tilt_series(ui: CylindraMainWidget):
 
 
 def test_project_viewer():
+    import time
+
+    from cylindra import instance
+
     pviewer = view_project(PROJECT_DIR_14PF)
     pviewer.load_this_project(path=pviewer._get_project_path())
+    total_time = 0.0
+    while (ui := instance(create=False)) is None:
+        time.sleep(0.1)
+        total_time += 0.1
+        if total_time > 30:
+            raise TimeoutError("Project viewer did not start.")
+
+    total_time = 0.0
+    while ui.tomogram.is_dummy:
+        time.sleep(0.1)
+        total_time += 0.1
+        if total_time > 30:
+            raise TimeoutError("Tomogram was not loaded.")
     pviewer.preview_image().close()
     pviewer.close()
 
