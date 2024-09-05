@@ -163,15 +163,18 @@ _RandomSeeds = Annotated[list[int], {"widget_type": RandomSeedEdit}]
 # choices
 METHOD_CHOICES = (
     ("Phase Cross Correlation", "pcc"),
+    ("Normalized Cross Correlation", "ncc"),
     ("Zero-mean Normalized Cross Correlation", "zncc"),
 )
 _Logger = getLogger("cylindra")
 
 
-def _get_alignment(method: str):
+def _get_alignment(method: str) -> "type[alignment.BaseAlignmentModel]":
     match method:
         case "zncc":
             return alignment.ZNCCAlignment
+        case "ncc":
+            return alignment.NCCAlignment
         case "pcc":
             return alignment.PCCAlignment
         case _:  # pragma: no cover
@@ -1217,7 +1220,6 @@ class SubtomogramAveraging(ChildWidget):
             layer.visible = False
             with _Logger.set_plt():
                 _annealing.plot_annealing_result(results)
-
             return self._undo_for_new_layer([layer.name], [points])
 
         return _on_return
