@@ -1189,6 +1189,12 @@ def test_calc_misc(ui: CylindraMainWidget):
     all_props = cylmeasure.LatticeParameters.choices()
     ui.calculate_lattice_structure(layer=layer, props=all_props)
     assert layer.features[Mole.radius].std() < 0.1
+    # check null values
+    assert layer.molecules.features[Mole.spacing].is_finite().not_().sum() == 13
+    assert layer.molecules.features[Mole.twist].is_finite().not_().sum() == 13
+    assert layer.molecules.features[Mole.rise].is_finite().not_().sum() == 3
+    assert layer.molecules.features[Mole.lateral_interval].is_finite().not_().sum() == 3
+
     ui.paint_molecules(layer, color_by=Mole.nth, limits=(0, 10))
     colors = ui.mole_layers.last().face_color
     ui.MoleculesMenu.View.plot_molecule_feature(layer, backend="qt")
