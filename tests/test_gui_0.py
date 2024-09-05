@@ -711,6 +711,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
         rotations=[(0.0, 0.0), (0.0, 0.0), (0.0, 0.0)],
         mask_params=(1, 1),
         bin_size=bin_size,
+        method="ncc",
     )
 
 
