@@ -36,16 +36,21 @@ class MouseMode(Enum):
     upsample = "upsample"
 
 
+LOCAL_CFT = "Local-CFT"
+LOCAL_CFT_UP = "Local-CFT (5x upsampling)"
+GLOBAL_CFT = "Global-CFT"
+
+
 @magicclass(record=False)
 class PeakInspector(ChildWidget):
     show_what = vfield(
-        "Global-CFT", widget_type="RadioButtons", name="Show:"
-    ).with_choices(["Local-CFT", "Global-CFT"])
+        GLOBAL_CFT, widget_type="RadioButtons", name="Show:"
+    ).with_choices([LOCAL_CFT, LOCAL_CFT_UP, GLOBAL_CFT])
     canvas = field(QtImageCanvas)
     pos = vfield(int, widget_type="Slider", label="Position").with_options(max=0)
 
     def _set_peaks(self, peaks: "list[ImageWithPeak]"):
-        self._power_spectra = [peak.power for peak in peaks]
+        self._power_spectra = [peak.power() for peak in peaks]
         self._peaks = peaks
 
     def reset_choices(self, *_):
@@ -99,7 +104,7 @@ class PeakInspector(ChildWidget):
         self._layer_angular.data = [], []
         self._upsampled_image_item.setVisible(False)
         self._current_spline_index = i
-        if self.show_what == "Local-CFT":
+        if self.show_what == LOCAL_CFT:
             if spl.props.has_loc(H.twist) and spl.has_anchors:
                 # has local-CFT results
                 if binsize is None:
@@ -113,7 +118,8 @@ class PeakInspector(ChildWidget):
                 binsize = 1
             self["pos"].visible = True
             self["pos"].max = len(self._power_spectra) - 1
-        else:
+            self.canvas.image_scale = 1.0
+        elif self.show_what == GLOBAL_CFT:
             if self._may_show_text_overlay(
                 spl.radius is None, "No CFT available (radius not set)"
             ):
@@ -139,7 +145,30 @@ class PeakInspector(ChildWidget):
                 ]
                 self._peaks = None
             self["pos"].visible = False
-        if self.pos == 0 or self.show_what == "global-CFT":
+            self.canvas.image_scale = 1.0
+        elif self.show_what == LOCAL_CFT_UP:
+            if spl.props.has_loc(H.twist) and spl.has_anchors:
+                # has local-CFT results
+                if binsize is None:
+                    binsize = spl.props.binsize_loc[H.twist]
+                peaks = main.tomogram.local_image_with_peaks(i=i, binsize=binsize)
+                self._peaks = peaks
+                ny, na = peaks[0].image.shape[1:]
+                key = f"y={-ny//2}:{ny//2+1};a={-na//2}:{na//2+1}"
+                self._power_spectra = [
+                    peak.power_upsampled(key=key)[3:, 3:] for peak in peaks
+                ]
+                self.canvas.image_scale = 0.2
+            else:
+                # will not show anything
+                self._power_spectra = [None]
+                self._peaks = None
+                binsize = 1
+            self["pos"].visible = True
+            self["pos"].max = len(self._power_spectra) - 1
+        else:  # pragma: no cover
+            raise RuntimeError(f"Unreachable: {self.show_what=}")
+        if self.pos == 0 or self.show_what == GLOBAL_CFT:
             self._pos_changed(0)
         else:
             self.pos = 0
@@ -148,7 +177,10 @@ class PeakInspector(ChildWidget):
 
         if (img := self._power_spectra[0]) is not None:
             shape = img.shape
-            center = np.ceil(np.array(shape) / 2 - 0.5)[::-1]
+            if self.show_what == LOCAL_CFT_UP:
+                center = (np.ceil(np.array(shape) / 2 - 0.5)[::-1] - 3) * 0.2
+            else:
+                center = np.ceil(np.array(shape) / 2 - 0.5)[::-1]
             self._infline_x.angle = 0
             self._infline_x.pos = center
             self._infline_y.angle = 90

@@ -124,10 +124,21 @@ class FitResult:
 
 
 class ImageWithPeak:
-    def __init__(self, image: ip.ImgArray, power: ip.ImgArray, peaks: list[FTPeakInfo]):
+    def __init__(self, image: ip.ImgArray, peaks: list[FTPeakInfo]):
         self.image = image
-        self.power = power
         self.peaks = peaks
+
+    def power(self) -> ip.ImgArray:
+        """Calculate power spectrum"""
+        return self.image.power_spectra(dims="rya").mean(axis="r")
+
+    def power_upsampled(self, key=None, upsample: int = 5) -> ip.ImgArray:
+        """Calculate local upsampled power spectrum"""
+        return self.image.local_power_spectra(
+            key=key,
+            upsample_factor=[1, upsample, upsample],
+            dims="rya",
+        ).mean(axis="r")
 
 
 def dask_angle_corr(
