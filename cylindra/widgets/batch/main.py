@@ -89,7 +89,10 @@ class CylindraBatchWidget(MagicTemplate):
             image_paths[img_id] = Path(path_info.image)
             invert[img_id] = path_info.need_invert
             if scale is None:
-                scale = path_info.project_instance().scale
+                if prj := path_info.project_instance():
+                    scale = prj.scale
+                else:
+                    scale = img.scale.x
             for molecule_id, mole in enumerate(
                 path_info.iter_molecules(_temp_feat, scale)
             ):
@@ -154,7 +157,7 @@ class CylindraBatchWidget(MagicTemplate):
     @set_design(text=capitalize, location=ProjectSequenceEdit.File)
     def construct_loader_by_pattern(
         self,
-        path_pattern: str,
+        path_pattern: Annotated[list[str], {"value": ("",), "layout": "vertical"}],
         mole_pattern: str = "*",
         predicate: Annotated[str | pl.Expr | None, {"bind": _get_expression}] = None,
         name: str = "Loader",

@@ -1,6 +1,6 @@
 import glob
 from fnmatch import fnmatch
-from typing import Iterator
+from typing import Annotated, Iterator
 
 import impy as ip
 import polars as pl
@@ -478,14 +478,31 @@ class ProjectSequenceEdit(MagicTemplate):
 
     @set_design(text="Add projects with wildcard path", location=File)
     @do_not_record
-    def add_projects_glob(self, pattern: str, clear: bool = True):
-        """Add project json files using wildcard path."""
-        pattern = str(pattern)
+    def add_projects_glob(
+        self,
+        pattern: Annotated[list[str], {"value": ("",), "layout": "vertical"}],
+        clear: bool = True,
+    ):
+        """
+        Add project json files using wildcard path.
+
+        Parameters
+        ----------
+        pattern : list of str
+            A list of wildcard patterns, such as "path/to/*.json".
+        clear : bool, default True
+            Whether to clear the existing projects added to the list.
+        """
+        if isinstance(pattern, str):
+            patterns = [pattern]
+        else:
+            patterns = [str(p) for p in pattern]
         if clear:
             self.projects.clear()
-        for path in glob.glob(pattern):
-            wdt = self.projects._add(path)
-            self.scale.value = wdt.project.scale
+        for each_pattern in patterns:
+            for path in glob.glob(each_pattern):
+                wdt = self.projects._add(path)
+                self.scale.value = wdt.project.scale
         self.reset_choices()
         return
 
@@ -511,10 +528,12 @@ def _get_project_dir(path: str):
 
 
 @impl_preview(ProjectSequenceEdit.add_projects_glob)
-def _(self: ProjectSequenceEdit, pattern: str):
+def _(self: ProjectSequenceEdit, pattern: list[str]):
     paths = list[str]()
-    for path in glob.glob(str(pattern)):
-        paths.append(Path(path).as_posix())
+    patterns = [str(p) for p in pattern]
+    for each_pattern in patterns:
+        for path in glob.glob(each_pattern):
+            paths.append(Path(path).as_posix())
     wdt = ConsoleTextEdit(value="\n".join(paths))
     _set_parent(wdt, self)
     ACTIVE_WIDGETS.add(wdt)
