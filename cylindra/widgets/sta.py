@@ -1559,14 +1559,18 @@ class SubtomogramAveraging(ChildWidget):
             template=self.params._norm_template_param(template_path, allow_none=True),
             mask=self.params._get_mask(params=mask_params),
         )
-        fsc, avg = loader.reshape(
+        fsc, (img_0, img_1), img_mask = loader.reshape(
             template=template if size is None else None,
             mask=mask,
             shape=None if size is None else (main.tomogram.nm2pixel(size),) * 3,
-        ).fsc_with_average(mask=mask, seed=seed, n_set=n_pairs, dfreq=dfreq)
+        ).fsc_with_halfmaps(mask, seed=seed, n_set=n_pairs, dfreq=dfreq, squeeze=False)
+
+        def _as_imgarray(im: np.ndarray, axes: str = "zyx") -> ip.ImgArray:
+            return ip.asarray(im, axes=axes).set_scale(zyx=loader.scale)
 
         if show_average:
-            img_avg = ip.asarray(avg, axes="zyx").set_scale(zyx=loader.scale)
+            avg = (img_0[0] + img_1[0]) / 2
+            img_avg = _as_imgarray(avg)
         else:
             img_avg = None
 
@@ -1585,11 +1589,13 @@ class SubtomogramAveraging(ChildWidget):
                 _Logger.print_html(f"Resolution at FSC={_c:.3f} ... <b>{_r:.3f} nm</b>")
 
             if img_avg is not None:
-                _rec_layer: "Image" = self._show_rec(
-                    img_avg,
-                    name=f"[AVG]{_name}",
+                _imlayer: "Image" = self._show_rec(img_avg, name=f"[AVG]{_name}")
+                _imlayer.metadata["fsc"] = result
+                _imlayer.metadata["fsc_halfmaps"] = (
+                    _as_imgarray(img_0, axes="izyx"),
+                    _as_imgarray(img_1, axes="izyx"),
                 )
-                _rec_layer.metadata["fsc"] = result
+                _imlayer.metadata["fsc_mask"] = img_mask
 
         return _calculate_fsc_on_return
 
