@@ -37,7 +37,6 @@ from cylindra.components.seam_search import (
     BooleanSeamSearcher,
     CorrelationSeamSearcher,
     ManualSeamSearcher,
-    SeamSearchResult,
 )
 from cylindra.const import (
     ALN_SUFFIX,
@@ -309,7 +308,6 @@ class STAnalysis(MagicTemplate):
         seam_search = abstractapi()
         seam_search_by_feature = abstractapi()
         seam_search_manually = abstractapi()
-        save_seam_search_result = abstractapi()
 
     sep1 = Separator
     save_last_average = abstractapi()
@@ -1743,7 +1741,10 @@ class SubtomogramAveraging(ChildWidget):
                 if show_average == "Filtered":
                     sigma = 0.25 / loader.scale
                     result.averages.gaussian_filter(sigma=sigma, update=True)
-                self._show_rec(result.averages, layer.name, store=False)
+                _imlayer: "Image" = self._show_rec(
+                    result.averages, layer.name, store=False
+                )
+                _imlayer.metadata[SEAM_SEARCH_RESULT] = result
 
             # plot all the correlation
             _Logger.print_html("<code>seam_search</code>")
@@ -1810,40 +1811,8 @@ class SubtomogramAveraging(ChildWidget):
         layer.features = layer.molecules.features.with_columns(new_feat)
         return undo_callback(layer.feature_setter(feat, layer.colormap_info))
 
-    def _get_seam_searched_layers(self, *_) -> list[MoleculesLayer]:
-        if self.parent_viewer is None:
-            return []
-        return [
-            (layer.name, layer)
-            for layer in self.parent_viewer.layers
-            if SEAM_SEARCH_RESULT in layer.metadata
-        ]
-
-    @set_design(text="Save seam search result", location=STAnalysis.SeamSearch)
-    @do_not_record
-    def save_seam_search_result(
-        self,
-        layer: Annotated[MoleculesLayer | str, {"choices": _get_seam_searched_layers}],
-        path: Path.Save[FileFilter.CSV],
-    ):
-        """
-        Save seam search result.
-
-        Parameters
-        ----------
-        layer : str or MoleculesLayer
-            Layer that contains seam search result.
-        path : Path
-            Path to save the result.
-        """
-        layer = assert_layer(layer, self.parent_viewer)
-        result = layer.metadata.get(SEAM_SEARCH_RESULT, None)
-        if not isinstance(result, SeamSearchResult):
-            raise TypeError("The layer does not have seam search result.")
-        return result.to_dataframe().write_csv(path)
-
     def _seam_search_input(
-        self, layer: MoleculesLayer, npf: int, order: int
+        self, layer: MoleculesLayer, npf: int | None, order: int
     ) -> tuple[SubtomogramLoader, int]:
         parent = self._get_main()
         mole = layer.molecules
