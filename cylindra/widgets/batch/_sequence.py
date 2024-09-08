@@ -19,7 +19,7 @@ from magicclass import (
 )
 from magicclass.ext.polars import DataFrameView
 from magicclass.types import ExprStr, Path
-from magicclass.widgets import ConsoleTextEdit
+from magicclass.widgets import ConsoleTextEdit, EvalLineEdit
 from magicgui.types import Separator
 from magicgui.widgets import ComboBox, Container, Widget
 
@@ -454,11 +454,11 @@ class ProjectSequenceEdit(MagicTemplate):
         table.show()
         return None
 
-    def _get_expression(self, _=None) -> pl.Expr:
-        wdt = self.filter_expression
+    def _get_expression(self, _=None) -> str:
+        wdt: EvalLineEdit = self.filter_expression
         if wdt.value == "":
             return None
-        return wdt.eval()
+        return wdt.value
 
     @set_design(text="Add projects", location=File)
     @do_not_record
