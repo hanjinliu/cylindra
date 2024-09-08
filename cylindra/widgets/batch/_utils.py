@@ -69,12 +69,16 @@ class LoaderInfo(NamedTuple):
         return LoaderInfo(self.loader, name, self.image_paths, self.invert)
 
 
-class PathInfo(NamedTuple):
+class PathInfo:
     """Tuple that represents a child project path."""
 
-    image: Path
-    molecules: list[str | Path]
-    project: Path | None = None
+    def __init__(
+        self, image: Path, molecules: list[str | Path], project: Path | None = None
+    ):
+        self.image = image
+        self.molecules = molecules
+        self.project = project
+        self._project_instance = None  # for caching
 
     def lazy_imread(self) -> ip.LazyImgArray:
         """Get the lazy image array."""
@@ -83,25 +87,37 @@ class PathInfo(NamedTuple):
             img = -img
         return img
 
-    def iter_molecules(self, temp_features: TempFeatures) -> Iterator[Molecules]:
+    def iter_molecules(
+        self, temp_features: TempFeatures, target_scale: float
+    ) -> Iterator[Molecules]:
         """Iterate over all molecules."""
-        if self.project is None:
+        prj = self.project_instance()
+        if prj is None:
             for mole_path in self.molecules:
                 mole = temp_features.read_molecules(mole_path)
                 yield mole
         else:
-            prj = CylindraProject.from_file(self.project)
             with prj.open_project() as dir:
+                scale_factor = target_scale / prj.scale
+                need_rescale = abs(scale_factor - 1) > 2e-6
                 for mole_path in self.molecules:
                     mole = temp_features.read_molecules(dir / mole_path, prj)
+                    if need_rescale:
+                        mole._pos = mole._pos * scale_factor
                     yield mole
+
+    def project_instance(self) -> CylindraProject | None:
+        if self.project is None:
+            return None
+        if self._project_instance is None:
+            self._project_instance = CylindraProject.from_file(self.project)
+        return self._project_instance
 
     @property
     def need_invert(self) -> bool:
         """Whether the image needs inversion."""
         if self.project is not None:
-            prj = CylindraProject.from_file(self.project)
-            return prj.invert
+            return self.project_instance().invert
         return False
 
 
