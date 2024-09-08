@@ -1,7 +1,7 @@
 import re
 import weakref
 from enum import Enum
-from typing import TYPE_CHECKING, Annotated, Any, Callable, Iterable, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Iterable, Literal
 
 import impy as ip
 import napari
@@ -1449,8 +1449,9 @@ class SubtomogramAveraging(ChildWidget):
         template_path: Annotated[_PathOrPathsOrNone, {"bind": _template_params}],
         mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        cutoff: _CutoffFreq = 0.5,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
-        metric: Literal["zncc", "ncc"] = "zncc",
+        method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
         column_prefix: str = "score",
     ):
         """
@@ -1462,56 +1463,48 @@ class SubtomogramAveraging(ChildWidget):
 
         Parameters
         ----------
-        {layers}{template_path}{mask_params}{interpolation}{bin_size}
-        metric : str, default "zncc"
+        {layers}{template_path}{mask_params}{interpolation}{cutoff}{bin_size}
+        moethod : str, default "zncc"
             Metric to calculate correlation.
         column_prefix : str, default "score"
             Prefix of the column names of the calculated correlations.
         """
         layers = assert_list_of_layers(layers, self.parent_viewer)
         main = self._get_main()
-        scale = main.tomogram.scale * bin_size
-        tmps = []
-        _shapes = set[tuple[int, int, int]]()
+        combiner = MoleculesCombiner()
+
         if isinstance(template_path, (Path, str)):
             template_path = [template_path]
-        for path in template_path:
-            template_image = pipe.from_file(path).provide(scale)
-            tmps.append(template_image)
-            _shapes.add(template_image.shape)
-        if len(_shapes) != 1:
-            raise ValueError(f"Inconsistent shapes: {_shapes}")
-        output_shape = tuple(_s * scale for _s in _shapes.pop())
         mask = self.params._get_mask(mask_params)
-        match mask:
-            case None:
-                msk = 1
-            case pipe.ImageConverter:
-                msk = mask.convert(np.stack(tmps, axis=0).sum(axis=0), scale)
-            case pipe.ImageProvider:
-                msk = mask.provide(scale)
-            case _:  # pragma: no cover
-                raise RuntimeError("Unreachable")
-        corr_fn = ip.ncc if metric == "ncc" else ip.zncc
-        funcs = []
-        for tmp in tmps:
-            funcs.append(_define_correlation_function(tmp, msk, corr_fn))
+        all_mole = combiner.concat(layer.molecules for layer in layers)
 
-        for layer in layers:
-            mole = layer.molecules
-            out = main.tomogram.get_subtomogram_loader(
-                mole,
-                order=interpolation,
-                output_shape=output_shape,
-                binsize=bin_size,
-            ).apply(
-                funcs,
-                schema=[f"{column_prefix}_{i}" for i in range(len(template_path))],
-            )
-            layer.set_molecules_with_new_features(
-                layer.molecules.with_features(out.cast(pl.Float32))
-            )
-        return None
+        out = main.tomogram.get_subtomogram_loader(
+            all_mole,
+            order=interpolation,
+            binsize=bin_size,
+        ).score(
+            templates=[pipe.from_file(t) for t in template_path],
+            mask=mask,
+            alignment_model=_get_alignment(method),
+            cutoff=cutoff,
+            tilt=main.tomogram.tilt_model,
+        )
+        all_mole = all_mole.with_features(
+            pl.Series(f"{column_prefix}_{i}", col) for i, col in enumerate(out)
+        )
+
+        @thread_worker.callback
+        def _on_return():
+            moles = combiner.split(all_mole, layers)
+            for layer, each_mole in zip(layers, moles, strict=True):
+                features = each_mole.features.select(
+                    [f"{column_prefix}_{i}" for i in range(len(out))]
+                )
+                layer.set_molecules_with_new_features(
+                    layer.molecules.with_features(features)
+                )
+
+        return _on_return
 
     @set_design(text="Calculate FSC", location=STAnalysis)
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Calculating FSC of {!r}"))
@@ -2082,20 +2075,6 @@ def _default_align_averaged_shifts(mole: Molecules) -> "NDArray[np.floating]":
     dy = np.sqrt(np.sum((mole.pos[0] - mole.pos[1]) ** 2))  # axial shift
     dx = np.sqrt(np.sum((mole.pos[0] - mole.pos[npf]) ** 2))  # lateral shift
     return (dy * 0.6, dy * 0.6, dx * 0.6)
-
-
-def _define_correlation_function(
-    temp: "NDArray[np.float32]",
-    mask: "NDArray[np.float32] | float",
-    func: Callable[[ip.ImgArray, ip.ImgArray], float],
-) -> "Callable[[NDArray[np.float32]], float]":
-    temp = ip.asarray(temp, axes="zyx")
-
-    def _fn(img: "NDArray[np.float32]") -> float:
-        corr = float(func(ip.asarray(img * mask, axes="zyx"), temp * mask))
-        return corr
-
-    return _fn
 
 
 def _update_mole_pos(new: Molecules, old: Molecules, spl: "CylSpline") -> Molecules:
