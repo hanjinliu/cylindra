@@ -493,8 +493,8 @@ class ProjectSequenceEdit(MagicTemplate):
         clear : bool, default True
             Whether to clear the existing projects added to the list.
         """
-        if isinstance(pattern, str):
-            patterns = [pattern]
+        if isinstance(pattern, (str, Path)):
+            patterns = [str(pattern)]
         else:
             patterns = [str(p) for p in pattern]
         if clear:

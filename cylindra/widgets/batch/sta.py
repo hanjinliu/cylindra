@@ -575,11 +575,13 @@ class BatchSubtomogramAveraging(MagicTemplate):
         if mask is None:
             raise ValueError("No mask to show.")
         mask = ip.asarray(mask, axes="zyx").set_scale(zyx=loader.scale, unit="nm")
-        self._show_rec(mask, name="Mask image", store=False)
+        self._show_rec(mask, name="Mask image", store=False, threshold=0.5)
 
     @thread_worker.callback
-    def _show_rec(self, img: ip.ImgArray, name: str, store: bool = True):
-        return self.params._show_reconstruction(img, name, store)
+    def _show_rec(
+        self, img: ip.ImgArray, name: str, store: bool = True, threshold=None
+    ):
+        return self.params._show_reconstruction(img, name, store, threshold)
 
     def _get_shape_in_px(
         self, default: "nm | None", loader: BatchLoader
