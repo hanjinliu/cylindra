@@ -95,15 +95,10 @@ def calc_rise(mole: Molecules, spl: CylSpline) -> pl.Series:
     sign = spl.config.rise_sign
     return (
         calc_localvec_lat(mole, spl, fill=np.nan)
-        .select(
-            pl.arctan2("vecy", "veca")
-            .degrees()
-            .fill_nan(-float("inf"))
-            .alias(Mole.rise)
-        )
+        .select(pl.arctan2("vecy", "veca").degrees().alias(Mole.rise))
         .to_series()
         * sign
-    )
+    ).fill_nan(-float("inf"))
 
 
 def calc_lateral_interval(mole: Molecules, spl: CylSpline) -> pl.Series:
@@ -113,11 +108,10 @@ def calc_lateral_interval(mole: Molecules, spl: CylSpline) -> pl.Series:
         .select(
             (pl.col("vecy") ** 2 + pl.col("veca") ** 2)
             .sqrt()
-            .fill_nan(-float("inf"))
             .alias(Mole.lateral_interval)
         )
         .to_series()
-    )
+    ).fill_nan(-float("inf"))
 
 
 def _pad_molecules_at_seam(mole: Molecules, spl: CylSpline) -> tuple[Molecules, int]:
@@ -195,7 +189,7 @@ def calc_localvec_lat(
             _vec_tr = _vec_tr[:-1, :]
             sub0 = sub0.subset(slice(None, -1))
         else:
-            _vec_tr[:-1, :] = fill
+            _vec_tr[-1, :] = fill
         subsets.append(
             sub0.with_features(
                 pl.Series("vecr", _vec_tr[:, 0], dtype=pl.Float32),

@@ -45,7 +45,6 @@ def distance_matrix(a: NDArray[np.floating], b: NDArray[np.floating]):
 
     distance_matrix(a, b) will return a matrix of shape (a.shape[0], b.shape[0])
     """
-    # TODO: avoid memory error
     return np.linalg.norm(a[:, np.newaxis] - b[np.newaxis], axis=-1)
 
 

@@ -15,12 +15,15 @@ from magicclass import (
 )
 from magicclass.types import Path
 from magicclass.widgets import FloatRangeSlider
+from magicgui.types import Separator
 from napari.layers import Image, Labels, Layer
 from napari.types import LayerDataTuple
 
-from cylindra.const import PREVIEW_LAYER_NAME
+from cylindra.components.seam_search import SeamSearchResult
+from cylindra.const import PREVIEW_LAYER_NAME, SEAM_SEARCH_RESULT, FileFilter
 from cylindra.utils import set_gpu
-from cylindra.widget_utils import capitalize
+from cylindra.widget_utils import FscResult, capitalize
+from cylindra.widgets._annotated import assert_layer
 
 
 def _convert_array(arr: np.ndarray, scale: float) -> ip.ImgArray:
@@ -125,6 +128,92 @@ class Volume(MagicTemplate):
             "image",
         )
 
+    def _get_seam_searched_layers(self, *_) -> list[Image]:
+        if self.parent_viewer is None:
+            return []
+        return [
+            (layer.name, layer)
+            for layer in self.parent_viewer.layers
+            if SEAM_SEARCH_RESULT in layer.metadata
+        ]
+
+    @set_design(text=capitalize)
+    def save_seam_search_result(
+        self,
+        layer: Annotated[Image | str, {"choices": _get_seam_searched_layers}],
+        path: Path.Save[FileFilter.CSV],
+    ):
+        """
+        Save seam search result.
+
+        Parameters
+        ----------
+        layer : str or Image
+            Layer that contains seam search result.
+        path : Path
+            Path to save the result.
+        """
+        layer = assert_layer(layer, self.parent_viewer)
+        result = layer.metadata.get(SEAM_SEARCH_RESULT, None)
+        if not isinstance(result, SeamSearchResult):
+            raise TypeError("The layer does not have seam search result.")
+        return result.to_dataframe().write_csv(path)
+
+    def _get_fsc_layers(self, *_) -> list[Image]:
+        if self.parent_viewer is None:
+            return []
+        return [
+            (layer.name, layer)
+            for layer in self.parent_viewer.layers
+            if "fsc" in layer.metadata
+        ]
+
+    @set_design(text=capitalize)
+    def save_fsc_result(
+        self,
+        layer: Annotated[Image, {"choices": _get_fsc_layers}],
+        path: Path.Save[FileFilter.DIRECTORY],
+        multiple_halfmaps: bool = False,
+    ):
+        """
+        Save FSC result.
+
+        Parameters
+        ----------
+        layer : str or Image
+            Layer that contains seam search result.
+        path : Path
+            Directory to save the result.
+        multiple_halfmaps : bool
+            If True, save multiple set of halfmaps if available.
+        """
+        save_dir = Path(path)
+        if not save_dir.exists():
+            save_dir.mkdir()
+        if not save_dir.is_dir():
+            raise ValueError(f"`path` must be a directory, got {save_dir.as_posix()}.")
+        _fsc = layer.metadata.get("fsc", None)
+        _fsc_halfmaps = layer.metadata.get("fsc_halfmaps", None)
+        _fsc_mask = layer.metadata.get("fsc_mask", None)
+        if isinstance(_fsc, FscResult):
+            _fsc.to_dataframe().write_csv(save_dir / "fsc.csv")
+        if _fsc_halfmaps is not None:
+            if isinstance(_fsc_halfmaps, tuple) and len(_fsc_halfmaps) == 2:
+                img0, img1 = _fsc_halfmaps
+                if isinstance(img0, ip.ImgArray) and isinstance(img1, ip.ImgArray):
+                    if multiple_halfmaps:
+                        for i in range(img0.shape[0]):
+                            img0[i].imsave(save_dir / f"halfmap-0_set{i}.mrc")
+                            img1[i].imsave(save_dir / f"halfmap-1_set{i}.mrc")
+                    else:
+                        img0[0].imsave(save_dir / "halfmap-0.mrc")
+                        img1[0].imsave(save_dir / "halfmap-1.mrc")
+        if isinstance(_fsc_mask, ip.ImgArray):
+            _fsc_mask.imsave(save_dir / "mask.mrc")
+        return None
+
+    sep0 = Separator
+
     @set_design(text=capitalize)
     def save_volume(self, layer: Image, path: Path.Save):
         """Save a volume as tif or mrc file."""
@@ -147,6 +236,8 @@ class Volume(MagicTemplate):
             xyz=layer.scale[-1], unit="nm"
         )
         lbl.imsave(path)
+
+    sep1 = Separator
 
     @set_design(text=capitalize)
     def plane_clip(self):
