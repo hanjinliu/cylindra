@@ -2012,15 +2012,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#cylindra.widgets.sta.SubtomogramAveraging.save_seam_search_result" class="md-nav__link">
-    <span class="md-ellipsis">
-      save_seam_search_result
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#cylindra.widgets.sta.SubtomogramAveraging.seam_search" class="md-nav__link">
     <span class="md-ellipsis">
       seam_search
@@ -2503,15 +2494,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#cylindra.widgets.sta.SubtomogramAveraging.save_seam_search_result" class="md-nav__link">
-    <span class="md-ellipsis">
-      save_seam_search_result
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#cylindra.widgets.sta.SubtomogramAveraging.seam_search" class="md-nav__link">
     <span class="md-ellipsis">
       seam_search
@@ -2608,7 +2590,9 @@
 
               <details class="quote">
                 <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 549</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 547</span>
+<span class="normal"> 548</span>
+<span class="normal"> 549</span>
 <span class="normal"> 550</span>
 <span class="normal"> 551</span>
 <span class="normal"> 552</span>
@@ -4073,39 +4057,7 @@
 <span class="normal">2011</span>
 <span class="normal">2012</span>
 <span class="normal">2013</span>
-<span class="normal">2014</span>
-<span class="normal">2015</span>
-<span class="normal">2016</span>
-<span class="normal">2017</span>
-<span class="normal">2018</span>
-<span class="normal">2019</span>
-<span class="normal">2020</span>
-<span class="normal">2021</span>
-<span class="normal">2022</span>
-<span class="normal">2023</span>
-<span class="normal">2024</span>
-<span class="normal">2025</span>
-<span class="normal">2026</span>
-<span class="normal">2027</span>
-<span class="normal">2028</span>
-<span class="normal">2029</span>
-<span class="normal">2030</span>
-<span class="normal">2031</span>
-<span class="normal">2032</span>
-<span class="normal">2033</span>
-<span class="normal">2034</span>
-<span class="normal">2035</span>
-<span class="normal">2036</span>
-<span class="normal">2037</span>
-<span class="normal">2038</span>
-<span class="normal">2039</span>
-<span class="normal">2040</span>
-<span class="normal">2041</span>
-<span class="normal">2042</span>
-<span class="normal">2043</span>
-<span class="normal">2044</span>
-<span class="normal">2045</span>
-<span class="normal">2046</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">widget_type</span><span class="o">=</span><span class="s2">&quot;scrollable&quot;</span><span class="p">,</span> <span class="n">use_native_menubar</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="normal">2014</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">widget_type</span><span class="o">=</span><span class="s2">&quot;scrollable&quot;</span><span class="p">,</span> <span class="n">use_native_menubar</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="nd">@_shared_doc</span><span class="o">.</span><span class="n">update_cls</span>
 <span class="k">class</span> <span class="nc">SubtomogramAveraging</span><span class="p">(</span><span class="n">ChildWidget</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Widget for subtomogram averaging.&quot;&quot;&quot;</span>
@@ -5010,8 +4962,9 @@
         <span class="n">template_path</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">_PathOrPathsOrNone</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;bind&quot;</span><span class="p">:</span> <span class="n">_template_params</span><span class="p">}],</span>
         <span class="n">mask_params</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;bind&quot;</span><span class="p">:</span> <span class="n">_get_mask_params</span><span class="p">}]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">interpolation</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;choices&quot;</span><span class="p">:</span> <span class="n">INTERPOLATION_CHOICES</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="n">cutoff</span><span class="p">:</span> <span class="n">_CutoffFreq</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
         <span class="n">bin_size</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;choices&quot;</span><span class="p">:</span> <span class="n">_get_available_binsize</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
-        <span class="n">metric</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;zncc&quot;</span><span class="p">,</span> <span class="s2">&quot;ncc&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;zncc&quot;</span><span class="p">,</span>
+        <span class="n">method</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;choices&quot;</span><span class="p">:</span> <span class="n">METHOD_CHOICES</span><span class="p">}]</span> <span class="o">=</span> <span class="s2">&quot;zncc&quot;</span><span class="p">,</span>
         <span class="n">column_prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;score&quot;</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -5023,56 +4976,46 @@
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
-<span class="sd">        {layers}{template_path}{mask_params}{interpolation}{bin_size}</span>
-<span class="sd">        metric : str, default &quot;zncc&quot;</span>
-<span class="sd">            Metric to calculate correlation.</span>
+<span class="sd">        {layers}{template_path}{mask_params}{interpolation}{cutoff}{bin_size}{method}</span>
 <span class="sd">        column_prefix : str, default &quot;score&quot;</span>
 <span class="sd">            Prefix of the column names of the calculated correlations.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">layers</span> <span class="o">=</span> <span class="n">assert_list_of_layers</span><span class="p">(</span><span class="n">layers</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
         <span class="n">main</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_main</span><span class="p">()</span>
-        <span class="n">scale</span> <span class="o">=</span> <span class="n">main</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">scale</span> <span class="o">*</span> <span class="n">bin_size</span>
-        <span class="n">tmps</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">_shapes</span> <span class="o">=</span> <span class="nb">set</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]()</span>
+        <span class="n">combiner</span> <span class="o">=</span> <span class="n">MoleculesCombiner</span><span class="p">()</span>
+
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">template_path</span><span class="p">,</span> <span class="p">(</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">)):</span>
             <span class="n">template_path</span> <span class="o">=</span> <span class="p">[</span><span class="n">template_path</span><span class="p">]</span>
-        <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">template_path</span><span class="p">:</span>
-            <span class="n">template_image</span> <span class="o">=</span> <span class="n">pipe</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">provide</span><span class="p">(</span><span class="n">scale</span><span class="p">)</span>
-            <span class="n">tmps</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">template_image</span><span class="p">)</span>
-            <span class="n">_shapes</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">template_image</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">_shapes</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Inconsistent shapes: </span><span class="si">{</span><span class="n">_shapes</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="n">output_shape</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">_s</span> <span class="o">*</span> <span class="n">scale</span> <span class="k">for</span> <span class="n">_s</span> <span class="ow">in</span> <span class="n">_shapes</span><span class="o">.</span><span class="n">pop</span><span class="p">())</span>
         <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">_get_mask</span><span class="p">(</span><span class="n">mask_params</span><span class="p">)</span>
-        <span class="k">match</span> <span class="n">mask</span><span class="p">:</span>
-            <span class="k">case</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">msk</span> <span class="o">=</span> <span class="mi">1</span>
-            <span class="k">case</span> <span class="n">pipe</span><span class="o">.</span><span class="n">ImageConverter</span><span class="p">:</span>
-                <span class="n">msk</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">convert</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">tmps</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span> <span class="n">scale</span><span class="p">)</span>
-            <span class="k">case</span> <span class="n">pipe</span><span class="o">.</span><span class="n">ImageProvider</span><span class="p">:</span>
-                <span class="n">msk</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">provide</span><span class="p">(</span><span class="n">scale</span><span class="p">)</span>
-            <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Unreachable&quot;</span><span class="p">)</span>
-        <span class="n">corr_fn</span> <span class="o">=</span> <span class="n">ip</span><span class="o">.</span><span class="n">ncc</span> <span class="k">if</span> <span class="n">metric</span> <span class="o">==</span> <span class="s2">&quot;ncc&quot;</span> <span class="k">else</span> <span class="n">ip</span><span class="o">.</span><span class="n">zncc</span>
-        <span class="n">funcs</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">tmp</span> <span class="ow">in</span> <span class="n">tmps</span><span class="p">:</span>
-            <span class="n">funcs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_define_correlation_function</span><span class="p">(</span><span class="n">tmp</span><span class="p">,</span> <span class="n">msk</span><span class="p">,</span> <span class="n">corr_fn</span><span class="p">))</span>
+        <span class="n">all_mole</span> <span class="o">=</span> <span class="n">combiner</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">layer</span><span class="o">.</span><span class="n">molecules</span> <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="n">layers</span><span class="p">)</span>
 
-        <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="n">layers</span><span class="p">:</span>
-            <span class="n">mole</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span>
-            <span class="n">out</span> <span class="o">=</span> <span class="n">main</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">get_subtomogram_loader</span><span class="p">(</span>
-                <span class="n">mole</span><span class="p">,</span>
-                <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">,</span>
-                <span class="n">output_shape</span><span class="o">=</span><span class="n">output_shape</span><span class="p">,</span>
-                <span class="n">binsize</span><span class="o">=</span><span class="n">bin_size</span><span class="p">,</span>
-            <span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
-                <span class="n">funcs</span><span class="p">,</span>
-                <span class="n">schema</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">column_prefix</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">template_path</span><span class="p">))],</span>
-            <span class="p">)</span>
-            <span class="n">layer</span><span class="o">.</span><span class="n">set_molecules_with_new_features</span><span class="p">(</span>
-                <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">with_features</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">Float32</span><span class="p">))</span>
-            <span class="p">)</span>
-        <span class="k">return</span> <span class="kc">None</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">main</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">get_subtomogram_loader</span><span class="p">(</span>
+            <span class="n">all_mole</span><span class="p">,</span>
+            <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">,</span>
+            <span class="n">binsize</span><span class="o">=</span><span class="n">bin_size</span><span class="p">,</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">score</span><span class="p">(</span>
+            <span class="n">templates</span><span class="o">=</span><span class="p">[</span><span class="n">pipe</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">template_path</span><span class="p">],</span>
+            <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span>
+            <span class="n">alignment_model</span><span class="o">=</span><span class="n">_get_alignment</span><span class="p">(</span><span class="n">method</span><span class="p">),</span>
+            <span class="n">cutoff</span><span class="o">=</span><span class="n">cutoff</span><span class="p">,</span>
+            <span class="n">tilt</span><span class="o">=</span><span class="n">main</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">tilt_model</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">all_mole</span> <span class="o">=</span> <span class="n">all_mole</span><span class="o">.</span><span class="n">with_features</span><span class="p">(</span>
+            <span class="n">pl</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">column_prefix</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">col</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">col</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="nd">@thread_worker</span><span class="o">.</span><span class="n">callback</span>
+        <span class="k">def</span> <span class="nf">_on_return</span><span class="p">():</span>
+            <span class="n">moles</span> <span class="o">=</span> <span class="n">combiner</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">all_mole</span><span class="p">,</span> <span class="n">layers</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">layer</span><span class="p">,</span> <span class="n">each_mole</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">layers</span><span class="p">,</span> <span class="n">moles</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+                <span class="n">features</span> <span class="o">=</span> <span class="n">each_mole</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+                    <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">column_prefix</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">out</span><span class="p">))]</span>
+                <span class="p">)</span>
+                <span class="n">layer</span><span class="o">.</span><span class="n">set_molecules_with_new_features</span><span class="p">(</span>
+                    <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">with_features</span><span class="p">(</span><span class="n">features</span><span class="p">)</span>
+                <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">_on_return</span>
 
     <span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Calculate FSC&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
     <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">fmt_layers</span><span class="p">(</span><span class="s2">&quot;Calculating FSC of </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="p">))</span>
@@ -5118,14 +5061,20 @@
             <span class="n">template</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">_norm_template_param</span><span class="p">(</span><span class="n">template_path</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
             <span class="n">mask</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">_get_mask</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="n">mask_params</span><span class="p">),</span>
         <span class="p">)</span>
-        <span class="n">fsc</span><span class="p">,</span> <span class="n">avg</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
+        <span class="n">fsc</span><span class="p">,</span> <span class="p">(</span><span class="n">img_0</span><span class="p">,</span> <span class="n">img_1</span><span class="p">),</span> <span class="n">img_mask</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
             <span class="n">template</span><span class="o">=</span><span class="n">template</span> <span class="k">if</span> <span class="n">size</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
             <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span>
             <span class="n">shape</span><span class="o">=</span><span class="kc">None</span> <span class="k">if</span> <span class="n">size</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">(</span><span class="n">main</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">nm2pixel</span><span class="p">(</span><span class="n">size</span><span class="p">),)</span> <span class="o">*</span> <span class="mi">3</span><span class="p">,</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">fsc_with_average</span><span class="p">(</span><span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">,</span> <span class="n">n_set</span><span class="o">=</span><span class="n">n_pairs</span><span class="p">,</span> <span class="n">dfreq</span><span class="o">=</span><span class="n">dfreq</span><span class="p">)</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">fsc_with_halfmaps</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">,</span> <span class="n">n_set</span><span class="o">=</span><span class="n">n_pairs</span><span class="p">,</span> <span class="n">dfreq</span><span class="o">=</span><span class="n">dfreq</span><span class="p">,</span> <span class="n">squeeze</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">_as_imgarray</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">axes</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;zyx&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ip</span><span class="o">.</span><span class="n">ImgArray</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="n">im</span><span class="p">):</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="k">return</span> <span class="n">ip</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="n">axes</span><span class="p">)</span><span class="o">.</span><span class="n">set_scale</span><span class="p">(</span><span class="n">zyx</span><span class="o">=</span><span class="n">loader</span><span class="o">.</span><span class="n">scale</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;nm&quot;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">show_average</span><span class="p">:</span>
-            <span class="n">img_avg</span> <span class="o">=</span> <span class="n">ip</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">avg</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="s2">&quot;zyx&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">set_scale</span><span class="p">(</span><span class="n">zyx</span><span class="o">=</span><span class="n">loader</span><span class="o">.</span><span class="n">scale</span><span class="p">)</span>
+            <span class="n">avg</span> <span class="o">=</span> <span class="p">(</span><span class="n">img_0</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">img_1</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="mi">2</span>
+            <span class="n">img_avg</span> <span class="o">=</span> <span class="n">_as_imgarray</span><span class="p">(</span><span class="n">avg</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">img_avg</span> <span class="o">=</span> <span class="kc">None</span>
 
@@ -5144,11 +5093,13 @@
                 <span class="n">_Logger</span><span class="o">.</span><span class="n">print_html</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Resolution at FSC=</span><span class="si">{</span><span class="n">_c</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> ... &lt;b&gt;</span><span class="si">{</span><span class="n">_r</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> nm&lt;/b&gt;&quot;</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="n">img_avg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">_rec_layer</span><span class="p">:</span> <span class="s2">&quot;Image&quot;</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_rec</span><span class="p">(</span>
-                    <span class="n">img_avg</span><span class="p">,</span>
-                    <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;[AVG]</span><span class="si">{</span><span class="n">_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">_imlayer</span><span class="p">:</span> <span class="s2">&quot;Image&quot;</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_rec</span><span class="p">(</span><span class="n">img_avg</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;[AVG]</span><span class="si">{</span><span class="n">_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">_imlayer</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;fsc&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span>
+                <span class="n">_imlayer</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;fsc_halfmaps&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">_as_imgarray</span><span class="p">(</span><span class="n">img_0</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="s2">&quot;izyx&quot;</span><span class="p">),</span>
+                    <span class="n">_as_imgarray</span><span class="p">(</span><span class="n">img_1</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="s2">&quot;izyx&quot;</span><span class="p">),</span>
                 <span class="p">)</span>
-                <span class="n">_rec_layer</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;fsc&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span>
+                <span class="n">_imlayer</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;fsc_mask&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_as_imgarray</span><span class="p">(</span><span class="n">img_mask</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">_calculate_fsc_on_return</span>
 
@@ -5296,7 +5247,10 @@
                 <span class="k">if</span> <span class="n">show_average</span> <span class="o">==</span> <span class="s2">&quot;Filtered&quot;</span><span class="p">:</span>
                     <span class="n">sigma</span> <span class="o">=</span> <span class="mf">0.25</span> <span class="o">/</span> <span class="n">loader</span><span class="o">.</span><span class="n">scale</span>
                     <span class="n">result</span><span class="o">.</span><span class="n">averages</span><span class="o">.</span><span class="n">gaussian_filter</span><span class="p">(</span><span class="n">sigma</span><span class="o">=</span><span class="n">sigma</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_show_rec</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">averages</span><span class="p">,</span> <span class="n">layer</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">store</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="n">_imlayer</span><span class="p">:</span> <span class="s2">&quot;Image&quot;</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_rec</span><span class="p">(</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">averages</span><span class="p">,</span> <span class="n">layer</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">store</span><span class="o">=</span><span class="kc">False</span>
+                <span class="p">)</span>
+                <span class="n">_imlayer</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="n">SEAM_SEARCH_RESULT</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span>
 
             <span class="c1"># plot all the correlation</span>
             <span class="n">_Logger</span><span class="o">.</span><span class="n">print_html</span><span class="p">(</span><span class="s2">&quot;&lt;code&gt;seam_search&lt;/code&gt;&quot;</span><span class="p">)</span>
@@ -5363,40 +5317,8 @@
         <span class="n">layer</span><span class="o">.</span><span class="n">features</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">with_columns</span><span class="p">(</span><span class="n">new_feat</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">undo_callback</span><span class="p">(</span><span class="n">layer</span><span class="o">.</span><span class="n">feature_setter</span><span class="p">(</span><span class="n">feat</span><span class="p">,</span> <span class="n">layer</span><span class="o">.</span><span class="n">colormap_info</span><span class="p">))</span>
 
-    <span class="k">def</span> <span class="nf">_get_seam_searched_layers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">MoleculesLayer</span><span class="p">]:</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span> <span class="p">[]</span>
-        <span class="k">return</span> <span class="p">[</span>
-            <span class="p">(</span><span class="n">layer</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">layer</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="o">.</span><span class="n">layers</span>
-            <span class="k">if</span> <span class="n">SEAM_SEARCH_RESULT</span> <span class="ow">in</span> <span class="n">layer</span><span class="o">.</span><span class="n">metadata</span>
-        <span class="p">]</span>
-
-    <span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Save seam search result&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
-    <span class="nd">@do_not_record</span>
-    <span class="k">def</span> <span class="nf">save_seam_search_result</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">layer</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">MoleculesLayer</span> <span class="o">|</span> <span class="nb">str</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;choices&quot;</span><span class="p">:</span> <span class="n">_get_seam_searched_layers</span><span class="p">}],</span>
-        <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Save</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">CSV</span><span class="p">],</span>
-    <span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Save seam search result.</span>
-
-<span class="sd">        Parameters</span>
-<span class="sd">        ----------</span>
-<span class="sd">        layer : str or MoleculesLayer</span>
-<span class="sd">            Layer that contains seam search result.</span>
-<span class="sd">        path : Path</span>
-<span class="sd">            Path to save the result.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">layer</span> <span class="o">=</span> <span class="n">assert_layer</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
-        <span class="n">result</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">SEAM_SEARCH_RESULT</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">SeamSearchResult</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;The layer does not have seam search result.&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">result</span><span class="o">.</span><span class="n">to_dataframe</span><span class="p">()</span><span class="o">.</span><span class="n">write_csv</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
-
     <span class="k">def</span> <span class="nf">_seam_search_input</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayer</span><span class="p">,</span> <span class="n">npf</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">order</span><span class="p">:</span> <span class="nb">int</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayer</span><span class="p">,</span> <span class="n">npf</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">order</span><span class="p">:</span> <span class="nb">int</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">SubtomogramLoader</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
         <span class="n">parent</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_main</span><span class="p">()</span>
         <span class="n">mole</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span>
@@ -5817,7 +5739,9 @@ If a path is given, image must in the same shape as the template.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 996</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 994</span>
+<span class="normal"> 995</span>
+<span class="normal"> 996</span>
 <span class="normal"> 997</span>
 <span class="normal"> 998</span>
 <span class="normal"> 999</span>
@@ -5861,9 +5785,7 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="normal">1037</span>
 <span class="normal">1038</span>
 <span class="normal">1039</span>
-<span class="normal">1040</span>
-<span class="normal">1041</span>
-<span class="normal">1042</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Align all molecules&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
+<span class="normal">1040</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Align all molecules&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">descs</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_all_fmt</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">align_all</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -6147,7 +6069,9 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1150</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1148</span>
+<span class="normal">1149</span>
+<span class="normal">1150</span>
 <span class="normal">1151</span>
 <span class="normal">1152</span>
 <span class="normal">1153</span>
@@ -6218,9 +6142,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">1218</span>
 <span class="normal">1219</span>
 <span class="normal">1220</span>
-<span class="normal">1221</span>
-<span class="normal">1222</span>
-<span class="normal">1223</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Simulated annealing&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
+<span class="normal">1221</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Simulated annealing&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">descs</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_annealing_fmt</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">align_all_annealing</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -6457,7 +6379,9 @@ If a path is given, image must in the same shape as the template.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1044</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1042</span>
+<span class="normal">1043</span>
+<span class="normal">1044</span>
 <span class="normal">1045</span>
 <span class="normal">1046</span>
 <span class="normal">1047</span>
@@ -6504,9 +6428,7 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="normal">1088</span>
 <span class="normal">1089</span>
 <span class="normal">1090</span>
-<span class="normal">1091</span>
-<span class="normal">1092</span>
-<span class="normal">1093</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Align all (template-free)&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
+<span class="normal">1091</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Align all (template-free)&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">descs</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_template_free_fmt</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">align_all_template_free</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -6753,7 +6675,9 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1097</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1095</span>
+<span class="normal">1096</span>
+<span class="normal">1097</span>
 <span class="normal">1098</span>
 <span class="normal">1099</span>
 <span class="normal">1100</span>
@@ -6802,9 +6726,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">1143</span>
 <span class="normal">1144</span>
 <span class="normal">1145</span>
-<span class="normal">1146</span>
-<span class="normal">1147</span>
-<span class="normal">1148</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Viterbi Alignment&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
+<span class="normal">1146</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Viterbi Alignment&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">descs</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_viterbi_fmt</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">align_all_viterbi</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -6993,7 +6915,9 @@ If a path is given, image must in the same shape as the template.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">864</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">862</span>
+<span class="normal">863</span>
+<span class="normal">864</span>
 <span class="normal">865</span>
 <span class="normal">866</span>
 <span class="normal">867</span>
@@ -7119,9 +7043,7 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="normal">987</span>
 <span class="normal">988</span>
 <span class="normal">989</span>
-<span class="normal">990</span>
-<span class="normal">991</span>
-<span class="normal">992</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Align average to template&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
+<span class="normal">990</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Align average to template&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">descs</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_averaged_fmt</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">align_averaged</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -7344,7 +7266,9 @@ be averaged.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">677</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">675</span>
+<span class="normal">676</span>
+<span class="normal">677</span>
 <span class="normal">678</span>
 <span class="normal">679</span>
 <span class="normal">680</span>
@@ -7372,9 +7296,7 @@ be averaged.</p>
 <span class="normal">702</span>
 <span class="normal">703</span>
 <span class="normal">704</span>
-<span class="normal">705</span>
-<span class="normal">706</span>
-<span class="normal">707</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Average all molecules&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Averaging</span><span class="p">)</span>
+<span class="normal">705</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Average all molecules&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Averaging</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">fmt_layers</span><span class="p">(</span><span class="s2">&quot;Subtomogram averaging of </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="p">))</span>
 <span class="k">def</span> <span class="nf">average_all</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -7513,7 +7435,9 @@ by the predicate.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">793</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">791</span>
+<span class="normal">792</span>
+<span class="normal">793</span>
 <span class="normal">794</span>
 <span class="normal">795</span>
 <span class="normal">796</span>
@@ -7546,9 +7470,7 @@ by the predicate.</p>
 <span class="normal">823</span>
 <span class="normal">824</span>
 <span class="normal">825</span>
-<span class="normal">826</span>
-<span class="normal">827</span>
-<span class="normal">828</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Average filtered&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Averaging</span><span class="p">)</span>
+<span class="normal">826</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Average filtered&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Averaging</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">fmt_layers</span><span class="p">(</span><span class="s2">&quot;Filtered subtomogram averaging of </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="p">))</span>  <span class="c1"># fmt: skip</span>
 <span class="k">def</span> <span class="nf">average_filtered</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -7693,7 +7615,9 @@ subtomogram averaging.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">753</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">751</span>
+<span class="normal">752</span>
+<span class="normal">753</span>
 <span class="normal">754</span>
 <span class="normal">755</span>
 <span class="normal">756</span>
@@ -7729,9 +7653,7 @@ subtomogram averaging.</p>
 <span class="normal">786</span>
 <span class="normal">787</span>
 <span class="normal">788</span>
-<span class="normal">789</span>
-<span class="normal">790</span>
-<span class="normal">791</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Average group-wise&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Averaging</span><span class="p">)</span>
+<span class="normal">789</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Average group-wise&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Averaging</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">fmt_layers</span><span class="p">(</span><span class="s2">&quot;Grouped subtomogram averaging of </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="p">))</span>  <span class="c1"># fmt: skip</span>
 <span class="k">def</span> <span class="nf">average_groups</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -7882,7 +7804,9 @@ be concatenated before choosing a subset.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">709</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">707</span>
+<span class="normal">708</span>
+<span class="normal">709</span>
 <span class="normal">710</span>
 <span class="normal">711</span>
 <span class="normal">712</span>
@@ -7922,9 +7846,7 @@ be concatenated before choosing a subset.</p>
 <span class="normal">746</span>
 <span class="normal">747</span>
 <span class="normal">748</span>
-<span class="normal">749</span>
-<span class="normal">750</span>
-<span class="normal">751</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Average subset of molecules&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Averaging</span><span class="p">)</span>
+<span class="normal">749</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Average subset of molecules&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Averaging</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">fmt_layers</span><span class="p">(</span><span class="s2">&quot;Subtomogram averaging (subset) of </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="p">))</span>  <span class="c1"># fmt: skip</span>
 <span class="k">def</span> <span class="nf">average_subset</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -7977,7 +7899,7 @@ be concatenated before choosing a subset.</p>
 
 
 <h4 id="cylindra.widgets.sta.SubtomogramAveraging.calculate_correlation" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">calculate_correlation</span><span class="p">(</span><span class="n">layers</span><span class="p">,</span> <span class="n">template_path</span><span class="p">,</span> <span class="n">mask_params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">metric</span><span class="o">=</span><span class="s1">&#39;zncc&#39;</span><span class="p">,</span> <span class="n">column_prefix</span><span class="o">=</span><span class="s1">&#39;score&#39;</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">calculate_correlation</span><span class="p">(</span><span class="n">layers</span><span class="p">,</span> <span class="n">template_path</span><span class="p">,</span> <span class="n">mask_params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">cutoff</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;zncc&#39;</span><span class="p">,</span> <span class="n">column_prefix</span><span class="o">=</span><span class="s1">&#39;score&#39;</span><span class="p">)</span></code>
 
 </h4>
 
@@ -8059,6 +7981,20 @@ If a path is given, image must in the same shape as the template.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
+            <td><code>cutoff</code></td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Cutoff frequency of low-pass filter applied in each subtomogram.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.5</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
             <td><code>bin_size</code></td>
             <td>
                   <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
@@ -8073,17 +8009,17 @@ If a path is given, image must in the same shape as the template.</p>
             </td>
           </tr>
           <tr class="doc-section-item">
-            <td><code>metric</code></td>
+            <td><code>method</code></td>
             <td>
                   <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Metric to calculate correlation.</p>
+                <p>Correlation metrics for alignment.</p>
               </div>
             </td>
             <td>
-                  <code>&#34;zncc&#34;</code>
+                  <code>&#39;zncc&#39;</code>
             </td>
           </tr>
           <tr class="doc-section-item">
@@ -8105,7 +8041,9 @@ If a path is given, image must in the same shape as the template.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1446</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1444</span>
+<span class="normal">1445</span>
+<span class="normal">1446</span>
 <span class="normal">1447</span>
 <span class="normal">1448</span>
 <span class="normal">1449</span>
@@ -8164,18 +8102,7 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="normal">1502</span>
 <span class="normal">1503</span>
 <span class="normal">1504</span>
-<span class="normal">1505</span>
-<span class="normal">1506</span>
-<span class="normal">1507</span>
-<span class="normal">1508</span>
-<span class="normal">1509</span>
-<span class="normal">1510</span>
-<span class="normal">1511</span>
-<span class="normal">1512</span>
-<span class="normal">1513</span>
-<span class="normal">1514</span>
-<span class="normal">1515</span>
-<span class="normal">1516</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
+<span class="normal">1505</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">fmt_layers</span><span class="p">(</span><span class="s2">&quot;Calculating correlations of </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="p">))</span>  <span class="c1"># fmt: skip</span>
 <span class="k">def</span> <span class="nf">calculate_correlation</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -8183,8 +8110,9 @@ If a path is given, image must in the same shape as the template.</p>
     <span class="n">template_path</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">_PathOrPathsOrNone</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;bind&quot;</span><span class="p">:</span> <span class="n">_template_params</span><span class="p">}],</span>
     <span class="n">mask_params</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;bind&quot;</span><span class="p">:</span> <span class="n">_get_mask_params</span><span class="p">}]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">interpolation</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;choices&quot;</span><span class="p">:</span> <span class="n">INTERPOLATION_CHOICES</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+    <span class="n">cutoff</span><span class="p">:</span> <span class="n">_CutoffFreq</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
     <span class="n">bin_size</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;choices&quot;</span><span class="p">:</span> <span class="n">_get_available_binsize</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
-    <span class="n">metric</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;zncc&quot;</span><span class="p">,</span> <span class="s2">&quot;ncc&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;zncc&quot;</span><span class="p">,</span>
+    <span class="n">method</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;choices&quot;</span><span class="p">:</span> <span class="n">METHOD_CHOICES</span><span class="p">}]</span> <span class="o">=</span> <span class="s2">&quot;zncc&quot;</span><span class="p">,</span>
     <span class="n">column_prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;score&quot;</span><span class="p">,</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -8196,56 +8124,46 @@ If a path is given, image must in the same shape as the template.</p>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
-<span class="sd">    {layers}{template_path}{mask_params}{interpolation}{bin_size}</span>
-<span class="sd">    metric : str, default &quot;zncc&quot;</span>
-<span class="sd">        Metric to calculate correlation.</span>
+<span class="sd">    {layers}{template_path}{mask_params}{interpolation}{cutoff}{bin_size}{method}</span>
 <span class="sd">    column_prefix : str, default &quot;score&quot;</span>
 <span class="sd">        Prefix of the column names of the calculated correlations.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">layers</span> <span class="o">=</span> <span class="n">assert_list_of_layers</span><span class="p">(</span><span class="n">layers</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
     <span class="n">main</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_main</span><span class="p">()</span>
-    <span class="n">scale</span> <span class="o">=</span> <span class="n">main</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">scale</span> <span class="o">*</span> <span class="n">bin_size</span>
-    <span class="n">tmps</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="n">_shapes</span> <span class="o">=</span> <span class="nb">set</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]()</span>
+    <span class="n">combiner</span> <span class="o">=</span> <span class="n">MoleculesCombiner</span><span class="p">()</span>
+
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">template_path</span><span class="p">,</span> <span class="p">(</span><span class="n">Path</span><span class="p">,</span> <span class="nb">str</span><span class="p">)):</span>
         <span class="n">template_path</span> <span class="o">=</span> <span class="p">[</span><span class="n">template_path</span><span class="p">]</span>
-    <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">template_path</span><span class="p">:</span>
-        <span class="n">template_image</span> <span class="o">=</span> <span class="n">pipe</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">provide</span><span class="p">(</span><span class="n">scale</span><span class="p">)</span>
-        <span class="n">tmps</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">template_image</span><span class="p">)</span>
-        <span class="n">_shapes</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">template_image</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">_shapes</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Inconsistent shapes: </span><span class="si">{</span><span class="n">_shapes</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="n">output_shape</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">_s</span> <span class="o">*</span> <span class="n">scale</span> <span class="k">for</span> <span class="n">_s</span> <span class="ow">in</span> <span class="n">_shapes</span><span class="o">.</span><span class="n">pop</span><span class="p">())</span>
     <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">_get_mask</span><span class="p">(</span><span class="n">mask_params</span><span class="p">)</span>
-    <span class="k">match</span> <span class="n">mask</span><span class="p">:</span>
-        <span class="k">case</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">msk</span> <span class="o">=</span> <span class="mi">1</span>
-        <span class="k">case</span> <span class="n">pipe</span><span class="o">.</span><span class="n">ImageConverter</span><span class="p">:</span>
-            <span class="n">msk</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">convert</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">tmps</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span> <span class="n">scale</span><span class="p">)</span>
-        <span class="k">case</span> <span class="n">pipe</span><span class="o">.</span><span class="n">ImageProvider</span><span class="p">:</span>
-            <span class="n">msk</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">provide</span><span class="p">(</span><span class="n">scale</span><span class="p">)</span>
-        <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Unreachable&quot;</span><span class="p">)</span>
-    <span class="n">corr_fn</span> <span class="o">=</span> <span class="n">ip</span><span class="o">.</span><span class="n">ncc</span> <span class="k">if</span> <span class="n">metric</span> <span class="o">==</span> <span class="s2">&quot;ncc&quot;</span> <span class="k">else</span> <span class="n">ip</span><span class="o">.</span><span class="n">zncc</span>
-    <span class="n">funcs</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="k">for</span> <span class="n">tmp</span> <span class="ow">in</span> <span class="n">tmps</span><span class="p">:</span>
-        <span class="n">funcs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_define_correlation_function</span><span class="p">(</span><span class="n">tmp</span><span class="p">,</span> <span class="n">msk</span><span class="p">,</span> <span class="n">corr_fn</span><span class="p">))</span>
+    <span class="n">all_mole</span> <span class="o">=</span> <span class="n">combiner</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">layer</span><span class="o">.</span><span class="n">molecules</span> <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="n">layers</span><span class="p">)</span>
 
-    <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="n">layers</span><span class="p">:</span>
-        <span class="n">mole</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span>
-        <span class="n">out</span> <span class="o">=</span> <span class="n">main</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">get_subtomogram_loader</span><span class="p">(</span>
-            <span class="n">mole</span><span class="p">,</span>
-            <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">,</span>
-            <span class="n">output_shape</span><span class="o">=</span><span class="n">output_shape</span><span class="p">,</span>
-            <span class="n">binsize</span><span class="o">=</span><span class="n">bin_size</span><span class="p">,</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
-            <span class="n">funcs</span><span class="p">,</span>
-            <span class="n">schema</span><span class="o">=</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">column_prefix</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">template_path</span><span class="p">))],</span>
-        <span class="p">)</span>
-        <span class="n">layer</span><span class="o">.</span><span class="n">set_molecules_with_new_features</span><span class="p">(</span>
-            <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">with_features</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">Float32</span><span class="p">))</span>
-        <span class="p">)</span>
-    <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">main</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">get_subtomogram_loader</span><span class="p">(</span>
+        <span class="n">all_mole</span><span class="p">,</span>
+        <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">,</span>
+        <span class="n">binsize</span><span class="o">=</span><span class="n">bin_size</span><span class="p">,</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">score</span><span class="p">(</span>
+        <span class="n">templates</span><span class="o">=</span><span class="p">[</span><span class="n">pipe</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">template_path</span><span class="p">],</span>
+        <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span>
+        <span class="n">alignment_model</span><span class="o">=</span><span class="n">_get_alignment</span><span class="p">(</span><span class="n">method</span><span class="p">),</span>
+        <span class="n">cutoff</span><span class="o">=</span><span class="n">cutoff</span><span class="p">,</span>
+        <span class="n">tilt</span><span class="o">=</span><span class="n">main</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">tilt_model</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">all_mole</span> <span class="o">=</span> <span class="n">all_mole</span><span class="o">.</span><span class="n">with_features</span><span class="p">(</span>
+        <span class="n">pl</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">column_prefix</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">col</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">col</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="nd">@thread_worker</span><span class="o">.</span><span class="n">callback</span>
+    <span class="k">def</span> <span class="nf">_on_return</span><span class="p">():</span>
+        <span class="n">moles</span> <span class="o">=</span> <span class="n">combiner</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">all_mole</span><span class="p">,</span> <span class="n">layers</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">layer</span><span class="p">,</span> <span class="n">each_mole</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">layers</span><span class="p">,</span> <span class="n">moles</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+            <span class="n">features</span> <span class="o">=</span> <span class="n">each_mole</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">select</span><span class="p">(</span>
+                <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">column_prefix</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">out</span><span class="p">))]</span>
+            <span class="p">)</span>
+            <span class="n">layer</span><span class="o">.</span><span class="n">set_molecules_with_new_features</span><span class="p">(</span>
+                <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">with_features</span><span class="p">(</span><span class="n">features</span><span class="p">)</span>
+            <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">_on_return</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -8410,7 +8328,18 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1518</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1507</span>
+<span class="normal">1508</span>
+<span class="normal">1509</span>
+<span class="normal">1510</span>
+<span class="normal">1511</span>
+<span class="normal">1512</span>
+<span class="normal">1513</span>
+<span class="normal">1514</span>
+<span class="normal">1515</span>
+<span class="normal">1516</span>
+<span class="normal">1517</span>
+<span class="normal">1518</span>
 <span class="normal">1519</span>
 <span class="normal">1520</span>
 <span class="normal">1521</span>
@@ -8483,10 +8412,7 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 <span class="normal">1588</span>
 <span class="normal">1589</span>
 <span class="normal">1590</span>
-<span class="normal">1591</span>
-<span class="normal">1592</span>
-<span class="normal">1593</span>
-<span class="normal">1594</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Calculate FSC&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
+<span class="normal">1591</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Calculate FSC&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">fmt_layers</span><span class="p">(</span><span class="s2">&quot;Calculating FSC of </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="p">))</span>
 <span class="k">def</span> <span class="nf">calculate_fsc</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -8530,14 +8456,20 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
         <span class="n">template</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">_norm_template_param</span><span class="p">(</span><span class="n">template_path</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
         <span class="n">mask</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">_get_mask</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="n">mask_params</span><span class="p">),</span>
     <span class="p">)</span>
-    <span class="n">fsc</span><span class="p">,</span> <span class="n">avg</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
+    <span class="n">fsc</span><span class="p">,</span> <span class="p">(</span><span class="n">img_0</span><span class="p">,</span> <span class="n">img_1</span><span class="p">),</span> <span class="n">img_mask</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
         <span class="n">template</span><span class="o">=</span><span class="n">template</span> <span class="k">if</span> <span class="n">size</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span>
         <span class="n">shape</span><span class="o">=</span><span class="kc">None</span> <span class="k">if</span> <span class="n">size</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">(</span><span class="n">main</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">nm2pixel</span><span class="p">(</span><span class="n">size</span><span class="p">),)</span> <span class="o">*</span> <span class="mi">3</span><span class="p">,</span>
-    <span class="p">)</span><span class="o">.</span><span class="n">fsc_with_average</span><span class="p">(</span><span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">,</span> <span class="n">n_set</span><span class="o">=</span><span class="n">n_pairs</span><span class="p">,</span> <span class="n">dfreq</span><span class="o">=</span><span class="n">dfreq</span><span class="p">)</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">fsc_with_halfmaps</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">,</span> <span class="n">n_set</span><span class="o">=</span><span class="n">n_pairs</span><span class="p">,</span> <span class="n">dfreq</span><span class="o">=</span><span class="n">dfreq</span><span class="p">,</span> <span class="n">squeeze</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_as_imgarray</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">axes</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;zyx&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ip</span><span class="o">.</span><span class="n">ImgArray</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="n">im</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">ip</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="n">axes</span><span class="p">)</span><span class="o">.</span><span class="n">set_scale</span><span class="p">(</span><span class="n">zyx</span><span class="o">=</span><span class="n">loader</span><span class="o">.</span><span class="n">scale</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;nm&quot;</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">show_average</span><span class="p">:</span>
-        <span class="n">img_avg</span> <span class="o">=</span> <span class="n">ip</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">avg</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="s2">&quot;zyx&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">set_scale</span><span class="p">(</span><span class="n">zyx</span><span class="o">=</span><span class="n">loader</span><span class="o">.</span><span class="n">scale</span><span class="p">)</span>
+        <span class="n">avg</span> <span class="o">=</span> <span class="p">(</span><span class="n">img_0</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">img_1</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="mi">2</span>
+        <span class="n">img_avg</span> <span class="o">=</span> <span class="n">_as_imgarray</span><span class="p">(</span><span class="n">avg</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">img_avg</span> <span class="o">=</span> <span class="kc">None</span>
 
@@ -8556,11 +8488,13 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
             <span class="n">_Logger</span><span class="o">.</span><span class="n">print_html</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Resolution at FSC=</span><span class="si">{</span><span class="n">_c</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> ... &lt;b&gt;</span><span class="si">{</span><span class="n">_r</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> nm&lt;/b&gt;&quot;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">img_avg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">_rec_layer</span><span class="p">:</span> <span class="s2">&quot;Image&quot;</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_rec</span><span class="p">(</span>
-                <span class="n">img_avg</span><span class="p">,</span>
-                <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;[AVG]</span><span class="si">{</span><span class="n">_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">_imlayer</span><span class="p">:</span> <span class="s2">&quot;Image&quot;</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_rec</span><span class="p">(</span><span class="n">img_avg</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;[AVG]</span><span class="si">{</span><span class="n">_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">_imlayer</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;fsc&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span>
+            <span class="n">_imlayer</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;fsc_halfmaps&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">_as_imgarray</span><span class="p">(</span><span class="n">img_0</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="s2">&quot;izyx&quot;</span><span class="p">),</span>
+                <span class="n">_as_imgarray</span><span class="p">(</span><span class="n">img_1</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="s2">&quot;izyx&quot;</span><span class="p">),</span>
             <span class="p">)</span>
-            <span class="n">_rec_layer</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;fsc&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span>
+            <span class="n">_imlayer</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;fsc_mask&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_as_imgarray</span><span class="p">(</span><span class="n">img_mask</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">_calculate_fsc_on_return</span>
 </code></pre></div></td></tr></table></div>
@@ -8740,7 +8674,10 @@ If a path is given, image must in the same shape as the template.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1596</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1593</span>
+<span class="normal">1594</span>
+<span class="normal">1595</span>
+<span class="normal">1596</span>
 <span class="normal">1597</span>
 <span class="normal">1598</span>
 <span class="normal">1599</span>
@@ -8811,10 +8748,7 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="normal">1664</span>
 <span class="normal">1665</span>
 <span class="normal">1666</span>
-<span class="normal">1667</span>
-<span class="normal">1668</span>
-<span class="normal">1669</span>
-<span class="normal">1670</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;PCA/K-means classification&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
+<span class="normal">1667</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;PCA/K-means classification&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">descs</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">classify_pca_fmt</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">classify_pca</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -9082,7 +9016,9 @@ deviation.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1225</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1223</span>
+<span class="normal">1224</span>
+<span class="normal">1225</span>
 <span class="normal">1226</span>
 <span class="normal">1227</span>
 <span class="normal">1228</span>
@@ -9130,9 +9066,7 @@ deviation.</p>
 <span class="normal">1270</span>
 <span class="normal">1271</span>
 <span class="normal">1272</span>
-<span class="normal">1273</span>
-<span class="normal">1274</span>
-<span class="normal">1275</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
+<span class="normal">1273</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">descs</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">construct_landscape_fmt</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">construct_landscape</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -9204,30 +9138,30 @@ deviation.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1941</span>
-<span class="normal">1942</span>
-<span class="normal">1943</span>
-<span class="normal">1944</span>
-<span class="normal">1945</span>
-<span class="normal">1946</span>
-<span class="normal">1947</span>
-<span class="normal">1948</span>
-<span class="normal">1949</span>
-<span class="normal">1950</span>
-<span class="normal">1951</span>
-<span class="normal">1952</span>
-<span class="normal">1953</span>
-<span class="normal">1954</span>
-<span class="normal">1955</span>
-<span class="normal">1956</span>
-<span class="normal">1957</span>
-<span class="normal">1958</span>
-<span class="normal">1959</span>
-<span class="normal">1960</span>
-<span class="normal">1961</span>
-<span class="normal">1962</span>
-<span class="normal">1963</span>
-<span class="normal">1964</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1909</span>
+<span class="normal">1910</span>
+<span class="normal">1911</span>
+<span class="normal">1912</span>
+<span class="normal">1913</span>
+<span class="normal">1914</span>
+<span class="normal">1915</span>
+<span class="normal">1916</span>
+<span class="normal">1917</span>
+<span class="normal">1918</span>
+<span class="normal">1919</span>
+<span class="normal">1920</span>
+<span class="normal">1921</span>
+<span class="normal">1922</span>
+<span class="normal">1923</span>
+<span class="normal">1924</span>
+<span class="normal">1925</span>
+<span class="normal">1926</span>
+<span class="normal">1927</span>
+<span class="normal">1928</span>
+<span class="normal">1929</span>
+<span class="normal">1930</span>
+<span class="normal">1931</span>
+<span class="normal">1932</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span> <span class="nf">get_mask</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -9366,41 +9300,41 @@ deviation.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1966</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1934</span>
+<span class="normal">1935</span>
+<span class="normal">1936</span>
+<span class="normal">1937</span>
+<span class="normal">1938</span>
+<span class="normal">1939</span>
+<span class="normal">1940</span>
+<span class="normal">1941</span>
+<span class="normal">1942</span>
+<span class="normal">1943</span>
+<span class="normal">1944</span>
+<span class="normal">1945</span>
+<span class="normal">1946</span>
+<span class="normal">1947</span>
+<span class="normal">1948</span>
+<span class="normal">1949</span>
+<span class="normal">1950</span>
+<span class="normal">1951</span>
+<span class="normal">1952</span>
+<span class="normal">1953</span>
+<span class="normal">1954</span>
+<span class="normal">1955</span>
+<span class="normal">1956</span>
+<span class="normal">1957</span>
+<span class="normal">1958</span>
+<span class="normal">1959</span>
+<span class="normal">1960</span>
+<span class="normal">1961</span>
+<span class="normal">1962</span>
+<span class="normal">1963</span>
+<span class="normal">1964</span>
+<span class="normal">1965</span>
+<span class="normal">1966</span>
 <span class="normal">1967</span>
-<span class="normal">1968</span>
-<span class="normal">1969</span>
-<span class="normal">1970</span>
-<span class="normal">1971</span>
-<span class="normal">1972</span>
-<span class="normal">1973</span>
-<span class="normal">1974</span>
-<span class="normal">1975</span>
-<span class="normal">1976</span>
-<span class="normal">1977</span>
-<span class="normal">1978</span>
-<span class="normal">1979</span>
-<span class="normal">1980</span>
-<span class="normal">1981</span>
-<span class="normal">1982</span>
-<span class="normal">1983</span>
-<span class="normal">1984</span>
-<span class="normal">1985</span>
-<span class="normal">1986</span>
-<span class="normal">1987</span>
-<span class="normal">1988</span>
-<span class="normal">1989</span>
-<span class="normal">1990</span>
-<span class="normal">1991</span>
-<span class="normal">1992</span>
-<span class="normal">1993</span>
-<span class="normal">1994</span>
-<span class="normal">1995</span>
-<span class="normal">1996</span>
-<span class="normal">1997</span>
-<span class="normal">1998</span>
-<span class="normal">1999</span>
-<span class="normal">2000</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+<span class="normal">1968</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span> <span class="nf">get_subtomograms</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -9456,16 +9390,16 @@ deviation.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1930</span>
-<span class="normal">1931</span>
-<span class="normal">1932</span>
-<span class="normal">1933</span>
-<span class="normal">1934</span>
-<span class="normal">1935</span>
-<span class="normal">1936</span>
-<span class="normal">1937</span>
-<span class="normal">1938</span>
-<span class="normal">1939</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1898</span>
+<span class="normal">1899</span>
+<span class="normal">1900</span>
+<span class="normal">1901</span>
+<span class="normal">1902</span>
+<span class="normal">1903</span>
+<span class="normal">1904</span>
+<span class="normal">1905</span>
+<span class="normal">1906</span>
+<span class="normal">1907</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span> <span class="nf">get_template</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">template_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">,</span> <span class="n">scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
@@ -9539,7 +9473,9 @@ deviation.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1390</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1388</span>
+<span class="normal">1389</span>
+<span class="normal">1390</span>
 <span class="normal">1391</span>
 <span class="normal">1392</span>
 <span class="normal">1393</span>
@@ -9555,9 +9491,7 @@ deviation.</p>
 <span class="normal">1403</span>
 <span class="normal">1404</span>
 <span class="normal">1405</span>
-<span class="normal">1406</span>
-<span class="normal">1407</span>
-<span class="normal">1408</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
+<span class="normal">1406</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">normalize_landscape</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">landscape_layer</span><span class="p">:</span> <span class="n">_LandscapeLayer</span><span class="p">,</span>
@@ -9656,7 +9590,9 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1364</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1362</span>
+<span class="normal">1363</span>
+<span class="normal">1364</span>
 <span class="normal">1365</span>
 <span class="normal">1366</span>
 <span class="normal">1367</span>
@@ -9678,9 +9614,7 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
 <span class="normal">1383</span>
 <span class="normal">1384</span>
 <span class="normal">1385</span>
-<span class="normal">1386</span>
-<span class="normal">1387</span>
-<span class="normal">1388</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
+<span class="normal">1386</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">remove_landscape_outliers</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">landscape_layer</span><span class="p">:</span> <span class="n">_LandscapeLayer</span><span class="p">,</span>
@@ -9726,7 +9660,9 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1277</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1275</span>
+<span class="normal">1276</span>
+<span class="normal">1277</span>
 <span class="normal">1278</span>
 <span class="normal">1279</span>
 <span class="normal">1280</span>
@@ -9734,9 +9670,7 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
 <span class="normal">1282</span>
 <span class="normal">1283</span>
 <span class="normal">1284</span>
-<span class="normal">1285</span>
-<span class="normal">1286</span>
-<span class="normal">1287</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Run alignment on landscape&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
+<span class="normal">1285</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Run alignment on landscape&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Peak detection on landscape&quot;</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">run_align_on_landscape</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">landscape_layer</span><span class="p">:</span> <span class="n">_LandscapeLayer</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Find the optimal displacement for each molecule on the landscape.&quot;&quot;&quot;</span>
@@ -9867,7 +9801,9 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1317</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1315</span>
+<span class="normal">1316</span>
+<span class="normal">1317</span>
 <span class="normal">1318</span>
 <span class="normal">1319</span>
 <span class="normal">1320</span>
@@ -9910,9 +9846,7 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
 <span class="normal">1357</span>
 <span class="normal">1358</span>
 <span class="normal">1359</span>
-<span class="normal">1360</span>
-<span class="normal">1361</span>
-<span class="normal">1362</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Run annealing on landscape&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
+<span class="normal">1360</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Run annealing on landscape&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Running simulated annealing&quot;</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">run_annealing_on_landscape</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -10036,7 +9970,9 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1289</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1287</span>
+<span class="normal">1288</span>
+<span class="normal">1289</span>
 <span class="normal">1290</span>
 <span class="normal">1291</span>
 <span class="normal">1292</span>
@@ -10060,9 +9996,7 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
 <span class="normal">1310</span>
 <span class="normal">1311</span>
 <span class="normal">1312</span>
-<span class="normal">1313</span>
-<span class="normal">1314</span>
-<span class="normal">1315</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Run Viterbi alignment on landscape&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
+<span class="normal">1313</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Run Viterbi alignment on landscape&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Running Viterbi alignment&quot;</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">run_viterbi_on_landscape</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -10110,7 +10044,9 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1427</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1425</span>
+<span class="normal">1426</span>
+<span class="normal">1427</span>
 <span class="normal">1428</span>
 <span class="normal">1429</span>
 <span class="normal">1430</span>
@@ -10125,9 +10061,7 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
 <span class="normal">1439</span>
 <span class="normal">1440</span>
 <span class="normal">1441</span>
-<span class="normal">1442</span>
-<span class="normal">1443</span>
-<span class="normal">1444</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
+<span class="normal">1442</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span> <span class="nf">save_annealing_scores</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -10166,16 +10100,16 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1849</span>
-<span class="normal">1850</span>
-<span class="normal">1851</span>
-<span class="normal">1852</span>
-<span class="normal">1853</span>
-<span class="normal">1854</span>
-<span class="normal">1855</span>
-<span class="normal">1856</span>
-<span class="normal">1857</span>
-<span class="normal">1858</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Save last average&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1817</span>
+<span class="normal">1818</span>
+<span class="normal">1819</span>
+<span class="normal">1820</span>
+<span class="normal">1821</span>
+<span class="normal">1822</span>
+<span class="normal">1823</span>
+<span class="normal">1824</span>
+<span class="normal">1825</span>
+<span class="normal">1826</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Save last average&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">save_last_average</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Save</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">IMAGE</span><span class="p">]):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Save the lastly generated average image.&quot;&quot;&quot;</span>
     <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
@@ -10185,113 +10119,6 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
             <span class="s2">&quot;No average image is available. You have to average subtomograms first.&quot;</span>
         <span class="p">)</span>
     <span class="k">return</span> <span class="n">img</span><span class="o">.</span><span class="n">imsave</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
-</code></pre></div></td></tr></table></div>
-            </details>
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-function">
-
-
-<h4 id="cylindra.widgets.sta.SubtomogramAveraging.save_seam_search_result" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">save_seam_search_result</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span></code>
-
-</h4>
-
-
-    <div class="doc doc-contents ">
-
-        <p>Save seam search result.</p>
-
-
-<p><span class="doc-section-title">Parameters:</span></p>
-    <table>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Type</th>
-          <th>Description</th>
-          <th>Default</th>
-        </tr>
-      </thead>
-      <tbody>
-          <tr class="doc-section-item">
-            <td><code>layer</code></td>
-            <td>
-                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a> or <span title="cylindra.types.MoleculesLayer">MoleculesLayer</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Layer that contains seam search result.</p>
-              </div>
-            </td>
-            <td>
-                <em>required</em>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td><code>path</code></td>
-            <td>
-                  <code><span title="magicclass.types.Path">Path</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>Path to save the result.</p>
-              </div>
-            </td>
-            <td>
-                <em>required</em>
-            </td>
-          </tr>
-      </tbody>
-    </table>
-
-            <details class="quote">
-              <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1816</span>
-<span class="normal">1817</span>
-<span class="normal">1818</span>
-<span class="normal">1819</span>
-<span class="normal">1820</span>
-<span class="normal">1821</span>
-<span class="normal">1822</span>
-<span class="normal">1823</span>
-<span class="normal">1824</span>
-<span class="normal">1825</span>
-<span class="normal">1826</span>
-<span class="normal">1827</span>
-<span class="normal">1828</span>
-<span class="normal">1829</span>
-<span class="normal">1830</span>
-<span class="normal">1831</span>
-<span class="normal">1832</span>
-<span class="normal">1833</span>
-<span class="normal">1834</span>
-<span class="normal">1835</span>
-<span class="normal">1836</span>
-<span class="normal">1837</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Save seam search result&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
-<span class="nd">@do_not_record</span>
-<span class="k">def</span> <span class="nf">save_seam_search_result</span><span class="p">(</span>
-    <span class="bp">self</span><span class="p">,</span>
-    <span class="n">layer</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">MoleculesLayer</span> <span class="o">|</span> <span class="nb">str</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;choices&quot;</span><span class="p">:</span> <span class="n">_get_seam_searched_layers</span><span class="p">}],</span>
-    <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Save</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">CSV</span><span class="p">],</span>
-<span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Save seam search result.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    layer : str or MoleculesLayer</span>
-<span class="sd">        Layer that contains seam search result.</span>
-<span class="sd">    path : Path</span>
-<span class="sd">        Path to save the result.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">layer</span> <span class="o">=</span> <span class="n">assert_layer</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
-    <span class="n">result</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">SEAM_SEARCH_RESULT</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">SeamSearchResult</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;The layer does not have seam search result.&quot;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">result</span><span class="o">.</span><span class="n">to_dataframe</span><span class="p">()</span><span class="o">.</span><span class="n">write_csv</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -10445,7 +10272,10 @@ corresponding spline will be used.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1672</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1669</span>
+<span class="normal">1670</span>
+<span class="normal">1671</span>
+<span class="normal">1672</span>
 <span class="normal">1673</span>
 <span class="normal">1674</span>
 <span class="normal">1675</span>
@@ -10594,7 +10424,10 @@ corresponding spline will be used.</p>
             <span class="k">if</span> <span class="n">show_average</span> <span class="o">==</span> <span class="s2">&quot;Filtered&quot;</span><span class="p">:</span>
                 <span class="n">sigma</span> <span class="o">=</span> <span class="mf">0.25</span> <span class="o">/</span> <span class="n">loader</span><span class="o">.</span><span class="n">scale</span>
                 <span class="n">result</span><span class="o">.</span><span class="n">averages</span><span class="o">.</span><span class="n">gaussian_filter</span><span class="p">(</span><span class="n">sigma</span><span class="o">=</span><span class="n">sigma</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_show_rec</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">averages</span><span class="p">,</span> <span class="n">layer</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">store</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">_imlayer</span><span class="p">:</span> <span class="s2">&quot;Image&quot;</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_rec</span><span class="p">(</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">averages</span><span class="p">,</span> <span class="n">layer</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">store</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">)</span>
+            <span class="n">_imlayer</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="n">SEAM_SEARCH_RESULT</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span>
 
         <span class="c1"># plot all the correlation</span>
         <span class="n">_Logger</span><span class="o">.</span><span class="n">print_html</span><span class="p">(</span><span class="s2">&quot;&lt;code&gt;seam_search&lt;/code&gt;&quot;</span><span class="p">)</span>
@@ -10856,12 +10689,12 @@ corresponding spline will be used.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">626</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">624</span>
+<span class="normal">625</span>
+<span class="normal">626</span>
 <span class="normal">627</span>
 <span class="normal">628</span>
-<span class="normal">629</span>
-<span class="normal">630</span>
-<span class="normal">631</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;fluent:shape-organic-20-filled&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
+<span class="normal">629</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;fluent:shape-organic-20-filled&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span> <span class="nf">show_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Load and show mask image in the scale of the tomogram.&quot;&quot;&quot;</span>
@@ -10888,12 +10721,12 @@ corresponding spline will be used.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">605</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">603</span>
+<span class="normal">604</span>
+<span class="normal">605</span>
 <span class="normal">606</span>
 <span class="normal">607</span>
-<span class="normal">608</span>
-<span class="normal">609</span>
-<span class="normal">610</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;ic:baseline-view-in-ar&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
+<span class="normal">608</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;ic:baseline-view-in-ar&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span> <span class="nf">show_template</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Load and show template image in the scale of the tomogram.&quot;&quot;&quot;</span>
@@ -10920,7 +10753,9 @@ corresponding spline will be used.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">612</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">610</span>
+<span class="normal">611</span>
+<span class="normal">612</span>
 <span class="normal">613</span>
 <span class="normal">614</span>
 <span class="normal">615</span>
@@ -10930,9 +10765,7 @@ corresponding spline will be used.</p>
 <span class="normal">619</span>
 <span class="normal">620</span>
 <span class="normal">621</span>
-<span class="normal">622</span>
-<span class="normal">623</span>
-<span class="normal">624</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;material-symbols:view-in-ar&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
+<span class="normal">622</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;material-symbols:view-in-ar&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span> <span class="nf">show_template_original</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Load and show template image in the original scale.&quot;&quot;&quot;</span>
@@ -11051,7 +10884,9 @@ corresponding spline will be used.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">830</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">828</span>
+<span class="normal">829</span>
+<span class="normal">830</span>
 <span class="normal">831</span>
 <span class="normal">832</span>
 <span class="normal">833</span>
@@ -11081,9 +10916,7 @@ corresponding spline will be used.</p>
 <span class="normal">857</span>
 <span class="normal">858</span>
 <span class="normal">859</span>
-<span class="normal">860</span>
-<span class="normal">861</span>
-<span class="normal">862</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Split and average molecules&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Averaging</span><span class="p">)</span>
+<span class="normal">860</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Split and average molecules&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Averaging</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">fmt_layers</span><span class="p">(</span><span class="s2">&quot;Split-and-averaging of </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="p">))</span>  <span class="c1"># fmt: skip</span>
 <span class="k">def</span> <span class="nf">split_and_average</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
