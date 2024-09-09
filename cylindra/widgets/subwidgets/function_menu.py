@@ -171,8 +171,9 @@ class Volume(MagicTemplate):
     @set_design(text=capitalize)
     def save_fsc_result(
         self,
-        layer: Annotated[Image | str, {"choices": _get_fsc_layers}],
+        layer: Annotated[Image, {"choices": _get_fsc_layers}],
         path: Path.Save[FileFilter.DIRECTORY],
+        multiple_halfmaps: bool = False,
     ):
         """
         Save FSC result.
@@ -183,8 +184,9 @@ class Volume(MagicTemplate):
             Layer that contains seam search result.
         path : Path
             Directory to save the result.
+        multiple_halfmaps : bool
+            If True, save multiple set of halfmaps if available.
         """
-        layer = assert_layer(layer, self.parent_viewer)
         save_dir = Path(path)
         if not save_dir.exists():
             save_dir.mkdir()
@@ -197,10 +199,15 @@ class Volume(MagicTemplate):
             _fsc.to_dataframe().write_csv(save_dir / "fsc.csv")
         if _fsc_halfmaps is not None:
             if isinstance(_fsc_halfmaps, tuple) and len(_fsc_halfmaps) == 2:
-                if isinstance(img0 := _fsc_halfmaps[0], ip.ImgArray):
-                    img0.imsave(save_dir / "halfmap-0.mrc")
-                if isinstance(img1 := _fsc_halfmaps[1], ip.ImgArray):
-                    img1.imsave(save_dir / "halfmap-1.mrc")
+                img0, img1 = _fsc_halfmaps
+                if isinstance(img0, ip.ImgArray) and isinstance(img1, ip.ImgArray):
+                    if multiple_halfmaps:
+                        for i in range(img0.shape[0]):
+                            img0[i].imsave(save_dir / f"halfmap-0_set{i}.mrc")
+                            img1[i].imsave(save_dir / f"halfmap-1_set{i}.mrc")
+                    else:
+                        img0[0].imsave(save_dir / "halfmap-0.mrc")
+                        img1[0].imsave(save_dir / "halfmap-1.mrc")
         if isinstance(_fsc_mask, ip.ImgArray):
             _fsc_mask.imsave(save_dir / "mask.mrc")
         return None

@@ -647,7 +647,10 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
 
         ui.sta.save_last_average(dirpath)
         path = Path(dirpath).joinpath("fsc_result")
-        Volume(ui.sub_viewer).save_fsc_result(ui.mole_layers.last(), path)
+        Volume(ui.sub_viewer).save_fsc_result(ui.sub_viewer.layers[-1], path)
+        Volume(ui.sub_viewer).save_fsc_result(
+            ui.sub_viewer.layers[-1], path, multiple_halfmaps=True
+        )
 
     template_path = TEST_DIR / "beta-tubulin.mrc"
     ui.sta.params.template_path.value = template_path

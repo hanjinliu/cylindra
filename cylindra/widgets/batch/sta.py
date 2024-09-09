@@ -439,7 +439,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         def _as_imgarray(im, axes: str = "zyx") -> ip.ImgArray | None:
             if np.isscalar(im):
                 return None
-            return ip.asarray(im, axes=axes).set_scale(zyx=loader.scale)
+            return ip.asarray(im, axes=axes).set_scale(zyx=loader.scale, unit="nm")
 
         if show_average:
             avg = (img_0[0] + img_1[0]) / 2
