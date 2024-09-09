@@ -1463,9 +1463,7 @@ class SubtomogramAveraging(ChildWidget):
 
         Parameters
         ----------
-        {layers}{template_path}{mask_params}{interpolation}{cutoff}{bin_size}
-        moethod : str, default "zncc"
-            Metric to calculate correlation.
+        {layers}{template_path}{mask_params}{interpolation}{cutoff}{bin_size}{method}
         column_prefix : str, default "score"
             Prefix of the column names of the calculated correlations.
         """
@@ -1556,7 +1554,9 @@ class SubtomogramAveraging(ChildWidget):
             shape=None if size is None else (main.tomogram.nm2pixel(size),) * 3,
         ).fsc_with_halfmaps(mask, seed=seed, n_set=n_pairs, dfreq=dfreq, squeeze=False)
 
-        def _as_imgarray(im: np.ndarray, axes: str = "zyx") -> ip.ImgArray:
+        def _as_imgarray(im, axes: str = "zyx") -> ip.ImgArray | None:
+            if np.isscalar(im):
+                return None
             return ip.asarray(im, axes=axes).set_scale(zyx=loader.scale)
 
         if show_average:
@@ -1586,7 +1586,7 @@ class SubtomogramAveraging(ChildWidget):
                     _as_imgarray(img_0, axes="izyx"),
                     _as_imgarray(img_1, axes="izyx"),
                 )
-                _imlayer.metadata["fsc_mask"] = img_mask
+                _imlayer.metadata["fsc_mask"] = _as_imgarray(img_mask)
 
         return _calculate_fsc_on_return
 

@@ -436,7 +436,9 @@ class BatchSubtomogramAveraging(MagicTemplate):
             shape=None if size is None else self._get_shape_in_px(size, loader),
         ).fsc_with_halfmaps(mask, seed=seed, n_set=n_pairs, dfreq=dfreq, squeeze=False)
 
-        def _as_imgarray(im: np.ndarray, axes: str = "zyx") -> ip.ImgArray:
+        def _as_imgarray(im, axes: str = "zyx") -> ip.ImgArray | None:
+            if np.isscalar(im):
+                return None
             return ip.asarray(im, axes=axes).set_scale(zyx=loader.scale)
 
         if show_average:
