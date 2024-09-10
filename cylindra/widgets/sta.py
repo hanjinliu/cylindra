@@ -1,7 +1,7 @@
 import re
 import weakref
 from enum import Enum
-from typing import TYPE_CHECKING, Annotated, Any, Callable, Iterable, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Iterable, Literal
 
 import impy as ip
 import napari
@@ -37,7 +37,6 @@ from cylindra.components.seam_search import (
     BooleanSeamSearcher,
     CorrelationSeamSearcher,
     ManualSeamSearcher,
-    SeamSearchResult,
 )
 from cylindra.const import (
     ALN_SUFFIX,
@@ -309,7 +308,6 @@ class STAnalysis(MagicTemplate):
         seam_search = abstractapi()
         seam_search_by_feature = abstractapi()
         seam_search_manually = abstractapi()
-        save_seam_search_result = abstractapi()
 
     sep1 = Separator
     save_last_average = abstractapi()
@@ -1451,8 +1449,9 @@ class SubtomogramAveraging(ChildWidget):
         template_path: Annotated[_PathOrPathsOrNone, {"bind": _template_params}],
         mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        cutoff: _CutoffFreq = 0.5,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
-        metric: Literal["zncc", "ncc"] = "zncc",
+        method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
         column_prefix: str = "score",
     ):
         """
@@ -1464,56 +1463,46 @@ class SubtomogramAveraging(ChildWidget):
 
         Parameters
         ----------
-        {layers}{template_path}{mask_params}{interpolation}{bin_size}
-        metric : str, default "zncc"
-            Metric to calculate correlation.
+        {layers}{template_path}{mask_params}{interpolation}{cutoff}{bin_size}{method}
         column_prefix : str, default "score"
             Prefix of the column names of the calculated correlations.
         """
         layers = assert_list_of_layers(layers, self.parent_viewer)
         main = self._get_main()
-        scale = main.tomogram.scale * bin_size
-        tmps = []
-        _shapes = set[tuple[int, int, int]]()
+        combiner = MoleculesCombiner()
+
         if isinstance(template_path, (Path, str)):
             template_path = [template_path]
-        for path in template_path:
-            template_image = pipe.from_file(path).provide(scale)
-            tmps.append(template_image)
-            _shapes.add(template_image.shape)
-        if len(_shapes) != 1:
-            raise ValueError(f"Inconsistent shapes: {_shapes}")
-        output_shape = tuple(_s * scale for _s in _shapes.pop())
         mask = self.params._get_mask(mask_params)
-        match mask:
-            case None:
-                msk = 1
-            case pipe.ImageConverter:
-                msk = mask.convert(np.stack(tmps, axis=0).sum(axis=0), scale)
-            case pipe.ImageProvider:
-                msk = mask.provide(scale)
-            case _:  # pragma: no cover
-                raise RuntimeError("Unreachable")
-        corr_fn = ip.ncc if metric == "ncc" else ip.zncc
-        funcs = []
-        for tmp in tmps:
-            funcs.append(_define_correlation_function(tmp, msk, corr_fn))
+        all_mole = combiner.concat(layer.molecules for layer in layers)
 
-        for layer in layers:
-            mole = layer.molecules
-            out = main.tomogram.get_subtomogram_loader(
-                mole,
-                order=interpolation,
-                output_shape=output_shape,
-                binsize=bin_size,
-            ).apply(
-                funcs,
-                schema=[f"{column_prefix}_{i}" for i in range(len(template_path))],
-            )
-            layer.set_molecules_with_new_features(
-                layer.molecules.with_features(out.cast(pl.Float32))
-            )
-        return None
+        out = main.tomogram.get_subtomogram_loader(
+            all_mole,
+            order=interpolation,
+            binsize=bin_size,
+        ).score(
+            templates=[pipe.from_file(t) for t in template_path],
+            mask=mask,
+            alignment_model=_get_alignment(method),
+            cutoff=cutoff,
+            tilt=main.tomogram.tilt_model,
+        )
+        all_mole = all_mole.with_features(
+            pl.Series(f"{column_prefix}_{i}", col) for i, col in enumerate(out)
+        )
+
+        @thread_worker.callback
+        def _on_return():
+            moles = combiner.split(all_mole, layers)
+            for layer, each_mole in zip(layers, moles, strict=True):
+                features = each_mole.features.select(
+                    [f"{column_prefix}_{i}" for i in range(len(out))]
+                )
+                layer.set_molecules_with_new_features(
+                    layer.molecules.with_features(features)
+                )
+
+        return _on_return
 
     @set_design(text="Calculate FSC", location=STAnalysis)
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Calculating FSC of {!r}"))
@@ -1559,14 +1548,20 @@ class SubtomogramAveraging(ChildWidget):
             template=self.params._norm_template_param(template_path, allow_none=True),
             mask=self.params._get_mask(params=mask_params),
         )
-        fsc, avg = loader.reshape(
+        fsc, (img_0, img_1), img_mask = loader.reshape(
             template=template if size is None else None,
             mask=mask,
             shape=None if size is None else (main.tomogram.nm2pixel(size),) * 3,
-        ).fsc_with_average(mask=mask, seed=seed, n_set=n_pairs, dfreq=dfreq)
+        ).fsc_with_halfmaps(mask, seed=seed, n_set=n_pairs, dfreq=dfreq, squeeze=False)
+
+        def _as_imgarray(im, axes: str = "zyx") -> ip.ImgArray | None:
+            if np.isscalar(im):
+                return None
+            return ip.asarray(im, axes=axes).set_scale(zyx=loader.scale, unit="nm")
 
         if show_average:
-            img_avg = ip.asarray(avg, axes="zyx").set_scale(zyx=loader.scale)
+            avg = (img_0[0] + img_1[0]) / 2
+            img_avg = _as_imgarray(avg)
         else:
             img_avg = None
 
@@ -1585,11 +1580,13 @@ class SubtomogramAveraging(ChildWidget):
                 _Logger.print_html(f"Resolution at FSC={_c:.3f} ... <b>{_r:.3f} nm</b>")
 
             if img_avg is not None:
-                _rec_layer: "Image" = self._show_rec(
-                    img_avg,
-                    name=f"[AVG]{_name}",
+                _imlayer: "Image" = self._show_rec(img_avg, name=f"[AVG]{_name}")
+                _imlayer.metadata["fsc"] = result
+                _imlayer.metadata["fsc_halfmaps"] = (
+                    _as_imgarray(img_0, axes="izyx"),
+                    _as_imgarray(img_1, axes="izyx"),
                 )
-                _rec_layer.metadata["fsc"] = result
+                _imlayer.metadata["fsc_mask"] = _as_imgarray(img_mask)
 
         return _calculate_fsc_on_return
 
@@ -1737,7 +1734,10 @@ class SubtomogramAveraging(ChildWidget):
                 if show_average == "Filtered":
                     sigma = 0.25 / loader.scale
                     result.averages.gaussian_filter(sigma=sigma, update=True)
-                self._show_rec(result.averages, layer.name, store=False)
+                _imlayer: "Image" = self._show_rec(
+                    result.averages, layer.name, store=False
+                )
+                _imlayer.metadata[SEAM_SEARCH_RESULT] = result
 
             # plot all the correlation
             _Logger.print_html("<code>seam_search</code>")
@@ -1804,40 +1804,8 @@ class SubtomogramAveraging(ChildWidget):
         layer.features = layer.molecules.features.with_columns(new_feat)
         return undo_callback(layer.feature_setter(feat, layer.colormap_info))
 
-    def _get_seam_searched_layers(self, *_) -> list[MoleculesLayer]:
-        if self.parent_viewer is None:
-            return []
-        return [
-            (layer.name, layer)
-            for layer in self.parent_viewer.layers
-            if SEAM_SEARCH_RESULT in layer.metadata
-        ]
-
-    @set_design(text="Save seam search result", location=STAnalysis.SeamSearch)
-    @do_not_record
-    def save_seam_search_result(
-        self,
-        layer: Annotated[MoleculesLayer | str, {"choices": _get_seam_searched_layers}],
-        path: Path.Save[FileFilter.CSV],
-    ):
-        """
-        Save seam search result.
-
-        Parameters
-        ----------
-        layer : str or MoleculesLayer
-            Layer that contains seam search result.
-        path : Path
-            Path to save the result.
-        """
-        layer = assert_layer(layer, self.parent_viewer)
-        result = layer.metadata.get(SEAM_SEARCH_RESULT, None)
-        if not isinstance(result, SeamSearchResult):
-            raise TypeError("The layer does not have seam search result.")
-        return result.to_dataframe().write_csv(path)
-
     def _seam_search_input(
-        self, layer: MoleculesLayer, npf: int, order: int
+        self, layer: MoleculesLayer, npf: int | None, order: int
     ) -> tuple[SubtomogramLoader, int]:
         parent = self._get_main()
         mole = layer.molecules
@@ -2107,20 +2075,6 @@ def _default_align_averaged_shifts(mole: Molecules) -> "NDArray[np.floating]":
     dy = np.sqrt(np.sum((mole.pos[0] - mole.pos[1]) ** 2))  # axial shift
     dx = np.sqrt(np.sum((mole.pos[0] - mole.pos[npf]) ** 2))  # lateral shift
     return (dy * 0.6, dy * 0.6, dx * 0.6)
-
-
-def _define_correlation_function(
-    temp: "NDArray[np.float32]",
-    mask: "NDArray[np.float32] | float",
-    func: Callable[[ip.ImgArray, ip.ImgArray], float],
-) -> "Callable[[NDArray[np.float32]], float]":
-    temp = ip.asarray(temp, axes="zyx")
-
-    def _fn(img: "NDArray[np.float32]") -> float:
-        corr = float(func(ip.asarray(img * mask, axes="zyx"), temp * mask))
-        return corr
-
-    return _fn
 
 
 def _update_mole_pos(new: Molecules, old: Molecules, spl: "CylSpline") -> Molecules:

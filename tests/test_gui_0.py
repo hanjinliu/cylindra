@@ -610,6 +610,8 @@ def test_sub_widgets(ui: CylindraMainWidget):
 
 @pytest.mark.parametrize("bin_size", [1, 2])
 def test_sta(ui: CylindraMainWidget, bin_size: int):
+    from cylindra.widgets.subwidgets import Volume
+
     ui.load_project(PROJECT_DIR_13PF, filter=None)
     ui.AnalysisMenu.open_sta_widget()
     ui.sta.average_all("Mole-0", size=12.0, bin_size=bin_size)
@@ -644,6 +646,11 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
         assert_molecule_equal(mole, mole_read)
 
         ui.sta.save_last_average(dirpath)
+        path = Path(dirpath).joinpath("fsc_result")
+        Volume(ui.sub_viewer).save_fsc_result(ui.sub_viewer.layers[-1], path)
+        Volume(ui.sub_viewer).save_fsc_result(
+            ui.sub_viewer.layers[-1], path, multiple_halfmaps=True
+        )
 
     template_path = TEST_DIR / "beta-tubulin.mrc"
     ui.sta.params.template_path.value = template_path
@@ -715,6 +722,8 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
 
 
 def test_seam_search(ui: CylindraMainWidget):
+    from cylindra.widgets.subwidgets import Volume
+
     ui.load_project(PROJECT_DIR_13PF, filter=None)
     ui.filter_molecules(
         ui.parent_viewer.layers["Mole-0"], predicate="pl.col('nth') < 5"
@@ -729,7 +738,8 @@ def test_seam_search(ui: CylindraMainWidget):
     )
     with tempfile.TemporaryDirectory() as dirpath:
         path = Path(dirpath).joinpath("seam_result.csv")
-        ui.sta.save_seam_search_result(layer, path)
+        Volume(ui.sub_viewer).save_seam_search_result(layer, path)
+
     layer.molecules = layer.molecules.with_features(
         (pl.col("nth") * pl.col("pf-id") % 3 < 2).cast(pl.UInt8).alias("seam-label")
     )
