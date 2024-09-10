@@ -756,12 +756,10 @@ class CylTomogram(Tomogram):
                 npf=_misc.get_component(df_loc, H.npf, j),
             )
             analyzer = LatticeAnalyzer(spl.config)
-            cft = polar_img.fft(dims="rya")
-            cps_proj = (cft.real**2 + cft.imag**2).mean(axis="r")
-            peakv, peakh = analyzer.params_to_peaks(cps_proj, cparams)
+            peakv, peakh = analyzer.params_to_peaks(polar_img[0], cparams)
             peakv = peakv.shift_to_center()
             peakh = peakh.shift_to_center()
-            out.append(_misc.ImageWithPeak(polar_img, cps_proj, [peakv, peakh]))
+            out.append(_misc.ImageWithPeak(polar_img, [peakv, peakh]))
         return out
 
     @_misc.batch_process
@@ -801,9 +799,6 @@ class CylTomogram(Tomogram):
             binsize = spl.props.binsize_glob[H.twist]
         img_st = self.straighten_cylindric(i, binsize=binsize)
         img_st -= np.mean(img_st)
-        cft = img_st.fft(dims="rya")
-        cps = cft.real**2 + cft.imag**2
-        cps_proj = cps.mean(axis="r")
         cparams = spl.cylinder_params(
             spacing=spl.props.get_glob(H.spacing, default=None),
             pitch=spl.props.get_glob(H.pitch, default=None),
@@ -814,10 +809,10 @@ class CylTomogram(Tomogram):
             npf=spl.props.get_glob(H.npf, default=None),
         )
         analyzer = LatticeAnalyzer(spl.config)
-        peakv, peakh = analyzer.params_to_peaks(cps_proj, cparams)
+        peakv, peakh = analyzer.params_to_peaks(img_st[0], cparams)
         peakv = peakv.shift_to_center()
         peakh = peakh.shift_to_center()
-        return _misc.ImageWithPeak(img_st, cps_proj, [peakv, peakh])
+        return _misc.ImageWithPeak(img_st, [peakv, peakh])
 
     @_misc.batch_process
     def global_cft_params(

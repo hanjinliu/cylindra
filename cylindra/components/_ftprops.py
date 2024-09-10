@@ -193,6 +193,7 @@ class LatticeAnalyzer:
         img: ip.ImgArray,
         params: CylinderParameters,
     ) -> tuple[FTPeakInfo, FTPeakInfo]:
+        # `img` is only used for scale and shape.
         ya_scale_ratio = img.scale.y / img.scale.a
         tan_skew = math.tan(math.radians(params.skew))
         peakv = FTPeakInfo(
