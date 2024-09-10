@@ -591,6 +591,9 @@ def test_sub_widgets(ui: CylindraMainWidget):
         ui.spectra_inspector._click_at((15, 25))
         ui.spectra_inspector.peak_viewer.show_what = "Local-CFT"
         ui.spectra_inspector._click_at((5, 5))
+        ui.spectra_inspector.peak_viewer.show_what = "Local-CFT (5x upsampling)"
+        ui.spectra_inspector.peak_viewer.pos = 1
+        ui.spectra_inspector.peak_viewer.show_what = "Global-CFT"
 
         # file iterator
         ui.FileMenu.open_file_iterator()
