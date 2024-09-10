@@ -555,6 +555,8 @@ def test_sub_widgets(ui: CylindraMainWidget):
         ui.spline_slicer.refresh_widget_state()
         ui.spline_slicer.show_what = "CFT"
         ui.spline_slicer._update_canvas()
+        ui.spline_slicer.show_what = "CFT (5x upsampling)"
+        ui.spline_slicer._update_canvas()
         ui.spline_slicer.show_what = "R-projection"
         ui.spline_slicer._update_canvas()
         ui.spline_slicer.show_what = "Y-projection"
