@@ -1290,6 +1290,8 @@ def test_spline_fitter(ui: CylindraMainWidget):
     ui.spline_fitter.fit(shifts=[[1.094, 0.797], [1.094, 0.797], [1.094, 0.698]], i=0)
     ui.macro.undo()
     ui.macro.redo()
+    ui.spline_fitter.auto_center()
+    ui.spline_fitter.auto_center_all()
 
 
 def test_function_menu(make_napari_viewer):
