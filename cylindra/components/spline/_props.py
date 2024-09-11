@@ -126,8 +126,10 @@ class SplineProps:
             df = pl.DataFrame(props)
         else:
             df = props
-
-        self._loc = self._loc.with_columns(df)
+        if self._loc.shape[0] == 0:
+            self._loc = df
+        else:
+            self._loc = self._loc.with_columns(df)
         if isinstance(window_size, Mapping):
             self._window_size.update(
                 {c: _pos_float(window_size[c]) for c in df.columns}
@@ -159,7 +161,10 @@ class SplineProps:
             df = props
         if df.shape[0] > 1:
             raise ValueError("Global properties must be a single row.")
-        self._glob = self._glob.with_columns(df)
+        if self._glob.shape[0] == 0:
+            self._glob = df
+        else:
+            self._glob = self._glob.with_columns(df)
         if isinstance(bin_size, (int, np.integer)):
             for key in df.columns:
                 self._binsize_glob[key] = bin_size
@@ -173,9 +178,16 @@ class SplineProps:
         if kwargs:
             if props is not None:
                 raise ValueError("Cannot specify both props and kwargs.")
-            props = pl.DataFrame(kwargs)
+            df = pl.DataFrame(kwargs)
+        elif not isinstance(props, pl.DataFrame):
+            df = pl.DataFrame(props)
+        else:
+            df = props
         old_df = self._glob
-        self._glob = old_df.with_columns(props)
+        if old_df.shape[0] == 0:
+            self._glob = df
+        else:
+            self._glob = old_df.with_columns(df)
         try:
             yield
         finally:
