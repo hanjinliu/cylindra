@@ -516,12 +516,7 @@ class StaParameters(MagicTemplate):
                 ndisplay=3,
                 show=show,
             )
-            volume_menu = Volume(viewer)
-            volume_menu.native.setParent(
-                viewer.window.main_menu, volume_menu.native.windowFlags()
-            )
-            viewer.window.main_menu.addMenu(volume_menu.native)
-            viewer.layers.events.connect(volume_menu.reset_choices)
+            Volume(viewer)
             viewer.window.resize(10, 10)
             viewer.window.activate()
         image.scale_unit = "nm"

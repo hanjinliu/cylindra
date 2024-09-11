@@ -647,10 +647,10 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
 
         ui.sta.save_last_average(dirpath)
         path = Path(dirpath).joinpath("fsc_result")
-        Volume(ui.sub_viewer).save_fsc_result(ui.sub_viewer.layers[-1], path)
-        Volume(ui.sub_viewer).save_fsc_result(
-            ui.sub_viewer.layers[-1], path, multiple_halfmaps=True
-        )
+        vol = Volume(ui.sub_viewer)
+        assert len(vol._get_fsc_layers()) > 0
+        vol.save_fsc_result(ui.sub_viewer.layers[-1], path)
+        vol.save_fsc_result(ui.sub_viewer.layers[-1], path, multiple_halfmaps=True)
 
     template_path = TEST_DIR / "beta-tubulin.mrc"
     ui.sta.params.template_path.value = template_path
@@ -737,9 +737,13 @@ def test_seam_search(ui: CylindraMainWidget):
         template_path=TEST_DIR / "beta-tubulin.mrc",
         mask_params=(1, 1),
     )
+
+    vol = Volume(ui.sub_viewer)
+    assert len(vol._get_seam_searched_layers()) > 0
+
     with tempfile.TemporaryDirectory() as dirpath:
         path = Path(dirpath).joinpath("seam_result.csv")
-        Volume(ui.sub_viewer).save_seam_search_result(layer, path)
+        vol.save_seam_search_result(layer, path)
 
     layer.molecules = layer.molecules.with_features(
         (pl.col("nth") * pl.col("pf-id") % 3 < 2).cast(pl.UInt8).alias("seam-label")
@@ -1288,7 +1292,6 @@ def test_function_menu(make_napari_viewer):
 
     viewer: napari.Viewer = make_napari_viewer()
     vol = Volume(viewer)
-    viewer.window.add_dock_widget(vol)
     img = ip.asarray(
         np.arange(1000, dtype=np.float32).reshape(10, 10, 10), axes="zyx"
     ).set_scale(zyx=0.3, unit="nm")
