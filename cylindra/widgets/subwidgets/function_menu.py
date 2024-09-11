@@ -56,6 +56,11 @@ class Volume(MagicTemplate):
     def __init__(self, viewer: napari.Viewer):
         self._viewer = viewer
 
+    def __post_init__(self):
+        self.native.setParent(self._viewer.window.main_menu, self.native.windowFlags())
+        self._viewer.window.main_menu.addMenu(self.native)
+        self._viewer.layers.events.connect(self.reset_choices)
+
     @set_design(text=capitalize)
     def binning(
         self, layer: Image, bin_size: Annotated[int, {"min": 1, "max": 16}] = 2
