@@ -342,7 +342,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                             f"Globalprops not found in project at {prj.project_path}."
                         )
                     continue
-                imagespec = pl.Series(Mole.image, [idx]).cast(pl.UInt16)
+                imagespec = pl.lit(idx).alias(Mole.image).cast(pl.UInt16)
                 df = pl.read_csv(path).with_columns(imagespec)
             dataframes.append(df)
         out = cast_dataframe(pl.concat(dataframes, how="diagonal"))

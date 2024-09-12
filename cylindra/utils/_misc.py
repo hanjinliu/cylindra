@@ -284,6 +284,14 @@ def map_coordinates_task(
     return task
 
 
+def with_columns(df: pl.DataFrame, other: pl.DataFrame) -> pl.DataFrame:
+    if df.shape[0] == 0:
+        if not isinstance(other, pl.DataFrame):
+            return pl.DataFrame(other)
+        return other
+    return df.with_columns(other)
+
+
 class Projections:
     """
     Class that stores projections of a 3D image, calculated lazily.

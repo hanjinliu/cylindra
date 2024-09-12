@@ -9,6 +9,7 @@ import polars as pl
 from typing_extensions import Self
 
 from cylindra.const import nm
+from cylindra.utils import with_columns
 
 _DataFrameLike = pl.DataFrame | Mapping[str, Any] | Sequence[pl.Series | pl.Expr]
 _void = object()
@@ -85,7 +86,7 @@ class SplineProps:
         new._binsize_glob = self._binsize_glob.copy()
         return new
 
-    def __getitem__(self, key) -> Self:
+    def __getitem__(self, key: str) -> Self:
         new = SplineProps()
         new._loc = self._loc[key]
         new._glob = self._glob[key]
@@ -126,10 +127,7 @@ class SplineProps:
             df = pl.DataFrame(props)
         else:
             df = props
-        if self._loc.shape[0] == 0:
-            self._loc = df
-        else:
-            self._loc = self._loc.with_columns(df)
+        self._loc = with_columns(self._loc, df)
         if isinstance(window_size, Mapping):
             self._window_size.update(
                 {c: _pos_float(window_size[c]) for c in df.columns}
@@ -161,10 +159,7 @@ class SplineProps:
             df = props
         if df.shape[0] > 1:
             raise ValueError("Global properties must be a single row.")
-        if self._glob.shape[0] == 0:
-            self._glob = df
-        else:
-            self._glob = self._glob.with_columns(df)
+        self._glob = with_columns(self._glob, df)
         if isinstance(bin_size, (int, np.integer)):
             for key in df.columns:
                 self._binsize_glob[key] = bin_size
@@ -184,10 +179,7 @@ class SplineProps:
         else:
             df = props
         old_df = self._glob
-        if old_df.shape[0] == 0:
-            self._glob = df
-        else:
-            self._glob = old_df.with_columns(df)
+        self._glob = with_columns(self._glob, df)
         try:
             yield
         finally:
