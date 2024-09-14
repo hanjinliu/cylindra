@@ -22,7 +22,7 @@ license = { file = "LICENSE" }
 dynamic = ["version"]
 dependencies = [
     "impy-array>=2.4.2",
-    "acryo>=0.4.7",
+    "acryo>=0.4.13",
     "macro-kit>=0.4.6",
     "magicgui>=0.8.1",
     "magic-class>=0.7.11",
@@ -35,9 +35,9 @@ dependencies = [
     "numpy>=1.23.0",
     "scipy>=1.11.3",
     "pandas>=1.5.0",
-    "polars>=0.20.13,!=0.20.27",
+    "polars>=1.1.0",
     "scikit-image>=0.21.0",
-    "napari>=0.4.18",
+    "napari>=0.5.1",
     "qtpy>=2.3.1",
     "qt-command-palette>=0.0.7",
     "matplotlib>=3.8.1",
@@ -60,6 +60,7 @@ testing = [
     "tifffile>=2023.2.28",
     "starfile",
     "imodmodel",
+    "cookiecutter",
     "maturin>=1.5.0,<2.0.0",
 ]
 all = [
@@ -69,6 +70,7 @@ all = [
     "tifffile>=2023.2.28",
     "starfile",
     "imodmodel",
+    "cookiecutter",
 ]
 docs = [
     "pyqt5",
@@ -88,8 +90,23 @@ cylindra = "cylindra.__main__:main"
 [project.entry-points."napari.manifest"]
 cylindra = "cylindra:napari.yaml"
 
+[project.entry-points."cylindra.plugin"]
+IMOD = "cylindra_builtins.imod"
+RELION = "cylindra_builtins.relion"
+
+[project.entry-points.pytest11]
+cylindra = "cylindra_builtins._pytest_fixtures"
+
 [tool.maturin]
-include = ["**/*.pyi", "*.pyi", "**/*.svg", "**/*.yaml", "**/*.qss", "**/*.json"]
+include = [
+    "**/*.pyi",
+    "*.pyi",
+    "**/*.svg",
+    "**/*.yaml",
+    "**/*.qss",
+    "**/*.json",
+    "cylindra_builtins/**/*",
+]
 features = ["pyo3/extension-module"]
 module-name = "cylindra._cylindra_ext"
 
@@ -97,8 +114,8 @@ module-name = "cylindra._cylindra_ext"
 include-package-data = true
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = "-v"
+testpaths = ["tests", "cylindra_builtins/*/tests"]
+addopts = ["-v", "--maxfail=5"]
 filterwarnings = [
     "ignore::DeprecationWarning:qtpy",
     "ignore::DeprecationWarning:ipykernel",
@@ -111,12 +128,16 @@ filterwarnings = [
 ]
 
 [tool.coverage.run]
-source_pkgs = ["cylindra"]
+source = ["cylindra", "cylindra_builtins"]
 branch = true
 parallel = true
 
 [tool.coverage.paths]
-cylindra = ["*/cylindra/cylindra"]
+cylindra = ["cylindra/"]
+cylindra_builtins = ["cylindra_builtins/"]
+
+[tool.coverage.exclude]
+path = ["cylindra/cli/_cookiecutter_template/"]
 
 [tool.coverage.report]
 exclude_lines = [
@@ -132,7 +153,6 @@ exclude_lines = [
     "raise NotImplementedError",
     "pass",
 ]
-
 
 [tool.ruff]
 target-version = "py310"

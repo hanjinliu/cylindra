@@ -145,6 +145,20 @@ PolarsExprStr = Annotated[
         "widget_type": EvalLineEdit,
         "namespace": POLARS_NAMESPACE,
         "validator": _validate_expr,
+        "tooltip": "Values or polars expressions.",
+    },
+]
+
+
+DistExprStr = Annotated[
+    float | str,
+    {
+        "widget_type": EvalLineEdit,
+        "namespace": {"d": np.ones(1), "np": np, "__builtins__": {}},
+        "tooltip": (
+            "Distance in nm. Variable `d` is available as a numpy array of the current "
+            "distance values. `np` is also available as the numpy module."
+        ),
     },
 ]
 
@@ -275,6 +289,15 @@ class FscResult:
         fsc_std = np.std(fsc_all, axis=1)
         return cls(freq, fsc_mean, fsc_std, scale)
 
+    def to_dataframe(self) -> pl.DataFrame:
+        return pl.DataFrame(
+            {
+                "freq": self.freq,
+                "FSC_mean": self.mean,
+                "FSC_std": self.std,
+            }
+        )
+
     def get_resolution(self, res: float) -> nm:
         freq0 = None
         for i, fsc1 in enumerate(self.mean):
@@ -340,7 +363,7 @@ def get_code_theme(self: MagicTemplate) -> str:
     from napari.utils.theme import get_theme
 
     if (viewer := self.parent_viewer) or (viewer := napari.current_viewer()):
-        theme = get_theme(viewer.theme, as_dict=False).syntax_style
+        theme = get_theme(viewer.theme).syntax_style
     else:
         bg_color = self.native.palette().color(self.native.backgroundRole())
         if bg_color.lightness() > 128:

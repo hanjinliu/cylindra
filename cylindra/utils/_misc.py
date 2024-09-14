@@ -45,7 +45,6 @@ def distance_matrix(a: NDArray[np.floating], b: NDArray[np.floating]):
 
     distance_matrix(a, b) will return a matrix of shape (a.shape[0], b.shape[0])
     """
-    # TODO: avoid memory error
     return np.linalg.norm(a[:, np.newaxis] - b[np.newaxis], axis=-1)
 
 
@@ -283,6 +282,14 @@ def map_coordinates_task(
         like=input,
     )
     return task
+
+
+def with_columns(df: pl.DataFrame, other: pl.DataFrame) -> pl.DataFrame:
+    if df.shape[0] == 0:
+        if not isinstance(other, pl.DataFrame):
+            return pl.DataFrame(other)
+        return other
+    return df.with_columns(other)
 
 
 class Projections:

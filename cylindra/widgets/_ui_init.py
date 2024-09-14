@@ -40,16 +40,15 @@ if TYPE_CHECKING:
 
 @impl_preview(CylindraMainWidget.load_molecules)
 def _preview_load_molecules(self: CylindraMainWidget, paths: list[str]):
-    w = view_tables(paths, parent=self)
-    ACTIVE_WIDGETS.add(w)
+    view_tables(paths, parent=self)
 
 
 @impl_preview(CylindraMainWidget.load_project)
 def _preview_load_project(self: CylindraMainWidget, path: str):
     pviewer = CylindraProject.from_file(path).make_project_viewer()
-    pviewer.native.setParent(self.native, pviewer.native.windowFlags())
     ACTIVE_WIDGETS.add(pviewer)
-    return pviewer.show()
+    pviewer.native.setParent(self.native, pviewer.native.windowFlags())
+    pviewer.show()
 
 
 @impl_preview(CylindraMainWidget.clip_spline, auto_call=True)
@@ -159,7 +158,7 @@ def _preview_split_molecules(self: CylindraMainWidget, layer: MoleculesLayer, by
         colors = cmap.colors[1:]
         layer.face_color_cycle = colors
         if layer._view_ndim == 3:
-            layer.edge_color_cycle = colors
+            layer.border_color_cycle = colors
         layer.face_color = by
         yield
 
@@ -177,7 +176,7 @@ def _preview_seam_search_manual(
     series = result.as_series(feat.shape[0]).to_numpy()
     with _temp_layer_colors(layer):
         layer.face_color = np.where(series, "#FF005E", "#A5A5A5")
-        layer.edge_color = "#00105B"
+        layer.border_color = "#00105B"
         yield
 
 
@@ -321,7 +320,7 @@ def _binarize_feature_preview(
         out = layer.molecules.features[target] < threshold
     with _temp_layer_colors(layer):
         layer.face_color = np.where(out, "#FF0000", "#A5A5A5")
-        layer.edge_color = "#00105B"
+        layer.border_color = "#00105B"
         yield
 
 
@@ -362,9 +361,14 @@ def _setup_paint_molecules(self: CylindraMainWidget, gui: FunctionGui):
         if series.dtype in POLARS_NUMERIC_DTYPES:
             series = series.filter(~series.is_infinite())
             min_, max_ = series.min(), series.max()
-            offset_ = (max_ - min_) / 2
+            range_ = max_ - min_
+            if range_ == 0:
+                range_ = 0.0001
+            offset_ = range_ / 2
+            step_ = 10 ** int(np.log10(range_) - 2)
             lim_l.min = lim_h.min = min_ - offset_
             lim_l.max = lim_h.max = max_ + offset_
+            lim_l.step = lim_h.step = step_
             lim_l.value = min_
             lim_h.value = max_
             if series.dtype in POLARS_INTEGER_DTYPES:
@@ -518,21 +522,21 @@ def _setup_delete_molecules(self: CylindraMainWidget, gui: FunctionGui):
 def _temp_layer_colors(layer: MoleculesLayer):
     """Temporarily change the colors of a layer and restore them afterwards."""
     fc = layer.face_color
-    ec = layer.edge_color
+    ec = layer.border_color
     fcmap = layer.face_colormap
-    ecmap = layer.edge_colormap
+    ecmap = layer.border_colormap
     fclim = layer.face_contrast_limits
-    eclim = layer.edge_contrast_limits
+    eclim = layer.border_contrast_limits
     info = layer.colormap_info
     try:
         yield
     finally:
         layer.face_color = fc
-        layer.edge_color = ec
+        layer.border_color = ec
         layer.face_colormap = fcmap
-        layer.edge_colormap = ecmap
+        layer.border_colormap = ecmap
         layer.face_contrast_limits = fclim
-        layer.edge_contrast_limits = eclim
+        layer.border_contrast_limits = eclim
         layer._colormap_info = info
 
 

@@ -1,5 +1,3 @@
-import warnings
-
 from cylindra._napari._layers import LandscapeSurface, MoleculesLayer
 
 __all__ = ["MoleculesLayer", "LandscapeSurface"]
@@ -13,14 +11,3 @@ except ImportError:
     pass
 
 del install_custom_layers
-
-warnings.filterwarnings(
-    "ignore",
-    category=FutureWarning,
-    module="cylindra._napari",
-)
-warnings.filterwarnings(
-    "ignore",
-    category=FutureWarning,
-    module="napari",
-)

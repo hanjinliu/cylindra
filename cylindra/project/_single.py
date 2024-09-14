@@ -33,6 +33,7 @@ class CylindraProject(BaseProject):
     version: str
     dependency_versions: dict[str, str]
     image: PathLike | None
+    image_relative: PathLike | None = None
     scale: float
     invert: bool = False
     multiscales: list[int]
@@ -134,19 +135,12 @@ class CylindraProject(BaseProject):
                     continue
                 landscape_infos.append(LandscapeInfo.from_layer(gui, layer))
 
-        def as_relative(p: "Path | None"):
-            assert isinstance(p, Path) or p is None
-            try:
-                out = p.relative_to(project_dir)
-            except Exception:
-                out = p
-            return out
-
         return cls(
             datetime=datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
             version=_versions.pop("cylindra", "unknown"),
             dependency_versions=_versions,
-            image=as_relative(tomo.metadata.get("source", None)),
+            image=tomo.metadata.get("source", None),
+            image_relative=_as_relative(tomo.metadata.get("source", None), project_dir),
             scale=tomo.scale,
             invert=tomo.is_inverted,
             multiscales=[x[0] for x in tomo.multiscaled],
@@ -190,12 +184,14 @@ class CylindraProject(BaseProject):
             for info in self.molecules_info + self.landscape_info:
                 info.save_layer(gui, results_dir)
 
-            self._default_spline_config_path(results_dir).write_text(
-                gui.default_config.json_dumps()
-            )
+            _cfg_json = gui.default_config.json_dumps()
+            self._default_spline_config_path(results_dir).write_text(_cfg_json)
 
             # save macro
-            expr = as_main_function(gui._format_macro(gui.macro[gui._macro_offset :]))
+            expr = as_main_function(
+                gui._format_macro(gui.macro[gui._macro_offset :]),
+                imports=[plg.import_statement() for plg in gui._plugins_called],
+            )
             self._script_py_path(results_dir).write_text(expr)
 
             self.project_description = gui.GeneralInfo.project_desc.value
@@ -229,7 +225,7 @@ class CylindraProject(BaseProject):
             )
             yield cb
             cb.await_call()
-            gui._macro_offset = len(gui.macro)
+            gui._init_macro_state()
 
             @thread_worker.callback
             def _update_widget():
@@ -474,6 +470,14 @@ class CylindraProject(BaseProject):
                     binsize=self.multiscales,
                     compute=compute,
                 )
+            elif _rpath := self._try_resolve_image_relative():
+                tomo = CylTomogram.imread(
+                    path=_rpath,
+                    scale=self.scale,
+                    tilt=self.missing_wedge.as_param(),
+                    binsize=self.multiscales,
+                    compute=compute,
+                )
             else:
                 LOGGER.warning(
                     f"Cannot find image file: {self.image.as_posix()}. "
@@ -494,6 +498,19 @@ class CylindraProject(BaseProject):
             )
         tomo.splines.extend(self.iter_load_splines(dir))
         return tomo
+
+    def _try_resolve_image_relative(self) -> Path | None:
+        if self.image_relative is None or self.project_path is None:
+            return None
+        cur_dir = self.project_path.parent
+        for part in Path(self.image_relative).parts:
+            if part.startswith(".."):
+                cur_dir = cur_dir.parent
+            else:
+                cur_dir = cur_dir / part
+        if cur_dir.exists():
+            return cur_dir
+        return None
 
     def make_project_viewer(self):
         """Build a project viewer widget from this project."""
@@ -607,6 +624,20 @@ def _get_instance(gui: "CylindraMainWidget | None" = None):
     if ui is None:
         raise RuntimeError("No CylindraMainWidget GUI found.")
     return ui
+
+
+def _as_relative(p: Path | None, project_dir: Path | None):
+    if p is None or project_dir is None:
+        return None
+    elif isinstance(p, Path):
+        cur_path = project_dir
+        rel_path = Path("..")
+        for _ in range(5):
+            cur_path = cur_path.parent
+            if p.is_relative_to(cur_path):
+                return rel_path.parent / p.relative_to(cur_path)
+            rel_path = rel_path / ".."
+    return None
 
 
 def _drop_null_columns(df: pl.DataFrame) -> pl.DataFrame:

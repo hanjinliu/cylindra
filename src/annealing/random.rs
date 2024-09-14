@@ -117,4 +117,18 @@ impl RandomNumberGenerator {
         let idx = get_uniform(neighbors.len()).sample(&mut self.rng);
         neighbors[idx]
     }
+
+    pub fn rand_shift_or_none(
+        &mut self,
+        src: &Vector3D<isize>,
+    ) -> Option<Vector3D<isize>> {
+        let neighbors = self.neighbor_list.at(src);
+        let n_neighbors = neighbors.len();
+        let idx = get_uniform(n_neighbors + 1).sample(&mut self.rng);
+        if n_neighbors == idx {
+            None
+        } else {
+            Some(neighbors[idx])
+        }
+    }
 }

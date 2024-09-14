@@ -106,6 +106,8 @@ class FileFilter(SimpleNamespace):
     JSON = "JSON(*.json;*.txt);;All files (*)"
     PROJECT = "Project file (project.json;*.tar;*.zip);;All files (*)"
     CSV = "CSV (*.csv;*.txt;*.dat);;All files (*)"
+    DIRECTORY = "New directory (*)"
+    MOLE = "Molecules (*.csv;*.txt;*.dat;*.parquet);;All files (*)"
     PY = "Python (*.py);;All files (*)"
     MOD = "Model files (*.mod);;All files (*)"
     STAR = "STAR files (*.star);;All files (*)"

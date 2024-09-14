@@ -1,3 +1,5 @@
+import pytest
+
 from cylindra.widgets import _widget_ext
 
 
@@ -39,3 +41,22 @@ def test_kernel_edit():
     ]:
         widget.value = value
         assert widget.value == value
+
+
+def test_index_edit():
+    widget = _widget_ext.IndexEdit()
+    for value in [
+        "1, 2, npf",
+        "1, npf,",
+        "1, slice(10, None), N",
+        "[1, slice(None, 4)]",
+        "slice(4)",
+        "10",
+    ]:
+        widget.value = value
+        widget.value  # noqa: B018
+
+    for value in ["slice(1.1, 5), 4", "3, 5, 3.4", "5/2, 10"]:
+        widget.value = value
+        with pytest.raises(ValueError):
+            widget.value  # noqa: B018

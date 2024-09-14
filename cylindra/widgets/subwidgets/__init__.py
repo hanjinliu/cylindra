@@ -8,6 +8,7 @@ from cylindra.widgets.subwidgets.menus import (
     ImageMenu,
     MoleculesMenu,
     OthersMenu,
+    PluginsMenu,
     SplinesMenu,
 )
 from cylindra.widgets.subwidgets.misc import GeneralInfo, ImageLoader
@@ -43,6 +44,7 @@ __all__ = [
     "MoleculesMenu",
     "AnalysisMenu",
     "OthersMenu",
+    "PluginsMenu",
     "CylindraToolbar",
     "Runner",
     "ImageLoader",

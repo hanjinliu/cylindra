@@ -17,7 +17,7 @@ from superqt import QEnumComboBox, QLabeledDoubleSlider
 if TYPE_CHECKING:
     from qtpy.QtWidgets import QFormLayout
 
-    from ._layers import LandscapeSurface, MoleculesLayer
+    from cylindra._napari._layers import LandscapeSurface, MoleculesLayer
 
 
 @contextmanager
@@ -44,10 +44,7 @@ class QtMoleculesControls(QtPointsControls):
         self.select_button.hide()
         self.addition_button.hide()
         self.delete_button.hide()
-        try:
-            self.transform_button.hide()
-        except AttributeError:  # napari<0.5
-            pass
+        self.transform_button.hide()
 
         self.faceColorEdit.color_changed.disconnect()
         self.faceColorEdit.color_changed.connect(self._change_face_color)
@@ -90,10 +87,7 @@ class QtMoleculesControls(QtPointsControls):
 
         layout.removeRow(self.sizeSlider)
         layout.removeRow(self.symbolComboBox)
-        try:
-            layout.removeRow(self.edgeColorEdit)
-        except AttributeError:  # napari>=0.5
-            layout.removeRow(self.borderColorEdit)
+        layout.removeRow(self.borderColorEdit)
         layer.events.point_size.connect(self._on_point_size_change)
         layer.events.view_ndim.connect(self._on_dim_change)
 
@@ -200,7 +194,7 @@ class QtLandscapeSurfaceControls(QtSurfaceControls):
 def install_custom_layers():
     from napari._qt.layer_controls.qt_layer_controls_container import layer_to_controls
 
-    from ._layers import LandscapeSurface, MoleculesLayer
+    from cylindra._napari._layers import LandscapeSurface, MoleculesLayer
 
     layer_to_controls[MoleculesLayer] = QtMoleculesControls
     layer_to_controls[LandscapeSurface] = QtLandscapeSurfaceControls

@@ -30,9 +30,9 @@ class ReservedLayers:
             ndim=3,
             name="Highlight",
             face_color="transparent",
-            edge_color="crimson",
-            edge_width=0.16,
-            edge_width_is_relative=True,
+            border_color="crimson",
+            border_width=0.16,
+            border_width_is_relative=True,
             out_of_slice_display=True,
             blending="translucent_no_depth",
         )
@@ -43,7 +43,7 @@ class ReservedLayers:
     def update_image(self, img: ip.ImgArray, tr: float):
         """Update the reserved image layer"""
         self.image.data = img
-        self.image.scale = img.scale
+        self.image.scale = list(img.scale.values())
         self.image.name = img.name
         self.image.translate = [tr] * 3
         self.image.contrast_limits = _calc_contrast_limits(img)
@@ -52,12 +52,14 @@ class ReservedLayers:
         """Reset the reserved image layer"""
         self.image = Image(
             img,
-            scale=img.scale,
+            scale=list(img.scale.values()),
             name=img.name,
             translate=[tr, tr, tr],
             contrast_limits=_calc_contrast_limits(img),
             blending="translucent_no_depth",
         )
+        self.image.bounding_box.points = False
+        self.image.bounding_box.line_color = "#a0a0a0"
 
     def highlight_spline(self, i: int):
         """Highlight the current spline."""
@@ -140,7 +142,7 @@ def _prof_layer() -> Points:
         name=SELECTION_LAYER_NAME,
         features={SPLINE_ID: []},
         opacity=0.4,
-        edge_color="black",
+        border_color="black",
         face_color=SplineColor.DEFAULT,
         text={"color": "yellow"},
     )

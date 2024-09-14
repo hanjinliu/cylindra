@@ -1,0 +1,9 @@
+{%- if cookiecutter.license == "MIT" -%}
+{%- include 'licenses/MIT.txt' %}
+{%- elif cookiecutter.license == "BSD-3" -%}
+{%- include 'licenses/BSD-3.txt' %}
+{%- elif cookiecutter.license == "GNU GPL v3.0" -%}
+{%- include 'licenses/GPL-3.txt' %}
+{%- elif cookiecutter.license == "Apache Software License 2.0" -%}
+{%- include 'licenses/Apache-2.txt' %}
+{%- endif -%}

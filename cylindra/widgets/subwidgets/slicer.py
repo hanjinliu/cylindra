@@ -27,6 +27,7 @@ YPROJ = "Y-projection"
 RPROJ = "R-projection"
 RPROJ_FILT = "Filtered-R-projection"
 CFT = "CFT"
+CFT_UP = "CFT (5x upsampling)"
 
 POST_FILTERS: list[tuple[str, Callable[[ip.ImgArray], ip.ImgArray]]] = [
     ("None", lambda x: x),
@@ -39,7 +40,9 @@ _Logger = getLogger("cylindra")
 
 @magicclass(record=False)
 class SplineSlicer(ChildWidget):
-    show_what = vfield(label="kind").with_choices([YPROJ, RPROJ, RPROJ_FILT, CFT])
+    show_what = vfield(label="kind").with_choices(
+        [YPROJ, RPROJ, RPROJ_FILT, CFT, CFT_UP]
+    )
 
     def __init__(self):
         self._current_cparams = None
@@ -216,6 +219,21 @@ class SplineSlicer(ChildWidget):
                 return self._show_overlay_text_cb.with_args(result)
             yield
             pw = result.power_spectra(zero_norm=True, dims="rya").mean(axis="r")
+            yield
+            pw[:] = pw / pw.max()
+            img = pw.value
+        elif _type == CFT_UP:
+            result = self.post_filter(self._current_cylindrical_img(idx, pos, depth))
+            if isinstance(result, Exception):
+                return self._show_overlay_text_cb.with_args(result)
+            yield
+            spl = self._get_main().tomogram.splines[idx]
+
+            y0 = int(round(depth / spl.config.spacing_range.max * 1.2))
+            a0 = int(round(spl.config.npf_range.max * 6))
+            pw = result.local_power_spectra(
+                f"y={-y0}:{y0+1};a={-a0}:{a0+1}", dims="rya", upsample_factor=[1, 5, 5]
+            ).mean(axis="r")
             yield
             pw[:] = pw / pw.max()
             img = pw.value
