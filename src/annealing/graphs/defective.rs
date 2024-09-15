@@ -11,9 +11,9 @@ use crate::{
     value_error,
     coordinates::{Vector3D, CoordinateSystem, list_neighbors},
     cylindric::Index,
-    hash_2d::HashMap2D,
+    hash::HashMap2D,
     annealing::{
-        potential::{TrapezoidalPotential2D, BindingPotential2D, EdgeType},
+        potential::{TrapezoidalPotential2D, BindingPotential2D, BindingPotential, EdgeType},
         random::RandomNumberGenerator,
     }
 };

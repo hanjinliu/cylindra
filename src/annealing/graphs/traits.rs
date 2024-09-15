@@ -102,6 +102,12 @@ impl<Sn, Se> GraphComponents<Sn, Se> {
 }
 
 #[derive(Clone)]
+pub struct Node1D<S: Clone> {
+    pub index: usize,
+    pub state: S,
+}
+
+#[derive(Clone)]
 pub struct Node2D<S: Clone> {
     pub index: Index,
     pub state: S,

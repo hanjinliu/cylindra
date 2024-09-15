@@ -1315,11 +1315,11 @@ class SubtomogramAveraging(ChildWidget):
         spline: Annotated[int, {"choices": _get_splines}],
         template_path: Annotated[_PathOrPathsOrNone, {"bind": _template_params}],
         forward_is: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus",
-        interval: PolarsExprStrOrScalar = "8.2",
+        interval: PolarsExprStrOrScalar = "4.1",
         err_max: Annotated[nm, {"label": "Max fit error (nm)", "step": 0.1}] = 0.5,
         mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
-        max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
-        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
+        max_shifts: _MaxShifts = (2.0, 2.0, 2.0),
+        rotations: _Rotations = ((0.0, 0.0), (15.0, 5.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         range_long: _DistRangeLon = (4.0, 4.28),
@@ -1343,7 +1343,7 @@ class SubtomogramAveraging(ChildWidget):
             Which orientation is the forward direction. Set "PlusToMinus" if the
             template image is oriented from the plus end to the minus end in the y
             direction.
-        interval : float or str expression, default 8.2
+        interval : float or str expression, default 4.1
             Interval of the sampling points along the spline.
         {err_max}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}{range_long}
         {angle_max}{bin_size}{temperature_time_const}{upsample_factor}{random_seeds}
@@ -1351,11 +1351,11 @@ class SubtomogramAveraging(ChildWidget):
         t0 = timer()
         main = self._get_main()
         tomo = main.tomogram
-        spl = tomo.splines[spline]
+        spl_old = tomo.splines[spline]
         interv_expr = widget_utils.norm_scalar_expr(interval)
         mole_fw = tomo.map_centers(
             i=spline,
-            interval=spl.props.get_glob(interv_expr),
+            interval=spl_old.props.get_glob(interv_expr),
             rotate_molecules=False,
         )
         mole_rv = mole_fw.rotate_by_rotvec([np.pi, 0, 0])  # invert
@@ -1367,16 +1367,10 @@ class SubtomogramAveraging(ChildWidget):
 
         def _construct_landscape(mole_):
             landscape_ = self._construct_landscape(
-                molecules=mole_,
-                template_path=template_path,
-                mask_params=mask_params,
-                max_shifts=max_shifts,
-                rotations=rotations,
-                cutoff=cutoff,
-                order=interpolation,
-                bin_size=bin_size,
-                upsample_factor=upsample_factor,
-            )
+                molecules=mole_, template_path=template_path, mask_params=mask_params,
+                max_shifts=max_shifts, rotations=rotations, cutoff=cutoff, norm=False,
+                order=interpolation, bin_size=bin_size, upsample_factor=upsample_factor,
+            )  # fmt: skip
             yield
             mole, results = landscape_.run_filamentous_annealing(
                 range=range_long,
@@ -1390,26 +1384,49 @@ class SubtomogramAveraging(ChildWidget):
         mole_opt_fw, results_fw = yield from _construct_landscape(mole_fw)
         mole_opt_rv, results_rv = yield from _construct_landscape(mole_rv)
 
-        if results_fw[0].energies[-1] < results_rv[0].energies[-1]:  # fw is better
+        if results_fw[0].energies[-1] < results_rv[0].energies[-1]:  # forward is better
             mole_opt = mole_opt_fw
             ori = Ori(forward_is)
-        else:
+        else:  # reverse is better
             mole_opt = mole_opt_rv
             ori = Ori.invert(Ori(forward_is))
 
-        spl = CylSpline(
-            order=spl.order,
-            config=spl.config,
-            extrapolate=spl.extrapolate,
+        # calculate distances for logging
+        _ds = np.diff(mole_opt.pos, axis=0)
+        _dist: NDArray[np.float32] = np.sqrt(np.sum(_ds**2, axis=1))
+
+        spl_new = CylSpline(
+            order=spl_old.order,
+            config=spl_old.config,
+            extrapolate=spl_old.extrapolate,
         ).fit(mole_opt.pos, err_max=err_max)
-        spl.orientation = ori
-        tomo.splines[spline] = spl
+        spl_new.props.loc = spl_old.props.loc
+        spl_new.props.glob = spl_old.props.glob
+        spl_new.orientation = ori
+        tomo.splines[spline] = spl_new
         t0.toc()
 
         @thread_worker.callback
         def _on_return():
             main._update_splines_in_images()
+            _Logger.print(f"Orientation: {ori.value}")
+            _Logger.print(
+                f"Distance: mean = {_dist.mean():.3f} nm (ranging from "
+                f"{_dist.min():.3f} to {_dist.max():.3f}) nm "
+            )
             main.reset_choices()
+
+            @undo_callback
+            def _out():
+                tomo.splines[spline] = spl_old
+                main._update_splines_in_images()
+
+            @_out.with_redo
+            def _out():
+                tomo.splines[spline] = spl_new
+                main._update_splines_in_images()
+
+            return _out
 
         return _on_return
 
@@ -1442,18 +1459,11 @@ class SubtomogramAveraging(ChildWidget):
         """
         layer = assert_layer(layer, self.parent_viewer)
         lnd = self._construct_landscape(
-            molecules=layer.molecules,
-            template_path=template_path,
-            mask_params=mask_params,
-            max_shifts=max_shifts,
-            rotations=rotations,
-            cutoff=cutoff,
-            order=interpolation,
-            bin_size=bin_size,
-            upsample_factor=upsample_factor,
-            norm=norm,
-            method=method,
-        )
+            molecules=layer.molecules, template_path=template_path,
+            mask_params=mask_params, max_shifts=max_shifts, rotations=rotations,
+            cutoff=cutoff, order=interpolation, bin_size=bin_size, norm=norm,
+            upsample_factor=upsample_factor, method=method,
+        )  # fmt: skip
         surf = LandscapeSurface(lnd, name=f"{LANDSCAPE_PREFIX}{layer.name}")
         surf.source_component = layer.source_component
 

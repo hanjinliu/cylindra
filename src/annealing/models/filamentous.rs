@@ -3,16 +3,13 @@ use pyo3::{
     Python, Py, PyRefMut
 };
 use numpy::{
-    IntoPyArray, PyReadonlyArray2, PyReadonlyArray4, PyArray1, PyArray2,
-    ndarray::Array2, PyUntypedArrayMethods
+    ndarray::Array2, IntoPyArray, PyArray1, PyArray2, PyReadonlyArray2, PyReadonlyArray4, PyUntypedArrayMethods
 };
 
 use crate::annealing::{
-    random::RandomNumberGenerator,
-    graphs::{CylindricGraph, GraphTrait, CylindricGraphTrait},
-    reservoir::Reservoir,
+    graphs::{FilamentousGraph, GraphTrait}, random::RandomNumberGenerator, reservoir::Reservoir
 };
-use crate::{value_error, cylindric::Index};
+use crate::value_error;
 use super::misc::OptimizationState;
 
 #[pyclass]
@@ -162,7 +159,7 @@ impl FilamentousAnnealingModel {
         ang_max: f32,
         cooling_rate: f32,
     ) -> PyResult<PyRefMut<Self>>{
-        let model = slf.graph.potential
+        let model = slf.graph.binding_potential
             .with_dist(dist_min, dist_max)?
             .with_ang(ang_max)?
             .with_cooling_rate(cooling_rate);
@@ -269,17 +266,30 @@ impl FilamentousAnnealingModel {
         // readability.
         py.allow_threads(
             move || {
+                let mut _count = 0;
+                let mut energy_diffs = Vec::new();
                 loop {
+                    if _count > 10000 {
+                        let fmt = format!("{:?}", energy_diffs);
+                        panic!("{}", fmt);
+                    }
                     let shift = self.graph.try_all_shifts();
                     if shift.energy_diff < 0.0 {
                         self.graph.apply_shift(&shift);
+                        energy_diffs.push(shift.energy_diff);
                         self.iteration += 1;
+                        _count += 1;
                     } else {
                         break;
                     }
                 }
             }
         )
+    }
+
+    /// Get all the existing distances of longitudinal connections as a numpy array.
+    pub fn longitudinal_distances<'py>(&self, py: Python<'py>) -> Py<PyArray1<f32>> {
+        self.graph.get_distances().into_pyarray_bound(py).into()
     }
 }
 

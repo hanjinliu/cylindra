@@ -348,12 +348,8 @@ class Landscape:
                 time_constant=time_const,
             )
             .set_box_potential(
-                *self._norm_distance_range(
-                    distance_range_long, model.longitudinal_distances().mean()
-                ),
-                *self._norm_distance_range(
-                    distance_range_lat, model.lateral_distances().mean()
-                ),
+                *self._norm_distance_range_long(distance_range_long, model),
+                *self._norm_distance_range_lat(distance_range_lat, model),
                 float(np.deg2rad(angle_max)),
                 cooling_rate=cooling_rate,
             )
@@ -397,14 +393,14 @@ class Landscape:
                 time_constant=time_const,
             )
             .set_box_potential(
-                *self._norm_distance_range(distance_range, model.distances().mean()),
+                *self._norm_distance_range_long(distance_range, model),
                 float(np.deg2rad(angle_max)),
                 cooling_rate=cooling_rate,
             )
             .with_reject_limit(reject_limit)
         )
 
-    def annealing_model(
+    def cylindric_annealing_model(
         self,
         spl: CylSpline,
         distance_range_long: tuple[_DistLike, _DistLike],
@@ -490,7 +486,7 @@ class Landscape:
         _Logger.print_table(
             {
                 "Iteration": [r.niter for r in results],
-                "Score": [f"{-float(r.energies[-1]):.3g}" for r in results],
+                "Score": [f"{-float(r.energies[-1]):.5g}" for r in results],
                 "State": [r.state for r in results],
             }
         )
@@ -535,27 +531,13 @@ class Landscape:
         _Logger.print_table(
             {
                 "Iteration": [r.niter for r in results],
-                "Score": [-float(r.energies[-1]) for r in results],
+                "Score": [f"{-float(r.energies[-1]):.5g}" for r in results],
                 "State": [r.state for r in results],
             }
         )
         results = sorted(results, key=lambda r: r.energies[-1])
         mole_opt = self.transform_molecules(mole, results[0].indices)
         return mole_opt, results
-
-    def _normalize_args(
-        self, temperature_time_const, temperature, cooling_rate, reject_limit
-    ):
-        nmole = self.molecules.count()
-        time_const = nmole * np.prod(self.energies.shape[1:]) * temperature_time_const
-        _energy_std = np.std(self.energies)
-        if temperature is None:
-            temperature = _energy_std * 2
-        if cooling_rate is None:
-            cooling_rate = _energy_std / time_const * 8
-        if reject_limit is None:
-            reject_limit = nmole * 50
-        return time_const, temperature, cooling_rate, reject_limit
 
     def normed(self, sd: bool = True) -> Landscape:
         """Return a landscape with normalized mean energy."""
@@ -678,7 +660,7 @@ class Landscape:
         self.quaternions.tofile(path / "quaternions.txt", sep=",")
         return None
 
-    def _norm_distance_range(
+    def _norm_distance_range_long(
         self,
         rng: tuple[nm | str, nm | str],
         model: CylindricAnnealingModel,
