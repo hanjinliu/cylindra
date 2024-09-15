@@ -359,6 +359,27 @@ impl GraphTrait<Node2D<Shift>, EdgeType> for CylindricGraph {
         Node2D { index: idx, state: shift_new }
     }
 
+    /// Energy difference by shifting a state of node at idx.
+    fn energy_diff_by_shift(
+        &self,
+        idx: usize,
+        state_old: &Node2D<Shift>,
+        state_new: &Node2D<Shift>,
+    ) -> f32 {
+        let graph = self.components();
+        let mut e_old = self.internal(&state_old);
+        let mut e_new = self.internal(&state_new);
+        for edge_id in graph.connected_edge_indices(idx) {
+            let edge_id = *edge_id;
+            let ends = graph.edge_end(edge_id);
+            let other_idx = if ends.0 == idx { ends.1 } else { ends.0 };
+            let other_state = graph.node_state(other_idx);
+            e_old += self.binding(&state_old, &other_state, graph.edge_state(edge_id));
+            e_new += self.binding(&state_new, &other_state, graph.edge_state(edge_id));
+        }
+        e_new - e_old
+    }
+
     /// Initialize the node states to the center of each local coordinates.
     fn initialize(&mut self) -> &Self {
         let center = Vector3D::new(self.local_shape.z / 2, self.local_shape.y / 2, self.local_shape.x / 2);

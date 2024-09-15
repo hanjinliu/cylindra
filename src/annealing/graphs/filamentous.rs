@@ -273,6 +273,44 @@ impl FilamentousGraph {
         best_shift
     }
 
+    /// Calculate the deforming energy.
+    fn deforming(
+        &self,
+        node_state_prev: &Node1D<Shift>,
+        node_state: &Node1D<Shift>,
+        node_state_next: &Node1D<Shift>,
+    ) -> f32 {
+        let vec = node_state.state;
+        let vec1 = node_state_prev.state;
+        let vec2 = node_state_next.state;
+        let coord = &self.coords[node_state.index as isize];
+        let coord1 = &self.coords[node_state_prev.index as isize];
+        let coord2 = &self.coords[node_state_next.index as isize];
+        let dr1 = coord.at_vec(vec.into()) - coord1.at_vec(vec1.into());
+        let dr2 = coord.at_vec(vec.into()) - coord2.at_vec(vec2.into());
+        self.binding_potential.calculate_deform(&dr1, &dr2)
+    }
+
+    pub fn energy(&self) -> f32 {
+        let graph = self.components();
+        let mut energy = 0.0;
+        for i in 0..graph.node_count() {
+            energy += self.internal(&graph.node_state(i));
+        }
+        for i in 0..graph.edge_count() {
+            let edge = graph.edge_end(i);
+            let node_0 = graph.node_state(edge.0);
+            let node_1 = graph.node_state(edge.1);
+            energy += self.binding(&node_0, &node_1, &graph.edge_state(i));
+        }
+        for i in 1..graph.node_count() - 1 {
+            let prev_state = graph.node_state(i - 1);
+            let next_state = graph.node_state(i + 1);
+            energy += self.deforming(&prev_state, &graph.node_state(i), &next_state);
+        }
+        energy
+    }
+
     pub fn check_graph(&self) -> PyResult<()> {
         if self.components().node_count() < 2 {
             return value_error!("Graph has less than 2 nodes");
@@ -297,24 +335,7 @@ impl GraphTrait<Node1D<Shift>, EdgeType> for FilamentousGraph {
     fn internal(&self, node_state: &Node1D<Shift>) -> f32 {
         let idx = node_state.index;
         let vec = node_state.state;
-        let internal = self.energy[idx as isize][[vec.z as usize, vec.y as usize, vec.x as usize]];
-
-        if idx == 0 || idx == self.components.node_count() - 1 {
-            return internal;
-        }
-
-        let node_state_prev = self.components.node_state(idx - 1);
-        let node_state_next = self.components.node_state(idx + 1);
-        let vec = node_state.state;
-        let vec1 = node_state_prev.state;
-        let vec2 = node_state_next.state;
-        let coord = &self.coords[node_state.index as isize];
-        let coord1 = &self.coords[node_state_prev.index as isize];
-        let coord2 = &self.coords[node_state_next.index as isize];
-        let dr1 = coord.at_vec(vec.into()) - coord1.at_vec(vec1.into());
-        let dr2 = coord.at_vec(vec.into()) - coord2.at_vec(vec2.into());
-        let deform = self.binding_potential.calculate_deform(&dr1, &dr2);
-        internal + deform
+        self.energy[idx as isize][[vec.z as usize, vec.y as usize, vec.x as usize]]
     }
 
     /// Calculate the binding energy between two nodes.
@@ -333,6 +354,42 @@ impl GraphTrait<Node1D<Shift>, EdgeType> for FilamentousGraph {
         let coord2 = &self.coords[node_state1.index as isize];
         let dr = coord1.at_vec(vec1.into()) - coord2.at_vec(vec2.into());
         self.binding_potential.calculate_bind(&dr)
+    }
+
+    fn energy_diff_by_shift(
+        &self,
+        idx: usize,
+        state_old: &Node1D<Shift>,
+        state_new: &Node1D<Shift>,
+    ) -> f32 {
+        let graph = self.components();
+        let mut e_old = self.internal(&state_old);
+        let mut e_new = self.internal(&state_new);
+        for edge_id in graph.connected_edge_indices(idx) {
+            let edge_id = *edge_id;
+            let ends = graph.edge_end(edge_id);
+            let other_idx = if ends.0 == idx { ends.1 } else { ends.0 };
+            let other_state = graph.node_state(other_idx);
+            e_old += self.binding(&state_old, &other_state, graph.edge_state(edge_id));
+            e_new += self.binding(&state_new, &other_state, graph.edge_state(edge_id));
+        }
+        if 0 < idx && idx < graph.node_count() - 1 {
+            let state_prev = graph.node_state(idx - 1);
+            let state_next = graph.node_state(idx + 1);
+            e_old += self.deforming(&state_prev, &state_old, &state_next);
+            e_new += self.deforming(&state_prev, &state_new, &state_next);
+            if 1 < idx {
+                let state_prevprev = graph.node_state(idx - 2);
+                e_old += self.deforming(&state_prevprev, &state_prev, &state_old);
+                e_new += self.deforming(&state_prevprev, &state_prev, &state_new);
+            }
+            if idx < graph.node_count() - 2 {
+                let state_nextnext = graph.node_state(idx + 2);
+                e_old += self.deforming(&state_next, &state_old, &state_nextnext);
+                e_new += self.deforming(&state_next, &state_new, &state_nextnext);
+            }
+        }
+        e_new - e_old
     }
 
     /// Return a random neighbor state of a given node state.
