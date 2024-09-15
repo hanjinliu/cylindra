@@ -337,6 +337,8 @@ class Alignment(MagicTemplate):
     save_annealing_scores = abstractapi()
     sep1 = Separator
     TemplateImage = TemplateImage
+    sep2 = Separator
+    fit_spline_rfa = abstractapi()
 
 
 @magicmenu
