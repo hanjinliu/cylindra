@@ -48,6 +48,7 @@ from cylindra.widget_utils import (
     add_molecules,
     capitalize,
     change_viewer_focus,
+    timer,
 )
 from cylindra.widgets import _progress_desc as _pdesc
 from cylindra.widgets import subwidgets as _sw
@@ -63,6 +64,7 @@ from cylindra.widgets._main_utils import (
     AutoSaver,
     SplineTracker,
     degrees_to_rotator,
+    fast_percentile,
     normalize_offsets,
     normalize_radius,
 )
@@ -694,6 +696,7 @@ class CylindraMainWidget(MagicTemplate):
         method = ImageFilter(method)
         if self.tomogram.is_dummy:
             return
+        t0 = timer()
         with utils.set_gpu():
             img = self._reserved_layers.image_data
             overlap = [min(s, 32) for s in img.shape]
@@ -711,7 +714,7 @@ class CylindraMainWidget(MagicTemplate):
                 case _:  # pragma: no cover
                     raise ValueError(f"No method matches {method!r}")
 
-        contrast_limits = np.percentile(img_filt, [1, 99.9])
+        contrast_limits = fast_percentile(img_filt, [1, 99.9])
 
         @thread_worker.callback
         def _filter_reference_image_on_return():
@@ -721,12 +724,14 @@ class CylindraMainWidget(MagicTemplate):
             self.Overview.image = proj
             self.Overview.contrast_limits = contrast_limits
 
+        t0.toc()
         return _filter_reference_image_on_return
 
     @thread_worker.with_progress(desc="Inverting image")
     @set_design(text=capitalize, location=_sw.ImageMenu)
     def invert_image(self):
         """Invert the intensity of the images."""
+        t0 = timer()
         self.tomogram.invert()
         if self._reserved_layers.is_lazy:
 
@@ -736,7 +741,7 @@ class CylindraMainWidget(MagicTemplate):
 
         else:
             img_inv = -self._reserved_layers.image.data
-            cmin, cmax = np.percentile(img_inv, [1, 99.9])
+            cmin, cmax = fast_percentile(img_inv, [1, 99.9])
             if cmin >= cmax:
                 cmax = cmin + 1
 
@@ -749,6 +754,7 @@ class CylindraMainWidget(MagicTemplate):
                 self.Overview.contrast_limits = -chigh, -clow
                 return undo_callback(self.invert_image)
 
+        t0.toc()
         return _invert_image_on_return
 
     @set_design(text="Add multi-scale", location=_sw.ImageMenu)
@@ -2675,20 +2681,21 @@ class CylindraMainWidget(MagicTemplate):
 
         self.macro.clear_undo_stack()
         self.Overview.layers.clear()
-        self._init_widget_state()
-        self._init_layers()
-        self.reset_choices()
+        with self._pend_reset_choices():
+            self._init_widget_state()
+            self._init_layers()
 
-        # backward compatibility
-        if isinstance(filt, bool):
-            if filt:
-                filt = ImageFilter.Lowpass
-            else:
-                filt = None
-        if filt is not None and not isinstance(imgb, ip.LazyImgArray):
-            self.filter_reference_image(method=filt)
-        if invert:
-            self.invert_image()
+            # backward compatibility
+            if isinstance(filt, bool):
+                if filt:
+                    filt = ImageFilter.Lowpass
+                else:
+                    filt = None
+            if filt is not None and not isinstance(imgb, ip.LazyImgArray):
+                self.filter_reference_image(method=filt)
+            if invert:
+                self.invert_image()
+        self.reset_choices()
         self.GeneralInfo.project_desc.value = ""  # clear the project description
         self._need_save = False
         self._macro_image_load_offset = len(self.macro)
