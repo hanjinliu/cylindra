@@ -1231,7 +1231,10 @@ def test_calc_misc(ui: CylindraMainWidget):
         fp_pdb = Path(dirpath) / "test.pdb"
         fp_pdb.write_text(PDB_TEXT)
         ui.sta.AlignmentMenu.TemplateImage.convert_pdb_to_image(
-            fp_pdb, fp_img, degrees=[("z", 90)]
+            fp_pdb,
+            fp_img,
+            degrees=[("z", 90)],
+            view_in_canvas=False,
         )
 
         fp_csv = Path(dirpath) / "test.csv"
@@ -1240,6 +1243,18 @@ def test_calc_misc(ui: CylindraMainWidget):
         ui.sta.AlignmentMenu.TemplateImage.convert_csv_to_image(fp_csv, fp_img)
         df.with_columns(pl.Series("weight", [0.4, 0.5, 0.9])).write_csv(fp_csv)
         ui.sta.AlignmentMenu.TemplateImage.convert_csv_to_image(fp_csv, fp_img)
+        tester = mcls_testing.FunctionGuiTester(
+            ui.sta.AlignmentMenu.TemplateImage.simulate_cylinder
+        )
+        tester.click_preview()
+        ui.sta.AlignmentMenu.TemplateImage.simulate_cylinder(
+            TEST_DIR / "beta-tubulin.mrc",
+            fp_img,
+            length=8.0,
+            scale=1.0,
+            npf=4,
+            radius=4.0,
+        )
 
 
 def test_lattice_structure_of_curved_microtubule(ui: CylindraMainWidget):
