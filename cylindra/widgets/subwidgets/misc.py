@@ -15,7 +15,6 @@ from magicgui.widgets import TextEdit
 from qtpy import QtGui
 from qtpy.QtCore import Qt
 
-from cylindra._config import get_config
 from cylindra._previews import view_image
 from cylindra.components import CylTomogram
 from cylindra.const import FileFilter, ImageFilter
@@ -135,8 +134,8 @@ class ImageLoader(MagicTemplate):
         path = Path(self.path)
         if not path.exists() or not path.is_file():
             return
-        img = ip.lazy.imread(path, chunks=get_config().dask_chunk)
-        scale = img.scale.x
+        header = ip.read_header(path)
+        scale = header.scale["x"]
         self.scale.scale_value = f"{scale:.4f}"
         if len(self.bin_size) < 2:
             self.bin_size = [ceilint(0.96 / scale)]
