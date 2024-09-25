@@ -78,7 +78,7 @@ def align_annealing_fmt(layer: Layer):
     name = _get_name(layer)
     yield f"(0/3) Preparing template images for {name!r}"
     yield f"(1/3) Calculating the correlation landscape of {name!r}"
-    yield f"(2/3) Running Annealing of {name!r}"
+    yield f"(2/3) Running RMA of {name!r}"
     yield "(3/3) Finishing"
 
 
@@ -97,3 +97,13 @@ def classify_pca_fmt(layer: Layer):
     yield "(2/4) Transforming all the images"
     yield "(3/4) Creating average images for each cluster"
     yield "(4/4) Finishing"
+
+
+def fit_spline_rfa_fmt():
+    yield "(0/6) Preparing template images"
+    yield "(1/6) Calculating the correlation landscape for forward fitting"
+    yield "(2/6) Running forward RFA"
+    yield "(3/6) Preparing template images"
+    yield "(4/6) Calculating the correlation landscape for reverse fitting"
+    yield "(5/6) Running reverse RFA"
+    yield "(6/6) Finishing"

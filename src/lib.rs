@@ -8,7 +8,7 @@ pub mod annealing;
 pub mod filters;
 pub mod exceptions;
 pub mod regionprops;
-pub mod hash_2d;
+pub mod hash;
 
 // Python module
 #[pymodule]
@@ -22,6 +22,7 @@ fn _cylindra_ext(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<cylindric::CylinderGeometry>()?;
     m.add_class::<cylindric::Index>()?;
     m.add_class::<annealing::CylindricAnnealingModel>()?;
+    m.add_class::<annealing::FilamentousAnnealingModel>()?;
     m.add_class::<annealing::DefectiveCylindricAnnealingModel>()?;
     m.add_class::<filters::CylindricArray>()?;
     m.add_class::<regionprops::RegionProfiler>()?;

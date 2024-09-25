@@ -1328,7 +1328,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         layer: MoleculesLayerType,
         err_max: Annotated[nm, {"label": "Max fit error (nm)", "step": 0.1}] = 0.8,
-        ids: list[int] = (),
+        ids: list[int] = (0,),
         config: Annotated[dict[str, Any] | SplineConfig, {"validator": _get_default_config}] = None,
     ):  # fmt: skip
         """
@@ -1341,7 +1341,7 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {layer}{err_max}
-        ids : list of int, default ()
+        ids : list of int, default (0,)
             Protofilament IDs to be converted.
         """
         layer = assert_layer(layer, self.parent_viewer)
@@ -1357,6 +1357,24 @@ class CylindraMainWidget(MagicTemplate):
         self.reset_choices()
         self._update_splines_in_images()
         return None
+
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.FromToSpline)
+    def filament_to_spline(
+        self,
+        layer: MoleculesLayerType,
+        err_max: Annotated[nm, {"label": "Max fit error (nm)", "step": 0.1}] = 0.8,
+        config: Annotated[dict[str, Any] | SplineConfig, {"validator": _get_default_config}] = None,
+    ):  # fmt: skip
+        """
+        Convert a filament to splines.
+
+        Parameters
+        ----------
+        {layer}{err_max}
+        """
+        return self.protofilaments_to_spline(
+            layer, err_max=err_max, ids=(), config=config
+        )
 
     @set_design(text=capitalize, location=_sw.AnalysisMenu.Radius)
     @thread_worker.with_progress(desc="Measuring Radius", total=_NSPLINES)
