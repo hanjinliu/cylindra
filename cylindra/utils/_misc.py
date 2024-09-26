@@ -284,6 +284,12 @@ def map_coordinates_task(
     return task
 
 
+def find_changing_point(arr: NDArray[np.floating]) -> int:
+    from cylindra._cylindra_ext import find_changing_point as _find_changing_point_rs
+
+    return _find_changing_point_rs(np.asarray(arr, dtype=np.float32))
+
+
 def with_columns(df: pl.DataFrame, other: pl.DataFrame) -> pl.DataFrame:
     if df.shape[0] == 0:
         if not isinstance(other, pl.DataFrame):

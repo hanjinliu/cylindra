@@ -970,6 +970,71 @@ class CylindraMainWidget(MagicTemplate):
         return out
 
     @set_design(text=capitalize, location=_sw.SplinesMenu)
+    def split_spline(
+        self,
+        spline: Annotated[int, {"choices": _get_splines}],
+        at: Annotated[nm, {"min": 0.0, "max": 10000.0, "step": 0.1}] = 100.0,
+        from_start: bool = True,
+        trim: Annotated[nm, {"min": 0.0, "max": 100.0, "step": 0.1}] = 0.0,
+    ):
+        """
+        Split the spline into two at the given position.
+
+        Parameters
+        ----------
+        {spline}
+        at : float, default 100.0
+            Position to split the spline in nm.
+        from_start : bool, default True
+            If True, the split position will be measured from the start of the spline.
+        """
+        spl = self.splines[spline]
+        spls = spl.split(at, from_start=from_start, trim=trim)
+        self.splines.pop(spline)
+        self.splines.extend(spls)
+        self._update_splines_in_images()
+        self.reset_choices()
+        return None
+
+    @set_design(text=capitalize, location=_sw.SplinesMenu)
+    def split_spline_at_changing_point(
+        self,
+        splines: SplinesType = None,
+        estimate_by: str = "radius",
+        relative_diff: Annotated[float, {"min": 0.0, "max": 100.0, "step": 0.1}] = 2.0,
+        trim: Annotated[nm, {"min": 0.0, "max": 100.0, "step": 0.1}] = 0.0,
+    ):
+        splines = self._norm_splines(splines)
+        all_spl = [self.splines[i] for i in splines]
+        spl_to_remove = list[CylSpline]()
+        spl_to_add = list[CylSpline]()
+        for j, spl in enumerate(all_spl):
+            if (loc := spl.props.get_loc(estimate_by, None)) is None:
+                raise ValueError(
+                    f"Spline-{j} does not have {estimate_by} local property."
+                )
+            idx = utils.find_changing_point(loc)
+            mean_diff = float(abs(loc[:idx].mean() - loc[idx:].mean()))
+            std_former = float(loc[:idx].std())
+            std_latter = float(loc[idx:].std())
+            _Logger.print(
+                f"spline-{j}: {mean_diff=:.3g}, {std_former=:.3g}, {std_latter=:.3g}"
+            )
+            if 2 * mean_diff / (std_former + std_latter) < relative_diff:
+                continue
+            at = spl.length(0, (spl.anchors[idx - 1] + spl.anchors[idx]) / 2)
+            spl_to_remove.append(spl)
+            spl_to_add.extend(spl.split(at, from_start=True, trim=trim))
+
+        for _spl in spl_to_remove:
+            self.splines.remove(_spl)
+        self.splines.extend(spl_to_add)
+
+        self._update_splines_in_images()
+        self.reset_choices()
+        return None
+
+    @set_design(text=capitalize, location=_sw.SplinesMenu)
     @confirm(
         text="Spline has properties. Are you sure to delete it?",
         condition=_confirm_delete,

@@ -512,6 +512,11 @@ class SplinesMenu(ChildWidget):
     copy_spline_new_config = abstractapi()
     sep2 = Separator
 
+    split_spline = abstractapi()
+    split_spline_at_changing_point = abstractapi()
+
+    sep3 = Separator
+
     set_spline_props = abstractapi()
 
 
