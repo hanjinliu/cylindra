@@ -179,3 +179,8 @@ def test_rust_expressions():
 def test_validate():
     widget_utils._validate_expr_or_scalar(pl.col("a") == 3)
     widget_utils._validate_expr_or_scalar('pl.col("a") == 3')
+
+
+def test_find_changing_point():
+    idx = utils.find_changing_point([0, 1, 0, 1, 0, 1, 4, 5, 5])
+    assert idx == 6

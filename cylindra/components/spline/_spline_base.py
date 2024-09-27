@@ -644,20 +644,29 @@ class Spline(BaseComponent):
         at: nm,
         from_start: bool = True,
         trim: nm = 0.0,
-    ) -> tuple[Self, Self]:
+        allow_discard: bool = False,
+    ) -> list[Self]:
         spl_len = self.length()
         if not from_start:
             at = spl_len - at
-        at_rel = at / spl_len
-        trim_rel = trim / spl_len
-        if at_rel < trim_rel or at_rel > 1 - trim_rel:
+        at_rel_0 = (at - trim) / spl_len
+        at_rel_1 = (at + trim) / spl_len
+        out = list["Self"]()
+        if at_rel_0 >= 0:
+            out.append(self.clip(0.0, at_rel_0))
+        elif not allow_discard:
             raise ValueError(
-                "Split position must be between `trim` and `(spline length) - trim`. "
-                f"Tried to split at {at:.1f} nm in a spline of length {spl_len:.1f} nm."
+                "Split position must be over `trim` if allow_discard is False, but "
+                f"tried to split at {at:.1f} nm."
             )
-        at_rel_0 = at_rel - trim_rel
-        at_rel_1 = at_rel + trim_rel
-        return self.clip(0.0, at_rel_0), self.clip(at_rel_1, 1.0)
+        if at_rel_1 <= 1.0:
+            out.append(self.clip(at_rel_1, 1.0))
+        elif not allow_discard:
+            raise ValueError(
+                "Split position must be under `length - trim` if allow_discard is "
+                f"False, but tried to split at {at:.1f} nm (length = {spl_len:.1f})."
+            )
+        return out
 
     def curvature(
         self,

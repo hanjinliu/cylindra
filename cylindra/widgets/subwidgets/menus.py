@@ -513,7 +513,7 @@ class SplinesMenu(ChildWidget):
     sep2 = Separator
 
     split_spline = abstractapi()
-    split_spline_at_changing_point = abstractapi()
+    split_splines_at_changing_point = abstractapi()
 
     sep3 = Separator
 

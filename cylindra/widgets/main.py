@@ -987,48 +987,80 @@ class CylindraMainWidget(MagicTemplate):
             Position to split the spline in nm.
         from_start : bool, default True
             If True, the split position will be measured from the start of the spline.
+        trim : float, default 0.0
+            Trim the split parts by this length (nm).
         """
         spl = self.splines[spline]
         spls = spl.split(at, from_start=from_start, trim=trim)
         self.splines.pop(spline)
-        self.splines.extend(spls)
+        for new_spl in reversed(spls):
+            self.splines.insert(spline, new_spl)
         self._update_splines_in_images()
         self.reset_choices()
-        return None
+
+        @undo_callback
+        def _out():
+            del self.splines[-2:]
+            self.splines.insert(spline, spl)
+            self._update_splines_in_images()
+            self.reset_choices()
+
+        return _out
 
     @set_design(text=capitalize, location=_sw.SplinesMenu)
-    def split_spline_at_changing_point(
+    def split_splines_at_changing_point(
         self,
         splines: SplinesType = None,
         estimate_by: str = "radius",
-        relative_diff: Annotated[float, {"min": 0.0, "max": 100.0, "step": 0.1}] = 2.0,
-        trim: Annotated[nm, {"min": 0.0, "max": 100.0, "step": 0.1}] = 0.0,
+        diff_cutoff: Annotated[float, {"min": 0.0, "max": 100.0, "step": 0.1}] = 2.0,
+        trim: Annotated[nm, {"min": 0.0, "max": 1000.0, "step": 0.1}] = 0.0,
     ):
+        """
+        Detect the changing point of the spline and split it there.
+
+        This method is useful when (1) there's a change in the protofilament number, or
+        (2) microtubules were polymerized from seeds.
+
+        Parameters
+        ----------
+        {splines}
+        estimate_by : str, default "radius"
+            Local property to estimate the changing point. Must be one of the local
+            property of the splines.
+        diff_cutoff : float, default 2.0
+            The cutoff value of the relative difference between the two regions to be
+            considered as a changing point. The formula of relative difference is
+            `relative_diff = mean_diff / (std_former + std_latter)`.
+        trim : float, default 0.0
+            Trim the split parts by this length (nm). If any of the split parts is
+            shorter than this length, the part will be discarded.
+        """
         splines = self._norm_splines(splines)
-        all_spl = [self.splines[i] for i in splines]
-        spl_to_remove = list[CylSpline]()
-        spl_to_add = list[CylSpline]()
-        for j, spl in enumerate(all_spl):
+        spl_map = dict[int, list[CylSpline]]()
+        _Logger.print("`split_spine_at_changing_point`")
+        for i in splines:
+            spl = self.splines[i]
             if (loc := spl.props.get_loc(estimate_by, None)) is None:
                 raise ValueError(
-                    f"Spline-{j} does not have {estimate_by} local property."
+                    f"Spline-{i} does not have {estimate_by!r} local property."
                 )
             idx = utils.find_changing_point(loc)
             mean_diff = float(abs(loc[:idx].mean() - loc[idx:].mean()))
-            std_former = float(loc[:idx].std())
-            std_latter = float(loc[idx:].std())
-            _Logger.print(
-                f"spline-{j}: {mean_diff=:.3g}, {std_former=:.3g}, {std_latter=:.3g}"
-            )
-            if 2 * mean_diff / (std_former + std_latter) < relative_diff:
+            std_former = float(loc[:idx].std(ddof=0))
+            std_latter = float(loc[idx:].std(ddof=0))
+            relative_diff = mean_diff / (std_former + std_latter)
+            _log = f"spline-{i}: {relative_diff=:.3g} ({mean_diff=:.3g}, {std_former=:.3g}, {std_latter=:.3g})"  # fmt: skip
+            if mean_diff / (std_former + std_latter) < diff_cutoff:
+                _Logger.print(_log + " ==> skip")
                 continue
             at = spl.length(0, (spl.anchors[idx - 1] + spl.anchors[idx]) / 2)
-            spl_to_remove.append(spl)
-            spl_to_add.extend(spl.split(at, from_start=True, trim=trim))
+            _Logger.print(_log + f" ==> split at {at:.1f} nm")
+            spl_map[i] = spl.split(at, from_start=True, trim=trim, allow_discard=True)
 
-        for _spl in spl_to_remove:
-            self.splines.remove(_spl)
-        self.splines.extend(spl_to_add)
+        for i, new_spls in sorted(spl_map.items(), key=lambda x: x[0], reverse=True):
+            self.splines.pop(i)
+            for new_spl in reversed(new_spls):
+                self.splines.insert(i, new_spl)
 
         self._update_splines_in_images()
         self.reset_choices()
