@@ -973,10 +973,10 @@ class CylindraMainWidget(MagicTemplate):
     def split_spline(
         self,
         spline: Annotated[int, {"choices": _get_splines}],
-        at: Annotated[nm, {"min": 0.0, "max": 10000.0, "step": 0.1}] = 100.0,
+        at: Annotated[nm, {"min": 0.0, "max": 10000.0, "step": 0.1, "label": "split at (nm)"}] = 100.0,
         from_start: bool = True,
         trim: Annotated[nm, {"min": 0.0, "max": 100.0, "step": 0.1}] = 0.0,
-    ):
+    ):  # fmt: skip
         """
         Split the spline into two at the given position.
 

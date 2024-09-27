@@ -516,6 +516,12 @@ def test_preview(ui: CylindraMainWidget):
     tester.update_parameters(path=PROJECT_DIR_13PF)
     tester.click_preview()
 
+    tester = mcls_testing.FunctionGuiTester(ui.split_spline)
+    tester.click_preview()
+    tester.update_parameters(at=30)
+    tester.update_parameters(at=32)
+    tester.click_preview()
+
     tester = mcls_testing.FunctionGuiTester(ui.load_molecules)
     tester.update_parameters(
         paths=[PROJECT_DIR_13PF / "Mole-0.csv", PROJECT_DIR_13PF / "Mole-1.csv"]

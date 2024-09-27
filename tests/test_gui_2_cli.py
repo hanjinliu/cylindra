@@ -85,15 +85,16 @@ def test_average(run_cli):
 
 
 def test_run(run_cli):
-    run_cli("cylindra", "run", PROJECT_DIR_14PF, "--headless")
-    run_cli(
-        "cylindra",
-        "run",
-        PROJECT_DIR_14PF,
-        "--headless",
-        "-o",
-        Path("test.tar"),
-    )
+    with tempfile.TemporaryDirectory() as tmpdir:
+        run_cli("cylindra", "run", PROJECT_DIR_14PF, "--headless")
+        run_cli(
+            "cylindra",
+            "run",
+            PROJECT_DIR_14PF,
+            "--headless",
+            "-o",
+            Path(tmpdir) / "test.tar",
+        )
 
 
 def test_find(run_cli):
