@@ -1,3 +1,7 @@
+import tempfile
+import textwrap
+from pathlib import Path
+
 import impy as ip
 import numpy as np
 import polars as pl
@@ -179,3 +183,24 @@ def test_rust_expressions():
 def test_validate():
     widget_utils._validate_expr_or_scalar(pl.col("a") == 3)
     widget_utils._validate_expr_or_scalar('pl.col("a") == 3')
+
+
+def test_read_mdoc():
+    text = """<header>
+
+    [T =     Tilt axis angle = 180.0, binning = 1  spot = 6  camera = 0 dosym = 0.0]
+
+    [ZValue = 0]
+    MinMaxMean = 0 10000 700
+    TiltAngle = -19.993
+
+    [ZValue = 0]
+    MinMaxMean = 0 10000 700
+    TiltAngle = 20.114
+    """
+    text = textwrap.dedent(text)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = Path(tmpdir) / "test.mdoc"
+        path.write_text(text)
+        tilt_angles = utils.read_tilt_angles_from_mdoc(path)
+        assert_allclose(tilt_angles, [-19.993, 20.114])
