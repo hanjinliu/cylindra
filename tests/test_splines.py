@@ -249,3 +249,19 @@ def test_with_x():
     spl = CylSpline().fit([[3, 2, 1], [4, 6, 7], [5, 2, 3], [9, 5, 6]])
     spl.with_extrapolation("linear").with_config({"fit_width": 33})
     display(spl.config)
+
+
+def test_split():
+    spl = CylSpline().fit([[3, 2, 1], [4, 6, 7], [5, 2, 3], [9, 5, 6]])
+    _len = spl.length()
+    spl0, spl1 = spl.split(_len * 0.4)
+    assert spl0.length() + spl1.length() == pytest.approx(_len, rel=1e-2)
+    spl0, spl1 = spl.split(_len * 0.4, from_start=False)
+    assert spl0.length() + spl1.length() == pytest.approx(_len, rel=1e-2)
+
+    with pytest.raises(ValueError):
+        spl.split(1, trim=1.1)
+    with pytest.raises(ValueError):
+        spl.split(_len - 1, trim=1.1)
+    spl.split(1, trim=1.1, allow_discard=True)
+    spl.split(_len - 1, trim=1.1, allow_discard=True)

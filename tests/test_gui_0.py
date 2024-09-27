@@ -5,6 +5,7 @@ from itertools import product
 from pathlib import Path
 
 import impy as ip
+import matplotlib.pyplot as plt
 import napari
 import numpy as np
 import polars as pl
@@ -513,6 +514,12 @@ def test_preview(ui: CylindraMainWidget):
 
     tester = mcls_testing.FunctionGuiTester(ui.load_project_for_reanalysis)
     tester.update_parameters(path=PROJECT_DIR_13PF)
+    tester.click_preview()
+
+    tester = mcls_testing.FunctionGuiTester(ui.split_spline)
+    tester.click_preview()
+    tester.update_parameters(at=30)
+    tester.update_parameters(at=32)
     tester.click_preview()
 
     tester = mcls_testing.FunctionGuiTester(ui.load_molecules)
@@ -1202,6 +1209,7 @@ ATOM      8  OD2 ASP A   3       0.645   1.322  -2.211  1.00100.00           O
 
 
 def test_calc_misc(ui: CylindraMainWidget):
+    plt.close("all")
     ui.load_project(PROJECT_DIR_13PF, filter=None)
     ui.mole_layers.clear()
     ui.map_monomers(splines=[0])
@@ -1656,3 +1664,21 @@ def test_plugin(ui: CylindraMainWidget):
     with tempfile.TemporaryDirectory() as dirpath:
         dirpath = Path(dirpath)
         ui.save_project(dirpath / "test-project.tar")
+
+
+def test_split_splines(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_13PF, filter=None, read_image=False)
+    ui.split_spline(0, at=40)
+    ui.macro.undo()
+
+    ui.add_anchors(0, interval=8.2)
+    nanc = len(ui.splines[0].anchors)
+    prop = np.random.default_rng(0).normal(loc=4.08, scale=0.07, size=nanc)
+    ui.splines[0].props.update_loc(pl.Series(H.spacing, prop), window_size=50)
+    ui.split_splines_at_changing_point(0, estimate_by=H.spacing)
+    assert len(ui.splines) == 2
+
+    prop[: nanc // 2] += 0.11
+    ui.splines[0].props.update_loc(pl.Series(H.spacing, prop), window_size=50)
+    ui.split_splines_at_changing_point(0, estimate_by=H.spacing)
+    assert len(ui.splines) == 3

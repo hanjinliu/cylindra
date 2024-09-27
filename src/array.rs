@@ -1,7 +1,7 @@
 use pyo3::{prelude::*, Python};
 use numpy::{
-    IntoPyArray, PyArray2, PyReadonlyArray2,
-    ndarray::Array2, PyUntypedArrayMethods
+    ndarray::{Array2, s}, IntoPyArray, PyArray2, PyReadonlyArray1, PyReadonlyArray2,
+    PyUntypedArrayMethods,
 };
 use crate::value_error;
 
@@ -76,4 +76,30 @@ pub fn cylinder_faces<'py>(
     }
 
     Ok(out_vert.into_pyarray_bound(py).unbind())
+}
+
+#[pyfunction]
+/// Find the index of the changing point by minimizing the sum of squares of two parts.
+/// This is not an efficient implementation, but a easily understandable one.
+/// For an efficient implementation, see https://github.com/hanjinliu/scikit-step.
+pub fn find_changing_point(
+    arr: PyReadonlyArray1<f32>,
+) -> usize {
+    let arr = arr.as_array();
+    let mut idx = 0;
+    let mut s2_min = f32::MAX;
+    for i in 1..arr.len() {
+        let arr_former = arr.slice(s![..i]);
+        let arr_latter = arr.slice(s![i..]);
+        let mean_former = arr_former.mean().unwrap();
+        let mean_latter = arr_latter.mean().unwrap();
+        let s2_former = arr_former.mapv(|x| (x - mean_former).powi(2)).sum();
+        let s2_latter = arr_latter.mapv(|x| (x - mean_latter).powi(2)).sum();
+        let s2 = s2_former + s2_latter;
+        if s2 < s2_min {
+            s2_min = s2;
+            idx = i;
+        }
+    }
+    idx
 }
