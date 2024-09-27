@@ -5,6 +5,7 @@ from itertools import product
 from pathlib import Path
 
 import impy as ip
+import matplotlib.pyplot as plt
 import napari
 import numpy as np
 import polars as pl
@@ -1202,6 +1203,7 @@ ATOM      8  OD2 ASP A   3       0.645   1.322  -2.211  1.00100.00           O
 
 
 def test_calc_misc(ui: CylindraMainWidget):
+    plt.close("all")
     ui.load_project(PROJECT_DIR_13PF, filter=None)
     ui.mole_layers.clear()
     ui.map_monomers(splines=[0])
