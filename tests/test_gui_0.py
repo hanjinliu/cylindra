@@ -1553,6 +1553,8 @@ def test_showing_widgets(ui: CylindraMainWidget):
     loader = ui.FileMenu.open_image_loader()
     loader.path = TEST_DIR / "13pf_MT.tif"
     loader.scan_header()
+    assert loader.scale.scale_value == pytest.approx(1.052, abs=1e-5)
+    assert loader.tilt_model.yrange.value == pytest.approx((-60, 60), abs=1e-3)
     loader.preview_image().close()
     if sys.platform != "darwin":
         # NOTE: On macOS, the draw event of vispy causes segmentation fault.
