@@ -1673,12 +1673,12 @@ def test_split_splines(ui: CylindraMainWidget):
 
     ui.add_anchors(0, interval=8.2)
     nanc = len(ui.splines[0].anchors)
-    prop = np.random.default_rng(0).normal(loc=4.08, scale=0.07, size=nanc)
+    prop = np.random.default_rng(0).normal(loc=4.08, scale=0.05, size=nanc)
     ui.splines[0].props.update_loc(pl.Series(H.spacing, prop), window_size=50)
-    ui.split_splines_at_changing_point(0, estimate_by=H.spacing)
+    ui.split_splines_at_changing_point(0, estimate_by=H.spacing, diff_cutoff=0.08)
     assert len(ui.splines) == 2
 
     prop[: nanc // 2] += 0.11
     ui.splines[0].props.update_loc(pl.Series(H.spacing, prop), window_size=50)
-    ui.split_splines_at_changing_point(0, estimate_by=H.spacing)
+    ui.split_splines_at_changing_point(0, estimate_by=H.spacing, diff_cutoff=0.08)
     assert len(ui.splines) == 3

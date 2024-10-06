@@ -975,7 +975,7 @@ class CylindraMainWidget(MagicTemplate):
         spline: Annotated[int, {"choices": _get_splines}],
         at: Annotated[nm, {"min": 0.0, "max": 10000.0, "step": 0.1, "label": "split at (nm)"}] = 100.0,
         from_start: bool = True,
-        trim: Annotated[nm, {"min": 0.0, "max": 100.0, "step": 0.1}] = 0.0,
+        trim: Annotated[nm, {"min": 0.0, "max": 100.0, "step": 0.1, "label": "trim (nm)"}] = 0.0,
     ):  # fmt: skip
         """
         Split the spline into two at the given position.
@@ -1012,9 +1012,9 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: SplinesType = None,
         estimate_by: str = "radius",
-        diff_cutoff: Annotated[float, {"min": 0.0, "max": 100.0, "step": 0.1}] = 2.0,
-        trim: Annotated[nm, {"min": 0.0, "max": 1000.0, "step": 0.1}] = 0.0,
-    ):
+        diff_cutoff: Annotated[float, {"min": 0.0, "max": 1000.0, "step": 0.01}] = 0.4,
+        trim: Annotated[nm, {"min": 0.0, "max": 1000.0, "step": 0.1, "label": "trim (nm)"}] = 0.0,
+    ):  # fmt: skip
         """
         Detect the changing point of the spline and split it there.
 
@@ -1028,9 +1028,8 @@ class CylindraMainWidget(MagicTemplate):
             Local property to estimate the changing point. Must be one of the local
             property of the splines.
         diff_cutoff : float, default 2.0
-            The cutoff value of the relative difference between the two regions to be
-            considered as a changing point. The formula of relative difference is
-            `relative_diff = mean_diff / (std_former + std_latter)`.
+            The cutoff value of the absolute difference between the two regions to be
+            considered as a changing point.
         trim : float, default 0.0
             Trim the split parts by this length (nm). If any of the split parts is
             shorter than this length, the part will be discarded.
@@ -1042,15 +1041,13 @@ class CylindraMainWidget(MagicTemplate):
             spl = self.splines[i]
             if (loc := spl.props.get_loc(estimate_by, None)) is None:
                 raise ValueError(
-                    f"Spline-{i} does not have {estimate_by!r} local property."
+                    f"Spline-{i} does not have {estimate_by!r} local property. Call "
+                    "`measure_local_radius` or `local_cft_analysis` first."
                 )
             idx = utils.find_changing_point(loc)
             mean_diff = float(abs(loc[:idx].mean() - loc[idx:].mean()))
-            std_former = float(loc[:idx].std(ddof=0))
-            std_latter = float(loc[idx:].std(ddof=0))
-            relative_diff = mean_diff / (std_former + std_latter)
-            _log = f"spline-{i}: {relative_diff=:.3g} ({mean_diff=:.3g}, {std_former=:.3g}, {std_latter=:.3g})"  # fmt: skip
-            if mean_diff / (std_former + std_latter) < diff_cutoff:
+            _log = f"spline-{i}: {mean_diff=:.3g}"
+            if mean_diff < diff_cutoff:
                 _Logger.print(_log + " ==> skip")
                 continue
             at = spl.length(0, (spl.anchors[idx - 1] + spl.anchors[idx]) / 2)
