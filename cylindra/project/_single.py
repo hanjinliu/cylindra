@@ -1,5 +1,7 @@
+import json
 import logging
 import tempfile
+import warnings
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
@@ -11,6 +13,7 @@ from pydantic import ConfigDict, Field
 from cylindra.const import ImageFilter, cast_dataframe, get_versions
 from cylindra.const import PropertyNames as H
 from cylindra.project._base import BaseProject, MissingWedge, PathLike, resolve_path
+from cylindra.project._json import project_json_encoder
 from cylindra.project._layer_info import LandscapeInfo, MoleculesInfo
 from cylindra.project._utils import as_main_function, extract
 
@@ -42,6 +45,7 @@ class CylindraProject(BaseProject):
     missing_wedge: MissingWedge = MissingWedge(params={}, kind="none")
     project_path: Path | None = None
     project_description: str = ""
+    metadata: dict[str, str] = Field(default_factory=dict)
 
     def resolve_path(self, file_dir: PathLike):
         """Resolve the path of the project."""
@@ -195,6 +199,18 @@ class CylindraProject(BaseProject):
             self._script_py_path(results_dir).write_text(expr)
 
             self.project_description = gui.GeneralInfo.project_desc.value
+
+            # dry run metadata serialization
+            try:
+                json.dumps(gui._project_metadata, cls=project_json_encoder)
+            except Exception:  # pragma: no cover
+                warnings.warn(
+                    "Project metadata is not serializable. Skipping.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            else:
+                self.metadata = gui._project_metadata
             self.to_json(self._project_json_path(results_dir))
         return None
 
@@ -253,6 +269,8 @@ class CylindraProject(BaseProject):
                     cb = _add_layer.with_args(layer)
                     yield cb
                     cb.await_call(timeout=10)
+
+            gui._project_metadata = self.metadata
 
         @thread_worker.callback
         def out():

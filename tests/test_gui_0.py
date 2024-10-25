@@ -93,6 +93,7 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     ui.infer_polarity()
     ui.map_monomers(splines=[0, 1])
     ui.measure_local_radius(splines=[0, 1])
+    ui.project_metadata["my_meta"] = 1
 
     # Save project
     old_splines = ui.tomogram.splines.copy()
@@ -100,6 +101,8 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     ui.save_project(save_path)
     ui.overwrite_project()
     ui.load_project(save_path, filter="DoG")
+    assert ui.project_dir == save_path
+    assert ui.project_metadata["my_meta"] == 1
     assert len(ui.macro.undo_stack["undo"]) == 0
     new_splines = ui.tomogram.splines
     new_molecules = list(ui.mole_layers.iter_molecules())
