@@ -320,7 +320,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             Continue data collection even if property table data file was not
             found in any project. Raise error otherwise.
         suffix : str, default ""
-            Suffix to add to the column names that may be collide with the local
+            Suffix to add to the column names that may collide with the local
             properties.
         id : str, default "int"
             How to describe the source tomogram. If "int", each tomogram will
@@ -402,16 +402,14 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         """
         props = self.collect_props(
             allow_none=allow_none, spline_details=spline_details, suffix="_glob"
-        )
-        on = [H.spline_id, Mole.image]
-        out = props.loc.join(props.glob, on=on, suffix="_glob")
-        return self._normalize_id(out, id)
+        ).join()
+        return self._normalize_id(props, id)
 
     def collect_props(
         self,
         allow_none: bool = True,
         spline_details: bool = False,
-        suffix="",
+        suffix: str = "",
     ) -> CollectedProps:
         """
         Collect all the local and global properties.
@@ -422,6 +420,9 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             Forwarded to `collect_localprops` and `collect_globalprops`.
         spline_details : bool, default False
             Forwarded to `collect_localprops`.
+        suffix : str, default ""
+            Suffix to add to the column names of global properties that may collide
+            with the local properties.
 
         Returns
         -------
@@ -667,3 +668,8 @@ class CollectedProps(NamedTuple):
     """Collected local properties."""
     glob: pl.DataFrame
     """Collected global properties."""
+
+    def join(self) -> pl.DataFrame:
+        """Return the joined property dataframe."""
+        on = [H.spline_id, Mole.image]
+        return self.loc.join(self.glob, on=on, suffix="_glob")
