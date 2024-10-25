@@ -1,4 +1,3 @@
-import tempfile
 import textwrap
 from pathlib import Path
 
@@ -190,7 +189,7 @@ def test_find_changing_point():
     assert idx == 6
 
 
-def test_read_mdoc():
+def test_read_mdoc(tmpdir):
     text = """<header>
 
     [T =     Tilt axis angle = 180.0, binning = 1  spot = 6  camera = 0 dosym = 0.0]
@@ -204,8 +203,7 @@ def test_read_mdoc():
     TiltAngle = 20.114
     """
     text = textwrap.dedent(text)
-    with tempfile.TemporaryDirectory() as tmpdir:
-        path = Path(tmpdir) / "test.mdoc"
-        path.write_text(text)
-        tilt_angles = utils.read_tilt_angles_from_mdoc(path)
-        assert_allclose(tilt_angles, [-19.993, 20.114])
+    path = Path(tmpdir) / "test.mdoc"
+    path.write_text(text)
+    tilt_angles = utils.read_tilt_angles_from_mdoc(path)
+    assert_allclose(tilt_angles, [-19.993, 20.114])

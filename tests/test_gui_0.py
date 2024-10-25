@@ -1,5 +1,4 @@
 import sys
-import tempfile
 import warnings
 from itertools import product
 from pathlib import Path
@@ -147,7 +146,7 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     ui.invert_image()
 
 
-def test_io_with_different_data(ui: CylindraMainWidget):
+def test_io_with_different_data(ui: CylindraMainWidget, tmpdir):
     path = TEST_DIR / "13pf_MT.tif"
     params = [
         {"local_props": False, "global_props": False},
@@ -156,17 +155,14 @@ def test_io_with_different_data(ui: CylindraMainWidget):
         {"local_props": True, "global_props": True, "map_monomers": True},
     ]
     exc_group = ExceptionGroup()
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmpdir = Path(tmpdir)
-        for param in params:
-            with exc_group.merging():
-                ui.open_image(
-                    path=path, scale=1.052, tilt_range=(-60, 60), bin_size=[1, 2]
-                )
-                ui.register_path(coords=coords_13pf)
-                ui._runner.run(splines=[0], **param)
-                ui.save_project(tmpdir)
-                ui.load_project(tmpdir, filter="DoG")
+    tmpdir = Path(tmpdir)
+    for param in params:
+        with exc_group.merging():
+            ui.open_image(path=path, scale=1.052, tilt_range=(-60, 60), bin_size=[1, 2])
+            ui.register_path(coords=coords_13pf)
+            ui._runner.run(splines=[0], **param)
+            ui.save_project(tmpdir)
+            ui.load_project(tmpdir, filter="DoG")
     exc_group.raise_exceptions()
     ui.SplineControl.footer.highlight_subvolume = True
     ui.SplineControl.pos = 1
@@ -262,14 +258,13 @@ def test_workflow_undo_redo(ui: CylindraMainWidget):
         ui.macro.redo()
 
 
-def test_config(ui: CylindraMainWidget):
+def test_config(ui: CylindraMainWidget, tmpdir):
     ui.load_project(PROJECT_DIR_14PF, filter=None)
     ui.SplinesMenu.Config.update_default_config(npf_range=(13, 15))
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmpdir = Path(tmpdir)
-        with _config.patch_config_dir(tmpdir):
-            ui.SplinesMenu.Config.save_default_config(tmpdir)
-            ui.SplinesMenu.Config.load_default_config(tmpdir)
+    tmpdir = Path(tmpdir)
+    with _config.patch_config_dir(tmpdir):
+        ui.SplinesMenu.Config.save_default_config(tmpdir)
+        ui.SplinesMenu.Config.load_default_config(tmpdir)
     ui.SplinesMenu.Config.view_config_presets()
 
 
@@ -330,15 +325,14 @@ def test_napari_operations(ui: CylindraMainWidget):
     assert not str(ui.macro[-1]).startswith("del ")
 
 
-def test_load_macro(ui: CylindraMainWidget):
+def test_load_macro(ui: CylindraMainWidget, tmpdir):
     ui.load_project(PROJECT_DIR_14PF, filter=None)
-    with tempfile.TemporaryDirectory() as tmpdir:
-        fp = Path(tmpdir) / "test_macro.py"
-        fp.write_text("print(0)")
-        ui.OthersMenu.Macro.load_macro_file(fp)
+    fp = Path(tmpdir) / "test_macro.py"
+    fp.write_text("print(0)")
+    ui.OthersMenu.Macro.load_macro_file(fp)
 
 
-def test_spline_control(ui: CylindraMainWidget):
+def test_spline_control(ui: CylindraMainWidget, tmpdir):
     path = TEST_DIR / "13pf_MT.tif"
     ui.open_image(path=path, scale=1.052, tilt_range=(-60, 60), bin_size=2)
     ui.filter_reference_image()
@@ -445,9 +439,8 @@ def test_spline_control(ui: CylindraMainWidget):
     ui.OthersMenu.open_command_palette()
     ui.LocalProperties.copy_screenshot()
     ui.SplineControl.copy_screenshot()
-    with tempfile.TemporaryDirectory() as tmpdir:
-        ui.SplineControl.save_screenshot(Path(tmpdir) / "img.png")
-        ui.LocalProperties.save_screenshot(Path(tmpdir) / "img.png")
+    ui.SplineControl.save_screenshot(Path(tmpdir) / "img.png")
+    ui.LocalProperties.save_screenshot(Path(tmpdir) / "img.png")
     ui.SplineControl.log_screenshot()
     ui.LocalProperties.log_screenshot()
     cfg = get_config()
@@ -621,7 +614,7 @@ def test_sub_widgets(ui: CylindraMainWidget):
 
 
 @pytest.mark.parametrize("bin_size", [1, 2])
-def test_sta(ui: CylindraMainWidget, bin_size: int):
+def test_sta(ui: CylindraMainWidget, bin_size: int, tmpdir):
     from cylindra.widgets.subwidgets import Volume
 
     ui.load_project(PROJECT_DIR_13PF, filter=None)
@@ -647,22 +640,21 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
         interpolation=1,
     )
 
-    with tempfile.TemporaryDirectory() as dirpath:
-        dirpath = Path(dirpath)
-        molepath = dirpath / "monomers.txt"
-        ui.save_molecules(layer="Mole-0", save_path=molepath)
-        ui.save_spline(0, dirpath / "spline-x.json")
-        mole = ui.mole_layers["Mole-0"].molecules
-        ui.load_molecules(molepath)
-        mole_read = ui.mole_layers["monomers"].molecules
-        assert_molecule_equal(mole, mole_read)
+    tmpdir = Path(tmpdir)
+    molepath = tmpdir / "monomers.txt"
+    ui.save_molecules(layer="Mole-0", save_path=molepath)
+    ui.save_spline(0, tmpdir / "spline-x.json")
+    mole = ui.mole_layers["Mole-0"].molecules
+    ui.load_molecules(molepath)
+    mole_read = ui.mole_layers["monomers"].molecules
+    assert_molecule_equal(mole, mole_read)
 
-        ui.sta.save_last_average(dirpath)
-        path = Path(dirpath).joinpath("fsc_result")
-        vol = Volume(ui.sub_viewer)
-        assert len(vol._get_fsc_layers()) > 0
-        vol.save_fsc_result(ui.sub_viewer.layers[-1], path)
-        vol.save_fsc_result(ui.sub_viewer.layers[-1], path, multiple_halfmaps=True)
+    ui.sta.save_last_average(tmpdir)
+    path = Path(tmpdir).joinpath("fsc_result")
+    vol = Volume(ui.sub_viewer)
+    assert len(vol._get_fsc_layers()) > 0
+    vol.save_fsc_result(ui.sub_viewer.layers[-1], path)
+    vol.save_fsc_result(ui.sub_viewer.layers[-1], path, multiple_halfmaps=True)
 
     template_path = TEST_DIR / "beta-tubulin.mrc"
     ui.sta.params.template_path.value = template_path
@@ -734,7 +726,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int):
     )
 
 
-def test_seam_search(ui: CylindraMainWidget):
+def test_seam_search(ui: CylindraMainWidget, tmpdir):
     from cylindra.widgets.subwidgets import Volume
 
     ui.load_project(PROJECT_DIR_13PF, filter=None)
@@ -753,9 +745,8 @@ def test_seam_search(ui: CylindraMainWidget):
     vol = Volume(ui.sub_viewer)
     assert len(vol._get_seam_searched_layers()) > 0
 
-    with tempfile.TemporaryDirectory() as dirpath:
-        path = Path(dirpath).joinpath("seam_result.csv")
-        vol.save_seam_search_result(layer, path)
+    path = Path(tmpdir).joinpath("seam_result.csv")
+    vol.save_seam_search_result(layer, path)
 
     layer.molecules = layer.molecules.with_features(
         (pl.col("nth") * pl.col("pf-id") % 3 < 2).cast(pl.UInt8).alias("seam-label")
@@ -899,7 +890,7 @@ def test_simulator(ui: CylindraMainWidget):
 
 
 @pytest_group("simulate", maxfail=1)
-def test_simulate_tomogram(ui: CylindraMainWidget):
+def test_simulate_tomogram(ui: CylindraMainWidget, tmpdir):
     ui.simulator.create_image_with_straight_line(25, (40, 42, 42), scale=0.5)
     ui.macro.undo()
     ui.macro.redo()
@@ -920,36 +911,34 @@ def test_simulate_tomogram(ui: CylindraMainWidget):
         "interpolation": 1,
         "seed": 0,
     }
-    with tempfile.TemporaryDirectory() as dirpath:
-        dirpath = Path(dirpath)
-        assert len(list(dirpath.glob("*"))) == 0
-        ui.simulator.simulate_tomogram(**kwargs, nsr=[0.5, 2.0], save_dir=dirpath)
-        assert len(list(dirpath.glob("*.mrc"))) == 2
-        ui.load_project(dirpath / "simulation-project.tar", filter=None)
+    tmpdir = Path(tmpdir)
+    assert len(list(tmpdir.glob("*"))) == 0
+    ui.simulator.simulate_tomogram(**kwargs, nsr=[0.5, 2.0], save_dir=tmpdir)
+    assert len(list(tmpdir.glob("*.mrc"))) == 2
+    ui.load_project(tmpdir / "simulation-project.tar", filter=None)
     ui.simulator.simulate_tomogram_and_open(**kwargs, nsr=1.2)
     ui.simulator.close()
 
 
 @pytest_group("simulate", maxfail=1)
-def test_simulate_tilt_series(ui: CylindraMainWidget):
+def test_simulate_tilt_series(ui: CylindraMainWidget, tmpdir):
     ui.simulator.create_image_with_straight_line(
         25, (40, 42, 42), scale=0.5, yxrotation=10
     )
     ui.simulator.generate_molecules(0, 4.06, -0.05, 3, 13, 11.8, (0.0, 0.0))
-    with tempfile.TemporaryDirectory() as dirpath:
-        ui.simulator.simulate_tilt_series(
-            components=[(ui.mole_layers.last().name, TEST_DIR / "beta-tubulin.mrc")],
-            save_dir=dirpath,
-            tilt_range=(-60.0, 60.0),
-            n_tilt=11,
-            interpolation=1,
-        )
-        ui.simulator.simulate_projection(
-            components=[(ui.mole_layers.last().name, TEST_DIR / "beta-tubulin.mrc")],
-            save_dir=Path(dirpath) / "projection_test",
-            nsr=[0.1, 1.5],
-        )
-        ui.simulator.simulate_tomogram_from_tilt_series(Path(dirpath) / "image.mrc")
+    ui.simulator.simulate_tilt_series(
+        components=[(ui.mole_layers.last().name, TEST_DIR / "beta-tubulin.mrc")],
+        save_dir=tmpdir,
+        tilt_range=(-60.0, 60.0),
+        n_tilt=11,
+        interpolation=1,
+    )
+    ui.simulator.simulate_projection(
+        components=[(ui.mole_layers.last().name, TEST_DIR / "beta-tubulin.mrc")],
+        save_dir=Path(tmpdir) / "projection_test",
+        nsr=[0.1, 1.5],
+    )
+    ui.simulator.simulate_tomogram_from_tilt_series(Path(tmpdir) / "image.mrc")
     ui.simulator.close()
 
 
@@ -1208,7 +1197,7 @@ ATOM      8  OD2 ASP A   3       0.645   1.322  -2.211  1.00100.00           O
 """
 
 
-def test_calc_misc(ui: CylindraMainWidget):
+def test_calc_misc(ui: CylindraMainWidget, tmpdir):
     plt.close("all")
     ui.load_project(PROJECT_DIR_13PF, filter=None)
     ui.mole_layers.clear()
@@ -1229,40 +1218,39 @@ def test_calc_misc(ui: CylindraMainWidget):
     ui.MoleculesMenu.View.plot_molecule_feature(
         layer, backend="inline", show_title=False, show_axis=False
     )
-    with tempfile.TemporaryDirectory() as dirpath:
-        fp = Path(dirpath) / "test-project.tar"
-        ui.save_project(fp)
-        ui.load_project(fp, filter=None)
-        assert_allclose(ui.mole_layers.last().face_color, colors)
+    fp = Path(tmpdir) / "test-project.tar"
+    ui.save_project(fp)
+    ui.load_project(fp, filter=None)
+    assert_allclose(ui.mole_layers.last().face_color, colors)
 
-        fp_img = Path(dirpath) / "test.mrc"
-        fp_pdb = Path(dirpath) / "test.pdb"
-        fp_pdb.write_text(PDB_TEXT)
-        ui.sta.AlignmentMenu.TemplateImage.convert_pdb_to_image(
-            fp_pdb,
-            fp_img,
-            degrees=[("z", 90)],
-            view_in_canvas=False,
-        )
+    fp_img = Path(tmpdir) / "test.mrc"
+    fp_pdb = Path(tmpdir) / "test.pdb"
+    fp_pdb.write_text(PDB_TEXT)
+    ui.sta.AlignmentMenu.TemplateImage.convert_pdb_to_image(
+        fp_pdb,
+        fp_img,
+        degrees=[("z", 90)],
+        view_in_canvas=False,
+    )
 
-        fp_csv = Path(dirpath) / "test.csv"
-        df = pl.DataFrame({"z": [1, 2, 3], "y": [4, 5, 6], "x": [2, 1, 1]})
-        df.write_csv(fp_csv)
-        ui.sta.AlignmentMenu.TemplateImage.convert_csv_to_image(fp_csv, fp_img)
-        df.with_columns(pl.Series("weight", [0.4, 0.5, 0.9])).write_csv(fp_csv)
-        ui.sta.AlignmentMenu.TemplateImage.convert_csv_to_image(fp_csv, fp_img)
-        tester = mcls_testing.FunctionGuiTester(
-            ui.sta.AlignmentMenu.TemplateImage.simulate_cylinder
-        )
-        tester.click_preview()
-        ui.sta.AlignmentMenu.TemplateImage.simulate_cylinder(
-            TEST_DIR / "beta-tubulin.mrc",
-            fp_img,
-            length=8.0,
-            scale=1.0,
-            npf=4,
-            radius=4.0,
-        )
+    fp_csv = Path(tmpdir) / "test.csv"
+    df = pl.DataFrame({"z": [1, 2, 3], "y": [4, 5, 6], "x": [2, 1, 1]})
+    df.write_csv(fp_csv)
+    ui.sta.AlignmentMenu.TemplateImage.convert_csv_to_image(fp_csv, fp_img)
+    df.with_columns(pl.Series("weight", [0.4, 0.5, 0.9])).write_csv(fp_csv)
+    ui.sta.AlignmentMenu.TemplateImage.convert_csv_to_image(fp_csv, fp_img)
+    tester = mcls_testing.FunctionGuiTester(
+        ui.sta.AlignmentMenu.TemplateImage.simulate_cylinder
+    )
+    tester.click_preview()
+    ui.sta.AlignmentMenu.TemplateImage.simulate_cylinder(
+        TEST_DIR / "beta-tubulin.mrc",
+        fp_img,
+        length=8.0,
+        scale=1.0,
+        npf=4,
+        radius=4.0,
+    )
 
 
 def test_lattice_structure_of_curved_microtubule(ui: CylindraMainWidget):
@@ -1317,7 +1305,7 @@ def test_spline_fitter(ui: CylindraMainWidget):
     ui.spline_fitter.auto_center_all()
 
 
-def test_function_menu(make_napari_viewer):
+def test_function_menu(make_napari_viewer, tmpdir):
     from cylindra.widgets.subwidgets import Volume
 
     viewer: napari.Viewer = make_napari_viewer()
@@ -1330,13 +1318,12 @@ def test_function_menu(make_napari_viewer):
     vol.gaussian_filter(im)
     vol.threshold(im)
     vol.binary_operation(im, "add", viewer.layers[-1])
-    with tempfile.TemporaryDirectory() as dirpath:
-        dirpath = Path(dirpath)
-        vol.save_volume(viewer.layers[-1], dirpath / "test_image.tif")
-        vol.save_volume(viewer.layers[-1], dirpath / "test_image.mrc")
-        lbl = viewer.add_labels((img < 320).astype(np.int32), name="test labels")
-        vol.save_label_as_mask(lbl, dirpath / "test_label.tif")
-        vol.save_label_as_mask(lbl, dirpath / "test_label.mrc")
+    tmpdir = Path(tmpdir)
+    vol.save_volume(viewer.layers[-1], tmpdir / "test_image.tif")
+    vol.save_volume(viewer.layers[-1], tmpdir / "test_image.mrc")
+    lbl = viewer.add_labels((img < 320).astype(np.int32), name="test labels")
+    vol.save_label_as_mask(lbl, tmpdir / "test_label.tif")
+    vol.save_label_as_mask(lbl, tmpdir / "test_label.mrc")
     vol.plane_clip()
     tester = mcls_testing.FunctionGuiTester(vol.gaussian_filter)
     tester.click_preview()
@@ -1460,7 +1447,7 @@ def test_mesh_annealing(ui: CylindraMainWidget):
     ui.macro.redo()
 
 
-def test_landscape(ui: CylindraMainWidget):
+def test_landscape(ui: CylindraMainWidget, tmpdir):
     from cylindra._napari import LandscapeSurface
 
     ui.load_project(PROJECT_DIR_13PF, filter=None)
@@ -1503,10 +1490,9 @@ def test_landscape(ui: CylindraMainWidget):
         angle_max=20,
         random_seeds=[0, 1],
     )
-    with tempfile.TemporaryDirectory() as dirpath:
-        dirpath = Path(dirpath)
-        ui.save_project(dirpath / "test-project.tar", save_landscape=True)
-        ui.load_project(dirpath / "test-project.tar", filter=None)
+    tmpdir = Path(tmpdir)
+    ui.save_project(tmpdir / "test-project.tar", save_landscape=True)
+    ui.load_project(tmpdir / "test-project.tar", filter=None)
     ui.sta.remove_landscape_outliers(layer_land, upper=0.0)
     ui.sta.normalize_landscape(layer_land, norm_sd=False)
 
@@ -1576,31 +1562,30 @@ def test_showing_widgets(ui: CylindraMainWidget):
     assert loader.tilt_model.value == {"kind": "y", "range": (-60, 60)}
 
 
-def test_image_processor(ui: CylindraMainWidget):
+def test_image_processor(ui: CylindraMainWidget, tmpdir):
     input_path = TEST_DIR / "13pf_MT.tif"
     ui.FileMenu.open_image_processor()
     ui.image_processor.input_image = input_path
-    with tempfile.TemporaryDirectory() as dirpath:
-        output_path = Path(dirpath) / "output.tif"
-        ui.image_processor.convert_dtype(input_path, output_path, dtype="float32")
-        ui.image_processor.invert(input_path, output_path)
-        ui.image_processor.lowpass_filter(input_path, output_path)
-        ui.image_processor.binning(input_path, output_path, bin_size=2)
-        ui.image_processor.flip(input_path, output_path, axes="z")
-        ui.image_processor.preview(input_path)
+    output_path = Path(tmpdir) / "output.tif"
+    ui.image_processor.convert_dtype(input_path, output_path, dtype="float32")
+    ui.image_processor.invert(input_path, output_path)
+    ui.image_processor.lowpass_filter(input_path, output_path)
+    ui.image_processor.binning(input_path, output_path, bin_size=2)
+    ui.image_processor.flip(input_path, output_path, axes="z")
+    ui.image_processor.preview(input_path)
 
 
-def test_workflows_custom(ui: CylindraMainWidget):
+def test_workflows_custom(ui: CylindraMainWidget, tmpdir):
     name = "Test"
     code = "import numpy as np\ndef main(ui):\n    print(ui.default_config)\n"
-    with tempfile.TemporaryDirectory() as dirpath, _config.patch_workflow_path(dirpath):
+    with _config.patch_workflow_path(tmpdir):
         ui.OthersMenu.Workflows.define_workflow(name, code)
         ui.OthersMenu.Workflows.edit_workflow(name, code)
         ui.OthersMenu.Workflows.edit_workflow(name, code)  # test overwriting
         ui.run_workflow(name)
         ui.OthersMenu.Workflows.run_workflow(name)
         ui.OthersMenu.Workflows.import_workflow(
-            Path(dirpath) / f"{name}.py", name="imported"
+            Path(tmpdir) / f"{name}.py", name="imported"
         )
         ui.OthersMenu.Workflows.delete_workflow([name])
         ui.OthersMenu.Workflows.copy_workflow_directory()
@@ -1618,9 +1603,9 @@ def test_workflows_custom(ui: CylindraMainWidget):
             )
 
 
-def test_stash(ui: CylindraMainWidget):
+def test_stash(ui: CylindraMainWidget, tmpdir):
     ui.load_project(PROJECT_DIR_13PF, filter=None)
-    with tempfile.TemporaryDirectory() as dirpath, _config.patch_stash_dir(dirpath):
+    with _config.patch_stash_dir(tmpdir):
         ui.FileMenu.Stash.stash_project()
         name0 = _config.get_stash_list()[0]
         ui.FileMenu.Stash.load_stash_project(name0, filter=None)
@@ -1633,7 +1618,7 @@ def test_stash(ui: CylindraMainWidget):
     ui.OthersMenu.configure_dask(num_workers=None)
 
 
-def test_plugin(ui: CylindraMainWidget):
+def test_plugin(ui: CylindraMainWidget, tmpdir):
     from cylindra.plugin import register_function
 
     ui.PluginsMenu.reload_plugins()
@@ -1661,9 +1646,7 @@ def test_plugin(ui: CylindraMainWidget):
 
     assert str(ui.macro[1]) == "tests.test_gui_0.test_func(ui)"
     assert str(ui.macro[2]) == "tests.test_gui_0.test_func_no_record(ui)"
-    with tempfile.TemporaryDirectory() as dirpath:
-        dirpath = Path(dirpath)
-        ui.save_project(dirpath / "test-project.tar")
+    ui.save_project(Path(tmpdir) / "test-project.tar")
 
 
 def test_split_splines(ui: CylindraMainWidget):
