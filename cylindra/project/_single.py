@@ -5,7 +5,7 @@ import warnings
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Generator, Iterable
+from typing import TYPE_CHECKING, Any, Generator, Iterable
 
 import polars as pl
 from pydantic import ConfigDict, Field
@@ -45,7 +45,7 @@ class CylindraProject(BaseProject):
     missing_wedge: MissingWedge = MissingWedge(params={}, kind="none")
     project_path: Path | None = None
     project_description: str = ""
-    metadata: dict[str, str] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     def resolve_path(self, file_dir: PathLike):
         """Resolve the path of the project."""
@@ -202,7 +202,10 @@ class CylindraProject(BaseProject):
 
             # dry run metadata serialization
             try:
-                json.dumps(gui._project_metadata, cls=project_json_encoder)
+                json.dumps(
+                    gui._project_metadata,
+                    default=project_json_encoder,
+                )
             except Exception:  # pragma: no cover
                 warnings.warn(
                     "Project metadata is not serializable. Skipping.",
