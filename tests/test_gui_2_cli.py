@@ -1,4 +1,3 @@
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -41,60 +40,57 @@ def test_preview(run_cli):
         run_cli("cylindra", "preview", PROJECT_DIR_14PF.with_name("NOT_EXISTS"))
 
 
-def test_new_and_open(run_cli):
-    with tempfile.TemporaryDirectory() as dirpath:
-        run_cli(
-            "cylindra", "new",
-            Path(dirpath) / "test-project",
-            "--image", TEST_DIR / "14pf_MT.tif",
-            "--multiscales", "1", "2",
-            "--missing_wedge", "-60", "50",
-            "--molecules", PROJECT_DIR_14PF / "Mole-*",
-        )  # fmt: skip
-        run_cli("cylindra", "open", Path(dirpath) / "test-project")
+def test_new_and_open(run_cli, tmpdir):
+    run_cli(
+        "cylindra", "new",
+        Path(tmpdir) / "test-project",
+        "--image", TEST_DIR / "14pf_MT.tif",
+        "--multiscales", "1", "2",
+        "--missing_wedge", "-60", "50",
+        "--molecules", PROJECT_DIR_14PF / "Mole-*",
+    )  # fmt: skip
+    run_cli("cylindra", "open", Path(tmpdir) / "test-project")
 
 
-def test_config(run_cli):
+def test_config(run_cli, tmpdir):
     run_cli("cylindra", "config", "--list")
     run_cli("cylindra", "config", PROJECT_DIR_13PF)
     run_cli("cylindra", "config", PROJECT_DIR_14PF / "script.py", "--remove")
     run_cli("cylindra", "config", PROJECT_DIR_14PF, "--remove")
 
-    with tempfile.TemporaryDirectory() as tempdir, _config.patch_config_dir(tempdir):
+    with _config.patch_config_dir(tmpdir):
         from cylindra.components.spline._config import SplineConfig
 
-        d = Path(tempdir) / "temp"
+        d = Path(tmpdir) / "temp"
         d.mkdir()
         config_path = d / "temp-config.json"
         SplineConfig().to_file(config_path)
         run_cli("cylindra", "config", config_path, "--import")
 
 
-def test_average(run_cli):
-    with tempfile.TemporaryDirectory() as dirpath:
-        dirpath = Path(dirpath)
-        run_cli(
-            "cylindra", "average",
-            TEST_DIR / "test_project_*",
-            "--molecules", "Mole-*",
-            "--size", "10.0",
-            "--output", dirpath / "test.tif",
-            "--filter", "col('nth') % 2 == 0",
-            "--split", "--seed", "123",
-        )  # fmt: skip
+def test_average(run_cli, tmpdir):
+    tmpdir = Path(tmpdir)
+    run_cli(
+        "cylindra", "average",
+        TEST_DIR / "test_project_*",
+        "--molecules", "Mole-*",
+        "--size", "10.0",
+        "--output", tmpdir / "test.tif",
+        "--filter", "col('nth') % 2 == 0",
+        "--split", "--seed", "123",
+    )  # fmt: skip
 
 
-def test_run(run_cli):
-    with tempfile.TemporaryDirectory() as tmpdir:
-        run_cli("cylindra", "run", PROJECT_DIR_14PF, "--headless")
-        run_cli(
-            "cylindra",
-            "run",
-            PROJECT_DIR_14PF,
-            "--headless",
-            "-o",
-            Path(tmpdir) / "test.tar",
-        )
+def test_run(run_cli, tmpdir):
+    run_cli("cylindra", "run", PROJECT_DIR_14PF, "--headless")
+    run_cli(
+        "cylindra",
+        "run",
+        PROJECT_DIR_14PF,
+        "--headless",
+        "-o",
+        Path(tmpdir) / "test.tar",
+    )
 
 
 def test_find(run_cli):
@@ -118,17 +114,16 @@ def test_find(run_cli):
     )
 
 
-def test_workflow(run_cli):
+def test_workflow(run_cli, tmpdir):
     code = "import numpy as np\ndef main(ui):\n    print(ui.default_config)\n"
 
-    with tempfile.TemporaryDirectory() as tempdir, _config.patch_workflow_path(tempdir):
-        Path(tempdir).joinpath("test-cli.py").write_text(code)
+    with _config.patch_workflow_path(tmpdir):
+        Path(tmpdir).joinpath("test-cli.py").write_text(code)
         run_cli("cylindra", "workflow")
         run_cli("cylindra", "workflow", "test-cli.py")
     run_cli("cylindra", "workflow", "--list")
 
 
-def test_plugin(run_cli):
+def test_plugin(run_cli, tmpdir):
     run_cli("cylindra", "plugin", "list")
-    with tempfile.TemporaryDirectory() as dirpath:
-        run_cli("cylindra", "plugin", "new", dirpath)
+    run_cli("cylindra", "plugin", "new", tmpdir)
