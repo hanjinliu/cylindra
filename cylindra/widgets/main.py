@@ -220,6 +220,7 @@ class CylindraMainWidget(MagicTemplate):
         self._batch: "CylindraBatchWidget | None" = None
         self._project_dir: "Path | None" = None
         self._current_binsize: int = 1
+        self._project_metadata = dict[str, Any]()
         self.objectName()  # load napari types
 
     def __post_init__(self):
@@ -299,6 +300,16 @@ class CylindraMainWidget(MagicTemplate):
     def sub_viewer(self) -> "napari.Viewer":
         """The sub-viewer for subtomogram averages."""
         return self.sta.sub_viewer
+
+    @property
+    def project_dir(self) -> Path | None:
+        """The project directory."""
+        return self._project_dir
+
+    @property
+    def project_metadata(self) -> dict[str, Any]:
+        """The project metadata."""
+        return self._project_metadata
 
     def _init_macro_state(self):
         self._macro_offset = len(self.macro)
