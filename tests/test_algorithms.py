@@ -1,7 +1,6 @@
 import numpy as np
 import polars as pl
 import pytest
-from cmap import Colormap
 from matplotlib import pyplot as plt
 from numpy.testing import assert_allclose
 
@@ -310,5 +309,5 @@ def test_flat_view():
         pl.len().mod(7).cast(pl.Float32).alias("x")
     )
     flat_view(mole, "x", spl, colors="jet")
-    flat_view(mole, pl.col("x") * 2, spl, colors=Colormap("jet"))
+    flat_view(mole, pl.col("x") * 2, spl, colors=lambda _: np.zeros(4))
     plt.close("all")

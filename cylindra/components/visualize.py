@@ -59,11 +59,11 @@ def flat_view(
         ref_feature = _get_feature_values()
         face_color = [colors(feat) for feat in ref_feature]
     elif isinstance(colors, str):
-        from cmap import Colormap
+        from vispy.color import Colormap, get_colormap
 
         ref_feature = _get_feature_values()
-        cmap = Colormap(colors)
-        face_color = cmap(ref_feature.to_numpy())
+        cmap: Colormap = get_colormap(colors)
+        face_color = cmap.map(ref_feature.to_numpy())
     elif hasattr(colors, "__getitem__"):
         face_color = colors
     elif hasattr(colors, "__iter__"):
