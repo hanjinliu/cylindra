@@ -1221,6 +1221,10 @@ def test_calc_misc(ui: CylindraMainWidget, tmpdir):
     ui.MoleculesMenu.View.plot_molecule_feature(
         layer, backend="inline", show_title=False, show_axis=False
     )
+    layer.source_component = None
+    ui.MoleculesMenu.View.plot_molecule_feature(
+        layer, backend="inline", show_title=False, show_axis=True
+    )
     fp = Path(tmpdir) / "test-project.tar"
     ui.save_project(fp)
     ui.load_project(fp, filter=None)

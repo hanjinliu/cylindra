@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING, Any, Callable, Iterable
 
 import numpy as np
@@ -8,7 +9,6 @@ from acryo import Molecules
 
 from cylindra.components.spline import CylSpline
 from cylindra.const import MoleculesHeader as Mole
-from cylindra.const import PropertyNames as H
 
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
@@ -45,32 +45,25 @@ def flat_view(
     pf = mole.features[Mole.pf].to_numpy()
     npf = int(pf.max() + 1)
     if spl is not None:
-        spacing = spl.props.get_glob(H.spacing)
-        rise = np.deg2rad(spl.props.get_glob(H.rise))
-        tan = (
-            np.tan(rise)
-            / spacing
-            * (2 * np.pi * spl.radius / npf)
-            * spl.config.rise_sign
-        )
+        _p = spl.cylinder_params()
+        tan = math.tan(_p.rise_angle_rad) / _p.spacing * (2 * np.pi * _p.radius / npf)
     else:
         tan = _infer_start_from_molecules(mole) / npf
 
     y = nth + tan * pf
 
     def _get_feature_values():
-        df = mole.features.select(name)
-        return df[df.columns[0]]
+        return mole.features.select(name).to_series()
 
     if callable(colors):
         ref_feature = _get_feature_values()
         face_color = [colors(feat) for feat in ref_feature]
     elif isinstance(colors, str):
-        from vispy.color import Colormap, get_colormap
+        from cmap import Colormap
 
         ref_feature = _get_feature_values()
-        cmap: Colormap = get_colormap(colors)
-        face_color = cmap.map(ref_feature.to_numpy())
+        cmap = Colormap(colors)
+        face_color = cmap(ref_feature.to_numpy())
     elif hasattr(colors, "__getitem__"):
         face_color = colors
     elif hasattr(colors, "__iter__"):
@@ -83,7 +76,7 @@ def flat_view(
 
     for i in range(mole.count()):
         center = (pf[i], y[i])
-        circ = Circle(center, 0.5, fc=face_color[i], ec="black", lw=0.1)
+        circ = Circle(center, radius=0.5, fc=face_color[i], ec="black", lw=0.1)
         ax.add_patch(circ)
 
     ax.set_xlim(pf.min() - 0.6, pf.max() + 0.6)
