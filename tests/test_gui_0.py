@@ -551,7 +551,7 @@ def test_preview(ui: CylindraMainWidget):
     mcls_testing.FunctionGuiTester(ui.map_along_pf).click_preview()
 
 
-def test_sub_widgets(ui: CylindraMainWidget):
+def test_sub_widgets(ui: CylindraMainWidget, tmpdir):
     ui.load_project(PROJECT_DIR_13PF, filter=None)
     ui.ImageMenu.open_slicer()
     with thread_worker.blocking_mode():
@@ -599,6 +599,14 @@ def test_sub_widgets(ui: CylindraMainWidget):
         ui.spectra_inspector.peak_viewer.show_what = "Local-CFT (5x upsampling)"
         ui.spectra_inspector.peak_viewer.pos = 1
         ui.spectra_inspector.peak_viewer.show_what = "Global-CFT"
+        ui.spectra_inspector.set_bin_size(1)
+        ui.spectra_inspector.set_bin_size(2)
+        ui.spectra_inspector.peak_viewer.show_what = "Local-CFT"
+        ui.spectra_inspector._click_at((5, 5))
+        ui.spectra_inspector.peak_viewer.show_what = "Local-CFT (5x upsampling)"
+        ui.spectra_inspector.peak_viewer.pos = 1
+        ui.spectra_inspector.peak_viewer.show_what = "Global-CFT"
+        ui.spectra_inspector.parameters.export(Path(tmpdir) / "params.csv")
 
         # file iterator
         ui.FileMenu.open_file_iterator()
@@ -1220,6 +1228,10 @@ def test_calc_misc(ui: CylindraMainWidget, tmpdir):
     ui.MoleculesMenu.View.plot_molecule_feature(layer, backend="qt")
     ui.MoleculesMenu.View.plot_molecule_feature(
         layer, backend="inline", show_title=False, show_axis=False
+    )
+    layer.source_component = None
+    ui.MoleculesMenu.View.plot_molecule_feature(
+        layer, backend="inline", show_title=False, show_axis=True
     )
     fp = Path(tmpdir) / "test-project.tar"
     ui.save_project(fp)
