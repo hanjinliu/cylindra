@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from cylindra._cylindra_ext import (
         BaseCylindricAnnealingModel,
         CylindricAnnealingModel,
+        FilamentousAnnealingModel,
     )
 
     _DistLike = nm | str
@@ -355,7 +356,51 @@ class Landscape:
             .with_reject_limit(reject_limit)
         )
 
-    def annealing_model(
+    def filamentous_annealing_model(
+        self,
+        distance_range: tuple[_DistLike, _DistLike],
+        angle_max: float | None = None,
+        temperature_time_const: float = 1.0,
+        temperature: float | None = None,
+        cooling_rate: float | None = None,
+        reject_limit: int | None = None,
+    ) -> FilamentousAnnealingModel:
+        from cylindra._cylindra_ext import FilamentousAnnealingModel
+
+        molecules = self.molecules
+        if molecules.count() < 3:
+            raise ValueError("At least 3 molecules are required for RFA.")
+        mole = molecules.translate_internal(-self.offset_nm)
+        if angle_max is None:
+            angle_max = 90.0
+
+        time_const, temperature, cooling_rate, reject_limit = self._normalize_args(
+            temperature_time_const, temperature, cooling_rate, reject_limit
+        )
+
+        model = FilamentousAnnealingModel().construct_graph(mole.count())
+
+        return (
+            model.set_graph_coordinates(
+                origin=mole.pos,
+                zvec=(mole.z * self.scale_factor).astype(np.float32),
+                yvec=(mole.y * self.scale_factor).astype(np.float32),
+                xvec=(mole.x * self.scale_factor).astype(np.float32),
+            )
+            .set_energy_landscape(self.energies)
+            .set_reservoir(
+                temperature=temperature,
+                time_constant=time_const,
+            )
+            .set_box_potential(
+                *self._norm_distance_range_long(distance_range, model),
+                float(np.deg2rad(angle_max)),
+                cooling_rate=cooling_rate,
+            )
+            .with_reject_limit(reject_limit)
+        )
+
+    def cylindric_annealing_model(
         self,
         spl: CylSpline,
         distance_range_long: tuple[_DistLike, _DistLike],
@@ -392,7 +437,7 @@ class Landscape:
         if angle_max is None:
             angle_max = 90.0
         random_seeds = _normalize_random_seeds(random_seeds)
-        annealing = self.annealing_model(
+        annealing = self.cylindric_annealing_model(
             spl,
             distance_range_long=distance_range_long,
             distance_range_lat=distance_range_lat,
@@ -441,13 +486,57 @@ class Landscape:
         _Logger.print_table(
             {
                 "Iteration": [r.niter for r in results],
-                "Score": [f"{-float(r.energies[-1]):.3g}" for r in results],
+                "Score": [f"{-float(r.energies[-1]):.5g}" for r in results],
                 "State": [r.state for r in results],
             }
         )
         results = sorted(results, key=lambda r: r.energies[-1])
         mole_opt = self.transform_molecules(mole, results[0].indices)
         mole_opt = _update_mole_pos(mole_opt, mole, spl)
+        return mole_opt, results
+
+    def run_filamentous_annealing(
+        self,
+        range: tuple[float | str, float | str],
+        angle_max: float | None = None,
+        temperature_time_const: float = 1.0,
+        random_seeds: Sequence[int] = (0, 1, 2, 3, 4),
+    ) -> tuple[Molecules, list[AnnealingResult]]:
+        mole = self.molecules
+        if angle_max is None:
+            angle_max = 90.0
+        random_seeds = _normalize_random_seeds(random_seeds)
+        annealing = self.filamentous_annealing_model(
+            distance_range=range,
+            angle_max=angle_max,
+            temperature_time_const=temperature_time_const,
+        )
+
+        batch_size = _to_batch_size(annealing.time_constant())
+        temp0 = annealing.temperature()
+        _Logger.info("Running annealing")
+        _Logger.info(f"  shape: {self.energies.shape[1:]!r}")
+        tasks = [
+            _run_annealing(annealing.with_seed(s), batch_size, temp0)
+            for s in random_seeds
+        ]
+        results = compute(*tasks)
+        if all(result.state == "failed" for result in results):
+            raise RuntimeError(
+                "Failed to optimize for all trials. You may check the distance range."
+            )
+        elif not any(result.state == "converged" for result in results):
+            _Logger.print("Optimization did not converge for any trial.")
+
+        _Logger.print_table(
+            {
+                "Iteration": [r.niter for r in results],
+                "Score": [f"{-float(r.energies[-1]):.5g}" for r in results],
+                "State": [r.state for r in results],
+            }
+        )
+        results = sorted(results, key=lambda r: r.energies[-1])
+        mole_opt = self.transform_molecules(mole, results[0].indices)
         return mole_opt, results
 
     def normed(self, sd: bool = True) -> Landscape:

@@ -164,10 +164,10 @@ class CylTomogram(Tomogram):
         """
         Roughly fit splines to cylindrical structures.
 
-        Subtomograms will be sampled at every ``max_interval`` nm. In dense mode,
+        Subtomograms will be sampled at every `max_interval` nm. In dense mode,
         Subtomograms will be masked relative to XY-plane, using sigmoid function.
-        Sharpness of the sigmoid function is determined by ``dense_mode_sigma``
-        (``dense_mode_sigma=0`` corresponds to a step function).
+        Sharpness of the sigmoid function is determined by `dense_mode_sigma`
+        (`dense_mode_sigma=0` corresponds to a step function).
 
         Parameters
         ----------
