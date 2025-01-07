@@ -142,8 +142,6 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     ui.LocalProperties.edit_plots(["spacing", "twist"])
     ui.LocalProperties.edit_plots(["spacing", "twist", "rise"])
 
-    ui.SplinesMenu.Show.show_splines()
-    ui.SplinesMenu.Show.show_splines_as_meshes()
     ui.load_splines(save_path / "spline-0.json")
     ui.set_source_spline(ui.mole_layers["Mole-0"], 0)
     ui.invert_image()
@@ -306,10 +304,14 @@ def test_map_molecules(ui: CylindraMainWidget):
     # this also tests coercing names
     ui.map_along_spline(0, molecule_interval=pl.col("spacing"))
     ui.clear_all()
-    ui.register_path(coords_14pf)
+    ui.load_project(PROJECT_DIR_14PF, filter=None)
     ui.map_along_spline(
         0, molecule_interval=4.08, rotate_molecules=False, orientation=None
     )  # test mapping without any measurement.
+
+    ui.SplinesMenu.Show.show_splines()
+    ui.SplinesMenu.Show.show_splines_as_meshes()
+    ui.SplinesMenu.Show.show_splines_as_meshes(color_by="spacing")
 
 
 def test_napari_operations(ui: CylindraMainWidget):

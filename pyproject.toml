@@ -137,7 +137,10 @@ cylindra = ["cylindra/"]
 cylindra_builtins = ["cylindra_builtins/"]
 
 [tool.coverage.exclude]
-path = ["cylindra/cli/_cookiecutter_template/"]
+path = [
+    "cylindra/cli/_cookiecutter_template/",
+    "cylindra_builtins/_pytest_fixtures.py",
+]
 
 [tool.coverage.report]
 exclude_lines = [

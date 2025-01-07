@@ -9,8 +9,8 @@ name = "_cylindra_ext"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = "0.21.2"
-numpy = "0.21.0"
+pyo3 = "0.23.3"
+numpy = "0.23.0"
 rand = "0.8.5"
 mt19937 = "2.0.1"
 num = { version = "0.4.0", features = ["std"] }
