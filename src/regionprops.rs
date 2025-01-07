@@ -341,7 +341,7 @@ impl RegionProfiler {
                 "std" => self.intensity_std(),
                 _ => return value_error!(format!("Unknown property: {}", prop)),
             };
-            out.insert(prop, Array1::from(vec).into_pyarray(py).unbind());
+            out.insert(prop, Array1::from(vec).into_pyarray_bound(py).unbind());
         }
         Ok(out)
     }

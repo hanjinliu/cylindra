@@ -44,7 +44,7 @@ pub fn alleviate<'py>(
     let mut arr = arr.to_owned();
     if indices.len() == 0 {
         // nothing to do.
-        return Ok(arr.into_pyarray(py).unbind());
+        return Ok(arr.into_pyarray_bound(py).unbind());
     }
     let geometry = CylinderGeometry::new(ny, na, nrise);
     let mut processed = HashSet::new();
@@ -81,7 +81,7 @@ pub fn alleviate<'py>(
             return value_error!("Infinite recursion occurred.");
         }
     }
-    Ok(arr.into_pyarray(py).unbind())
+    Ok(arr.into_pyarray_bound(py).unbind())
 }
 
 fn local_average(neighbor: &Index, arr: &Array3<f32>, geometry: &CylinderGeometry) -> PyResult<(f32, f32, f32)> {
