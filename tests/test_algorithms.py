@@ -141,7 +141,13 @@ def test_local_cft():
     path = TEST_DIR / "13pf_MT.tif"
     tomo = CylTomogram.imread(path, binsize=[1, 2])
     tomo.add_spline(coords=[[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]])
-    tomo.fit()
+    with pytest.raises(IndexError):
+        tomo.fit(i=1)
+    with pytest.raises(ValueError):
+        tomo.fit(i=[0, 0])
+    with pytest.raises(TypeError):
+        tomo.fit(i="x")
+    tomo.fit(i=-1)
     tomo.splines[0].radius = 9
     tomo.make_anchors(n=3)
     tomo.local_cft(i=0)
@@ -158,6 +164,23 @@ def test_global_cft():
     tomo.make_anchors(n=3)
     tomo.global_cft(0)
     tomo.global_cft(0, binsize=2)
+    tomo.splines[0].props.loc = {"x": [0, 1, -1]}
+    tomo.splines[0].props.glob = {"x": 0}
+    with pytest.raises(ValueError):
+        tomo.splines[0].props.glob = {"y": [0, 1]}
+    tomo.splines[0].props.get_loc(pl.col("x") + 1)
+    _DEFAULT = object()
+    assert tomo.splines[0].props.get_loc("z", default=_DEFAULT) is _DEFAULT
+    with pytest.raises(ValueError):
+        tomo.splines[0].props.get_loc(pl.col("x") + 1, default=0)
+    with pytest.raises(TypeError):
+        tomo.splines[0].props.get_loc(1)
+    assert tomo.splines[0].props.get_glob(pl.col("x") + 1) == 1
+    assert tomo.splines[0].props.get_glob("z", default=11) == 11
+    with pytest.raises(ValueError):
+        tomo.splines[0].props.get_glob(pl.col("x") + 1, default=0)
+    with pytest.raises(TypeError):
+        tomo.splines[0].props.get_glob(1)
 
 
 @pytest.mark.parametrize(
@@ -199,6 +222,7 @@ def test_spline_list():
     for coords in tomo.splines.iter_anchor_coords():
         assert isinstance(coords, np.ndarray)
     tomo.splines.remove(tomo.splines[1])
+    assert len(tomo.splines[:]) == 2
 
 
 def test_cylinder_params():

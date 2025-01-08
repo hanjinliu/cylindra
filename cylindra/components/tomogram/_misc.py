@@ -65,7 +65,7 @@ class BatchCallable(Protocol[_P, _R]):
         ...
 
     def __call__(self, i, *args, **kwargs):
-        ...
+        ...  # pragma: no cover
 
 
 def batch_process(
