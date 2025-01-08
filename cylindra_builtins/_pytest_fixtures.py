@@ -13,7 +13,7 @@ def ui(make_napari_viewer, request: "pytest.FixtureRequest"):
 
     viewer: napari.Viewer = make_napari_viewer()
     _ui = start(viewer=viewer)
-    if request.config.getoption("--show-viewer"):
+    if request.config.getoption("--show-viewer", default=None):
         viewer.show()
     yield _ui
 
