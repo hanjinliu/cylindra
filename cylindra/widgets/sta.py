@@ -2254,11 +2254,10 @@ class SubtomogramAveraging(ChildWidget):
             molecules, binsize=bin_size, order=order
         )
         model = _get_alignment(method)
+        tmp_prov = self.params._norm_template_param(template_path, allow_multiple=True)
         landscape = Landscape.from_loader(
             loader=loader,
-            template=self.params._norm_template_param(template_path).provide(
-                loader.scale
-            ),
+            template=tmp_prov.provide(loader.scale),
             mask=self.params._get_mask(params=mask_params),
             max_shifts=max_shifts,
             upsample_factor=upsample_factor,
