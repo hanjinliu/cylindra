@@ -31,7 +31,7 @@ accurate RMA analysis.
 
 ## Step 2. Refine the molecule positions by RMA
 
-RMA can be performed by the [align_all_annealing][cylindra.widgets.sta.SubtomogramAveraging.align_all_annealing] method, but there are several tips to get better results.
+RMA can be performed by the [align_all_rma][cylindra.widgets.sta.SubtomogramAveraging.align_all_rma] method, but there are several tips to get better results.
 
 RMA is a constrained alignment algorithm that refines the positions of the molecules
 considering the constraint between longitudinal and lateral tubulin distances. If you

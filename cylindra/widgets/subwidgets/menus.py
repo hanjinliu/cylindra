@@ -546,6 +546,7 @@ class MoleculesMenu(ChildWidget):
         sep0 = Separator
         set_source_spline = abstractapi()
         molecules_to_spline = abstractapi()
+        filament_to_spline = abstractapi()
         protofilaments_to_spline = abstractapi()
 
     @magicmenu(name="Combine")

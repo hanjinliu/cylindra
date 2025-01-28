@@ -1,6 +1,12 @@
 use pyo3::prelude::PyResult;
 use crate::{value_error, coordinates::Vector3D};
 
+pub trait BindingPotential {
+    fn cool(&mut self, _n: usize) {
+        // Do nothing by default.
+    }
+
+}
 pub trait BindingPotential2D {
     fn longitudinal(&self, dr: &Vector3D<f32>, vec: &Vector3D<f32>) -> f32;
     fn lateral(&self, dr: &Vector3D<f32>, vec: &Vector3D<f32>) -> f32;
@@ -16,9 +22,6 @@ pub trait BindingPotential2D {
             EdgeType::Longitudinal => self.longitudinal(dr, vec),
             EdgeType::Lateral => self.lateral(dr, vec),
         }
-    }
-    fn cool(&mut self, _n: usize) {
-        // Do nothing by default.
     }
 }
 
@@ -176,6 +179,16 @@ impl TrapezoidalPotential2D {
 
 }
 
+impl BindingPotential for TrapezoidalPotential2D {
+    /// Cool the potential by increasing the slope of the trapezoid.
+    fn cool(&mut self, n: usize) {
+        let slope = self.cooling_rate * n as f32;
+        self.lon.slope = slope;
+        self.lat.slope = slope;
+        self.angle.slope = slope;
+    }
+}
+
 impl BindingPotential2D for TrapezoidalPotential2D {
     fn longitudinal(&self, dr: &Vector3D<f32>, vec: &Vector3D<f32>) -> f32 {
         // Energy coming from longitudinal distance
@@ -187,12 +200,78 @@ impl BindingPotential2D for TrapezoidalPotential2D {
     fn lateral(&self, dr: &Vector3D<f32>, _vec: &Vector3D<f32>) -> f32 {
         self.lat.energy(&dr)
     }
+}
 
+#[derive(Clone)]
+pub struct StiffFilamentPotential {
+    lon: TrapezoidalBoundary,
+    angle: TrapezoidalCosineBoundary,
+    cooling_rate: f32,
+}
+
+impl StiffFilamentPotential {
+    pub fn new(
+        lon_dist_min: f32,
+        lon_dist_max: f32,
+        lon_ang_max: f32,
+        cooling_rate: f32,
+    ) -> PyResult<Self> {
+        if cooling_rate < 0.0 {
+            return value_error!("Cooling rate must be non-negative");
+        }
+
+        Ok(
+            Self {
+                lon: TrapezoidalBoundary::new(lon_dist_min, lon_dist_max, 0.0)?,
+                angle: TrapezoidalCosineBoundary::new(lon_ang_max, 0.0)?,
+                cooling_rate,
+            }
+        )
+    }
+
+    pub fn unbounded() -> Self {
+        Self {
+            lon: TrapezoidalBoundary::unbounded(),
+            angle: TrapezoidalCosineBoundary::unbounded(),
+            cooling_rate: 0.0,
+        }
+    }
+
+    pub fn with_dist(&self, min: f32, max: f32) -> PyResult<Self> {
+        let mut new = self.clone();
+        new.lon = TrapezoidalBoundary::new(min, max, self.lon.slope)?;
+        Ok(new)
+    }
+
+    pub fn with_ang(&self, max: f32) -> PyResult<Self> {
+        let mut new = self.clone();
+        new.angle = TrapezoidalCosineBoundary::new(max, self.angle.slope)?;
+        Ok(new)
+    }
+
+    pub fn with_cooling_rate(&self, cooling_rate: f32) -> Self {
+        let mut new = self.clone();
+        new.cooling_rate = cooling_rate;
+        new
+    }
+
+    /// Energy coming from longitudinal distance
+    pub fn calculate_bind(&self, dr: &Vector3D<f32>) -> f32 {
+        self.lon.energy(dr)
+    }
+
+    /// Energy coming from deformation (curvature of the filament)
+    pub fn calculate_deform(&self, dr1: &Vector3D<f32>, dr2: &Vector3D<f32>) -> f32 {
+        let eng_ang = self.angle.energy(dr1, dr2);
+        eng_ang
+    }
+}
+
+impl BindingPotential for StiffFilamentPotential {
     /// Cool the potential by increasing the slope of the trapezoid.
     fn cool(&mut self, n: usize) {
         let slope = self.cooling_rate * n as f32;
         self.lon.slope = slope;
-        self.lat.slope = slope;
         self.angle.slope = slope;
     }
 }

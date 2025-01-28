@@ -53,10 +53,12 @@ Here's the list of the standard feature names and how they will be added.
     - [align_all][cylindra.widgets.sta.SubtomogramAveraging.align_all]
     - [align_all_template_free][cylindra.widgets.sta.SubtomogramAveraging.align_all_template_free]
     - [align_all_viterbi][cylindra.widgets.sta.SubtomogramAveraging.align_all_viterbi]
-    - [align_all_annealing][cylindra.widgets.sta.SubtomogramAveraging.align_all_annealing]
+    - [align_all_rma][cylindra.widgets.sta.SubtomogramAveraging.align_all_rma]
+    - [align_all_rfa][cylindra.widgets.sta.SubtomogramAveraging.align_all_rfa]
     - [run_align_on_landscape][cylindra.widgets.sta.SubtomogramAveraging.run_align_on_landscape]
     - [run_viterbi_on_landscape][cylindra.widgets.sta.SubtomogramAveraging.run_viterbi_on_landscape]
-    - [run_annealing_on_landscape][cylindra.widgets.sta.SubtomogramAveraging.run_annealing_on_landscape]
+    - [run_rma_on_landscape][cylindra.widgets.sta.SubtomogramAveraging.run_rma_on_landscape]
+    - [run_rfa_on_landscape][cylindra.widgets.sta.SubtomogramAveraging.run_rfa_on_landscape]
 
 Following values are measured by [calculate_lattice_structure][cylindra.widgets.main.CylindraMainWidget.calculate_lattice_structure].
 
