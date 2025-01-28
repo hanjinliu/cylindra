@@ -2256,7 +2256,9 @@ class SubtomogramAveraging(ChildWidget):
         model = _get_alignment(method)
         landscape = Landscape.from_loader(
             loader=loader,
-            template=template_path,
+            template=self.params._norm_template_param(template_path).provide(
+                loader.scale
+            ),
             mask=self.params._get_mask(params=mask_params),
             max_shifts=max_shifts,
             upsample_factor=upsample_factor,
