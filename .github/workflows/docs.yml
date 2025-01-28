@@ -17,7 +17,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: "3.12"
 
       - name: Create virtual environment
         env:
@@ -36,7 +36,6 @@ jobs:
 
       - name: Deploy docs to GitHub Pages
         if: github.event_name == 'push'
-        # run: mkdocs gh-deploy --force
         run: mkdocs gh-deploy --strict --force
 
       - name: Test that docs build without error

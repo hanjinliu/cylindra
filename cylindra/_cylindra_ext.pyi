@@ -170,6 +170,7 @@ def cylinder_faces(
     ny: int,
     npf: int,
 ) -> NDArray[np.int32]: ...
+def find_changing_point(arr: NDArray[np.float32]) -> int: ...
 
 class RegionProfiler:
     def __init__(

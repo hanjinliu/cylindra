@@ -48,6 +48,7 @@ from cylindra.widget_utils import (
     add_molecules,
     capitalize,
     change_viewer_focus,
+    timer,
 )
 from cylindra.widgets import _progress_desc as _pdesc
 from cylindra.widgets import subwidgets as _sw
@@ -63,6 +64,7 @@ from cylindra.widgets._main_utils import (
     AutoSaver,
     SplineTracker,
     degrees_to_rotator,
+    fast_percentile,
     normalize_offsets,
     normalize_radius,
 )
@@ -218,6 +220,7 @@ class CylindraMainWidget(MagicTemplate):
         self._batch: "CylindraBatchWidget | None" = None
         self._project_dir: "Path | None" = None
         self._current_binsize: int = 1
+        self._project_metadata = dict[str, Any]()
         self.objectName()  # load napari types
 
     def __post_init__(self):
@@ -297,6 +300,16 @@ class CylindraMainWidget(MagicTemplate):
     def sub_viewer(self) -> "napari.Viewer":
         """The sub-viewer for subtomogram averages."""
         return self.sta.sub_viewer
+
+    @property
+    def project_dir(self) -> Path | None:
+        """The project directory."""
+        return self._project_dir
+
+    @property
+    def project_metadata(self) -> dict[str, Any]:
+        """The project metadata."""
+        return self._project_metadata
 
     def _init_macro_state(self):
         self._macro_offset = len(self.macro)
@@ -694,6 +707,7 @@ class CylindraMainWidget(MagicTemplate):
         method = ImageFilter(method)
         if self.tomogram.is_dummy:
             return
+        t0 = timer()
         with utils.set_gpu():
             img = self._reserved_layers.image_data
             overlap = [min(s, 32) for s in img.shape]
@@ -711,7 +725,7 @@ class CylindraMainWidget(MagicTemplate):
                 case _:  # pragma: no cover
                     raise ValueError(f"No method matches {method!r}")
 
-        contrast_limits = np.percentile(img_filt, [1, 99.9])
+        contrast_limits = fast_percentile(img_filt, [1, 99.9])
 
         @thread_worker.callback
         def _filter_reference_image_on_return():
@@ -721,12 +735,14 @@ class CylindraMainWidget(MagicTemplate):
             self.Overview.image = proj
             self.Overview.contrast_limits = contrast_limits
 
+        t0.toc()
         return _filter_reference_image_on_return
 
     @thread_worker.with_progress(desc="Inverting image")
     @set_design(text=capitalize, location=_sw.ImageMenu)
     def invert_image(self):
         """Invert the intensity of the images."""
+        t0 = timer()
         self.tomogram.invert()
         if self._reserved_layers.is_lazy:
 
@@ -736,7 +752,7 @@ class CylindraMainWidget(MagicTemplate):
 
         else:
             img_inv = -self._reserved_layers.image.data
-            cmin, cmax = np.percentile(img_inv, [1, 99.9])
+            cmin, cmax = fast_percentile(img_inv, [1, 99.9])
             if cmin >= cmax:
                 cmax = cmin + 1
 
@@ -749,6 +765,7 @@ class CylindraMainWidget(MagicTemplate):
                 self.Overview.contrast_limits = -chigh, -clow
                 return undo_callback(self.invert_image)
 
+        t0.toc()
         return _invert_image_on_return
 
     @set_design(text="Add multi-scale", location=_sw.ImageMenu)
@@ -962,6 +979,100 @@ class CylindraMainWidget(MagicTemplate):
             self._update_splines_in_images()
 
         return out
+
+    @set_design(text=capitalize, location=_sw.SplinesMenu)
+    def split_spline(
+        self,
+        spline: Annotated[int, {"choices": _get_splines}],
+        at: Annotated[nm, {"min": 0.0, "max": 10000.0, "step": 0.1, "label": "split at (nm)"}] = 100.0,
+        from_start: bool = True,
+        trim: Annotated[nm, {"min": 0.0, "max": 100.0, "step": 0.1, "label": "trim (nm)"}] = 0.0,
+    ):  # fmt: skip
+        """
+        Split the spline into two at the given position.
+
+        Parameters
+        ----------
+        {spline}
+        at : float, default 100.0
+            Position to split the spline in nm.
+        from_start : bool, default True
+            If True, the split position will be measured from the start of the spline.
+        trim : float, default 0.0
+            Trim the split parts by this length (nm).
+        """
+        spl = self.splines[spline]
+        spls = spl.split(at, from_start=from_start, trim=trim)
+        self.splines.pop(spline)
+        for new_spl in reversed(spls):
+            self.splines.insert(spline, new_spl)
+        self._update_splines_in_images()
+        self.reset_choices()
+
+        @undo_callback
+        def _out():
+            del self.splines[-2:]
+            self.splines.insert(spline, spl)
+            self._update_splines_in_images()
+            self.reset_choices()
+
+        return _out
+
+    @set_design(text=capitalize, location=_sw.SplinesMenu)
+    def split_splines_at_changing_point(
+        self,
+        splines: SplinesType = None,
+        estimate_by: str = "radius",
+        diff_cutoff: Annotated[float, {"min": 0.0, "max": 1000.0, "step": 0.01}] = 0.4,
+        trim: Annotated[nm, {"min": 0.0, "max": 1000.0, "step": 0.1, "label": "trim (nm)"}] = 0.0,
+    ):  # fmt: skip
+        """
+        Detect the changing point of the spline and split it there.
+
+        This method is useful when (1) there's a change in the protofilament number, or
+        (2) microtubules were polymerized from seeds.
+
+        Parameters
+        ----------
+        {splines}
+        estimate_by : str, default "radius"
+            Local property to estimate the changing point. Must be one of the local
+            property of the splines.
+        diff_cutoff : float, default 2.0
+            The cutoff value of the absolute difference between the two regions to be
+            considered as a changing point.
+        trim : float, default 0.0
+            Trim the split parts by this length (nm). If any of the split parts is
+            shorter than this length, the part will be discarded.
+        """
+        splines = self._norm_splines(splines)
+        spl_map = dict[int, list[CylSpline]]()
+        _Logger.print("`split_spine_at_changing_point`")
+        for i in splines:
+            spl = self.splines[i]
+            if (loc := spl.props.get_loc(estimate_by, None)) is None:
+                raise ValueError(
+                    f"Spline-{i} does not have {estimate_by!r} local property. Call "
+                    "`measure_local_radius` or `local_cft_analysis` first."
+                )
+            idx = utils.find_changing_point(loc)
+            mean_diff = float(abs(loc[:idx].mean() - loc[idx:].mean()))
+            _log = f"spline-{i}: {mean_diff=:.3g}"
+            if mean_diff < diff_cutoff:
+                _Logger.print(_log + " ==> skip")
+                continue
+            at = spl.length(0, (spl.anchors[idx - 1] + spl.anchors[idx]) / 2)
+            _Logger.print(_log + f" ==> split at {at:.1f} nm")
+            spl_map[i] = spl.split(at, from_start=True, trim=trim, allow_discard=True)
+
+        for i, new_spls in sorted(spl_map.items(), key=lambda x: x[0], reverse=True):
+            self.splines.pop(i)
+            for new_spl in reversed(new_spls):
+                self.splines.insert(i, new_spl)
+
+        self._update_splines_in_images()
+        self.reset_choices()
+        return None
 
     @set_design(text=capitalize, location=_sw.SplinesMenu)
     @confirm(
@@ -2693,20 +2804,21 @@ class CylindraMainWidget(MagicTemplate):
 
         self.macro.clear_undo_stack()
         self.Overview.layers.clear()
-        self._init_widget_state()
-        self._init_layers()
-        self.reset_choices()
+        with self._pend_reset_choices():
+            self._init_widget_state()
+            self._init_layers()
 
-        # backward compatibility
-        if isinstance(filt, bool):
-            if filt:
-                filt = ImageFilter.Lowpass
-            else:
-                filt = None
-        if filt is not None and not isinstance(imgb, ip.LazyImgArray):
-            self.filter_reference_image(method=filt)
-        if invert:
-            self.invert_image()
+            # backward compatibility
+            if isinstance(filt, bool):
+                if filt:
+                    filt = ImageFilter.Lowpass
+                else:
+                    filt = None
+            if filt is not None and not isinstance(imgb, ip.LazyImgArray):
+                self.filter_reference_image(method=filt)
+            if invert:
+                self.invert_image()
+        self.reset_choices()
         self.GeneralInfo.project_desc.value = ""  # clear the project description
         self._need_save = False
         self._macro_image_load_offset = len(self.macro)

@@ -639,6 +639,35 @@ class Spline(BaseComponent):
             inverted.anchors = 1 - anchors[::-1]
         return inverted
 
+    def split(
+        self,
+        at: nm,
+        from_start: bool = True,
+        trim: nm = 0.0,
+        allow_discard: bool = False,
+    ) -> list[Self]:
+        spl_len = self.length()
+        if not from_start:
+            at = spl_len - at
+        at_rel_0 = (at - trim) / spl_len
+        at_rel_1 = (at + trim) / spl_len
+        out = list["Self"]()
+        if at_rel_0 >= 0:
+            out.append(self.clip(0.0, at_rel_0))
+        elif not allow_discard:
+            raise ValueError(
+                "Split position must be over `trim` if allow_discard is False, but "
+                f"tried to split at {at:.1f} nm."
+            )
+        if at_rel_1 <= 1.0:
+            out.append(self.clip(at_rel_1, 1.0))
+        elif not allow_discard:
+            raise ValueError(
+                "Split position must be under `length - trim` if allow_discard is "
+                f"False, but tried to split at {at:.1f} nm (length = {spl_len:.1f})."
+            )
+        return out
+
     def curvature(
         self,
         positions: Sequence[float] | None = None,

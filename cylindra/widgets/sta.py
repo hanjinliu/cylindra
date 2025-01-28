@@ -569,10 +569,10 @@ class SubtomogramAveraging(ChildWidget):
         """The napari viewer for subtomogram averaging."""
         return StaParameters._viewer
 
-    def _template_param(self, *_):  # for bind
+    def _template_param(self, *_) -> Path | None:  # for bind
         return self.params._get_template_input(allow_multiple=False)
 
-    def _template_params(self, *_):  # for bind
+    def _template_params(self, *_) -> Path | list[Path] | None:  # for bind
         return self.params._get_template_input(allow_multiple=True)
 
     def _get_mask_params(self, *_):  # for bind

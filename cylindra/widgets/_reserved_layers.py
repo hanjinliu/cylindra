@@ -14,6 +14,7 @@ from cylindra.const import (
     Ori,
     SplineColor,
 )
+from cylindra.widgets._main_utils import fast_percentile
 
 if TYPE_CHECKING:
     from cylindra.components import CylSpline
@@ -166,7 +167,7 @@ def _work_layer() -> Points:
 
 def _calc_contrast_limits(arr: np.ndarray) -> tuple[float, float]:
     """Calculate contrast limits for an array."""
-    cmin, cmax = np.min(arr), np.max(arr)
+    cmin, cmax = fast_percentile(arr, [0.1, 99.9])
     if cmin >= cmax:
         cmax = cmin + 1
     return float(cmin), float(cmax)

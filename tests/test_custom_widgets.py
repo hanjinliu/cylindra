@@ -1,4 +1,5 @@
 import pytest
+from pytestqt.qtbot import QtBot
 
 from cylindra.widgets import _widget_ext
 
@@ -19,10 +20,32 @@ def test_construction():
     _widget_ext.SingleRotationEdit()
 
 
-def test_check_boxes():
+def test_check_boxes(qtbot: QtBot):
+    from qtpy import QtCore
+
     widget = _widget_ext.CheckBoxes(choices=["a", "b", "c"])
+    widget.native.show()
+    qtbot.addWidget(widget.native)
+
+    assert widget.choices == ("a", "b", "c")
     widget.value = ["a", "b"]
+    assert widget.value == ["a", "b"]
     widget.value = ["b", "a"]
+    assert widget.value == ["a", "b"]
+    with pytest.raises(ValueError):
+        widget.value = ["a", "d"]
+    widget.choices = ["x", "y"]
+    qtbot.keyClick(widget.native, QtCore.Qt.Key.Key_Down)
+    qtbot.keyClick(widget.native, QtCore.Qt.Key.Key_Up)
+    qtbot.keyClick(
+        widget.native, QtCore.Qt.Key.Key_A, QtCore.Qt.KeyboardModifier.ControlModifier
+    )
+    pos0 = widget.native.rect().topLeft() + QtCore.QPoint(3, 3)
+    pos1 = widget.native.rect().topLeft() + QtCore.QPoint(3, 23)
+    qtbot.mousePress(widget.native, QtCore.Qt.MouseButton.LeftButton, pos=pos0)
+    # move by 20 pixels down
+    qtbot.mouseMove(widget.native, pos=pos1)
+    qtbot.mouseRelease(widget.native, QtCore.Qt.MouseButton.LeftButton)
 
 
 def test_random_seed_edit():

@@ -149,6 +149,8 @@ class CylinderParameters:
         perimeter = 2 * m.pi * radius
         npf = roundint(npf)
 
+        # NOTE: the `roundint` part will be the reason of unmatch between input twist
+        # and the output.
         if given(pitch):
             if given(rise_angle):
                 rise_angle *= rise_sign
@@ -169,6 +171,7 @@ class CylinderParameters:
                         skew = _twist_to_skew(start, tan_rise, twist)
                     else:
                         skew = _twist_to_skew_no_rise(pitch, radius, twist)
+                rise_angle = m.degrees(m.atan(tan_rise))
             elif given(rise_length):
                 raise NotImplementedError
             else:
@@ -207,6 +210,9 @@ class CylinderParameters:
                 * m.cos(m.radians(rise_angle))
                 / m.cos(m.radians(rise_angle - skew))
             )
+
+        else:
+            raise ValueError("Not enough information to solve.")
 
         return CylinderParameters(skew, rise_angle, pitch, radius, npf, rise_sign)
 
