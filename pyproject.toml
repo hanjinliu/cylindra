@@ -129,18 +129,16 @@ filterwarnings = [
 
 [tool.coverage.run]
 source = ["cylindra", "cylindra_builtins"]
+omit = [
+    "cylindra/cli/_cookiecutter_template/*",
+    "cylindra_builtins/_pytest_fixtures.py",
+]
 branch = true
 parallel = true
 
 [tool.coverage.paths]
 cylindra = ["cylindra/"]
 cylindra_builtins = ["cylindra_builtins/"]
-
-[tool.coverage.exclude]
-path = [
-    "cylindra/cli/_cookiecutter_template/",
-    "cylindra_builtins/_pytest_fixtures.py",
-]
 
 [tool.coverage.report]
 exclude_lines = [

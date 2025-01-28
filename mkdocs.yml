@@ -3,7 +3,7 @@ site_description: Cryo-ET image analysis tool for cylindric periodic structures 
 repo_name: cylindra
 repo_url: https://github.com/hanjinliu/cylindra
 
-copyright: Copyright (c) 2023 - 2024 Hanjin Liu
+copyright: Copyright (c) 2023 - 2025 Hanjin Liu
 
 theme:
   name: material
@@ -77,6 +77,7 @@ nav:
     - cli.md
     - Case Studies:
       - Case Studies: case_studies/index.md
+      - case_studies/rma.md
       - case_studies/seam_search.md
       - case_studies/ssta.md
       - case_studies/make_figure.md

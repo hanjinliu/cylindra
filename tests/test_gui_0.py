@@ -91,6 +91,7 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     ui._runner.run(interval=24.0)
     ui.infer_polarity()
     ui.map_monomers(splines=[0, 1])
+    assert ui._confirm_delete()
     ui.measure_local_radius(splines=[0, 1])
     ui.project_metadata["my_meta"] = 1
 
@@ -335,6 +336,13 @@ def test_load_macro(ui: CylindraMainWidget, tmpdir):
     fp = Path(tmpdir) / "test_macro.py"
     fp.write_text("print(0)")
     ui.OthersMenu.Macro.load_macro_file(fp)
+
+    # open reference
+    ui.open_reference_image(TEST_DIR / "14pf_MT.tif")
+    img = ip.imread(TEST_DIR / "14pf_MT.tif")
+    img_binary = img > img.mean()
+    img_binary.astype(np.uint8).imsave(tmpdir / "label.tif")
+    ui.open_label_image(tmpdir / "label.tif")
 
 
 def test_spline_control(ui: CylindraMainWidget, tmpdir):
@@ -806,6 +814,8 @@ def test_clip_spline(ui: CylindraMainWidget):
     ui.clip_spline(0, (3, 1))
     length_new = ui.tomogram.splines[0].length()
     assert length_old - 4 == pytest.approx(length_new, abs=1e-2)
+    ui.macro.undo()
+    ui.macro.redo()
 
 
 def test_radius_methods(ui: CylindraMainWidget):
