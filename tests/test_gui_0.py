@@ -1486,6 +1486,14 @@ def test_annealing(ui: CylindraMainWidget):
         angle_max=20,
         random_seeds=[0, 1],
     )
+    ui.splines.clear()
+    ui.filament_to_spline(layer_filament)
+    ui.sta.fit_spline_rfa(
+        spline=0,
+        template_path=TEST_DIR / "beta-tubulin.mrc",
+        range_long=(dist_lon - 0.1, dist_lon + 0.1),
+        angle_max=20,
+    )
 
 
 def test_landscape(ui: CylindraMainWidget, tmpdir):

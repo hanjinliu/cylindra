@@ -531,7 +531,7 @@ class StaParameters(MagicTemplate):
             viewer.window.resize(10, 10)
             viewer.window.activate()
         image.scale_unit = "nm"
-        _viewer: "napari.Viewer" = StaParameters._viewer
+        _viewer: napari.Viewer = StaParameters._viewer
         _viewer.scale_bar.visible = True
         _viewer.scale_bar.unit = "nm"
         if store:
@@ -1258,7 +1258,8 @@ class SubtomogramAveraging(ChildWidget):
         """
         1D-constrained subtomogram alignment on a filament using simulated annealing.
 
-        This alignment method considers the distance between every adjacent monomers.
+        This alignment method considers the distance between every adjacent monomers on
+        the filament.
 
         Parameters
         ----------
@@ -1834,7 +1835,7 @@ class SubtomogramAveraging(ChildWidget):
                 _Logger.print_html(f"Resolution at FSC={_c:.3f} ... <b>{_r:.3f} nm</b>")
 
             if img_avg is not None:
-                _imlayer: "Image" = self._show_rec(img_avg, name=f"[AVG]{_name}")
+                _imlayer: Image = self._show_rec(img_avg, name=f"[AVG]{_name}")
                 _imlayer.metadata["fsc"] = result
                 _imlayer.metadata["fsc_halfmaps"] = (
                     _as_imgarray(img_0, axes="izyx"),
@@ -1988,7 +1989,7 @@ class SubtomogramAveraging(ChildWidget):
                 if show_average == "Filtered":
                     sigma = 0.25 / loader.scale
                     result.averages.gaussian_filter(sigma=sigma, update=True)
-                _imlayer: "Image" = self._show_rec(
+                _imlayer: Image = self._show_rec(
                     result.averages, layer.name, store=False
                 )
                 _imlayer.metadata[SEAM_SEARCH_RESULT] = result
