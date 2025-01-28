@@ -102,6 +102,12 @@ impl<Sn, Se> GraphComponents<Sn, Se> {
 }
 
 #[derive(Clone)]
+pub struct Node1D<S: Clone> {
+    pub index: usize,
+    pub state: S,
+}
+
+#[derive(Clone)]
 pub struct Node2D<S: Clone> {
     pub index: Index,
     pub state: S,
@@ -122,6 +128,14 @@ pub trait GraphTrait<N: Clone, E: Clone> {
     fn local_shape(&self) -> Shift;
     /// Set the energy landscape array to the graph.
     fn set_energy_landscape(&mut self, energy: ArcArray<f32, Ix4>) -> PyResult<&Self>;
+
+    /// Energy difference by shifting a state of node at idx.
+    fn energy_diff_by_shift(
+        &self,
+        idx: usize,
+        state_old: &N,
+        state_new: &N,
+    ) -> f32;
 
     fn energy(&self) -> f32 {
         let mut energy = 0.0;
@@ -157,28 +171,6 @@ pub trait GraphTrait<N: Clone, E: Clone> {
         let de = self.energy_diff_by_shift(idx, &state_old, &state_new);
         ShiftResult { index: idx, state: state_new, energy_diff: de }
     }
-
-    /// Energy difference by shifting a state of node at idx.
-    fn energy_diff_by_shift(
-        &self,
-        idx: usize,
-        state_old: &N,
-        state_new: &N,
-    ) -> f32 {
-        let graph = self.components();
-        let mut e_old = self.internal(&state_old);
-        let mut e_new = self.internal(&state_new);
-        for edge_id in graph.connected_edge_indices(idx) {
-            let edge_id = *edge_id;
-            let ends = graph.edge_end(edge_id);
-            let other_idx = if ends.0 == idx { ends.1 } else { ends.0 };
-            let other_state = graph.node_state(other_idx);
-            e_old += self.binding(&state_old, &other_state, graph.edge_state(edge_id));
-            e_new += self.binding(&state_new, &other_state, graph.edge_state(edge_id));
-        }
-        e_new - e_old
-    }
-
 }
 
 pub trait CylindricGraphTrait<S: Clone, E: Clone>: GraphTrait<Node2D<S>, E> {

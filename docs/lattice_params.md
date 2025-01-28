@@ -1,6 +1,6 @@
 # Measure Lattice Parameters
 
-In this section, we'll see how to measure the lattice parameters and store the results
+In this section, we will see how to measure the lattice parameters and store the results
 in the `Spline` object.
 
 ## Estimate the Radius

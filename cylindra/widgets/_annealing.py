@@ -74,7 +74,7 @@ def preview_single(
     range_lat: tuple[str, str],
     upsample_factor: int,
 ):
-    fgui = get_function_gui(self.align_all_annealing)
+    fgui = get_function_gui(self.align_all_rma)
     scale = self._get_main().tomogram.scale
     yield from _preview_function(
         widget=self,
@@ -93,7 +93,7 @@ def preview_landscape_function(
     range_long: tuple[str, str],
     range_lat: tuple[str, str],
 ):
-    fgui = get_function_gui(self.run_annealing_on_landscape)
+    fgui = get_function_gui(self.run_rma_on_landscape)
     yield from _preview_function(
         widget=self,
         fgui=fgui,
