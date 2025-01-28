@@ -57,7 +57,7 @@ class PeakInspector(ChildWidget):
         pass
 
     def __init__(self):
-        self._peaks: "list[ImageWithPeak] | None" = None
+        self._peaks: list[ImageWithPeak] | None = None
         self._power_spectra = list[ip.ImgArray | None]()
         self._image = np.zeros((1, 1))
         self._is_log_scale = False
@@ -591,5 +591,3 @@ class SpectraInspector(ChildWidget):
                 self.peak_viewer._upsample_and_update_image(
                     a0, y0, self.SidePanel.radius, self.SidePanel.factor
                 )
-            case _:
-                pass

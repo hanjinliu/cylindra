@@ -4,6 +4,8 @@ Restricted Mesh Annealing (RMA) is a constrained subtomogram alignment algorithm
 that was introduced in our work. It imposes longitudinal and lateral constraints
 between molecules and optimize the alignment score using simulated annealing.
 
+As an example of using RMA, see the [case study](../case_studies/rma.md).
+
 ## Run RMA on a Landscape
 
 :material-arrow-right-thin-circle-outline: API: [`run_annealing_on_landscape`][cylindra.widgets.sta.SubtomogramAveraging.run_annealing_on_landscape]
