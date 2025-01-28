@@ -563,7 +563,7 @@ class CylindraProject(BaseProject):
 
             with tempfile.TemporaryDirectory() as tmpdir:
                 with tarfile.open(self.project_path) as tar:
-                    tar.extractall(tmpdir, filter=tarfile.fully_trusted_filter)
+                    tar.extractall(tmpdir, filter="fully_trusted")
                 yield Path(tmpdir)
 
         elif ext in (".zip",):
