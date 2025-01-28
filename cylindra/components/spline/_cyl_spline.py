@@ -10,7 +10,7 @@ from cylindra.components.cylindric import CylinderModel
 from cylindra.components.spline._spline_base import Spline
 from cylindra.const import Ori, nm
 from cylindra.const import PropertyNames as H
-from cylindra.utils import roundint
+from cylindra.utils import roundint, with_columns
 
 
 class CylSpline(Spline):
@@ -210,8 +210,8 @@ class CylSpline(Spline):
                 pl.Series([str(orientation)]).cast(pl.String).alias(H.orientation)
             )
 
-        self.props.loc = self.props.loc.with_columns(loc)
-        self.props.glob = self.props.glob.with_columns(glob)
+        self.props.loc = with_columns(self.props.loc, loc)
+        self.props.glob = with_columns(self.props.glob, glob)
 
         return self
 

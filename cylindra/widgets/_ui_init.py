@@ -37,6 +37,8 @@ if TYPE_CHECKING:
     from magicgui.widgets import FloatSpinBox
     from napari.layers import Layer
 
+_SPLINE_PREVIEW = "Spline preview"
+
 
 @impl_preview(CylindraMainWidget.load_molecules)
 def _preview_load_molecules(self: CylindraMainWidget, paths: list[str]):
@@ -56,15 +58,14 @@ def _preview_clip_spline(
     self: CylindraMainWidget, spline: int, lengths: tuple[float, float]
 ):
     tomo = self.tomogram
-    name = "Spline preview"
     spl = tomo.splines[spline]
     length = spl.length()
     start, stop = np.array(lengths) / length
     verts = tomo.splines[spline].clip(start, 1 - stop).partition(100)
     verts_2d = verts[:, 1:]
     viewer = self.parent_viewer
-    if name in viewer.layers:
-        layer: Layer = viewer.layers[name]
+    if _SPLINE_PREVIEW in viewer.layers:
+        layer: Layer = viewer.layers[_SPLINE_PREVIEW]
         layer.data = verts_2d
     else:
         layer = viewer.add_shapes(
@@ -72,7 +73,7 @@ def _preview_clip_spline(
             shape_type="path",
             edge_color="crimson",
             edge_width=3,
-            name=name,
+            name=_SPLINE_PREVIEW,
         )
     is_active = yield
     if not is_active and layer in viewer.layers:
@@ -282,6 +283,38 @@ def _preview_paint_molecules(
     with _temp_layer_colors(layer):
         self.paint_molecules(layer, cmap, color_by, limits)
         yield
+
+
+@impl_preview(CylindraMainWidget.split_spline, auto_call=True)
+def _split_spline_preview(
+    self: CylindraMainWidget,
+    spline: int,
+    at: float,
+    from_start: bool,
+    trim: float,
+):
+    spl = self.splines[spline]
+    try:
+        spls = spl.split(at, from_start=from_start, trim=trim)
+    except ValueError:
+        yield
+        return
+    verts_2d = [spl.partition(100)[:, 1:] for spl in spls]
+    viewer = self.parent_viewer
+    if _SPLINE_PREVIEW in viewer.layers:
+        layer: Layer = viewer.layers[_SPLINE_PREVIEW]
+        layer.data = verts_2d
+    else:
+        layer = viewer.add_shapes(
+            verts_2d,
+            shape_type="path",
+            edge_color=["crimson", "cyan"],
+            edge_width=3,
+            name=_SPLINE_PREVIEW,
+        )
+    is_active = yield
+    if not is_active and layer in viewer.layers:
+        viewer.layers.remove(layer)
 
 
 @impl_preview(CylindraMainWidget.convolve_feature, auto_call=True)

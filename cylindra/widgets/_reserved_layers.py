@@ -14,6 +14,7 @@ from cylindra.const import (
     Ori,
     SplineColor,
 )
+from cylindra.widgets._main_utils import fast_percentile
 
 if TYPE_CHECKING:
     from cylindra.components import CylSpline
@@ -58,6 +59,8 @@ class ReservedLayers:
             contrast_limits=_calc_contrast_limits(img),
             blending="translucent_no_depth",
         )
+        self.image.bounding_box.points = False
+        self.image.bounding_box.line_color = "#a0a0a0"
 
     def highlight_spline(self, i: int):
         """Highlight the current spline."""
@@ -164,7 +167,7 @@ def _work_layer() -> Points:
 
 def _calc_contrast_limits(arr: np.ndarray) -> tuple[float, float]:
     """Calculate contrast limits for an array."""
-    cmin, cmax = np.min(arr), np.max(arr)
+    cmin, cmax = fast_percentile(arr, [0.1, 99.9])
     if cmin >= cmax:
         cmax = cmin + 1
     return float(cmin), float(cmax)

@@ -186,7 +186,7 @@ class timer:
 
     def toc(self):
         dt = default_timer() - self.start
-        _Logger.print(f"`{self.name}` ({dt:.1f} sec)")
+        _Logger.print(f"`{self.name}` (took {dt:.1f} sec)")
 
 
 class CmapDict(TypedDict):
@@ -288,6 +288,15 @@ class FscResult:
         fsc_mean = np.mean(fsc_all, axis=1)
         fsc_std = np.std(fsc_all, axis=1)
         return cls(freq, fsc_mean, fsc_std, scale)
+
+    def to_dataframe(self) -> pl.DataFrame:
+        return pl.DataFrame(
+            {
+                "freq": self.freq,
+                "FSC_mean": self.mean,
+                "FSC_std": self.std,
+            }
+        )
 
     def get_resolution(self, res: float) -> nm:
         freq0 = None

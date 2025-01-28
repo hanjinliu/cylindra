@@ -1,4 +1,3 @@
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -34,15 +33,14 @@ def test_tooltip(ui: CylindraMainWidget):
     mcls_testing.check_tooltip(ui.batch)
 
 
-def test_project_io(ui: CylindraMainWidget):
+def test_project_io(ui: CylindraMainWidget, tmpdir):
     _load(ui)
-    with tempfile.TemporaryDirectory() as tmpdir:
-        root = Path(tmpdir)
-        path = root / "test"
-        ui.batch.save_batch_project(path)
-        assert len(ui.batch.loader_infos) == 1
-        ui.batch.load_batch_project(path)
-        assert len(ui.batch.loader_infos) == 1
+    root = Path(tmpdir)
+    path = root / "test"
+    ui.batch.save_batch_project(path)
+    assert len(ui.batch.loader_infos) == 1
+    ui.batch.load_batch_project(path)
+    assert len(ui.batch.loader_infos) == 1
 
     ui.batch.construct_loader(
         paths=[
@@ -93,7 +91,7 @@ def test_project_io(ui: CylindraMainWidget):
 def test_view(ui: CylindraMainWidget):
     ui.batch.constructor.add_projects_glob(TEST_DIR / "test*" / "project.json")
     tester = mcls_testing.FunctionGuiTester(ui.batch.constructor.add_projects_glob)
-    tester.update_parameters(pattern=TEST_DIR / "test*" / "project.json")
+    tester.update_parameters(pattern=[TEST_DIR / "test*" / "project.json"])
     tester.click_preview()
     ui.batch.constructor.clear_projects()
     ui.batch.constructor.add_projects([PROJECT_DIR_13PF, PROJECT_DIR_14PF])

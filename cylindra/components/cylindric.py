@@ -96,11 +96,6 @@ class CylinderModel:
                 raise ValueError("Shifts shape mismatch")
             self._displace = np.asarray(displace, dtype=np.float32)
 
-    def with_nrise(self, nrise: int) -> Self:
-        """Return an updated model with given rise number."""
-        tilts_lat = nrise / self.shape[1]
-        return self.replace(tilts=(self.tilts[0], tilts_lat))
-
     def replace(
         self,
         tilts: tuple[float, float] | None = None,
@@ -276,9 +271,7 @@ class CylinderModel:
     def dilate(self, by: float, sl: _Slicer) -> Self:
         """Locally add uniform shift to the radial (r-axis) direction."""
         shift = np.zeros(self.shape, dtype=np.float32)
-        if not isinstance(sl, CylindricSlice):
-            sl = indexer[sl]
-        sl.get_resolver(self.nrise).set_slice(shift, by)
+        shift = indexer.norm(sl).get_resolver(self.nrise).update_slice(shift, by)
         shift3d = np.stack([shift, np.zeros_like(shift), np.zeros_like(shift)], axis=2)
         return self.add_shift(shift3d)
 
@@ -309,8 +302,7 @@ class CylinderModel:
         return self._in_plane_displace(by, sl, axis=2)
 
     def _in_plane_displace(self, by: float, sl: _Slicer, axis: int):
-        if not isinstance(sl, CylindricSlice):
-            sl = indexer[sl]
+        sl = indexer.norm(sl)
 
         # check out-of-bound
         if (
@@ -407,6 +399,11 @@ class CylindricSliceConstructor:
             return CylindricSlice(*key)
         return CylindricSlice(key, slice(None))
 
+    def norm(self, sl: _Slicer) -> CylindricSlice:
+        if not isinstance(sl, CylindricSlice):
+            sl = self[sl]
+        return sl
+
 
 indexer = CylindricSliceConstructor()
 
@@ -450,27 +447,24 @@ class CylindricSliceResolver(NamedTuple):
             s0 = 0
         return slices
 
-    def get_slice(self, arr: np.ndarray) -> np.ndarray:
+    def update_slice(self, arr: np.ndarray, val: Any) -> np.ndarray:
         slices = self.resolve_slices(arr.shape)
-        return np.concatenate([arr[sl] for sl in slices], axis=1)
-
-    def set_slice(self, arr: np.ndarray, val: Any) -> None:
-        slices = self.resolve_slices(arr.shape)
+        out = arr.copy()
         start = 0
         if isinstance(val, np.ndarray):
             for sl in slices:
                 asl = sl[1]
                 size = asl.stop - asl.start
                 stop = start + size
-                arr[sl] = val[:, start:stop]
+                out[sl] = val[:, start:stop]
                 start = stop
         elif np.isscalar(val):
             for sl in slices:
                 asl = sl[1]
                 size = asl.stop - asl.start
                 stop = start + size
-                arr[sl] = val
+                out[sl] = val
                 start = stop
         else:
             raise TypeError(f"Cannot set {val!r}.")
-        return None
+        return out

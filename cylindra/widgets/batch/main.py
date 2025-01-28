@@ -50,6 +50,9 @@ class CylindraBatchWidget(MagicTemplate):
     def _get_expression(self, *_):
         return self.constructor._get_expression()
 
+    def _get_constructor_scale(self, *_) -> float:
+        return self.constructor.scale.value
+
     @set_design(text=capitalize, location=constructor)
     @thread_worker
     def construct_loader(
@@ -57,6 +60,7 @@ class CylindraBatchWidget(MagicTemplate):
         paths: Annotated[Any, {"bind": _get_loader_paths}],
         predicate: Annotated[str | pl.Expr | None, {"bind": _get_expression}] = None,
         name: str = "Loader",
+        scale: Annotated[float | None, {"bind": _get_constructor_scale}] = None,
     ):  # fmt: skip
         """
         Construct a batch loader object from the given paths and predicate.
@@ -84,7 +88,14 @@ class CylindraBatchWidget(MagicTemplate):
             img = path_info.lazy_imread()
             image_paths[img_id] = Path(path_info.image)
             invert[img_id] = path_info.need_invert
-            for molecule_id, mole in enumerate(path_info.iter_molecules(_temp_feat)):
+            if scale is None:
+                if prj := path_info.project_instance():
+                    scale = prj.scale
+                else:
+                    scale = img.scale.x
+            for molecule_id, mole in enumerate(
+                path_info.iter_molecules(_temp_feat, scale)
+            ):
                 loader.add_tomogram(img.value, mole, img_id)
                 yield img_id / len(paths), molecule_id / len(path_info.molecules)
             yield (img_id + 1) / len(paths), 0.0
@@ -96,7 +107,7 @@ class CylindraBatchWidget(MagicTemplate):
             loader = loader.filter(predicate)
         new = loader.replace(
             molecules=loader.molecules.drop_features(_temp_feat.to_drop),
-            scale=self.constructor.scale.value,
+            scale=scale,
         )
 
         @thread_worker.callback
@@ -146,7 +157,7 @@ class CylindraBatchWidget(MagicTemplate):
     @set_design(text=capitalize, location=ProjectSequenceEdit.File)
     def construct_loader_by_pattern(
         self,
-        path_pattern: str,
+        path_pattern: Annotated[list[str], {"value": ("",), "layout": "vertical"}],
         mole_pattern: str = "*",
         predicate: Annotated[str | pl.Expr | None, {"bind": _get_expression}] = None,
         name: str = "Loader",

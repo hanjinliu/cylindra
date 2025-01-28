@@ -123,7 +123,7 @@ class Tomogram:
             tilt=tilt,
             binsize=binsize,
         )
-        tomo.metadata["is_dummy"] = True
+        tomo.metadata = {"is_dummy": True}
         return tomo
 
     @property
@@ -189,7 +189,7 @@ class Tomogram:
                         tilt = single_axis(tilt["range"], tilt["kind"])
                     case "dual":
                         tilt = dual_axis(tilt["yrange"], tilt["xrange"])
-                    case _:
+                    case _:  # pragma: no cover
                         raise ValueError(
                             f"Tilt model {tilt!r} not in a correct format."
                         )
@@ -271,7 +271,7 @@ class Tomogram:
             )
             if isinstance(img, ip.ImgArray):
                 _img.set_scale(img)
-        else:
+        else:  # pragma: no cover
             raise TypeError(f"Cannot set type {type(img)} as an image.")
         if (
             abs(_img.scale.z - _img.scale.x) > 1e-4

@@ -3,7 +3,7 @@ from __future__ import annotations
 import weakref
 from timeit import default_timer
 from types import TracebackType
-from typing import TYPE_CHECKING, ContextManager, Iterable
+from typing import TYPE_CHECKING, ContextManager, Iterable, overload
 
 import numpy as np
 from magicclass.undo import undo_callback
@@ -170,3 +170,22 @@ class AutoSaver:
         except Exception as e:  # pragma: no cover
             print("AutosaveError: ", e)
         self._last_saved = default_timer()
+
+
+@overload
+def fast_percentile(arr: np.ndarray, q: float) -> float:
+    ...
+
+
+@overload
+def fast_percentile(arr: np.ndarray, q: list[float]) -> list[float]:
+    ...
+
+
+def fast_percentile(arr: np.ndarray, q):
+    thresh = 1000000
+    if arr.ndim < 3 or arr.size < thresh:
+        return np.percentile(arr, q)
+    step_size = int(arr.size / thresh) + 1
+    start = arr.shape[0] // (step_size + 1)
+    return np.percentile(arr[start::step_size], q)

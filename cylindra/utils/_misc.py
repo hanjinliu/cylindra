@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import math
+import re
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Callable, Sequence, TypeVar
 
 import impy as ip
@@ -45,7 +47,6 @@ def distance_matrix(a: NDArray[np.floating], b: NDArray[np.floating]):
 
     distance_matrix(a, b) will return a matrix of shape (a.shape[0], b.shape[0])
     """
-    # TODO: avoid memory error
     return np.linalg.norm(a[:, np.newaxis] - b[np.newaxis], axis=-1)
 
 
@@ -283,6 +284,28 @@ def map_coordinates_task(
         like=input,
     )
     return task
+
+
+def find_changing_point(arr: NDArray[np.floating]) -> int:
+    from cylindra._cylindra_ext import find_changing_point as _find_changing_point_rs
+
+    return _find_changing_point_rs(np.asarray(arr, dtype=np.float32))
+
+
+def with_columns(df: pl.DataFrame, other: pl.DataFrame) -> pl.DataFrame:
+    """More robust version of df.with_columns(other)."""
+    if df.shape[0] == 0:
+        if not isinstance(other, pl.DataFrame):
+            return pl.DataFrame(other)
+        return other
+    return df.with_columns(other)
+
+
+def read_tilt_angles_from_mdoc(path: str) -> NDArray[np.float32]:
+    text = Path(path).read_text()
+    pattern = re.compile(r"TiltAngle\s*=\s*(-?\d+\.\d+)")
+    angles = [float(m.group(1)) for m in pattern.finditer(text)]
+    return np.asarray(angles, dtype=np.float32)
 
 
 class Projections:

@@ -21,6 +21,7 @@ def test_cylindric_model_construction():
     assert model.radius == 1.2
     assert model.offsets == (3.0, 5.0)
     assert model.displace.shape == (10, 10, 3)
+    assert model.copy().tilts == (0.1, 0.1)
 
     # Test the replace method
     assert model.replace(tilts=(0.2, 0.2)).tilts == (0.2, 0.2)

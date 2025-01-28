@@ -1,5 +1,5 @@
 import re
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 import impy as ip
 import numpy as np
@@ -22,7 +22,7 @@ from magicclass.logging import getLogger
 from magicclass.types import Optional, Path
 from magicclass.utils import thread_worker
 from magicclass.widgets import ConsoleTextEdit
-from magicgui.widgets import Container
+from magicgui.widgets import Container, FunctionGui
 
 from cylindra import _shared_doc
 from cylindra.const import ALN_SUFFIX, nm
@@ -44,6 +44,9 @@ from cylindra.widgets.sta import (
     StaParameters,
     _get_alignment,
 )
+
+if TYPE_CHECKING:
+    from napari.layers import Image
 
 
 def _classify_pca_fmt():
@@ -427,14 +430,20 @@ class BatchSubtomogramAveraging(MagicTemplate):
             mask=self.params._get_mask(params=mask_params),
         )
 
-        fsc, avg = loader.reshape(
+        fsc, (img_0, img_1), img_mask = loader.reshape(
             template=template if size is None else None,
             mask=mask,
             shape=None if size is None else self._get_shape_in_px(size, loader),
-        ).fsc_with_average(mask=mask, seed=seed, n_set=n_pairs, dfreq=dfreq)
+        ).fsc_with_halfmaps(mask, seed=seed, n_set=n_pairs, dfreq=dfreq, squeeze=False)
+
+        def _as_imgarray(im, axes: str = "zyx") -> ip.ImgArray | None:
+            if np.isscalar(im):
+                return None
+            return ip.asarray(im, axes=axes).set_scale(zyx=loader.scale, unit="nm")
 
         if show_average:
-            img_avg = ip.asarray(avg, axes="zyx").set_scale(zyx=loader.scale)
+            avg = (img_0[0] + img_1[0]) / 2
+            img_avg = _as_imgarray(avg)
         else:
             img_avg = None
 
@@ -452,8 +461,13 @@ class BatchSubtomogramAveraging(MagicTemplate):
                 _Logger.print_html(f"Resolution at FSC={_c:.3f} ... <b>{_r:.3f} nm</b>")
 
             if img_avg is not None:
-                _rec_layer = self._show_rec(img_avg, name=f"[AVG]{loader_name}")
-                _rec_layer.metadata["fsc"] = result
+                _imlayer: "Image" = self._show_rec(img_avg, name=f"[AVG]{loader_name}")
+                _imlayer.metadata["fsc"] = result
+                _imlayer.metadata["fsc_halfmaps"] = (
+                    _as_imgarray(img_0, axes="izyx"),
+                    _as_imgarray(img_1, axes="izyx"),
+                )
+                _imlayer.metadata["fsc_mask"] = _as_imgarray(img_mask)
 
         return _calculate_fsc_on_return
 
@@ -575,11 +589,13 @@ class BatchSubtomogramAveraging(MagicTemplate):
         if mask is None:
             raise ValueError("No mask to show.")
         mask = ip.asarray(mask, axes="zyx").set_scale(zyx=loader.scale, unit="nm")
-        self._show_rec(mask, name="Mask image", store=False)
+        self._show_rec(mask, name="Mask image", store=False, threshold=0.5)
 
     @thread_worker.callback
-    def _show_rec(self, img: ip.ImgArray, name: str, store: bool = True):
-        return self.params._show_reconstruction(img, name, store)
+    def _show_rec(
+        self, img: ip.ImgArray, name: str, store: bool = True, threshold=None
+    ):
+        return self.params._show_reconstruction(img, name, store, threshold)
 
     def _get_shape_in_px(
         self, default: "nm | None", loader: BatchLoader
@@ -604,9 +620,10 @@ class BatchSubtomogramAveraging(MagicTemplate):
             template = ip.asarray(template, axes="zyx")
         return template.set_scale(zyx=scale, unit="nm")
 
-    @setup_function_gui(split_loader)
-    def _(self, gui):
-        gui[0].changed.connect(gui[1].reset_choices)
+
+@setup_function_gui(BatchSubtomogramAveraging.split_loader)
+def _setup_split_loader(self: BatchSubtomogramAveraging, gui: FunctionGui):
+    gui[0].changed.connect(gui[1].reset_choices)
 
 
 def _coerce_aligned_name(name: str, loaders: LoaderList):

@@ -320,7 +320,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             Continue data collection even if property table data file was not
             found in any project. Raise error otherwise.
         suffix : str, default ""
-            Suffix to add to the column names that may be collide with the local
+            Suffix to add to the column names that may collide with the local
             properties.
         id : str, default "int"
             How to describe the source tomogram. If "int", each tomogram will
@@ -342,7 +342,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                             f"Globalprops not found in project at {prj.project_path}."
                         )
                     continue
-                imagespec = pl.Series(Mole.image, [idx]).cast(pl.UInt16)
+                imagespec = pl.lit(idx).alias(Mole.image).cast(pl.UInt16)
                 df = pl.read_csv(path).with_columns(imagespec)
             dataframes.append(df)
         out = cast_dataframe(pl.concat(dataframes, how="diagonal"))
@@ -402,16 +402,14 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         """
         props = self.collect_props(
             allow_none=allow_none, spline_details=spline_details, suffix="_glob"
-        )
-        on = [H.spline_id, Mole.image]
-        out = props.loc.join(props.glob, on=on, suffix="_glob")
-        return self._normalize_id(out, id)
+        ).join()
+        return self._normalize_id(props, id)
 
     def collect_props(
         self,
         allow_none: bool = True,
         spline_details: bool = False,
-        suffix="",
+        suffix: str = "",
     ) -> CollectedProps:
         """
         Collect all the local and global properties.
@@ -422,6 +420,9 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             Forwarded to `collect_localprops` and `collect_globalprops`.
         spline_details : bool, default False
             Forwarded to `collect_localprops`.
+        suffix : str, default ""
+            Suffix to add to the column names of global properties that may collide
+            with the local properties.
 
         Returns
         -------
@@ -568,18 +569,19 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                         raise ValueError(
                             f"The {i}-th project {prj!r} does not have a path."
                         )
-                    label = _make_unique_label(Path(path).parent.name, _appeared)
+                    path = Path(path)
+                    if path.suffix == ".json":
+                        label = path.parent.name
+                    elif path.suffix == "":
+                        label = path.name
+                    else:
+                        label = path.stem
+                    label = _make_unique_label(label, _appeared)
                     _map[i] = label
                     _appeared.add(label)
-                _image_col = pl.col(Mole.image)
-                if hasattr(_image_col, "replace_strict"):  # polars>=1.0.0
-                    _image_col = _image_col.replace_strict(
-                        _map, return_dtype=pl.Enum(list(_map.values()))
-                    )
-                else:
-                    _image_col = _image_col.replace(
-                        _map, return_dtype=pl.Enum(list(_map.values()))
-                    )
+                _image_col = pl.col(Mole.image).replace_strict(
+                    _map, return_dtype=pl.Enum(list(_map.values()))
+                )
                 out = out.with_columns(_image_col)
             case _:
                 raise ValueError(f"Invalid id type {id!r}.")
@@ -666,3 +668,8 @@ class CollectedProps(NamedTuple):
     """Collected local properties."""
     glob: pl.DataFrame
     """Collected global properties."""
+
+    def join(self) -> pl.DataFrame:
+        """Return the joined property dataframe."""
+        on = [H.spline_id, Mole.image]
+        return self.loc.join(self.glob, on=on, suffix="_glob")

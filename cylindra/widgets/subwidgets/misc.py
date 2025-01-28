@@ -15,12 +15,11 @@ from magicgui.widgets import TextEdit
 from qtpy import QtGui
 from qtpy.QtCore import Qt
 
-from cylindra._config import get_config
 from cylindra._previews import view_image
 from cylindra.components import CylTomogram
 from cylindra.const import FileFilter, ImageFilter
 from cylindra.project import CylindraProject
-from cylindra.utils import ceilint
+from cylindra.utils import ceilint, read_tilt_angles_from_mdoc
 
 
 @magicclass(widget_type="groupbox")
@@ -132,14 +131,27 @@ class ImageLoader(MagicTemplate):
     @set_design(text="Scan header", max_width=90, location=scale)
     def scan_header(self):
         """Scan scale from image header and set the optimal bin size."""
+
         path = Path(self.path)
         if not path.exists() or not path.is_file():
             return
-        img = ip.lazy.imread(path, chunks=get_config().dask_chunk)
-        scale = img.scale.x
+        header = ip.read_header(path)
+        scale = header.scale["x"]
         self.scale.scale_value = f"{scale:.4f}"
         if len(self.bin_size) < 2:
             self.bin_size = [ceilint(0.96 / scale)]
+        # look for mdoc file
+        if mdoc_file := next(path.parent.glob("*.mdoc"), None):
+            try:
+                tilt_angle = read_tilt_angles_from_mdoc(mdoc_file)
+            except Exception:
+                pass  # unsupported mdoc file format
+            else:
+                tilt_min = round(tilt_angle.min(), 1)
+                tilt_max = round(tilt_angle.max(), 1)
+                self.tilt_model.xrange.value = tilt_min, tilt_max
+                self.tilt_model.yrange.value = tilt_min, tilt_max
+        return None
 
     @set_design(text="Preview")
     def preview_image(self):

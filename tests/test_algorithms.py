@@ -1,9 +1,11 @@
 import numpy as np
 import polars as pl
 import pytest
+from matplotlib import pyplot as plt
 from numpy.testing import assert_allclose
 
 from cylindra.components import CylSpline, CylTomogram
+from cylindra.components.visualize import flat_view
 from cylindra.const import PropertyNames as H
 from cylindra.project._base import MissingWedge
 
@@ -139,7 +141,13 @@ def test_local_cft():
     path = TEST_DIR / "13pf_MT.tif"
     tomo = CylTomogram.imread(path, binsize=[1, 2])
     tomo.add_spline(coords=[[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]])
-    tomo.fit()
+    with pytest.raises(IndexError):
+        tomo.fit(i=1)
+    with pytest.raises(ValueError):
+        tomo.fit(i=[0, 0])
+    with pytest.raises(TypeError):
+        tomo.fit(i="x")
+    tomo.fit(i=-1)
     tomo.splines[0].radius = 9
     tomo.make_anchors(n=3)
     tomo.local_cft(i=0)
@@ -156,6 +164,23 @@ def test_global_cft():
     tomo.make_anchors(n=3)
     tomo.global_cft(0)
     tomo.global_cft(0, binsize=2)
+    tomo.splines[0].props.loc = {"x": [0, 1, -1]}
+    tomo.splines[0].props.glob = {"x": 0}
+    with pytest.raises(ValueError):
+        tomo.splines[0].props.glob = {"y": [0, 1]}
+    tomo.splines[0].props.get_loc(pl.col("x") + 1)
+    _DEFAULT = object()
+    assert tomo.splines[0].props.get_loc("z", default=_DEFAULT) is _DEFAULT
+    with pytest.raises(ValueError):
+        tomo.splines[0].props.get_loc(pl.col("x") + 1, default=0)
+    with pytest.raises(TypeError):
+        tomo.splines[0].props.get_loc(1)
+    assert tomo.splines[0].props.get_glob(pl.col("x") + 1) == 1
+    assert tomo.splines[0].props.get_glob("z", default=11) == 11
+    with pytest.raises(ValueError):
+        tomo.splines[0].props.get_glob(pl.col("x") + 1, default=0)
+    with pytest.raises(TypeError):
+        tomo.splines[0].props.get_glob(1)
 
 
 @pytest.mark.parametrize(
@@ -197,3 +222,116 @@ def test_spline_list():
     for coords in tomo.splines.iter_anchor_coords():
         assert isinstance(coords, np.ndarray)
     tomo.splines.remove(tomo.splines[1])
+    assert len(tomo.splines[:]) == 2
+
+
+def test_cylinder_params():
+    from cylindra.components._cylinder_params import CylinderParameters
+
+    p = CylinderParameters.solve(
+        spacing=4.0,
+        twist=0.02,
+        rise_angle=9.0,
+        radius=10.1,
+        npf=13,
+    )
+    assert p.spacing == pytest.approx(4.0, abs=1e-6)
+    assert p.rise_angle == pytest.approx(9.0, abs=1e-6)
+    assert p.radius == pytest.approx(10.1, abs=1e-6)
+    assert p.npf == 13
+    assert p.skew > 0
+    assert p.pitch == pytest.approx(4.0, abs=1e-2)
+    assert p.lat_spacing == pytest.approx(5, abs=0.1)
+
+    p = CylinderParameters.solve(
+        pitch=4.0,
+        skew=0.02,
+        start=3,
+        radius=10.5,
+        npf=14,
+    )
+    assert p.pitch == pytest.approx(4.0, abs=1e-6)
+    assert p.skew == pytest.approx(0.02, abs=1e-6)
+    assert p.start == 3
+
+    p = CylinderParameters.solve(
+        spacing=4.0,
+        skew=0.22,
+        start=2,
+        radius=10.5,
+        npf=14,
+    )
+    assert p.spacing == pytest.approx(4.0, abs=1e-6)
+    assert p.skew == pytest.approx(0.22, abs=1e-6)
+    assert p.start == 2
+
+    p = CylinderParameters.solve(
+        pitch=4.0,
+        skew=0.1,
+        start=0,
+        radius=6.6,
+        npf=5,
+    )
+
+    assert p.pitch == pytest.approx(4.0, abs=1e-6)
+    assert p.twist > 0
+    assert p.skew == pytest.approx(0.1, abs=1e-6)
+    assert p.start == 0
+
+    p = CylinderParameters.solve(
+        spacing=4.0,
+        skew=0.1,
+        rise_length=0.9,
+        radius=6.6,
+        npf=5,
+    )
+
+    assert p.spacing == pytest.approx(4.0, abs=1e-6)
+    assert p.twist > 0
+    assert p.skew == pytest.approx(0.1, abs=1e-6)
+    assert p.rise_length == pytest.approx(0.9, abs=1e-6)
+
+    # not enough information
+    with pytest.raises(ValueError):
+        CylinderParameters.solve(
+            skew=0.1,
+            rise_length=0.9,
+            radius=6.6,
+            npf=5,
+        )
+
+    with pytest.raises(ValueError):
+        CylinderParameters.solve(
+            pitch=4.0,
+            start=1,
+            radius=6.6,
+            npf=5,
+        )
+
+    with pytest.raises(ValueError):
+        CylinderParameters.solve(
+            spacing=4.0,
+            start=1,
+            radius=6.6,
+            npf=5,
+        )
+
+    with pytest.raises(ValueError):
+        CylinderParameters.solve(
+            pitch=4.0,
+            twist=0.02,
+            start=1,
+            radius=6.6,
+        )
+
+
+def test_flat_view():
+    spl = CylSpline().fit(coords_13pf)
+    spl.props.update_glob(spacing=4.1, skew_angle=0.1, radius=10, npf=13, start=3)
+    model = spl.cylinder_model()
+    mole = model.to_molecules(spl).with_features(
+        pl.len().mod(7).cast(pl.Float32).alias("x")
+    )
+    flat_view(mole, "x", spl, colors="jet")
+    flat_view(mole, pl.col("x") * 2, spl, colors=lambda _: np.zeros(4))
+    plt.close("all")

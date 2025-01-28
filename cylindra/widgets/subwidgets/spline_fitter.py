@@ -1,3 +1,4 @@
+from time import sleep
 from typing import Annotated
 
 import impy as ip
@@ -13,6 +14,7 @@ from magicclass import (
 )
 from magicclass.ext.pyqtgraph import QtImageCanvas, mouse_event
 from magicclass.undo import undo_callback
+from magicclass.utils import thread_worker
 
 from cylindra.const import Mode, nm
 from cylindra.utils import centroid, map_coordinates, rotated_auto_zncc, roundint
@@ -35,9 +37,12 @@ class SplineFitter(ChildWidget):
         Position along the spline.
     err_max : float
         Maximum allowed error (nm) for spline fitting.
+    auto_contrast : bool
+        Automatically adjust contrast limits.
+    delay : int
+        Delay time (msec) of auto centering between positions. Useful for visually
+        checking the results.
     """
-
-    canvas = field(QtImageCanvas).with_options(lock_contrast_limits=True)
 
     def __init__(self) -> None:
         self._max_interval: nm = 50.0
@@ -69,9 +74,10 @@ class SplineFitter(ChildWidget):
             x, z = e.pos()
             self._update_cross(x, z)
 
-    @bind_key("Esc")
-    def _close(self):
-        return self.close()
+    @magicclass(record=False)
+    class LeftPanel(MagicTemplate):
+        canvas = abstractapi()
+        fit = abstractapi()
 
     @magicclass(record=False)
     class RightPanel(MagicTemplate):
@@ -82,7 +88,13 @@ class SplineFitter(ChildWidget):
         err_max = abstractapi()
         auto_contrast = abstractapi()
         resample_volumes = abstractapi()
-        fit = abstractapi()
+        auto_center = abstractapi()
+        auto_center_all = abstractapi()
+        delay = abstractapi()
+
+    @bind_key("Esc")
+    def _close(self):
+        return self.close()
 
     @bind_key("Up")
     def _next_pos(self):
@@ -104,10 +116,12 @@ class SplineFitter(ChildWidget):
         self.num.value = max(self.num.value - 1, self.num.min)
         self._focus_me()
 
+    canvas = field(QtImageCanvas, location=LeftPanel).with_options(lock_contrast_limits=True)  # fmt: skip
     num = field(int, label="Spline", location=RightPanel, record=False).with_options(max=0)  # fmt: skip
     pos = field(int, label="Position", location=RightPanel, record=False).with_options(max=0)  # fmt: skip
     err_max = field(0.5, label="Max error", location=RightPanel, record=False).with_options(step=0.05)  # fmt: skip
     auto_contrast = field(False, location=RightPanel, record=False)
+    delay = field(100, location=RightPanel, record=False).with_options(min=0, max=2000)  # fmt: skip
 
     @auto_contrast.connect
     def _auto_contrast_changed(self, checked: bool):
@@ -156,7 +170,7 @@ class SplineFitter(ChildWidget):
         return None
 
     @bind_key("F")
-    @set_design(text=capitalize, location=RightPanel)
+    @set_design(text=capitalize, location=LeftPanel)
     def fit(
         self,
         i: Annotated[int, {"bind": num}],
@@ -199,8 +213,35 @@ class SplineFitter(ChildWidget):
     @do_not_record
     def auto_center(self):
         """Auto centering at the current position."""
+        x, z = self._auto_center_at(self.num.value, self.pos.value)
+        self._update_cross(x, z)
+
+    @set_design(text=capitalize, location=RightPanel)
+    @do_not_record
+    @thread_worker
+    def auto_center_all(self):
+        """
+        Auto center for all the positions of the current splines.
+
+        This function is essentially identical to run `Auto center` for all the
+        positions. Do not forget to click `Fit` after running this function.
+        """
+
+        @thread_worker.callback
+        def _update(i, j, x, z):
+            self.num.value = i
+            self.pos.value = j
+            self._update_cross(x, z)
+
         i = self.num.value
-        j = self.pos.value
+        delay = self.delay.value / 1000
+        for j in range(self.pos.min, self.pos.max + 1):
+            x, z = self._auto_center_at(i, j)
+            yield _update.with_args(i, j, x, z)
+            sleep(delay)
+        return None
+
+    def _auto_center_at(self, i: int, j: int) -> tuple[float, float]:
         spl = self._get_main().tomogram.splines[i]
         cur_projection = self.subtomograms[j]
         cur_projection = cur_projection - cur_projection.mean()
@@ -210,7 +251,7 @@ class SplineFitter(ChildWidget):
         lz, lx = self.subtomograms.sizesof("zx")
         z = shifts[0] + lz / 2 - 0.5
         x = shifts[1] + lx / 2 - 0.5
-        self._update_cross(x, z)
+        return x, z
 
     def _update_cross(self, x: float, z: float):
         i = self.num.value
