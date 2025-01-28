@@ -1,5 +1,6 @@
 import json
 import logging
+import sys
 import tempfile
 import warnings
 from contextlib import contextmanager
@@ -18,6 +19,8 @@ from cylindra.project._layer_info import LandscapeInfo, MoleculesInfo
 from cylindra.project._utils import as_main_function, extract
 
 if TYPE_CHECKING:
+    import tarfile
+
     from acryo import Molecules
 
     from cylindra.components import CylSpline, CylTomogram
@@ -563,7 +566,7 @@ class CylindraProject(BaseProject):
 
             with tempfile.TemporaryDirectory() as tmpdir:
                 with tarfile.open(self.project_path) as tar:
-                    tar.extractall(tmpdir, filter="fully_trusted")
+                    _tar_extract_all(tar, tmpdir, filter="fully_trusted")
                 yield Path(tmpdir)
 
         elif ext in (".zip",):
@@ -702,3 +705,11 @@ def _prep_save_dir(project_path: Path) -> Generator[Path, None, None]:
         raise ValueError(f"Unsupported extension {ext}.")
 
     return None
+
+
+def _tar_extract_all(tar: "tarfile.TarFile", path: Path) -> None:
+    if sys.version_info >= (3, 11):
+        tar.extractall(path, filter="fully_trusted")
+    else:
+        # in the older version, "filter" argument is not supported sometimes
+        tar.extractall(path)
