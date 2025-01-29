@@ -22,7 +22,7 @@ license = { file = "LICENSE" }
 dynamic = ["version"]
 dependencies = [
     "impy-array>=2.4.5",
-    "acryo>=0.4.13",
+    "acryo>=0.4.15",
     "macro-kit>=0.4.6",
     "magicgui>=0.8.1",
     "magic-class>=0.7.11",

@@ -1061,6 +1061,8 @@ class SubtomogramAveraging(ChildWidget):
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
+        tolerance: float = 0.01,
     ):  # fmt: skip
         """
         Run template-free alignment for the given layers (EXPERIMENTAL).
@@ -1071,6 +1073,7 @@ class SubtomogramAveraging(ChildWidget):
         {method}{bin_size}
         """
         t0 = timer()
+        rng = np.random.default_rng(seed)
         layers = assert_list_of_layers(layers, self.parent_viewer)
         main = self._get_main()
         combiner = MoleculesCombiner()
@@ -1082,19 +1085,46 @@ class SubtomogramAveraging(ChildWidget):
             shape = tuple(
                 main.tomogram.nm2pixel(self._get_shape_in_nm(size), binsize=bin_size)
             )
+        aligned_loader = current_loader = self._get_loader(
+            binsize=bin_size, molecules=molecules, order=interpolation
+        ).reshape(shape=shape)
+        fsc_arr: pl.Series | None = None
+        criteria = [0.5, 0.143]
 
-        aligned_loader = (
-            self._get_loader(binsize=bin_size, molecules=molecules, order=interpolation)
-            .reshape(shape=shape)
-            .align_no_template(
-                mask=mask,
-                max_shifts=max_shifts,
-                rotations=rotations,
-                cutoff=cutoff,
-                alignment_model=_get_alignment(method),
-                tilt=main.tomogram.tilt_model,
+        @thread_worker.callback
+        def _calculate_current_fsc(result: widget_utils.FscResult, num: int):
+            _Logger.print(f"Iteration {int(num)}")
+            with _Logger.set_plt():
+                result.plot(criteria)
+            for _c in criteria:
+                _r = result.get_resolution(_c)
+                _Logger.print_html(f"Resolution at FSC={_c:.3f} ... <b>{_r:.3f} nm</b>")
+
+        niter = 0
+        while True:
+            fsc_result, avg = aligned_loader.fsc_with_average(
+                mask,
+                seed=rng.integers(0, 2**32),
             )
-        )
+            if fsc_arr is None:
+                fsc_arr = fsc_result["FSC-0"].to_numpy()
+            else:
+                fsc_diff = fsc_result["FSC-0"].to_numpy() - fsc_arr
+                if np.mean(fsc_diff) < tolerance:
+                    _Logger.print("FSC converged.")
+                    break
+                fsc_arr = fsc_result["FSC-0"].to_numpy()
+            result = widget_utils.FscResult.from_dataframe(
+                fsc_result, current_loader.scale
+            )
+            yield _calculate_current_fsc.with_args(result, niter)
+            niter += 1
+            aligned_loader = current_loader.align(
+                avg, mask=mask, max_shifts=max_shifts, rotations=rotations,
+                cutoff=cutoff, alignment_model=_get_alignment(method),
+                tilt=main.tomogram.tilt_model,
+            )  # fmt: skip
+
         molecules = combiner.split(aligned_loader.molecules, layers)
         t0.toc()
         return self._align_all_on_return.with_args(molecules, layers)
@@ -2254,9 +2284,10 @@ class SubtomogramAveraging(ChildWidget):
             molecules, binsize=bin_size, order=order
         )
         model = _get_alignment(method)
+        tmp_prov = self.params._norm_template_param(template_path, allow_multiple=True)
         landscape = Landscape.from_loader(
             loader=loader,
-            template=template_path,
+            template=tmp_prov.provide(loader.scale),
             mask=self.params._get_mask(params=mask_params),
             max_shifts=max_shifts,
             upsample_factor=upsample_factor,
