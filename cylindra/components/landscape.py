@@ -135,10 +135,11 @@ class Landscape:
         if isinstance(template, (str, Path)):
             template = pipe.from_file(template)
             multi = False
-        elif isinstance(template, (list, tuple)) and isinstance(
-            next(iter(template), None), (str, Path)
-        ):
-            template = pipe.from_files(template)
+        elif isinstance(template, (list, tuple)):
+            if all(isinstance(t, (str, Path)) for t in template):
+                template = pipe.from_files(template)
+            else:
+                template = list(template)
             multi = True
         elif isinstance(template, np.ndarray):
             multi = template.ndim == 4
