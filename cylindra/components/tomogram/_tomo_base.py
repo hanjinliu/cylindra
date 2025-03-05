@@ -56,6 +56,12 @@ class Tomogram:
         """Scale of the tomogram."""
         return self._scale
 
+    def update_scale(self, new_scale: nm) -> None:
+        self._scale = new_scale
+        self._image.set_scale(xyz=new_scale)
+        for _b, _img in self._multiscaled:
+            _img.set_scale(xyz=new_scale * _b)
+
     @property
     def metadata(self) -> dict[str, Any]:
         """Metadata relevant to the tomogram."""
@@ -283,14 +289,12 @@ class Tomogram:
         return None
 
     @overload
-    def nm2pixel(self, value: nm, binsize: int = 1) -> int:
-        ...
+    def nm2pixel(self, value: nm, binsize: int = 1) -> int: ...
 
     @overload
     def nm2pixel(
         self, value: Iterable[nm] | NDArray[np.number], binsize: int = 1
-    ) -> NDArray[np.intp]:
-        ...
+    ) -> NDArray[np.intp]: ...
 
     def nm2pixel(self, value, binsize: int = 1):
         """

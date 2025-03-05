@@ -460,6 +460,8 @@ def test_spline_control(ui: CylindraMainWidget, tmpdir):
     ui.OthersMenu.configure_cylindra(use_gpu=cfg.use_gpu)
     cfg.to_user_dir()
 
+    ui.update_scale(1.02)
+
 
 def test_preview(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None)
