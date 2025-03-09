@@ -35,8 +35,7 @@ logger = logging.getLogger("cylindra")
 
 
 class Spline(BaseComponent):
-    """
-    3D spline curve model with coordinate system.
+    """3D spline curve model with coordinate system.
 
     Anchor points can be set via `anchor` property. A spline object is semi-immutable.
     Different spline curves are always of different objects, but the anchors and
@@ -83,8 +82,7 @@ class Spline(BaseComponent):
         return len(self.props.loc) > 0 or len(self.props.glob) > 0
 
     def copy(self, copy_props: bool = True, copy_config: bool = True) -> Self:
-        """
-        Copy Spline object.
+        """Copy Spline object.
 
         Parameters
         ----------
@@ -155,9 +153,13 @@ class Spline(BaseComponent):
         return self._u
 
     @classmethod
-    def line(cls, start: ArrayLike, end: ArrayLike) -> Self:
-        """
-        Create a line spline.
+    def line(
+        cls,
+        start: ArrayLike,
+        end: ArrayLike,
+        extrapolate: ExtrapolationMode | str = ExtrapolationMode.linear,
+    ) -> Self:
+        """Create a line spline.
 
         Parameters
         ----------
@@ -165,13 +167,15 @@ class Spline(BaseComponent):
             Start point of the line.
         end : array_like
             End point of the line.
+        extrapolate : ExtrapolationMode or str, default 'linear'
+            Extrapolation mode.
 
         Returns
         -------
         Spline
             Line spline.
         """
-        spl = cls()
+        spl = cls(extrapolate=extrapolate)
         coords = np.stack([start, end], axis=0)
         return spl.fit(coords, err_max=0.0)
 
@@ -261,9 +265,10 @@ class Spline(BaseComponent):
         n: int | None = None,
         max_interval: nm | None = None,
     ) -> Self:
-        """
-        Make anchor points at constant intervals. Either interval, number of anchor or
-        the maximum interval between anchors can be specified.
+        """Make anchor points at constant intervals.
+
+        Either interval, number of anchor or the maximum interval between anchors can be
+        specified.
 
         Parameters
         ----------
@@ -301,8 +306,7 @@ class Spline(BaseComponent):
         )
 
     def clip(self, start: float, stop: float) -> Self:
-        """
-        Clip spline and generate a new one.
+        """Clip spline and generate a new one.
 
         This method does not convert spline bases. `_lims` is updated instead.
 
@@ -328,8 +332,7 @@ class Spline(BaseComponent):
         )._set_params(self._tck, self._u)
 
     def restore(self) -> Self:
-        """
-        Restore the original, not-clipped spline.
+        """Restore the original, not-clipped spline.
 
         Returns
         -------
@@ -344,8 +347,7 @@ class Spline(BaseComponent):
         )._set_params(self._tck, self._u)
 
     def resample(self, max_interval: nm = 1.0, err_max: nm = 0.1) -> Self:
-        """
-        Resample a new spline along the original spline.
+        """Resample a new spline along the original spline.
 
         Parameters
         ----------
@@ -369,8 +371,7 @@ class Spline(BaseComponent):
         *,
         err_max: nm = 1.0,
     ) -> Self:
-        """
-        Fit spline model to coordinates.
+        """Fit spline model to coordinates.
 
         This method uses `scipy.interpolate.splprep` to fit given coordinates to a
         spline.
@@ -448,8 +449,7 @@ class Spline(BaseComponent):
         *,
         err_max: nm = 1.0,
     ) -> Self:
-        """
-        Fit spline model using a list of shifts in XZ-plane.
+        """Fit spline model using a list of shifts in XZ-plane.
 
         Parameters
         ----------
@@ -479,8 +479,7 @@ class Spline(BaseComponent):
         positions: Sequence[float] | None = None,
         nknots: int = 512,
     ) -> NDArray[np.float32]:
-        """
-        Get the distances from u=0.
+        """Get the distances from u=0.
 
         Parameters
         ----------
@@ -511,8 +510,7 @@ class Spline(BaseComponent):
         positions: float | NDArray[np.number] | None = None,
         der: int = 0,
     ) -> NDArray[np.float32]:
-        """
-        Calculate coordinates (or n-th derivative) at points on the spline.
+        """Calculate coordinates (or n-th derivative) at points on the spline.
 
         Parameters
         ----------
@@ -614,7 +612,8 @@ class Spline(BaseComponent):
         return self.map(u, der)
 
     def length(self, start: float = 0, stop: float = 1, nknots: int = 512) -> nm:
-        """
+        """Length of the spline.
+
         Approximate the length of B-spline between [start, stop] by partitioning
         the spline with 'nknots' knots. nknots=256 is large enough for most cases.
         """
@@ -625,8 +624,7 @@ class Spline(BaseComponent):
         return np.sum(np.sqrt(dx**2 + dy**2 + dz**2))
 
     def invert(self) -> Self:
-        """
-        Invert the direction of spline.
+        """Invert the direction of spline.
 
         Returns
         -------
@@ -672,8 +670,7 @@ class Spline(BaseComponent):
         self,
         positions: Sequence[float] | None = None,
     ) -> NDArray[np.float32]:
-        """
-        Calculate curvature of spline curve.
+        """Calculate curvature of spline curve.
 
         Parameters
         ----------
@@ -725,8 +722,7 @@ class Spline(BaseComponent):
 
     @classmethod
     def from_dict(cls: type[Self], d: SplineInfo) -> Self:
-        """
-        Construct a spline model from a dictionary.
+        """Construct a spline model from a dictionary.
 
         Parameters
         ----------
@@ -793,8 +789,7 @@ class Spline(BaseComponent):
         u: float | Sequence[float] = None,
         scale: nm = 1.0,
     ) -> NDArray[np.float32]:
-        """
-        Generate local Cartesian coordinate systems.
+        """Generate local Cartesian coordinate systems.
 
         The generated array can be used for `ndi.map_coordinates`. The result coordinate
         systems are flat, i.e., not distorted by the curvature of spline.
@@ -831,8 +826,7 @@ class Spline(BaseComponent):
         u: float | None = None,
         scale: nm = 1.0,
     ) -> NDArray[np.float32]:
-        """
-        Generate local cylindrical coordinate systems.
+        """Generate local cylindrical coordinate systems.
 
         The generated array can be used for `ndi.map_coordinates`. The result coordinate
         systems are flat, i.e., not distorted by the curvature of spline.
@@ -875,10 +869,11 @@ class Spline(BaseComponent):
         s_range: tuple[float, float] = (0, 1),
         scale: nm = 1.0,
     ) -> NDArray[np.float32]:
-        """
-        Generate a Cartesian coordinate system along spline that can be used for
-        `ndi.map_coordinate`. Note that this coordinate system is distorted, thus
-        does not reflect real geometry (such as distance and derivatives).
+        """Generate a Cartesian coordinate system along spline.
+
+        Generated coordinates can be used for `ndi.map_coordinate`. Note that this
+        coordinate system is distorted, thus does not reflect real geometry (such as
+        distance and derivatives).
 
         Parameters
         ----------
@@ -907,10 +902,11 @@ class Spline(BaseComponent):
         s_range: tuple[float, float] = (0, 1),
         scale: nm = 1.0,
     ) -> NDArray[np.float32]:
-        """
-        Generate a cylindrical coordinate system along spline that can be used for
-        `ndi.map_coordinate`. Note that this coordinate system is distorted, thus
-        does not reflect real geometry (such as distance and derivatives).
+        """Generate a cylindrical coordinate system along spline.
+
+        Generated coordinate can be used for `ndi.map_coordinate`. Note that this
+        coordinate system is distorted, thus does not reflect real geometry (such as
+        distance and derivatives).
 
         Parameters
         ----------
@@ -936,8 +932,7 @@ class Spline(BaseComponent):
     def y_to_position(
         self, y: NDArray[np.float32], nknots: int = 512
     ) -> NDArray[np.float32]:
-        """
-        Convert y-coordinate to spline position parameter.
+        """Convert y-coordinate to spline position parameter.
 
         Parameters
         ----------
@@ -960,8 +955,7 @@ class Spline(BaseComponent):
         coords: NDArray[np.float32],
         nknots: int = 512,
     ) -> NDArray[np.float32]:
-        """
-        Inverse Cartesian coordinate mapping, (z', y', x') to world coordinate.
+        """Inverse Cartesian coordinate mapping, (z', y', x') to world coordinate.
 
         Parameters
         ----------
@@ -985,8 +979,7 @@ class Spline(BaseComponent):
         return out
 
     def cylindrical_to_world(self, coords: NDArray[np.float32]) -> NDArray[np.float32]:
-        """
-        Inverse cylindrical coordinate mapping, (r, y, angle) to world coordinate.
+        """Inverse cylindrical coordinate mapping, (r, y, angle) to world coordinate.
 
         Parameters
         ----------
@@ -1005,7 +998,6 @@ class Spline(BaseComponent):
         cart_coords = np.stack(
             [radius * np.sin(theta), y, radius * np.cos(theta)], axis=1
         )
-
         return self.cartesian_to_world(cart_coords)
 
     def anchors_to_molecules(
@@ -1013,8 +1005,7 @@ class Spline(BaseComponent):
         positions: float | Sequence[float] | None = None,
         rotation: Sequence[float] | None = None,
     ) -> Molecules:
-        """
-        Convert coordinates of anchors to `Molecules` instance.
+        """Convert coordinates of anchors to `Molecules` instance.
 
         Coordinates of anchors must be in range from 0 to 1. The y-direction of
         `Molecules` always points at the direction of spline and the z- direction always
@@ -1047,8 +1038,7 @@ class Spline(BaseComponent):
         self,
         coords: NDArray[np.float32],
     ) -> Molecules:
-        """
-        Convert coordinates of points near the spline to `Molecules` instance.
+        """Convert coordinates of points near the spline to `Molecules` instance.
 
         Coordinates of points must be those in spline cylindrical coordinate system.
 

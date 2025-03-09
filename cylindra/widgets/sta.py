@@ -240,8 +240,7 @@ def _choice_getter(method_name: str, dtype_kind: str = ""):
 
 @magicclass(layout="horizontal", widget_type="groupbox", visible=False, record=False)
 class MaskParameters(MagicTemplate):
-    """
-    Parameters for soft mask creation.
+    """Parameters for soft mask creation.
 
     Soft mask creation has three steps.
     (1) Create binary mask by applying thresholding to the template image.
@@ -275,8 +274,7 @@ class mask_path(MagicTemplate):
 
 @magicclass(layout="horizontal", widget_type="groupbox", visible=False, record=False)
 class SphericalMaskParameters(MagicTemplate):
-    """
-    Parameters for spherical mask creation.
+    """Parameters for spherical mask creation.
 
     Attributes
     ----------
@@ -357,8 +355,7 @@ class LandscapeMenu(MagicTemplate):
 
 @magicclass(record=False, properties={"margins": (0, 0, 0, 0)})
 class StaParameters(MagicTemplate):
-    """
-    Parameters for subtomogram averaging/alignment.
+    """Parameters for subtomogram averaging/alignment.
 
     Attributes
     ----------
@@ -690,8 +687,7 @@ class SubtomogramAveraging(ChildWidget):
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):
-        """
-        Subtomogram averaging using all the molecules in the selected layer(s).
+        """Subtomogram averaging using all the molecules in the selected layer(s).
 
         If multiple layers are selected, subtomograms around all the molecules will
         be averaged.
@@ -723,8 +719,7 @@ class SubtomogramAveraging(ChildWidget):
         number: int = 64,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):
-        """
-        Subtomogram averaging using a subset of subvolumes.
+        """Subtomogram averaging using a subset of subvolumes.
 
         If multiple layers are selected, subtomograms around all the molecules will
         be concatenated before choosing a subset.
@@ -767,8 +762,7 @@ class SubtomogramAveraging(ChildWidget):
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):
-        """
-        Group-wise subtomogram averaging using molecules grouped by the given expression.
+        """Group-wise subtomogram averaging.
 
         This method first group molecules by its features, and then average each group.
         This method is useful for such as get average of each protofilament and segmented
@@ -807,8 +801,7 @@ class SubtomogramAveraging(ChildWidget):
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):
-        """
-        Subtomogram averaging using molecules filtered by the given expression.
+        """Subtomogram averaging using molecules filtered by the given expression.
 
         This method first concatenate molecules in the selected layers, and then filter them
         by the predicate.
@@ -844,8 +837,7 @@ class SubtomogramAveraging(ChildWidget):
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):
-        """
-        Split molecules into two groups and average separately.
+        """Split molecules into two groups and average separately.
 
         Parameters
         ----------
@@ -880,8 +872,7 @@ class SubtomogramAveraging(ChildWidget):
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
     ):  # fmt: skip
-        """
-        Align the averaged image at current monomers to the template image.
+        """Align the averaged image at current monomers to the template image.
 
         This function creates a new layer with transformed monomers, which should
         align well with template image.
@@ -1014,8 +1005,7 @@ class SubtomogramAveraging(ChildWidget):
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
-        """
-        Align the input template image to all the molecules.
+        """Align the input template image to all the molecules.
 
         Parameters
         ----------
@@ -1064,8 +1054,7 @@ class SubtomogramAveraging(ChildWidget):
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
         tolerance: float = 0.01,
     ):  # fmt: skip
-        """
-        Run template-free alignment for the given layers (EXPERIMENTAL).
+        """Run template-free alignment for the given layers (EXPERIMENTAL).
 
         Parameters
         ----------
@@ -1147,14 +1136,13 @@ class SubtomogramAveraging(ChildWidget):
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
     ):  # fmt: skip
-        """
-        Subtomogram alignment using 1D Viterbi alignment.
+        """Subtomogram alignment using 1D Viterbi alignment.
 
         1D Viterbi alignment is an alignment algorithm that considers the distance and
         the skew angle between every longitudinally adjacent monomers. The classical
         Viterbi algorithm is used to find the global optimal solution of the alignment.
         Note that Viterbi alignment is data size dependent, i.e. the alignment result
-        of a molecule may vary depending on the total number of molecules in the dataset.
+        of molecules may vary depending on the total number of molecules in the dataset.
 
         Parameters
         ----------
@@ -1212,8 +1200,7 @@ class SubtomogramAveraging(ChildWidget):
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
     ):  # fmt: skip
-        """
-        2D-constrained subtomogram alignment using simulated annealing.
+        """2D-constrained subtomogram alignment using simulated annealing.
 
         This alignment method considers the distance between every adjacent monomers.
         Two-dimensionally connected optimization can be approximated by the simulated
@@ -1285,8 +1272,7 @@ class SubtomogramAveraging(ChildWidget):
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
     ):
-        """
-        1D-constrained subtomogram alignment on a filament using simulated annealing.
+        """1D-constrained subtomogram alignment on a filament using simulated annealing.
 
         This alignment method considers the distance between every adjacent monomers on
         the filament.
@@ -1362,8 +1348,7 @@ class SubtomogramAveraging(ChildWidget):
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
     ):
-        """
-        Fit spline by RFA.
+        """Fit spline by RFA.
 
         This algorithm uses a template image to precisely determine the center line of
         filaments. By comparing the score, the orientation of the filament will also be
@@ -1479,8 +1464,7 @@ class SubtomogramAveraging(ChildWidget):
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
         norm: bool = True,
     ):
-        """
-        Construct a cross-correlation landscape for subtomogram alignment.
+        """Construct a cross-correlation landscape for subtomogram alignment.
 
         Parameters
         ----------
@@ -1528,8 +1512,7 @@ class SubtomogramAveraging(ChildWidget):
         range_long: _DistRangeLon = (4.0, 4.28),
         angle_max: _AngleMaxLon = 5.0,
     ):
-        """
-        Run Viterbi alignment on the landscape.
+        """Run Viterbi alignment on the landscape.
 
         Parameters
         ----------
@@ -1568,8 +1551,7 @@ class SubtomogramAveraging(ChildWidget):
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
         random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
     ):
-        """
-        Run simulated annealing on the landscape, supposing a cylindric structure.
+        """Run simulated annealing on the landscape, supposing a cylindric structure.
 
         Parameters
         ----------
@@ -1614,8 +1596,7 @@ class SubtomogramAveraging(ChildWidget):
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
         random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
     ):
-        """
-        Run simulated annealing on the landscape, supposing a filamentous structure.
+        """Run simulated annealing on the landscape, supposing a filamentous structure.
 
         Parameters
         ----------
@@ -1651,8 +1632,7 @@ class SubtomogramAveraging(ChildWidget):
         lower: Annotated[Optional[float], {"text": "Do not process lower outliers"}] = None,
         upper: Annotated[Optional[float], {"text": "Do not process upper outliers"}] = None,
     ):  # fmt: skip
-        """
-        Remove outliers from the landscape.
+        """Remove outliers from the landscape.
 
         This method will replace energy (inverse score) outliers with the thresholds.
         This method is useful for lattice with such as defects or strong artifacts.
@@ -1676,8 +1656,7 @@ class SubtomogramAveraging(ChildWidget):
         landscape_layer: _LandscapeLayer,
         norm_sd: bool = True,
     ):
-        """
-        Normalize the landscape.
+        """Normalize the landscape.
 
         Parameters
         ----------
@@ -1739,8 +1718,7 @@ class SubtomogramAveraging(ChildWidget):
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
         column_prefix: str = "score",
     ):
-        """
-        Calculate correlation between template images and the subtomograms.
+        """Calculate correlation between template images and the subtomograms.
 
         This method will load every subtomograms, calculate the correlation between
         the template images and each subtomogram, and save the correlation values
@@ -1803,8 +1781,7 @@ class SubtomogramAveraging(ChildWidget):
         show_average: bool = True,
         dfreq: FSCFreq = None,
     ):
-        """
-        Calculate Fourier Shell Correlation using the selected monomer layer.
+        """Calculate Fourier Shell Correlation using the selected monomer layer.
 
         Parameters
         ----------
@@ -1890,8 +1867,7 @@ class SubtomogramAveraging(ChildWidget):
         n_clusters: Annotated[int, {"min": 2, "max": 100}] = 2,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
     ):  # fmt: skip
-        """
-        Classify molecules in a layer using PCA and K-means clustering.
+        """Classify molecules in a layer using PCA and K-means clustering.
 
         Parameters
         ----------
@@ -1964,8 +1940,7 @@ class SubtomogramAveraging(ChildWidget):
         show_average: Annotated[str, {"label": "show averages as", "choices": [None, "Raw", "Filtered"]}] = "Filtered",
         cutoff: _CutoffFreq = 0.25,
     ):  # fmt: skip
-        """
-        Search for the best seam position.
+        """Search for the best seam position.
 
         Try all patterns of seam positions and compare cross correlation values. If
         molecule assembly has 13 protofilaments, this method will try 26 patterns.
@@ -2043,8 +2018,7 @@ class SubtomogramAveraging(ChildWidget):
         layer: MoleculesLayerType,
         by: Annotated[str, {"choices": _choice_getter("seam_search_by_feature")}],
     ):
-        """
-        Search for seams by a feature.
+        """Search for seams by a feature.
 
         Parameters
         ----------
@@ -2069,8 +2043,7 @@ class SubtomogramAveraging(ChildWidget):
         layer: MoleculesLayerType,
         location: int = 0,
     ):
-        """
-        Search for seams manually.
+        """Search for seams manually.
 
         Seam location is represented by a number in the range [0, 2 * npf - 1].
 
@@ -2225,8 +2198,7 @@ class SubtomogramAveraging(ChildWidget):
         bin_size: int = 1,
         order: int = 3,
     ) -> "Array":
-        """
-        A non-GUI method to get all the subtomograms as a dask array.
+        """A non-GUI method to get all the subtomograms as a dask array.
 
         Parameters
         ----------
