@@ -30,8 +30,7 @@ def start(
     add_main_widget: bool = True,
     run: bool = True,
 ) -> CylindraMainWidget:
-    """
-    Start napari viewer and dock cylindra widget as a dock widget.
+    """Start napari viewer and dock cylindra widget as a dock widget.
 
     Parameters
     ----------
@@ -122,6 +121,10 @@ def start(
         # napari-console disables calltips by default. It's better to enable it.
         viewer.window._qt_viewer.console.enable_calltips = True
 
+    try:  # napari>=0.6.0
+        viewer.camera.orientation = ("away", "down", "right")
+    except Exception as e:
+        print(e)
     ui.show(run=run)
     if add_main_widget:
         try:  # Just in case
@@ -194,8 +197,7 @@ def read_molecules(
     pos_cols: Sequence[str] = ("z", "y", "x"),
     rot_cols: Sequence[str] = ("zvec", "yvec", "xvec"),
 ) -> Molecules:
-    """
-    Read a molecules CSV file.
+    """Read a molecules CSV or parquet file.
 
     Parameters
     ----------
@@ -218,8 +220,7 @@ def read_molecules(
 
 
 def read_spline(file: PathLike) -> CylSpline:
-    """
-    Read the spline file.
+    """Read a spline file.
 
     Parameters
     ----------
@@ -241,10 +242,14 @@ def collect_projects(
     *,
     skip_exc: bool = False,
 ) -> ProjectSequence:
-    """
-    Collect project files into a ProjectSequence object.
+    """Collect project files into a ProjectSequence object.
 
-    >>> collect_projects("path/to/dir/*.json")
+    Examples
+    --------
+    ``` python
+    collect_projects("path/to/dir/*.json")
+    collect_projects(["path/to/dir-0/*.zip", "path/to/dir-1/*.zip"])
+    ```
 
     Parameters
     ----------

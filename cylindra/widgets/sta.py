@@ -52,7 +52,6 @@ from cylindra.const import (
 )
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import PropertyNames as H
-from cylindra.core import ACTIVE_WIDGETS
 from cylindra.types import MoleculesLayer
 from cylindra.widget_utils import (
     DistExprStr,
@@ -410,7 +409,7 @@ class StaParameters(MagicTemplate):
         self.params_spherical.visible = v is MaskChoice.spherical
 
     def _set_last_average(self, img: ip.ImgArray):
-        assert img.ndim == 3
+        assert img.ndim in (3, 4)
         StaParameters._last_average = img
         self.avg_info.value = f"Image of shape {tuple(img.shape)}"
 
@@ -429,13 +428,20 @@ class StaParameters(MagicTemplate):
         allow_multiple: bool = False,
     ) -> pipe.ImageProvider:
         if path is None:
-            if StaParameters._last_average is None:
+            if (avg := StaParameters._last_average) is None:
                 if allow_none:
                     return None
                 raise ValueError("No average image available.")
-            return pipe.from_array(
-                StaParameters._last_average, StaParameters._last_average.scale.x
-            )
+            if avg.ndim == 3:
+                return pipe.from_array(avg, avg.scale.x)
+            elif avg.ndim == 4:
+                if not allow_multiple:
+                    raise ValueError(
+                        "Cannot provide multiple template images, but the last average "
+                        "image has multiple images."
+                    )
+                return pipe.from_arrays(list(avg), avg.scale.x)
+            raise ValueError(f"Invalid shape of average image: {avg.shape}.")
         elif isinstance(path, (str, Path)):
             path = Path(path)
             self._save_history()
@@ -583,7 +589,7 @@ class SubtomogramAveraging(ChildWidget):
             allow_multiple=True,
         ).provide(scale)
         if isinstance(template, list):
-            template = ip.asarray(np.stack(template, axis=0), axes="zyx")
+            template = ip.asarray(np.stack(template, axis=0), axes="pzyx")
         else:
             template = ip.asarray(template, axes="zyx")
         return template.set_scale(zyx=scale, unit="nm")
@@ -789,7 +795,7 @@ class SubtomogramAveraging(ChildWidget):
         img = ip.asarray(avgs, axes="pzyx")
         img.set_scale(zyx=loader.scale, unit="nm")
         t0.toc()
-        return self._show_rec.with_args(img, f"[AVG]{_avg_name(layers)}", store=False)
+        return self._show_rec.with_args(img, f"[AVG]{_avg_name(layers)}")
 
     @set_design(text="Average filtered", location=Averaging)
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Filtered subtomogram averaging of {!r}"))  # fmt: skip
@@ -1882,7 +1888,7 @@ class SubtomogramAveraging(ChildWidget):
         seed : int, default 0
             Random seed.
         """
-        from cylindra.widgets.subwidgets import PcaViewer
+        from cylindra.components.visualize import plot_pca_classification
 
         t0 = timer()
         layer = assert_layer(layer, self.parent_viewer)
@@ -1914,16 +1920,16 @@ class SubtomogramAveraging(ChildWidget):
         avgs = ip.asarray(
             np.stack(list(avgs_dict.values()), axis=0), axes=["cluster", "z", "y", "x"]
         ).set_scale(zyx=loader.scale, unit="nm")
+
+        transformed = pca.get_transform()
         t0.toc()
 
         @thread_worker.callback
         def _on_return():
             layer.molecules = out.molecules  # update features
-            pca_viewer = PcaViewer(pca)
-            pca_viewer.native.setParent(self.native, pca_viewer.native.windowFlags())
-            pca_viewer.show()
+            with _Logger.set_plt():
+                plot_pca_classification(pca, transformed)
             self._show_rec(avgs, name=f"[PCA]{layer.name}", store=False)
-            ACTIVE_WIDGETS.add(pca_viewer)
 
         return _on_return
 

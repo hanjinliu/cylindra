@@ -12,7 +12,6 @@ from cylindra.widgets.subwidgets.menus import (
     SplinesMenu,
 )
 from cylindra.widgets.subwidgets.misc import GeneralInfo, ImageLoader
-from cylindra.widgets.subwidgets.pca import PcaViewer
 from cylindra.widgets.subwidgets.properties import (
     GlobalPropertiesWidget,
     LocalPropertiesWidget,
@@ -29,7 +28,6 @@ __all__ = [
     "Volume",
     "ImageProcessor",
     "SpectraInspector",
-    "PcaViewer",
     "LocalPropertiesWidget",
     "GlobalPropertiesWidget",
     "Simulator",

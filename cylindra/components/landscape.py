@@ -63,7 +63,7 @@ class Landscape:
         Number of templates used.
     scale_factor : float
         Scale factor to convert from pixels to nanometers (upsampling considered).
-        ``scale / upsample_factor`` will be passed to this parameter from the GUI.
+        `scale / upsample_factor` will be passed to this parameter from the GUI.
     """
 
     energies: NDArray[np.float32]
@@ -233,10 +233,7 @@ class Landscape:
             molecules_opt = molecules_opt.with_features(*rotvec_feat)
         if self.num_templates > 1:
             template_id = np.stack(
-                [
-                    self.argmax[(i, *ind)] // (self.num_templates * nrots)
-                    for i, ind in enumerate(indices)
-                ]
+                [self.argmax[(i, *ind)] // nrots for i, ind in enumerate(indices)]
             )
             molecules_opt = molecules_opt.with_features(
                 pl.Series(Mole.template, template_id)
