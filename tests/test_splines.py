@@ -19,7 +19,7 @@ def test_inverse_mapping_cartesian(mode):
     spl = CylSpline.line([0, 0, 0], [0, 3, 0], extrapolate=mode)
     coords = np.array([[0, 0, 0], [1, 1, 1], [-1, -1, 3]])
     crds_spl = spl.cartesian_to_world(coords)
-    answer = np.array([[0, 0, 0], [1, 1, 1], [-1, -1, 3]])
+    answer = np.array([[0, 0, 0], [1, 1, -1], [-1, -1, -3]])
     assert_allclose(crds_spl, answer, rtol=1e-6, atol=1e-6)
 
 
