@@ -2252,7 +2252,7 @@ variables are pushed to the console global namespace:</p>
 <li><code>Path</code>: <code>pathlib.Path</code> class.</li>
 </ul>
 <h3 id="open-an-image">Open an Image</h3>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="open_image(path, scale=None, tilt_range=None, bin_size=[1], filter=ImageFilter.Lowpass, invert=False, eager=False)" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.open_image"><code>open_image</code></a>.</p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="open_image(path, scale=None, tilt_range=None, bin_size=[1], filter=ImageFilter.Lowpass, invert=False, eager=False, cache_image=False)" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.open_image"><code>open_image</code></a>.</p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>File &gt; Open image</code> or <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-k">K</kbd></span> &rarr; <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-o">O</kbd></span>.</p>
 <p>In GUI, an open-image dialog is shown.</p>
 <p><img alt="open image dialog" loading="lazy," src="../images/open_image_dialog.png" width="400px" /></p>
@@ -2285,6 +2285,9 @@ loaded image can also be inverted from the menu (see
 <li>If you want to invert the image, check "Invert intensity".</li>
 <li>If you want to load the original image into the memory, check "Load the entire image
    into memory".</li>
+<li>If the tomogram is stored in HDD, check "Cache image on SSD". Tomogram will be copied
+   to the cache directory in SSD and automatically deleted at exit. This option will
+   improve the performance a lot during your analysis.</li>
 <li>You can preview the selected image by clicking "Preview". A preview window will be
    shown, which only loads separate image slices to accelerate the image loading.</li>
 <li>Click "Open" to calculate the binning/filtering and show the reference image.</li>
