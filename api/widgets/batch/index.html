@@ -3830,7 +3830,8 @@ collect the molecule file names ends with "-ALN1.csv".</p>
 
               <details class="quote">
                 <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 84</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 83</span>
+<span class="normal"> 84</span>
 <span class="normal"> 85</span>
 <span class="normal"> 86</span>
 <span class="normal"> 87</span>
@@ -4367,10 +4368,7 @@ collect the molecule file names ends with "-ALN1.csv".</p>
 <span class="normal">618</span>
 <span class="normal">619</span>
 <span class="normal">620</span>
-<span class="normal">621</span>
-<span class="normal">622</span>
-<span class="normal">623</span>
-<span class="normal">624</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Batch Subtomogram Analysis&quot;</span><span class="p">)</span>
+<span class="normal">621</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Batch Subtomogram Analysis&quot;</span><span class="p">)</span>
 <span class="nd">@_shared_doc</span><span class="o">.</span><span class="n">update_cls</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">BatchSubtomogramAveraging</span><span class="p">(</span><span class="n">MagicTemplate</span><span class="p">):</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_get_parent</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -4791,7 +4789,7 @@ collect the molecule file names ends with "-ALN1.csv".</p>
 <span class="sd">        seed : int, default</span>
 <span class="sd">            Random seed.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">cylindra.widgets.subwidgets</span><span class="w"> </span><span class="kn">import</span> <span class="n">PcaViewer</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">cylindra.components.visualize</span><span class="w"> </span><span class="kn">import</span> <span class="n">plot_pca_classification</span>
 
         <span class="n">t0</span> <span class="o">=</span> <span class="n">timer</span><span class="p">()</span>
         <span class="n">loader</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_parent</span><span class="p">()</span><span class="o">.</span><span class="n">loader_infos</span><span class="p">[</span><span class="n">loader_name</span><span class="p">]</span><span class="o">.</span><span class="n">loader</span>
@@ -4825,17 +4823,15 @@ collect the molecule file names ends with "-ALN1.csv".</p>
             <span class="n">axes</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;cluster&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">],</span>
         <span class="p">)</span><span class="o">.</span><span class="n">set_scale</span><span class="p">(</span><span class="n">zyx</span><span class="o">=</span><span class="n">loader</span><span class="o">.</span><span class="n">scale</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;nm&quot;</span><span class="p">)</span>
 
+        <span class="n">transformed</span> <span class="o">=</span> <span class="n">pca</span><span class="o">.</span><span class="n">get_transform</span><span class="p">()</span>
         <span class="n">t0</span><span class="o">.</span><span class="n">toc</span><span class="p">()</span>
 
         <span class="nd">@thread_worker</span><span class="o">.</span><span class="n">callback</span>
         <span class="k">def</span><span class="w"> </span><span class="nf">_on_return</span><span class="p">():</span>
             <span class="n">loader</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span>
-            <span class="n">pca_viewer</span> <span class="o">=</span> <span class="n">PcaViewer</span><span class="p">(</span><span class="n">pca</span><span class="p">)</span>
-            <span class="n">pca_viewer</span><span class="o">.</span><span class="n">native</span><span class="o">.</span><span class="n">setParent</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">native</span><span class="p">,</span> <span class="n">pca_viewer</span><span class="o">.</span><span class="n">native</span><span class="o">.</span><span class="n">windowFlags</span><span class="p">())</span>
-            <span class="n">pca_viewer</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+            <span class="k">with</span> <span class="n">_Logger</span><span class="o">.</span><span class="n">set_plt</span><span class="p">():</span>
+                <span class="n">plot_pca_classification</span><span class="p">(</span><span class="n">pca</span><span class="p">,</span> <span class="n">transformed</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_show_rec</span><span class="p">(</span><span class="n">avgs</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;[PCA]</span><span class="si">{</span><span class="n">loader_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">store</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-
-            <span class="n">ACTIVE_WIDGETS</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">pca_viewer</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">_on_return</span>
 
@@ -5102,7 +5098,8 @@ If a path is given, image must in the same shape as the template.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">342</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">341</span>
+<span class="normal">342</span>
 <span class="normal">343</span>
 <span class="normal">344</span>
 <span class="normal">345</span>
@@ -5150,8 +5147,7 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="normal">387</span>
 <span class="normal">388</span>
 <span class="normal">389</span>
-<span class="normal">390</span>
-<span class="normal">391</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Align all molecules&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
+<span class="normal">390</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Align all molecules&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Aligning all molecules&quot;</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">align_all</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -5302,7 +5298,8 @@ If a path is given, image must in the same shape as the template.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">244</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">243</span>
+<span class="normal">244</span>
 <span class="normal">245</span>
 <span class="normal">246</span>
 <span class="normal">247</span>
@@ -5326,8 +5323,7 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="normal">265</span>
 <span class="normal">266</span>
 <span class="normal">267</span>
-<span class="normal">268</span>
-<span class="normal">269</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Average all molecules&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchSubtomogramAnalysis</span><span class="p">)</span>
+<span class="normal">268</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Average all molecules&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchSubtomogramAnalysis</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Averaging all molecules in projects&quot;</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">average_all</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -5473,7 +5469,8 @@ segmented subtomogram averaging.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">271</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">270</span>
+<span class="normal">271</span>
 <span class="normal">272</span>
 <span class="normal">273</span>
 <span class="normal">274</span>
@@ -5507,8 +5504,7 @@ segmented subtomogram averaging.</p>
 <span class="normal">302</span>
 <span class="normal">303</span>
 <span class="normal">304</span>
-<span class="normal">305</span>
-<span class="normal">306</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Average group-wise&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchSubtomogramAnalysis</span><span class="p">)</span>
+<span class="normal">305</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Average group-wise&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchSubtomogramAnalysis</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Grouped subtomogram averaging&quot;</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">average_groups</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -5727,7 +5723,8 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">393</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">392</span>
+<span class="normal">393</span>
 <span class="normal">394</span>
 <span class="normal">395</span>
 <span class="normal">396</span>
@@ -5808,8 +5805,7 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 <span class="normal">471</span>
 <span class="normal">472</span>
 <span class="normal">473</span>
-<span class="normal">474</span>
-<span class="normal">475</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Calculate FSC&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchSubtomogramAnalysis</span><span class="p">)</span>
+<span class="normal">474</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Calculate FSC&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchSubtomogramAnalysis</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Calculating FSC&quot;</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">calculate_fsc</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -6090,7 +6086,8 @@ If a path is given, image must in the same shape as the template.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">477</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">476</span>
+<span class="normal">477</span>
 <span class="normal">478</span>
 <span class="normal">479</span>
 <span class="normal">480</span>
@@ -6161,10 +6158,7 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="normal">545</span>
 <span class="normal">546</span>
 <span class="normal">547</span>
-<span class="normal">548</span>
-<span class="normal">549</span>
-<span class="normal">550</span>
-<span class="normal">551</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;PCA/K-means classification&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchSubtomogramAnalysis</span><span class="p">)</span>
+<span class="normal">548</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;PCA/K-means classification&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchSubtomogramAnalysis</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">descs</span><span class="o">=</span><span class="n">_classify_pca_fmt</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">classify_pca</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -6192,7 +6186,7 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="sd">    seed : int, default</span>
 <span class="sd">        Random seed.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">cylindra.widgets.subwidgets</span><span class="w"> </span><span class="kn">import</span> <span class="n">PcaViewer</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">cylindra.components.visualize</span><span class="w"> </span><span class="kn">import</span> <span class="n">plot_pca_classification</span>
 
     <span class="n">t0</span> <span class="o">=</span> <span class="n">timer</span><span class="p">()</span>
     <span class="n">loader</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_parent</span><span class="p">()</span><span class="o">.</span><span class="n">loader_infos</span><span class="p">[</span><span class="n">loader_name</span><span class="p">]</span><span class="o">.</span><span class="n">loader</span>
@@ -6226,17 +6220,15 @@ If a path is given, image must in the same shape as the template.</p>
         <span class="n">axes</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;cluster&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">],</span>
     <span class="p">)</span><span class="o">.</span><span class="n">set_scale</span><span class="p">(</span><span class="n">zyx</span><span class="o">=</span><span class="n">loader</span><span class="o">.</span><span class="n">scale</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;nm&quot;</span><span class="p">)</span>
 
+    <span class="n">transformed</span> <span class="o">=</span> <span class="n">pca</span><span class="o">.</span><span class="n">get_transform</span><span class="p">()</span>
     <span class="n">t0</span><span class="o">.</span><span class="n">toc</span><span class="p">()</span>
 
     <span class="nd">@thread_worker</span><span class="o">.</span><span class="n">callback</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_on_return</span><span class="p">():</span>
         <span class="n">loader</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span>
-        <span class="n">pca_viewer</span> <span class="o">=</span> <span class="n">PcaViewer</span><span class="p">(</span><span class="n">pca</span><span class="p">)</span>
-        <span class="n">pca_viewer</span><span class="o">.</span><span class="n">native</span><span class="o">.</span><span class="n">setParent</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">native</span><span class="p">,</span> <span class="n">pca_viewer</span><span class="o">.</span><span class="n">native</span><span class="o">.</span><span class="n">windowFlags</span><span class="p">())</span>
-        <span class="n">pca_viewer</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+        <span class="k">with</span> <span class="n">_Logger</span><span class="o">.</span><span class="n">set_plt</span><span class="p">():</span>
+            <span class="n">plot_pca_classification</span><span class="p">(</span><span class="n">pca</span><span class="p">,</span> <span class="n">transformed</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_show_rec</span><span class="p">(</span><span class="n">avgs</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;[PCA]</span><span class="si">{</span><span class="n">loader_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">store</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-
-        <span class="n">ACTIVE_WIDGETS</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">pca_viewer</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">_on_return</span>
 </code></pre></div></td></tr></table></div>
@@ -6309,7 +6301,8 @@ If a path is given, image must in the same shape as the template.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">208</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">207</span>
+<span class="normal">208</span>
 <span class="normal">209</span>
 <span class="normal">210</span>
 <span class="normal">211</span>
@@ -6335,8 +6328,7 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="normal">231</span>
 <span class="normal">232</span>
 <span class="normal">233</span>
-<span class="normal">234</span>
-<span class="normal">235</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Filter loader&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchLoaderMenu</span><span class="p">)</span>
+<span class="normal">234</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Filter loader&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchLoaderMenu</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">filter_loader</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">loader_name</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;bind&quot;</span><span class="p">:</span> <span class="n">_get_current_loader_name</span><span class="p">}],</span>
@@ -6386,12 +6378,12 @@ If a path is given, image must in the same shape as the template.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">237</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">236</span>
+<span class="normal">237</span>
 <span class="normal">238</span>
 <span class="normal">239</span>
 <span class="normal">240</span>
-<span class="normal">241</span>
-<span class="normal">242</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+<span class="normal">241</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">get_loader</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BatchLoader</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the acryo.BatchLoader object with the given name&quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
@@ -6419,12 +6411,12 @@ If a path is given, image must in the same shape as the template.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">139</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">138</span>
+<span class="normal">139</span>
 <span class="normal">140</span>
 <span class="normal">141</span>
 <span class="normal">142</span>
-<span class="normal">143</span>
-<span class="normal">144</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;✕&quot;</span><span class="p">,</span> <span class="n">max_width</span><span class="o">=</span><span class="mi">36</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Header</span><span class="p">)</span>
+<span class="normal">143</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;✕&quot;</span><span class="p">,</span> <span class="n">max_width</span><span class="o">=</span><span class="mi">36</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Header</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">remove_loader</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">loader_name</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;bind&quot;</span><span class="p">:</span> <span class="n">_get_current_loader_name</span><span class="p">}]</span>
 <span class="p">):</span>
@@ -6452,7 +6444,8 @@ If a path is given, image must in the same shape as the template.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">119</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">118</span>
+<span class="normal">119</span>
 <span class="normal">120</span>
 <span class="normal">121</span>
 <span class="normal">122</span>
@@ -6469,8 +6462,7 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="normal">133</span>
 <span class="normal">134</span>
 <span class="normal">135</span>
-<span class="normal">136</span>
-<span class="normal">137</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;??&quot;</span><span class="p">,</span> <span class="n">max_width</span><span class="o">=</span><span class="mi">36</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Header</span><span class="p">)</span>
+<span class="normal">136</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;??&quot;</span><span class="p">,</span> <span class="n">max_width</span><span class="o">=</span><span class="mi">36</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Header</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">show_loader_info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Show information about this loader&quot;&quot;&quot;</span>
@@ -6511,7 +6503,10 @@ If a path is given, image must in the same shape as the template.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">580</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">577</span>
+<span class="normal">578</span>
+<span class="normal">579</span>
+<span class="normal">580</span>
 <span class="normal">581</span>
 <span class="normal">582</span>
 <span class="normal">583</span>
@@ -6523,10 +6518,7 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="normal">589</span>
 <span class="normal">590</span>
 <span class="normal">591</span>
-<span class="normal">592</span>
-<span class="normal">593</span>
-<span class="normal">594</span>
-<span class="normal">595</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;fluent:shape-organic-20-filled&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
+<span class="normal">592</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;fluent:shape-organic-20-filled&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">show_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Load and show mask image in the scale of the tomogram.&quot;&quot;&quot;</span>
@@ -6564,12 +6556,12 @@ If a path is given, image must in the same shape as the template.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">559</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">556</span>
+<span class="normal">557</span>
+<span class="normal">558</span>
+<span class="normal">559</span>
 <span class="normal">560</span>
-<span class="normal">561</span>
-<span class="normal">562</span>
-<span class="normal">563</span>
-<span class="normal">564</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;ic:baseline-view-in-ar&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
+<span class="normal">561</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;ic:baseline-view-in-ar&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">show_template</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Load and show template image in the scale of the tomogram.&quot;&quot;&quot;</span>
@@ -6597,7 +6589,10 @@ If a path is given, image must in the same shape as the template.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">566</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">563</span>
+<span class="normal">564</span>
+<span class="normal">565</span>
+<span class="normal">566</span>
 <span class="normal">567</span>
 <span class="normal">568</span>
 <span class="normal">569</span>
@@ -6606,10 +6601,7 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="normal">572</span>
 <span class="normal">573</span>
 <span class="normal">574</span>
-<span class="normal">575</span>
-<span class="normal">576</span>
-<span class="normal">577</span>
-<span class="normal">578</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;material-symbols:view-in-ar&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
+<span class="normal">575</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;material-symbols:view-in-ar&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">show_template_original</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Load and show template image in the original scale.&quot;&quot;&quot;</span>
@@ -6755,7 +6747,8 @@ If a path is given, image must in the same shape as the template.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">308</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">307</span>
+<span class="normal">308</span>
 <span class="normal">309</span>
 <span class="normal">310</span>
 <span class="normal">311</span>
@@ -6786,8 +6779,7 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="normal">336</span>
 <span class="normal">337</span>
 <span class="normal">338</span>
-<span class="normal">339</span>
-<span class="normal">340</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Split and average molecules&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchSubtomogramAnalysis</span><span class="p">)</span>
+<span class="normal">339</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Split and average molecules&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchSubtomogramAnalysis</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Split-and-average&quot;</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">split_and_average</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -6905,7 +6897,8 @@ If a path is given, image must in the same shape as the template.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">161</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">160</span>
+<span class="normal">161</span>
 <span class="normal">162</span>
 <span class="normal">163</span>
 <span class="normal">164</span>
@@ -6949,8 +6942,7 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="normal">202</span>
 <span class="normal">203</span>
 <span class="normal">204</span>
-<span class="normal">205</span>
-<span class="normal">206</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Split loader&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchLoaderMenu</span><span class="p">)</span>
+<span class="normal">205</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Split loader&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchLoaderMenu</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">split_loader</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">loader_name</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;bind&quot;</span><span class="p">:</span> <span class="n">_get_current_loader_name</span><span class="p">}],</span>
