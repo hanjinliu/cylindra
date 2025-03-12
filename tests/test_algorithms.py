@@ -1,3 +1,4 @@
+import impy as ip
 import numpy as np
 import polars as pl
 import pytest
@@ -335,3 +336,14 @@ def test_flat_view():
     flat_view(mole, "x", spl, colors="jet")
     flat_view(mole, pl.col("x") * 2, spl, colors=lambda _: np.zeros(4))
     plt.close("all")
+
+
+def test_imscale():
+    from cylindra.components.imscale import ScaleOptimizer
+
+    opt = ScaleOptimizer(0.9, 1.1)
+    img_ref = ip.gaussian_kernel((11, 11, 11), sigma=2, axes="zyx")
+    img = ip.gaussian_kernel((11, 11, 11), sigma=2.03, axes="zyx")
+    res = opt.fit(img, img_ref)
+    assert res.scale_optimal == pytest.approx(1.015, abs=1e-3)
+    assert res.score_optimal > 0.95

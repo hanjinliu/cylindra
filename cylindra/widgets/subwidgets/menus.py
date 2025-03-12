@@ -1,4 +1,5 @@
 import inspect
+import shutil
 from datetime import datetime
 from functools import partial
 from typing import TYPE_CHECKING, Annotated, Literal
@@ -77,6 +78,7 @@ class FileMenu(ChildWidget):
     load_project = abstractapi()
     load_splines = abstractapi()
     load_molecules = abstractapi()
+    load_volumes = abstractapi()
     sep1 = Separator
     save_project = abstractapi()
     overwrite_project = abstractapi()
@@ -835,7 +837,7 @@ class OthersMenu(ChildWidget):
     @magicmenu(record=False)
     class Macro(ChildWidget):
         def __init__(self):
-            self._macro_window: "MacroEdit | None" = None
+            self._macro_window: MacroEdit | None = None
 
         def _get_macro_window(
             self, text: str = "", tabname: "str | None" = None
@@ -1060,6 +1062,15 @@ class OthersMenu(ChildWidget):
     class Help(MagicTemplate):
         cylindra_info = abstractapi()
         report_issues = abstractapi()
+
+    @do_not_record
+    @set_design(text=capitalize)
+    def remove_cache(self):
+        """Remove cached tomogram files."""
+        cache_dir = Path(_config.get_config().tomogram_cache_dir)
+        if cache_dir.exists():
+            shutil.rmtree(cache_dir)
+        return None
 
     @do_not_record
     @set_design(text=capitalize)

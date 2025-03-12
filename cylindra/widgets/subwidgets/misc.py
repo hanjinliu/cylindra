@@ -19,7 +19,7 @@ from cylindra._previews import view_image
 from cylindra.components import CylTomogram
 from cylindra.const import FileFilter, ImageFilter
 from cylindra.project import CylindraProject
-from cylindra.utils import ceilint, read_tilt_angles_from_mdoc
+from cylindra.utils import ceilint, find_tilt_angles
 
 
 @magicclass(widget_type="groupbox")
@@ -91,8 +91,7 @@ class TiltModelEdit(MagicTemplate):
 
 @magicclass(name="_Open image", record=False)
 class ImageLoader(MagicTemplate):
-    """
-    Load an image file and process it before sending it to the viewer.
+    """Load an image file and process it before sending it to the viewer.
 
     Attributes
     ----------
@@ -103,14 +102,20 @@ class ImageLoader(MagicTemplate):
         viewer. You can use both binned and non-binned image for analysis.
     filter : ImageFilter
         Choose filter for the reference image (does not affect image data itself).
+    invert : bool
+        Invert intensity of the image. If tomogram is light-background, check this.
+    eager : bool
+        Load the entire image into memory to avoid disk access.
+    cache_image : bool
+        Cache image on SSD for faster access. Cached image will be deleted when new
+        tomogram is loaded or the application is closed.
     """
 
     path = vfield(Path).with_options(filter=FileFilter.IMAGE)
 
     @magicclass(layout="horizontal", labels=False)
     class scale(MagicTemplate):
-        """
-        Scale of the image.
+        """Scale of the image.
 
         Attributes
         ----------
@@ -127,6 +132,7 @@ class ImageLoader(MagicTemplate):
     filter = vfield(ImageFilter | None).with_options(value=ImageFilter.Lowpass)
     invert = vfield(False, label="Invert intensity")
     eager = vfield(False, label="Load the entire image into memory")
+    cache_image = vfield(False, label="Cache image on SSD")
 
     @set_design(text="Scan header", max_width=90, location=scale)
     def scan_header(self):
@@ -141,21 +147,19 @@ class ImageLoader(MagicTemplate):
         if len(self.bin_size) < 2:
             self.bin_size = [ceilint(0.96 / scale)]
         # look for mdoc file
-        if mdoc_file := next(path.parent.glob("*.mdoc"), None):
-            try:
-                tilt_angle = read_tilt_angles_from_mdoc(mdoc_file)
-            except Exception:
-                pass  # unsupported mdoc file format
-            else:
-                tilt_min = round(tilt_angle.min(), 1)
-                tilt_max = round(tilt_angle.max(), 1)
-                self.tilt_model.xrange.value = tilt_min, tilt_max
-                self.tilt_model.yrange.value = tilt_min, tilt_max
+        if (tilt_angle := find_tilt_angles(path.parent)) is not None:
+            tilt_min = round(tilt_angle.min(), 1)
+            tilt_max = round(tilt_angle.max(), 1)
+            self.tilt_model.xrange.value = tilt_min, tilt_max
+            self.tilt_model.yrange.value = tilt_min, tilt_max
         return None
 
     @set_design(text="Preview")
     def preview_image(self):
-        """Preview image at the path."""
+        """Preview image at the path.
+
+        The preview will NOT consider the `invert` and `filter` settings.
+        """
         return view_image(self.path, parent=self)
 
     open_image = abstractapi()
@@ -183,7 +187,7 @@ class GeneralInfo(MagicTemplate):
 
     def _refer_tomogram(self, tomo: CylTomogram):
         img = tomo.image
-        source = tomo.metadata.get("source", "Unknown")
+        fpath = tomo.metadata.get("orig_path", tomo.metadata.get("source", "Unknown"))
         scale = tomo.scale
         shape_px = ", ".join(f"{s} px" for s in img.shape)
         shape_nm = ", ".join(f"{s*scale:.2f} nm" for s in img.shape)
@@ -196,7 +200,7 @@ class GeneralInfo(MagicTemplate):
         else:
             tilt_range = repr(tomo.tilt_model)
         value = (
-            f"File: {source}\n"
+            f"File: {fpath}\n"
             f"Scale: {scale:.4f} nm/pixel\n"
             f"ZYX-Shape: ({shape_px})\n"
             f"ZYX-Shape (nm): ({shape_nm})\n"

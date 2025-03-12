@@ -75,7 +75,7 @@ class ImageProcessor(ChildWidget):
         self,
         input: _InputPath,
         output: _OutputPath,
-        dtype: Literal["int8", "uint8", "uint16", "float32"],
+        dtype: Literal["int8", "uint8", "uint16", "float16", "float32"],
     ):
         """Convert data type of the input image."""
         img = self._imread(input)

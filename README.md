@@ -78,6 +78,7 @@ cylindra --help
   recommended.
 - **Images should be loaded from SSD**. Raw image stacks are loaded lazily in most of
   the processes. Loading from HDD will slow down many analyses as well.
+  *NOTE: In the latest version, you can use "Cache image on SSD" option to open images.*
 
 ## Issues
 

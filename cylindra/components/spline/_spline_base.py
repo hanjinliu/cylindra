@@ -57,7 +57,7 @@ class Spline(BaseComponent):
     ):
         self._tck: TCKType = (None, None, order)
         self._u: NDArray[np.float32] | None = None
-        self._anchors = None
+        self._anchors: NDArray[np.float32] | None = None
         self._extrapolate = ExtrapolationMode(extrapolate)
 
         self._lims = lims
@@ -159,7 +159,7 @@ class Spline(BaseComponent):
         end: ArrayLike,
         extrapolate: ExtrapolationMode | str = ExtrapolationMode.linear,
     ) -> Self:
-        """Create a line spline.
+        """Create a linear spline.
 
         Parameters
         ----------
@@ -644,6 +644,7 @@ class Spline(BaseComponent):
         trim: nm = 0.0,
         allow_discard: bool = False,
     ) -> list[Self]:
+        """Split the spline at the given position."""
         spl_len = self.length()
         if not from_start:
             at = spl_len - at
@@ -756,9 +757,9 @@ class Spline(BaseComponent):
         positions: Sequence[float] | None = None,
         inverse: bool = False,
     ) -> Rotation:
-        """
-        Calculate list of Affine transformation matrix along spline, which correspond to
-        the orientation of spline curve.
+        """Calculate list of Affine transformation matrix along spline.
+
+        The matrices correspond to the orientation of spline curve.
 
         Parameters
         ----------
@@ -1060,6 +1061,13 @@ class Spline(BaseComponent):
         zvec = world_coords - ycoords
         yvec = self.map(u, der=1)
         return Molecules.from_axes(pos=world_coords, z=zvec, y=yvec)
+
+    def rescale(self, factor: float) -> Self:
+        _t, _c, _k = self._tck
+        _c = [c * factor for c in _c]
+        new = self.copy()
+        new._tck = (_t, _c, _k)
+        return new
 
     def _get_coords(
         self,

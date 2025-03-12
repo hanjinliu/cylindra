@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import io
 import json
-from abc import ABC, abstractclassmethod, abstractmethod
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
@@ -12,7 +12,8 @@ from typing_extensions import Self
 class BaseComponent(ABC):
     """Base class for all tomographic components."""
 
-    @abstractclassmethod
+    @classmethod
+    @abstractmethod
     def from_dict(cls, js: dict[str, Any]) -> Self:
         """Construct a component from a dictionary."""
         raise NotImplementedError
@@ -20,6 +21,11 @@ class BaseComponent(ABC):
     @abstractmethod
     def to_dict(self) -> dict[str, Any]:
         """Convert a component to a dictionary."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def rescale(self, factor: float) -> Self:
+        """Rescale the component by the factor."""
         raise NotImplementedError
 
     def to_json(self, file_path: str | Path | io.IOBase, *, cls=None) -> None:

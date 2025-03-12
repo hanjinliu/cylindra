@@ -179,14 +179,18 @@ def test_io_with_different_data(ui: CylindraMainWidget, tmpdir):
     assert "Mole-0" in ui.mole_layers
 
 
-def test_picking_splines(ui: CylindraMainWidget):
+def test_picking_splines(ui: CylindraMainWidget, tmpdir):
     path = TEST_DIR / "13pf_MT.tif"
-    ui.open_image(path=path, scale=1.052, tilt_range=(-60, 60), bin_size=[1, 2])
+    ui.open_image(
+        path=path, scale=1.052, tilt_range=(-60, 60), bin_size=[1, 2], cache_image=True
+    )
     ui._reserved_layers.work.add(coords_13pf[0])
     ui._reserved_layers.work.add(coords_13pf[1])
     ui.Toolbar.pick_next()
     ui.register_path()
     assert len(ui.tomogram.splines) == 1
+    ui.save_project(Path(tmpdir) / "temp.tar")
+    ui.load_project(Path(tmpdir) / "temp.tar")
 
 
 def test_spline_deletion(ui: CylindraMainWidget):
@@ -459,6 +463,8 @@ def test_spline_control(ui: CylindraMainWidget, tmpdir):
     cfg = get_config()
     ui.OthersMenu.configure_cylindra(use_gpu=cfg.use_gpu)
     cfg.to_user_dir()
+
+    ui.update_scale(1.02)
 
 
 def test_preview(ui: CylindraMainWidget):
@@ -1227,6 +1233,7 @@ def test_calc_misc(ui: CylindraMainWidget, tmpdir):
     ui.load_project(PROJECT_DIR_13PF, filter=None)
     ui.mole_layers.clear()
     ui.map_monomers(splines=[0])
+    ui.load_volumes([TEST_DIR / "beta-tubulin.mrc"])
     layer = ui.mole_layers.last()
     all_props = cylmeasure.LatticeParameters.choices()
     ui.calculate_lattice_structure(layer=layer, props=all_props)
@@ -1345,6 +1352,7 @@ def test_function_menu(make_napari_viewer, tmpdir):
     im = viewer.add_image(img, name="test image")
     vol.binning(im, 2)
     vol.gaussian_filter(im)
+    im_filt = viewer.layers[-1]
     vol.threshold(im)
     vol.binary_operation(im, "add", viewer.layers[-1])
     tmpdir = Path(tmpdir)
@@ -1354,6 +1362,7 @@ def test_function_menu(make_napari_viewer, tmpdir):
     vol.save_label_as_mask(lbl, tmpdir / "test_label.tif")
     vol.save_label_as_mask(lbl, tmpdir / "test_label.mrc")
     vol.plane_clip()
+    vol.calculate_scale_to_fit(im, im_filt)
     tester = mcls_testing.FunctionGuiTester(vol.gaussian_filter)
     tester.click_preview()
     tester.click_preview()
@@ -1683,6 +1692,7 @@ def test_stash(ui: CylindraMainWidget, tmpdir):
         ui.FileMenu.Stash.clear_stash_projects()
     ui.OthersMenu.configure_dask(num_workers=2)
     ui.OthersMenu.configure_dask(num_workers=None)
+    ui.OthersMenu.remove_cache()
 
 
 def test_plugin(ui: CylindraMainWidget, tmpdir):
