@@ -107,9 +107,10 @@ _TOMOGRAM_CACHES: list[Path] = []
 def cache_tomogram(path: Path) -> Path:
     if not path.exists():
         raise FileNotFoundError(f"File not found: {path}")
-    if not CACHE_DIR.exists():
-        CACHE_DIR.mkdir(parents=True)
-    cache_path = CACHE_DIR / f"tomogram-{uuid.uuid4()}{path.suffix}"
+    cache_dir = Path(get_config().tomogram_cache_dir)
+    if not cache_dir.exists():
+        cache_dir.mkdir(parents=True)
+    cache_path = cache_dir / f"tomogram-{uuid.uuid4()}{path.suffix}"
     if cache_path.exists():
         raise FileExistsError(f"Cache file already exists: {cache_path}")
     shutil.copy(path, cache_path)

@@ -1124,6 +1124,7 @@ class OthersMenu(ChildWidget):
         molecules_ndim: Literal[2, 3] = _AppCfg.molecules_ndim,
         default_dask_n_workers: Optional[Annotated[int, {"min": 1, "value": 3}]] = _AppCfg.default_dask_n_workers,
         use_gpu: Annotated[bool, {"label": "use GPU"}] = _AppCfg.use_gpu,
+        tomogram_cache_dir: Annotated[Path, {"mode": "d"}] = _AppCfg.tomogram_cache_dir,
     ):  # fmt: skip
         """
         Configure cylindra application global parameters.
@@ -1144,6 +1145,8 @@ class OthersMenu(ChildWidget):
             Default number of workers to use in dask.
         use_gpu : bool, optional
             (currently does no effect)
+        tomogram_cache_dir : Path, optional
+            Directory to store cached tomogram files.
         """
         if not isinstance(molecules_color, str):
             molecules_color = str_color(molecules_color)
@@ -1157,6 +1160,7 @@ class OthersMenu(ChildWidget):
         cfg.molecules_ndim = molecules_ndim
         cfg.default_dask_n_workers = default_dask_n_workers
         cfg.use_gpu = use_gpu
+        cfg.tomogram_cache_dir = tomogram_cache_dir.as_posix()
         return None
 
     @set_design(text="Report issues", location=Help)
