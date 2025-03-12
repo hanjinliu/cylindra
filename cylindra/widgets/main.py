@@ -473,9 +473,6 @@ class CylindraMainWidget(MagicTemplate):
             If true, the image will first be copied to the cache directory before
             loading.
         """
-        if self.tomogram.metadata.get("cache_image", False):
-            # delete old cache, because it will not be used anymore.
-            _config.uncache_tomogram(self.tomogram.source)
         if cache_image:
             read_path = _config.cache_tomogram(path)
         else:
@@ -2784,6 +2781,7 @@ class CylindraMainWidget(MagicTemplate):
         invert: bool = False,
     ):
         viewer = self.parent_viewer
+        old_tomo = self._tomogram
         self._tomogram = tomo
         self.GeneralInfo._refer_tomogram(tomo)
 
@@ -2791,6 +2789,9 @@ class CylindraMainWidget(MagicTemplate):
         self._current_binsize = bin_size
         imgb = tomo.get_multiscale(bin_size)
         self._update_reference_image(imgb)
+        if old_tomo.metadata.get("cache_image", False):
+            # delete old cache, because it will not be used anymore.
+            _config.uncache_tomogram(old_tomo.source)
 
         # update viewer dimensions
         viewer.scale_bar.unit = imgb.scale_unit

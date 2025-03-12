@@ -1687,6 +1687,7 @@ def test_stash(ui: CylindraMainWidget, tmpdir):
         ui.FileMenu.Stash.clear_stash_projects()
     ui.OthersMenu.configure_dask(num_workers=2)
     ui.OthersMenu.configure_dask(num_workers=None)
+    ui.OthersMenu.remove_cache()
 
 
 def test_plugin(ui: CylindraMainWidget, tmpdir):
