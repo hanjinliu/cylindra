@@ -248,6 +248,12 @@ class Tomogram:
             compute=compute,
         )
 
+    def with_cache_info(self, orig_path: Path, cached: bool = False) -> Self:
+        """Set cache path."""
+        self.metadata["orig_path"] = Path(orig_path)
+        self.metadata["cache_image"] = cached
+        return self
+
     @property
     def image(self) -> ip.ImgArray | ip.LazyImgArray:
         """Tomogram image data."""
@@ -283,14 +289,12 @@ class Tomogram:
         return None
 
     @overload
-    def nm2pixel(self, value: nm, binsize: int = 1) -> int:
-        ...
+    def nm2pixel(self, value: nm, binsize: int = 1) -> int: ...
 
     @overload
     def nm2pixel(
         self, value: Iterable[nm] | NDArray[np.number], binsize: int = 1
-    ) -> NDArray[np.intp]:
-        ...
+    ) -> NDArray[np.intp]: ...
 
     def nm2pixel(self, value, binsize: int = 1):
         """

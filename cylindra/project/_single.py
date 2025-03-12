@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, Generator, Iterable
 import polars as pl
 from pydantic import ConfigDict, Field
 
+from cylindra import _config
 from cylindra.const import ImageFilter, cast_dataframe, get_versions
 from cylindra.const import PropertyNames as H
 from cylindra.project._base import BaseProject, MissingWedge, PathLike, resolve_path
@@ -40,6 +41,7 @@ class CylindraProject(BaseProject):
     dependency_versions: dict[str, str]
     image: PathLike | None
     image_relative: PathLike | None = None
+    cache_image: bool = False
     scale: float
     invert: bool = False
     multiscales: list[int]
@@ -142,12 +144,14 @@ class CylindraProject(BaseProject):
                     continue
                 landscape_infos.append(LandscapeInfo.from_layer(gui, layer))
 
+        orig_path = tomo.metadata.get("orig_path", None)
         return cls(
             datetime=datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
             version=_versions.pop("cylindra", "unknown"),
             dependency_versions=_versions,
-            image=tomo.metadata.get("source", None),
-            image_relative=_as_relative(tomo.metadata.get("source", None), project_dir),
+            image=orig_path,
+            image_relative=_as_relative(orig_path, project_dir),
+            cache_image=tomo.metadata.get("cache_image", False),
             scale=tomo.scale,
             invert=tomo.is_inverted,
             multiscales=[x[0] for x in tomo.multiscaled],
@@ -486,14 +490,18 @@ class CylindraProject(BaseProject):
         from cylindra.components import CylTomogram
 
         if self.image is not None:
-            if self.image.exists():
+            if self.cache_image:
+                read_path = _config.cache_tomogram(self.image)
+            else:
+                read_path = Path(self.image)
+            if read_path.exists():
                 tomo = CylTomogram.imread(
-                    path=self.image,
+                    path=read_path,
                     scale=self.scale,
                     tilt=self.missing_wedge.as_param(),
                     binsize=self.multiscales,
                     compute=compute,
-                )
+                ).with_cache_info(orig_path=Path(self.image), cached=self.cache_image)
             elif _rpath := self._try_resolve_image_relative():
                 tomo = CylTomogram.imread(
                     path=_rpath,
@@ -501,10 +509,10 @@ class CylindraProject(BaseProject):
                     tilt=self.missing_wedge.as_param(),
                     binsize=self.multiscales,
                     compute=compute,
-                )
+                ).with_cache_info(orig_path=Path(self.image), cached=self.cache_image)
             else:
                 LOGGER.warning(
-                    f"Cannot find image file: {self.image.as_posix()}. "
+                    f"Cannot find image file: {read_path.as_posix()}. "
                     "Load other components only.",
                 )
                 tomo = CylTomogram.dummy(
