@@ -179,14 +179,18 @@ def test_io_with_different_data(ui: CylindraMainWidget, tmpdir):
     assert "Mole-0" in ui.mole_layers
 
 
-def test_picking_splines(ui: CylindraMainWidget):
+def test_picking_splines(ui: CylindraMainWidget, tmpdir):
     path = TEST_DIR / "13pf_MT.tif"
-    ui.open_image(path=path, scale=1.052, tilt_range=(-60, 60), bin_size=[1, 2])
+    ui.open_image(
+        path=path, scale=1.052, tilt_range=(-60, 60), bin_size=[1, 2], cache_image=True
+    )
     ui._reserved_layers.work.add(coords_13pf[0])
     ui._reserved_layers.work.add(coords_13pf[1])
     ui.Toolbar.pick_next()
     ui.register_path()
     assert len(ui.tomogram.splines) == 1
+    ui.save_project(Path(tmpdir) / "temp.tar")
+    ui.load_project(Path(tmpdir) / "temp.tar")
 
 
 def test_spline_deletion(ui: CylindraMainWidget):
@@ -1688,6 +1692,7 @@ def test_stash(ui: CylindraMainWidget, tmpdir):
         ui.FileMenu.Stash.clear_stash_projects()
     ui.OthersMenu.configure_dask(num_workers=2)
     ui.OthersMenu.configure_dask(num_workers=None)
+    ui.OthersMenu.remove_cache()
 
 
 def test_plugin(ui: CylindraMainWidget, tmpdir):

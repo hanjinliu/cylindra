@@ -254,6 +254,12 @@ class Tomogram:
             compute=compute,
         )
 
+    def with_cache_info(self, orig_path: Path, cached: bool = False) -> Self:
+        """Set cache path."""
+        self.metadata["orig_path"] = Path(orig_path)
+        self.metadata["cache_image"] = cached
+        return self
+
     @property
     def image(self) -> ip.ImgArray | ip.LazyImgArray:
         """Tomogram image data."""

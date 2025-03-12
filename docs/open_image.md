@@ -82,9 +82,12 @@ filtered image for visualization.
 6. If you want to invert the image, check "Invert intensity".
 7. If you want to load the original image into the memory, check "Load the entire image
    into memory".
-8. You can preview the selected image by clicking "Preview". A preview window will be
+8. If the tomogram is stored in HDD, check "Cache image on SSD". Tomogram will be copied
+   to the cache directory in SSD and automatically deleted at exit. This option will
+   improve the performance a lot during your analysis.
+9.  You can preview the selected image by clicking "Preview". A preview window will be
    shown, which only loads separate image slices to accelerate the image loading.
-9. Click "Open" to calculate the binning/filtering and show the reference image.
+10. Click "Open" to calculate the binning/filtering and show the reference image.
 
 ![](images/viewer_00_open_image.png){ loading=lazy }
 

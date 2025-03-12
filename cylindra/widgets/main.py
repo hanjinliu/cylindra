@@ -445,7 +445,8 @@ class CylindraMainWidget(MagicTemplate):
         bin_size: Annotated[int | Sequence[int], {"bind": _image_loader.bin_size}] = [1],
         filter: Annotated[ImageFilter | None, {"bind": _image_loader.filter}] = ImageFilter.Lowpass,
         invert: Annotated[bool, {"bind": _image_loader.invert}] = False,
-        eager: Annotated[bool, {"bind": _image_loader.eager}] = False
+        eager: Annotated[bool, {"bind": _image_loader.eager}] = False,
+        cache_image: Annotated[bool, {"bind": _image_loader.cache_image}] = False,
     ):  # fmt: skip
         """Load an image file and process it before sending it to the viewer.
 
@@ -466,8 +467,15 @@ class CylindraMainWidget(MagicTemplate):
         eager : bool, default False
             If true, the image will be loaded immediately. Otherwise, it will be loaded
             lazily.
+        cache_image : bool, default False
+            If true, the image will first be copied to the cache directory before
+            loading.
         """
-        img = ip.lazy.imread(path, chunks=_config.get_config().dask_chunk)
+        if cache_image:
+            read_path = _config.cache_tomogram(path)
+        else:
+            read_path = Path(path)
+        img = ip.lazy.imread(read_path, chunks=_config.get_config().dask_chunk)
         if scale is not None:
             scale = float(scale)
             img.scale.x = img.scale.y = img.scale.z = scale
@@ -480,12 +488,12 @@ class CylindraMainWidget(MagicTemplate):
         else:
             bin_size = list(set(bin_size))  # delete duplication
         tomo = CylTomogram.imread(
-            path=path,
+            path=read_path,
             scale=scale,
             tilt=tilt_range,
             binsize=bin_size,
             eager=eager,
-        )
+        ).with_cache_info(orig_path=Path(path), cached=cache_image)
         self._init_macro_state()
         self._project_dir = None
         return self._send_tomogram_to_viewer.with_args(tomo, filter, invert=invert)
@@ -689,15 +697,9 @@ class CylindraMainWidget(MagicTemplate):
         if label.ndim != 3:
             raise ValueError("Label image must be 3-D.")
         tr = self.tomogram.multiscale_translation(label.scale.x / self.tomogram.scale)
-        label = self.parent_viewer.add_labels(
-            label,
-            name=label.name,
-            translate=[tr, tr, tr],
-            scale=list(label.scale.values()),
-            opacity=0.4,
-        )
-        self._reserved_layers.to_be_removed.add(label)
-        return label
+        label_layer = widget_utils.add_labels(self.parent_viewer, label, tr)
+        self._reserved_layers.to_be_removed.add(label_layer)
+        return label_layer
 
     @set_design(text=capitalize, location=_sw.ImageMenu)
     @dask_thread_worker.with_progress(desc=_pdesc.filter_image_fmt)
@@ -2779,6 +2781,7 @@ class CylindraMainWidget(MagicTemplate):
         invert: bool = False,
     ):
         viewer = self.parent_viewer
+        old_tomo = self._tomogram
         self._tomogram = tomo
         self.GeneralInfo._refer_tomogram(tomo)
 
@@ -2786,6 +2789,9 @@ class CylindraMainWidget(MagicTemplate):
         self._current_binsize = bin_size
         imgb = tomo.get_multiscale(bin_size)
         self._update_reference_image(imgb)
+        if old_tomo.metadata.get("cache_image", False):
+            # delete old cache, because it will not be used anymore.
+            _config.uncache_tomogram(old_tomo.source)
 
         # update viewer dimensions
         viewer.scale_bar.unit = imgb.scale_unit

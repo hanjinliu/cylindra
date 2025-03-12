@@ -2,17 +2,20 @@ from __future__ import annotations
 
 import atexit
 import json
+import shutil
+import uuid
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from functools import wraps
 from pathlib import Path
 from typing import Callable
 
-from appdirs import user_config_dir
+from platformdirs import user_cache_dir, user_config_dir
 
 VAR_PATH = Path(user_config_dir("variables", "cylindra"))
 SETTINGS_DIR = Path(user_config_dir("settings", "cylindra"))
 WORKFLOWS_DIR = Path(user_config_dir("workflows", "cylindra"))
+CACHE_DIR = Path(user_cache_dir("cache", "cylindra"))
 STASH_DIR = Path(user_config_dir("stash", "cylindra"))
 TEMPLATE_PATH_HIST = SETTINGS_DIR / "template_path_hist.txt"
 RECOVERY_PATH = SETTINGS_DIR / "last_project.zip"
@@ -43,6 +46,7 @@ class AppConfig:
     autosave_interval: float = 60.0
     default_dask_n_workers: int | None = None
     use_gpu: bool = True
+    tomogram_cache_dir: str = CACHE_DIR.as_posix()
 
     @classmethod
     def from_user_dir(cls, ignore_error: bool = False) -> AppConfig:
@@ -95,6 +99,39 @@ def _save_config():  # pragma: no cover
             _APP_CONFIG.to_user_dir()
         except Exception as e:
             print(f"Failed to save user settings: {e}")
+
+
+_TOMOGRAM_CACHES: list[Path] = []
+
+
+def cache_tomogram(path: Path) -> Path:
+    if not path.exists():
+        raise FileNotFoundError(f"File not found: {path}")
+    if not CACHE_DIR.exists():
+        CACHE_DIR.mkdir(parents=True)
+    cache_path = CACHE_DIR / f"tomogram-{uuid.uuid4()}{path.suffix}"
+    if cache_path.exists():
+        raise FileExistsError(f"Cache file already exists: {cache_path}")
+    shutil.copy(path, cache_path)
+    _TOMOGRAM_CACHES.append(cache_path)
+    return cache_path
+
+
+def uncache_tomogram(path: Path) -> None:
+    if path in _TOMOGRAM_CACHES:
+        path.unlink()
+        _TOMOGRAM_CACHES.remove(path)
+    return None
+
+
+@atexit.register
+def _delete_tomogram_cache():  # pragma: no cover
+    for path in _TOMOGRAM_CACHES:
+        try:
+            print(f"Delete cached tomogram: {path}")
+            path.unlink()
+        except Exception as e:
+            print(f"Failed to delete cached tomogram: {e}")
 
 
 def autosave_path() -> Path:

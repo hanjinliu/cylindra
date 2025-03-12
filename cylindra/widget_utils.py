@@ -21,7 +21,9 @@ from cylindra.const import nm
 from cylindra.types import MoleculesLayer
 
 if TYPE_CHECKING:
+    import impy as ip
     from magicclass import MagicTemplate
+    from napari.layers import Labels
 
     from cylindra.components import CylSpline
 
@@ -214,6 +216,20 @@ def add_molecules(
         **kwargs,
     )
     return viewer.add_layer(layer)
+
+
+def add_labels(
+    viewer: napari.Viewer,
+    label: ip.Label,
+    tr: float,
+) -> Labels:
+    return viewer.add_labels(
+        label,
+        name=label.name,
+        translate=[tr, tr, tr],
+        scale=list(label.scale.values()),
+        opacity=0.4,
+    )
 
 
 def change_viewer_focus(
