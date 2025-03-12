@@ -77,6 +77,7 @@ class FileMenu(ChildWidget):
     load_project = abstractapi()
     load_splines = abstractapi()
     load_molecules = abstractapi()
+    load_volumes = abstractapi()
     sep1 = Separator
     save_project = abstractapi()
     overwrite_project = abstractapi()
@@ -835,7 +836,7 @@ class OthersMenu(ChildWidget):
     @magicmenu(record=False)
     class Macro(ChildWidget):
         def __init__(self):
-            self._macro_window: "MacroEdit | None" = None
+            self._macro_window: MacroEdit | None = None
 
         def _get_macro_window(
             self, text: str = "", tabname: "str | None" = None

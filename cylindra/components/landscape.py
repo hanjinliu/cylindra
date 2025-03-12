@@ -46,8 +46,7 @@ _Logger = getLogger("cylindra")
 
 @dataclass
 class Landscape:
-    """
-    Energy landscape array.
+    """Energy landscape array.
 
     Parameters
     ----------
@@ -114,8 +113,7 @@ class Landscape:
         upsample_factor: int = 5,
         alignment_model: alignment.TomographyInput = alignment.ZNCCAlignment,
     ) -> Landscape:
-        """
-        Construct a landscape from a loader object.
+        """Construct a landscape from a loader object.
 
         Parameters
         ----------

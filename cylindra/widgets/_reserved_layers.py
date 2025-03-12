@@ -79,6 +79,13 @@ class ReservedLayers:
         self.prof.add(fit)
         return fit
 
+    def rescale_layers(self, factor: float):
+        """Update the scale of the reserved layers."""
+        self.image.scale = [s * factor for s in self.image.scale]
+        self.image.translate = [t * factor for t in self.image.translate]
+        self.prof.data = [d * factor for d in self.prof.data]
+        self.work.data = self.work.data * factor
+
     @property
     def image_data(self) -> ip.ImgArray:
         return self.image.data

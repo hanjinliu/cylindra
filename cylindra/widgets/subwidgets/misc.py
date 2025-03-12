@@ -19,7 +19,7 @@ from cylindra._previews import view_image
 from cylindra.components import CylTomogram
 from cylindra.const import FileFilter, ImageFilter
 from cylindra.project import CylindraProject
-from cylindra.utils import ceilint, read_tilt_angles_from_mdoc
+from cylindra.utils import ceilint, find_tilt_angles
 
 
 @magicclass(widget_type="groupbox")
@@ -91,8 +91,7 @@ class TiltModelEdit(MagicTemplate):
 
 @magicclass(name="_Open image", record=False)
 class ImageLoader(MagicTemplate):
-    """
-    Load an image file and process it before sending it to the viewer.
+    """Load an image file and process it before sending it to the viewer.
 
     Attributes
     ----------
@@ -109,8 +108,7 @@ class ImageLoader(MagicTemplate):
 
     @magicclass(layout="horizontal", labels=False)
     class scale(MagicTemplate):
-        """
-        Scale of the image.
+        """Scale of the image.
 
         Attributes
         ----------
@@ -141,21 +139,19 @@ class ImageLoader(MagicTemplate):
         if len(self.bin_size) < 2:
             self.bin_size = [ceilint(0.96 / scale)]
         # look for mdoc file
-        if mdoc_file := next(path.parent.glob("*.mdoc"), None):
-            try:
-                tilt_angle = read_tilt_angles_from_mdoc(mdoc_file)
-            except Exception:
-                pass  # unsupported mdoc file format
-            else:
-                tilt_min = round(tilt_angle.min(), 1)
-                tilt_max = round(tilt_angle.max(), 1)
-                self.tilt_model.xrange.value = tilt_min, tilt_max
-                self.tilt_model.yrange.value = tilt_min, tilt_max
+        if (tilt_angle := find_tilt_angles(path.parent)) is not None:
+            tilt_min = round(tilt_angle.min(), 1)
+            tilt_max = round(tilt_angle.max(), 1)
+            self.tilt_model.xrange.value = tilt_min, tilt_max
+            self.tilt_model.yrange.value = tilt_min, tilt_max
         return None
 
     @set_design(text="Preview")
     def preview_image(self):
-        """Preview image at the path."""
+        """Preview image at the path.
+
+        The preview will NOT consider the `invert` and `filter` settings.
+        """
         return view_image(self.path, parent=self)
 
     open_image = abstractapi()

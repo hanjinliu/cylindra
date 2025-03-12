@@ -217,8 +217,8 @@ class CylindraMainWidget(MagicTemplate):
         self._macro_image_load_offset: int = 1
         self._plugins_called: list[CylindraPluginFunction] = []
         self._need_save: bool = False
-        self._batch: "CylindraBatchWidget | None" = None
-        self._project_dir: "Path | None" = None
+        self._batch: CylindraBatchWidget | None = None
+        self._project_dir: Path | None = None
         self._current_binsize: int = 1
         self._project_metadata = dict[str, Any]()
         self.objectName()  # load napari types
@@ -424,8 +424,7 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record(recursive=False)
     @nogui
     def run_workflow(self, filename: str, *args, **kwargs):
-        """
-        Run a user-defined workflow.
+        """Run a user-defined workflow.
 
         This method will run a .py file that was defined by the user from
         `Workflow > Define workflow`. *args and **kwargs follow the signature of the
@@ -448,8 +447,7 @@ class CylindraMainWidget(MagicTemplate):
         invert: Annotated[bool, {"bind": _image_loader.invert}] = False,
         eager: Annotated[bool, {"bind": _image_loader.eager}] = False
     ):  # fmt: skip
-        """
-        Load an image file and process it before sending it to the viewer.
+        """Load an image file and process it before sending it to the viewer.
 
         Parameters
         ----------
@@ -508,8 +506,7 @@ class CylindraMainWidget(MagicTemplate):
         read_image: Annotated[bool, {"label": "read image data"}] = True,
         update_config: bool = False,
     ):
-        """
-        Load a project file (project.json, tar file or zip file).
+        """Load a project file (project.json, tar file or zip file).
 
         Parameters
         ----------
@@ -554,8 +551,7 @@ class CylindraMainWidget(MagicTemplate):
         molecules_ext: Literal[".csv", ".parquet"] = ".csv",
         save_landscape: Annotated[bool, {"label": "Save landscape layers"}] = False,
     ):
-        """
-        Save current project state and the results in a directory.
+        """Save current project state and the results in a directory.
 
         The json file contains paths of images and results, parameters of splines,
         scales and version. Local and global properties will be exported as csv files.
@@ -604,8 +600,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @set_design(text=capitalize, location=_sw.FileMenu)
     def load_splines(self, paths: Path.Multiple[FileFilter.JSON]):
-        """
-        Load splines from a list of json paths.
+        """Load splines from a list of json paths.
 
         Parameters
         ----------
@@ -632,6 +627,16 @@ class CylindraMainWidget(MagicTemplate):
         return None
 
     @set_design(text=capitalize, location=_sw.FileMenu)
+    def load_volumes(self, paths: Path.Multiple[FileFilter.IMAGE]):
+        """Load 3D volume(s) to the sub-viewer."""
+        for path in paths:
+            img = ip.imread(path)
+            if img.ndim != 3:
+                raise ValueError("Input image must be 3-D.")
+            self.sta._show_rec(img, name=img.name)
+        return None
+
+    @set_design(text=capitalize, location=_sw.FileMenu)
     @do_not_record
     def save_spline(
         self,
@@ -648,8 +653,7 @@ class CylindraMainWidget(MagicTemplate):
     def save_molecules(
         self, layer: MoleculesLayerType, save_path: Path.Save[FileFilter.MOLE]
     ):
-        """
-        Save monomer coordinates, orientation and features as a csv file.
+        """Save monomer coordinates, orientation and features as a csv file.
 
         Parameters
         ----------
@@ -662,8 +666,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text=capitalize, location=_sw.FileMenu)
     @do_not_record
     def open_reference_image(self, path: Path.Read[FileFilter.IMAGE]):
-        """
-        Open an image as a reference image of the current tomogram.
+        """Open an image as a reference image of the current tomogram.
 
         The input image is usually a denoised image created by other softwares, or
         simply a filtered image. Please note that this method does not check that the
@@ -774,8 +777,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         bin_size: Annotated[int, {"choices": list(range(2, 17))}] = 4,
     ):
-        """
-        Add a new multi-scale image of current tomogram.
+        """Add a new multi-scale image of current tomogram.
 
         Parameters
         ----------
@@ -788,8 +790,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @set_design(text="Set multi-scale", location=_sw.ImageMenu)
     def set_multiscale(self, bin_size: Annotated[int, {"choices": _get_available_binsize}]):  # fmt: skip
-        """
-        Set multiscale used for image display.
+        """Set multiscale used for image display.
 
         Parameters
         ----------
@@ -839,8 +840,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @set_design(text=capitalize, location=_sw.SplinesMenu.Orientation)
     def invert_spline(self, spline: Annotated[int, {"bind": _get_spline_idx}] = None):
-        """
-        Invert current displayed spline **in place**.
+        """Invert current displayed spline **in place**.
 
         Parameters
         ----------
@@ -865,8 +865,7 @@ class CylindraMainWidget(MagicTemplate):
     def align_to_polarity(
         self, orientation: Literal["MinusToPlus", "PlusToMinus"] = "MinusToPlus"
     ):
-        """
-        Align all the splines in the direction parallel to the cylinder polarity.
+        """Align all the splines in the direction parallel to the cylinder polarity.
 
         Parameters
         ----------
@@ -898,8 +897,7 @@ class CylindraMainWidget(MagicTemplate):
         depth: Annotated[nm, {"min": 5.0, "max": 500.0, "step": 5.0}] = 40,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
-        """
-        Automatically detect the cylinder polarities.
+        """Automatically detect the cylinder polarities.
 
         This function uses Fourier vorticity to detect the polarities of the splines.
         The subtomogram at the center of the spline will be sampled in the cylindric
@@ -952,8 +950,7 @@ class CylindraMainWidget(MagicTemplate):
         spline: Annotated[int, {"choices": _get_splines}],
         lengths: Annotated[tuple[nm, nm], {"options": {"min": -1000.0, "max": 1000.0, "step": 0.1, "label": "clip length (nm)"}}] = (0.0, 0.0),
     ):  # fmt: skip
-        """
-        Clip selected spline at its edges by given lengths.
+        """Clip selected spline at its edges by given lengths.
 
         Parameters
         ----------
@@ -988,8 +985,7 @@ class CylindraMainWidget(MagicTemplate):
         from_start: bool = True,
         trim: Annotated[nm, {"min": 0.0, "max": 100.0, "step": 0.1, "label": "trim (nm)"}] = 0.0,
     ):  # fmt: skip
-        """
-        Split the spline into two at the given position.
+        """Split the spline into two at the given position.
 
         Parameters
         ----------
@@ -997,7 +993,8 @@ class CylindraMainWidget(MagicTemplate):
         at : float, default 100.0
             Position to split the spline in nm.
         from_start : bool, default True
-            If True, the split position will be measured from the start of the spline.
+            If True, the split position will be measured from the start of the spline,
+            otherwise from the end.
         trim : float, default 0.0
             Trim the split parts by this length (nm).
         """
@@ -1026,8 +1023,7 @@ class CylindraMainWidget(MagicTemplate):
         diff_cutoff: Annotated[float, {"min": 0.0, "max": 1000.0, "step": 0.01}] = 0.4,
         trim: Annotated[nm, {"min": 0.0, "max": 1000.0, "step": 0.1, "label": "trim (nm)"}] = 0.0,
     ):  # fmt: skip
-        """
-        Detect the changing point of the spline and split it there.
+        """Detect the changing point of the spline and split it there.
 
         This method is useful when (1) there's a change in the protofilament number, or
         (2) microtubules were polymerized from seeds.
@@ -1152,8 +1148,7 @@ class CylindraMainWidget(MagicTemplate):
         edge_sigma: Annotated[Optional[nm], {"text": "Do not mask image", "label": "edge σ"}] = 2.0,
         max_shift: nm = 5.0,
     ):  # fmt: skip
-        """
-        Fit splines to the cylinder by auto-correlation.
+        """Fit splines to the cylinder by auto-correlation.
 
         Parameters
         ----------
@@ -1199,8 +1194,7 @@ class CylindraMainWidget(MagicTemplate):
         err_max: Annotated[nm, {"label": "max fit error (nm)", "step": 0.1}] = 1.0,
         max_shift: nm = 5.0,
     ):  # fmt: skip
-        """
-        Fit splines to the cylinder by centroid of sub-volumes.
+        """Fit splines to the cylinder by centroid of sub-volumes.
 
         Parameters
         ----------
@@ -1236,8 +1230,7 @@ class CylindraMainWidget(MagicTemplate):
         interval: Annotated[nm, {"label": "Interval between anchors (nm)", "min": 1.0}] = 25.0,
         how: Literal["pack", "equal"] = "pack",
     ):  # fmt: skip
-        """
-        Add anchors to splines.
+        """Add anchors to splines.
 
         Parameters
         ----------
@@ -1273,8 +1266,7 @@ class CylindraMainWidget(MagicTemplate):
         corr_allowed: Annotated[float, {"label": "correlation allowed", "max": 1.0, "step": 0.1}] = 0.9,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
-        """
-        Refine splines using the global cylindric structural parameters.
+        """Refine splines using the global cylindric structural parameters.
 
         Parameters
         ----------
@@ -1314,8 +1306,7 @@ class CylindraMainWidget(MagicTemplate):
         start: Annotated[Optional[int], {"label": "start number", "text": "Do not update"}] = None,
         orientation: Annotated[Optional[Literal["MinusToPlus", "PlusToMinus"]], {"text": "Do not update"}] = None,
     ):  # fmt: skip
-        """
-        Set spline global properties.
+        """Set spline global properties.
 
         This method will overwrite spline properties with the user input. You should
         not call this method unless there's a good reason to do so, e.g. the number
@@ -1354,8 +1345,7 @@ class CylindraMainWidget(MagicTemplate):
         missing_ok: Annotated[bool, {"label": "Missing OK"}] = False,
         update_sources: Annotated[bool, {"label": "Update all the spline sources"}] = True,
     ):  # fmt: skip
-        """
-        Create splines from molecules.
+        """Create splines from molecules.
 
         This function is useful to refine splines using results of subtomogram
         alignment. If the molecules layer alreadly has a source spline, replace
@@ -1436,8 +1426,7 @@ class CylindraMainWidget(MagicTemplate):
         ids: list[int] = (0,),
         config: Annotated[dict[str, Any] | SplineConfig, {"validator": _get_default_config}] = None,
     ):  # fmt: skip
-        """
-        Convert protofilaments to splines.
+        """Convert protofilaments to splines.
 
         If no IDs are given, all the molecules will be fitted to a spline, therefore
         essentially the same as manual filament picking. If IDs are given, selected
@@ -1470,8 +1459,7 @@ class CylindraMainWidget(MagicTemplate):
         err_max: Annotated[nm, {"label": "Max fit error (nm)", "step": 0.1}] = 0.8,
         config: Annotated[dict[str, Any] | SplineConfig, {"validator": _get_default_config}] = None,
     ):  # fmt: skip
-        """
-        Convert a filament to splines.
+        """Convert a filament to splines.
 
         Parameters
         ----------
@@ -1490,8 +1478,7 @@ class CylindraMainWidget(MagicTemplate):
         min_radius: Annotated[nm, {"min": 0.1, "step": 0.1}] = 1.0,
         max_radius: Annotated[nm, {"min": 0.1, "step": 0.1}] = 100.0,
     ):  # fmt: skip
-        """
-        Measure cylinder radius for each spline curve.
+        """Measure cylinder radius for each spline curve.
 
         Parameters
         ----------
@@ -1513,16 +1500,15 @@ class CylindraMainWidget(MagicTemplate):
         splines: SplinesType = None,
         radius: PolarsExprStrOrScalar = 10.0,
     ):  # fmt: skip
-        """
-        Set radius of the splines.
+        """Manually set radius of the splines.
 
         Parameters
         ----------
         {splines}
         radius : float or str expression
-            Radius of the spline. If a string expression is given, it will be evaluated to get
-            the polars.Expr object. The returned expression will be evaluated with the global
-            properties of the spline as the context.
+            Radius of the spline. If a string expression is given, it will be evaluated
+            to get the polars.Expr object. The returned expression will be evaluated
+            with the global properties of the spline as the context.
         """
         radius_expr = widget_utils.norm_scalar_expr(radius)
         splines = self._norm_splines(splines)
@@ -1553,8 +1539,7 @@ class CylindraMainWidget(MagicTemplate):
         max_radius: Annotated[nm, {"min": 0.1, "step": 0.1}] = 100.0,
         update_glob: Annotated[bool, {"text": "Also update the global radius"}] = True,
     ):  # fmt: skip
-        """
-        Measure radius for each local region along splines.
+        """Measure radius for each local region along splines.
 
         Parameters
         ----------
@@ -1594,12 +1579,12 @@ class CylindraMainWidget(MagicTemplate):
         depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 50.0,
         update_glob: Annotated[bool, {"text": "Also update the global radius"}] = True,
     ):  # fmt: skip
-        """
-        Measure local and global radius for each layer.
+        """Measure local and global radius for each layer.
 
-        Please note that the radius defined by the peak of the radial profile is not always
-        the same as the radius measured by this method. If the molecules are aligned using
-        a template image whose mass density is not centered, these radii may differ a lot.
+        Please note that the radius defined by the peak of the radial profile is not
+        always the same as the radius measured by this method. If the molecules are
+        aligned using a template image whose mass density is not centered, these radii
+        may differ a lot.
 
         Parameters
         ----------
@@ -1654,13 +1639,12 @@ class CylindraMainWidget(MagicTemplate):
         radius: Literal["local", "global"] = "global",
         update_glob: Annotated[bool, {"text": "Also update the global properties"}] = False,
     ):  # fmt: skip
-        """
-        Determine local lattice parameters by local cylindric Fourier transformation.
+        """Determine local lattice parameters by local cylindric Fourier transformation.
 
         This method will sample subtomograms at given intervals and calculate the power
         spectra in a cylindrical coordinate. The peak position of the power spectra will
-        used to determine the lattice parameters. Note that if the interval differs from
-        the current spline anchors, the old local properties will be dropped.
+        be used to determine the lattice parameters. Note that if the interval differs
+        from the current spline anchors, the old local properties will be dropped.
 
         Parameters
         ----------
@@ -1726,8 +1710,7 @@ class CylindraMainWidget(MagicTemplate):
         splines: SplinesType = None,
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
     ):  # fmt: skip
-        """
-        Determine cylindrical global structural parameters by Fourier transformation.
+        """Determine cylindrical global structural parameters by Fourier transformation.
 
         Parameters
         ----------
@@ -1776,8 +1759,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Re-analyze current tomogram", location=_sw.AnalysisMenu)
     @do_not_record
     def reanalyze_image(self):
-        """
-        Reanalyze the current tomogram.
+        """Reanalyze the current tomogram.
 
         This method will extract the first manual operations from current session.
         """
@@ -1791,8 +1773,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Re-analyze with new config", location=_sw.AnalysisMenu)
     @do_not_record
     def reanalyze_image_config_updated(self):
-        """
-        Reanalyze the current tomogram with newly set default spline config.
+        """Reanalyze the current tomogram with newly set default spline config.
 
         This method is useful when you have mistakenly drawn splines with wrong spline
         config.
@@ -1809,8 +1790,7 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     @bind_key("Ctrl+K, Ctrl+L")
     def load_project_for_reanalysis(self, path: Path.Read[FileFilter.PROJECT]):
-        """
-        Load a project file to re-analyze the data.
+        """Load a project file to re-analyze the data.
 
         This method will extract the first manual operations from a project file and
         run them. This is useful when you want to re-analyze the data with a different
@@ -1836,8 +1816,7 @@ class CylindraMainWidget(MagicTemplate):
         extensions: Annotated[tuple[int, int], {"options": {"min": -100}}] = (0, 0),
         prefix: str = "Mole",
     ):  # fmt: skip
-        """
-        Map monomers as a regular cylindric grid assembly.
+        """Map monomers as a regular cylindric grid assembly.
 
         This method uses the spline global properties.
 
@@ -1888,8 +1867,7 @@ class CylindraMainWidget(MagicTemplate):
         radius: Optional[nm] = None,
         prefix: str = "Mole",
     ):  # fmt: skip
-        """
-        Map monomers as a regular cylindric grid assembly.
+        """Map monomers as a regular cylindric grid assembly.
 
         This method uses the spline global properties.
 
@@ -1926,8 +1904,7 @@ class CylindraMainWidget(MagicTemplate):
         rotate_molecules: bool = True,
         prefix: str = "Center",
     ):  # fmt: skip
-        """
-        Map molecules along splines. Each molecule is rotated by skewing.
+        """Map molecules along splines. Each molecule is rotated by skewing.
 
         Parameters
         ----------
@@ -1965,8 +1942,7 @@ class CylindraMainWidget(MagicTemplate):
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
         prefix: str = "PF",
     ):  # fmt: skip
-        """
-        Map molecules along the line of a protofilament.
+        """Map molecules along the line of a protofilament.
 
         Parameters
         ----------
@@ -1993,8 +1969,7 @@ class CylindraMainWidget(MagicTemplate):
         layer: MoleculesLayerType,
         spline: Annotated[int, {"choices": _get_splines}],
     ):
-        """
-        Set source spline for a molecules layer.
+        """Set source spline for a molecules layer.
 
         Parameters
         ----------
@@ -2016,8 +1991,7 @@ class CylindraMainWidget(MagicTemplate):
         layers: MoleculesLayersType,
         name: str = "Mole-concat",
     ):  # fmt: skip
-        """
-        Concatenate selected molecules and create a new ones.
+        """Concatenate selected molecules and create a new ones.
 
         Parameters
         ----------
@@ -2047,8 +2021,7 @@ class CylindraMainWidget(MagicTemplate):
         rotation: MoleculesLayerType,
         features: MoleculesLayerType,
     ):
-        """
-        Merge molecule info from different molecules.
+        """Merge molecule info from different molecules.
 
         Parameters
         ----------
@@ -2111,8 +2084,7 @@ class CylindraMainWidget(MagicTemplate):
         layer: MoleculesLayerType,
         by: Annotated[str, {"choices": _choice_getter("split_molecules")}],
     ):
-        """
-        Split molecules by a feature column.
+        """Split molecules by a feature column.
 
         Parameters
         ----------
@@ -2149,8 +2121,7 @@ class CylindraMainWidget(MagicTemplate):
         internal: bool = True,
         inherit_source: Annotated[bool, {"label": "Inherit source spline"}] = True,
     ):  # fmt: skip
-        """
-        Translate molecule coordinates without changing their rotations.
+        """Translate molecule coordinates without changing their rotations.
 
         Output molecules layer will be named as "<original name>-Shift".
 
@@ -2196,8 +2167,7 @@ class CylindraMainWidget(MagicTemplate):
         ],
         inherit_source: Annotated[bool, {"label": "Inherit source spline"}] = True,
     ):
-        """
-        Rotate molecules without changing their positions.
+        """Rotate molecules without changing their positions.
 
         Output molecules layer will be named as "<original name>-Rot".
 
@@ -2230,8 +2200,7 @@ class CylindraMainWidget(MagicTemplate):
         exclude: str = "",
         pattern: str = "",
     ):
-        """
-        Rename multiple molecules layers at once.
+        """Rename multiple molecules layers at once.
 
         Parameters
         ----------
@@ -2262,8 +2231,7 @@ class CylindraMainWidget(MagicTemplate):
         exclude: str = "",
         pattern: str = "",
     ):
-        """
-        Delete molecules by the layer names.
+        """Delete molecules by the layer names.
 
         Parameters
         ----------
@@ -2283,8 +2251,7 @@ class CylindraMainWidget(MagicTemplate):
         predicate: PolarsExprStr,
         inherit_source: Annotated[bool, {"label": "Inherit source spline"}] = True,
     ):
-        """
-        Filter molecules by their features.
+        """Filter molecules by their features.
 
         Parameters
         ----------
@@ -2307,8 +2274,7 @@ class CylindraMainWidget(MagicTemplate):
         indices: Annotated[str | Sequence[int | slice], {"widget_type": IndexEdit}] = "",
         inherit_source: Annotated[bool, {"label": "Inherit source spline"}] = True,
     ):  # fmt: skip
-        """
-        Drop a subset of molecules from a molecules layer by indices.
+        """Drop a subset of molecules from a molecules layer by indices.
 
         Note that the indices start from 0. `ui.drop_molecules(layer, [0, 2, 6])` will
         drop 0th, 2nd, and 6th molecules.
@@ -2355,8 +2321,7 @@ class CylindraMainWidget(MagicTemplate):
         cmap: _CmapType = DEFAULT_COLORMAP,
         limits: Annotated[tuple[float, float], {"options": {"min": -20, "max": 20, "step": 0.01}}] = (4.00, 4.24),
     ):  # fmt: skip
-        """
-        Paint molecules by a feature.
+        """Paint molecules by a feature.
 
         Parameters
         ----------
@@ -2385,8 +2350,7 @@ class CylindraMainWidget(MagicTemplate):
         column_name: str,
         expression: PolarsExprStr,
     ):
-        """
-        Calculate a new feature from the existing features.
+        """Calculate a new feature from the existing features.
 
         This method is identical to running `with_columns` on the features dataframe
         as a `polars.DataFrame`. For example,
@@ -2417,8 +2381,7 @@ class CylindraMainWidget(MagicTemplate):
         interpolation: int = 3,
         suffix: str = "_spl",
     ):
-        """
-        Add new features by interpolating spline local properties.
+        """Add new features by interpolating spline local properties.
 
         Parameters
         ----------
@@ -2449,8 +2412,7 @@ class CylindraMainWidget(MagicTemplate):
         layer: MoleculesLayerType,
         props: Annotated[list[str], {"widget_type": CheckBoxes, "choices": cylmeasure.LatticeParameters.choices()}] = ("spacing",),
     ):  # fmt: skip
-        """
-        Calculate lattice structures and store the results as new feature columns.
+        """Calculate lattice structures and store the results as new feature columns.
 
         Parameters
         ----------
@@ -2478,8 +2440,7 @@ class CylindraMainWidget(MagicTemplate):
         method: Literal["mean", "max", "min", "median"] = "mean",
         footprint: Annotated[Any, {"widget_type": KernelEdit}] = [[0, 1, 0], [1, 1, 1], [0, 1, 0]],
     ):  # fmt: skip
-        """
-        Run a convolution on the lattice.
+        """Run a convolution on the lattice.
 
         The convolution is similar to that in the context of image analysis, except for
         the cylindric boundary. During the convolution, the edges will not be considered,
@@ -2519,8 +2480,7 @@ class CylindraMainWidget(MagicTemplate):
         footprint: Annotated[Any, {"widget_type": KernelEdit}] = [[0, 1, 0], [1, 0, 1], [0, 1, 0]],
         column_name: str = "neighbor_count",
     ):  # fmt: skip
-        """
-        Count the number of neighbors for each molecules.
+        """Count the number of neighbors for each molecules.
 
         Parameters
         ----------
@@ -2546,8 +2506,7 @@ class CylindraMainWidget(MagicTemplate):
         column_name: str = "distance",
         interval: nm = 1.0,
     ):
-        """
-        Add a new column that stores the shortest distance from the given spline.
+        """Add a new column that stores the shortest distance from the given spline.
 
         Parameters
         ----------
@@ -2577,8 +2536,7 @@ class CylindraMainWidget(MagicTemplate):
         larger_true: bool = True,
         suffix: str = "_binarize",
     ):  # fmt: skip
-        """
-        Binarization of a layer feature by thresholding.
+        """Binarization of a layer feature by thresholding.
 
         Parameters
         ----------
@@ -2615,8 +2573,7 @@ class CylindraMainWidget(MagicTemplate):
         target: Annotated[str, {"choices": _choice_getter("label_feature_clusters", dtype_kind="b")}],
         suffix: str = "_label",
     ):  # fmt: skip
-        """
-        Label a binarized feature column based on the molecules structure.
+        """Label a binarized feature column based on the molecules structure.
 
         This method does the similar task as `scipy.ndimage.label`, where the isolated
         "islands" of True values will be labeled by position integers.
@@ -2654,8 +2611,7 @@ class CylindraMainWidget(MagicTemplate):
         label: Annotated[str, {"choices": _choice_getter("regionprops_features", dtype_kind="ui")}],
         properties: Annotated[list[str], {"choices": cylmeasure.RegionProfiler.CHOICES, "widget_type": CheckBoxes}] = ("area", "mean"),
     ):  # fmt: skip
-        """
-        Analyze region properties using another feature column as the labels.
+        """Analyze region properties using another feature column as the labels.
 
         For instance, if the target data is [0, 1, 2, 3, 4] and the labels are [0, 1, 1, 2, 2],
         the the property "mean" will be [1.5, 3.5]. For some properties such as "length" and
@@ -2685,9 +2641,54 @@ class CylindraMainWidget(MagicTemplate):
         dock.setFloating(True)
         return undo_callback(dock.close).with_redo(dock.show)
 
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    def update_scale(self, new_scale: nm = 1.0, drop_unsafe_props: bool = True):
+        """Update the scale of the tomogram and rescale all related components.
+
+        Parameters
+        ----------
+        new_scale : nm, default 1.0
+            New scale of the tomogram in nm/pixel.
+        drop_unsafe_props : bool, default True
+            If True, all the spline properties and molecule features that may be
+            affected by this operation will be dropped.
+        """
+        if new_scale <= 0:
+            raise ValueError("New scale must be greater than zero.")
+        factor = new_scale / self.tomogram.scale
+        new_splines = [spl.rescale(factor) for spl in self.tomogram.splines]
+        new_splines: list[CylSpline] = []
+        for spl in self.tomogram.splines:
+            new_spl = spl.rescale(factor)
+            if drop_unsafe_props:
+                new_spl.props.clear_loc()
+                new_spl.props.clear_glob()
+            new_splines.append(new_spl)
+        for layer in self.parent_viewer.layers:
+            if isinstance(layer, MoleculesLayer):
+                layer.data = layer.data * factor
+                if drop_unsafe_props:
+                    df = pl.DataFrame(layer.features)
+                    columns = [
+                        c
+                        for c in df.columns
+                        if c in [Mole.nth, Mole.pf, Mole.score, Mole.isotype]
+                    ]
+                    if Mole.position in df.columns:
+                        columns.append(pl.col(Mole.position) * factor)
+                    layer.features = df.select(columns)
+            elif isinstance(layer, LandscapeSurface):
+                verts, faces, values = layer.data
+                layer.data = verts * factor, faces, values
+        self.tomogram.splines.clear()
+        self.tomogram.splines.extend(new_splines)
+        self.tomogram.update_scale(new_scale)
+        self._reserved_layers.rescale_layers(factor)
+        self.GeneralInfo._refer_tomogram(self.tomogram)
+        return None
+
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #   Non-GUI methods
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
     @nogui
     @do_not_record
@@ -2719,8 +2720,7 @@ class CylindraMainWidget(MagicTemplate):
         output_shape: "tuple[nm, nm, nm] | None" = None,
         order: int = 1,
     ) -> SubtomogramLoader:
-        """
-        Create a subtomogram loader using current tomogram and a molecules layer.
+        """Create a subtomogram loader using current tomogram and a molecules layer.
 
         Parameters
         ----------
@@ -3051,7 +3051,7 @@ def _filter_macro_for_reanalysis(macro_expr: mk.Expr, ui_sym: mk.Symbol):
         "spline_fitter.fit",
     }
     exprs = list[mk.Expr]()
-    breaked_line: "mk.Expr | None" = None
+    breaked_line: mk.Expr | None = None
     if len(macro_expr.args) == 0:
         raise ValueError("Macro is empty.")
     for line_id, line in enumerate(macro_expr.args):
