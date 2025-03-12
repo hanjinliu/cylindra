@@ -13,3 +13,11 @@ QSizeGrip {
     width: 10px;
     height: 10px;
 }
+
+QMenuBar::item {
+    margin: 1px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    padding-left: 7px;
+    padding-right: 7px;
+}

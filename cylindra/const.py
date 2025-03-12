@@ -131,6 +131,7 @@ class MoleculesHeader(SimpleNamespace):
     nth = "nth"  # n-th molecule of a protofilament
     pf = "pf-id"  # protofilament ID
     isotype = "isotype-id"
+    template = "template-id"
     score = "score"  # alignment score
     spacing = PropertyNames.spacing  # interval between two molecules
     twist = PropertyNames.twist  # twist between two molecules

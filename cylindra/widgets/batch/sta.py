@@ -27,7 +27,6 @@ from magicgui.widgets import Container, FunctionGui
 from cylindra import _shared_doc
 from cylindra.const import ALN_SUFFIX, nm
 from cylindra.const import MoleculesHeader as Mole
-from cylindra.core import ACTIVE_WIDGETS
 from cylindra.utils import roundint
 from cylindra.widget_utils import FscResult, PolarsExprStr, norm_expr, timer
 from cylindra.widgets._annotated import FSCFreq
@@ -502,7 +501,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         seed : int, default
             Random seed.
         """
-        from cylindra.widgets.subwidgets import PcaViewer
+        from cylindra.components.visualize import plot_pca_classification
 
         t0 = timer()
         loader = self._get_parent().loader_infos[loader_name].loader
@@ -536,17 +535,15 @@ class BatchSubtomogramAveraging(MagicTemplate):
             axes=["cluster", "z", "y", "x"],
         ).set_scale(zyx=loader.scale, unit="nm")
 
+        transformed = pca.get_transform()
         t0.toc()
 
         @thread_worker.callback
         def _on_return():
             loader.molecules.features = out.molecules.features
-            pca_viewer = PcaViewer(pca)
-            pca_viewer.native.setParent(self.native, pca_viewer.native.windowFlags())
-            pca_viewer.show()
+            with _Logger.set_plt():
+                plot_pca_classification(pca, transformed)
             self._show_rec(avgs, name=f"[PCA]{loader_name}", store=False)
-
-            ACTIVE_WIDGETS.add(pca_viewer)
 
         return _on_return
 

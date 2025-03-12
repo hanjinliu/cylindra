@@ -6,11 +6,13 @@ from typing import TYPE_CHECKING, Any, Callable, Iterable
 import numpy as np
 import polars as pl
 from acryo import Molecules
+from numpy.typing import NDArray
 
 from cylindra.components.spline import CylSpline
 from cylindra.const import MoleculesHeader as Mole
 
 if TYPE_CHECKING:
+    from acryo.classification import PcaClassifier
     from matplotlib.axes import Axes
 
 
@@ -101,3 +103,20 @@ def _infer_start_from_molecules(mole: Molecules) -> int:
     dy = np.abs(np.mean(np.diff(spl_pos, axis=0)))
     drise = np.mean(np.diff(spl_pos, axis=1))
     return int(np.round(drise * npf / dy))
+
+
+def plot_pca_classification(pca: PcaClassifier, transformed: NDArray[np.floating]):
+    import matplotlib.pyplot as plt
+
+    plt.figure()
+    for i in range(pca.n_clusters):
+        sl = pca.labels == i
+        plt.scatter(
+            transformed[sl, 0],
+            transformed[sl, 1],
+            alpha=0.5,
+            label=f"Cluster-{i}",
+        )
+    plt.xlabel("PC1")
+    plt.ylabel("PC2")
+    plt.show()

@@ -82,8 +82,7 @@ class Spline(BaseComponent):
         return len(self.props.loc) > 0 or len(self.props.glob) > 0
 
     def copy(self, copy_props: bool = True, copy_config: bool = True) -> Self:
-        """
-        Copy Spline object.
+        """Copy Spline object.
 
         Parameters
         ----------
@@ -154,7 +153,12 @@ class Spline(BaseComponent):
         return self._u
 
     @classmethod
-    def line(cls, start: ArrayLike, end: ArrayLike) -> Self:
+    def line(
+        cls,
+        start: ArrayLike,
+        end: ArrayLike,
+        extrapolate: ExtrapolationMode | str = ExtrapolationMode.linear,
+    ) -> Self:
         """Create a linear spline.
 
         Parameters
@@ -163,13 +167,15 @@ class Spline(BaseComponent):
             Start point of the line.
         end : array_like
             End point of the line.
+        extrapolate : ExtrapolationMode or str, default 'linear'
+            Extrapolation mode.
 
         Returns
         -------
         Spline
             Line spline.
         """
-        spl = cls()
+        spl = cls(extrapolate=extrapolate)
         coords = np.stack([start, end], axis=0)
         return spl.fit(coords, err_max=0.0)
 
@@ -606,11 +612,10 @@ class Spline(BaseComponent):
         return self.map(u, der)
 
     def length(self, start: float = 0, stop: float = 1, nknots: int = 512) -> nm:
-        """Return the length of the spline.
+        """Length of the spline.
 
-        This method approximates the length of B-spline between [start, stop] by
-        partitioning the spline with 'nknots' knots. nknots=256 is large enough for most
-        cases.
+        Approximate the length of B-spline between [start, stop] by partitioning
+        the spline with 'nknots' knots. nknots=256 is large enough for most cases.
         """
         _assert_fitted(self)
         u = np.linspace(start, stop, nknots)
@@ -865,10 +870,9 @@ class Spline(BaseComponent):
         s_range: tuple[float, float] = (0, 1),
         scale: nm = 1.0,
     ) -> NDArray[np.float32]:
-        """
-        Generate a Cartesian coordinate system along spline.
+        """Generate a Cartesian coordinate system along spline.
 
-        Generated coordinate can be used for `ndi.map_coordinate`. Note that this
+        Generated coordinates can be used for `ndi.map_coordinate`. Note that this
         coordinate system is distorted, thus does not reflect real geometry (such as
         distance and derivatives).
 
@@ -995,7 +999,6 @@ class Spline(BaseComponent):
         cart_coords = np.stack(
             [radius * np.sin(theta), y, radius * np.cos(theta)], axis=1
         )
-
         return self.cartesian_to_world(cart_coords)
 
     def anchors_to_molecules(

@@ -197,8 +197,7 @@ class CylinderModel:
     def to_molecules(
         self, spl: Spline, features: pl.DataFrame | None = None
     ) -> Molecules:
-        """
-        Generate molecules from the coordinates and given spline.
+        """Generate molecules from the coordinates and given spline.
 
         Generated molecules will have following features.
         - "molecules-pf" ... The index of the molecule in the angular direction

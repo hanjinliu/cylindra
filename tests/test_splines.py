@@ -9,7 +9,39 @@ from cylindra.utils import map_coordinates
 
 
 @pytest.mark.parametrize("mode", ["linear", "default"])
-def test_inverse_mapping(mode):
+def test_inverse_mapping_cartesian(mode):
+    spl = CylSpline.line([0, 0, 0], [0, 0, 3], extrapolate=mode)
+    coords = np.array([[0, 0, 0], [1, 1, 1], [-1, 3, -1]])
+    crds_spl = spl.cartesian_to_world(coords)
+    answer = np.array([[0, 0, 0], [1, 1, 1], [-1, -1, 3]])
+    assert_allclose(crds_spl, answer, rtol=1e-6, atol=1e-6)
+
+    spl = CylSpline.line([0, 0, 0], [0, 3, 0], extrapolate=mode)
+    coords = np.array([[0, 0, 0], [1, 1, 1], [-1, -1, 3]])
+    crds_spl = spl.cartesian_to_world(coords)
+    answer = np.array([[0, 0, 0], [1, 1, -1], [-1, -1, -3]])
+    assert_allclose(crds_spl, answer, rtol=1e-6, atol=1e-6)
+
+
+@pytest.mark.parametrize("mode", ["linear", "default"])
+def test_inverse_mapping_cylindrical(mode):
+    sq2 = np.sqrt(2)
+    spl = CylSpline.line([0, 0, 0], [0, 0, 3], extrapolate=mode)
+    coords = np.array([[1, 1.5, 0], [1, 1.5, np.pi / 4], [2, 1.5, np.pi * 1.5]])
+    crds_spl = spl.cylindrical_to_world(coords)
+    answer = np.array([[0, 1, 1.5], [sq2 / 2, sq2 / 2, 1.5], [-2, 0, 1.5]])
+    assert_allclose(crds_spl, answer, rtol=1e-6, atol=1e-6)
+
+    spl = CylSpline.line([0, 0, 0], [0, 3, 0], extrapolate=mode)
+    coords = np.array([[1, 1.5, 0], [1, 1.5, np.pi / 4], [2, 1.5, np.pi * 1.5]])
+    crds_spl = spl.cylindrical_to_world(coords)
+    answer = np.array([[0, 1.5, -1], [sq2 / 2, 1.5, -sq2 / 2], [-2, 1.5, 0]])
+    assert_allclose(crds_spl, answer, rtol=1e-6, atol=1e-6)
+
+
+@pytest.mark.parametrize("mode", ["linear", "default"])
+def test_inverse_mapping_2(mode):
+    # This test is added before 1.0.0.b5
     spl = CylSpline(extrapolate=mode)
     coords = np.array([[0, 0, 0], [0, 1, 0], [0, 2, 0], [0, 3, 0]])
     spl = spl.fit(coords)

@@ -58,8 +58,7 @@ class CylTomogram(Tomogram):
         extrapolate: ExtrapolationMode | str = ExtrapolationMode.linear,
         config: SplineConfig | dict[str, Any] = {},
     ) -> None:
-        """
-        Add spline path to tomogram.
+        """Add spline path to tomogram.
 
         Parameters
         ----------
@@ -105,8 +104,7 @@ class CylTomogram(Tomogram):
         n: int | None = None,
         max_interval: nm | None = None,
     ):
-        """
-        Make anchors on spline object(s).
+        """Make anchors on spline object(s).
 
         Parameters
         ----------
@@ -122,8 +120,7 @@ class CylTomogram(Tomogram):
         return None
 
     def align_to_polarity(self, orientation: Ori | str = Ori.MinusToPlus) -> Self:
-        """
-        Align all the splines in the direction parallel to the given polarity.
+        """Align all the splines in the direction parallel to the given polarity.
 
         Parameters
         ----------
@@ -161,8 +158,7 @@ class CylTomogram(Tomogram):
         max_shift: nm = 5.0,
         n_rotations: int = 5,
     ) -> _misc.FitResult:
-        """
-        Roughly fit splines to cylindrical structures.
+        """Roughly fit splines to cylindrical structures.
 
         Subtomograms will be sampled at every `max_interval` nm. In dense mode,
         Subtomograms will be masked relative to XY-plane, using sigmoid function.
@@ -426,8 +422,7 @@ class CylTomogram(Tomogram):
         max_radius: nm = 100.0,
         update: bool = True,
     ) -> nm:
-        """
-        Measure radius using radial profile from the center.
+        """Measure radius using radial profile from the center.
 
         Parameters
         ----------

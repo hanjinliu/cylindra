@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
@@ -58,9 +59,11 @@ class Landscape:
         Argmax indices to track which rotation resulted in the best alignment.
     quaternions : NDArray[np.float32]
         Quaternions used for template rotation.
+    num_templates : NDArray[np.int32]
+        Number of templates used.
     scale_factor : float
         Scale factor to convert from pixels to nanometers (upsampling considered).
-        ``scale / upsample_factor`` will be passed to this parameter from the GUI.
+        `scale / upsample_factor` will be passed to this parameter from the GUI.
     """
 
     energies: NDArray[np.float32]
@@ -68,6 +71,7 @@ class Landscape:
     argmax: NDArray[np.int32] | None
     quaternions: NDArray[np.float32]
     scale_factor: float
+    num_templates: int = 1
 
     def __getitem__(
         self, key: slice | list[SupportsIndex] | NDArray[np.integer]
@@ -78,7 +82,14 @@ class Landscape:
         energy = self.energies[key]
         mole = self.molecules.subset(key)
         argmax = self.argmax[key] if self.argmax is not None else None
-        return Landscape(energy, mole, argmax, self.quaternions, self.scale_factor)
+        return Landscape(
+            energies=energy,
+            molecules=mole,
+            argmax=argmax,
+            quaternions=self.quaternions,
+            scale_factor=self.scale_factor,
+            num_templates=self.num_templates,
+        )
 
     def __repr__(self) -> str:
         eng_repr = f"<{self.energies.shape!r} array>"
@@ -89,7 +100,7 @@ class Landscape:
         return (
             f"Landscape(energies={eng_repr}, molecules={mole_repr}, "
             f"argmax={argmax_repr}, quaternion={self.quaternions!r}, "
-            f"scale_factor={self.scale_factor:.3g})"
+            f"scale_factor={self.scale_factor:.3g}, num_templates={self.num_templates})"
         )
 
     @property
@@ -132,15 +143,19 @@ class Landscape:
         """
         if isinstance(template, (str, Path)):
             template = pipe.from_file(template)
-            multi = False
+            num_templates = 1
         elif isinstance(template, (list, tuple)):
             if all(isinstance(t, (str, Path)) for t in template):
+                num_templates = len(template)
                 template = pipe.from_files(template)
             else:
                 template = list(template)
-            multi = True
+                num_templates = len(template)
         elif isinstance(template, np.ndarray):
-            multi = template.ndim == 4
+            if template.ndim == 4:
+                num_templates = template.shape[0]
+            else:
+                num_templates = 1
         else:
             raise TypeError(f"Invalid type of template: {type(template)}")
 
@@ -152,7 +167,7 @@ class Landscape:
             alignment_model=alignment_model,
         )
         score, argmax = _calc_landscape(
-            alignment_model, score_dsk, multi_templates=multi
+            alignment_model, score_dsk, multi_templates=num_templates > 1
         )
         mole = loader.molecules
         to_drop = set(mole.features.columns) - {Mole.nth, Mole.pf, Mole.position}
@@ -164,6 +179,7 @@ class Landscape:
             argmax=argmax,
             quaternions=alignment_model.quaternions,
             scale_factor=loader.scale / upsample_factor,
+            num_templates=num_templates,
         )
 
     def transform_molecules(
@@ -172,8 +188,7 @@ class Landscape:
         indices: NDArray[np.int32],
         detect_peak: bool = False,
     ) -> Molecules:
-        """
-        Transform the input molecules based on the landscape.
+        """Transform the input molecules based on the landscape.
 
         Parameters
         ----------
@@ -202,7 +217,7 @@ class Landscape:
         opt_score = -opt_energy
         shifts = ((indices_sub - offset) * self.scale_factor).astype(np.float32)
         molecules_opt = molecules.translate_internal(shifts)
-        shift_feat = _as_n_series("align-d{}", shifts)
+        dr_feat = _as_n_series("align-d{}", shifts)
         if (nrots := self.quaternions.shape[0]) > 1:
             quats = np.stack(
                 [
@@ -216,10 +231,14 @@ class Landscape:
             rotvec = rotator.as_rotvec().astype(np.float32)
             rotvec_feat = _as_n_series("align-d{}rot", rotvec)
             molecules_opt = molecules_opt.with_features(*rotvec_feat)
-
-        return molecules_opt.with_features(
-            *shift_feat, pl.Series(Mole.score, opt_score)
-        )
+        if self.num_templates > 1:
+            template_id = np.stack(
+                [self.argmax[(i, *ind)] // nrots for i, ind in enumerate(indices)]
+            )
+            molecules_opt = molecules_opt.with_features(
+                pl.Series(Mole.template, template_id)
+            )
+        return molecules_opt.with_features(*dr_feat, pl.Series(Mole.score, opt_score))
 
     def run_min_energy(
         self, spl: CylSpline | None = None
@@ -573,11 +592,12 @@ class Landscape:
                 f"{energies.shape}"
             )
         return Landscape(
-            energies,
-            self.molecules,
-            self.argmax,
-            self.quaternions,
-            self.scale_factor,
+            energies=energies,
+            molecules=self.molecules,
+            argmax=self.argmax,
+            quaternions=self.quaternions,
+            scale_factor=self.scale_factor,
+            num_templates=self.num_templates,
         )
 
     def create_surface(
@@ -635,11 +655,28 @@ class Landscape:
         argmax = None
         if (fp := path / "argmax.parquet").exists():
             argmax = pl.read_parquet(fp).to_series().to_numpy()
-        quaternions = np.atleast_2d(
-            np.loadtxt(path / "quaternions.txt", delimiter=",", dtype=np.float32)
-        )
+        if (landscape_json_path := path / "landscape.json").exists():
+            with landscape_json_path.open() as f:
+                js = json.load(f)
+                quaternions = np.array(js["quaternions"], dtype=np.float32)
+                num_templates = js["num_templates"]
+        elif (quat_path := path / "quaternions.txt").exists():
+            quaternions = np.atleast_2d(
+                np.loadtxt(quat_path, delimiter=",", dtype=np.float32)
+            )
+            num_templates = 1
+        else:
+            quaternions = np.array([[1, 0, 0, 0]], dtype=np.float32)
+            num_templates = 1
         scale_factor = energies.scale["x"]
-        return cls(energies.value, molecules, argmax, quaternions, scale_factor)
+        return cls(
+            energies=energies.value,
+            molecules=molecules,
+            argmax=argmax,
+            quaternions=quaternions,
+            scale_factor=scale_factor,
+            num_templates=num_templates,
+        )
 
     def save(self, path: str | Path) -> None:
         """Save the landscape to a directory."""
@@ -656,7 +693,12 @@ class Landscape:
             pl.DataFrame({"argmax": self.argmax}).write_parquet(
                 path / "argmax.parquet", compression_level=10
             )
-        self.quaternions.tofile(path / "quaternions.txt", sep=",")
+        with open(path / "landscape.json", "w") as f:
+            js = {
+                "quaternions": self.quaternions.tolist(),
+                "num_templates": self.num_templates,
+            }
+            json.dump(js, f, indent=2)
         return None
 
     def _norm_distance_range_long(
@@ -841,8 +883,7 @@ class MinEnergyResult:
 
 @dataclass
 class AnnealingResult:
-    """
-    Dataclass for storing the annealing results.
+    """Dataclass for storing the annealing results.
 
     Parameters
     ----------
@@ -887,8 +928,7 @@ def _normalize_random_seeds(seeds) -> list[int]:
 
 @dataclass
 class ViterbiResult:
-    """
-    Dataclass for storing the Viterbi alignment results.
+    """Dataclass for storing the Viterbi alignment results.
 
     Parameters
     ----------
@@ -909,16 +949,18 @@ def _calc_landscape(
 ) -> tuple[NDArray[np.float32], NDArray[np.int32] | None]:
     from dask import array as da
 
-    if not model.has_rotation:
+    # NOTE: shape of score_dsk
+    # - no rotation, single template: (P, Z, Y, X)
+    # - Nr rotations, single template: (P, Nr, Z, Y, X)
+    # - no rotation, Nt templates: (P, Nt, Z, Y, X)
+    # - Nr rotations, Nt templates: (P, Nr*Nt, Z, Y, X)
+    if not model.has_rotation and not multi_templates:
         score = score_dsk.compute()
-        if multi_templates:
-            score = np.max(score, axis=1)
         argmax = None
     else:
-        tasks = da.max(score_dsk, axis=1)
+        score = da.max(score_dsk, axis=1)
         argmax = da.argmax(score_dsk, axis=1)
-        # NOTE: argmax.shape[0] == n_templates * len(model.quaternion)
-        score, argmax = da.compute(tasks, argmax)
+        score, argmax = da.compute(score, argmax)
     return score, argmax
 
 

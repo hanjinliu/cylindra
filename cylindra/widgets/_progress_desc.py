@@ -92,11 +92,12 @@ def construct_landscape_fmt(layer: Layer):
 
 def classify_pca_fmt(layer: Layer):
     name = _get_name(layer)
-    yield f"(0/4) Creating template image for PCA clustering from {name!r}"
-    yield "(1/4) Fitting PCA model"
-    yield "(2/4) Transforming all the images"
-    yield "(3/4) Creating average images for each cluster"
-    yield "(4/4) Finishing"
+    yield f"(0/5) Creating template image for PCA clustering from {name!r}"
+    yield "(1/5) Fitting PCA model"
+    yield "(2/5) Transforming all the images"
+    yield "(3/5) Creating average images for each cluster"
+    yield "(4/5) Get transformation for 2D plot"
+    yield "(5/5) Finishing"
 
 
 def fit_spline_rfa_fmt():

@@ -19,8 +19,7 @@ if TYPE_CHECKING:
 
 
 class Tomogram:
-    """
-    Lazy-loading/multi-scale tomogram object.
+    """Lazy-loading/multi-scale tomogram object.
 
     It is always connected to a 3D image but processed lazily. Thus you can create
     a lot of Tomogram objects without MemoryError. Subtomograms are temporarily
@@ -80,6 +79,13 @@ class Tomogram:
         if source is None:
             raise ValueError("Source file is unknown.")
         return Path(source)
+
+    def _orig_or_read_path(self) -> Path | None:
+        if path := self.metadata.get("orig_path", None):
+            return path
+        if path := self.metadata.get("source", None):
+            return Path(path)
+        return None
 
     @property
     def tilt_model(self):
@@ -147,8 +153,7 @@ class Tomogram:
         binsize: int | Iterable[int] = (),
         compute: bool = True,
     ):
-        """
-        Construct a Tomogram object from a image array.
+        """Construct a Tomogram object from a image array.
 
         Parameters
         ----------
@@ -220,8 +225,7 @@ class Tomogram:
         eager: bool = False,
         compute: bool = True,
     ) -> Self:
-        """
-        Read a image as a dask array.
+        """Read a image as a dask array.
 
         Parameters
         ----------
@@ -256,8 +260,12 @@ class Tomogram:
 
     def with_cache_info(self, orig_path: Path, cached: bool = False) -> Self:
         """Set cache path."""
-        self.metadata["orig_path"] = Path(orig_path)
+        orig_path = Path(orig_path)
+        self.metadata["orig_path"] = orig_path
         self.metadata["cache_image"] = cached
+        self._image.name = orig_path.name
+        for _, img in self._multiscaled:
+            img.name = orig_path.name
         return self
 
     @property
@@ -303,8 +311,7 @@ class Tomogram:
     ) -> NDArray[np.intp]: ...
 
     def nm2pixel(self, value, binsize: int = 1):
-        """
-        Convert nm float value into pixel value. Useful for conversion from
+        """Convert nm float value into pixel value. Useful for conversion from
         coordinate to pixel position.
 
         Returns
