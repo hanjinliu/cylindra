@@ -713,6 +713,9 @@ class SubtomogramAveraging(ChildWidget):
         img = ip.asarray(loader.average(), axes="zyx")
         img.set_scale(zyx=loader.scale, unit="nm")
         t0.toc()
+        _Logger.print_html(
+            f"{loader.molecules.count()} molecules. Image size: {shape[0]:.2f} nm ({img.shape[0]} pixel)"
+        )
         return self._show_rec.with_args(img, f"[AVG]{_avg_name(layers)}")
 
     @set_design(text="Average subset of molecules", location=Averaging)
@@ -790,11 +793,17 @@ class SubtomogramAveraging(ChildWidget):
             _concat_molecules(layers), shape, binsize=bin_size, order=interpolation
         )
         expr = widget_utils.norm_expr(by)
-        avg_dict = loader.groupby(expr).average()
+        groups = loader.groupby(expr)
+        avg_dict = groups.average()
         avgs = np.stack([avg_dict[k] for k in sorted(avg_dict.keys())], axis=0)
         img = ip.asarray(avgs, axes="pzyx")
         img.set_scale(zyx=loader.scale, unit="nm")
         t0.toc()
+        mole_counts = [sub.molecules.count() for _, sub in groups]
+        _Logger.print_html(
+            f"Averages of {len(avg_dict)} groups, {mole_counts} molecules "
+            f"respectively.\nImage size: {shape[0]:.2f} nm ({img.shape[-1]} pixel)"
+        )
         return self._show_rec.with_args(img, f"[AVG]{_avg_name(layers)}")
 
     @set_design(text="Average filtered", location=Averaging)
@@ -826,11 +835,14 @@ class SubtomogramAveraging(ChildWidget):
         shape = self._get_shape_in_nm(size)
         loader = tomo.get_subtomogram_loader(
             _concat_molecules(layers), shape, binsize=bin_size, order=interpolation
-        )
-        avg = loader.filter(widget_utils.norm_expr(predicate)).average()
+        ).filter(widget_utils.norm_expr(predicate))
+        avg = loader.average()
         img = ip.asarray(avg, axes="zyx")
         img.set_scale(zyx=loader.scale, unit="nm")
         t0.toc()
+        _Logger.print_html(
+            f"Average of {loader.molecules.count()} molecules. Image size: {shape[0]:.2f} nm ({img.shape[0]} pixel)"
+        )
         return self._show_rec.with_args(img, f"[AVG]{_avg_name(layers)}")
 
     @set_design(text="Split and average molecules", location=Averaging)

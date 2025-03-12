@@ -2643,7 +2643,12 @@ class CylindraMainWidget(MagicTemplate):
         dock.setFloating(True)
         return undo_callback(dock.close).with_redo(dock.show)
 
-    def update_scale(self, new_scale: nm = 1.0, drop_unsafe_props: bool = True):
+    @set_design(text="Update pixel scale", location=_sw.ImageMenu)
+    def update_scale(
+        self,
+        new_scale: Annotated[nm, {"min": 0.01, "step": 0.0001}] = 1.0,
+        drop_unsafe_props: bool = True,
+    ):
         """Update the scale of the tomogram and rescale all related components.
 
         Parameters
@@ -2798,13 +2803,13 @@ class CylindraMainWidget(MagicTemplate):
         viewer.dims.axis_labels = ("z", "y", "x")
         change_viewer_focus(viewer, np.asarray(imgb.shape) / 2, imgb.scale.x)
 
-        try:
-            parts = tomo.source.parts
+        if fp := tomo._orig_or_read_path():
+            parts = fp.parts
             if len(parts) > 2:
                 _name = "…/" + Path(*parts[-2:]).as_posix()
             else:
                 _name = tomo.source.as_posix()
-        except Exception:
+        else:
             _name = f"Tomogram<{hex(id(tomo))}>"
         _Logger.print_html(f"<h2>{_name}</h2>")
 

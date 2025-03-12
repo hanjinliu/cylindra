@@ -219,6 +219,7 @@ class ImageMenu(ChildWidget):
     invert_image = abstractapi()
     add_multiscale = abstractapi()
     set_multiscale = abstractapi()
+    update_scale = abstractapi()
     sep0 = Separator
 
     @do_not_record

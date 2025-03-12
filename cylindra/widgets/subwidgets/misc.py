@@ -187,7 +187,7 @@ class GeneralInfo(MagicTemplate):
 
     def _refer_tomogram(self, tomo: CylTomogram):
         img = tomo.image
-        fpath = tomo.metadata.get("orig_path", tomo.metadata.get("source", "Unknown"))
+        fpath = tomo._orig_or_read_path() or "Unknown"
         scale = tomo.scale
         shape_px = ", ".join(f"{s} px" for s in img.shape)
         shape_nm = ", ".join(f"{s*scale:.2f} nm" for s in img.shape)
