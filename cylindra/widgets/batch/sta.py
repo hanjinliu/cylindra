@@ -165,8 +165,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         by: Annotated[str, {"choices": _get_selected_loader_choice}],
         delete_old: bool = False,
     ):
-        """
-        Split the selected loader by the values of the given column.
+        """Split the selected loader by the values of the given column.
 
         Parameters
         ----------
@@ -212,8 +211,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         loader_name: Annotated[str, {"bind": _get_current_loader_name}],
         expression: PolarsExprStr,
     ):
-        """
-        Filter the selected loader and add the filtered one to the list.
+        """Filter the selected loader and add the filtered one to the list.
 
         Parameters
         ----------
@@ -252,6 +250,12 @@ class BatchSubtomogramAveraging(MagicTemplate):
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
         bin_size: _BINSIZE = 1,
     ):
+        """Average all the molecules in the selected loader.
+
+        Parameters
+        ----------
+        {loader_name}{size}{interpolation}{bin_size}
+        """
         t0 = timer()
         loader = self._get_parent().loader_infos[loader_name].loader
         shape = self._get_shape_in_px(size, loader)
@@ -274,8 +278,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
         bin_size: _BINSIZE = 1,
     ):
-        """
-        Groupwise subtomogram averaging using molecules grouped by the given expression.
+        """Groupwise subtomogram averaging using molecules grouped by the given expression.
 
         This method first group molecules by its features, and then average each group.
         This method is useful for such as get average of each protofilament and
@@ -461,7 +464,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
                 _Logger.print_html(f"Resolution at FSC={_c:.3f} ... <b>{_r:.3f} nm</b>")
 
             if img_avg is not None:
-                _imlayer: "Image" = self._show_rec(img_avg, name=f"[AVG]{loader_name}")
+                _imlayer: Image = self._show_rec(img_avg, name=f"[AVG]{loader_name}")
                 _imlayer.metadata["fsc"] = result
                 _imlayer.metadata["fsc_halfmaps"] = (
                     _as_imgarray(img_0, axes="izyx"),

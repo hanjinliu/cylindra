@@ -8,6 +8,7 @@ import numpy as np
 from magicclass import (
     MagicTemplate,
     impl_preview,
+    logging,
     magicclass,
     magicmenu,
     set_design,
@@ -19,6 +20,7 @@ from magicgui.types import Separator
 from napari.layers import Image, Labels, Layer
 from napari.types import LayerDataTuple
 
+from cylindra.components.imscale import ScaleOptimizer
 from cylindra.components.seam_search import SeamSearchResult
 from cylindra.const import PREVIEW_LAYER_NAME, SEAM_SEARCH_RESULT, FileFilter
 from cylindra.utils import set_gpu
@@ -36,6 +38,7 @@ def _convert_array(arr: np.ndarray, scale: float) -> ip.ImgArray:
     return arr
 
 
+_Logger = logging.getLogger("cylindra")
 OPERATORS = [
     ("+", "add"),
     ("-", "sub"),
@@ -251,6 +254,45 @@ class Volume(MagicTemplate):
         self.parent_viewer.window.add_dock_widget(widget, area="right")
         widget._connect_layer()
         return None
+
+    @set_design(text=capitalize)
+    def calculate_scale_to_fit(
+        self,
+        layer: Image,
+        target_layer: Image,
+        zoom_range: tuple[float, float] = (0.9, 1.1),
+        precision: Annotated[float, {"step": 0.0001}] = 0.001,
+    ):
+        """Calculate the scale of the input layer to fit to the target layer.
+
+        Parameters
+        ----------
+        layer : Image
+            Layer to rescale.
+        target_layer : Image
+            Target layer to fit.
+        zoom_range : (float, float)
+            Range of zooming factor.
+        precision : float
+            Precision of the scale (nm/pixel).
+        """
+        import matplotlib.pyplot as plt
+
+        img = _convert_array(layer.data, layer.scale[-1])
+        target_img = _convert_array(target_layer.data, target_layer.scale[-1])
+        opt = ScaleOptimizer(*zoom_range, precision=precision)
+        result = opt.fit(img, target_img)
+        with _Logger.set_plt():
+            plt.figure(figsize=(3.6, 3.6))
+            plt.plot(result.scales, result.scores, lw=1.5)
+            plt.axvline(result.scale_optimal, color="r", linestyle="--", lw=1.5)
+            plt.xlabel("pixel scale (nm/pixel)")
+            plt.ylabel("correlation score")
+            plt.show()
+            _Logger.print_html(
+                f"Optimal scale: <b>{result.scale_optimal:.4f}</b> nm/pixel"
+            )
+        return
 
     def _apply_method(self, layer: Image, method_name: str, *args, **kwargs):
         img = _convert_array(layer.data, layer.scale[-1])

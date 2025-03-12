@@ -627,6 +627,16 @@ class CylindraMainWidget(MagicTemplate):
         return None
 
     @set_design(text=capitalize, location=_sw.FileMenu)
+    def load_volumes(self, paths: Path.Multiple[FileFilter.IMAGE]):
+        """Load 3D volume(s) to the sub-viewer."""
+        for path in paths:
+            img = ip.imread(path)
+            if img.ndim != 3:
+                raise ValueError("Input image must be 3-D.")
+            self.sta._show_rec(img, name=img.name)
+        return None
+
+    @set_design(text=capitalize, location=_sw.FileMenu)
     @do_not_record
     def save_spline(
         self,

@@ -308,6 +308,28 @@ def read_tilt_angles_from_mdoc(path: str) -> NDArray[np.float32]:
     return np.asarray(angles, dtype=np.float32)
 
 
+def read_tilt_angles_from_rawtlt(path: str) -> NDArray[np.float32]:
+    angles = [float(val) for val in Path(path).read_text().splitlines()]
+    return np.asarray(angles, dtype=np.float32)
+
+
+def find_tilt_angles(dirpath: Path) -> NDArray[np.float32] | None:
+    for path in dirpath.glob("*.mdoc"):
+        try:
+            tilt_angle = read_tilt_angles_from_mdoc(path)
+        except Exception:
+            pass
+        else:
+            return tilt_angle
+    for path in dirpath.glob("*.rawtlt"):
+        try:
+            tilt_angle = read_tilt_angles_from_rawtlt(path)
+        except Exception:
+            pass
+        else:
+            return tilt_angle
+
+
 class Projections:
     """
     Class that stores projections of a 3D image, calculated lazily.
