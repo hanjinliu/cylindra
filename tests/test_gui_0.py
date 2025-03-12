@@ -1229,6 +1229,7 @@ def test_calc_misc(ui: CylindraMainWidget, tmpdir):
     ui.load_project(PROJECT_DIR_13PF, filter=None)
     ui.mole_layers.clear()
     ui.map_monomers(splines=[0])
+    ui.load_volumes([TEST_DIR / "beta-tubulin.mrc"])
     layer = ui.mole_layers.last()
     all_props = cylmeasure.LatticeParameters.choices()
     ui.calculate_lattice_structure(layer=layer, props=all_props)
@@ -1347,6 +1348,7 @@ def test_function_menu(make_napari_viewer, tmpdir):
     im = viewer.add_image(img, name="test image")
     vol.binning(im, 2)
     vol.gaussian_filter(im)
+    im_filt = viewer.layers[-1]
     vol.threshold(im)
     vol.binary_operation(im, "add", viewer.layers[-1])
     tmpdir = Path(tmpdir)
@@ -1356,6 +1358,7 @@ def test_function_menu(make_napari_viewer, tmpdir):
     vol.save_label_as_mask(lbl, tmpdir / "test_label.tif")
     vol.save_label_as_mask(lbl, tmpdir / "test_label.mrc")
     vol.plane_clip()
+    vol.calculate_scale_to_fit(im, im_filt)
     tester = mcls_testing.FunctionGuiTester(vol.gaussian_filter)
     tester.click_preview()
     tester.click_preview()
