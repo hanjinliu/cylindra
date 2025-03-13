@@ -292,8 +292,7 @@ class MoleculesLayer(_FeatureBoundLayer, Points, _SourceBoundLayer):
         limits: tuple[float, float] | None = None,
         cmap: Any | None = None,
     ):
-        """
-        Set colormap to a molecules layer.
+        """Set colormap to a molecules layer.
 
         Parameters
         ----------

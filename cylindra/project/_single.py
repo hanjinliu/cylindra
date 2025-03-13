@@ -170,8 +170,7 @@ class CylindraProject(BaseProject):
         mole_ext: str = ".csv",
         save_landscape: bool = False,
     ) -> None:
-        """
-        Serialize the GUI state to a json file.
+        """Serialize the GUI state to a json file.
 
         Parameters
         ----------
@@ -301,8 +300,7 @@ class CylindraProject(BaseProject):
         dir: Path | None = None,
         props: bool = True,
     ) -> "CylSpline":
-        """
-        Load the spline of the given index.
+        """Load the spline of the given index.
 
         >>> spl = project.load_spline(0)  # load the 0-th spline instance
 
@@ -558,9 +556,9 @@ class CylindraProject(BaseProject):
         return pviewer
 
     def make_component_viewer(self):
+        """Build a molecules viewer widget from this project."""
         from cylindra.project._widgets import ComponentsViewer
 
-        """Build a molecules viewer widget from this project."""
         mviewer = ComponentsViewer()
         mviewer._from_project(self)
         return mviewer
@@ -596,8 +594,7 @@ class CylindraProject(BaseProject):
         return None
 
     def rewrite(self, dir: Path):
-        """
-        Rewrite tar/zip file using given temporary directory.
+        """Rewrite tar/zip file using given temporary directory.
 
         This method is only used after some mutable operation on the
         project directory.

@@ -1551,7 +1551,9 @@ def test_landscape(ui: CylindraMainWidget, tmpdir):
     )
 
     # check interactions
-    ui.construct_molecule_interaction("Mole-0", "Mole-1", dist_range=(4, 8), name="Itr")
+    ui.construct_molecule_interaction(
+        "Mole-0", "Mole-1", dist_range=(4, 8), layer_name="Itr"
+    )
     ui.construct_closest_molecule_interaction("Mole-0", layer_filt)
     ui.filter_molecule_interaction("Itr", "col('project-target-y) > 0")
 
