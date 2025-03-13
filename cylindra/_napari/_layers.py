@@ -516,7 +516,7 @@ class InteractionVector(Vectors):
 
     @features.setter
     def features(self, features):
-        Vectors.features.fset(features)
+        Vectors.features.fset(self, features)
         self._net.features = features
 
 
