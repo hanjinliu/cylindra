@@ -1549,6 +1549,12 @@ def test_landscape(ui: CylindraMainWidget, tmpdir):
         angle_max=20,
         random_seeds=[0, 1],
     )
+
+    # check interactions
+    ui.construct_molecule_interaction("Mole-0", "Mole-1", dist_range=(4, 8), name="Itr")
+    ui.construct_closest_molecule_interaction("Mole-0", layer_filt)
+    ui.filter_molecule_interaction("Itr", "col('project-target-y) > 0")
+
     tmpdir = Path(tmpdir)
     ui.save_project(tmpdir / "test-project.tar", save_landscape=True)
     ui.load_project(tmpdir / "test-project.tar", filter=None)
