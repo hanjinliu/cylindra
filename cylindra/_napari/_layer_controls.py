@@ -10,6 +10,7 @@ import numpy as np
 from magicclass.ext.polars import DataFrameView
 from napari._qt.layer_controls.qt_points_controls import QtPointsControls
 from napari._qt.layer_controls.qt_surface_controls import QtSurfaceControls
+from napari._qt.layer_controls.qt_vectors_controls import QtVectorsControls
 from qtpy import QtCore
 from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
@@ -18,7 +19,11 @@ from superqt import QEnumComboBox, QLabeledDoubleSlider
 if TYPE_CHECKING:
     from qtpy.QtWidgets import QFormLayout
 
-    from cylindra._napari._layers import LandscapeSurface, MoleculesLayer
+    from cylindra._napari._layers import (
+        InteractionVector,
+        LandscapeSurface,
+        MoleculesLayer,
+    )
 
 
 @contextmanager
@@ -226,6 +231,42 @@ class QtLandscapeSurfaceControls(QtSurfaceControls):
         self.layer.wireframe.width = value
 
 
+class QtInteractionControls(QtVectorsControls):
+    layer: InteractionVector
+
+    def __init__(self, layer: InteractionVector) -> None:
+        super().__init__(layer)
+        layout: QFormLayout = self.layout()
+
+        btns = QtW.QHBoxLayout()
+        self.showFeatureButton = QtW.QPushButton("show", self)
+        self.showFeatureButton.setToolTip("Show features of the interaction in a table")
+        self.showFeatureButton.clicked.connect(self._show_features)
+        btns.addWidget(self.showFeatureButton)
+        self.copyFeatureButton = QtW.QPushButton("copy", self)
+        self.copyFeatureButton.setToolTip(
+            "Copy features of the interaction to clipboard"
+        )
+        self.copyFeatureButton.clicked.connect(self._copy_features)
+        btns.addWidget(self.copyFeatureButton)
+        layout.addRow("features:", btns)
+
+        layout.removeRow(self.lengthSpinBox)
+        layout.removeRow(self.color_mode_comboBox)
+
+    def _show_features(self):
+        df = self.layer.net.features
+        table = DataFrameView(value=df)
+
+        napari.current_viewer().window.add_dock_widget(
+            table, area="left", name=f"Features of {self.layer.name!r}"
+        ).setFloating(True)
+
+    def _copy_features(self):
+        df = self.layer.features
+        df.to_clipboard(index=False)
+
+
 def _first_or(arr: np.ndarray, default):
     """Get the first element of the array or the default value."""
     if arr.size > 0:
@@ -236,7 +277,12 @@ def _first_or(arr: np.ndarray, default):
 def install_custom_layers():
     from napari._qt.layer_controls.qt_layer_controls_container import layer_to_controls
 
-    from cylindra._napari._layers import LandscapeSurface, MoleculesLayer
+    from cylindra._napari._layers import (
+        InteractionVector,
+        LandscapeSurface,
+        MoleculesLayer,
+    )
 
     layer_to_controls[MoleculesLayer] = QtMoleculesControls
     layer_to_controls[LandscapeSurface] = QtLandscapeSurfaceControls
+    layer_to_controls[InteractionVector] = QtInteractionControls

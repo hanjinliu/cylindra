@@ -530,13 +530,15 @@ class MoleculesMenu(ChildWidget):
     register_molecules = abstractapi()
     translate_molecules = abstractapi()
     rotate_molecules = abstractapi()
+    rotate_molecule_toward_spline = abstractapi()
+    sep0 = Separator
     filter_molecules = abstractapi()
     split_molecules = abstractapi()
     drop_molecules = abstractapi()
-    sep0 = Separator
+    sep1 = Separator
     rename_molecules = abstractapi()
     delete_molecules = abstractapi()
-    sep1 = Separator
+    sep2 = Separator
 
     @magicmenu(name="From/To spline")
     class FromToSpline(MagicTemplate):
@@ -567,8 +569,10 @@ class MoleculesMenu(ChildWidget):
         calculate_molecule_features = abstractapi()
         interpolate_spline_properties = abstractapi()
         calculate_lattice_structure = abstractapi()
-        distance_from_spline = abstractapi()
         sep0 = Separator
+        distance_from_spline = abstractapi()
+        distance_from_closest_molecule = abstractapi()
+        sep1 = Separator
         convolve_feature = abstractapi()
         count_neighbors = abstractapi()
         binarize_feature = abstractapi()
@@ -773,6 +777,14 @@ class AnalysisMenu(ChildWidget):
     reanalyze_image_config_updated = abstractapi()
     load_project_for_reanalysis = abstractapi()
     sep2 = Separator
+
+    @magicmenu(name="Interaction")
+    class Interaction(MagicTemplate):
+        construct_molecule_interaction = abstractapi()
+        construct_closest_molecule_interaction = abstractapi()
+        filter_molecule_interaction = abstractapi()
+
+    sep3 = Separator
 
     @set_design(text=capitalize)
     @do_not_record

@@ -28,8 +28,9 @@ from magicclass.utils import thread_worker
 from napari.layers import Layer
 
 from cylindra import _config, _shared_doc, cylmeasure, utils, widget_utils
-from cylindra._napari import LandscapeSurface, MoleculesLayer
+from cylindra._napari import InteractionVector, LandscapeSurface, MoleculesLayer
 from cylindra.components import CylSpline, CylTomogram, SplineConfig
+from cylindra.components.interaction import InterMoleculeNet, align_molecules_to_spline
 from cylindra.const import (
     PREVIEW_LAYER_NAME,
     FileFilter,
@@ -120,6 +121,44 @@ def _validate_colormap(self, val):
 
 
 _CmapType = Annotated[ColormapType, {"validator": _validate_colormap}]
+
+
+def _get_interaction_vectors(self: "CylindraMainWidget", w=None) -> list[str]:
+    return [
+        layer.name
+        for layer in self.parent_viewer.layers
+        if isinstance(layer, InteractionVector)
+    ]
+
+
+def _validate_interaction_vectors(self: "SubtomogramAveraging", layer) -> str:
+    if isinstance(layer, InteractionVector):
+        return layer.name
+    elif isinstance(layer, str):
+        if layer not in self.parent_viewer.layers:
+            raise ValueError(f"{layer!r} does not exist in the viewer.")
+        return layer
+    else:
+        raise TypeError(f"{layer!r} is not a valid landscape.")
+
+
+def assert_interaction_vectors(
+    layer: Layer | str, viewer: "napari.Viewer"
+) -> InteractionVector:
+    if isinstance(layer, str):
+        return viewer.layers[layer]
+    if not isinstance(layer, InteractionVector):
+        raise TypeError(f"{layer!r} is not an interaction vector.")
+    return layer
+
+
+_InteractionNetType = Annotated[
+    InteractionVector,
+    {
+        "choices": _get_interaction_vectors,
+        "validator": _validate_interaction_vectors,
+    },
+]
 
 # stylesheet
 _WIDGETS_PATH = Path(__file__).parent
@@ -1802,9 +1841,81 @@ class CylindraMainWidget(MagicTemplate):
         macro.eval({mk.symbol(self): self})
         return self.macro.clear_undo_stack()
 
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    @set_design(text=capitalize, location=_sw.AnalysisMenu.Interaction)
+    def construct_molecule_interaction(
+        self,
+        origin_molecules: MoleculesLayerType,
+        target_molecules: MoleculesLayerType,
+        dist_range: Annotated[tuple[nm, nm], {"label": "distance between (nm)", "options": {"min": 0.0, "step": 0.01}}] = (0.2, 10.0),
+        layer_name: str = "Interactions",
+        standard_features: bool = True,
+    ):  # fmt: skip
+        """Construct all the possible inter-molecule interaction network.
+
+        All the possible interactions between the origin and target molecule layers will
+        be added. Alternatively, you can set both origin and target layers to the same
+        layer to get the self-interaction.
+
+        Parameters
+        ----------
+        origin_molecules : MoleculesLayer
+            The layer of origin molecules. Interactions are defined by origin->target.
+        target_molecules : MoleculesLayer
+            The layer of target molecules. Interactions are defined by origin->target.
+        dist_range : tuple of float, default (0.2, 10.0)
+            The range of distance to consider for the interaction. Note that wide
+            distance range may cause a very dense interaction map.
+        layer_name : str, default "Interactions"
+            Name of the returned layer.
+        standard_features : bool, default True
+            If True, add standard features to the interaction network.
+        """
+        origin_molecules = assert_layer(origin_molecules, self.parent_viewer)
+        target_molecules = assert_layer(target_molecules, self.parent_viewer)
+        net = InterMoleculeNet.from_molecules(
+            origin_molecules.molecules,
+            target_molecules.molecules,
+            min_distance=dist_range[0],
+            max_distance=dist_range[1],
+        )
+        if standard_features:
+            net = net.with_standard_features()
+        layer = InteractionVector(net, name=layer_name)
+        return self._undo_callback_for_layer(self.parent_viewer.add_layer(layer))
+
+    @set_design(text=capitalize, location=_sw.AnalysisMenu.Interaction)
+    def construct_closest_molecule_interaction(
+        self,
+        origin_molecules: MoleculesLayerType,
+        target_molecules: MoleculesLayerType,
+        layer_name: str = "Interaction",
+        standard_features: bool = True,
+    ):
+        """Construct the closest inter-molecule interaction network."""
+        origin_molecules = assert_layer(origin_molecules, self.parent_viewer)
+        target_molecules = assert_layer(target_molecules, self.parent_viewer)
+        net = InterMoleculeNet.from_molecules_closest(
+            origin_molecules.molecules, target_molecules.molecules
+        )
+        if standard_features:
+            net = net.with_standard_features()
+        layer = InteractionVector(net, name=layer_name)
+        return self._undo_callback_for_layer(self.parent_viewer.add_layer(layer))
+
+    @set_design(text=capitalize, location=_sw.AnalysisMenu.Interaction)
+    def filter_molecule_interaction(
+        self,
+        interaction: _InteractionNetType,
+        predicate: PolarsExprStr,
+    ):
+        layer = assert_interaction_vectors(interaction, self.parent_viewer)
+        out_net = layer.net.filter(widget_utils.norm_expr(predicate))
+        new_layer = InteractionVector(out_net, name=f"{layer.name} (Filtered)")
+        return self._undo_callback_for_layer(self.parent_viewer.add_layer(new_layer))
+
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #   Monomer mapping methods
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu.FromToSpline)
     @bind_key("M")
@@ -2113,7 +2224,9 @@ class CylindraMainWidget(MagicTemplate):
         if coords is None or coords.size == 0:
             raise ValueError("No points are given.")
         mole = Molecules(coords)
-        return self.add_molecules(mole, name="Mole-manual")
+        layer = self.add_molecules(mole, name="Mole-manual")
+        self._reserved_layers.work.data = []
+        return self._undo_callback_for_layer(layer)
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu)
     def translate_molecules(
@@ -2191,6 +2304,28 @@ class CylindraMainWidget(MagicTemplate):
             new = self.add_molecules(mole, name=f"{layer.name}-Rot", source=source)
             new_layers.append(new)
         return self._undo_callback_for_layer(new_layers)
+
+    @set_design(text=capitalize, location=_sw.MoleculesMenu)
+    def rotate_molecule_toward_spline(
+        self,
+        layer: MoleculesLayerType,
+        spline: Annotated[int, {"choices": _get_splines}],
+        inherit_source: Annotated[bool, {"label": "Inherit source spline"}] = True,
+    ):
+        """Rotate molecules to align its orientation to the spline.
+
+        Output molecules layer will be named as "<original name>-Rot".
+
+        Parameters
+        ----------
+        {layer}{spline}{inherit_source}
+        """
+        layer = assert_layer(layer, self.parent_viewer)
+        spl = self.tomogram.splines[spline]
+        mole_rot = align_molecules_to_spline(layer.molecules, spl)
+        source = layer.source_component if inherit_source else None
+        new = self.add_molecules(mole_rot, name=f"{layer.name}-Rot", source=source)
+        return self._undo_callback_for_layer(new)
 
     @set_design(text="Rename molecule layers", location=_sw.MoleculesMenu)
     @do_not_record(recursive=False)
@@ -2513,6 +2648,8 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {layer}{spline}
+        column_name : str, default "distance"
+            Name of the new column.
         interval: nm, default 1.0
             Sampling interval along the spline. Note that small value will increase the
             memory usage and computation time.
@@ -2527,6 +2664,30 @@ class CylindraMainWidget(MagicTemplate):
         dist = utils.distance_matrix(layer.molecules.pos, sample_points)
         dist_min = pl.Series(column_name, np.min(dist, axis=1))
         layer.molecules = layer.molecules.with_features(dist_min)
+        return undo_callback(layer.feature_setter(feat, cmap_info))
+
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
+    def distance_from_closest_molecule(
+        self,
+        layer: MoleculesLayerType,
+        other_layers: MoleculesLayersType,
+        column_name: str = "distance",
+    ):
+        """Add a new column that stores the distance from the closest molecule.
+
+        Parameters
+        ----------
+        {layer}
+        column_name : str, default "distance"
+            Name of the new column.
+        """
+        layer = assert_layer(layer, self.parent_viewer)
+        other_layers = assert_list_of_layers(other_layers, self.parent_viewer)
+        feat, cmap_info = layer.molecules.features, layer.colormap_info
+        other_moles = Molecules.concat([l.molecules for l in other_layers])
+        net = InterMoleculeNet.from_molecules_closest(layer.molecules, other_moles)
+        dist = net.distances()
+        layer.molecules = layer.molecules.with_features(pl.Series(column_name, dist))
         return undo_callback(layer.feature_setter(feat, cmap_info))
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)

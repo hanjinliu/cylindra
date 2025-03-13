@@ -16,7 +16,7 @@ from cylindra.const import ImageFilter, cast_dataframe, get_versions
 from cylindra.const import PropertyNames as H
 from cylindra.project._base import BaseProject, MissingWedge, PathLike, resolve_path
 from cylindra.project._json import project_json_encoder
-from cylindra.project._layer_info import LandscapeInfo, MoleculesInfo
+from cylindra.project._layer_info import InteractionInfo, LandscapeInfo, MoleculesInfo
 from cylindra.project._utils import as_main_function, extract
 
 if TYPE_CHECKING:
@@ -47,6 +47,7 @@ class CylindraProject(BaseProject):
     multiscales: list[int]
     molecules_info: list[MoleculesInfo] = Field(default_factory=list)
     landscape_info: list[LandscapeInfo] = Field(default_factory=list)
+    interaction_info: list[InteractionInfo] = Field(default_factory=list)
     missing_wedge: MissingWedge = MissingWedge(params={}, kind="none")
     project_path: Path | None = None
     project_description: str = ""
@@ -192,7 +193,9 @@ class CylindraProject(BaseProject):
                 globalprops.write_csv(self._globalprops_path(results_dir))
             for i, spl in enumerate(gui.tomogram.splines):
                 spl.to_json(results_dir / f"spline-{i}.json")
-            for info in self.molecules_info + self.landscape_info:
+            for info in (
+                self.molecules_info + self.landscape_info + self.interaction_info
+            ):
                 info.save_layer(gui, results_dir)
 
             _cfg_json = gui.default_config.json_dumps()
@@ -274,7 +277,9 @@ class CylindraProject(BaseProject):
             # load molecules and landscapes
             _add_layer = thread_worker.callback(gui.parent_viewer.add_layer)
             with gui._pend_reset_choices():
-                for info in self.molecules_info + self.landscape_info:
+                for info in (
+                    self.molecules_info + self.landscape_info + self.interaction_info
+                ):
                     layer = info.to_layer(gui, project_dir)
                     cb = _add_layer.with_args(layer)
                     yield cb

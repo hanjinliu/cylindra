@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Callable, NamedTuple, TypedDict
 import numpy as np
 import polars as pl
 from acryo import Molecules
-from napari.layers import Points, Surface
+from napari.layers import Points, Surface, Vectors
 from napari.utils import Colormap
 from napari.utils.events import Event
 from napari.utils.status_messages import generate_layer_coords_status
@@ -20,6 +20,7 @@ from cylindra.utils import assert_column_exists, str_color
 
 if TYPE_CHECKING:
     from cylindra.components import BaseComponent, CylSpline
+    from cylindra.components.interaction import InterMoleculeNet
     from cylindra.components.landscape import Landscape
 
 
@@ -160,8 +161,7 @@ class _SourceBoundLayer:
 
 
 class MoleculesLayer(_FeatureBoundLayer, Points, _SourceBoundLayer):
-    """
-    An extended version of napari Points layers.
+    """An extended version of napari Points layers.
 
     This layer contains a Molecules object as its data source.
     """
@@ -491,6 +491,34 @@ class LandscapeSurface(Surface, _SourceBoundLayer):
             show_min=self._show_min,
         )
         self.refresh()
+
+
+class InteractionVector(Vectors):
+    _type_string = "vectors"
+
+    def __init__(self, net: InterMoleculeNet, **kwargs):
+        vectors = np.stack([net.origin, net.target - net.origin], axis=1)
+        kwargs.setdefault("vector_style", "arrow")
+        kwargs.setdefault("out_of_slice_display", True)
+        kwargs.setdefault("edge_width", 0.7)
+        kwargs.setdefault("edge_color", "darkgreen")
+        super().__init__(vectors, **kwargs)
+        self._net = net
+        if net.features.shape[1] > 0:
+            self.features = net.features
+
+    @property
+    def net(self) -> InterMoleculeNet:
+        return self._net
+
+    @property
+    def features(self):
+        return super().features
+
+    @features.setter
+    def features(self, features):
+        Vectors.features.fset(features)
+        self._net.features = features
 
 
 def _normalize_colormap(cmap) -> Colormap:
