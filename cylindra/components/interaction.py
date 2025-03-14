@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -18,32 +17,45 @@ if TYPE_CHECKING:
     from cylindra.components import Spline
 
 
-@dataclass
 class InterMoleculeNet:
     """Interaction network between molecules and molecules."""
 
-    molecules_origin: Molecules
-    molecules_target: Molecules
-    indices_origin: NDArray[np.intp]  # (N,)
-    indices_target: NDArray[np.intp]  # (N,)
-    features: pl.DataFrame = field(default_factory=pl.DataFrame)
-
-    def __post_init__(self):
+    def __init__(
+        self,
+        molecules_origin: Molecules,
+        molecules_target: Molecules,
+        indices_origin: NDArray[np.intp],
+        indices_target: NDArray[np.intp],
+        features: pl.DataFrame | None = None,
+    ):
         # type and shape check
-        if self.indices_origin.shape != self.indices_target.shape:
+        if indices_origin.shape != indices_target.shape:
             raise ValueError("origin and target indices must have the same shape.")
-        if self.indices_origin.ndim != 1:
+        if indices_origin.ndim != 1:
             raise ValueError("indices must be 1D array.")
-        if self.indices_origin.dtype != np.intp:
+        if indices_origin.dtype != np.intp:
             raise ValueError("indices must be integer array.")
-        if self.indices_target.dtype != np.intp:
+        if indices_target.dtype != np.intp:
             raise ValueError("indices must be integer array.")
-        if not isinstance(self.features, pl.DataFrame):
-            self.features = pl.DataFrame(self.features)
-        if self.features.shape[1] > 0 and self.features.shape[0] != self.count():
+        if not isinstance(features, pl.DataFrame):
+            features = pl.DataFrame(features)
+        if features.shape[1] > 0 and features.shape[0] != indices_origin.shape[0]:
             raise ValueError(
                 "features must have the same length as the number of interactions."
             )
+        self.molecules_origin = molecules_origin
+        self.molecules_target = molecules_target
+        self.indices_origin = indices_origin
+        self.indices_target = indices_target
+        self._features = features
+
+    @property
+    def features(self) -> pl.DataFrame:
+        return self._features
+
+    @features.setter
+    def features(self, df):
+        self._features = pl.DataFrame(df)
 
     @property
     def origin(self) -> NDArray[np.float32]:
@@ -131,15 +143,15 @@ class InterMoleculeNet:
     def with_standard_features(self) -> InterMoleculeNet:
         dist = self.distances()
         dot_orig = self.dot_product_origin()
-        dot_tart = self.dot_product_target()
+        dot_targ = self.dot_product_target()
         df = {
             "distance": dist,
-            "projection-origin-z": dot_orig[:, 0] / dist,
-            "projection-origin-y": dot_orig[:, 1] / dist,
-            "projection-origin-x": dot_orig[:, 2] / dist,
-            "projection-target-z": dot_tart[:, 0] / dist,
-            "projection-target-y": dot_tart[:, 1] / dist,
-            "projection-target-x": dot_tart[:, 2] / dist,
+            "projection-origin-z": _safe_div(dot_orig[:, 0], dist),
+            "projection-origin-y": _safe_div(dot_orig[:, 1], dist),
+            "projection-origin-x": _safe_div(dot_orig[:, 2], dist),
+            "projection-target-z": _safe_div(dot_targ[:, 0], dist),
+            "projection-target-y": _safe_div(dot_targ[:, 1], dist),
+            "projection-target-x": _safe_div(dot_targ[:, 2], dist),
         }
         return self.with_features(pl.DataFrame(df))
 
@@ -257,3 +269,7 @@ def align_molecules_to_spline(mole: Molecules, spl: Spline) -> Molecules:
 
 def _vec_normed(vec: NDArray[np.floating]) -> NDArray[np.floating]:
     return vec / np.linalg.norm(vec, axis=-1, keepdims=True)
+
+
+def _safe_div(a, b):
+    return np.divide(a, b, out=np.zeros_like(a), where=b != 0)
