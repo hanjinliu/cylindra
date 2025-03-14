@@ -504,7 +504,7 @@ class InteractionVector(Vectors):
         super().__init__(vectors, **kwargs)
         self._net = net
         if net.features.shape[1] > 0:
-            self.features = net.features
+            self.features = net.features.to_pandas()
 
     @property
     def net(self) -> InterMoleculeNet:
