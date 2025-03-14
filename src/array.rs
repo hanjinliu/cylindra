@@ -30,7 +30,7 @@ pub fn oblique_coordinates<'py>(
         out[[i, 0]] = (nth + npf * tan1) * d0 + c0;
         out[[i, 1]] = (nth * tan0 + npf) * d1 + c1;
     }
-    Ok(out.into_pyarray_bound(py).unbind())
+    Ok(out.into_pyarray(py).into())
 
 }
 
@@ -75,7 +75,7 @@ pub fn cylinder_faces<'py>(
         out_vert[[i, 2]] = v.2;
     }
 
-    Ok(out_vert.into_pyarray_bound(py).unbind())
+    Ok(out_vert.into_pyarray(py).into())
 }
 
 #[pyfunction]

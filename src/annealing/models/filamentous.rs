@@ -99,11 +99,11 @@ impl FilamentousAnnealingModel {
 
     /// Get all the existing distances of longitudinal connections as a numpy array.
     pub fn distances<'py>(&self, py: Python<'py>) -> Py<PyArray1<f32>> {
-        self.graph.get_distances().into_pyarray_bound(py).into()
+        self.graph.get_distances().into_pyarray(py).into()
     }
 
     pub fn angles<'py>(&self, py: Python<'py>) -> Py<PyArray1<f32>> {
-        self.graph.get_angles().into_pyarray_bound(py).into()
+        self.graph.get_angles().into_pyarray(py).into()
     }
 
     #[pyo3(signature = (num))]
@@ -169,7 +169,7 @@ impl FilamentousAnnealingModel {
 
     /// Get integer shift in each local coordinates as a numpy array.
     pub fn shifts<'py>(&self, py: Python<'py>) -> Py<PyArray2<isize>> {
-        self.graph.get_shifts().into_pyarray_bound(py).into()
+        self.graph.get_shifts().into_pyarray(py).into()
     }
 
     pub fn set_shifts<'py>(
@@ -193,7 +193,7 @@ impl FilamentousAnnealingModel {
 
     pub fn binding_energies<'py>(&self, py: Python<'py>) -> Py<PyArray1<f32>> {
         let engs = self.graph.binding_energies();
-        engs.into_pyarray_bound(py).into()
+        engs.into_pyarray(py).into()
     }
 
     /// Get current optimization state as a string.
@@ -289,7 +289,7 @@ impl FilamentousAnnealingModel {
 
     /// Get all the existing distances of longitudinal connections as a numpy array.
     pub fn longitudinal_distances<'py>(&self, py: Python<'py>) -> Py<PyArray1<f32>> {
-        self.graph.get_distances().into_pyarray_bound(py).into()
+        self.graph.get_distances().into_pyarray(py).into()
     }
 }
 

@@ -123,25 +123,25 @@ impl DefectiveCylindricAnnealingModel {
 
     /// Get all the existing distances of longitudinal connections as a numpy array.
     pub fn longitudinal_distances<'py>(&self, py: Python<'py>) -> Py<PyArray1<f32>> {
-        self.graph.get_longitudinal_distances().into_pyarray_bound(py).into()
+        self.graph.get_longitudinal_distances().into_pyarray(py).into()
     }
 
     /// Get all the existing distances of lateral connections as a numpy array.
     pub fn lateral_distances<'py>(&self, py: Python<'py>) -> Py<PyArray1<f32>> {
-        self.graph.get_lateral_distances().into_pyarray_bound(py).into()
+        self.graph.get_lateral_distances().into_pyarray(py).into()
     }
 
     pub fn longitudinal_angles<'py>(&self, py: Python<'py>) -> Py<PyArray1<f32>> {
-        self.graph.get_longitudinal_angles().into_pyarray_bound(py).into()
+        self.graph.get_longitudinal_angles().into_pyarray(py).into()
     }
 
     pub fn lateral_angles<'py>(&self, py: Python<'py>) -> Py<PyArray1<f32>> {
-        self.graph.get_lateral_angles().into_pyarray_bound(py).into()
+        self.graph.get_lateral_angles().into_pyarray(py).into()
     }
 
     pub fn get_edge_info<'py>(&self, py: Python<'py>) -> (Py<PyArray2<f32>>, Py<PyArray2<f32>>, Py<PyArray1<i32>>) {
         let (out0, out1, out2) = self.graph.get_edge_states();
-        (out0.into_pyarray_bound(py).into(), out1.into_pyarray_bound(py).into(), out2.into_pyarray_bound(py).into())
+        (out0.into_pyarray(py).into(), out1.into_pyarray(py).into(), out2.into_pyarray(py).into())
     }
 
     #[pyo3(signature = (indices, npf, nrise))]
@@ -219,7 +219,7 @@ impl DefectiveCylindricAnnealingModel {
 
     /// Get integer shift in each local coordinates as a numpy array.
     pub fn shifts<'py>(&self, py: Python<'py>) -> Py<PyArray2<isize>> {
-        self.graph.get_shifts().into_pyarray_bound(py).into()
+        self.graph.get_shifts().into_pyarray(py).into()
     }
 
     pub fn set_shifts<'py>(
@@ -243,7 +243,7 @@ impl DefectiveCylindricAnnealingModel {
 
     pub fn binding_energies<'py>(&self, py: Python<'py>) -> (Py<PyArray1<f32>>, Py<PyArray1<f32>>) {
         let (lon, lat) = self.graph.binding_energies();
-        (lon.into_pyarray_bound(py).into(), lat.into_pyarray_bound(py).into())
+        (lon.into_pyarray(py).into(), lat.into_pyarray(py).into())
     }
 
     /// Get current optimization state as a string.
