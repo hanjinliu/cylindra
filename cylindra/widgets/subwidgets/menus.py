@@ -25,7 +25,7 @@ from magicclass import (
 from magicclass.ext.polars import DataFrameView
 from magicclass.logging import getLogger
 from magicclass.types import Color, Optional, Path
-from magicclass.utils import thread_worker
+from magicclass.utils import open_url, thread_worker
 from magicclass.widgets import CodeEdit, ConsoleTextEdit
 from magicgui.types import Separator
 from magicgui.widgets import ComboBox, Container
@@ -316,8 +316,6 @@ class SplinesMenu(ChildWidget):
             interpolation : int, default 0
                 Interpolation order for points between the anchors.
             """
-            # TODO: after napari supports features in surface layer, add spline
-            # properties
             main = self._get_main()
             nodes: list[np.ndarray] = []
             vertices: list[np.ndarray] = []
@@ -1064,6 +1062,7 @@ class OthersMenu(ChildWidget):
     @magicmenu
     class Help(MagicTemplate):
         cylindra_info = abstractapi()
+        documentation = abstractapi()
         report_issues = abstractapi()
 
     @do_not_record
@@ -1163,12 +1162,16 @@ class OthersMenu(ChildWidget):
         cfg.tomogram_cache_dir = Path(tomogram_cache_dir).as_posix()
         return None
 
-    @set_design(text="Report issues", location=Help)
+    @set_design(text=capitalize, location=Help)
+    @do_not_record
+    def documentation(self):
+        """Open the documentation page."""
+        return open_url("https://hanjinliu.github.io/cylindra/")
+
+    @set_design(text=capitalize, location=Help)
     @do_not_record
     def report_issues(self):
         """Report issues on GitHub."""
-        from magicclass.utils import open_url
-
         return open_url("https://github.com/hanjinliu/cylindra/issues/new")
 
 
