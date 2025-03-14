@@ -16,7 +16,7 @@ from cylindra.const import ImageFilter, cast_dataframe, get_versions
 from cylindra.const import PropertyNames as H
 from cylindra.project._base import BaseProject, MissingWedge, PathLike, resolve_path
 from cylindra.project._json import project_json_encoder
-from cylindra.project._layer_info import LandscapeInfo, MoleculesInfo
+from cylindra.project._layer_info import InteractionInfo, LandscapeInfo, MoleculesInfo
 from cylindra.project._utils import as_main_function, extract
 
 if TYPE_CHECKING:
@@ -47,6 +47,7 @@ class CylindraProject(BaseProject):
     multiscales: list[int]
     molecules_info: list[MoleculesInfo] = Field(default_factory=list)
     landscape_info: list[LandscapeInfo] = Field(default_factory=list)
+    interaction_info: list[InteractionInfo] = Field(default_factory=list)
     missing_wedge: MissingWedge = MissingWedge(params={}, kind="none")
     project_path: Path | None = None
     project_description: str = ""
@@ -125,6 +126,7 @@ class CylindraProject(BaseProject):
         save_landscape: bool = False,
     ) -> "CylindraProject":
         """Construct a project from a widget state."""
+        from cylindra._napari import InteractionVector, LandscapeSurface
 
         _versions = get_versions()
         tomo = gui.tomogram
@@ -137,12 +139,15 @@ class CylindraProject(BaseProject):
         # Save paths of landscape
         landscape_infos = list[LandscapeInfo]()
         if save_landscape:
-            from cylindra._napari import LandscapeSurface
-
             for layer in gui.parent_viewer.layers:
-                if not isinstance(layer, LandscapeSurface):
-                    continue
-                landscape_infos.append(LandscapeInfo.from_layer(gui, layer))
+                if isinstance(layer, LandscapeSurface):
+                    landscape_infos.append(LandscapeInfo.from_layer(gui, layer))
+
+        # Save paths of interaction
+        interaction_infos = list[InteractionInfo]()
+        for layer in gui.parent_viewer.layers:
+            if isinstance(layer, InteractionVector):
+                interaction_infos.append(InteractionInfo.from_layer(gui, layer))
 
         orig_path = tomo.metadata.get("orig_path", None)
         return cls(
@@ -157,6 +162,7 @@ class CylindraProject(BaseProject):
             multiscales=[x[0] for x in tomo.multiscaled],
             molecules_info=mole_infos,
             landscape_info=landscape_infos,
+            interaction_info=interaction_infos,
             missing_wedge=MissingWedge.parse(tomo.tilt),
             project_path=project_dir,
         )
@@ -169,8 +175,7 @@ class CylindraProject(BaseProject):
         mole_ext: str = ".csv",
         save_landscape: bool = False,
     ) -> None:
-        """
-        Serialize the GUI state to a json file.
+        """Serialize the GUI state to a json file.
 
         Parameters
         ----------
@@ -192,7 +197,9 @@ class CylindraProject(BaseProject):
                 globalprops.write_csv(self._globalprops_path(results_dir))
             for i, spl in enumerate(gui.tomogram.splines):
                 spl.to_json(results_dir / f"spline-{i}.json")
-            for info in self.molecules_info + self.landscape_info:
+            for info in (
+                self.molecules_info + self.landscape_info + self.interaction_info
+            ):
                 info.save_layer(gui, results_dir)
 
             _cfg_json = gui.default_config.json_dumps()
@@ -274,7 +281,9 @@ class CylindraProject(BaseProject):
             # load molecules and landscapes
             _add_layer = thread_worker.callback(gui.parent_viewer.add_layer)
             with gui._pend_reset_choices():
-                for info in self.molecules_info + self.landscape_info:
+                for info in (
+                    self.molecules_info + self.landscape_info + self.interaction_info
+                ):
                     layer = info.to_layer(gui, project_dir)
                     cb = _add_layer.with_args(layer)
                     yield cb
@@ -296,8 +305,7 @@ class CylindraProject(BaseProject):
         dir: Path | None = None,
         props: bool = True,
     ) -> "CylSpline":
-        """
-        Load the spline of the given index.
+        """Load the spline of the given index.
 
         >>> spl = project.load_spline(0)  # load the 0-th spline instance
 
@@ -553,9 +561,9 @@ class CylindraProject(BaseProject):
         return pviewer
 
     def make_component_viewer(self):
+        """Build a molecules viewer widget from this project."""
         from cylindra.project._widgets import ComponentsViewer
 
-        """Build a molecules viewer widget from this project."""
         mviewer = ComponentsViewer()
         mviewer._from_project(self)
         return mviewer
@@ -591,8 +599,7 @@ class CylindraProject(BaseProject):
         return None
 
     def rewrite(self, dir: Path):
-        """
-        Rewrite tar/zip file using given temporary directory.
+        """Rewrite tar/zip file using given temporary directory.
 
         This method is only used after some mutable operation on the
         project directory.

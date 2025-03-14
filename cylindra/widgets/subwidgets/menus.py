@@ -109,8 +109,7 @@ class FileMenu(ChildWidget):
 
         @set_design(text="Stash current project")
         def stash_project(self):
-            """
-            Stash current project in the user directory.
+            """Stash current project in the user directory.
 
             This method simply saves the current project in the user directory. Stashing project
             is useful when you want to temporarily save the current project for later use, without
@@ -130,8 +129,7 @@ class FileMenu(ChildWidget):
             name: Annotated[str, {"choices": _get_stashed_names}],
             filter: ImageFilter | None = ImageFilter.Lowpass,
         ):
-            """
-            Load a stashed project.
+            """Load a stashed project.
 
             Parameters
             ----------
@@ -151,8 +149,7 @@ class FileMenu(ChildWidget):
             name: Annotated[str, {"choices": _get_stashed_names}],
             filter: ImageFilter | None = ImageFilter.Lowpass,
         ):
-            """
-            Load a stashed project and delete it from the stash list.
+            """Load a stashed project and delete it from the stash list.
 
             Parameters
             ----------
@@ -168,8 +165,7 @@ class FileMenu(ChildWidget):
         def delete_stash_project(
             self, name: Annotated[str, {"choices": _get_stashed_names}]
         ):
-            """
-            Delete a stashed project.
+            """Delete a stashed project.
 
             Parameters
             ----------
@@ -249,8 +245,7 @@ class ImageMenu(ChildWidget):
         length: Annotated[int, {"min": 16}] = 256,
         orientation: Literal["vertical", "horizontal"] = "horizontal",
     ):
-        """
-        Show the colorbar of the molecules or painted cylinder in the logger.
+        """Show the colorbar of the molecules or painted cylinder in the logger.
 
         Parameters
         ----------
@@ -310,8 +305,7 @@ class SplinesMenu(ChildWidget):
             interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 0,
             contrast_limits: Annotated[Optional[tuple[float, float]], {"text": "Auto contrast"}] = None,
         ):  # fmt: skip
-            """
-            Show 3D spline cylinder as a surface layer.
+            """Show 3D spline cylinder as a surface layer.
 
             Parameters
             ----------
@@ -404,8 +398,7 @@ class SplinesMenu(ChildWidget):
             fit_depth: Annotated[nm, {"min": 4.0, "step": 1}] = 48.0,
             fit_width: Annotated[nm, {"min": 4.0, "step": 1}] = 44.0,
         ):  # fmt: skip
-            """
-            Update the default spline config.
+            """Update the default spline config.
 
             Parameters
             ----------
@@ -528,13 +521,15 @@ class MoleculesMenu(ChildWidget):
     register_molecules = abstractapi()
     translate_molecules = abstractapi()
     rotate_molecules = abstractapi()
+    rotate_molecule_toward_spline = abstractapi()
+    sep0 = Separator
     filter_molecules = abstractapi()
     split_molecules = abstractapi()
     drop_molecules = abstractapi()
-    sep0 = Separator
+    sep1 = Separator
     rename_molecules = abstractapi()
     delete_molecules = abstractapi()
-    sep1 = Separator
+    sep2 = Separator
 
     @magicmenu(name="From/To spline")
     class FromToSpline(MagicTemplate):
@@ -565,8 +560,10 @@ class MoleculesMenu(ChildWidget):
         calculate_molecule_features = abstractapi()
         interpolate_spline_properties = abstractapi()
         calculate_lattice_structure = abstractapi()
-        distance_from_spline = abstractapi()
         sep0 = Separator
+        distance_from_spline = abstractapi()
+        distance_from_closest_molecule = abstractapi()
+        sep1 = Separator
         convolve_feature = abstractapi()
         count_neighbors = abstractapi()
         binarize_feature = abstractapi()
@@ -586,8 +583,7 @@ class MoleculesMenu(ChildWidget):
             y_color: Color = "cyan",
             z_color: Color = "crimson",
         ):
-            """
-            Show molecule orientations with a vectors layer.
+            """Show molecule orientations with a vectors layer.
 
             Parameters
             ----------
@@ -634,8 +630,7 @@ class MoleculesMenu(ChildWidget):
             show_title: bool = True,
             show_axis: bool = True,
         ):
-            """
-            Show current molecule feature coloring in 2D figure.
+            """Show current molecule feature coloring in 2D figure.
 
             For data visualization, plotting in 2D is better than in 3D. Current
             colormap in the 3D canvas is directly used for 2D plotting.
@@ -686,12 +681,11 @@ class MoleculesMenu(ChildWidget):
             template_path: Path.Read[FileFilter.IMAGE],
             scale: Annotated[nm, {"min": 0.1, "max": 10.0}] = 1.5,
         ):
-            """
-            Render molecules using the template image.
+            """Render molecules using the template image.
 
-            This method is only for visualization purpose. Iso-surface will be calculated
-            using the input template image and mapped to every molecule position. Surfaces
-            will be colored as the input molecules layer.
+            This method is only for visualization purpose. Iso-surface will be
+            calculated using the input template image and mapped to every molecule
+            position. Surfaces will be colored as the input molecules layer.
 
             Parameters
             ----------
@@ -771,6 +765,14 @@ class AnalysisMenu(ChildWidget):
     reanalyze_image_config_updated = abstractapi()
     load_project_for_reanalysis = abstractapi()
     sep2 = Separator
+
+    @magicmenu(name="Interaction")
+    class Interaction(MagicTemplate):
+        construct_molecule_interaction = abstractapi()
+        construct_closest_molecule_interaction = abstractapi()
+        filter_molecule_interaction = abstractapi()
+
+    sep3 = Separator
 
     @set_design(text=capitalize)
     @do_not_record
@@ -1079,8 +1081,7 @@ class OthersMenu(ChildWidget):
         num_workers: Optional[Annotated[int, {"min": 1, "value": 3}]] = None,
         scheduler: Literal["single-threaded", "threads", "synchronous", "processes"] = "threads",
     ):  # fmt: skip
-        """
-        Configure dask parallel computation.
+        """Configure dask parallel computation.
 
         Parameters
         ----------
@@ -1125,8 +1126,7 @@ class OthersMenu(ChildWidget):
         use_gpu: Annotated[bool, {"label": "use GPU"}] = _AppCfg.use_gpu,
         tomogram_cache_dir: Annotated[Path, {"mode": "d"}] = _AppCfg.tomogram_cache_dir,
     ):  # fmt: skip
-        """
-        Configure cylindra application global parameters.
+        """Configure cylindra application global parameters.
 
         Parameters
         ----------

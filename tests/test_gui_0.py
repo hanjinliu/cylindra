@@ -1037,6 +1037,8 @@ def test_molecules_methods(ui: CylindraMainWidget):
     tester.update_parameters(include="-0")
 
     ui.register_molecules([[10, 10, 10], [10, 20, 20]])
+    ui.rotate_molecule_toward_spline(ui.mole_layers.last(), 0)
+    ui.distance_from_closest_molecule(ui.mole_layers.last(), ui.mole_layers[0])
 
 
 def test_transform_molecules(ui: CylindraMainWidget):
@@ -1549,9 +1551,23 @@ def test_landscape(ui: CylindraMainWidget, tmpdir):
         angle_max=20,
         random_seeds=[0, 1],
     )
+
+    # check interactions
+    ui.construct_molecule_interaction(
+        "Mole-0", "Mole-1", dist_range=(1.8, 2.8), layer_name="Itr"
+    )
+    layer_interact = ui.mole_layers.last()
+    ui.construct_closest_molecule_interaction("Mole-0", layer_filt)
+    ui.filter_molecule_interaction("Itr", "col('projection-target-y') > 0")
+
     tmpdir = Path(tmpdir)
     ui.save_project(tmpdir / "test-project.tar", save_landscape=True)
     ui.load_project(tmpdir / "test-project.tar", filter=None)
+    assert layer_land.name in ui.parent_viewer.layers
+    assert layer_land is not ui.parent_viewer.layers[layer_land.name]
+    assert layer_interact.name in ui.parent_viewer.layers
+    assert layer_interact is not ui.parent_viewer.layers[layer_interact.name]
+
     ui.sta.remove_landscape_outliers(layer_land, upper=0.0)
     ui.sta.normalize_landscape(layer_land, norm_sd=False)
 

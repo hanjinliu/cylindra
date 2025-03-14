@@ -26,8 +26,7 @@ _FILP_X = ip.slicer.x[::-1]
 
 @magicclass(layout="horizontal")
 class SplineFitter(ChildWidget):
-    """
-    Manually fit cylinders with spline curves with longitudinal projections.
+    """Manually fit cylinders with spline curves with longitudinal projections.
 
     Attributes
     ----------
@@ -46,7 +45,7 @@ class SplineFitter(ChildWidget):
 
     def __init__(self) -> None:
         self._max_interval: nm = 50.0
-        self.subtomograms: "ip.ImgArray | None" = None  # 2D projections
+        self.subtomograms: ip.ImgArray | None = None  # 2D projections
 
     def __post_init__(self):
         self.shifts: list[np.ndarray] = None
@@ -148,8 +147,7 @@ class SplineFitter(ChildWidget):
         self,
         interval: Annotated[nm, {"label": "Max interval (nm)"}] = 50.0,
     ):
-        """
-        Resample volumes with given interval.
+        """Resample volumes with given interval.
 
         Parameters
         ----------

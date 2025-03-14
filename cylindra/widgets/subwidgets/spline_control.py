@@ -45,8 +45,7 @@ def delayed_map_coordinates(
     widget_type="groupbox", name="Spline Control", error_mode="stderr", record=False
 )
 class SplineControl(ChildWidget):
-    """
-    Control and visualization along splines
+    """Control and visualization along splines
 
     Attributes
     ----------

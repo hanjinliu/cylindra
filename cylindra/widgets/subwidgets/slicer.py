@@ -49,8 +49,7 @@ class SplineSlicer(ChildWidget):
 
     @magicclass(layout="horizontal")
     class params(ChildWidget):
-        """
-        Sweeper parameters.
+        """Sweeper parameters.
 
         Attributes
         ----------
@@ -88,8 +87,7 @@ class SplineSlicer(ChildWidget):
 
     @magicclass(widget_type="frame")
     class controller(ChildWidget):
-        """
-        Control spline positions.
+        """Control spline positions.
 
         Attributes
         ----------

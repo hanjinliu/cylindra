@@ -1,6 +1,6 @@
-from cylindra._napari._layers import LandscapeSurface, MoleculesLayer
+from cylindra._napari._layers import InteractionVector, LandscapeSurface, MoleculesLayer
 
-__all__ = ["MoleculesLayer", "LandscapeSurface"]
+__all__ = ["MoleculesLayer", "LandscapeSurface", "InteractionVector"]
 
 try:
     # Here, a private files are used.

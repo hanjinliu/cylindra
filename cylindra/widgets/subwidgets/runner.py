@@ -16,8 +16,7 @@ from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 @magicclass(widget_type="groupbox", name="Fitting parameters", record=False)
 class runner_params1:
-    """
-    Parameters used in spline fitting.
+    """Parameters used in spline fitting.
 
     Attributes
     ----------
@@ -38,8 +37,7 @@ class runner_params1:
 
 @magicclass(widget_type="groupbox", name="Local-CFT parameters", record=False)
 class runner_params2:
-    """
-    Parameters used in calculation of local properties.
+    """Parameters used in calculation of local properties.
 
     Attributes
     ----------

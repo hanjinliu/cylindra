@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from napari.layers import Layer
     from pydantic import BaseModel
 
-    from cylindra._napari import LandscapeSurface, MoleculesLayer
+    from cylindra._napari import InteractionVector, LandscapeSurface, MoleculesLayer
     from cylindra.widgets.main import CylindraMainWidget
 else:
     from pydantic_compat import BaseModel
@@ -81,12 +81,8 @@ class MoleculesInfo(LayerInfo):
 
         path = project_dir / self.name
         if not path.exists():
-            warnings.warn(
-                f"Cannot find molecule file {path}. Probably it was moved?",
-                RuntimeWarning,
-                stacklevel=2,
-            )
-            return
+            _warn_not_exist(path)
+            return None
         return Molecules.from_file(path)
 
     def to_layer(self, gui: "CylindraMainWidget", project_dir: Path):
@@ -144,12 +140,8 @@ class LandscapeInfo(LayerInfo):
 
         path = project_dir / self.name
         if not path.exists():
-            warnings.warn(
-                f"Cannot find landscape file {path}. Probably it was moved?",
-                RuntimeWarning,
-                stacklevel=2,
-            )
-            return
+            _warn_not_exist(path)
+            return None
         landscape = Landscape.from_dir(path)
 
         if self.source is not None:
@@ -165,3 +157,46 @@ class LandscapeInfo(LayerInfo):
     def save_layer(self, gui: "CylindraMainWidget", dir: Path):
         layer: LandscapeSurface = gui.parent_viewer.layers[self.name]
         return layer.landscape.save(dir / f"{self.name}")
+
+
+class InteractionInfo(LayerInfo):
+    name: str = "#unknown"  # including extension
+    visible: bool = True
+    width: float = 0.7
+
+    @classmethod
+    def from_layer(
+        cls, gui: "CylindraMainWidget", layer: "InteractionVector"  # noqa: ARG003
+    ) -> "LayerInfo":
+        return InteractionInfo(
+            name=layer.name,
+            visible=layer.visible,
+            width=layer.edge_width,
+        )
+
+    def to_layer(self, gui: "CylindraMainWidget", project_dir: Path):  # noqa: ARG003
+        from cylindra._napari import InteractionVector
+        from cylindra.components.interaction import InterMoleculeNet
+
+        path = project_dir / self.name
+        if not path.exists():
+            _warn_not_exist(path)
+            return None
+        net = InterMoleculeNet.from_dir(path)
+
+        layer = InteractionVector(
+            net, edge_width=self.width, name=self.name, visible=self.visible
+        )
+        return layer
+
+    def save_layer(self, gui: "CylindraMainWidget", dir: Path):
+        layer: InteractionVector = gui.parent_viewer.layers[self.name]
+        return layer.net.save(dir / f"{self.name}")
+
+
+def _warn_not_exist(path):
+    return warnings.warn(
+        f"Cannot find landscape file {path}. Probably it was moved?",
+        RuntimeWarning,
+        stacklevel=2,
+    )

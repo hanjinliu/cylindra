@@ -41,7 +41,10 @@ def assert_column_exists(df: pl.DataFrame, col: str | list[str]):
         )
 
 
-def distance_matrix(a: NDArray[np.floating], b: NDArray[np.floating]):
+def distance_matrix(
+    a: NDArray[np.floating],
+    b: NDArray[np.floating],
+) -> NDArray[np.floating]:
     """
     Return the distance matrix between two arrays.
 
