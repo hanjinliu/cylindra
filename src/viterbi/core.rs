@@ -109,7 +109,7 @@ impl ViterbiGrid {
         out[0] = pos.z;
         out[1] = pos.y;
         out[2] = pos.x;
-        Ok(out.into_pyarray_bound(py).into())
+        Ok(out.into_pyarray(py).into())
     }
 
     #[pyo3(signature = (dist_min, dist_max, angle_max = None))]
@@ -131,7 +131,7 @@ impl ViterbiGrid {
                 }
             }
         )?;
-        Ok((states.into_pyarray_bound(py).into(), score))
+        Ok((states.into_pyarray(py).into(), score))
     }
 
     #[pyo3(signature = (dist_min, dist_max, coords, origin, angle_max = None))]
@@ -160,7 +160,7 @@ impl ViterbiGrid {
                 }
             }
         )?;
-        Ok((states.into_pyarray_bound(py).into(), score))
+        Ok((states.into_pyarray(py).into(), score))
     }
 }
 

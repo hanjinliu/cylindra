@@ -1160,7 +1160,7 @@ class OthersMenu(ChildWidget):
         cfg.molecules_ndim = molecules_ndim
         cfg.default_dask_n_workers = default_dask_n_workers
         cfg.use_gpu = use_gpu
-        cfg.tomogram_cache_dir = tomogram_cache_dir.as_posix()
+        cfg.tomogram_cache_dir = Path(tomogram_cache_dir.as_posix())
         return None
 
     @set_design(text="Report issues", location=Help)
