@@ -3078,7 +3078,7 @@ class CylindraMainWidget(MagicTemplate):
         # remove all the molecules layers
         _layers_to_remove = list[str]()
         for layer in viewer.layers:
-            if isinstance(layer, (MoleculesLayer, LandscapeSurface)):
+            if isinstance(layer, (MoleculesLayer, LandscapeSurface, InteractionVector)):
                 _layers_to_remove.append(layer.name)
             elif layer in (self._reserved_layers.prof, self._reserved_layers.work):
                 _layers_to_remove.append(layer.name)

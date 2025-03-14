@@ -126,6 +126,7 @@ class CylindraProject(BaseProject):
         save_landscape: bool = False,
     ) -> "CylindraProject":
         """Construct a project from a widget state."""
+        from cylindra._napari import InteractionVector, LandscapeSurface
 
         _versions = get_versions()
         tomo = gui.tomogram
@@ -138,12 +139,15 @@ class CylindraProject(BaseProject):
         # Save paths of landscape
         landscape_infos = list[LandscapeInfo]()
         if save_landscape:
-            from cylindra._napari import LandscapeSurface
-
             for layer in gui.parent_viewer.layers:
-                if not isinstance(layer, LandscapeSurface):
-                    continue
-                landscape_infos.append(LandscapeInfo.from_layer(gui, layer))
+                if isinstance(layer, LandscapeSurface):
+                    landscape_infos.append(LandscapeInfo.from_layer(gui, layer))
+
+        # Save paths of interaction
+        interaction_infos = list[InteractionInfo]()
+        for layer in gui.parent_viewer.layers:
+            if isinstance(layer, InteractionVector):
+                interaction_infos.append(InteractionInfo.from_layer(gui, layer))
 
         orig_path = tomo.metadata.get("orig_path", None)
         return cls(
@@ -158,6 +162,7 @@ class CylindraProject(BaseProject):
             multiscales=[x[0] for x in tomo.multiscaled],
             molecules_info=mole_infos,
             landscape_info=landscape_infos,
+            interaction_info=interaction_infos,
             missing_wedge=MissingWedge.parse(tomo.tilt),
             project_path=project_dir,
         )

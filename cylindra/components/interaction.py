@@ -182,6 +182,9 @@ class InterMoleculeNet:
     def save(self, path: str | Path):
         """Save interaction network to a directory."""
         path = Path(path)
+        if path.suffix != "":
+            raise ValueError(f"Must be a directory, got {path}")
+        path.mkdir(exist_ok=False)
         self.molecules_origin.to_parquet(path / "molecules_origin.parquet")
         self.molecules_target.to_parquet(path / "molecules_target.parquet")
         np.save(path / "indices_origin.npy", self.indices_origin)
