@@ -1037,6 +1037,8 @@ def test_molecules_methods(ui: CylindraMainWidget):
     tester.update_parameters(include="-0")
 
     ui.register_molecules([[10, 10, 10], [10, 20, 20]])
+    ui.rotate_molecule_toward_spline(ui.mole_layers.last(), 0)
+    ui.distance_from_closest_molecule(ui.mole_layers.last(), ui.mole_layers[0])
 
 
 def test_transform_molecules(ui: CylindraMainWidget):
