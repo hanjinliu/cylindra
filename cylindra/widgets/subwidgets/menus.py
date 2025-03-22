@@ -227,6 +227,14 @@ class ImageMenu(ChildWidget):
         main.spline_slicer.show()
         return main.spline_slicer.refresh_widget_state()
 
+    @do_not_record
+    @set_design(text="Open manual picker")
+    def open_manual_picker(self):
+        """Open manual picker widget"""
+        main = self._get_main()
+        main.manual_picker.show()
+        return main.manual_picker.refresh_widget_state()
+
     @set_design(text="Simulate cylindric structure")
     @do_not_record
     @bind_key("Ctrl+K, I")

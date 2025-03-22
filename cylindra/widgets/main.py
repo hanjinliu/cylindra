@@ -208,6 +208,8 @@ class CylindraMainWidget(MagicTemplate):
     spline_clipper = field(_sw.SplineClipper, name="_Spline clipper")
     # Widget for sweeping along splines
     spline_slicer = field(_sw.SplineSlicer, name="_Spline slicer")
+    # Widget for manual picking along splines
+    manual_picker = field(_sw.ManualPicker, name="_Manual picker")
     # Widget for pre-filtering/pre-processing
     image_processor = field(_sw.ImageProcessor, name="_Image Processor")
     # Widget for tomogram simulator
@@ -390,7 +392,7 @@ class CylindraMainWidget(MagicTemplate):
             return list(range(self.splines.count()))
         return splines
 
-    @set_design(icon="mdi:pen-add", location=Toolbar)
+    @set_design(icon="iconoir:curve-array", location=Toolbar)
     @bind_key("F1")
     def register_path(
         self,

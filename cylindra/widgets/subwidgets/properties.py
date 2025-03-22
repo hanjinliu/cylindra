@@ -52,8 +52,7 @@ _PLOT_DEFAULTS = {
 
 @magicclass(name="Local Properties", record=False)
 class LocalPropertiesWidget(ChildWidget):
-    """
-    Local properties.
+    """Local properties.
 
     Attributes
     ----------
