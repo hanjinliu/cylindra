@@ -91,7 +91,11 @@ class TemplateImage(ChildWidget):
         """
         rotator = degrees_to_rotator(degrees)
         img = (
-            ip.asarray(pipe.from_pdb(pdb_path, rotator).provide(scale), axes="zyx")
+            ip.asarray(
+                pipe.from_pdb(pdb_path, rotator).provide(scale),
+                dtype=np.float32,
+                axes="zyx",
+            )
             .set_scale(zyx=scale, unit="nm")
             .gaussian_filter(sigma / scale)
         )
@@ -134,7 +138,7 @@ class TemplateImage(ChildWidget):
             weights = None
         img = pipe.from_atoms(atoms, weights=weights).provide(scale)
         img = (
-            ip.asarray(img, axes="zyx")
+            ip.asarray(img, dtype=np.float32, axes="zyx")
             .set_scale(zyx=scale, unit="nm")
             .gaussian_filter(sigma / scale)
         )
