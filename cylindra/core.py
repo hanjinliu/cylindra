@@ -124,11 +124,11 @@ def start(
     with suppress(Exception):  # napari>=0.6.0
         viewer.camera.orientation = ("away", "down", "right")
 
-    @viewer.bind_key("J")
+    @viewer.bind_key("J", overwrite=True)
     def _focus_up(v: napari.Viewer):
         v.dims.set_current_step(0, v.dims.current_step[0] - 4)
 
-    @viewer.bind_key("K")
+    @viewer.bind_key("K", overwrite=True)
     def _focus_down(v: napari.Viewer):
         v.dims.set_current_step(0, v.dims.current_step[0] + 4)
 

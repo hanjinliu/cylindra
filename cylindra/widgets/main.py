@@ -3019,8 +3019,9 @@ class CylindraMainWidget(MagicTemplate):
                 viewer.add_layer(self._reserved_layers.image)
         else:
             self._reserved_layers.update_image(img, tr)
-        if self._reserved_layers.highlight in viewer.layers:
-            viewer.layers.remove(self._reserved_layers.highlight)
+        for _layer in [self._reserved_layers.highlight, self._reserved_layers.plane]:
+            if _layer in viewer.layers:
+                viewer.layers.remove(_layer)
         self._reserved_layers.image.bounding_box.visible = _is_lazy
 
         # update overview

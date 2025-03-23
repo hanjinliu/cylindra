@@ -57,12 +57,8 @@ class ManualPicker(ChildWidget):
             except Exception:
                 return []
 
-        depth = vfield(4.0, label="depth (nm)").with_options(
-            min=1.0, max=200.0, step=1.0
-        )
-        width_ = vfield(100.0, label="width (nm)").with_options(
-            min=10.0, max=300.0, step=1.0
-        )
+        depth = vfield(4.0, label="depth (nm)").with_options(min=1.0, max=200.0, step=1.0)  # fmt: skip
+        width_ = vfield(80.0, label="width (nm)").with_options(min=10.0, max=300.0, step=1.0)  # fmt: skip
         binsize = vfield().with_choices(_get_available_binsize)
 
     @magicclass(layout="horizontal", widget_type="split")
@@ -83,6 +79,7 @@ class ManualPicker(ChildWidget):
 
             enable_autocontrast = vfield(ToggleSwitch, label="Auto contrast")
             preview_3d = field(Vispy3DCanvas)
+            show_in_viewer = vfield(ToggleSwitch, label="Show in viewer")
 
     canvas = field(QtImageCanvas, location=Row0).with_options(lock_contrast_limits=True)
 
@@ -111,23 +108,18 @@ class ManualPicker(ChildWidget):
     class Rot(ChildWidget):
         """Rotation of the plane along the spline."""
 
-        roll = vfield(
-            0.0, widget_type="FloatSlider", label="Roll angle (°)"
-        ).with_options(min=-90, max=90, step=1)
-        pitch = vfield(
-            0.0, widget_type="FloatSlider", label="Pitch angle (°)"
-        ).with_options(min=-90, max=90, step=1)
-        yaw = vfield(
-            0.0, widget_type="FloatSlider", label="Yaw angle (°)"
-        ).with_options(min=-90, max=90, step=1)
+        roll = vfield(0.0, widget_type="FloatSlider", label="Roll angle (°)").with_options(min=-180, max=180, step=1)  # fmt: skip
+        pitch = vfield(0.0, widget_type="FloatSlider", label="Pitch angle (°)").with_options(min=-90, max=90, step=1)  # fmt: skip
+        yaw = vfield(0.0, widget_type="FloatSlider", label="Yaw angle (°)").with_options(min=-90, max=90, step=1)  # fmt: skip
+        focus = vfield(0.0, widget_type="FloatSlider", label="Focus offset (nm)").with_options(min=-100, max=100, step=1)  # fmt: skip
 
     def __post_init__(self):
         self.canvas.mouse_clicked.connect(self._on_mouse_clicked)
         self._layer_points = self.canvas.add_scatter(
             [],
             [],
-            face_color="yellow",
-            edge_color="gray",
+            face_color=[0, 0, 0, 0],
+            edge_color="lime",
             lw=2,
         )
         self.Row0.image_params.preview_3d.add_curve(
@@ -173,7 +165,28 @@ class ManualPicker(ChildWidget):
     def refresh_widget_state(self):
         """Refresh widget state."""
         self._spline_changed(self.controller.spline_id)
-        return self._update_canvas()
+        self._update_canvas()
+        self._update_preview_3d()
+        return None
+
+    @Row0.image_params.show_in_viewer.connect
+    def _show_in_viewer(self, value: bool):
+        main = self._get_main()
+        if main.parent_viewer is None:
+            return None
+        plane = main._reserved_layers.plane
+        if not value:
+            if plane in main.parent_viewer.layers:
+                main.parent_viewer.layers.remove(plane)
+            return None
+
+        tomo = main.tomogram
+        if len(tomo.splines) == 0:
+            return None
+        if plane not in main.parent_viewer.layers:
+            main.parent_viewer.add_layer(plane)
+
+        return None
 
     def _current_rotator(self):
         return degrees_to_rotator(
@@ -185,7 +198,11 @@ class ManualPicker(ChildWidget):
         spl = self._get_main().tomogram.splines[idx]
         pos = self.controller.pos.value / spl.length()
         rotvec = self._current_rotator().as_rotvec()
-        return spl.anchors_to_molecules(pos).rotate_by_rotvec_internal(rotvec)
+        return (
+            spl.anchors_to_molecules(pos)
+            .rotate_by_rotvec_internal(rotvec)
+            .translate_internal([0, self.Rot.focus, 0])
+        )
 
     def _calc_image_slice(self):
         tomo = self._get_main().tomogram
@@ -200,7 +217,11 @@ class ManualPicker(ChildWidget):
 
         # trasform image
         img = tomo._get_multiscale_or_original(self.params.binsize)
-        out = map_coordinates(img, coords, order=1).mean(axis="y")[:, ::-1]
+        try:
+            out = map_coordinates(img, coords, order=1).mean(axis="y")[:, ::-1]
+        except ValueError:
+            # out of range
+            out = np.zeros((w_px, w_px), dtype=img.dtype)
         out = ip.asarray(out, axes="yx")
         out.set_scale(img, unit=img.scale_unit)
         return out, mole
@@ -217,10 +238,11 @@ class ManualPicker(ChildWidget):
     def _update_canvas(self, update_clim: bool = False):
         if self.controller.spline_id is None:
             return
+        main = self._get_main()
         img, mole = self._calc_image_slice()
 
         if self.Row0.image_params.enable_lowpass:
-            scale = self._get_main().tomogram.scale * self.params.binsize
+            scale = main.tomogram.scale * self.params.binsize
             cutoff = self.Row0.image_params.lowpass_cutoff.value / scale
             cutoff_rel = 0.5 / cutoff
             img = img.lowpass_filter(cutoff_rel)
@@ -246,6 +268,13 @@ class ManualPicker(ChildWidget):
             self._layer_points.data = xdata, zdata
             self._layer_points.size = radius * 2
 
+            # update plane layer
+            wy, wx, _o = img.shape[0] + 0.5, img.shape[1] + 0.5, -0.5
+            points = [[_o, _o], [_o, wx], [wy, wx], [wy, _o], [_o, _o]]
+            main._reserved_layers.plane.data = [
+                self._plane_pos_to_world_pos(y0, x0) for x0, y0 in points
+            ]
+
         return _update_image
 
     def _points_in_canvas(self, img: np.ndarray, mole: "Molecules"):
@@ -267,6 +296,7 @@ class ManualPicker(ChildWidget):
     @Rot.roll.connect_async(timeout=0.1)
     @Rot.pitch.connect_async(timeout=0.1)
     @Rot.yaw.connect_async(timeout=0.1)
+    @Rot.focus.connect_async(timeout=0.1)
     @params.depth.connect_async(timeout=0.1)
     @params.width_.connect_async(timeout=0.1)
     @params.binsize.connect_async(timeout=0.1)
@@ -280,20 +310,26 @@ class ManualPicker(ChildWidget):
             yield from self._update_canvas.arun()
         return None
 
-    def _on_mouse_clicked(self, event: "MouseClickEvent"):
-        if self.canvas.image is None:
-            return
-        main = self._get_main()
-        x, y = event.pos()
+    def _plane_pos_to_world_pos(self, y: float, x: float):
         cy, cx = (np.array(self.canvas.image.shape) - 1) / 2
-        scale = main.tomogram.scale * self.params.binsize
+        scale = self._get_main().tomogram.scale * self.params.binsize
         vx, vy = -(x - cx) * scale, (y - cy) * scale
         mole = self._molecule_at_pos()
         world_pos = mole.x.ravel() * vx + mole.z.ravel() * vy + mole.pos.ravel()
-        layer_work = main._reserved_layers.work
-        if event.modifiers() == ():
+        return world_pos
+
+    def _on_mouse_clicked(self, event: "MouseClickEvent"):
+        if self.canvas.image is None:
+            return
+        x, y = event.pos()
+        return self._mouse_click_impl(x, y, event.modifiers())
+
+    def _mouse_click_impl(self, x: float, y: float, modifiers: tuple):
+        world_pos = self._plane_pos_to_world_pos(y, x)
+        layer_work = self._get_main()._reserved_layers.work
+        if modifiers == ():
             layer_work.add(world_pos)
-        elif "control" in event.modifiers():
+        elif "control" in modifiers:
             layer_work.data = np.concatenate(
                 [layer_work.data[:-1], world_pos[np.newaxis]], axis=0
             )
@@ -316,10 +352,16 @@ class ManualPicker(ChildWidget):
     @Rot.roll.connect
     @Rot.pitch.connect
     @Rot.yaw.connect
+    @Rot.focus.connect
     def _update_preview_3d(self):
         rot = self._current_rotator()
-        points = np.array([[-1, 0, -1], [-1, 0, 1], [1, 0, 1], [1, 0, -1], [-1, 0, -1]])
-        self._layer_plane.data = rot.apply(points)
+        p00 = [-1, 0, -1]
+        p01 = [-1, 0, 1]
+        p10 = [1, 0, -1]
+        p11 = [1, 0, 1]
+        points = np.array([p00, p01, p11, p10, p00, p11, p01, p10])
+        dy = self.Rot.focus / 50 * rot.apply([0, 1, 0])
+        self._layer_plane.data = rot.apply(points) + dy
 
     @bind_key("A")
     def _yaw_left(self):
@@ -354,6 +396,14 @@ class ManualPicker(ChildWidget):
     @bind_key("B")
     def _move_backward(self):
         self.controller.pos.value = max(0, self.controller.pos.value - 10)
+
+    @bind_key("J")
+    def _move_focus_up(self):
+        self.Rot.focus = min(100, self.Rot.focus + 10)
+
+    @bind_key("K")
+    def _move_focus_down(self):
+        self.Rot.focus = max(-100, self.Rot.focus - 10)
 
     @bind_key("Delete")
     @bind_key("Backspace")
