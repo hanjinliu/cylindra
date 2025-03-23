@@ -381,11 +381,11 @@ class ManualPicker(ChildWidget):
 
     @bind_key("Q")
     def _roll_left(self):
-        self.Rot.roll = max(-90, self.Rot.roll - 5)
+        self.Rot.roll = max(-180, self.Rot.roll - 5)
 
     @bind_key("E")
     def _roll_right(self):
-        self.Rot.roll = min(90, self.Rot.roll + 5)
+        self.Rot.roll = min(180, self.Rot.roll + 5)
 
     @bind_key("F")
     def _move_forward(self):

@@ -589,9 +589,10 @@ def test_sub_widgets(ui: CylindraMainWidget, tmpdir):
         ui.spline_slicer._show_overlay_text("some text")
 
         ui.manual_picker.refresh_widget_state()
-        ui.manual_picker.params.binsize = 2
         ui.manual_picker._yaw_left()
         ui.manual_picker._yaw_right()
+        ui.manual_picker.params.binsize = 2
+        ui.manual_picker.params.binsize = 1
         ui.manual_picker.Row0.image_params.enable_lowpass = True
         ui.manual_picker.Row0.image_params.lowpass_cutoff.value = 2.2
         ui.manual_picker._pitch_up()
@@ -602,6 +603,10 @@ def test_sub_widgets(ui: CylindraMainWidget, tmpdir):
         ui.manual_picker._move_forward()
         ui.manual_picker._move_backward()
         ui.manual_picker._move_focus_up()
+        ui.manual_picker.Rot.focus = 100  # test out of range
+        ui.manual_picker.Rot.focus = -100
+        ui.manual_picker.Row0.image_params.enable_autocontrast = True
+        ui.manual_picker.Rot.focus = 0
         ui.manual_picker._move_focus_down()
         # add points
         ui.manual_picker.Rot.pitch = 38
@@ -618,6 +623,7 @@ def test_sub_widgets(ui: CylindraMainWidget, tmpdir):
         assert ui._reserved_layers.work.data.shape[0] == 0
         ui.manual_picker._mouse_click_impl(3, 4, ())
         ui.manual_picker._mouse_click_impl(3, 3, ())
+        ui.manual_picker._delete()
         assert ui._reserved_layers.work.data.shape[0] == 2
         ui.manual_picker.register()
 

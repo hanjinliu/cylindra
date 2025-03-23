@@ -67,7 +67,8 @@ cylindra --help
 - Monomer mapping along splines for subtomogram averaging and alignment.
 - Microtubule seam search with or without binding proteins.
 - Subtomogram alignment with 2D constraint.
-- Tomogram simulation of cylindric structure.
+- Tomogram simulation of cylindric structures.
+- Efficient manual picking along cylindrical structures.
 
 ## Prerequisite and Recommendations
 
@@ -77,8 +78,7 @@ cylindra --help
   larger memory size will make parallel processing more efficient. &ge;32 GB is
   recommended.
 - **Images should be loaded from SSD**. Raw image stacks are loaded lazily in most of
-  the processes. Loading from HDD will slow down many analyses as well.
-  *NOTE: In the latest version, you can use "Cache image on SSD" option to open images.*
+  the processes. Loading from HDD will slow down many analyses as well. In the latest version, you can use "Cache image on SSD" option to directly analyze tomograms stored in HDD.
 
 ## Issues
 
