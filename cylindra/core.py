@@ -121,10 +121,17 @@ def start(
         # napari-console disables calltips by default. It's better to enable it.
         viewer.window._qt_viewer.console.enable_calltips = True
 
-    try:  # napari>=0.6.0
+    with suppress(Exception):  # napari>=0.6.0
         viewer.camera.orientation = ("away", "down", "right")
-    except Exception as e:
-        print(e)
+
+    @viewer.bind_key("J")
+    def _focus_up(v: napari.Viewer):
+        v.dims.set_current_step(0, v.dims.current_step[0] - 4)
+
+    @viewer.bind_key("K")
+    def _focus_down(v: napari.Viewer):
+        v.dims.set_current_step(0, v.dims.current_step[0] + 4)
+
     ui.show(run=run)
     if add_main_widget:
         try:  # Just in case

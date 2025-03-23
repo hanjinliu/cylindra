@@ -185,11 +185,7 @@ class ManualPicker(ChildWidget):
         spl = self._get_main().tomogram.splines[idx]
         pos = self.controller.pos.value / spl.length()
         rotvec = self._current_rotator().as_rotvec()
-        return (
-            spl.anchors_to_molecules(pos)
-            .rotate_by_rotvec_internal(rotvec)
-            .rotate_by_rotvec_internal([0, 0, np.pi])
-        )
+        return spl.anchors_to_molecules(pos).rotate_by_rotvec_internal(rotvec)
 
     def _calc_image_slice(self):
         tomo = self._get_main().tomogram
