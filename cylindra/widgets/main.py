@@ -2046,7 +2046,7 @@ class CylindraMainWidget(MagicTemplate):
             _Logger.print(f"{_name!r}: n = {mole.count()}")
         return self._undo_callback_for_layer(_added_layers)
 
-    @set_design
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.FromToSpline)
     def map_along_spline_helical_symmetry(
         self,
         splines: SplinesType = None,

@@ -173,13 +173,9 @@ class AutoSaver:
 
 
 @overload
-def fast_percentile(arr: np.ndarray, q: float) -> float:
-    ...
-
-
+def fast_percentile(arr: np.ndarray, q: float) -> float: ...
 @overload
-def fast_percentile(arr: np.ndarray, q: list[float]) -> list[float]:
-    ...
+def fast_percentile(arr: np.ndarray, q: list[float]) -> list[float]: ...
 
 
 def fast_percentile(arr: np.ndarray, q):

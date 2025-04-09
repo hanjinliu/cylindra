@@ -50,6 +50,7 @@ nav:
       - spline/config.md
     - Molecules:
       - Molecules: molecules/index.md
+      - molecules/pick_molecules.md
       - molecules/spline_to_molecules.md
       - molecules/features.md
       - molecules/expressions.md

@@ -1,6 +1,7 @@
 from cylindra.widgets.subwidgets.file_iter import FileIterator
 from cylindra.widgets.subwidgets.function_menu import Volume
 from cylindra.widgets.subwidgets.image_processor import ImageProcessor
+from cylindra.widgets.subwidgets.manual_picker import ManualPicker
 from cylindra.widgets.subwidgets.measure import SpectraInspector
 from cylindra.widgets.subwidgets.menus import (
     AnalysisMenu,
@@ -27,6 +28,7 @@ from cylindra.widgets.subwidgets.toolbar import CylindraToolbar
 __all__ = [
     "Volume",
     "ImageProcessor",
+    "ManualPicker",
     "SpectraInspector",
     "LocalPropertiesWidget",
     "GlobalPropertiesWidget",

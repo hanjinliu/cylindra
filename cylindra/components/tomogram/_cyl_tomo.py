@@ -1065,7 +1065,16 @@ class CylTomogram(Tomogram):
         if rotate_molecules:
             spacing = spl.props.get_glob(H.spacing)
             twist = spl.props.get_glob(H.twist)
-            rotation = np.deg2rad(spl.distances(u) / spacing * twist)
+            degrees = spl.distances(u) / spacing * twist
+            deg_round = np.round(degrees, 2)
+            if len(degrees) < 11:
+                degrees_for_log = str(deg_round)
+            else:
+                degrees_for_log = (
+                    str(deg_round[:5])[:-1] + " ... " + str(deg_round[-5:])[1:]
+                )
+            LOGGER.info(f"Rotation in degree = {degrees_for_log}")
+            rotation = np.deg2rad(degrees)
         else:
             rotation = None
         mole = spl.anchors_to_molecules(u, rotation=rotation)
