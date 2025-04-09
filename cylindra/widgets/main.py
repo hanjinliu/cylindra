@@ -2048,7 +2048,10 @@ class CylindraMainWidget(MagicTemplate):
             _Logger.print(f"{_name!r}: n = {mole.count()}")
         return self._undo_callback_for_layer(_added_layers)
 
-    @set_design(text=capitalize, location=_sw.MoleculesMenu.FromToSpline)
+    @set_design(
+        text="Map along spline (helical symmetry)",
+        location=_sw.MoleculesMenu.FromToSpline,
+    )
     def map_along_spline_helical_symmetry(
         self,
         splines: SplinesType = None,
@@ -2059,7 +2062,7 @@ class CylindraMainWidget(MagicTemplate):
 
         This method is mainly used for subtomogram averaging of a structure with helical
         symmetry. For example, if the cylindrical structure is a 14_3 microtubule, this
-        method will map molecules at 4 nm / 14 * 3 interval with proper rotations.
+        method will map molecules at 4 nm / 14 interval with proper rotations.
 
         Parameters
         ----------
@@ -3235,7 +3238,13 @@ class CylindraMainWidget(MagicTemplate):
         fgui.twist.value = cfg.twist_range.center
         fgui.npf.value = int(cfg.npf_range.center)
 
-        for method in [self.map_monomers, self.map_monomers_with_extensions, self.map_along_pf, self.map_along_spline]:  # fmt: skip
+        for method in [
+            self.map_monomers,
+            self.map_monomers_with_extensions,
+            self.map_along_pf,
+            self.map_along_spline,
+            self.map_along_spline_helical_symmetry,
+        ]:
             get_function_gui(method)["orientation"].value = cfg.clockwise
 
 

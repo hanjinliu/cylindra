@@ -18,6 +18,7 @@ from cylindra.components.tomogram import _misc, _straighten
 from cylindra.components.tomogram._spline_list import SplineList
 from cylindra.components.tomogram._tomo_base import Tomogram
 from cylindra.const import ExtrapolationMode, Mode, Ori, nm
+from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import PropertyNames as H
 from cylindra.utils import (
     ceilint,
@@ -1088,6 +1089,8 @@ class CylTomogram(Tomogram):
         i: int = None,
         *,
         orientation: Ori | str | None = None,
+        clip_extension: bool = True,
+        sort: bool = True,
     ) -> Molecules:
         """Mapping molecules along the center considering helical symmetry.
 
@@ -1104,17 +1107,13 @@ class CylTomogram(Tomogram):
             Molecules object with mapped coordinates and angles.
         """
         spl = self.splines[i]
-        pitch = spl.props.get_glob(H.pitch)
-        twist = spl.props.get_glob(H.twist)
-        npf = spl.props.get_glob(H.npf)
-        start = spl.props.get_glob(H.start)
-        sign = spl.config.rise_sign
-        u = spl.prep_anchor_positions(interval=pitch / npf * abs(start))
-        rotation = np.deg2rad((twist * start * sign + 360) / npf) * sign * -1
-        mole = spl.anchors_to_molecules(u, rotation=rotation)
-        if spl._need_rotation(orientation):
-            mole = mole.rotate_by_rotvec_internal([np.pi, 0, 0])
-        return mole
+        mole = self.map_monomers(i=i, orientation=orientation)
+        if clip_extension:
+            length = spl.length()
+            mole = mole.filter(pl.col(Mole.position).is_between(0, length))
+        if sort:
+            mole = mole.sort(Mole.position)
+        return mole.translate_internal([-spl.radius, 0, 0])
 
     def get_cylinder_model(
         self,
