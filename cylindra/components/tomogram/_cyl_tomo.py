@@ -1108,8 +1108,9 @@ class CylTomogram(Tomogram):
         twist = spl.props.get_glob(H.twist)
         npf = spl.props.get_glob(H.npf)
         start = spl.props.get_glob(H.start)
-        u = spl.prep_anchor_positions(interval=pitch / npf * start)
-        rotation = np.deg2rad(spl.distances(u) / pitch * (twist * start + 360) / npf)
+        sign = spl.config.rise_sign
+        u = spl.prep_anchor_positions(interval=pitch / npf * abs(start))
+        rotation = np.deg2rad((twist * start * sign + 360) / npf) * sign * -1
         mole = spl.anchors_to_molecules(u, rotation=rotation)
         if spl._need_rotation(orientation):
             mole = mole.rotate_by_rotvec_internal([np.pi, 0, 0])
