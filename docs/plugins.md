@@ -98,7 +98,7 @@ by default. If there are others, add them like below:
 [project]
 dependencies = [
     "cylindra",
-    "numpy>=1.25.0",
+    "numpy>=2.1.0",
 ]
 ```
 

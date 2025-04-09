@@ -2048,6 +2048,39 @@ class CylindraMainWidget(MagicTemplate):
             _Logger.print(f"{_name!r}: n = {mole.count()}")
         return self._undo_callback_for_layer(_added_layers)
 
+    @set_design(
+        text="Map along spline (helical symmetry)",
+        location=_sw.MoleculesMenu.FromToSpline,
+    )
+    def map_along_spline_helical_symmetry(
+        self,
+        splines: SplinesType = None,
+        orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
+        prefix: str = "Center",
+    ):
+        """Map molecules along splines considering helical symmetry.
+
+        This method is mainly used for subtomogram averaging of a structure with helical
+        symmetry. For example, if the cylindrical structure is a 14_3 microtubule, this
+        method will map molecules at 4 nm / 14 interval with proper rotations.
+
+        Parameters
+        ----------
+        {splines}{orientation}{prefix}
+        """
+        tomo = self.tomogram
+        splines = self._norm_splines(splines)
+        _Logger.print_html("<code>map_along_spline_helical_symmetry</code>")
+        _added_layers = list[MoleculesLayer]()
+        for idx in splines:
+            spl = tomo.splines[idx]
+            mole = tomo.map_centers_helical_symmetry(i=idx, orientation=orientation)
+            _name = f"{prefix}-{idx}"
+            layer = self.add_molecules(mole, _name, source=spl)
+            _added_layers.append(layer)
+            _Logger.print(f"{_name!r}: n = {mole.count()}")
+        return self._undo_callback_for_layer(_added_layers)
+
     @set_design(text="Map alogn PF", location=_sw.MoleculesMenu.FromToSpline)
     def map_along_pf(
         self,
@@ -3205,7 +3238,13 @@ class CylindraMainWidget(MagicTemplate):
         fgui.twist.value = cfg.twist_range.center
         fgui.npf.value = int(cfg.npf_range.center)
 
-        for method in [self.map_monomers, self.map_monomers_with_extensions, self.map_along_pf, self.map_along_spline]:  # fmt: skip
+        for method in [
+            self.map_monomers,
+            self.map_monomers_with_extensions,
+            self.map_along_pf,
+            self.map_along_spline,
+            self.map_along_spline_helical_symmetry,
+        ]:
             get_function_gui(method)["orientation"].value = cfg.clockwise
 
 

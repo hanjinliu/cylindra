@@ -313,6 +313,7 @@ def test_map_molecules(ui: CylindraMainWidget):
     ui.map_along_spline(
         0, molecule_interval=4.08, rotate_molecules=False, orientation=None
     )  # test mapping without any measurement.
+    ui.map_along_spline_helical_symmetry(0)
 
     ui.SplinesMenu.Show.show_splines()
     ui.SplinesMenu.Show.show_splines_as_meshes()

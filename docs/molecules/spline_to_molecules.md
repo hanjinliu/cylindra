@@ -56,7 +56,9 @@ Following image shows an example of the result of this operation.
 
 ![Map monomers result](../images/viewer_01_monomer_mapped.png){ loading=lazy, width=320px }
 
-## Molecules along the Spline
+## Molecules Along the Spline
+
+#### Simple Mapping
 
 :material-arrow-right-thin-circle-outline: API: [`map_along_spline`][cylindra.widgets.main.CylindraMainWidget.map_along_spline]
 
@@ -84,7 +86,20 @@ filaments.
     4. You can use any molecules-layer name prefix you like by providing the `"prefix"`
        parameter.
 
-## Molecules along a Protofilament
+#### Molecules for Cylinders with Helical Symmetry
+
+:material-arrow-right-thin-circle-outline: API: [`map_along_spline_helical_symmetry`][cylindra.widgets.main.CylindraMainWidget.map_along_spline_helical_symmetry]
+
+:material-arrow-right-thin-circle-outline: GUI: `Molecules > From/To Splines > Map along spline (helical symmetry)`
+
+This method is useful for subsequent subtomogram averaging of cylinders with helical
+symmetry. Technically, running this method is almost equivalent to picking
+[molecules on the cylinder surface](#molecules-on-the-cylinder-surface) and translating
+them back to the spline; thus, you will see a very dense line filled with molecules.
+
+![Map along spline helical symmetry](../images/map_along_spline_helical_symmetry.png){ loading=lazy, width=400px }
+
+## Molecules Along a Protofilament
 
 :material-arrow-right-thin-circle-outline: API: [`map_along_pf`][cylindra.widgets.main.CylindraMainWidget.map_along_pf]
 

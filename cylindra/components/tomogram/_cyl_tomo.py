@@ -18,6 +18,7 @@ from cylindra.components.tomogram import _misc, _straighten
 from cylindra.components.tomogram._spline_list import SplineList
 from cylindra.components.tomogram._tomo_base import Tomogram
 from cylindra.const import ExtrapolationMode, Mode, Ori, nm
+from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import PropertyNames as H
 from cylindra.utils import (
     ceilint,
@@ -1064,7 +1065,7 @@ class CylTomogram(Tomogram):
         u = spl.prep_anchor_positions(interval=interval)
         if rotate_molecules:
             spacing = spl.props.get_glob(H.spacing)
-            twist = spl.props.get_glob(H.twist) / 2
+            twist = spl.props.get_glob(H.twist)
             degrees = spl.distances(u) / spacing * twist
             deg_round = np.round(degrees, 2)
             if len(degrees) < 11:
@@ -1081,6 +1082,38 @@ class CylTomogram(Tomogram):
         if spl._need_rotation(orientation):
             mole = mole.rotate_by_rotvec_internal([np.pi, 0, 0])
         return mole
+
+    @_misc.batch_process
+    def map_centers_helical_symmetry(
+        self,
+        i: int = None,
+        *,
+        orientation: Ori | str | None = None,
+        clip_extension: bool = True,
+        sort: bool = True,
+    ) -> Molecules:
+        """Mapping molecules along the center considering helical symmetry.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Spline ID that mapping will be calculated.
+        orientation : Ori or str, optional
+            Orientation of the y-axis of each molecule.
+
+        Returns
+        -------
+        Molecules
+            Molecules object with mapped coordinates and angles.
+        """
+        spl = self.splines[i]
+        mole = self.map_monomers(i=i, orientation=orientation)
+        if clip_extension:
+            length = spl.length()
+            mole = mole.filter(pl.col(Mole.position).is_between(0, length))
+        if sort:
+            mole = mole.sort(Mole.position)
+        return mole.translate_internal([-spl.radius, 0, 0])
 
     def get_cylinder_model(
         self,
@@ -1213,7 +1246,7 @@ class CylTomogram(Tomogram):
         """
         spl = self.splines[i]
         spacing = spl.props.get_glob(H.spacing)
-        twist = spl.props.get_glob(H.twist) / 2
+        twist = spl.props.get_glob(H.twist)
 
         ny = roundint(spl.length() / interval)
         skew_rad = np.deg2rad(twist) * interval / spacing

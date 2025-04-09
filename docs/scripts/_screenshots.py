@@ -132,6 +132,7 @@ def main():
         # spline -> molecules
         ui.map_monomers,
         ui.map_along_spline,
+        ui.map_along_spline_helical_symmetry,
         ui.map_along_pf,
         # molecules
         ui.filter_molecules,
