@@ -1064,10 +1064,43 @@ class CylTomogram(Tomogram):
         u = spl.prep_anchor_positions(interval=interval)
         if rotate_molecules:
             spacing = spl.props.get_glob(H.spacing)
-            twist = spl.props.get_glob(H.twist) / 2
+            twist = spl.props.get_glob(H.twist)
             rotation = np.deg2rad(spl.distances(u) / spacing * twist)
         else:
             rotation = None
+        mole = spl.anchors_to_molecules(u, rotation=rotation)
+        if spl._need_rotation(orientation):
+            mole = mole.rotate_by_rotvec_internal([np.pi, 0, 0])
+        return mole
+
+    @_misc.batch_process
+    def map_centers_helical_symmetry(
+        self,
+        i: int = None,
+        *,
+        orientation: Ori | str | None = None,
+    ) -> Molecules:
+        """Mapping molecules along the center considering helical symmetry.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Spline ID that mapping will be calculated.
+        orientation : Ori or str, optional
+            Orientation of the y-axis of each molecule.
+
+        Returns
+        -------
+        Molecules
+            Molecules object with mapped coordinates and angles.
+        """
+        spl = self.splines[i]
+        pitch = spl.props.get_glob(H.pitch)
+        twist = spl.props.get_glob(H.twist)
+        npf = spl.props.get_glob(H.npf)
+        start = spl.props.get_glob(H.start)
+        u = spl.prep_anchor_positions(interval=pitch / npf * start)
+        rotation = np.deg2rad(spl.distances(u) / pitch * (twist * start + 360) / npf)
         mole = spl.anchors_to_molecules(u, rotation=rotation)
         if spl._need_rotation(orientation):
             mole = mole.rotate_by_rotvec_internal([np.pi, 0, 0])
@@ -1204,7 +1237,7 @@ class CylTomogram(Tomogram):
         """
         spl = self.splines[i]
         spacing = spl.props.get_glob(H.spacing)
-        twist = spl.props.get_glob(H.twist) / 2
+        twist = spl.props.get_glob(H.twist)
 
         ny = roundint(spl.length() / interval)
         skew_rad = np.deg2rad(twist) * interval / spacing
