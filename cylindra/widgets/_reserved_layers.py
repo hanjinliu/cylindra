@@ -5,7 +5,7 @@ from weakref import WeakSet
 
 import impy as ip
 import numpy as np
-from napari.layers import Image, Layer, Points
+from napari.layers import Image, Layer, Points, Shapes
 
 from cylindra.const import (
     SELECTION_LAYER_NAME,
@@ -37,7 +37,14 @@ class ReservedLayers:
             out_of_slice_display=True,
             blending="translucent_no_depth",
         )
+        self.plane = Shapes(
+            ndim=3,
+            name="Picker Plane",
+            face_color=[1.0, 0.2, 0.2, 0.44],
+            edge_color=[1.0, 0.2, 0.2, 0.84],
+        )
         self.highlight.editable = False
+        self.plane.editable = False
         self.to_be_removed = WeakSet[Layer]()
         self.is_lazy = False
 
@@ -166,7 +173,7 @@ def _work_layer() -> Points:
         size=8,
         name=WORKING_LAYER_NAME,
         face_color="yellow",
-        blending="translucent_no_depth",
+        blending="translucent",
     )
     work.mode = "add"
     return work

@@ -96,11 +96,13 @@ class SplineFitter(ChildWidget):
         return self.close()
 
     @bind_key("Up")
+    @bind_key("F")
     def _next_pos(self):
         self.pos.value = min(self.pos.value + 1, self.pos.max)
         self._focus_me()
 
     @bind_key("Down")
+    @bind_key("B")
     def _prev_pos(self):
         self.pos.value = max(self.pos.value - 1, self.pos.min)
         self._focus_me()

@@ -206,6 +206,16 @@ def main():
     # Spectra inspector
     ui.AnalysisMenu.open_spectra_inspector()
     _imsave(ui.spectra_inspector.native, "spectra_inspector")
+
+    ### manual picker ###
+    ui.ImageMenu.open_manual_picker()
+    ui.manual_picker.controller.pos.value = 33.6
+    ui.manual_picker.Rot.pitch = 90
+    ui.manual_picker.Rot.focus = 13
+    QtW.QApplication.processEvents()
+
+    _imsave(ui.manual_picker.native, "manual_picker")
+
     # Image processor
     ui.image_processor.show()
     _imsave(ui.image_processor.native, "image_processor")

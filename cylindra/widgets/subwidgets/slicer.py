@@ -107,12 +107,14 @@ class SplineSlicer(ChildWidget):
         pos = field(nm, label="Position (nm)", widget_type="FloatSlider").with_options(max=0)  # fmt: skip
 
     @bind_key("Up")
+    @bind_key("F")
     def _next_pos(self):
         c = self.controller
         depth = self.params.depth
         c.pos.value = min(c.pos.value + depth, c.pos.max)
 
     @bind_key("Down")
+    @bind_key("B")
     def _prev_pos(self):
         c = self.controller
         c.pos.value = max(c.pos.value - 1, c.pos.min)

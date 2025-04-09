@@ -223,8 +223,7 @@ class Simulator(ChildWidget):
         layer: MoleculesLayerType,
         template_path: Path.Read[FileFilter.IMAGE],
     ):
-        """
-        Add a set of template and a molecules as a simulation component.
+        """Add a set of template and a molecules as a simulation component.
 
         A component defines which molecules corresponds to what template image.
         Multiple components can be added to simulate a tomogram with different
@@ -253,8 +252,7 @@ class Simulator(ChildWidget):
         size: _ImageSize = (60.0, 200.0, 60.0),
         scale: Annotated[nm, {"label": "pixel scale (nm/pixel)"}] = 0.25,
     ):  # fmt: skip
-        """
-        Create an empty image with the given size and scale, and send it to the viewer.
+        """Create an empty image with the given size and scale, and send it to the viewer.
 
         Parameters
         ----------
@@ -281,8 +279,7 @@ class Simulator(ChildWidget):
 
     @set_design(text=capitalize, location=CreateMenu)
     def create_straight_line(self, start: _Point3D, end: _Point3D):
-        """
-        Create a straight line as a spline.
+        """Create a straight line as a spline.
 
         Parameters
         ----------
@@ -311,8 +308,7 @@ class Simulator(ChildWidget):
         yxrotation: Annotated[float, {"max": 90, "step": 1, "label": "Rotation in YX plane (deg)"}] = 0.0,
         zxrotation: Annotated[float, {"max": 90, "step": 1, "label": "Rotation in ZX plane (deg)"}] = 0.0,
     ):  # fmt: skip
-        """
-        Create a straight line as a cylinder spline.
+        """Create a straight line as a cylinder spline.
 
         Parameters
         ----------
@@ -351,8 +347,7 @@ class Simulator(ChildWidget):
         offsets: tuple[float, float] = (0.0, 0.0),
         update_glob: Annotated[bool, {"label": "update spline global properties"}] = True,
     ):  # fmt: skip
-        """
-        Update cylinder model with new parameters.
+        """Update cylinder model with new parameters.
 
         Local structural displacement will be deleted because this function may change
         the number of molecules. This function should be called first.
@@ -454,8 +449,7 @@ class Simulator(ChildWidget):
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         seed: Optional[Annotated[int, {"min": 0, "max": 1e8}]] = None,
     ):  # fmt: skip
-        """
-        Simulate tomographic images using the current model and save the images.
+        """Simulate tomographic images using the current model and save the images.
 
         This function projects the template image to each tilt series, adding
         Gaussian noise, and back-projects the noisy tilt series to the tomogram.
