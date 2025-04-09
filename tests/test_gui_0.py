@@ -624,7 +624,7 @@ def test_sub_widgets(ui: CylindraMainWidget, tmpdir):
         ui.manual_picker._mouse_click_impl(3, 4, ())
         ui.manual_picker._mouse_click_impl(3, 3, ())
         ui.manual_picker._delete()
-        assert ui._reserved_layers.work.data.shape[0] == 2
+        assert ui._reserved_layers.work.data.shape[0] == 1
         ui.manual_picker.register()
 
         # spline clipper
