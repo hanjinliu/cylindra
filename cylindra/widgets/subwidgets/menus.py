@@ -358,7 +358,6 @@ class SplinesMenu(ChildWidget):
             return surf
 
         @set_design(text="Show local properties in table")
-        @do_not_record
         def show_localprops(self):
             """Show spline local properties in a table widget."""
             main = self._get_main()
@@ -373,9 +372,20 @@ class SplinesMenu(ChildWidget):
 
             container = Container(widgets=[cbox, table], labels=False)
             self.parent_viewer.window.add_dock_widget(
-                container, area="left", name="Molecule Features"
+                container, area="left", name="Spline Local Properties"
             ).setFloating(True)
             cbox.changed.emit(cbox.value)
+            return None
+
+        @set_design(text="Show global properties in table")
+        def show_globalprops(self):
+            """Show spline global properties in a table widget."""
+            main = self._get_main()
+            df = main.splines.collect_globalprops()
+            table = DataFrameView(value=df)
+            self.parent_viewer.window.add_dock_widget(
+                table, area="left", name="Spline Global Properties"
+            ).setFloating(True)
             return None
 
     add_anchors = abstractapi()

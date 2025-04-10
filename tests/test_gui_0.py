@@ -416,6 +416,7 @@ def test_spline_control(ui: CylindraMainWidget, tmpdir):
         assert_canvas(ui, [False, False, False])
 
         ui.SplinesMenu.Show.show_localprops()
+        ui.SplinesMenu.Show.show_globalprops()
 
         # Check align polarity.
         # Only spline 0 will get updated.

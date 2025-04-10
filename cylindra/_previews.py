@@ -32,7 +32,7 @@ class ImagePreview(MagicTemplate):
         close_this = abstractapi()
 
     def _get_image_choices(self, w=None) -> list[tuple[str, ip.LazyImgArray]]:
-        lst = []
+        lst: list[tuple[str, ip.LazyImgArray]] = []
         for path in self._path_choices:
             img = ip.lazy.imread(path, chunks=(4, "auto", "auto"))
             if img.ndim != 3:
@@ -54,11 +54,11 @@ class ImagePreview(MagicTemplate):
     @set_design(text="Close", location=Menu)
     def close_this(self):
         self.close()
+        self._path_choices = []
 
     @magicclass(widget_type="frame", layout="horizontal")
     class Filter(MagicTemplate):
-        """
-        Filtering parameters.
+        """Filtering parameters.
 
         Attributes
         ----------
@@ -70,9 +70,9 @@ class ImagePreview(MagicTemplate):
             Cutoff frequency for low-pass filtering.
         """
 
-        bin_size = vfield(1).with_options(min=1, max=10, step=1)
-        apply_filter = vfield(False)
-        cutoff = vfield(0.05).with_options(min=0.05, max=0.85, step=0.05, enabled=False)
+        bin_size = vfield(2).with_options(min=1, max=10, step=1)
+        apply_filter = vfield(False, label="Apply low-pass filter")
+        cutoff = vfield(0.1).with_options(min=0.05, max=0.85, step=0.05, enabled=False)
 
         @apply_filter.connect
         def _toggle(self):
