@@ -85,7 +85,7 @@ class PathInfo:
         img = ip.lazy.imread(self.image, chunks=get_config().dask_chunk)
         if self.need_invert:
             img = -img
-        return img
+        return img.as_float()
 
     def iter_molecules(
         self, temp_features: TempFeatures, target_scale: float
