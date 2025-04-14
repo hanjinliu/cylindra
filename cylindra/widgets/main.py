@@ -2878,7 +2878,7 @@ class CylindraMainWidget(MagicTemplate):
                 verts, faces, values = layer.data
                 layer.data = verts * factor, faces, values
                 layer.landscape = Landscape(
-                    enerties=layer.landscape.energies,
+                    energies=layer.landscape.energies,
                     molecules=rescale_molecules(
                         layer.landscape.molecules, factor, drop_unsafe_props
                     ),

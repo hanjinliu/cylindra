@@ -466,8 +466,6 @@ def test_spline_control(ui: CylindraMainWidget, tmpdir):
     ui.OthersMenu.configure_cylindra(use_gpu=cfg.use_gpu)
     cfg.to_user_dir()
 
-    ui.update_scale(1.02)
-
 
 def test_preview(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None)
@@ -1549,7 +1547,7 @@ def test_annealing(ui: CylindraMainWidget):
 
 
 def test_landscape(ui: CylindraMainWidget, tmpdir):
-    from cylindra._napari import LandscapeSurface
+    from cylindra._napari import InteractionVector, LandscapeSurface
 
     ui.load_project(PROJECT_DIR_13PF, filter=None)
     layer = ui.parent_viewer.layers["Mole-0"]
@@ -1597,17 +1595,18 @@ def test_landscape(ui: CylindraMainWidget, tmpdir):
     ui.construct_molecule_interaction(
         "Mole-0", "Mole-1", dist_range=(1.8, 2.8), layer_name="Itr"
     )
-    layer_interact = ui.mole_layers.last()
     ui.construct_closest_molecule_interaction("Mole-0", layer_filt)
     ui.filter_molecule_interaction("Itr", "col('projection-target-y') > 0")
+    layer_net = ui.parent_viewer.layers[-1]
+    assert isinstance(layer_net, InteractionVector)
 
     tmpdir = Path(tmpdir)
     ui.save_project(tmpdir / "test-project.tar", save_landscape=True)
     ui.load_project(tmpdir / "test-project.tar", filter=None)
     assert layer_land.name in ui.parent_viewer.layers
     assert layer_land is not ui.parent_viewer.layers[layer_land.name]
-    assert layer_interact.name in ui.parent_viewer.layers
-    assert layer_interact is not ui.parent_viewer.layers[layer_interact.name]
+    assert layer_net.name in ui.parent_viewer.layers
+    assert layer_net is not ui.parent_viewer.layers[layer_net.name]
 
     ui.sta.remove_landscape_outliers(layer_land, upper=0.0)
     ui.sta.normalize_landscape(layer_land, norm_sd=False)
@@ -1628,6 +1627,14 @@ def test_landscape(ui: CylindraMainWidget, tmpdir):
         range_long=("-0.1", "+0.1"),
         angle_max=5,
     )
+
+    # test update scale
+    dist_old = layer_net.net.distances()
+    pos_old = layer_land.landscape.molecules.pos.copy()
+    factor = 1.05
+    ui.update_scale(ui.tomogram.scale * factor)
+    assert_allclose(layer_land.landscape.molecules.pos, pos_old * factor, rtol=1e-5)
+    assert_allclose(layer_net.net.distances(), dist_old * factor, rtol=1e-5)
 
 
 def test_regionprops(ui: CylindraMainWidget):

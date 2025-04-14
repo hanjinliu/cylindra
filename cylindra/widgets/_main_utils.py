@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, ContextManager, Iterable, overload
 
 import numpy as np
 import polars as pl
+from acryo import Molecules
 from magicclass.undo import undo_callback
 from scipy.spatial.transform import Rotation
 
@@ -16,7 +17,6 @@ from cylindra.const import PropertyNames as H
 from cylindra.project import CylindraProject
 
 if TYPE_CHECKING:
-    from acryo import Molecules
 
     from cylindra.components import CylSpline
     from cylindra.widgets.main import CylindraMainWidget

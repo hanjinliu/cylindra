@@ -14,14 +14,14 @@ from napari.utils.events import Event
 from napari.utils.status_messages import generate_layer_coords_status
 
 from cylindra._config import get_config
+from cylindra.components.interaction import InterMoleculeNet
+from cylindra.components.landscape import Landscape
 from cylindra.const import POLARS_FLOAT_DTYPES, POLARS_INTEGER_DTYPES
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.utils import assert_column_exists, str_color
 
 if TYPE_CHECKING:
     from cylindra.components import BaseComponent, CylSpline
-    from cylindra.components.interaction import InterMoleculeNet
-    from cylindra.components.landscape import Landscape
 
 
 class ColormapInfo(NamedTuple):
