@@ -31,6 +31,7 @@ from cylindra import _config, _shared_doc, cylmeasure, utils, widget_utils
 from cylindra._napari import InteractionVector, LandscapeSurface, MoleculesLayer
 from cylindra.components import CylSpline, CylTomogram, SplineConfig
 from cylindra.components.interaction import InterMoleculeNet, align_molecules_to_spline
+from cylindra.components.landscape import Landscape
 from cylindra.const import (
     PREVIEW_LAYER_NAME,
     FileFilter,
@@ -68,6 +69,7 @@ from cylindra.widgets._main_utils import (
     fast_percentile,
     normalize_offsets,
     normalize_radius,
+    rescale_molecules,
 )
 from cylindra.widgets._reserved_layers import ReservedLayers
 from cylindra.widgets._widget_ext import (
@@ -2860,28 +2862,43 @@ class CylindraMainWidget(MagicTemplate):
         factor = new_scale / self.tomogram.scale
         new_splines = [spl.rescale(factor) for spl in self.tomogram.splines]
         new_splines: list[CylSpline] = []
+        # udpate spline scales
         for spl in self.tomogram.splines:
             new_spl = spl.rescale(factor)
             if drop_unsafe_props:
                 new_spl.props.clear_loc()
                 new_spl.props.clear_glob()
             new_splines.append(new_spl)
+        # update molecules, landscape and interaction layers
         for layer in self.parent_viewer.layers:
             if isinstance(layer, MoleculesLayer):
-                layer.data = layer.data * factor
-                if drop_unsafe_props:
-                    df = pl.DataFrame(layer.features)
-                    columns = [
-                        c
-                        for c in df.columns
-                        if c in [Mole.nth, Mole.pf, Mole.score, Mole.isotype]
-                    ]
-                    if Mole.position in df.columns:
-                        columns.append(pl.col(Mole.position) * factor)
-                    layer.features = df.select(columns)
+                mole_new = rescale_molecules(layer.molecules, factor, drop_unsafe_props)
+                layer.molecules = mole_new
             elif isinstance(layer, LandscapeSurface):
                 verts, faces, values = layer.data
                 layer.data = verts * factor, faces, values
+                layer.landscape = Landscape(
+                    enerties=layer.landscape.energies,
+                    molecules=rescale_molecules(
+                        layer.landscape.molecules, factor, drop_unsafe_props
+                    ),
+                    argmax=layer.landscape.argmax,
+                    quaternions=layer.landscape.quaternions,
+                    scale_factor=layer.landscape.scale_factor * factor,
+                    num_templates=layer.landscape.num_templates,
+                )
+            elif isinstance(layer, InteractionVector):
+                layer.net = InterMoleculeNet(
+                    rescale_molecules(
+                        layer.net.molecules_origin, factor, drop_unsafe_props
+                    ),
+                    rescale_molecules(
+                        layer.net.molecules_target, factor, drop_unsafe_props
+                    ),
+                    layer.net.indices_origin,
+                    layer.net.indices_target,
+                    features=layer.net.features,
+                )
         self.tomogram.splines.clear()
         self.tomogram.splines.extend(new_splines)
         self.tomogram.update_scale(new_scale)

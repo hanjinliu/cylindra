@@ -236,8 +236,8 @@ class CylSpline(Spline):
             orientation = Ori(orientation)
             if orientation is Ori.none or self.orientation is Ori.none:
                 raise ValueError(
-                    "Either molecules' orientation or the input orientation should "
-                    "not be none."
+                    "Unknown orientation. Set the spline orientation or explicitly set "
+                    " the orientation input."
                 )
             if orientation is not self.orientation:
                 return True

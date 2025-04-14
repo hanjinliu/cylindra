@@ -434,6 +434,14 @@ class LandscapeSurface(Surface, _SourceBoundLayer):
         """The landscape object."""
         return self._landscape
 
+    @landscape.setter
+    def landscape(self, landscape: Landscape):
+        if not isinstance(landscape, Landscape):
+            raise TypeError("landscape must be a Landscape object")
+        self._landscape = landscape
+        self.data = landscape.create_surface(level=self._energy_level)
+        self.refresh()
+
     @property
     def molecules(self):
         """Molecules that represent the center/rotation of the landscape."""
@@ -509,6 +517,14 @@ class InteractionVector(Vectors):
     @property
     def net(self) -> InterMoleculeNet:
         return self._net
+
+    @net.setter
+    def net(self, net: InterMoleculeNet):
+        if not isinstance(net, InterMoleculeNet):
+            raise TypeError("net must be an InterMoleculeNet object")
+        self._net = net
+        self.data = np.stack([net.origin, net.target - net.origin], axis=1)
+        self.refresh()
 
     @property
     def features(self):
