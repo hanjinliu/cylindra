@@ -1604,9 +1604,15 @@ def test_landscape(ui: CylindraMainWidget, tmpdir):
     ui.save_project(tmpdir / "test-project.tar", save_landscape=True)
     ui.load_project(tmpdir / "test-project.tar", filter=None)
     assert layer_land.name in ui.parent_viewer.layers
-    assert layer_land is not ui.parent_viewer.layers[layer_land.name]
+    assert layer_land is not ui.parent_viewer.layers[layer_land.name]  # new one loaded
     assert layer_net.name in ui.parent_viewer.layers
-    assert layer_net is not ui.parent_viewer.layers[layer_net.name]
+    assert layer_net is not ui.parent_viewer.layers[layer_net.name]  # new one loaded
+
+    # check same reference
+    layer_net_new = ui.parent_viewer.layers[layer_net.name]
+    assert isinstance(layer_net_new, InteractionVector)
+    assert layer_net_new.net.molecules_origin is ui.mole_layers["Mole-0"].molecules
+    assert layer_net_new.net.molecules_target is ui.mole_layers["Mole-1"].molecules
 
     ui.sta.remove_landscape_outliers(layer_land, upper=0.0)
     ui.sta.normalize_landscape(layer_land, norm_sd=False)

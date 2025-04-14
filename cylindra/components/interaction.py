@@ -59,10 +59,12 @@ class InterMoleculeNet:
 
     @property
     def origin(self) -> NDArray[np.float32]:
+        """The origin coordinates."""
         return self.molecules_origin.pos[self.indices_origin]
 
     @property
     def target(self) -> NDArray[np.float32]:
+        """The target coordinates."""
         return self.molecules_target.pos[self.indices_target]
 
     def count(self) -> int:
@@ -141,6 +143,7 @@ class InterMoleculeNet:
         )
 
     def with_standard_features(self) -> InterMoleculeNet:
+        """Add standard features to this net."""
         dist = self.distances()
         dot_orig = self.dot_product_origin()
         dot_targ = self.dot_product_target()
