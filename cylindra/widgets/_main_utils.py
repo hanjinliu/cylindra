@@ -6,14 +6,18 @@ from types import TracebackType
 from typing import TYPE_CHECKING, ContextManager, Iterable, overload
 
 import numpy as np
+import polars as pl
+from acryo import Molecules
 from magicclass.undo import undo_callback
 from scipy.spatial.transform import Rotation
 
 from cylindra import _config
+from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import PropertyNames as H
 from cylindra.project import CylindraProject
 
 if TYPE_CHECKING:
+
     from cylindra.components import CylSpline
     from cylindra.widgets.main import CylindraMainWidget
 
@@ -185,3 +189,25 @@ def fast_percentile(arr: np.ndarray, q):
     step_size = int(arr.size / thresh) + 1
     start = arr.shape[0] // (step_size + 1)
     return np.percentile(arr[start::step_size], q)
+
+
+def rescale_molecules(
+    mole: Molecules,
+    factor: float,
+    drop_unsafe: bool = False,
+) -> Molecules:
+    df = mole.features
+    if Mole.position in df.columns:
+        df = df.with_columns(pl.col(Mole.position) * factor)
+    if drop_unsafe:
+        columns = [
+            c
+            for c in df.columns
+            if c in [Mole.nth, Mole.pf, Mole.score, Mole.isotype, Mole.position]
+        ]
+        df = df.select(columns)
+    return Molecules(
+        mole.pos * factor,
+        mole.rotator,
+        features=df,
+    )

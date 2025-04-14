@@ -303,8 +303,7 @@ class CylTomogram(Tomogram):
         max_shift: nm = 2.0,
         n_rotations: int = 3,
     ) -> _misc.FitResult:
-        """
-        Spline refinement using global lattice structural parameters.
+        """Spline refinement using global lattice structural parameters.
 
         Refine spline using the result of previous fit and the global structural parameters.
         During refinement, Y-projection of XZ cross section of cylinder is rotated with the
@@ -497,8 +496,7 @@ class CylTomogram(Tomogram):
         update: bool = True,
         update_glob: bool = True,
     ) -> pl.Series:
-        """
-        Measure the local radii along the splines.
+        """Measure the local radii along the splines.
 
         Parameters
         ----------
@@ -567,8 +565,7 @@ class CylTomogram(Tomogram):
         update: bool = True,
         update_glob: bool = False,
     ) -> pl.DataFrame:
-        """
-        Calculate local lattice parameters from cylindrical Fourier space.
+        """Calculate local lattice parameters from cylindrical Fourier space.
 
         To determine the peaks upsampled discrete Fourier transformation is used
         for every subtomogram.
@@ -670,8 +667,7 @@ class CylTomogram(Tomogram):
         pos: int | None = None,
         binsize: int = 1,
     ) -> ip.ImgArray:
-        """
-        Calculate non-upsampled local cylindric Fourier transormation along spline.
+        """Calculate non-upsampled local cylindric Fourier transormation along spline.
 
         This function does not up-sample.
 
@@ -706,8 +702,7 @@ class CylTomogram(Tomogram):
         pos: int | None = None,
         binsize: int = 1,
     ) -> ip.ImgArray:
-        """
-        Calculate non-upsampled local cylindric power spectra along spline.
+        """Calculate non-upsampled local cylindric power spectra along spline.
 
         Parameters
         ----------
@@ -765,8 +760,7 @@ class CylTomogram(Tomogram):
         i: int = None,
         binsize: int = 1,
     ) -> ip.ImgArray:
-        """
-        Calculate global cylindrical power spectra.
+        """Calculate global cylindrical power spectra.
 
         Parameters
         ----------
@@ -819,8 +813,7 @@ class CylTomogram(Tomogram):
         nsamples: int = 8,
         update: bool = True,
     ) -> pl.DataFrame:
-        """
-        Calculate global lattice parameters.
+        """Calculate global lattice parameters.
 
         This function transforms tomogram using cylindrical coordinate system along
         spline. This function calls ``straighten`` beforehand, so that Fourier space is
@@ -859,8 +852,7 @@ class CylTomogram(Tomogram):
 
     @_misc.batch_process
     def global_cft(self, i: int = None, binsize: int = 1) -> ip.ImgArray:
-        """
-        Calculate global cylindrical fast Fourier tranformation.
+        """Calculate global cylindrical fast Fourier tranformation.
 
         Parameters
         ----------
@@ -888,8 +880,7 @@ class CylTomogram(Tomogram):
         mask_freq: bool = True,
         update: bool = True,
     ) -> Ori:
-        """
-        Infer spline polarities using polar 2D image.
+        """Infer spline polarities using polar 2D image.
 
         Parameters
         ----------
@@ -967,9 +958,7 @@ class CylTomogram(Tomogram):
         chunk_length: nm | None = None,
         binsize: int = 1,
     ) -> ip.ImgArray:
-        """
-        Straightening by building curved coordinate system around splines. Currently
-        Cartesian coordinate system and cylindrical coordinate system are supported.
+        """Straightening by building curved coordinate system around splines.
 
         Parameters
         ----------
@@ -1006,9 +995,7 @@ class CylTomogram(Tomogram):
         chunk_length: nm | None = None,
         binsize: int = 1,
     ) -> ip.ImgArray:
-        """
-        Straightening by building curved coordinate system around splines. Currently
-        Cartesian coordinate system and cylindrical coordinate system are supported.
+        """Straightening by building curved coordinate system around splines.
 
         Parameters
         ----------
@@ -1044,8 +1031,7 @@ class CylTomogram(Tomogram):
         orientation: Ori | str | None = None,
         rotate_molecules: bool = True,
     ) -> Molecules:
-        """
-        Mapping molecules along the center of a cylinder.
+        """Mapping molecules along the center of a cylinder.
 
         Parameters
         ----------
@@ -1113,7 +1099,8 @@ class CylTomogram(Tomogram):
             mole = mole.filter(pl.col(Mole.position).is_between(0, length))
         if sort:
             mole = mole.sort(Mole.position)
-        return mole.translate_internal([-spl.radius, 0, 0])
+        radius = spl.cylinder_params().radius
+        return mole.translate_internal([-radius, 0, 0])
 
     def get_cylinder_model(
         self,
@@ -1121,8 +1108,7 @@ class CylTomogram(Tomogram):
         offsets: tuple[float, float] = (0.0, 0.0),
         **kwargs,
     ) -> CylinderModel:  # fmt: skip
-        """
-        Return the cylinder model at the given spline ID.
+        """Return the cylinder model at the given spline ID.
 
         Parameters
         ----------
@@ -1148,8 +1134,7 @@ class CylTomogram(Tomogram):
         extensions: tuple[int, int] = (0, 0),
         **kwargs,
     ) -> Molecules:
-        """
-        Map monomers in a regular cylinder shape.
+        """Map monomers in a regular cylinder shape.
 
         Parameters
         ----------
@@ -1189,8 +1174,7 @@ class CylTomogram(Tomogram):
         orientation: Ori | str | None = None,
         **kwargs,
     ) -> Molecules:
-        """
-        Map monomers in a regular cylinder shape.
+        """Map monomers in a regular cylinder shape.
 
         Parameters
         ----------
@@ -1225,8 +1209,7 @@ class CylTomogram(Tomogram):
         offsets: tuple[nm, float] = (0.0, 0.0),
         orientation: Ori | str | None = None,
     ) -> Molecules:
-        """
-        Mapping molecules along a protofilament line.
+        """Mapping molecules along a protofilament line.
 
         This method is useful when you want to visualize seam or protofilament, or
         assign molecules for subtomogram averaging of seam binding protein or doublet
