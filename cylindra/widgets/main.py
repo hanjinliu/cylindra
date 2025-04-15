@@ -1961,7 +1961,7 @@ class CylindraMainWidget(MagicTemplate):
         layer: MoleculesLayerType,
         interaction: _InteractionNetType,
         column_name: str = "interacting",
-        label_id: int = Annotated[int, {"min": 1}],
+        label_id: Annotated[int, {"min": 1}] = 1,
     ):
         """Label molecules by the interaction network.
 
