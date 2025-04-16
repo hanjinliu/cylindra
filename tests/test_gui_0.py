@@ -1546,7 +1546,7 @@ def test_annealing(ui: CylindraMainWidget):
     )
 
 
-def test_landscape(ui: CylindraMainWidget, tmpdir):
+def test_landscape_and_interaction(ui: CylindraMainWidget, tmpdir):
     from cylindra._napari import InteractionVector, LandscapeSurface
 
     ui.load_project(PROJECT_DIR_13PF, filter=None)
@@ -1596,9 +1596,11 @@ def test_landscape(ui: CylindraMainWidget, tmpdir):
         "Mole-0", "Mole-1", dist_range=(1.8, 2.8), layer_name="Itr"
     )
     ui.construct_closest_molecule_interaction("Mole-0", layer_filt)
-    ui.filter_molecule_interaction("Itr", "col('projection-target-y') > 0")
+    assert ui.parent_viewer.layers[-1].data.size > 0
+    ui.filter_molecule_interaction("Itr", "col('distance') > 2.2")
     layer_net = ui.parent_viewer.layers[-1]
     assert isinstance(layer_net, InteractionVector)
+    assert layer_net.data.size > 0
 
     tmpdir = Path(tmpdir)
     ui.save_project(tmpdir / "test-project.tar", save_landscape=True)
@@ -1613,6 +1615,15 @@ def test_landscape(ui: CylindraMainWidget, tmpdir):
     assert isinstance(layer_net_new, InteractionVector)
     assert layer_net_new.net.molecules_origin is ui.mole_layers["Mole-0"].molecules
     assert layer_net_new.net.molecules_target is ui.mole_layers["Mole-1"].molecules
+
+    ui.interaction_to_molecules(layer_net_new, which="origin")
+    ui.interaction_to_molecules(layer_net_new, which="target")
+    ui.interaction_to_molecules(layer_net_new, which="both")
+
+    ui.label_molecules_by_interaction(
+        "Mole-0", layer_net_new, column_name="interacting"
+    )
+    assert set(ui.mole_layers["Mole-0"].features["interacting"]) == {0, 1}
 
     ui.sta.remove_landscape_outliers(layer_land, upper=0.0)
     ui.sta.normalize_landscape(layer_land, norm_sd=False)
@@ -1635,6 +1646,7 @@ def test_landscape(ui: CylindraMainWidget, tmpdir):
     )
 
     # test update scale
+    layer_net = ui.parent_viewer.layers["Itr"]
     dist_old = layer_net.net.distances()
     pos_old = layer_land.landscape.molecules.pos.copy()
     factor = 1.05
