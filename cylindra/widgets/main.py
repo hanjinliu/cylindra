@@ -1951,7 +1951,7 @@ class CylindraMainWidget(MagicTemplate):
                 mole = m1
             case "both":
                 mole = m0.concat_with(m1)
-            case _:
+            case _:  # pragma: no cover
                 raise ValueError(f"Unknown option: {which!r}.")
         return self.add_molecules(mole, name=f"{which} of {layer.name}")
 

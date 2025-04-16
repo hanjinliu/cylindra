@@ -1620,10 +1620,13 @@ def test_landscape_and_interaction(ui: CylindraMainWidget, tmpdir):
     ui.interaction_to_molecules(layer_net_new, which="target")
     ui.interaction_to_molecules(layer_net_new, which="both")
 
-    ui.label_molecules_by_interaction(
-        "Mole-0", layer_net_new, column_name="interacting"
-    )
-    assert set(ui.mole_layers["Mole-0"].features["interacting"]) == {0, 1}
+    ui.label_molecules_by_interaction("Mole-0", layer_net_new, column_name="TEST")
+    assert set(ui.mole_layers["Mole-0"].features["TEST"]) == {0, 1}
+    ui.label_molecules_by_interaction("Mole-1", layer_net_new, column_name="TEST")
+    assert set(ui.mole_layers["Mole-1"].features["TEST"]) == {0, 1}
+    with pytest.raises(ValueError):
+        # layer_filt is not connected to layer_net_new
+        ui.label_molecules_by_interaction(layer_filt, layer_net_new, column_name="X")
 
     ui.sta.remove_landscape_outliers(layer_land, upper=0.0)
     ui.sta.normalize_landscape(layer_land, norm_sd=False)
@@ -1647,6 +1650,7 @@ def test_landscape_and_interaction(ui: CylindraMainWidget, tmpdir):
 
     # test update scale
     layer_net = ui.parent_viewer.layers["Itr"]
+    assert isinstance(layer_net, InteractionVector)
     dist_old = layer_net.net.distances()
     pos_old = layer_land.landscape.molecules.pos.copy()
     factor = 1.05
