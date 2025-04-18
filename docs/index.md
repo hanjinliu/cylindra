@@ -13,24 +13,27 @@ structures are implemented.
 
 #### In-depth Tutorials
 
-- [Open an image](open_image.md)
-- [Fit splines](fit_splines.md)
-- [Measure lattice parameters](lattice_params.md)
+- [Open an Image](open_image.md)
+- [Fit Splines](fit_splines.md)
+- [Measure Lattice Parameters](lattice_params.md)
 - [Inspect CFT Results](inspect_results.md)
 - [Load & Save Projects](project_io.md)
 - [Custom Workflows](workflows.md)
-- [The Plugin System](plugins.md)
 - [Spline](spline/index.md)
 - [Molecules](molecules/index.md)
 - [Subtomogram Alignment and Averaging](alignment/index.md)
 - [Working with Many Projects](batch/index.md)
 - [Working with External Softwares](extern/index.md)
 - [Tomogram Simulation](simulate.md)
-- [Process Images](process_images.md)
 - [Case Studies](case_studies/index.md)
+
+#### Developers Guide
+
+- [The Plugin System](plugins.md)
 
 #### Others
 
+- [Process Images](process_images.md)
 - [API Reference](api/index.md)
 
 ### Major Dependencies
@@ -59,7 +62,7 @@ them, but knowing them will help you to use `cylindra` more efficiently.
 
 ### Reference
 
-If you find `cylindra` useful in your work, please consider citing our paper.
+If you find `cylindra` useful in your work, please consider citing [our paper](https://doi.org/10.1101/2024.04.30.591984).
 
 ```
 Heterogeneous local structures of the microtubule lattice revealed by cryo-ET and non-averaging analysis

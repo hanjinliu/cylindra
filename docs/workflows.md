@@ -11,7 +11,7 @@ workflows, browse and edit them in the GUI, and run them manually or programmati
 
 :material-arrow-right-thin-circle-outline: GUI: `Others > Workflows > Define workflow` or ++ctrl+k++ &rarr; ++ctrl+shift+d++
 
-![Define workflow](images/define_workflow.png){ loading=lazy, width=400px }
+![Define workflow](images/define_workflow.png){ loading=lazy, width=560px }
 
 In this dialog, you can define a workflow by writing a Python script. The script will be
 saved in the user directory as a file of the given "file name". Since `cylindra` is
@@ -78,7 +78,7 @@ type, will be converted into two float input boxes.
 
 :material-arrow-right-thin-circle-outline: GUI: `Others > Workflows > View/Edit workflows` or ++ctrl+k++ &rarr; ++ctrl+shift+e++
 
-![Edit workflows](images/edit_workflow.png){ loading=lazy, width=400px }
+![Edit workflows](images/edit_workflow.png){ loading=lazy, width=560px }
 
 Here you can see all the workflows defined in the user directory. You can also edit and
 overwrite them here. The workflows will be updated immediately, without restarting the

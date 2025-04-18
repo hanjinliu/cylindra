@@ -1912,10 +1912,92 @@ class CylindraMainWidget(MagicTemplate):
         interaction: _InteractionNetType,
         predicate: PolarsExprStr,
     ):
+        """Filter the interaction network by the feature.
+
+        Parameters
+        ----------
+        interaction : InteractionVector
+            The layer of interaction network.
+        predicate : ExprStr
+            A polars-style filter predicate, such as `col("projection-origin-x") > 0`.
+        """
         layer = assert_interaction_vectors(interaction, self.parent_viewer)
         out_net = layer.net.filter(widget_utils.norm_expr(predicate))
-        new_layer = InteractionVector(out_net, name=f"{layer.name} (Filtered)")
+        new_layer = InteractionVector(out_net, name=f"{layer.name}-Filt")
         return self._undo_callback_for_layer(self.parent_viewer.add_layer(new_layer))
+
+    @set_design(text=capitalize, location=_sw.AnalysisMenu.Interaction)
+    def interaction_to_molecules(
+        self,
+        interaction: _InteractionNetType,
+        which: Literal["origin", "target", "both"] = "origin",
+    ):
+        """Make a molecules layer from the interaction network.
+
+        Parameters
+        ----------
+        interaction : InteractionVector
+            The layer of interaction network.
+        which : "origin", "target" or "both", optional
+            Specify which molecules will be added.
+        """
+        layer = assert_interaction_vectors(interaction, self.parent_viewer)
+        m0 = layer.net.molecules_origin.subset(layer.net.indices_origin)
+        m1 = layer.net.molecules_target.subset(layer.net.indices_target)
+        match which:
+            case "origin":
+                mole = m0
+            case "target":
+                mole = m1
+            case "both":
+                mole = m0.concat_with(m1)
+            case _:  # pragma: no cover
+                raise ValueError(f"Unknown option: {which!r}.")
+        return self.add_molecules(mole, name=f"{which} of {layer.name}")
+
+    @set_design(text=capitalize, location=_sw.AnalysisMenu.Interaction)
+    def label_molecules_by_interaction(
+        self,
+        layer: MoleculesLayerType,
+        interaction: _InteractionNetType,
+        column_name: str = "interacting",
+        label_id: Annotated[int, {"min": 1}] = 1,
+    ):
+        """Label molecules by the interaction network.
+
+        Parameters
+        ----------
+        layer : MoleculesLayer
+            The layer of molecules to be labeled.
+        interaction : InteractionVector
+            The layer of interaction network.
+        column_name : str, default "interacting"
+            Name of the new feature column.
+        label_id : int, default 1
+            The label ID to be assigned to the interacting molecules.
+        """
+        layer = assert_layer(layer, self.parent_viewer)
+        net = assert_interaction_vectors(interaction, self.parent_viewer).net
+        if net.molecules_origin is layer.molecules:
+            indices = net.indices_origin
+        elif net.molecules_target is layer.molecules:
+            indices = net.indices_target
+        else:
+            raise ValueError(
+                "Neither origin nor target of the interaction are the molecules from "
+                "the molecules layer. Two layers must share the reference to the same "
+                "molecules."
+            )
+        feat = layer.molecules.features
+        if column_name in feat:
+            new_column = feat[column_name].to_numpy()
+        else:
+            new_column = np.zeros(len(layer.molecules), dtype=np.uint8)
+        new_column[indices] = label_id
+        new_feat = pl.Series(column_name, new_column)
+        layer.molecules = layer.molecules.with_features(new_feat)
+        self.reset_choices()  # choices regarding of features need update
+        return undo_callback(layer.feature_setter(feat))
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #   Monomer mapping methods
@@ -2348,18 +2430,22 @@ class CylindraMainWidget(MagicTemplate):
         layer: MoleculesLayerType,
         spline: Annotated[int, {"choices": _get_splines}],
         inherit_source: Annotated[bool, {"label": "Inherit source spline"}] = True,
+        orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
     ):
         """Rotate molecules to align its orientation to the spline.
 
-        Output molecules layer will be named as "<original name>-Rot".
+        This method is useful to rotate picked binding proteins so that they faces to
+        the cylinder. Output molecules layer will be named as "<original name>-Rot".
 
         Parameters
         ----------
-        {layer}{spline}{inherit_source}
+        {layer}{spline}{inherit_source}{orientation}
         """
         layer = assert_layer(layer, self.parent_viewer)
         spl = self.tomogram.splines[spline]
         mole_rot = align_molecules_to_spline(layer.molecules, spl)
+        if spl._need_rotation(orientation):
+            mole_rot = mole_rot.rotate_by_rotvec_internal([np.pi, 0, 0])
         source = layer.source_component if inherit_source else None
         new = self.add_molecules(mole_rot, name=f"{layer.name}-Rot", source=source)
         return self._undo_callback_for_layer(new)

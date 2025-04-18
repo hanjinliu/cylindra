@@ -793,6 +793,8 @@ class AnalysisMenu(ChildWidget):
         construct_molecule_interaction = abstractapi()
         construct_closest_molecule_interaction = abstractapi()
         filter_molecule_interaction = abstractapi()
+        interaction_to_molecules = abstractapi()
+        label_molecules_by_interaction = abstractapi()
 
     sep3 = Separator
 

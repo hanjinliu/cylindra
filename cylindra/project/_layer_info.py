@@ -163,15 +163,25 @@ class InteractionInfo(LayerInfo):
     name: str = "#unknown"  # including extension
     visible: bool = True
     width: float = 0.7
+    origin: str | None = None
+    target: str | None = None
 
     @classmethod
     def from_layer(
         cls, gui: "CylindraMainWidget", layer: "InteractionVector"  # noqa: ARG003
     ) -> "LayerInfo":
+        origin = target = None
+        for mole_layer in gui.mole_layers:
+            if mole_layer.molecules is layer.net.molecules_origin:
+                origin = mole_layer.name
+            if mole_layer.molecules is layer.net.molecules_target:
+                target = mole_layer.name
         return InteractionInfo(
             name=layer.name,
             visible=layer.visible,
             width=layer.edge_width,
+            origin=origin,
+            target=target,
         )
 
     def to_layer(self, gui: "CylindraMainWidget", project_dir: Path):  # noqa: ARG003
@@ -183,7 +193,12 @@ class InteractionInfo(LayerInfo):
             _warn_not_exist(path)
             return None
         net = InterMoleculeNet.from_dir(path)
-
+        # if reference found, replace it with the one in the gui
+        existing_names = gui.mole_layers.names()
+        if self.origin is not None and self.origin in existing_names:
+            net.molecules_origin = gui.mole_layers[self.origin].molecules
+        if self.target is not None and self.target in existing_names:
+            net.molecules_target = gui.mole_layers[self.target].molecules
         layer = InteractionVector(
             net, edge_width=self.width, name=self.name, visible=self.visible
         )

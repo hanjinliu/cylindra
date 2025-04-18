@@ -253,6 +253,9 @@ class QtInteractionControls(QtVectorsControls):
 
         layout.removeRow(self.lengthSpinBox)
         layout.removeRow(self.color_mode_comboBox)
+        self.autoContrastBtn = QtW.QPushButton("Auto Contrast", self)
+        layout.addWidget(self.autoContrastBtn)
+        self.autoContrastBtn.clicked.connect(self._auto_contrast_edge)
 
     def _show_features(self):
         df = self.layer.net.features
@@ -265,6 +268,12 @@ class QtInteractionControls(QtVectorsControls):
     def _copy_features(self):
         df = self.layer.features
         df.to_clipboard(index=False)
+
+    def _auto_contrast_edge(self):
+        pname = self.color_prop_box.currentText()
+        values = self.layer.features[pname]
+        self.layer.edge_contrast_limits = values.min(), values.max()
+        self.layer.refresh()
 
 
 def _first_or(arr: np.ndarray, default):
