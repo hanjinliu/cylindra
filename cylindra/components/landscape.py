@@ -159,6 +159,9 @@ class Landscape:
         else:
             raise TypeError(f"Invalid type of template: {type(template)}")
 
+        _Logger.print(f"Using {num_templates} template(s) for landscape construction.")
+        _Logger.print(f"Landscape resolution: {loader.scale / upsample_factor:.3f} nm")
+
         score_dsk = loader.construct_landscape(
             template,
             mask=mask,

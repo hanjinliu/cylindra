@@ -680,12 +680,8 @@ class SubtomogramAveraging(ChildWidget):
     def _get_dummy_loader(self):
         return self._get_loader(binsize=1, molecules=Molecules.empty())
 
-    def _get_available_binsize(self, _=None) -> list[int]:
-        parent = self._get_main()
-        out = [x[0] for x in parent.tomogram.multiscaled]
-        if 1 not in out:
-            out = [1] + out
-        return out
+    def _get_available_binsize(self, _=None) -> list[tuple[str, int]]:
+        return self._get_main()._get_available_binsize()
 
     @set_design(text="Average all molecules", location=Averaging)
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Subtomogram averaging of {!r}"))
@@ -1055,6 +1051,7 @@ class SubtomogramAveraging(ChildWidget):
             molecules=combiner.concat(layer.molecules for layer in layers),
             order=interpolation,
         )
+        _Logger.print(f"Aligning {loader.molecules.count()} molecules ...")
         aligned_loader = loader.align(
             template=self.params._norm_template_param(
                 template_path, allow_multiple=True
@@ -1250,8 +1247,13 @@ class SubtomogramAveraging(ChildWidget):
         t0 = timer()
         layer = assert_layer(layer, self.parent_viewer)
         if layer.source_spline is None:
-            raise ValueError("RMA requires a spline.")
+            raise ValueError(
+                "RMA requires a spline but the input layer is not connected to any splines."
+            )
         main = self._get_main()
+        _Logger.print(
+            f"Constructing correlation landscape on {layer.name} ({layer.molecules.count()} molecules) for RMA ..."
+        )
         landscape = self._construct_landscape(
             molecules=layer.molecules,
             template_path=template_path,
@@ -1323,6 +1325,9 @@ class SubtomogramAveraging(ChildWidget):
         if layer.source_spline is None:
             raise ValueError("RMA requires a spline.")
         main = self._get_main()
+        _Logger.print(
+            f"Constructing correlation landscape on {layer.name} ({layer.molecules.count()} molecules) for RFA ..."
+        )
         landscape = self._construct_landscape(
             molecules=layer.molecules,
             template_path=template_path,
