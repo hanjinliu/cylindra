@@ -17,7 +17,7 @@ from magicgui.application import use_app
 from numpy.testing import assert_allclose
 
 from cylindra import _config, cylmeasure, view_project
-from cylindra._config import get_config
+from cylindra._config import AppConfig, get_config
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import PropertyNames as H
 from cylindra.widgets import CylindraMainWidget
@@ -146,6 +146,8 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     ui.load_splines(save_path / "spline-0.json")
     ui.set_source_spline(ui.mole_layers["Mole-0"], 0)
     ui.invert_image()
+
+    AppConfig.from_user_dir()  # test reading config again
 
 
 def test_io_with_different_data(ui: CylindraMainWidget, tmpdir):
@@ -1014,7 +1016,8 @@ def test_project_viewer():
     pviewer = view_project(PROJECT_DIR_14PF)
     # TODO: fails due to delayed returned callback
     # pviewer.load_this_project(path=pviewer._get_project_path())
-    pviewer.preview_image().close()
+    prev = pviewer.preview_image()
+    prev.close_this()
     pviewer.close()
 
 

@@ -485,7 +485,6 @@ class Landscape:
         temperature_time_const: float = 1.0,
         random_seeds: Sequence[int] = (0, 1, 2, 3, 4),
     ):
-        mole = self.molecules
         results = self.run_annealing(
             spl,
             range_long,
@@ -509,8 +508,8 @@ class Landscape:
             }
         )
         results = sorted(results, key=lambda r: r.energies[-1])
-        mole_opt = self.transform_molecules(mole, results[0].indices)
-        mole_opt = _update_mole_pos(mole_opt, mole, spl)
+        mole_opt = self.transform_molecules(self.molecules, results[0].indices)
+        mole_opt = _update_mole_pos(mole_opt, self.molecules, spl)
         return mole_opt, results
 
     def run_filamentous_annealing(
