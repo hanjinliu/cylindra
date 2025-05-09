@@ -1,6 +1,7 @@
 import re
 import warnings
 import weakref
+from contextlib import suppress
 from enum import Enum
 from typing import TYPE_CHECKING, Annotated, Any, Iterable, Literal
 
@@ -533,6 +534,8 @@ class StaParameters(MagicTemplate):
             Volume(viewer)
             viewer.window.resize(10, 10)
             viewer.window.activate()
+            with suppress(Exception):  # napari>=0.6.0
+                viewer.camera.orientation = ("away", "down", "right")
         image.scale_unit = "nm"
         _viewer: napari.Viewer = StaParameters._viewer
         _viewer.scale_bar.visible = True
@@ -677,12 +680,8 @@ class SubtomogramAveraging(ChildWidget):
     def _get_dummy_loader(self):
         return self._get_loader(binsize=1, molecules=Molecules.empty())
 
-    def _get_available_binsize(self, _=None) -> list[int]:
-        parent = self._get_main()
-        out = [x[0] for x in parent.tomogram.multiscaled]
-        if 1 not in out:
-            out = [1] + out
-        return out
+    def _get_available_binsize(self, _=None) -> list[tuple[str, int]]:
+        return self._get_main()._get_available_binsize()
 
     @set_design(text="Average all molecules", location=Averaging)
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Subtomogram averaging of {!r}"))
@@ -879,7 +878,7 @@ class SubtomogramAveraging(ChildWidget):
         return self._show_rec.with_args(img, f"[Split]{_avg_name(layers)}", store=False)
 
     @set_design(text="Align average to template", location=Alignment)
-    @dask_worker.with_progress(descs=_pdesc.align_averaged_fmt)
+    @dask_worker.with_progress()
     def align_averaged(
         self,
         layers: MoleculesLayersType,
@@ -904,6 +903,10 @@ class SubtomogramAveraging(ChildWidget):
         parent = self._get_main()
 
         new_layers = list[MoleculesLayer]()
+        total = 2 * len(layers) + 1
+        yield thread_worker.description(
+            f"(0/{total}) Preparing template images for alignment"
+        )
 
         @thread_worker.callback
         def _on_yield(mole_trans: Molecules, layer: MoleculesLayer):
@@ -940,11 +943,18 @@ class SubtomogramAveraging(ChildWidget):
         _spl_globs = list[
             tuple[weakref.ReferenceType["CylSpline"], pl.DataFrame, pl.DataFrame]
         ]()
-        for layer in layers:
+        for i, layer in enumerate(layers):
             mole = layer.molecules
             loader = self._get_loader(bin_size, mole, order=1)
+            yield thread_worker.description(
+                f"({i * 2 + 1}/{total}) Subtomogram averaging of {layer.name!r}"
+            )
+            avg = loader.average(template.shape)
+            yield thread_worker.description(
+                f"({i * 2 + 2}/{total}) Aligning template to the average image of {layer.name!r}"
+            )
             _img_trans, result = model.fit(
-                loader.average(template.shape),
+                avg,
                 max_shifts=[_s / _scale for _s in max_shifts],
             )
 
@@ -1005,7 +1015,7 @@ class SubtomogramAveraging(ChildWidget):
 
             return _out
 
-        return _align_averaged_on_return
+        return _align_averaged_on_return.with_desc("Finished")
 
     sep0 = Separator
 
@@ -1041,6 +1051,7 @@ class SubtomogramAveraging(ChildWidget):
             molecules=combiner.concat(layer.molecules for layer in layers),
             order=interpolation,
         )
+        _Logger.print(f"Aligning {loader.molecules.count()} molecules ...")
         aligned_loader = loader.align(
             template=self.params._norm_template_param(
                 template_path, allow_multiple=True
@@ -1057,7 +1068,7 @@ class SubtomogramAveraging(ChildWidget):
         return self._align_all_on_return.with_args(molecules, layers)
 
     @set_design(text="Align all (template-free)", location=Alignment)
-    @dask_worker.with_progress(descs=_pdesc.align_template_free_fmt)
+    @dask_worker.with_progress()
     def align_all_template_free(
         self,
         layers: MoleculesLayersType,
@@ -1109,6 +1120,7 @@ class SubtomogramAveraging(ChildWidget):
 
         niter = 0
         while True:
+            yield thread_worker.description(f"Calculating FSC for iteration {niter}")
             fsc_result, avg = aligned_loader.fsc_with_average(
                 mask,
                 seed=rng.integers(0, 2**32),
@@ -1124,7 +1136,9 @@ class SubtomogramAveraging(ChildWidget):
             result = widget_utils.FscResult.from_dataframe(
                 fsc_result, current_loader.scale
             )
-            yield _calculate_current_fsc.with_args(result, niter)
+            yield _calculate_current_fsc.with_args(result, niter).with_desc(
+                f"Alignment for iteration {niter}"
+            )
             niter += 1
             aligned_loader = current_loader.align(
                 avg, mask=mask, max_shifts=max_shifts, rotations=rotations,
@@ -1233,8 +1247,13 @@ class SubtomogramAveraging(ChildWidget):
         t0 = timer()
         layer = assert_layer(layer, self.parent_viewer)
         if layer.source_spline is None:
-            raise ValueError("RMA requires a spline.")
+            raise ValueError(
+                "RMA requires a spline but the input layer is not connected to any splines."
+            )
         main = self._get_main()
+        _Logger.print(
+            f"Constructing correlation landscape on {layer.name} ({layer.molecules.count()} molecules) for RMA ..."
+        )
         landscape = self._construct_landscape(
             molecules=layer.molecules,
             template_path=template_path,
@@ -1306,6 +1325,9 @@ class SubtomogramAveraging(ChildWidget):
         if layer.source_spline is None:
             raise ValueError("RMA requires a spline.")
         main = self._get_main()
+        _Logger.print(
+            f"Constructing correlation landscape on {layer.name} ({layer.molecules.count()} molecules) for RFA ..."
+        )
         landscape = self._construct_landscape(
             molecules=layer.molecules,
             template_path=template_path,

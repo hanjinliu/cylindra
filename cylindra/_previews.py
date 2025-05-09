@@ -78,12 +78,6 @@ class ImagePreview(MagicTemplate):
         def _toggle(self):
             self["cutoff"].enabled = self.apply_filter
 
-    def _lazy_imread(self, path: str):
-        img = ip.lazy.imread(path, chunks=(1, "auto", "auto"))
-        if img.ndim != 3:
-            raise ValueError("Cannot only preview 3D image.")
-        return Path(path).as_posix(), img
-
     def _load_image(self, path: str):
         if self.canvas.image is not None:
             del self.canvas.image

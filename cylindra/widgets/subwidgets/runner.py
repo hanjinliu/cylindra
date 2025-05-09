@@ -27,7 +27,7 @@ class runner_params1:
         Maximum shift in nm of manually selected spline to the true center.
     """
 
-    edge_sigma = vfield(Optional[float], label="Edge sigma").with_options(
+    edge_sigma = vfield(Optional[float], label="Edge σ (nm)").with_options(
         value=2.0,
         options={"step": 0.1, "min": 0.0, "max": 50.0},
         text="Don't use dense mode",
@@ -83,13 +83,10 @@ class Runner(ChildWidget):
 
     def _get_available_binsize(self, _=None) -> list[int]:
         try:
-            parent = self._get_main()
+            main = self._get_main()
         except Exception:
             return [1]
-        out = [x[0] for x in parent.tomogram.multiscaled]
-        if 1 not in out:
-            out = [1] + out
-        return sorted(out)
+        return main._get_available_binsize()
 
     splines = vfield(widget_type=CheckBoxes).with_choices(_get_splines)
     bin_size = vfield(int).with_choices(choices=_get_available_binsize)

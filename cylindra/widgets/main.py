@@ -372,11 +372,17 @@ class CylindraMainWidget(MagicTemplate):
             raise ValueError("Input coordinates must be a (N, 3) numeric array.")
         return out
 
-    def _get_available_binsize(self, _=None) -> list[int]:
-        out = [x[0] for x in self.tomogram.multiscaled]
-        if 1 not in out:
-            out = [1, *out]
-        return out
+    def _get_available_binsize(self, _=None) -> list[tuple[str, int]]:
+        bins = [x[0] for x in self.tomogram.multiscaled]
+        if 1 not in bins:
+            bins = [1, *bins]
+        return [
+            (
+                f"{b} pixel{'s' if b > 1 else ''} ({self.tomogram.scale * b:.2f} nm/pixel)",
+                b,
+            )
+            for b in sorted(bins)
+        ]
 
     def _get_default_config(self, config):
         if config is None:
@@ -584,7 +590,6 @@ class CylindraMainWidget(MagicTemplate):
             f"filter={str(filter)!r}, {read_image=}, {update_config=})</code>"
         )
         if project_path is not None:
-            _Logger.print(f"Project loaded: {project_path.as_posix()}")
             self._project_dir = project_path
         yield from project._to_gui(
             self,
@@ -592,6 +597,7 @@ class CylindraMainWidget(MagicTemplate):
             read_image=read_image,
             update_config=update_config,
         )
+        _Logger.print(f"Project loaded: {project_path.as_posix()}")
 
     @set_design(text=capitalize, location=_sw.FileMenu)
     @do_not_record
@@ -1100,10 +1106,10 @@ class CylindraMainWidget(MagicTemplate):
             mean_diff = float(abs(loc[:idx].mean() - loc[idx:].mean()))
             _log = f"spline-{i}: {mean_diff=:.3g}"
             if mean_diff < diff_cutoff:
-                _Logger.print(_log + " ==> skip")
+                _Logger.print(f"{_log} ==> skip")
                 continue
             at = spl.length(0, (spl.anchors[idx - 1] + spl.anchors[idx]) / 2)
-            _Logger.print(_log + f" ==> split at {at:.1f} nm")
+            _Logger.print(f"{_log} ==> split at {at:.1f} nm")
             spl_map[i] = spl.split(at, from_start=True, trim=trim, allow_discard=True)
 
         for i, new_spls in sorted(spl_map.items(), key=lambda x: x[0], reverse=True):
@@ -1438,6 +1444,7 @@ class CylindraMainWidget(MagicTemplate):
                 idx = tomo.splines.index(layer.source_spline)
             except ValueError:
                 tomo.splines.append(spl)
+                idx = len(tomo.splines) - 1
             else:
                 old_spl = tomo.splines[idx]
                 if inherits is None:
@@ -1457,6 +1464,7 @@ class CylindraMainWidget(MagicTemplate):
                 else:
                     tomo.splines.append(spl)
             layer.source_component = spl
+            _Logger.print(f"Layer {layer.name} generated spline-{idx}.")
 
         self.reset_choices()
         self.sample_subtomograms()
@@ -1488,11 +1496,17 @@ class CylindraMainWidget(MagicTemplate):
         mole = layer.molecules
         if len(ids) == 0:
             tomo.add_spline(mole.pos, err_max=err_max, config=config)
+            _Logger.print(
+                f"Layer {layer.name} generated spline-{len(tomo.splines) - 1}."
+            )
         for i in ids:
             sub = mole.filter(pl.col(Mole.pf) == i)
             if sub.count() == 0:
                 continue
             tomo.add_spline(sub.sort(Mole.nth).pos, err_max=err_max, config=config)
+            _Logger.print(
+                f"{i}-th protofilament of layer {layer.name} generated spline-{len(tomo.splines) - 1}."
+            )
         self.reset_choices()
         self._update_splines_in_images()
         return None
@@ -1570,6 +1584,7 @@ class CylindraMainWidget(MagicTemplate):
         with SplineTracker(widget=self, indices=splines, sample=True) as tracker:
             for i in splines:
                 self.splines[i].radius = rdict[i]
+                _Logger.print(f"Spline-{i} radius set to {rdict[i]:.2f} nm.")
             return tracker.as_undo_callback()
 
     @set_design(text=capitalize, location=_sw.AnalysisMenu.Radius)
@@ -1885,6 +1900,7 @@ class CylindraMainWidget(MagicTemplate):
         if standard_features:
             net = net.with_standard_features()
         layer = InteractionVector(net, name=layer_name)
+        _Logger.print(f"{net.count()} interactions constructed.")
         return self._undo_callback_for_layer(self.parent_viewer.add_layer(layer))
 
     @set_design(text=capitalize, location=_sw.AnalysisMenu.Interaction)
@@ -1904,6 +1920,7 @@ class CylindraMainWidget(MagicTemplate):
         if standard_features:
             net = net.with_standard_features()
         layer = InteractionVector(net, name=layer_name)
+        _Logger.print(f"{net.count()} interactions constructed.")
         return self._undo_callback_for_layer(self.parent_viewer.add_layer(layer))
 
     @set_design(text=capitalize, location=_sw.AnalysisMenu.Interaction)
@@ -1924,6 +1941,8 @@ class CylindraMainWidget(MagicTemplate):
         layer = assert_interaction_vectors(interaction, self.parent_viewer)
         out_net = layer.net.filter(widget_utils.norm_expr(predicate))
         new_layer = InteractionVector(out_net, name=f"{layer.name}-Filt")
+        _Logger.print(f"{out_net.count()} interactions left after filtering.")
+        _Logger.print(f"{layer.name} &#8594; {new_layer.name}")
         return self._undo_callback_for_layer(self.parent_viewer.add_layer(new_layer))
 
     @set_design(text=capitalize, location=_sw.AnalysisMenu.Interaction)
@@ -2389,6 +2408,7 @@ class CylindraMainWidget(MagicTemplate):
             source = layer.source_component if inherit_source else None
             new = self.add_molecules(out, name=f"{layer.name}-Shift", source=source)
             new_layers.append(new)
+            _Logger.print(f"{layer.name!r} &#8594; {new.name!r}")
         return self._undo_callback_for_layer(new_layers)
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu)
@@ -2422,6 +2442,7 @@ class CylindraMainWidget(MagicTemplate):
             source = layer.source_component if inherit_source else None
             new = self.add_molecules(mole, name=f"{layer.name}-Rot", source=source)
             new_layers.append(new)
+            _Logger.print(f"{layer.name!r} &#8594; {new.name!r}")
         return self._undo_callback_for_layer(new_layers)
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu)
@@ -2523,8 +2544,10 @@ class CylindraMainWidget(MagicTemplate):
         layer = assert_layer(layer, self.parent_viewer)
         mole = layer.molecules
         out = mole.filter(widget_utils.norm_expr(predicate))
+        _Logger.print(f"Filter molecules resulted in {out.count()} molecules.")
         source = layer.source_component if inherit_source else None
         new = self.add_molecules(out, name=f"{layer.name}-Filt", source=source)
+        _Logger.print(f"{layer.name!r} &#8594; {new.name!r}")
         return self._undo_callback_for_layer(new)
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu)
