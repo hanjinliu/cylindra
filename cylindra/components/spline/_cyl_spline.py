@@ -197,6 +197,7 @@ class CylSpline(Spline):
         orientation: Ori | str | None = None,
     ) -> CylSpline:
         """Update the npf or orientation parameters in place."""
+
         loc = list[pl.Expr]()
         glob = list[pl.Series]()
         if npf is not None:
@@ -213,6 +214,19 @@ class CylSpline(Spline):
         self.props.loc = with_columns(self.props.loc, loc)
         self.props.glob = with_columns(self.props.glob, glob)
 
+        if start is not None:
+            # because rises are dependent on start, they need to be recalculated
+            self.props.drop_loc([H.rise, H.rise_length], strict=False)
+            self.props.drop_glob([H.rise, H.rise_length], strict=False)
+            cp = self.cylinder_params()
+            self.props.loc = with_columns(
+                self.props.loc,
+                [pl.repeat(cp.rise_angle, pl.len()).cast(pl.Float32).alias(H.rise)],
+            )
+            self.props.glob = with_columns(
+                self.props.glob,
+                [pl.Series([cp.rise_angle]).cast(pl.Float32).alias(H.rise)],
+            )
         return self
 
     def update_glob_by_cylinder_params(self, cparams: CylinderParameters) -> CylSpline:
