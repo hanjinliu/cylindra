@@ -987,12 +987,24 @@ def test_simulate_tomogram(ui: CylindraMainWidget, tmpdir):
         **kwargs,
         nsr=[0.5, 2.0],
         save_dir=tmpdir,
-        ctf={"kv": 300, "defocus": -3.0, "correct": "none"},
+        ctf={
+            "kv": 300,
+            "spherical_aberration": 2.7,
+            "defocus": -3.0,
+            "correct": "none",
+        },
     )
     assert len(list(tmpdir.glob("*.mrc"))) == 2
     ui.load_project(tmpdir / "simulation-project.tar", filter=None)
     ui.simulator.simulate_tomogram_and_open(
-        **kwargs, nsr=1.2, ctf={"kv": 300, "defocus": -3.0, "correct": "phaseflip"}
+        **kwargs,
+        nsr=1.2,
+        ctf={
+            "kv": 300,
+            "spherical_aberration": 2.7,
+            "defocus": -3.0,
+            "correct": "phaseflip",
+        },
     )
     ui.simulator.close()
 
