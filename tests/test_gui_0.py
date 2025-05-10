@@ -983,10 +983,17 @@ def test_simulate_tomogram(ui: CylindraMainWidget, tmpdir):
     }
     tmpdir = Path(tmpdir)
     assert len(list(tmpdir.glob("*"))) == 0
-    ui.simulator.simulate_tomogram(**kwargs, nsr=[0.5, 2.0], save_dir=tmpdir)
+    ui.simulator.simulate_tomogram(
+        **kwargs,
+        nsr=[0.5, 2.0],
+        save_dir=tmpdir,
+        ctf={"kv": 300, "defocus": -3.0, "correct": "none"},
+    )
     assert len(list(tmpdir.glob("*.mrc"))) == 2
     ui.load_project(tmpdir / "simulation-project.tar", filter=None)
-    ui.simulator.simulate_tomogram_and_open(**kwargs, nsr=1.2)
+    ui.simulator.simulate_tomogram_and_open(
+        **kwargs, nsr=1.2, ctf={"kv": 300, "defocus": -3.0, "correct": "phaseflip"}
+    )
     ui.simulator.close()
 
 

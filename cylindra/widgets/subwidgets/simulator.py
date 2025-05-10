@@ -1,10 +1,11 @@
 import weakref
-from typing import TYPE_CHECKING, Annotated, Any, Callable, Iterator
+from typing import TYPE_CHECKING, Annotated, Any, Callable, Iterator, NamedTuple
 
 import impy as ip
 import numpy as np
 import polars as pl
 from acryo import TomogramSimulator, pipe
+from acryo.ctf import CTFModel
 from magicclass import (
     abstractapi,
     confirm,
@@ -36,17 +37,13 @@ from cylindra.components import (
     CylTomogram,
     indexer,
 )
-from cylindra.const import (
-    INTERPOLATION_CHOICES,
-    PREVIEW_LAYER_NAME,
-    FileFilter,
-    nm,
-)
+from cylindra.const import INTERPOLATION_CHOICES, PREVIEW_LAYER_NAME, FileFilter, nm
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import PropertyNames as H
 from cylindra.utils import ceilint, roundint
 from cylindra.widget_utils import POLARS_NAMESPACE, capitalize
 from cylindra.widgets._annotated import MoleculesLayerType, _as_layer_name, assert_layer
+from cylindra.widgets._widget_ext import CTFDict, CTFParams
 from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 if TYPE_CHECKING:
@@ -80,13 +77,6 @@ PROJECT_NAME = "simulation-project.tar"
 SIMULATION_MODEL_KEY = "simulation-model"
 SIMULATED_IMAGE_NAME = "Simulated tomogram"
 _Logger = getLogger("cylindra")
-
-
-def _simulate_tomogram_iter(nsr):
-    n = len(nsr)
-    yield f"(0/{n + 1}) Simulating projections"
-    for i in range(n):
-        yield f"({i + 1}/{n + 1}) Back-projection of {i}-th image"
 
 
 def _simulate_tomogram_from_tilt_iter():
@@ -438,7 +428,7 @@ class Simulator(ChildWidget):
         return self.component_list._as_input()
 
     @set_design(text=capitalize, location=SimulateMenu)
-    @dask_thread_worker.with_progress(descs=_simulate_tomogram_iter)
+    @dask_thread_worker.with_progress()
     def simulate_tomogram(
         self,
         components: Annotated[Any, {"bind": _get_components}],
@@ -446,6 +436,7 @@ class Simulator(ChildWidget):
         nsr: _NSRatios = [1.5],
         tilt_range: _TiltRange = (-60.0, 60.0),
         n_tilt: Annotated[int, {"label": "Number of tilts"}] = 21,
+        ctf: Annotated[CTFDict, {"widget_type": CTFParams}] = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         seed: Optional[Annotated[int, {"min": 0, "max": 1e8}]] = None,
     ):  # fmt: skip
@@ -469,6 +460,9 @@ class Simulator(ChildWidget):
             Minimum and maximum tilt angles in degree.
         n_tilt : int
             Number of tilt angles between minimum and maximum angles.
+        ctf : CTFDict
+            Parameters to construct a CTF (Contrast Transfer Function) model that will
+            be applied to the projections.
         interpolation : int
             Interpolation method used during the simulation.
         seed : int, optional
@@ -477,17 +471,23 @@ class Simulator(ChildWidget):
         save_dir = _norm_save_dir(save_dir)
         _assert_not_empty(components)
         nsr = [round(float(_nsr), 4) for _nsr in nsr]
+        N = len(nsr)
+        yield thread_worker.callback().with_desc("Simulating projections")
         main = self._get_main()
         degrees = np.linspace(*tilt_range, n_tilt)
+        _ctf = _CTFInputTuple(ctf)
         sino = self._prep_radon(components, degrees, order=interpolation)
 
-        yield _on_radon_finished.with_args(sino, degrees)
+        yield _on_radon_finished.with_args(sino, degrees, _ctf.ctf_model).with_desc(
+            f"Back-projection of 0/{N}-th image"
+        )
 
         rng = ip.random.default_rng(seed)
         imax = sino.max()
         for i, nsr_val in enumerate(nsr):
-            sino_noise = sino + rng.normal(
-                scale=imax * nsr_val, size=sino.shape, axes=sino.axes
+            sino_noise = _ctf.recover(
+                _ctf.convolve(sino)
+                + rng.normal(scale=imax * nsr_val, size=sino.shape, axes=sino.axes)
             )
             rec = sino_noise.iradon(
                 degrees,
@@ -495,7 +495,11 @@ class Simulator(ChildWidget):
                 height=main.tomogram.image.shape[0],
                 order=interpolation,
             ).set_scale(zyx=main.tomogram.scale, unit="nm")
-            yield _on_iradon_finished.with_args(rec.mean("z"), f"N/S = {nsr_val:.1f}")
+            yield (
+                _on_iradon_finished.with_args(
+                    rec.mean("z"), f"N/S = {nsr_val:.1f}"
+                ).with_desc(f"Back-projection of {i + 1}/{N}-th image")
+            )
 
             file_name = save_dir / f"image-{i}.mrc"
             rec.imsave(file_name)
@@ -517,11 +521,11 @@ class Simulator(ChildWidget):
         bin_size: Annotated[list[int], {"options": {"min": 1, "max": 32}}] = [1],
         tilt_range: _TiltRange = (-60.0, 60.0),
         height: Annotated[nm, {"label": "height (nm)"}] = 50,
+        ctf: Annotated[CTFDict, {"widget_type": CTFParams}] = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         seed: Optional[Annotated[int, {"min": 0, "max": 1e8}]] = None,
     ):
-        """
-        Simulate tomographic images using a tilt series.
+        """Simulate tomographic images using a tilt series.
 
         Parameters
         ----------
@@ -537,6 +541,9 @@ class Simulator(ChildWidget):
             Minimum and maximum tilt angles in degree.
         height : int
             Height of the simulated tomogram in nm.
+        ctf : CTFDict
+            Parameters to construct a CTF (Contrast Transfer Function) model that will
+            be applied to the projections.
         interpolation : int
             Interpolation method used during the simulation.
         seed : int, optional
@@ -547,20 +554,27 @@ class Simulator(ChildWidget):
         scale = sino.scale.x
         if sino.ndim != 3:
             raise ValueError("Input image must be a 3D image.")
+        _ctf = _CTFInputTuple.from_dict(ctf)
         degrees = np.linspace(*tilt_range, sino.shape[0])
         rng = ip.random.default_rng(seed)
         imax = sino.max()
-        sino_noise = sino + rng.normal(
-            scale=imax * nsr, size=sino.shape, axes=sino.axes
+        sino_noise = _ctf.recover(
+            _ctf.convolve(sino)
+            + rng.normal(scale=imax * nsr, size=sino.shape, axes=sino.axes)
         )
-        yield thread_worker.callback()
+
+        yield thread_worker.callback().with_desc("(0/2) Reading tilt series")
         rec = sino_noise.iradon(
             degrees,
             central_axis="y",
             height=roundint(height / scale),
             order=interpolation,
         ).set_scale(zyx=scale, unit="nm")
-        yield _on_iradon_finished.with_args(rec.mean("z"), f"N/S = {nsr:.1f}")
+        yield (
+            _on_iradon_finished.with_args(rec.mean("z"), f"N/S = {nsr:.1f}").with_desc(
+                "(1/2) Back-projection"
+            )
+        )
         rec.name = SIMULATED_IMAGE_NAME
         tomo = CylTomogram.from_image(
             rec, scale=scale, tilt=tilt_range, binsize=bin_size
@@ -581,11 +595,11 @@ class Simulator(ChildWidget):
         bin_size: Annotated[list[int], {"options": {"min": 1, "max": 32}}] = [1],
         tilt_range: _TiltRange = (-60.0, 60.0),
         n_tilt: Annotated[int, {"label": "Number of tilts"}] = 21,
+        ctf: Annotated[CTFDict, {"widget_type": CTFParams}] = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         seed: Optional[Annotated[int, {"min": 0, "max": 1e8}]] = None,
     ):  # fmt: skip
-        """
-        Simulate a tomogram and open the image immediately.
+        """Simulate a tomogram and open the image immediately.
 
         This function projects the template image to each tilt series, adding
         Gaussian noise, and back-projects the noisy tilt series to the tomogram.
@@ -604,6 +618,9 @@ class Simulator(ChildWidget):
             Minimum and maximum tilt angles in degree.
         n_tilt : int
             Number of tilt angles between minimum and maximum angles.
+        ctf : CTFDict
+            Parameters to construct a CTF (Contrast Transfer Function) model that will
+            be applied to the projections.
         interpolation : int
             Interpolation method used during the simulation.
         seed : int, optional
@@ -615,14 +632,19 @@ class Simulator(ChildWidget):
         degrees = np.linspace(*tilt_range, n_tilt)
         mole_layers = [main.mole_layers[layer_name] for layer_name, _ in components]
         sources = [layer.source_spline for layer in mole_layers]
+        yield thread_worker.callback().with_desc("Simulating projections")
         sino = self._prep_radon(components, degrees, order=interpolation)
+        _ctf = _CTFInputTuple.from_dict(ctf)
 
-        yield _on_radon_finished.with_args(sino, degrees)
+        yield _on_radon_finished.with_args(sino, degrees, _ctf.ctf_model).with_desc(
+            "Back-projection ..."
+        )
 
         rng = ip.random.default_rng(seed)
         imax = sino.max()
-        sino_noise = sino + rng.normal(
-            scale=imax * nsr, size=sino.shape, axes=sino.axes
+        sino_noise = _ctf.recover(
+            _ctf.convolve(sino)
+            + rng.normal(scale=imax * nsr, size=sino.shape, axes=sino.axes)
         )
         rec = sino_noise.iradon(
             degrees,
@@ -660,8 +682,7 @@ class Simulator(ChildWidget):
         n_tilt: Annotated[int, {"label": "Number of tilts"}] = 21,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
     ):  # fmt: skip
-        """
-        Simulate tilt series using the current model and save the images.
+        """Simulate tilt series using the current model and save the images.
 
         Parameters
         ----------
@@ -694,11 +715,11 @@ class Simulator(ChildWidget):
         components: Annotated[Any, {"bind": _get_components}],
         save_dir: Annotated[Path.Save, {"label": "Save at"}],
         nsr: _NSRatios = [1.5],
+        ctf: Annotated[CTFDict, {"widget_type": CTFParams}] = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         seed: Optional[Annotated[int, {"min": 0, "max": 1e8}]] = None,
     ):  # fmt: skip
-        """
-        Simulate a projection without tilt (cryo-EM-like image).
+        """Simulate a projection without tilt (cryo-EM-like image).
 
         Parameters
         ----------
@@ -711,6 +732,9 @@ class Simulator(ChildWidget):
             value of the true monomer density and N is the standard deviation of
             the Gaussian noise. Duplicate values are allowed, which is useful
             for simulation of multiple images with the same noise level.
+        ctf : CTFDict
+            Parameters to construct a CTF (Contrast Transfer Function) model that will
+            be applied to the projections.
         interpolation : int
             Interpolation method used during the simulation.
         seed : int, optional
@@ -720,12 +744,14 @@ class Simulator(ChildWidget):
         _assert_not_empty(components)
         proj = self._prep_radon(components, np.zeros(1), order=interpolation)[0]
         proj = proj.set_axes("yx").set_scale(yx=proj.scale.x, unit="nm")
+        _ctf = _CTFInputTuple.from_dict(ctf)
         yield _on_iradon_finished.with_args(proj, "Projection (noise-free)")
         rng = ip.random.default_rng(seed)
         imax = proj.max()
         for i, nsr_val in enumerate(nsr):
-            proj_noise = proj + rng.normal(
-                scale=imax * nsr_val, size=proj.shape, axes=proj.axes
+            proj_noise = _ctf.recover(
+                _ctf.convolve(proj)
+                + rng.normal(scale=imax * nsr_val, size=proj.shape, axes=proj.axes)
             )
             proj_noise.imsave(save_dir / f"image-{i}.tif")
         _Logger.print(f"Projections saved at {save_dir}.")
@@ -741,8 +767,7 @@ class Simulator(ChildWidget):
         arange: Annotated[tuple[int, int], {"widget_type": RangeSlider}] = (0, 1),
         allev: bool = False,
     ):
-        """
-        Apply local expansion to molecules.
+        """Apply local expansion to molecules.
 
         Parameters
         ----------
@@ -775,8 +800,7 @@ class Simulator(ChildWidget):
         arange: Annotated[tuple[int, int], {"widget_type": RangeSlider}] = (0, 1),
         allev: bool = False,
     ):
-        """
-        Apply local twist to molecules.
+        """Apply local twist to molecules.
 
         Parameters
         ----------
@@ -809,8 +833,7 @@ class Simulator(ChildWidget):
         arange: Annotated[tuple[int, int], {"widget_type": RangeSlider}] = (0, 1),
         allev: bool = False,
     ):
-        """
-        Apply local dilation to molecules.
+        """Apply local dilation to molecules.
 
         Parameters
         ----------
@@ -842,8 +865,7 @@ class Simulator(ChildWidget):
         twist: ExprStr.In[POLARS_NAMESPACE] = 0.0,
         dilate: ExprStr.In[POLARS_NAMESPACE] = 0.0,
     ):
-        """
-        Detailed local transformation of molecules.
+        """Detailed local transformation of molecules.
 
         In this method, you'll have to specify the displacement for each molecule
         using polars expressions. For example, if you want to expand the molecules
@@ -906,18 +928,35 @@ def _assert_not_empty(components: list[tuple[str, Path]]):
 
 
 @thread_worker.callback
-def _on_radon_finished(sino: ip.ImgArray, degrees: np.ndarray):
+def _on_radon_finished(
+    sino: ip.ImgArray,
+    degrees: np.ndarray,
+    ctf_model: CTFModel | None = None,
+):
     import matplotlib.pyplot as plt
 
-    n_tilt = len(degrees)
-    if n_tilt < 3:
-        return
-    _, ny, nx = sino.shape
-    ysize = max(4 / nx * ny, 4)
     with _Logger.set_plt():
+        if ctf_model is not None:
+            ctf_image = ctf_model.simulate_image((128, 128), scale=sino.scale.x)
+            _Logger.print_html(
+                f"CTF was simulated with parameters:<br>"
+                f"Spherical aberration = {ctf_model.spherical_aberration} mm<br>"
+                f"Defocus = {ctf_model.defocus} μm"
+            )
+            plt.figure()
+            plt.imshow(np.fft.fftshift(ctf_image), cmap="gray")
+            plt.title("Simulated CTF")
+            plt.show()
+        n_tilt = len(degrees)
+        if n_tilt < 3:
+            deg_indices = range(n_tilt)
+        else:
+            deg_indices = [0, n_tilt // 2, -1]
+        _, ny, nx = sino.shape
+        ysize = max(4 / nx * ny, 4)
         _, axes = plt.subplots(nrows=1, ncols=3, figsize=(12, ysize))
         axes: list[plt.Axes]
-        for i, idx in enumerate([0, n_tilt // 2, -1]):
+        for i, idx in enumerate(deg_indices):
             axes[i].imshow(sino[idx], cmap="gray")
             axes[i].set_title(f"deg = {degrees[idx]:.1f}")
             axes[i].set_axis_off()
@@ -1102,3 +1141,38 @@ def _make_simulated_mole_name(viewer: "napari.Viewer"):
     while f"{name}-{num}" in existing_names:
         num += 1
     return f"{name}-{num}"
+
+
+def _do_nothing(x: ip.ImgArray) -> ip.ImgArray:
+    return x
+
+
+class _CTFInputTuple(NamedTuple):
+    convolve: Callable[[ip.ImgArray], ip.ImgArray]
+    recover: Callable[[ip.ImgArray], ip.ImgArray]
+    ctf_model: CTFModel | None
+
+    @classmethod
+    def from_dict(cls, ctf: dict | None) -> "_CTFInputTuple":
+        if ctf is None:
+            return _CTFInputTuple(_do_nothing, _do_nothing, None)
+        ctf = ctf.copy()
+        correction_method = ctf.pop("correct", "phaseflip")
+        ctf_model = CTFModel.from_kv(**ctf)
+
+        def convolve(img: ip.ImgArray) -> ip.ImgArray:
+            out = ctf_model.apply_ctf(img.value, img.scale.x)
+            return ip.asarray(out, axes=img.axes)
+
+        match correction_method:
+            case "none":
+                recover = _do_nothing
+            case "phaseflip":
+
+                def recover(img: ip.ImgArray) -> ip.ImgArray:
+                    out = ctf_model.phase_flip(img.value, img.scale.x)
+                    return ip.asarray(out, axes=img.axes)
+
+            case _:
+                raise ValueError(f"Unknown CTF correction method: {correction_method}")
+        return _CTFInputTuple(convolve, recover, ctf_model)
