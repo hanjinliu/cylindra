@@ -17,7 +17,7 @@ LANDSCAPE_PREFIX = "Landscape_"
 SPLINE_ID = "spline-id"
 SEAM_SEARCH_RESULT = "seam-search-result"
 ANNEALING_RESULT = "annealing-result"
-INTERPOLATION_CHOICES = (("nearest", 0), ("linear", 1), ("cubic", 3))
+INTERPOLATION_CHOICES = (("0 (nearest)", 0), ("1 (linear)", 1), ("3 (cubic)", 3))
 
 
 class strEnum(Enum):

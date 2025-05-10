@@ -185,20 +185,20 @@ class SplineProps:
         finally:
             self._glob = old_df
 
-    def drop_loc(self, keys: str | Iterable[str]) -> Self:
+    def drop_loc(self, keys: str | Iterable[str], *, strict: bool = True) -> Self:
         """Drop local properties."""
         if isinstance(keys, str):
             keys = [keys]
-        self._loc = self._loc.drop(keys)
+        self._loc = self._loc.drop(keys, strict=strict)
         for key in keys:
             self._window_size.pop(key, None)
         return self
 
-    def drop_glob(self, keys: str | Iterable[str]) -> Self:
+    def drop_glob(self, keys: str | Iterable[str], *, strict: bool = True) -> Self:
         """Drop global propperties."""
         if isinstance(keys, str):
             keys = [keys]
-        self._glob = self._glob.drop(keys)
+        self._glob = self._glob.drop(keys, strict=strict)
         return self
 
     def clear_loc(self) -> Self:

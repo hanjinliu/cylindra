@@ -268,6 +268,14 @@ def test_update_props():
     spl = CylSpline()
     spl = spl.fit([[3, 2, 1], [4, 6, 7], [5, 2, 3], [9, 5, 6]])
     spl.update_props(npf=13, orientation="PlusToMinus")
+    spl.update_props(npf=14, start=2)
+    spl.update_props(start=3)
+    spl.update_props(orientation="PlusToMinus")
+    spl.radius = 10.2
+    spl.update_props(npf=13, orientation="PlusToMinus")
+    spl.update_props(npf=14, start=2)
+    spl.update_props(start=3)
+    spl.update_props(orientation="PlusToMinus")
 
 
 def test_resample():
