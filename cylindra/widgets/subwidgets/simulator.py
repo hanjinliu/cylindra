@@ -475,7 +475,7 @@ class Simulator(ChildWidget):
         yield thread_worker.callback().with_desc("Simulating projections")
         main = self._get_main()
         degrees = np.linspace(*tilt_range, n_tilt)
-        _ctf = _CTFInputTuple(ctf)
+        _ctf = _CTFInputTuple.from_dict(ctf)
         sino = self._prep_radon(components, degrees, order=interpolation)
 
         yield _on_radon_finished.with_args(sino, degrees, _ctf.ctf_model).with_desc(
