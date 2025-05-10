@@ -48,6 +48,29 @@ def test_check_boxes(qtbot: QtBot):
     qtbot.mouseRelease(widget.native, QtCore.Qt.MouseButton.LeftButton)
 
 
+def test_ctf_params(qtbot: QtBot):
+    widget = _widget_ext.CTFParams()
+    qtbot.addWidget(widget.native)
+    widget.value = {
+        "kv": 200,
+        "spherical_aberration": 2.0,
+        "defocus": -3.2,
+        "bfactor": 0.1,
+        "correct": "none",
+    }
+    assert widget.value == pytest.approx(
+        {
+            "kv": 200,
+            "spherical_aberration": 2.0,
+            "defocus": -3.2,
+            "bfactor": 0.1,
+            "correct": "none",
+        }
+    )
+    widget._has_input.value = False
+    widget._has_input.value = True
+
+
 def test_random_seed_edit():
     widget = _widget_ext.RandomSeedEdit()
     widget._btn.clicked()
