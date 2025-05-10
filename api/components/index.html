@@ -5010,7 +5010,37 @@
 <span class="normal">241</span>
 <span class="normal">242</span>
 <span class="normal">243</span>
-<span class="normal">244</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylSpline</span><span class="p">(</span><span class="n">Spline</span><span class="p">):</span>
+<span class="normal">244</span>
+<span class="normal">245</span>
+<span class="normal">246</span>
+<span class="normal">247</span>
+<span class="normal">248</span>
+<span class="normal">249</span>
+<span class="normal">250</span>
+<span class="normal">251</span>
+<span class="normal">252</span>
+<span class="normal">253</span>
+<span class="normal">254</span>
+<span class="normal">255</span>
+<span class="normal">256</span>
+<span class="normal">257</span>
+<span class="normal">258</span>
+<span class="normal">259</span>
+<span class="normal">260</span>
+<span class="normal">261</span>
+<span class="normal">262</span>
+<span class="normal">263</span>
+<span class="normal">264</span>
+<span class="normal">265</span>
+<span class="normal">266</span>
+<span class="normal">267</span>
+<span class="normal">268</span>
+<span class="normal">269</span>
+<span class="normal">270</span>
+<span class="normal">271</span>
+<span class="normal">272</span>
+<span class="normal">273</span>
+<span class="normal">274</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylSpline</span><span class="p">(</span><span class="n">Spline</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A spline object with cylindrical structure.&quot;&quot;&quot;</span>
 
     <span class="nd">@property</span>
@@ -5194,6 +5224,7 @@
         <span class="n">orientation</span><span class="p">:</span> <span class="n">Ori</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CylSpline</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Update the npf or orientation parameters in place.&quot;&quot;&quot;</span>
+
         <span class="n">loc</span> <span class="o">=</span> <span class="nb">list</span><span class="p">[</span><span class="n">pl</span><span class="o">.</span><span class="n">Expr</span><span class="p">]()</span>
         <span class="n">glob</span> <span class="o">=</span> <span class="nb">list</span><span class="p">[</span><span class="n">pl</span><span class="o">.</span><span class="n">Series</span><span class="p">]()</span>
         <span class="k">if</span> <span class="n">npf</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -5210,6 +5241,35 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">loc</span> <span class="o">=</span> <span class="n">with_columns</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">loc</span><span class="p">,</span> <span class="n">loc</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">glob</span> <span class="o">=</span> <span class="n">with_columns</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">glob</span><span class="p">,</span> <span class="n">glob</span><span class="p">)</span>
 
+        <span class="k">if</span> <span class="n">start</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># because rises are dependent on start, they need to be recalculated</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">drop_loc</span><span class="p">([</span><span class="n">H</span><span class="o">.</span><span class="n">rise</span><span class="p">,</span> <span class="n">H</span><span class="o">.</span><span class="n">rise_length</span><span class="p">],</span> <span class="n">strict</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">drop_glob</span><span class="p">([</span><span class="n">H</span><span class="o">.</span><span class="n">rise</span><span class="p">,</span> <span class="n">H</span><span class="o">.</span><span class="n">rise_length</span><span class="p">],</span> <span class="n">strict</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">cp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cylinder_params</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="k">pass</span>  <span class="c1"># not enouph properties to calculate cylinder parameters</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">loc</span> <span class="o">=</span> <span class="n">with_columns</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">loc</span><span class="p">,</span>
+                    <span class="p">[</span><span class="n">pl</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">rise_angle</span><span class="p">,</span> <span class="n">pl</span><span class="o">.</span><span class="n">len</span><span class="p">())</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">Float32</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">H</span><span class="o">.</span><span class="n">rise</span><span class="p">)],</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">glob</span> <span class="o">=</span> <span class="n">with_columns</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">glob</span><span class="p">,</span>
+                    <span class="p">[</span><span class="n">pl</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="n">cp</span><span class="o">.</span><span class="n">rise_angle</span><span class="p">])</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">Float32</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">H</span><span class="o">.</span><span class="n">rise</span><span class="p">)],</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">loc</span> <span class="o">=</span> <span class="n">with_columns</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">loc</span><span class="p">,</span>
+                    <span class="p">[</span>
+                        <span class="n">pl</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">rise_length</span><span class="p">,</span> <span class="n">pl</span><span class="o">.</span><span class="n">len</span><span class="p">())</span>
+                        <span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">Float32</span><span class="p">)</span>
+                        <span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">H</span><span class="o">.</span><span class="n">rise_length</span><span class="p">)</span>
+                    <span class="p">],</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">glob</span> <span class="o">=</span> <span class="n">with_columns</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">glob</span><span class="p">,</span>
+                    <span class="p">[</span><span class="n">pl</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="n">cp</span><span class="o">.</span><span class="n">rise_length</span><span class="p">])</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">Float32</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">H</span><span class="o">.</span><span class="n">rise_length</span><span class="p">)],</span>
+                <span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">update_glob_by_cylinder_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cparams</span><span class="p">:</span> <span class="n">CylinderParameters</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CylSpline</span><span class="p">:</span>
@@ -5903,21 +5963,21 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 
             <details class="quote">
               <summary>Source code in <code>cylindra/components/spline/_cyl_spline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">218</span>
-<span class="normal">219</span>
-<span class="normal">220</span>
-<span class="normal">221</span>
-<span class="normal">222</span>
-<span class="normal">223</span>
-<span class="normal">224</span>
-<span class="normal">225</span>
-<span class="normal">226</span>
-<span class="normal">227</span>
-<span class="normal">228</span>
-<span class="normal">229</span>
-<span class="normal">230</span>
-<span class="normal">231</span>
-<span class="normal">232</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">update_glob_by_cylinder_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cparams</span><span class="p">:</span> <span class="n">CylinderParameters</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CylSpline</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">248</span>
+<span class="normal">249</span>
+<span class="normal">250</span>
+<span class="normal">251</span>
+<span class="normal">252</span>
+<span class="normal">253</span>
+<span class="normal">254</span>
+<span class="normal">255</span>
+<span class="normal">256</span>
+<span class="normal">257</span>
+<span class="normal">258</span>
+<span class="normal">259</span>
+<span class="normal">260</span>
+<span class="normal">261</span>
+<span class="normal">262</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">update_glob_by_cylinder_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cparams</span><span class="p">:</span> <span class="n">CylinderParameters</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CylSpline</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Update the global properties using a CylinderParameters object.&quot;&quot;&quot;</span>
     <span class="n">props</span> <span class="o">=</span> <span class="p">{</span>
         <span class="n">H</span><span class="o">.</span><span class="n">rise</span><span class="p">:</span> <span class="n">cparams</span><span class="o">.</span><span class="n">rise_angle</span><span class="p">,</span>
@@ -5978,7 +6038,37 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 <span class="normal">213</span>
 <span class="normal">214</span>
 <span class="normal">215</span>
-<span class="normal">216</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">update_props</span><span class="p">(</span>
+<span class="normal">216</span>
+<span class="normal">217</span>
+<span class="normal">218</span>
+<span class="normal">219</span>
+<span class="normal">220</span>
+<span class="normal">221</span>
+<span class="normal">222</span>
+<span class="normal">223</span>
+<span class="normal">224</span>
+<span class="normal">225</span>
+<span class="normal">226</span>
+<span class="normal">227</span>
+<span class="normal">228</span>
+<span class="normal">229</span>
+<span class="normal">230</span>
+<span class="normal">231</span>
+<span class="normal">232</span>
+<span class="normal">233</span>
+<span class="normal">234</span>
+<span class="normal">235</span>
+<span class="normal">236</span>
+<span class="normal">237</span>
+<span class="normal">238</span>
+<span class="normal">239</span>
+<span class="normal">240</span>
+<span class="normal">241</span>
+<span class="normal">242</span>
+<span class="normal">243</span>
+<span class="normal">244</span>
+<span class="normal">245</span>
+<span class="normal">246</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">update_props</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">npf</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -5986,6 +6076,7 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
     <span class="n">orientation</span><span class="p">:</span> <span class="n">Ori</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CylSpline</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Update the npf or orientation parameters in place.&quot;&quot;&quot;</span>
+
     <span class="n">loc</span> <span class="o">=</span> <span class="nb">list</span><span class="p">[</span><span class="n">pl</span><span class="o">.</span><span class="n">Expr</span><span class="p">]()</span>
     <span class="n">glob</span> <span class="o">=</span> <span class="nb">list</span><span class="p">[</span><span class="n">pl</span><span class="o">.</span><span class="n">Series</span><span class="p">]()</span>
     <span class="k">if</span> <span class="n">npf</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -6002,6 +6093,35 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
     <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">loc</span> <span class="o">=</span> <span class="n">with_columns</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">loc</span><span class="p">,</span> <span class="n">loc</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">glob</span> <span class="o">=</span> <span class="n">with_columns</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">glob</span><span class="p">,</span> <span class="n">glob</span><span class="p">)</span>
 
+    <span class="k">if</span> <span class="n">start</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># because rises are dependent on start, they need to be recalculated</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">drop_loc</span><span class="p">([</span><span class="n">H</span><span class="o">.</span><span class="n">rise</span><span class="p">,</span> <span class="n">H</span><span class="o">.</span><span class="n">rise_length</span><span class="p">],</span> <span class="n">strict</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">drop_glob</span><span class="p">([</span><span class="n">H</span><span class="o">.</span><span class="n">rise</span><span class="p">,</span> <span class="n">H</span><span class="o">.</span><span class="n">rise_length</span><span class="p">],</span> <span class="n">strict</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">cp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cylinder_params</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">pass</span>  <span class="c1"># not enouph properties to calculate cylinder parameters</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">loc</span> <span class="o">=</span> <span class="n">with_columns</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">loc</span><span class="p">,</span>
+                <span class="p">[</span><span class="n">pl</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">rise_angle</span><span class="p">,</span> <span class="n">pl</span><span class="o">.</span><span class="n">len</span><span class="p">())</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">Float32</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">H</span><span class="o">.</span><span class="n">rise</span><span class="p">)],</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">glob</span> <span class="o">=</span> <span class="n">with_columns</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">glob</span><span class="p">,</span>
+                <span class="p">[</span><span class="n">pl</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="n">cp</span><span class="o">.</span><span class="n">rise_angle</span><span class="p">])</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">Float32</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">H</span><span class="o">.</span><span class="n">rise</span><span class="p">)],</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">loc</span> <span class="o">=</span> <span class="n">with_columns</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">loc</span><span class="p">,</span>
+                <span class="p">[</span>
+                    <span class="n">pl</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">rise_length</span><span class="p">,</span> <span class="n">pl</span><span class="o">.</span><span class="n">len</span><span class="p">())</span>
+                    <span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">Float32</span><span class="p">)</span>
+                    <span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">H</span><span class="o">.</span><span class="n">rise_length</span><span class="p">)</span>
+                <span class="p">],</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">glob</span> <span class="o">=</span> <span class="n">with_columns</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">glob</span><span class="p">,</span>
+                <span class="p">[</span><span class="n">pl</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="n">cp</span><span class="o">.</span><span class="n">rise_length</span><span class="p">])</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">Float32</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">H</span><span class="o">.</span><span class="n">rise_length</span><span class="p">)],</span>
+            <span class="p">)</span>
     <span class="k">return</span> <span class="bp">self</span>
 </code></pre></div></td></tr></table></div>
             </details>
