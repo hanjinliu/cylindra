@@ -92,12 +92,21 @@ filaments.
 
 :material-arrow-right-thin-circle-outline: GUI: `Molecules > From/To Splines > Map along spline (helical symmetry)`
 
-This method is useful for subsequent subtomogram averaging of cylinders with helical
-symmetry. Technically, running this method is almost equivalent to picking
+Technically, running this method is almost equivalent to picking
 [molecules on the cylinder surface](#molecules-on-the-cylinder-surface) and translating
 them back to the spline; thus, you will see a very dense line filled with molecules.
 
 ![Map along spline helical symmetry](../images/map_along_spline_helical_symmetry.png){ loading=lazy, width=400px }
+
+Because molecules are generated based on the cylindric parameters, this method is useful
+prior to [subtomogram averaging](../alignment/conventional.md#subtomogram-averaging) to
+checking if the parameters are correct. For example, if you have a 14_3 microtubule in
+your tomogram, and [global-CFT analysis](../lattice_params.md#global-cft) was
+successful, you should see a 14_3 helical pattern in the average image. If the
+parameters are not correct (like 14_2), the protofilament pattern or the lateral
+interactions will be missing.
+
+![Helical symmetry averaging](../images/helical-symmetry-avg.png){ loading=lazy, width=500px }
 
 ## Molecules Along a Protofilament
 
