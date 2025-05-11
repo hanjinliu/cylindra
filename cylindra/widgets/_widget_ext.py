@@ -4,7 +4,7 @@ import random
 from contextlib import contextmanager
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Literal, TypedDict
 
 import numpy as np
 from magicclass.widgets import ScrollableContainer
@@ -22,10 +22,97 @@ from magicgui.widgets import (
     protocols,
     show_file_dialog,
 )
-from magicgui.widgets.bases import CategoricalWidget, ValueWidget
+from magicgui.widgets.bases import CategoricalWidget, ValuedContainerWidget, ValueWidget
 from qtpy import QtCore, QtGui
 from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
+
+
+class CTFDict(TypedDict):
+    kv: int
+    spherical_aberration: float
+    defocus: float
+    bfactor: float
+    correct: Literal["none", "phaseflip"]
+
+
+class CTFParams(ValuedContainerWidget[CTFDict]):
+    def __init__(self, value=Undefined, **kwargs):
+        self._has_input = CheckBox(value=False, text="Simulate CTF")
+        self._kv = SpinBox(
+            value=300,
+            label="kV",
+            tooltip="Accelerating voltage of the electron microscope in kV",
+        )
+        self._cs = FloatSpinBox(
+            value=2.7, label="Cs", tooltip="Spherical aberration in mm"
+        )
+        self._defocus = FloatSpinBox(
+            value=-2.0, min=-100, max=100, label="Defocus", tooltip="Defocus in μm"
+        )
+        self._bfactor = FloatSpinBox(
+            value=0.0,
+            label="B-factor",
+            tooltip="B-factor of CTF (the decay of amplitude",
+        )
+        self._correct = ComboBox(
+            choices=["none", "phaseflip"], label="correct", tooltip="How to correct CTF"
+        )
+        kwargs.setdefault("labels", True)
+        kwargs.setdefault("layout", "vertical")
+        super().__init__(
+            widgets=[
+                self._has_input,
+                self._kv,
+                self._cs,
+                self._defocus,
+                self._bfactor,
+                self._correct,
+            ],
+            **kwargs,
+        )
+
+        self._has_input.changed.connect(self._on_has_input_change)
+
+        @self._has_input.changed.connect
+        @self._kv.changed.connect
+        @self._cs.changed.connect
+        @self._defocus.changed.connect
+        @self._bfactor.changed.connect
+        @self._correct.changed.connect
+        def _on_value_change():
+            self.changed.emit(self.get_value())
+
+        with self.changed.blocked():
+            self._on_has_input_change(self._has_input.value)
+            self.set_value(value)
+
+    def get_value(self):
+        if not self._has_input.value:
+            return None
+        return {
+            "kv": self._kv.value,
+            "spherical_aberration": self._cs.value,
+            "defocus": self._defocus.value,
+            "bfactor": self._bfactor.value,
+            "correct": self._correct.value,
+        }
+
+    def set_value(self, value):
+        if value is None or value == Undefined:
+            self._has_input.value = False
+        else:
+            self._has_input.value = True
+            self._kv.value = value.get("kv", 300)
+            self._cs.value = value.get("spherical_aberration", 2.7)
+            self._defocus.value = value.get("defocus", -2.0)
+            self._bfactor.value = value.get("bfactor", 0.0)
+            self._correct.value = value.get("correct", "phase")
+
+    def _on_has_input_change(self, dont: bool):
+        self._kv.enabled = self._cs.enabled = self._defocus.enabled = (
+            self._bfactor.enabled
+        ) = self._correct.enabled = dont
 
 
 class ProtofilamentEdit(ScrollableContainer[Container[SpinBox]]):
