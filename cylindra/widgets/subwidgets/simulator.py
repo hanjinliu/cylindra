@@ -471,7 +471,7 @@ class Simulator(ChildWidget):
             Random seed used for the Gaussian noise.
         """
         save_dir = _norm_save_dir(save_dir)
-        _assert_not_empty(components)
+        components = _norm_components(components)
         nsr = [round(float(_nsr), 4) for _nsr in nsr]
         N = len(nsr)
         yield thread_worker.callback().with_desc("Simulating projections")
@@ -634,7 +634,7 @@ class Simulator(ChildWidget):
             Random seed used for the Gaussian noise.
         """
         nsr = round(float(nsr), 4)
-        _assert_not_empty(components)
+        components = _norm_components(components)
         main = self._get_main()
         degrees = np.linspace(*tilt_range, n_tilt)
         mole_layers = [main.mole_layers[layer_name] for layer_name, _ in components]
@@ -708,7 +708,7 @@ class Simulator(ChildWidget):
             Interpolation method used during the simulation.
         """
         save_dir = _norm_save_dir(save_dir)
-        _assert_not_empty(components)
+        components = _norm_components(components)
         degrees = np.linspace(*tilt_range, n_tilt)
         _ctf = _CTFInputTuple.from_dict(ctf)
         scale = self._get_main().tomogram.scale
@@ -760,7 +760,7 @@ class Simulator(ChildWidget):
             Random seed used for the Gaussian noise.
         """
         save_dir = _norm_save_dir(save_dir)
-        _assert_not_empty(components)
+        components = _norm_components(components)
         scale = self._get_main().tomogram.scale
         _ctf = _CTFInputTuple.from_dict(ctf)
         yield _on_ctf_finished.with_args(_ctf.ctf_model, scale=scale)
@@ -941,9 +941,22 @@ def _fill_shift(yrange, arange, val: float, shape):
     return shift, indexer[ysl, asl]
 
 
-def _assert_not_empty(components: list[tuple[str, Path]]):
+def _norm_components(components) -> list[tuple[str, Path]]:
+    out = []
     if not components:
-        raise ValueError("No component is added.")
+        raise ValueError(
+            "No component is added. Add sets of molecules and template images to "
+            "the component list."
+        )
+    for obj, path in components:
+        if isinstance(obj, MoleculesLayer):
+            name = obj.name
+        elif isinstance(obj, str):
+            name = obj
+        else:
+            raise ValueError(f"Invalid component type: {obj}")
+        out.append((name, Path(path)))
+    return out
 
 
 def _add_noise(ts: ip.ImgArray, sd: float, rng: ip.random.ImageGenerator):

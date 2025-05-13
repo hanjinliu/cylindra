@@ -81,6 +81,7 @@ nav:
       - case_studies/rma.md
       - case_studies/seam_search.md
       - case_studies/ssta.md
+      - case_studies/learning_cft.md
       - case_studies/make_figure.md
   - API References:
     - api/index.md
