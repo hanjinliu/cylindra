@@ -157,7 +157,6 @@ class Simulator(ChildWidget):
         simulate_tomogram_from_tilt_series = abstractapi()
         simulate_tomogram_and_open = abstractapi()
         simulate_tilt_series = abstractapi()
-        simulate_projection = abstractapi()
 
     @magictoolbar
     class SimulatorTools(ChildWidget):
@@ -724,56 +723,6 @@ class Simulator(ChildWidget):
             save_path = save_dir / f"image-{i}.mrc"
             ts_noise.set_axes("zyx").set_scale(zyx=scale, unit="nm").imsave(save_path)
             _Logger.print(f"{i}-th tilt series saved at {save_path}.")
-        self._get_main().save_project(save_dir / PROJECT_NAME, molecules_ext=".parquet")
-        return None
-
-    @set_design(text=capitalize, location=SimulateMenu)
-    @dask_thread_worker.with_progress(desc="Simulating 2D projections...")
-    def simulate_projection(
-        self,
-        components: Annotated[Any, {"bind": _get_components}],
-        save_dir: Annotated[Path.Save, {"label": "Save at"}],
-        nsr: _NSRatios = [1.5],
-        ctf: Annotated[CTFDict, {"widget_type": CTFParams}] = None,
-        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
-        seed: Optional[Annotated[int, {"min": 0, "max": 1e8}]] = None,
-    ):  # fmt: skip
-        """Simulate a projection without tilt (cryo-EM-like image).
-
-        Parameters
-        ----------
-        components : list of (str, Path)
-            List of tuples of layer name and path to the template image.
-        save_dir : Path
-            Path to the directory where the images will be saved.
-        nsr : list of float
-            Noise-to-signal ratio. It is defined by N/S, where S is the maximum
-            value of the true monomer density and N is the standard deviation of
-            the Gaussian noise. Duplicate values are allowed, which is useful
-            for simulation of multiple images with the same noise level.
-        ctf : CTFDict
-            Parameters to construct a CTF (Contrast Transfer Function) model that will
-            be applied to the projections.
-        interpolation : int
-            Interpolation method used during the simulation.
-        seed : int, optional
-            Random seed used for the Gaussian noise.
-        """
-        save_dir = _norm_save_dir(save_dir)
-        components = _norm_components(components)
-        scale = self._get_main().tomogram.scale
-        _ctf = _CTFInputTuple.from_dict(ctf)
-        yield _on_ctf_finished.with_args(_ctf.ctf_model, scale=scale)
-        ts = self._prep_radon(components, np.zeros(1), order=interpolation)[0]
-        ts = ts.set_axes("yx").set_scale(yx=ts.scale.x, unit="nm")
-        yield _on_iradon_finished.with_args(ts, "Projection (noise-free)")
-        rng = ip.random.default_rng(seed)
-        imax = ts.max()
-        ts_conv = _ctf.convolve(ts)
-        for i, nsr_val in enumerate(nsr):
-            ts_noise = _ctf.recover(_add_noise(ts_conv, imax * nsr_val, rng))
-            ts_noise.imsave(save_dir / f"image-{i}.tif")
-        _Logger.print(f"Projections saved at {save_dir}.")
         self._get_main().save_project(save_dir / PROJECT_NAME, molecules_ext=".parquet")
         return None
 
