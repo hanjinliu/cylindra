@@ -1,6 +1,9 @@
 import gc
+from contextlib import contextmanager
 from pathlib import Path
 
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 import mkdocs_gen_files
 from magicclass import get_button, get_function_gui, logging
 from magicgui import magicgui
@@ -10,22 +13,29 @@ from cylindra import instance, widgets
 
 DOCS = Path(__file__).parent.parent
 PATH_13_3 = DOCS.parent / "tests" / "13pf_MT.tif"
-PATH_TEMP = DOCS.parent / "tests" / "beta-tubulin.tif"
+PATH_TEMP = DOCS.parent / "tests" / "beta-tubulin.mrc"
 
 assert PATH_13_3.exists()
 
 _Logger = logging.getLogger("cylindra")
 
 
+@contextmanager
+def _open(path, mode):
+    """Open a file and yield the file object."""
+    with mkdocs_gen_files.FilesEditor.current().open(path, mode) as f:
+        yield f
+
+
 def _imsave(widget: QtW.QWidget, name: str):
-    with mkdocs_gen_files.FilesEditor.current().open(f"images/{name}.png", "wb") as f:
+    with _open(f"images/{name}.png", "wb") as f:
         widget.grab().save(f.name, "png")
 
 
 def _viewer_screenshot(
     ui: widgets.CylindraMainWidget, name: str, canvas_only: bool = True
 ):
-    with mkdocs_gen_files.FilesEditor.current().open(f"images/{name}.png", "wb") as f:
+    with _open(f"images/{name}.png", "wb") as f:
         ui.parent_viewer.screenshot(f.name, canvas_only=canvas_only, flash=False)
 
 
@@ -37,6 +47,8 @@ def main():
 
     ui.clear_all()
     _Logger.widget.clear()
+    mpl.use("Agg")
+    ui.open_image(PATH_13_3)
 
     # Image loader
     _imsave(ui.FileMenu.open_image_loader().native, "open_image_dialog")
@@ -223,6 +235,39 @@ def main():
 
     # batch analyzer
     _imsave(ui.batch.constructor.native, "batch_constructor")
+
+    # For the figures in "Learning CFT"
+    length = 60.0
+    ui.simulator.create_image_with_straight_line(
+        length=length,
+        size=(40.0, length, 40.0),
+        scale=1.0,
+        yxrotation=20.0,
+    )
+    ui.simulator.generate_molecules(
+        spline=0, spacing=4.1, twist=-0.3, start=3, npf=14, radius=11.0
+    )
+    ui.parent_viewer.reset_view()
+    with _open("images/learning_cft-line.png", "wb") as f:
+        ui.parent_viewer.screenshot(f.name)
+    mole_layer = ui.mole_layers[-1]  # the just added molecules layer
+    ui.simulator.simulate_tomogram_and_open(
+        components=[(mole_layer, PATH_TEMP)],
+        nsr=0.1,
+        tilt_range=(-60.0, 60.0),
+        n_tilt=21,
+        interpolation=1,
+    )
+    ui.mole_layers[0].visible = False
+    with _open("images/learning_cft-tomogram.png", "wb") as f:
+        ui.parent_viewer.screenshot(f.name)
+    pw = ui.spline_slicer.get_cylindric_power_spectrum(spline=0, pos=length / 2)
+    fig, axes = plt.subplots()
+    axes.imshow(pw, cmap="gray")
+    axes.set_axis_off()
+    fig.tight_layout()
+    with _open("images/learning_cft-cft.png", "wb") as f:
+        fig.savefig(f, dpi=300)
 
     # to avoid OpenGL rendering error
     for _ in range(10):

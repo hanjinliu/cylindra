@@ -214,16 +214,14 @@ class SplineSlicer(ChildWidget):
             yield
             img = self.post_filter(img2d).value
         elif _type == CFT:
-            result = self.post_filter(self._current_cylindrical_img(idx, pos, depth))
+            result = self._current_cps(idx, pos, depth)
             if isinstance(result, Exception):
                 return self._show_overlay_text_cb.with_args(result)
             yield
-            pw = result.power_spectra(zero_norm=True, dims="rya").mean(axis="r")
-            yield
-            pw[:] = pw / pw.max()
-            img = pw.value
+            result[:] = result / result.max()
+            img = result.value
         elif _type == CFT_UP:
-            result = self.post_filter(self._current_cylindrical_img(idx, pos, depth))
+            result = self._current_cylindrical_img(idx, pos, depth)
             if isinstance(result, Exception):
                 return self._show_overlay_text_cb.with_args(result)
             yield
@@ -333,6 +331,20 @@ class SplineSlicer(ChildWidget):
         except Exception as e:
             return e
 
+    def _current_cps(self, idx: int, pos: nm, depth: nm) -> "ip.ImgArray | Exception":
+        """Return local power spectrum at the current position."""
+        binsize = self.params.binsize
+        try:
+            return self.get_cylindric_power_spectrum(
+                idx,
+                pos,
+                depth=depth,
+                binsize=binsize,
+                order=1,
+            )
+        except Exception as e:
+            return e
+
     def _get_radius(self) -> nm:
         if self.radius is None:
             idx = self.controller.spline_id
@@ -353,8 +365,7 @@ class SplineSlicer(ChildWidget):
         order: int = 3,
         half_width: nm | None = None,
     ) -> ip.ImgArray:
-        """
-        Get XYZ-coordinated image along a spline.
+        """Get XYZ-coordinated image along a spline.
 
         Parameters
         ----------
@@ -409,8 +420,7 @@ class SplineSlicer(ChildWidget):
         order: int = 3,
         radius: nm | None = None,
     ) -> ip.ImgArray:
-        """
-        Get RYΘ-coordinated cylindric image.
+        """Get RYΘ-coordinated cylindric image.
 
         Parameters
         ----------
@@ -446,6 +456,44 @@ class SplineSlicer(ChildWidget):
         anc = pos / spl.length()
         coords = spl_trans.local_cylindrical((rmin, rmax), depth, anc, scale=_scale)
         return get_polar_image(img, coords, radius=(rmin + rmax) / 2, order=order)
+
+    @nogui
+    def get_cylindric_power_spectrum(
+        self,
+        spline: int,
+        pos: nm,
+        *,
+        depth: nm = 50.0,
+        binsize: int = 1,
+        order: int = 3,
+    ) -> ip.ImgArray:
+        """Get cylindric power spectrum of given position.
+
+        Parameters
+        ----------
+        spline : int
+            The spline index.
+        pos : nm
+            Position of the center of the image. `pos` nm from the spline start
+            point will be used.
+        depth : nm, default 50.0
+            Depth of the output image. Depth corresponds to the length of the
+            direction parallel to the spline vector at the given position.
+        binsize : int, default 1
+            Image bin size to use.
+        order : int, default 3
+            Interpolation order.
+
+        Returns
+        -------
+        ip.ImgArray
+            Cylindric power spectrum.
+        """
+        result = self.get_cylindric_image(
+            spline, pos, depth=depth, binsize=binsize, order=order
+        )
+        pw = result.power_spectra(zero_norm=True, dims="rya").mean(axis="r")
+        return pw
 
     @bind_key("Esc")
     def _close_this_window(self):

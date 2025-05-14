@@ -42,8 +42,7 @@ def _replace_codes(docstring: str):
 
 def on_startup(**kwargs):
     parsers[Parser.numpy] = _dynamic_parse
-    ui = start()
-    ui.open_image(PATH_13_3)
+    start()
 
 
 def on_shutdown(**kwargs):
