@@ -95,7 +95,7 @@ ui.simulator.simulate_tomogram_and_open(
 
 To sample a short fragment from the tomogram, the `spline_slicer` widget is useful. It
 implements methods to get subtomograms and power spectra along the spline. Here we can
-use [`get_cylindric_power_spectrum`][cylindra.widgets.spline_slicer.get_cylindric_power_spectrum] to get the CFT of the cylinder.
+use [`get_cylindric_power_spectrum`][cylindra.widgets.subwidgets.SplineSlicer.get_cylindric_power_spectrum] to get the CFT of the cylinder.
 
 To plot the power spectra, we can use the popular [`matplotlib`](https://matplotlib.org/)
 package.
