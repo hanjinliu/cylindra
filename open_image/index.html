@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.13">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.14">
     
     
       
@@ -1564,6 +1564,8 @@
       
         
       
+        
+      
     
     
     
@@ -1665,6 +1667,29 @@
   
   <span class="md-ellipsis">
     Segmented Subtomogram Averaging (SSTA)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../case_studies/learning_cft/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Learning CFT
     
   </span>
   
@@ -2389,6 +2414,17 @@ loaded image can also be inverted from the menu (see
 <li><code>&lt;name of the tomogram&gt;</code>: an <a href="https://napari.org/stable/howtos/layers/image.html">Image layer</a> showing the reference image.</li>
 </ul>
 <p>The <code>"Drawing Layer"</code> will be selected, with the "add points" mode activated by default.</p>
+<details class="warning">
+<summary>Handedness since napari v0.6</summary>
+<p>Since v0.6, napari introduced full accessivility to the
+<a href="https://napari.org/stable/guides/handedness.html">axis directionality</a>, and the
+default handedness was changed from "left-handed" to "right-handed". This means that
+if you set the axis directionality to wrong parameters, tomograms and the average
+images will be flipped.
+<code>cylindra</code> will automatically change the viewer handedness to "left-handed" on
+startup, so you don't have to worry about it. However, if you find the 3D images
+flipped, you may want to <a href="https://napari.org/stable/guides/handedness.html#d-data-3d-axis-orientation-and-handedness">check the handedness</a>.</p>
+</details>
 <h3 id="use-multi-scaled-images">Use Multi-scaled Images</h3>
 <p>Tomograms can be loaded as multi-scaled images, which means that you can switch between
 the original and binned images. Many methods in <code>cylindra</code> have a <code>bin_size</code> argument.

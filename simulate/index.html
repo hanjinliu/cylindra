@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.13">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.14">
     
     
       
@@ -1566,15 +1566,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#5-simulate-a-2d-projection" class="md-nav__link">
-    <span class="md-ellipsis">
-      5. Simulate a 2D projection
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -1623,6 +1614,8 @@
       
         
           
+        
+      
         
       
         
@@ -1734,6 +1727,29 @@
   
   <span class="md-ellipsis">
     Segmented Subtomogram Averaging (SSTA)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../case_studies/learning_cft/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Learning CFT
     
   </span>
   
@@ -2410,15 +2426,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#5-simulate-a-2d-projection" class="md-nav__link">
-    <span class="md-ellipsis">
-      5. Simulate a 2D projection
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -2522,23 +2529,71 @@ molecules layer, which indicates the alpha/beta isotype of each molecule.</p>
 layer for simulation. In this method, you can select image files and assign them to one
 of the molecules layers in the viewer. The image don't have to be scaled; it will
 automatically be rescaled to the pixel scale of the tomogram.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>If you use more than one density, they should be in the same contrast range;
+otherwise, some components will be dimmer than others.</p>
+</div>
 <h2 id="simulate-tomograms-from-molecules">Simulate Tomograms from Molecules</h2>
 <p>There are several methods to simulate images from molecules.</p>
 <h3 id="1-simulate-tomograms-and-save-as-image-files">1. Simulate tomograms and save as image files</h3>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="simulate_tomogram(components, save_dir, nsr=[1.5], tilt_range=(-60.0, 60.0), n_tilt=21, ctf=None, interpolation=3, seed=None)" href="../api/widgets/subwidgets/#cylindra.widgets.subwidgets.Simulator.simulate_tomogram"><code>simulate_tomogram</code></a></p>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Simulator widget &gt; Simulate &gt; Simulate tomogram</code> ![simulate_tomogram]</p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Simulator widget &gt; Simulate &gt; Simulate tomogram</code></p>
+<p>This method is composed of following steps:</p>
+<ol>
+<li><strong>Simulate tilt series</strong>: Tilt series images are simulated by summing all the
+   projections of <a href="#asign-density-to-molecules">registered densities</a>. After this step,
+   you will get a "perfect" tilt series.</li>
+<li><strong>Apply CTF</strong> <em>(optional)</em>: Contrast transfer function (CTF) is applied to the tilt
+   series images, if CTF parameters are specified. If specified, the simulated CTF will
+   be plotted in the logger.</li>
+<li>
+<p><strong>Add white Gaussian noise</strong> <em>(optional)</em>: White Gaussian noise is added to the tilt
+   series images. Noise is defined by noise-to-signal ratio (NSR), where the "signal" is
+   the maximum intensity of the tilt series. You can specify multiple NSRs, as they use
+   the same tilt series prepared in the previous steps</p>
+<details class="note">
+<summary>Why the maximum intensity?</summary>
+<p>The maximum intensity is used to normalize the noise level for consistency
+between different type of input densities. You may think of using the mean
+intensity of the input density, but it will be affected by the size of the image;
+if you padded the image with zeros, the resulting tilt series is exactly the same
+but the noise level will be different.</p>
+</details>
+</li>
+<li>
+<p><strong>Simulate CTF correction</strong> <em>(optional)</em>: In the daily cryo-ET analysis, CTF
+   correction is usually performed on the tilt series images. You can simulate this step
+   by setting the <code>correct</code> parameter.</p>
+</li>
+<li><strong>Back-projection</strong>: The tilt series images are back-projected to generate a
+   tomogram. The height of the tomogram is automatically determined by the molecule
+   coordinates and the size of the input densities.</li>
+<li><strong>Save as image files</strong>: The simulated tomograms are saved as image files. The
+   molecules used for simulation will also be saved as a <a href="../project_io/">project</a>.</li>
+</ol>
 <h3 id="2-simulate-a-tomogram-and-open-it-in-the-viewer">2. Simulate a tomogram and open it in the viewer</h3>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="simulate_tomogram_and_open(components, nsr=1.5, bin_size=[1], tilt_range=(-60.0, 60.0), n_tilt=21, ctf=None, interpolation=3, seed=None)" href="../api/widgets/subwidgets/#cylindra.widgets.subwidgets.Simulator.simulate_tomogram_and_open"><code>simulate_tomogram_and_open</code></a></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Simulator widget &gt; Simulate &gt; Simulate tomogram and open</code></p>
+<p>This method is similar to the <a href="#1-simulate-tomograms-and-save-as-image-files">previous one</a>,
+but the simulated tomogram is immediately opened in the viewer. Because only one
+tomogram can be opened at a time, only one NSR can be specified.</p>
 <h3 id="3-simulate-tilt-series">3. Simulate tilt series</h3>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="simulate_tilt_series(components, save_dir, tilt_range=(-60.0, 60.0), n_tilt=21, interpolation=3)" href="../api/widgets/subwidgets/#cylindra.widgets.subwidgets.Simulator.simulate_tilt_series"><code>simulate_tilt_series</code></a></p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="simulate_tilt_series(components, save_dir, nsr=[0], tilt_range=(-60.0, 60.0), n_tilt=21, interpolation=3, ctf=None, seed=None)" href="../api/widgets/subwidgets/#cylindra.widgets.subwidgets.Simulator.simulate_tilt_series"><code>simulate_tilt_series</code></a></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Simulator widget &gt; Simulate &gt; Simulate tilt series</code></p>
+<p>This method is used to simulate tilt series images from the registered densities,
+without back-projection. The simulated tilt series will be saved as an image stack.</p>
+<p>This method is usually combined with
+<a href="#4-simulate-tomogram-from-a-tilt-series">the next reconstruction method</a>
+to repetitively generate multiple tomograms with different settings.</p>
 <h3 id="4-simulate-tomogram-from-a-tilt-series">4. Simulate tomogram from a tilt series</h3>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="simulate_tomogram_from_tilt_series(path, nsr=1.5, bin_size=[1], tilt_range=(-60.0, 60.0), height=50, ctf=None, interpolation=3, seed=None)" href="../api/widgets/subwidgets/#cylindra.widgets.subwidgets.Simulator.simulate_tomogram_from_tilt_series"><code>simulate_tomogram_from_tilt_series</code></a></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Simulator widget &gt; Simulate &gt; Simulate tomogram from tilt series</code></p>
-<h3 id="5-simulate-a-2d-projection">5. Simulate a 2D projection</h3>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="simulate_projection(components, save_dir, nsr=[1.5], ctf=None, interpolation=3, seed=None)" href="../api/widgets/subwidgets/#cylindra.widgets.subwidgets.Simulator.simulate_projection"><code>simulate_projection</code></a></p>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Simulator widget &gt; Simulate &gt; Simulate projection</code></p>
+<p>This method simply back-projects the tilt series images to generate a tomogram. The tilt
+axis is always the y-axis. If the tilt series is generated by
+<a href="#3-simulate-tilt-series">the previous method</a>, you can directly pass the file to this
+method. If you want to use the tilt series generated outside <code>cylindra</code>, it must be
+correctly aligned.</p>
 
 
 

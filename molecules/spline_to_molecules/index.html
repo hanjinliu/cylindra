@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.13">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.14">
     
     
       
@@ -1581,6 +1581,8 @@
       
         
       
+        
+      
     
     
     
@@ -1682,6 +1684,29 @@
   
   <span class="md-ellipsis">
     Segmented Subtomogram Averaging (SSTA)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../case_studies/learning_cft/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Learning CFT
     
   </span>
   
@@ -2418,11 +2443,18 @@ filaments.</p>
 <h4 id="molecules-for-cylinders-with-helical-symmetry">Molecules for Cylinders with Helical Symmetry</h4>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="map_along_spline_helical_symmetry(splines=None, orientation=None, prefix='Center')" href="../../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.map_along_spline_helical_symmetry"><code>map_along_spline_helical_symmetry</code></a></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Molecules &gt; From/To Splines &gt; Map along spline (helical symmetry)</code></p>
-<p>This method is useful for subsequent subtomogram averaging of cylinders with helical
-symmetry. Technically, running this method is almost equivalent to picking
+<p>Technically, running this method is almost equivalent to picking
 <a href="#molecules-on-the-cylinder-surface">molecules on the cylinder surface</a> and translating
 them back to the spline; thus, you will see a very dense line filled with molecules.</p>
 <p><img alt="Map along spline helical symmetry" loading="lazy," src="../../images/map_along_spline_helical_symmetry.png" width="400px" /></p>
+<p>Because molecules are generated based on the cylindric parameters, this method is useful
+prior to <a href="../../alignment/conventional/#subtomogram-averaging">subtomogram averaging</a> to
+checking if the parameters are correct. For example, if you have a 14_3 microtubule in
+your tomogram, and <a href="../../lattice_params/#global-cft">global-CFT analysis</a> was
+successful, you should see a 14_3 helical pattern in the average image. If the
+parameters are not correct (like 14_2), the protofilament pattern or the lateral
+interactions will be missing.</p>
+<p><img alt="Helical symmetry averaging" loading="lazy," src="../../images/helical-symmetry-avg.png" width="500px" /></p>
 <h2 id="molecules-along-a-protofilament">Molecules Along a Protofilament</h2>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="map_along_pf(spline, molecule_interval="col('spacing')", offsets=None, orientation=None, prefix='PF')" href="../../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.map_along_pf"><code>map_along_pf</code></a></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Molecules &gt; From/To Splines &gt; Map along PF</code></p>
