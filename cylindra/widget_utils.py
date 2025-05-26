@@ -324,11 +324,11 @@ class FscResult:
                 f0 = self.freq[i - 1]
                 f1 = self.freq[i]
                 fsc0 = self.mean[i - 1]
-                freq0 = (res - fsc1) / (fsc0 - fsc1) * (f0 - f1) + f1
+                freq0 = float((res - fsc1) / (fsc0 - fsc1) * (f0 - f1) + f1)
                 resolution = self.scale / freq0
                 break
         else:
-            resolution = np.nan
+            resolution = float("nan")
         return resolution
 
     def plot(self, criteria: list[float] = [0.143, 0.5]):
