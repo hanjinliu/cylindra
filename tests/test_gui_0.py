@@ -762,6 +762,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int, tmpdir):
         mask_params={"kind": "spherical", "radius": 2.3, "sigma": 0.7},
         size=12.0,
         bin_size=bin_size,
+        tolerance=0.08,
     )
     ui.sta.align_all(
         layers=["Mole-0"],
@@ -1414,6 +1415,7 @@ def test_function_menu(make_napari_viewer, tmpdir):
     im_filt = viewer.layers[-1]
     vol.threshold(im)
     vol.binary_operation(im, "add", viewer.layers[-1])
+    vol.lowpass_filter(im, 2.0)
     tmpdir = Path(tmpdir)
     vol.save_volume(viewer.layers[-1], tmpdir / "test_image.tif")
     vol.save_volume(viewer.layers[-1], tmpdir / "test_image.mrc")
@@ -1542,6 +1544,15 @@ def test_annealing(ui: CylindraMainWidget):
     )
     ui.macro.undo()
     ui.macro.redo()
+    ui.sta.align_all_rma_template_free(
+        layer_filt,
+        mask_params={"kind": "spherical", "radius": 2.3, "sigma": 0.7},
+        max_shifts=(1.2, 1.2, 1.2),
+        range_long=(dist_lon - 0.1, dist_lon + 0.1),
+        range_lat=(dist_lat - 0.1, dist_lat + 0.1),
+        angle_max=20,
+        tolerance=0.08,
+    )
     ui.filter_molecules(layer, "pl.col('pf-id') == 4")
     layer_filament = ui.mole_layers.last()
     ui.sta.align_all_rfa(
@@ -1706,7 +1717,10 @@ def test_regionprops(ui: CylindraMainWidget):
     )  # fmt: skip
     ui.count_neighbors("Mole-0")
     ui.distance_from_spline("Mole-0", spline=1)
-    dist = ui.mole_layers[0].features["distance"][13:-13]
+    dist = ui.mole_layers[0].features["distance"][26:-26]
+    assert np.all(np.abs(dist - ui.splines[0].radius) < 0.2)
+    ui.distance_from_spline("Mole-0", spline=1, extrapolation=(12.0, 12.0))
+    dist = ui.mole_layers[0].features["distance"]
     assert np.all(np.abs(dist - ui.splines[0].radius) < 0.2)
 
 

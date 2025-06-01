@@ -81,11 +81,6 @@ SIMULATED_IMAGE_NAME = "Simulated tomogram"
 _Logger = getLogger("cylindra")
 
 
-def _simulate_tomogram_from_tilt_iter():
-    yield "(0/2) Reading tilt series"
-    yield "(1/2) Back-projection"
-
-
 @magicclass(labels=False, record=False, layout="horizontal")
 class Component(ChildWidget):
     layer_name = vfield(str).with_options(enabled=False)
@@ -511,7 +506,7 @@ class Simulator(ChildWidget):
         return None
 
     @set_design(text=capitalize, location=SimulateMenu)
-    @dask_thread_worker.with_progress(descs=_simulate_tomogram_from_tilt_iter)
+    @dask_thread_worker.with_progress()
     @confirm(
         text="You have an opened image. Run anyway?",
         condition="not self._get_main().tomogram.is_dummy",
@@ -713,10 +708,14 @@ class Simulator(ChildWidget):
         scale = self._get_main().tomogram.scale
         yield _on_ctf_finished.with_args(_ctf.ctf_model, scale=scale)
         ts = self._prep_radon(components, degrees, order=interpolation)
+        _Logger.print(
+            f"Tilt series simulated. Shape: {ts.shape}, size: {ts.nbytes / 2**20:.2f} MB"
+        )
 
         # apply CTF and noise
         rng = ip.random.default_rng(seed)
         imax = ts.max()
+        _Logger.print("Convolving CTF ...")
         ts_conv = _ctf.convolve(ts)
         for i, nsr_val in enumerate(nsr):
             ts_noise = _ctf.recover(_add_noise(ts_conv, imax * nsr_val, rng))
@@ -924,8 +923,8 @@ def _on_ctf_finished(ctf_model: CTFModel | None = None, scale: float = 1.0):
         ctf_image = ctf_model.simulate_image((128, 128), scale=scale)
         _Logger.print_html(
             f"CTF was simulated with parameters:<br>"
-            f"Spherical aberration = {ctf_model.spherical_aberration} mm<br>"
-            f"Defocus = {ctf_model.defocus} μm"
+            f"Spherical aberration = {ctf_model.spherical_aberration:.2f} mm<br>"
+            f"Defocus = {ctf_model.defocus:.2f} μm"
         )
         plt.figure()
         plt.imshow(np.fft.fftshift(ctf_image), cmap="gray")

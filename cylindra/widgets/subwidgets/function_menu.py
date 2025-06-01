@@ -5,6 +5,7 @@ from typing import Annotated, Any
 import impy as ip
 import napari
 import numpy as np
+from acryo.alignment import ZNCCAlignment
 from magicclass import (
     MagicTemplate,
     impl_preview,
@@ -14,7 +15,7 @@ from magicclass import (
     set_design,
     vfield,
 )
-from magicclass.types import Path
+from magicclass.types import Optional, Path
 from magicclass.widgets import FloatRangeSlider
 from magicgui.types import Separator
 from napari.layers import Image, Labels, Layer
@@ -24,7 +25,7 @@ from cylindra.components.imscale import ScaleOptimizer
 from cylindra.components.seam_search import SeamSearchResult
 from cylindra.const import PREVIEW_LAYER_NAME, SEAM_SEARCH_RESULT, FileFilter
 from cylindra.utils import set_gpu
-from cylindra.widget_utils import FscResult, capitalize
+from cylindra.widget_utils import FscResult, add_image_to_sub_viewer, capitalize
 from cylindra.widgets._annotated import assert_layer
 
 
@@ -96,6 +97,19 @@ class Volume(MagicTemplate):
     ) -> LayerDataTuple:  # fmt: skip
         """Apply Gaussian filter to an image."""
         return self._apply_method(layer, "gaussian_filter", sigma=sigma)
+
+    @set_design(text=capitalize)
+    def lowpass_filter(
+        self,
+        layer: Image,
+        cutoff: Annotated[
+            float, {"label": "Cutoff (nm)", "max": 100.0, "step": 0.01}
+        ] = 1.0,
+    ) -> LayerDataTuple:
+        """Apply low-pass filter to an image."""
+        return self._apply_method(
+            layer, "lowpass_filter", cutoff=layer.scale[0] / cutoff
+        )
 
     @impl_preview(gaussian_filter, auto_call=True)
     def _preview_gaussian_filter(self, layer: Image, sigma: float):
@@ -223,6 +237,13 @@ class Volume(MagicTemplate):
     sep0 = Separator
 
     @set_design(text=capitalize)
+    def open_volume(self, path: Path.Read[FileFilter.IMAGE]):
+        """Open a volume as an image layer."""
+        path = Path(path)
+        img = ip.imread(path)
+        add_image_to_sub_viewer(self.parent_viewer, img, name=path.name)
+
+    @set_design(text=capitalize)
     def save_volume(self, layer: Image, path: Path.Save):
         """Save a volume as tif or mrc file."""
         img = layer.data
@@ -256,10 +277,51 @@ class Volume(MagicTemplate):
         return None
 
     @set_design(text=capitalize)
+    def fit_volume(
+        self,
+        layer: Image,
+        target_layer: Image,
+        shift_max: Annotated[float, {"max": 100, "step": 1.0}] = 3.0,
+        angle_max: Annotated[float, {"max": 180, "step": 1.0}] = 6.0,
+        angle_step: Annotated[float, {"step": 1.0}] = 2.0,
+    ) -> LayerDataTuple:
+        """Fit the input layer to the target layer."""
+        if not isinstance(layer, Image) or not isinstance(target_layer, Image):
+            raise TypeError("Both layers must be Image layers.")
+        if layer.ndim != target_layer.ndim:
+            raise ValueError("Both layers must have the same number of dimensions.")
+        img = img_orig = _convert_array(layer.data, layer.scale[-1])
+        target_img = _convert_array(target_layer.data, target_layer.scale[-1])
+        if img.scale.x > target_img.scale.x:
+            target_img = target_img.zoom(
+                target_img.scale.x / img.scale.x, mode="reflect"
+            )
+        elif img.scale.x < target_img.scale.x:
+            img = img.zoom(img.scale.x / target_img.scale.x, mode="reflect")
+        aligner = ZNCCAlignment(target_img, rotations=[(angle_max, angle_step)] * 3)
+        img_fit, al = aligner.fit(img, max_shifts=(shift_max, shift_max, shift_max))
+        _Logger.print(f"Shift: {al.shift.round(2)}")
+        _Logger.print(f"Quaternion: {al.quat.round(2)}")
+        img_fit = img_orig.affine(al.affine_matrix(img_orig.shape), order=3)
+        return (
+            img_fit,
+            {
+                "scale": layer.scale,
+                "translate": layer.translate,
+                "name": f"{layer.name}-fit",
+                "rendering": layer.rendering,
+                "blending": layer.blending,
+                "iso_threshold": layer.iso_threshold,
+            },
+            "image",
+        )
+
+    @set_design(text=capitalize)
     def calculate_scale_to_fit(
         self,
         layer: Image,
         target_layer: Image,
+        mask: Annotated[Optional[Image], {"text": "Do not use mask"}] = None,
         zoom_range: tuple[float, float] = (0.9, 1.1),
         precision: Annotated[float, {"step": 0.0001}] = 0.001,
     ):
@@ -280,8 +342,11 @@ class Volume(MagicTemplate):
 
         img = _convert_array(layer.data, layer.scale[-1])
         target_img = _convert_array(target_layer.data, target_layer.scale[-1])
+        mask_img = (
+            _convert_array(mask.data, mask.scale[-1]) if mask is not None else None
+        )
         opt = ScaleOptimizer(*zoom_range, precision=precision)
-        result = opt.fit(img, target_img)
+        result = opt.fit(img, target_img, mask=mask_img)
         with _Logger.set_plt():
             plt.figure(figsize=(3.6, 3.6))
             plt.plot(result.scales, result.scores, lw=1.5)
@@ -305,6 +370,8 @@ class Volume(MagicTemplate):
                 "translate": layer.translate,
                 "name": f"{layer.name}-{method_name}",
                 "rendering": layer.rendering,
+                "blending": layer.blending,
+                "iso_threshold": layer.iso_threshold,
             },
             "image",
         )

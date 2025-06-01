@@ -2,26 +2,27 @@ from __future__ import annotations
 
 import inspect
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from timeit import default_timer
-from typing import TYPE_CHECKING, Annotated, Any, Sequence, TypedDict
+from typing import TYPE_CHECKING, Annotated, Any, Iterable, Sequence, TypedDict
 
+import impy as ip
 import macrokit as mk
 import napari
 import numpy as np
 import polars as pl
-from acryo import Molecules
+from acryo import Molecules, SubtomogramLoader
 from magicclass.logging import getLogger
 from magicclass.types import ExprStr
 from magicclass.widgets import EvalLineEdit
 from numpy.typing import NDArray
 
 from cylindra.components._base import BaseComponent
+from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import nm
 from cylindra.types import MoleculesLayer
 
 if TYPE_CHECKING:
-    import impy as ip
     from magicclass import MagicTemplate
     from napari.layers import Labels
 
@@ -324,11 +325,11 @@ class FscResult:
                 f0 = self.freq[i - 1]
                 f1 = self.freq[i]
                 fsc0 = self.mean[i - 1]
-                freq0 = (res - fsc1) / (fsc0 - fsc1) * (f0 - f1) + f1
+                freq0 = float((res - fsc1) / (fsc0 - fsc1) * (f0 - f1) + f1)
                 resolution = self.scale / freq0
                 break
         else:
-            resolution = np.nan
+            resolution = float("nan")
         return resolution
 
     def plot(self, criteria: list[float] = [0.143, 0.5]):
@@ -353,8 +354,113 @@ class FscResult:
         xticks = np.linspace(0, 0.7, 8)
         per_nm = [r"$\infty$"] + [f"{x:.2f}" for x in self.scale / xticks[1:]]
         plt.xticks(xticks, per_nm)
-        plt.tight_layout()
-        plt.show()
+
+
+@dataclass
+class TemplateFreeAlignmentState:
+    """State of the template-free alignment."""
+
+    niter: int = 0
+    fsc_arr: pl.Series | None = None
+    converged: bool = False
+    rng: np.random.Generator = field(default_factory=np.random.default_rng)
+
+    def eval_fsc(
+        self,
+        loader: SubtomogramLoader,
+        mask,
+        tolerance: float = 0.01,
+    ) -> tuple[FscResult, NDArray[np.float32]]:
+        """Evaluate the loader with the current state."""
+        fsc_result, avg = loader.fsc_with_average(
+            mask,
+            seed=self.rng.integers(0, 2**32),
+        )
+        if self.fsc_arr is None:
+            self.fsc_arr = fsc_result["FSC-0"].to_numpy()
+        else:
+            fsc_diff = fsc_result["FSC-0"].to_numpy() - self.fsc_arr
+            if np.mean(fsc_diff) < tolerance:
+                self.converged = True
+            self.fsc_arr = fsc_result["FSC-0"].to_numpy()
+        avg = ip.asarray(avg, axes="zyx").set_scale(zyx=loader.scale, unit="nm")
+        return FscResult.from_dataframe(fsc_result, loader.scale), avg
+
+
+class MoleculesCombiner:
+    """Class to split/combine molecules for batch analysis."""
+
+    def __init__(self, identifier: str = ".molecule_object_id"):
+        self._identifier = identifier
+
+    def concat(self, molecules: Molecules | Iterable[Molecules]) -> Molecules:
+        if isinstance(molecules, Molecules):
+            return molecules
+        inputs = list[Molecules]()
+        for i, mole in enumerate(molecules):
+            inputs.append(
+                mole.with_features(
+                    pl.Series(self._identifier, np.full(len(mole), i, dtype=np.uint32))
+                )
+            )
+        return Molecules.concat(inputs)
+
+    def split(
+        self, molecules: Molecules, layers: list[MoleculesLayer]
+    ) -> list[Molecules]:
+        if self._identifier not in molecules.features.columns:
+            return molecules
+        out = list[Molecules]()
+        for i, (_, mole) in enumerate(molecules.groupby(self._identifier)):
+            mole0 = mole.drop_features(self._identifier)
+            layer = layers[i]
+            if spl := layer.source_spline:
+                mole0 = update_mole_pos(mole0, layer.molecules, spl)
+            out.append(mole0)
+        return out
+
+
+def update_mole_pos(new: Molecules, old: Molecules, spl: CylSpline) -> Molecules:
+    """Update the "position-nm" feature of molecules.
+
+    Feature "position-nm" is the coordinate of molecules along the source spline.
+    After alignment, this feature should be updated accordingly. This fucntion
+    will do this.
+    """
+    if Mole.position not in old.features.columns:
+        return new
+    _u = spl.y_to_position(old.features[Mole.position])
+    vec = spl.map(_u, der=1)  # the tangent vector of the spline
+    vec_norm = vec / np.linalg.norm(vec, axis=1, keepdims=True)
+    dy = np.sum((new.pos - old.pos) * vec_norm, axis=1)
+    return new.with_features(pl.col(Mole.position) + dy)
+
+
+def add_image_to_sub_viewer(
+    viewer: napari.Viewer,
+    image: ip.ImgArray,
+    name: str | None = None,
+    threshold: float | None = None,
+) -> None:
+    """Add an image to the sub-viewer."""
+    image.scale_unit = "nm"
+    viewer.scale_bar.visible = True
+    viewer.scale_bar.unit = "nm"
+    if threshold is None:
+        from skimage.filters.thresholding import threshold_yen
+
+        threshold = threshold_yen(image.value)
+
+    _scale = np.array(image.scale)
+    return viewer.add_image(
+        image,
+        scale=_scale,
+        translate=-(np.array(image.shape, dtype=np.float32) - 1) / 2 * _scale,
+        name=name,
+        rendering="iso",
+        iso_threshold=threshold,
+        blending="opaque",
+    )
 
 
 def coordinates_with_extensions(

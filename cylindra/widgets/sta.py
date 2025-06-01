@@ -3,9 +3,10 @@ import warnings
 import weakref
 from contextlib import suppress
 from enum import Enum
-from typing import TYPE_CHECKING, Annotated, Any, Iterable, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal
 
 import impy as ip
+import matplotlib.pyplot as plt
 import napari
 import numpy as np
 import polars as pl
@@ -173,6 +174,7 @@ METHOD_CHOICES = (
     ("Zero-mean Normalized Cross Correlation", "zncc"),
 )
 _Logger = getLogger("cylindra")
+_Logger.widget._image_default_width = 520
 
 
 def _get_alignment(method: str) -> "type[alignment.BaseAlignmentModel]":
@@ -273,7 +275,7 @@ class mask_path(MagicTemplate):
 
 
 @magicclass(layout="horizontal", widget_type="groupbox", visible=False, record=False)
-class SphericalMaskParameters(MagicTemplate):
+class SphericalParameters(MagicTemplate):
     """Parameters for spherical mask creation.
 
     Attributes
@@ -331,6 +333,7 @@ class Alignment(MagicTemplate):
     sep0 = Separator
     align_all_viterbi = abstractapi()
     align_all_rma = abstractapi()
+    align_all_rma_template_free = abstractapi()
     align_all_rfa = abstractapi()
     save_annealing_scores = abstractapi()
     sep1 = Separator
@@ -379,7 +382,7 @@ class StaParameters(MagicTemplate):
     mask_choice = vfield(MaskChoice.no_mask, label="Mask")
     params = field(MaskParameters, name="blur parameters")
     mask_path = field(mask_path)
-    params_spherical = field(SphericalMaskParameters, name="sphere parameters")
+    params_spherical = field(SphericalParameters, name="sphere parameters")
 
     _last_average: ip.ImgArray | None = None  # the global average result
     _viewer: "napari.Viewer | None" = None
@@ -536,26 +539,10 @@ class StaParameters(MagicTemplate):
             viewer.window.activate()
             with suppress(Exception):  # napari>=0.6.0
                 viewer.camera.orientation = ("away", "down", "right")
-        image.scale_unit = "nm"
-        _viewer: napari.Viewer = StaParameters._viewer
-        _viewer.scale_bar.visible = True
-        _viewer.scale_bar.unit = "nm"
         if store:
             self._set_last_average(image)
-        if threshold is None:
-            from skimage.filters.thresholding import threshold_yen
-
-            threshold = threshold_yen(image.value)
-
-        _scale = np.array(image.scale)
-        return _viewer.add_image(
-            image,
-            scale=_scale,
-            translate=-(np.array(image.shape, dtype=np.float32) - 1) / 2 * _scale,
-            name=name,
-            rendering="iso",
-            iso_threshold=threshold,
-            blending="opaque",
+        return widget_utils.add_image_to_sub_viewer(
+            StaParameters._viewer, image, name=name, threshold=threshold
         )
 
 
@@ -964,7 +951,10 @@ class SubtomogramAveraging(ChildWidget):
 
             # write offsets to spline globalprops if available
             if spl := layer.source_spline:
-                _mole_trans = _update_mole_pos(_mole_trans, mole, spl)
+                _Logger.print(
+                    f"Layer {layer.name} has a source spline, update its globalprops."
+                )
+                _mole_trans = widget_utils.update_mole_pos(_mole_trans, mole, spl)
                 if spl.radius is None:
                     _radius: nm = cylmeasure.calc_radius(mole, spl).mean()
                 else:
@@ -1044,7 +1034,7 @@ class SubtomogramAveraging(ChildWidget):
         layers = assert_list_of_layers(layers, self.parent_viewer)
         main = self._get_main()
 
-        combiner = MoleculesCombiner()
+        combiner = widget_utils.MoleculesCombiner()
 
         loader = self._get_loader(
             binsize=bin_size,
@@ -1076,25 +1066,28 @@ class SubtomogramAveraging(ChildWidget):
         size: _SubVolumeSize = 12.0,
         max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
-        cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
         bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
         tolerance: float = 0.01,
     ):  # fmt: skip
-        """Run template-free alignment for the given layers (EXPERIMENTAL).
+        """Iteratively align molecules and validate using FSC without template.
 
         Parameters
         ----------
-        {layers}{mask_params}{size}{max_shifts}{rotations}{cutoff}{interpolation}
+        {layers}{mask_params}{size}{max_shifts}{rotations}{interpolation}
         {method}{bin_size}
+        seed : int, optional
+            Random seed for FSC calculation.
+        tolerance : float, default 0.01
+            Tolerance for convergence of the FSC calculation.
         """
         t0 = timer()
         rng = np.random.default_rng(seed)
         layers = assert_list_of_layers(layers, self.parent_viewer)
         main = self._get_main()
-        combiner = MoleculesCombiner()
+        combiner = widget_utils.MoleculesCombiner()
         molecules = combiner.concat(layer.molecules for layer in layers)
         mask = self.params._get_mask(params=mask_params)
         if size is None:
@@ -1106,44 +1099,29 @@ class SubtomogramAveraging(ChildWidget):
         aligned_loader = current_loader = self._get_loader(
             binsize=bin_size, molecules=molecules, order=interpolation
         ).reshape(shape=shape)
-        fsc_arr: pl.Series | None = None
-        criteria = [0.5, 0.143]
+        _alignment_state = widget_utils.TemplateFreeAlignmentState(rng=rng)
 
-        @thread_worker.callback
-        def _calculate_current_fsc(result: widget_utils.FscResult, num: int):
-            _Logger.print(f"Iteration {int(num)}")
-            with _Logger.set_plt():
-                result.plot(criteria)
-            for _c in criteria:
-                _r = result.get_resolution(_c)
-                _Logger.print_html(f"Resolution at FSC={_c:.3f} ... <b>{_r:.3f} nm</b>")
-
-        niter = 0
         while True:
-            yield thread_worker.description(f"Calculating FSC for iteration {niter}")
-            fsc_result, avg = aligned_loader.fsc_with_average(
+            yield thread_worker.description(
+                f"Calculating FSC for iteration {_alignment_state.niter}"
+            )
+            fsc_result, avg = _alignment_state.eval_fsc(
+                aligned_loader,
                 mask,
-                seed=rng.integers(0, 2**32),
+                tolerance=tolerance,
             )
-            if fsc_arr is None:
-                fsc_arr = fsc_result["FSC-0"].to_numpy()
-            else:
-                fsc_diff = fsc_result["FSC-0"].to_numpy() - fsc_arr
-                if np.mean(fsc_diff) < tolerance:
-                    _Logger.print("FSC converged.")
-                    break
-                fsc_arr = fsc_result["FSC-0"].to_numpy()
-            result = widget_utils.FscResult.from_dataframe(
-                fsc_result, current_loader.scale
-            )
-            yield _calculate_current_fsc.with_args(result, niter).with_desc(
-                f"Alignment for iteration {niter}"
-            )
-            niter += 1
+            yield _plot_current_fsc.with_args(
+                fsc_result, _alignment_state.niter, avg
+            ).with_desc(f"Alignment for iteration {_alignment_state.niter}")
+            if _alignment_state.converged:
+                _Logger.print("FSC converged.")
+                yield self._show_rec.with_args(avg, f"[Aligned]{_avg_name(layers)}")
+                break
+            _alignment_state.niter += 1
             aligned_loader = current_loader.align(
                 avg, mask=mask, max_shifts=max_shifts, rotations=rotations,
-                cutoff=cutoff, alignment_model=_get_alignment(method),
-                tilt=main.tomogram.tilt_model,
+                cutoff=current_loader.scale / fsc_result.get_resolution(0.143),
+                alignment_model=_get_alignment(method),
             )  # fmt: skip
 
         molecules = combiner.split(aligned_loader.molecules, layers)
@@ -1183,7 +1161,7 @@ class SubtomogramAveraging(ChildWidget):
         """
         t0 = timer()
         layer = assert_layer(layer, self.parent_viewer)
-        landscape = self._construct_landscape(
+        landscape, _ = self._construct_landscape(
             molecules=layer.molecules,
             template_path=template_path,
             mask_params=mask_params,
@@ -1254,7 +1232,7 @@ class SubtomogramAveraging(ChildWidget):
         _Logger.print(
             f"Constructing correlation landscape on {layer.name} ({layer.molecules.count()} molecules) for RMA ..."
         )
-        landscape = self._construct_landscape(
+        landscape, _ = self._construct_landscape(
             molecules=layer.molecules,
             template_path=template_path,
             mask_params=mask_params,
@@ -1281,6 +1259,133 @@ class SubtomogramAveraging(ChildWidget):
             points = main.add_molecules(
                 mole,
                 name=_coerce_aligned_name(layer.name, self.parent_viewer),
+                source=layer.source_component,
+                metadata={ANNEALING_RESULT: results[0]},
+            )
+            layer.visible = False
+            with _Logger.set_plt():
+                _annealing.plot_annealing_result(results)
+            return self._undo_for_new_layer([layer.name], [points])
+
+        return _on_return
+
+    @set_design(text="Simulated annealing (RMA, template free)", location=Alignment)
+    @dask_worker.with_progress()
+    def align_all_rma_template_free(
+        self,
+        layer: MoleculesLayerType,
+        mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
+        size: _SubVolumeSize = 12.0,
+        max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
+        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
+        range_long: _DistRangeLon = (4.0, 4.28),
+        range_lat: _DistRangeLat = (5.1, 5.3),
+        angle_max: _AngleMaxLon = 5.0,
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 0.7,
+        upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
+        seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
+        tolerance: float = 0.01,
+    ):  # fmt: skip
+        """2D-constrained subtomogram alignment using simulated annealing.
+
+        This alignment method considers the distance between every adjacent monomers.
+        Two-dimensionally connected optimization can be approximated by the simulated
+        annealing algorithm.
+
+        Parameters
+        ----------
+        {layer}{mask_params}{max_shifts}{rotations}{interpolation}{range_long}
+        {range_lat}{angle_max}{bin_size}
+        {temperature_time_const}{upsample_factor}
+        seed : int, optional
+            Random seed for FSC calculation.
+        tolerance : float, default 0.01
+            Tolerance for convergence of the FSC calculation.
+        """
+        t0 = timer()
+        layer = assert_layer(layer, self.parent_viewer)
+        if layer.source_spline is None:
+            raise ValueError(
+                "RMA requires a spline but the input layer is not connected to any splines."
+            )
+        main = self._get_main()
+        if size is None:
+            raise NotImplementedError("'size' must be given.")
+        else:
+            shape = tuple(
+                main.tomogram.nm2pixel(self._get_shape_in_nm(size), binsize=bin_size)
+            )
+        rng = np.random.default_rng(seed)
+        mask = self.params._get_mask(params=mask_params)
+
+        aligned_loader = current_loader = self._get_loader(
+            binsize=bin_size, molecules=layer.molecules, order=interpolation
+        ).reshape(shape=shape)
+        _alignment_state = widget_utils.TemplateFreeAlignmentState(rng=rng)
+
+        @thread_worker.callback
+        def _plot_annealing_result(results):
+            with _Logger.set_plt():
+                _annealing.plot_annealing_result(results)
+
+        next_layer_name = _coerce_aligned_name(layer.name, self.parent_viewer)
+        while True:
+            yield thread_worker.description(
+                f"Calculating FSC (iteration {_alignment_state.niter})"
+            )
+            fsc_result, avg = _alignment_state.eval_fsc(
+                aligned_loader, mask, tolerance=tolerance
+            )
+            yield _plot_current_fsc.with_args(
+                fsc_result, _alignment_state.niter, avg
+            ).with_desc(f"Landscape construction (iteration {_alignment_state.niter})")
+            if _alignment_state.converged:
+                _Logger.print("FSC converged.")
+                yield self._show_rec.with_args(avg, f"[Aligned]{next_layer_name}")
+                break
+            _alignment_state.niter += 1
+            landscape = Landscape.from_loader(
+                loader=current_loader,
+                template=avg,
+                mask=self.params._get_mask(params=mask_params),
+                max_shifts=max_shifts,
+                upsample_factor=upsample_factor,
+                alignment_model=_get_alignment(method).with_params(
+                    rotations=rotations,
+                    cutoff=current_loader.scale / fsc_result.get_resolution(0.143),
+                    tilt=main.tomogram.tilt_model,
+                ),
+            )
+            yield thread_worker.description(
+                f"Running RMA (iteration {_alignment_state.niter})"
+            )
+            mole, results = landscape.run_annealing_along_spline(
+                layer.source_spline,
+                range_long=range_long,
+                range_lat=range_lat,
+                angle_max=angle_max,
+                temperature_time_const=temperature_time_const,
+                random_seeds=rng.integers(0, 2**32, size=3).tolist(),
+            )
+            aligned_loader = SubtomogramLoader(
+                current_loader.image,
+                mole,
+                order=current_loader.order,
+                scale=current_loader.scale,
+                output_shape=current_loader.output_shape,
+            )
+            yield _plot_annealing_result.with_args(results)
+
+        t0.toc()
+
+        @thread_worker.callback
+        def _on_return():
+            points = main.add_molecules(
+                aligned_loader.molecules,
+                name=next_layer_name,
                 source=layer.source_component,
                 metadata={ANNEALING_RESULT: results[0]},
             )
@@ -1328,7 +1433,7 @@ class SubtomogramAveraging(ChildWidget):
         _Logger.print(
             f"Constructing correlation landscape on {layer.name} ({layer.molecules.count()} molecules) for RFA ..."
         )
-        landscape = self._construct_landscape(
+        landscape, _ = self._construct_landscape(
             molecules=layer.molecules,
             template_path=template_path,
             mask_params=mask_params,
@@ -1424,7 +1529,7 @@ class SubtomogramAveraging(ChildWidget):
                 _annealing.plot_annealing_result(results)
 
         def _construct_landscape(mole_):
-            landscape_ = self._construct_landscape(
+            landscape_, _ = self._construct_landscape(
                 molecules=mole_, template_path=template_path, mask_params=mask_params,
                 max_shifts=max_shifts, rotations=rotations, cutoff=cutoff, norm=False,
                 order=interpolation, bin_size=bin_size, upsample_factor=upsample_factor,
@@ -1515,7 +1620,7 @@ class SubtomogramAveraging(ChildWidget):
             deviation.
         """
         layer = assert_layer(layer, self.parent_viewer)
-        lnd = self._construct_landscape(
+        lnd, _ = self._construct_landscape(
             molecules=layer.molecules, template_path=template_path,
             mask_params=mask_params, max_shifts=max_shifts, rotations=rotations,
             cutoff=cutoff, order=interpolation, bin_size=bin_size, norm=norm,
@@ -1772,7 +1877,7 @@ class SubtomogramAveraging(ChildWidget):
         """
         layers = assert_list_of_layers(layers, self.parent_viewer)
         main = self._get_main()
-        combiner = MoleculesCombiner()
+        combiner = widget_utils.MoleculesCombiner()
 
         if isinstance(template_path, (Path, str)):
             template_path = [template_path]
@@ -1877,6 +1982,8 @@ class SubtomogramAveraging(ChildWidget):
             _Logger.print_html(f"<b>Fourier Shell Correlation of {_name!r}</b>")
             with _Logger.set_plt():
                 result.plot(criteria)
+                plt.tight_layout()
+                plt.show()
             for _c in criteria:
                 _r = result.get_resolution(_c)
                 _Logger.print_html(f"Resolution at FSC={_c:.3f} ... <b>{_r:.3f} nm</b>")
@@ -2290,7 +2397,7 @@ class SubtomogramAveraging(ChildWidget):
         bin_size: int = 1,
         method: str = "zncc",
         norm: bool = True,
-    ):  # fmt: skip
+    ) -> tuple[Landscape, SubtomogramLoader]:
         parent = self._get_main()
         loader = parent.tomogram.get_subtomogram_loader(
             molecules, binsize=bin_size, order=order
@@ -2309,7 +2416,7 @@ class SubtomogramAveraging(ChildWidget):
                 tilt=parent.tomogram.tilt_model,
             ),
         )
-        return landscape.normed() if norm else landscape
+        return landscape.normed() if norm else landscape, loader
 
 
 def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):
@@ -2375,23 +2482,6 @@ def _default_align_averaged_shifts(mole: Molecules) -> "NDArray[np.floating]":
     return (dy * 0.6, dy * 0.6, dx * 0.6)
 
 
-def _update_mole_pos(new: Molecules, old: Molecules, spl: "CylSpline") -> Molecules:
-    """
-    Update the "position-nm" feature of molecules.
-
-    Feature "position-nm" is the coordinate of molecules along the source spline.
-    After alignment, this feature should be updated accordingly. This fucntion
-    will do this.
-    """
-    if Mole.position not in old.features.columns:
-        return new
-    _u = spl.y_to_position(old.features[Mole.position])
-    vec = spl.map(_u, der=1)  # the tangent vector of the spline
-    vec_norm = vec / np.linalg.norm(vec, axis=1, keepdims=True)
-    dy = np.sum((new.pos - old.pos) * vec_norm, axis=1)
-    return new.with_features(pl.col(Mole.position) + dy)
-
-
 def _update_offset(spl: "CylSpline", dr: tuple[nm, nm, nm], radius: nm):
     _dz, _dy, _dx = dr
     _offset_y = _dy
@@ -2413,37 +2503,21 @@ def _update_offset(spl: "CylSpline", dr: tuple[nm, nm, nm], radius: nm):
     )
 
 
-class MoleculesCombiner:
-    """Class to split/combine molecules for batch analysis."""
-
-    def __init__(self, identifier: str = ".molecule_object_id"):
-        self._identifier = identifier
-
-    def concat(self, molecules: "Molecules | Iterable[Molecules]") -> Molecules:
-        if isinstance(molecules, Molecules):
-            return molecules
-        inputs = list[Molecules]()
-        for i, mole in enumerate(molecules):
-            inputs.append(
-                mole.with_features(
-                    pl.Series(self._identifier, np.full(len(mole), i, dtype=np.uint32))
-                )
-            )
-        return Molecules.concat(inputs)
-
-    def split(
-        self, molecules: Molecules, layers: list[MoleculesLayer]
-    ) -> list[Molecules]:
-        if self._identifier not in molecules.features.columns:
-            return molecules
-        out = list[Molecules]()
-        for i, (_, mole) in enumerate(molecules.groupby(self._identifier)):
-            mole0 = mole.drop_features(self._identifier)
-            layer = layers[i]
-            if spl := layer.source_spline:
-                mole0 = _update_mole_pos(mole0, layer.molecules, spl)
-            out.append(mole0)
-        return out
+@thread_worker.callback
+def _plot_current_fsc(result: widget_utils.FscResult, num: int, avg: ip.ImgArray):
+    criteria = [0.5, 0.143]
+    _Logger.print(f"Iteration {int(num)}")
+    with _Logger.set_plt():
+        _, axes = plt.subplots(figsize=(8, 4), ncols=2)
+        plt.sca(axes[0])
+        result.plot(criteria)
+        plt.sca(axes[1])
+        plt.imshow(np.mean(avg, axis=0), cmap="gray")
+        plt.tight_layout()
+        plt.show()
+    for _c in criteria:
+        _r = result.get_resolution(_c)
+        _Logger.print_html(f"Resolution at FSC={_c:.3f} ... <b>{_r:.3f} nm</b>")
 
 
 impl_preview(SubtomogramAveraging.align_all_rma, text="Preview molecule network")(

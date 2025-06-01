@@ -16,13 +16,14 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Framework :: napari",
 ]
 license = { file = "LICENSE" }
 dynamic = ["version"]
 dependencies = [
     "impy-array>=2.4.5",
-    "acryo>=0.4.17",
+    "acryo>=0.5.0",
     "macro-kit>=0.4.6",
     "magicgui>=0.8.1",
     "magic-class>=0.7.16",
