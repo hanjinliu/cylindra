@@ -1072,7 +1072,7 @@ class SubtomogramAveraging(ChildWidget):
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
         tolerance: float = 0.01,
     ):  # fmt: skip
-        """Run template-free alignment for the given layers (EXPERIMENTAL).
+        """Iteratively align molecules and validate using FSC without template.
 
         Parameters
         ----------

@@ -762,6 +762,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int, tmpdir):
         mask_params={"kind": "spherical", "radius": 2.3, "sigma": 0.7},
         size=12.0,
         bin_size=bin_size,
+        tolerance=0.08,
     )
     ui.sta.align_all(
         layers=["Mole-0"],
@@ -1550,6 +1551,7 @@ def test_annealing(ui: CylindraMainWidget):
         range_long=(dist_lon - 0.1, dist_lon + 0.1),
         range_lat=(dist_lat - 0.1, dist_lat + 0.1),
         angle_max=20,
+        tolerance=0.08,
     )
     ui.filter_molecules(layer, "pl.col('pf-id') == 4")
     layer_filament = ui.mole_layers.last()
