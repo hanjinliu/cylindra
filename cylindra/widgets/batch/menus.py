@@ -19,6 +19,7 @@ class BatchRefinement(MagicTemplate):
     """Refinement of subtomograms."""
 
     align_all = abstractapi()
+    align_all_template_free = abstractapi()
 
 
 @magicmenu

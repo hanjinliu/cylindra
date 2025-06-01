@@ -18,6 +18,7 @@ from magicclass.utils import thread_worker
 from cylindra.const import FileFilter
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.project import CylindraBatchProject
+from cylindra.utils import parse_tilt_model
 from cylindra.widget_utils import POLARS_NAMESPACE, capitalize
 from cylindra.widgets._accessors import BatchLoaderAccessor
 from cylindra.widgets.batch._loaderlist import LoaderList
@@ -93,10 +94,16 @@ class CylindraBatchWidget(MagicTemplate):
                     scale = prj.scale
                 else:
                     scale = img.scale.x
+            if prj := path_info.project_instance():
+                tilt = prj.missing_wedge.as_param()
+                if tilt is not None:
+                    tilt = parse_tilt_model(tilt)
+            else:
+                tilt = None
             for molecule_id, mole in enumerate(
                 path_info.iter_molecules(_temp_feat, scale)
             ):
-                loader.add_tomogram(img.value, mole, img_id)
+                loader.add_tomogram(img.value, mole, img_id, tilt_model=tilt)
                 yield img_id / len(paths), molecule_id / len(path_info.molecules)
             yield (img_id + 1) / len(paths), 0.0
         yield 1.0, 1.0

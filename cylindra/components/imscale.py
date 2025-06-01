@@ -33,15 +33,22 @@ class ScaleOptimizer(ScaleOptimizerBase):
         self,
         img: ip.ImgArray,
         img_ref: ip.ImgArray,
-        mask: NDArray[np.float32] | None = None,
+        mask: ip.ImgArray | None = None,
     ) -> OptimizationResult:
         scales = []
         scores = []
+        if img.scale.x > img_ref.scale.x:
+            img_ref = img_ref.zoom(img_ref.scale.x / img.scale.x, mode="reflect")
+        elif img.scale.x < img_ref.scale.x:
+            img = img.zoom(img.scale.x / img_ref.scale.x, mode="reflect")
+        if mask is None:
+            mask = 1
+        elif mask.scale.x != img.scale.x:
+            mask = mask.zoom(mask.scale.x / img.scale.x, mode="reflect")
         img_ref_normed = img_ref - np.mean(img_ref)
         zmin, zmax = self._zoom_min, self._zoom_max
         diff = (zmax - zmin) / (self._num - 1)
-        if mask is None:
-            mask = 1
+
         while img.scale.x * diff > self._precision:
             cur_scores = []
             cur_factors = np.linspace(zmin, zmax, self._num)

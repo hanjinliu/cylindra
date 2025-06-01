@@ -2788,6 +2788,7 @@ class CylindraMainWidget(MagicTemplate):
         spline: Annotated[int, {"choices": _get_splines}],
         column_name: str = "distance",
         interval: nm = 1.0,
+        extrapolation: tuple[nm, nm] = (0.0, 0.0),
     ):
         """Add a new column that stores the shortest distance from the given spline.
 
@@ -2799,14 +2800,20 @@ class CylindraMainWidget(MagicTemplate):
         interval: nm, default 1.0
             Sampling interval along the spline. Note that small value will increase the
             memory usage and computation time.
+        extrapolation : tuple of float, default (0.0, 0.0)
+            Extrapolation distance at the start and end of the spline.
         """
         spl = self.tomogram.splines[spline]
         layer = assert_layer(layer, self.parent_viewer)
+        ext_0, ext_1 = extrapolation
         if interval <= 0:
-            raise ValueError("`precision` must be positive.")
+            raise ValueError("`interval` must be positive.")
         feat, cmap_info = layer.molecules.features, layer.colormap_info
-        npartitions = utils.ceilint(spl.length() / interval)
-        sample_points = spl.map(np.linspace(0, 1, npartitions))
+        length = spl.length()
+        npartitions = utils.ceilint((length + ext_0 + ext_1) / interval)
+        sample_points = spl.map(
+            np.linspace(-ext_0 / length, 1 + ext_1 / length, npartitions)
+        )
         dist = utils.distance_matrix(layer.molecules.pos, sample_points)
         dist_min = pl.Series(column_name, np.min(dist, axis=1))
         layer.molecules = layer.molecules.with_features(dist_min)

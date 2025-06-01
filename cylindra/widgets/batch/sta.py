@@ -2,6 +2,7 @@ import re
 from typing import TYPE_CHECKING, Annotated, Any
 
 import impy as ip
+import matplotlib.pyplot as plt
 import numpy as np
 from acryo import BatchLoader
 from magicclass import (
@@ -28,7 +29,13 @@ from cylindra import _shared_doc
 from cylindra.const import ALN_SUFFIX, nm
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.utils import roundint
-from cylindra.widget_utils import FscResult, PolarsExprStr, norm_expr, timer
+from cylindra.widget_utils import (
+    FscResult,
+    PolarsExprStr,
+    TemplateFreeAlignmentState,
+    norm_expr,
+    timer,
+)
 from cylindra.widgets._annotated import FSCFreq
 from cylindra.widgets._widget_ext import RotationsEdit
 from cylindra.widgets.batch._loaderlist import LoaderList
@@ -42,6 +49,7 @@ from cylindra.widgets.sta import (
     METHOD_CHOICES,
     StaParameters,
     _get_alignment,
+    _plot_current_fsc,
 )
 
 if TYPE_CHECKING:
@@ -368,6 +376,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
             template=self.params._norm_template_param(template_path),
             mask=self.params._get_mask(params=mask_params),
         )
+        _Logger.print(f"Aligning {loader.molecules.count()} molecules ...")
         aligned = (
             loader.replace(output_shape=template.shape, order=interpolation)
             .binning(bin_size, compute=False)
@@ -382,6 +391,77 @@ class BatchSubtomogramAveraging(MagicTemplate):
         )
         loaderlist.add_loader(
             aligned,
+            name=_coerce_aligned_name(info.name, loaderlist),
+            image_paths=info.image_paths,
+            invert=info.invert,
+        )
+        t0.toc()
+        return None
+
+    @set_design(text="Align all (template-free)", location=BatchRefinement)
+    @dask_thread_worker.with_progress()
+    def align_all_template_free(
+        self,
+        loader_name: Annotated[str, {"bind": _get_current_loader_name}],
+        mask_params: Annotated[Any, {"bind": _get_mask_params}],
+        size: _SubVolumeSize = 12.0,
+        max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
+        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
+        bin_size: _BINSIZE = 1,
+        seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
+        tolerance: float = 0.01,
+    ):  # fmt: skip
+        """Run template-free alignment for the given layers (EXPERIMENTAL).
+
+        Parameters
+        ----------
+        {loader_name}{mask_params}{size}{max_shifts}{rotations}{interpolation}
+        {method}{bin_size}
+        seed : int, optional
+            Random seed for FSC calculation.
+        tolerance : float, default 0.01
+            Tolerance for convergence of the FSC calculation.
+        """
+        t0 = timer()
+        rng = np.random.default_rng(seed)
+        loaderlist = self._get_parent()._loaders
+        info = loaderlist[loader_name]
+        loader = info.loader
+        mask = self.params._get_mask(params=mask_params)
+        shape = self._get_shape_in_px(size, loader)
+        aligned_loader = current_loader = loader.replace(
+            output_shape=shape, order=interpolation
+        ).binning(bin_size, compute=False)
+        _Logger.print(f"Aligning {loader.molecules.count()} molecules ...")
+        _alignment_state = TemplateFreeAlignmentState(rng=rng)
+
+        while True:
+            yield thread_worker.description(
+                f"Calculating FSC for iteration {_alignment_state.niter}"
+            )
+            fsc_result, avg = _alignment_state.eval_fsc(
+                aligned_loader,
+                mask,
+                tolerance=tolerance,
+            )
+            yield _plot_current_fsc.with_args(
+                fsc_result, _alignment_state.niter, avg
+            ).with_desc(f"Alignment for iteration {_alignment_state.niter}")
+            if _alignment_state.converged:
+                _Logger.print("FSC converged.")
+                yield self._show_rec.with_args(avg, f"[Aligned]{info.name}")
+                break
+            _alignment_state.niter += 1
+            aligned_loader = current_loader.align(
+                avg, mask=mask, max_shifts=max_shifts, rotations=rotations,
+                cutoff=current_loader.scale / fsc_result.get_resolution(0.143),
+                alignment_model=_get_alignment(method),
+            )  # fmt: skip
+
+        loaderlist.add_loader(
+            aligned_loader,
             name=_coerce_aligned_name(info.name, loaderlist),
             image_paths=info.image_paths,
             invert=info.invert,
@@ -458,6 +538,8 @@ class BatchSubtomogramAveraging(MagicTemplate):
             _Logger.print_html(f"<b>Fourier Shell Correlation of {loader_name!r}</b>")
             with _Logger.set_plt():
                 result.plot(criteria)
+                plt.tight_layout()
+                plt.show()
             for _c in criteria:
                 _r = result.get_resolution(_c)
                 _Logger.print_html(f"Resolution at FSC={_c:.3f} ... <b>{_r:.3f} nm</b>")

@@ -6,12 +6,13 @@ from typing import TYPE_CHECKING, Any, Iterable, overload
 
 import impy as ip
 import numpy as np
-from acryo.tilt import NoWedge, TiltSeriesModel, dual_axis, single_axis
+from acryo.tilt import NoWedge, TiltSeriesModel, single_axis
 from acryo.tilt.core import SingleAxisX, SingleAxisY, UnionAxes
 from numpy.typing import NDArray
 
 from cylindra._config import get_config
 from cylindra.const import nm
+from cylindra.utils import parse_tilt_model
 
 if TYPE_CHECKING:
     from acryo import Molecules, SubtomogramLoader
@@ -149,7 +150,7 @@ class Tomogram:
         img: ip.ImgArray | ip.LazyImgArray,
         *,
         scale: float | None = None,
-        tilt: tuple[float, float] | None = None,
+        tilt: TiltSeriesModel | dict[str, Any] | None = None,
         binsize: int | Iterable[int] = (),
         compute: bool = True,
     ):
@@ -190,23 +191,7 @@ class Tomogram:
         if source := img.source:
             self._metadata["source"] = source.resolve()
         self._metadata["scale"] = scale
-        # parse tilt model
-        if not isinstance(tilt, TiltSeriesModel):
-            if isinstance(tilt, dict):
-                match tilt["kind"]:
-                    case "none":
-                        tilt = NoWedge()
-                    case "x" | "y":
-                        tilt = single_axis(tilt["range"], tilt["kind"])
-                    case "dual":
-                        tilt = dual_axis(tilt["yrange"], tilt["xrange"])
-                    case _:  # pragma: no cover
-                        raise ValueError(
-                            f"Tilt model {tilt!r} not in a correct format."
-                        )
-            else:
-                tilt = single_axis(tilt)
-        self._tilt_model = tilt
+        self._tilt_model = parse_tilt_model(tilt)
 
         if isinstance(binsize, int):
             binsize = [binsize]
@@ -407,14 +392,11 @@ class Tomogram:
         kwargs = {
             "order": order,
             "scale": self.scale * binsize,
+            "tilt_model": self.tilt_model,
         }
         if output_shape is not None:
             kwargs["output_shape"] = tuple(self.nm2pixel(output_shape, binsize=binsize))
-        return SubtomogramLoader(
-            img.value,
-            mole,
-            **kwargs,
-        )
+        return SubtomogramLoader(img.value, mole, **kwargs)
 
 
 def _norm_dtype(img: ip.LazyImgArray):

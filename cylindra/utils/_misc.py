@@ -9,6 +9,7 @@ from typing import Callable, Sequence, TypeVar
 import impy as ip
 import numpy as np
 import polars as pl
+from acryo.tilt import NoWedge, TiltSeriesModel, dual_axis, single_axis
 from dask import array as da
 from numpy.typing import NDArray
 from scipy import ndimage as ndi
@@ -331,6 +332,23 @@ def find_tilt_angles(dirpath: Path) -> NDArray[np.float32] | None:
             pass
         else:
             return tilt_angle
+
+
+def parse_tilt_model(tilt) -> TiltSeriesModel:
+    if not isinstance(tilt, TiltSeriesModel):
+        if isinstance(tilt, dict):
+            match tilt["kind"]:
+                case "none":
+                    tilt = NoWedge()
+                case "x" | "y":
+                    tilt = single_axis(tilt["range"], tilt["kind"])
+                case "dual":
+                    tilt = dual_axis(tilt["yrange"], tilt["xrange"])
+                case _:  # pragma: no cover
+                    raise ValueError(f"Tilt model {tilt!r} not in a correct format.")
+        else:
+            tilt = single_axis(tilt)
+    return tilt
 
 
 class Projections:
