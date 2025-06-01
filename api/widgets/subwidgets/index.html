@@ -2653,7 +2653,12 @@
 
               <details class="quote">
                 <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">146</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">141</span>
+<span class="normal">142</span>
+<span class="normal">143</span>
+<span class="normal">144</span>
+<span class="normal">145</span>
+<span class="normal">146</span>
 <span class="normal">147</span>
 <span class="normal">148</span>
 <span class="normal">149</span>
@@ -3365,8 +3370,7 @@
 <span class="normal">855</span>
 <span class="normal">856</span>
 <span class="normal">857</span>
-<span class="normal">858</span>
-<span class="normal">859</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">use_native_menubar</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="normal">858</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">use_native_menubar</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">Simulator</span><span class="p">(</span><span class="n">ChildWidget</span><span class="p">):</span>
     <span class="nd">@magicmenu</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Create&quot;</span><span class="p">)</span>
     <span class="k">class</span><span class="w"> </span><span class="nc">CreateMenu</span><span class="p">(</span><span class="n">ChildWidget</span><span class="p">):</span>
@@ -3734,7 +3738,7 @@
         <span class="k">return</span> <span class="kc">None</span>
 
     <span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">SimulateMenu</span><span class="p">)</span>
-    <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">descs</span><span class="o">=</span><span class="n">_simulate_tomogram_from_tilt_iter</span><span class="p">)</span>
+    <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">()</span>
     <span class="nd">@confirm</span><span class="p">(</span>
         <span class="n">text</span><span class="o">=</span><span class="s2">&quot;You have an opened image. Run anyway?&quot;</span><span class="p">,</span>
         <span class="n">condition</span><span class="o">=</span><span class="s2">&quot;not self._get_main().tomogram.is_dummy&quot;</span><span class="p">,</span>
@@ -3936,10 +3940,14 @@
         <span class="n">scale</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_main</span><span class="p">()</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">scale</span>
         <span class="k">yield</span> <span class="n">_on_ctf_finished</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="n">_ctf</span><span class="o">.</span><span class="n">ctf_model</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">scale</span><span class="p">)</span>
         <span class="n">ts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prep_radon</span><span class="p">(</span><span class="n">components</span><span class="p">,</span> <span class="n">degrees</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">)</span>
+        <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Tilt series simulated. Shape: </span><span class="si">{</span><span class="n">ts</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">, size: </span><span class="si">{</span><span class="n">ts</span><span class="o">.</span><span class="n">nbytes</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">2</span><span class="o">**</span><span class="mi">20</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> MB&quot;</span>
+        <span class="p">)</span>
 
         <span class="c1"># apply CTF and noise</span>
         <span class="n">rng</span> <span class="o">=</span> <span class="n">ip</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
         <span class="n">imax</span> <span class="o">=</span> <span class="n">ts</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+        <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="s2">&quot;Convolving CTF ...&quot;</span><span class="p">)</span>
         <span class="n">ts_conv</span> <span class="o">=</span> <span class="n">_ctf</span><span class="o">.</span><span class="n">convolve</span><span class="p">(</span><span class="n">ts</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">nsr_val</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">nsr</span><span class="p">):</span>
             <span class="n">ts_noise</span> <span class="o">=</span> <span class="n">_ctf</span><span class="o">.</span><span class="n">recover</span><span class="p">(</span><span class="n">_add_noise</span><span class="p">(</span><span class="n">ts_conv</span><span class="p">,</span> <span class="n">imax</span> <span class="o">*</span> <span class="n">nsr_val</span><span class="p">,</span> <span class="n">rng</span><span class="p">))</span>
@@ -4162,7 +4170,12 @@ corresponding molecules layer.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">210</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">205</span>
+<span class="normal">206</span>
+<span class="normal">207</span>
+<span class="normal">208</span>
+<span class="normal">209</span>
+<span class="normal">210</span>
 <span class="normal">211</span>
 <span class="normal">212</span>
 <span class="normal">213</span>
@@ -4180,12 +4193,7 @@ corresponding molecules layer.</p>
 <span class="normal">225</span>
 <span class="normal">226</span>
 <span class="normal">227</span>
-<span class="normal">228</span>
-<span class="normal">229</span>
-<span class="normal">230</span>
-<span class="normal">231</span>
-<span class="normal">232</span>
-<span class="normal">233</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;fluent:cloud-add-16-filled&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">SimulatorTools</span><span class="p">)</span>
+<span class="normal">228</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;fluent:cloud-add-16-filled&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">SimulatorTools</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">add_component</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -4278,7 +4286,12 @@ corresponding molecules layer.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">235</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">230</span>
+<span class="normal">231</span>
+<span class="normal">232</span>
+<span class="normal">233</span>
+<span class="normal">234</span>
+<span class="normal">235</span>
 <span class="normal">236</span>
 <span class="normal">237</span>
 <span class="normal">238</span>
@@ -4307,12 +4320,7 @@ corresponding molecules layer.</p>
 <span class="normal">261</span>
 <span class="normal">262</span>
 <span class="normal">263</span>
-<span class="normal">264</span>
-<span class="normal">265</span>
-<span class="normal">266</span>
-<span class="normal">267</span>
-<span class="normal">268</span>
-<span class="normal">269</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">CreateMenu</span><span class="p">)</span>
+<span class="normal">264</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">CreateMenu</span><span class="p">)</span>
 <span class="nd">@thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Creating an image&quot;</span><span class="p">)</span>
 <span class="nd">@confirm</span><span class="p">(</span>
     <span class="n">text</span><span class="o">=</span><span class="s2">&quot;You have an opened image. Run anyway?&quot;</span><span class="p">,</span>
@@ -4464,7 +4472,12 @@ corresponding molecules layer.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">288</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">283</span>
+<span class="normal">284</span>
+<span class="normal">285</span>
+<span class="normal">286</span>
+<span class="normal">287</span>
+<span class="normal">288</span>
 <span class="normal">289</span>
 <span class="normal">290</span>
 <span class="normal">291</span>
@@ -4495,12 +4508,7 @@ corresponding molecules layer.</p>
 <span class="normal">316</span>
 <span class="normal">317</span>
 <span class="normal">318</span>
-<span class="normal">319</span>
-<span class="normal">320</span>
-<span class="normal">321</span>
-<span class="normal">322</span>
-<span class="normal">323</span>
-<span class="normal">324</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">CreateMenu</span><span class="p">)</span>
+<span class="normal">319</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">CreateMenu</span><span class="p">)</span>
 <span class="nd">@thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Creating an image&quot;</span><span class="p">)</span>
 <span class="nd">@confirm</span><span class="p">(</span>
     <span class="n">text</span><span class="o">=</span><span class="s2">&quot;You have an opened image. Run anyway?&quot;</span><span class="p">,</span>
@@ -4606,7 +4614,12 @@ corresponding molecules layer.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">271</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">266</span>
+<span class="normal">267</span>
+<span class="normal">268</span>
+<span class="normal">269</span>
+<span class="normal">270</span>
+<span class="normal">271</span>
 <span class="normal">272</span>
 <span class="normal">273</span>
 <span class="normal">274</span>
@@ -4616,12 +4629,7 @@ corresponding molecules layer.</p>
 <span class="normal">278</span>
 <span class="normal">279</span>
 <span class="normal">280</span>
-<span class="normal">281</span>
-<span class="normal">282</span>
-<span class="normal">283</span>
-<span class="normal">284</span>
-<span class="normal">285</span>
-<span class="normal">286</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">CreateMenu</span><span class="p">)</span>
+<span class="normal">281</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">CreateMenu</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">create_straight_line</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start</span><span class="p">:</span> <span class="n">_Point3D</span><span class="p">,</span> <span class="n">end</span><span class="p">:</span> <span class="n">_Point3D</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a straight line as a spline.</span>
 
@@ -4755,7 +4763,8 @@ will be shifted to alleviate the local expansion.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">795</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">794</span>
+<span class="normal">795</span>
 <span class="normal">796</span>
 <span class="normal">797</span>
 <span class="normal">798</span>
@@ -4785,8 +4794,7 @@ will be shifted to alleviate the local expansion.</p>
 <span class="normal">822</span>
 <span class="normal">823</span>
 <span class="normal">824</span>
-<span class="normal">825</span>
-<span class="normal">826</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;iconoir:scale-frame-enlarge&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">SimulatorTools</span><span class="p">)</span>
+<span class="normal">825</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;iconoir:scale-frame-enlarge&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">SimulatorTools</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">dilate</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">_ModeledMoleculesLayer</span><span class="p">,</span>
@@ -4924,7 +4932,8 @@ with odd numbering by 0.1 nm, you can set <code>expand</code> to
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">828</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">827</span>
+<span class="normal">828</span>
 <span class="normal">829</span>
 <span class="normal">830</span>
 <span class="normal">831</span>
@@ -4954,8 +4963,7 @@ with odd numbering by 0.1 nm, you can set <code>expand</code> to
 <span class="normal">855</span>
 <span class="normal">856</span>
 <span class="normal">857</span>
-<span class="normal">858</span>
-<span class="normal">859</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;fluent:arrow-move-20-filled&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">SimulatorTools</span><span class="p">)</span>
+<span class="normal">858</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;fluent:arrow-move-20-filled&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">SimulatorTools</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">displace</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">_ModeledMoleculesLayer</span><span class="p">,</span>
@@ -5105,7 +5113,8 @@ will be shifted to alleviate the local expansion.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">729</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">728</span>
+<span class="normal">729</span>
 <span class="normal">730</span>
 <span class="normal">731</span>
 <span class="normal">732</span>
@@ -5135,8 +5144,7 @@ will be shifted to alleviate the local expansion.</p>
 <span class="normal">756</span>
 <span class="normal">757</span>
 <span class="normal">758</span>
-<span class="normal">759</span>
-<span class="normal">760</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;iconoir:expand-lines&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">SimulatorTools</span><span class="p">)</span>
+<span class="normal">759</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;iconoir:expand-lines&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">SimulatorTools</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">expand</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">_ModeledMoleculesLayer</span><span class="p">,</span>
@@ -5287,7 +5295,12 @@ the number of molecules. This function should be called first.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">329</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">324</span>
+<span class="normal">325</span>
+<span class="normal">326</span>
+<span class="normal">327</span>
+<span class="normal">328</span>
+<span class="normal">329</span>
 <span class="normal">330</span>
 <span class="normal">331</span>
 <span class="normal">332</span>
@@ -5332,12 +5345,7 @@ the number of molecules. This function should be called first.</p>
 <span class="normal">371</span>
 <span class="normal">372</span>
 <span class="normal">373</span>
-<span class="normal">374</span>
-<span class="normal">375</span>
-<span class="normal">376</span>
-<span class="normal">377</span>
-<span class="normal">378</span>
-<span class="normal">379</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;fluent:select-object-skew-20-regular&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">SimulatorTools</span><span class="p">)</span>
+<span class="normal">374</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;fluent:select-object-skew-20-regular&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">SimulatorTools</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">generate_molecules</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">spline</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;bind&quot;</span><span class="p">:</span> <span class="n">_get_spline_idx</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
@@ -5505,7 +5513,12 @@ the number of molecules. This function should be called first.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">681</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">676</span>
+<span class="normal">677</span>
+<span class="normal">678</span>
+<span class="normal">679</span>
+<span class="normal">680</span>
+<span class="normal">681</span>
 <span class="normal">682</span>
 <span class="normal">683</span>
 <span class="normal">684</span>
@@ -5550,8 +5563,7 @@ the number of molecules. This function should be called first.</p>
 <span class="normal">723</span>
 <span class="normal">724</span>
 <span class="normal">725</span>
-<span class="normal">726</span>
-<span class="normal">727</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">SimulateMenu</span><span class="p">)</span>
+<span class="normal">726</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">SimulateMenu</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Simulating tilt series...&quot;</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">simulate_tilt_series</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -5586,10 +5598,14 @@ the number of molecules. This function should be called first.</p>
     <span class="n">scale</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_main</span><span class="p">()</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">scale</span>
     <span class="k">yield</span> <span class="n">_on_ctf_finished</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="n">_ctf</span><span class="o">.</span><span class="n">ctf_model</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">scale</span><span class="p">)</span>
     <span class="n">ts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prep_radon</span><span class="p">(</span><span class="n">components</span><span class="p">,</span> <span class="n">degrees</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">)</span>
+    <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;Tilt series simulated. Shape: </span><span class="si">{</span><span class="n">ts</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">, size: </span><span class="si">{</span><span class="n">ts</span><span class="o">.</span><span class="n">nbytes</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">2</span><span class="o">**</span><span class="mi">20</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> MB&quot;</span>
+    <span class="p">)</span>
 
     <span class="c1"># apply CTF and noise</span>
     <span class="n">rng</span> <span class="o">=</span> <span class="n">ip</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
     <span class="n">imax</span> <span class="o">=</span> <span class="n">ts</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+    <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="s2">&quot;Convolving CTF ...&quot;</span><span class="p">)</span>
     <span class="n">ts_conv</span> <span class="o">=</span> <span class="n">_ctf</span><span class="o">.</span><span class="n">convolve</span><span class="p">(</span><span class="n">ts</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">nsr_val</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">nsr</span><span class="p">):</span>
         <span class="n">ts_noise</span> <span class="o">=</span> <span class="n">_ctf</span><span class="o">.</span><span class="n">recover</span><span class="p">(</span><span class="n">_add_noise</span><span class="p">(</span><span class="n">ts_conv</span><span class="p">,</span> <span class="n">imax</span> <span class="o">*</span> <span class="n">nsr_val</span><span class="p">,</span> <span class="n">rng</span><span class="p">))</span>
@@ -5769,7 +5785,12 @@ be applied to the projections.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">431</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">426</span>
+<span class="normal">427</span>
+<span class="normal">428</span>
+<span class="normal">429</span>
+<span class="normal">430</span>
+<span class="normal">431</span>
 <span class="normal">432</span>
 <span class="normal">433</span>
 <span class="normal">434</span>
@@ -5844,12 +5865,7 @@ be applied to the projections.</p>
 <span class="normal">503</span>
 <span class="normal">504</span>
 <span class="normal">505</span>
-<span class="normal">506</span>
-<span class="normal">507</span>
-<span class="normal">508</span>
-<span class="normal">509</span>
-<span class="normal">510</span>
-<span class="normal">511</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">SimulateMenu</span><span class="p">)</span>
+<span class="normal">506</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">SimulateMenu</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">()</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">simulate_tomogram</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -6100,7 +6116,12 @@ be applied to the projections.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">591</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">586</span>
+<span class="normal">587</span>
+<span class="normal">588</span>
+<span class="normal">589</span>
+<span class="normal">590</span>
+<span class="normal">591</span>
 <span class="normal">592</span>
 <span class="normal">593</span>
 <span class="normal">594</span>
@@ -6183,12 +6204,7 @@ be applied to the projections.</p>
 <span class="normal">671</span>
 <span class="normal">672</span>
 <span class="normal">673</span>
-<span class="normal">674</span>
-<span class="normal">675</span>
-<span class="normal">676</span>
-<span class="normal">677</span>
-<span class="normal">678</span>
-<span class="normal">679</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">SimulateMenu</span><span class="p">)</span>
+<span class="normal">674</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">SimulateMenu</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Simulating tomogram...&quot;</span><span class="p">)</span>
 <span class="nd">@confirm</span><span class="p">(</span>
     <span class="n">text</span><span class="o">=</span><span class="s2">&quot;You have an opened image. Run anyway?&quot;</span><span class="p">,</span>
@@ -6445,7 +6461,12 @@ be applied to the projections.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">513</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">508</span>
+<span class="normal">509</span>
+<span class="normal">510</span>
+<span class="normal">511</span>
+<span class="normal">512</span>
+<span class="normal">513</span>
 <span class="normal">514</span>
 <span class="normal">515</span>
 <span class="normal">516</span>
@@ -6516,13 +6537,8 @@ be applied to the projections.</p>
 <span class="normal">581</span>
 <span class="normal">582</span>
 <span class="normal">583</span>
-<span class="normal">584</span>
-<span class="normal">585</span>
-<span class="normal">586</span>
-<span class="normal">587</span>
-<span class="normal">588</span>
-<span class="normal">589</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">SimulateMenu</span><span class="p">)</span>
-<span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">descs</span><span class="o">=</span><span class="n">_simulate_tomogram_from_tilt_iter</span><span class="p">)</span>
+<span class="normal">584</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">SimulateMenu</span><span class="p">)</span>
+<span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">()</span>
 <span class="nd">@confirm</span><span class="p">(</span>
     <span class="n">text</span><span class="o">=</span><span class="s2">&quot;You have an opened image. Run anyway?&quot;</span><span class="p">,</span>
     <span class="n">condition</span><span class="o">=</span><span class="s2">&quot;not self._get_main().tomogram.is_dummy&quot;</span><span class="p">,</span>
@@ -6716,7 +6732,8 @@ will be shifted to alleviate the local expansion.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/subwidgets/simulator.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">762</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">761</span>
+<span class="normal">762</span>
 <span class="normal">763</span>
 <span class="normal">764</span>
 <span class="normal">765</span>
@@ -6746,8 +6763,7 @@ will be shifted to alleviate the local expansion.</p>
 <span class="normal">789</span>
 <span class="normal">790</span>
 <span class="normal">791</span>
-<span class="normal">792</span>
-<span class="normal">793</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;mingcute:rotate-x-line&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">SimulatorTools</span><span class="p">)</span>
+<span class="normal">792</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;mingcute:rotate-x-line&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">SimulatorTools</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">twist</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">_ModeledMoleculesLayer</span><span class="p">,</span>
