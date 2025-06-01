@@ -139,14 +139,15 @@ def test_align(ui: CylindraMainWidget, binsize: int):
         mask_params=(2.0, 2.0),
         bin_size=binsize,
     )
+    ui.batch.sta.calculate_fsc("Loader", mask_params=None, size=6.0)
+    assert len(ui.sta.sub_viewer.layers) == 1
     ui.batch.sta.align_all_template_free(
         "Loader",
         mask_params={"kind": "spherical", "radius": 2.3, "sigma": 0.7},
         bin_size=binsize,
         tolerance=0.08,
     )
-    ui.batch.sta.calculate_fsc("Loader", mask_params=None, size=6.0)
-    assert len(ui.sta.sub_viewer.layers) == 1
+    assert len(ui.sta.sub_viewer.layers) == 2
     ui.batch.sta.split_loader("Loader", by="pf-id", delete_old=True)
     ui.batch.sta.show_loader_info()
 
