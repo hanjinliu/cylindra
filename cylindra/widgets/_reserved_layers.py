@@ -24,7 +24,7 @@ class ReservedLayers:
     """A class that stores layers reserved for a cylindra session."""
 
     def __init__(self):
-        self.image = Image(np.zeros((1, 1, 1)))
+        self.image = Image(ip.zeros((1, 1, 1), axes="zyx"))
         self.prof = _prof_layer()
         self.work = _work_layer()
         self.highlight = Points(

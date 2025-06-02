@@ -63,6 +63,7 @@ from cylindra.widgets._annotated import (
     assert_layer,
     assert_list_of_layers,
 )
+from cylindra.widgets._callbacks import on_ctf_finished
 from cylindra.widgets._main_utils import (
     AutoSaver,
     SplineTracker,
@@ -809,13 +810,11 @@ class CylindraMainWidget(MagicTemplate):
         self,
         kv: Annotated[float, {"label": "Voltage [kV]"}] = 300.0,
         cs: Annotated[float, {"label": "Cs [mm]"}] = 2.7,
-        defocus: Annotated[
-            float, {"label": "Defocus [um]", "min": -100, "max": 0}
-        ] = -3.0,
+        defocus: Annotated[float, {"label": "Defocus [um]", "min": -100, "max": 0}] = -3.0,
         bfactor: Annotated[float, {"label": "B-factor"}] = 0.0,
         snr_falloff: Annotated[float, {"label": "SNR fall-off", "max": 10.0}] = 0.7,
         phase_flipped: Annotated[bool, {"text": "Phase flipped"}] = True,
-    ):
+    ):  # fmt: skip
         """Deconvolve the reference image using CTF info with Wiener filter."""
         if self.tomogram.is_dummy:
             _Logger.print("No tomogram is loaded. Skip deconvolution.")
@@ -824,6 +823,7 @@ class CylindraMainWidget(MagicTemplate):
         t0 = timer()
         ctf = CTFModel.from_kv(kv, cs, defocus=defocus, bfactor=bfactor)
         scale = self._reserved_layers.scale
+        yield on_ctf_finished.with_args(ctf, scale)
         img_deconv = ctf.deconvolve(
             self._reserved_layers.image_data.value,
             scale=scale,

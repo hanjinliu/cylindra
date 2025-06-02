@@ -156,7 +156,8 @@ scaled images, and the reference image) using this method.
 Note that [`open_image`](#open-an-image) can also run this method by specifying the
 `invert` argument.
 
-### Filter the Reference Image
+### Process the Reference Image
+#### Filter the Reference Image
 
 :material-arrow-right-thin-circle-outline: API: [`filter_reference_image`][cylindra.widgets.main.CylindraMainWidget.filter_reference_image].
 
@@ -173,14 +174,35 @@ Currently, following filters are implemented:
 Note that [`open_image`](#open-an-image) can also run this method by specifying the
 `filter` argument.
 
-### Use Custom Reference
+#### Deconvolve the Reference Image
+
+:material-arrow-right-thin-circle-outline: API: [`deconvolve_reference_image`][cylindra.widgets.main.CylindraMainWidget.deconvolve_reference_image].
+
+:material-arrow-right-thin-circle-outline: GUI: `Image > Deconvolve reference image`
+
+If you have information about the contrast transfer function (CTF) of the tomogram,
+you can run Wiener deconvolution on the reference image. This will improve the quality
+of the reference image much better than the filtering methods.
+
+The implementation of this method is directly ported from [IsoNet](https://github.com/IsoNet-cryoET/IsoNet) (MIT license).
+
+#### Saving the Reference Image
+
+:material-arrow-right-thin-circle-outline: API: [`save_reference_image`][cylindra.widgets.main.CylindraMainWidget.save_reference_image].
+:material-arrow-right-thin-circle-outline: GUI: `File > Save reference image`
+
+The processed reference image can be saved to a file. The save path will be recorded
+when the project is saved, and the reference image can directly be used when the project
+is loaded. See [Load & Save Projects](project_io.md) for more details.
+
+#### Use Custom Reference
 
 :material-arrow-right-thin-circle-outline: API: [`open_reference_image`][cylindra.widgets.main.CylindraMainWidget.open_reference_image].
 
-:material-arrow-right-thin-circle-outline: GUI: `Image > Open reference image`
+:material-arrow-right-thin-circle-outline: GUI: `File > Open reference image`
 
-There are many softwares that implement powerful denoising and deconvolution methods,
-such as [Topaz](https://github.com/tbepler/topaz) and [cryoCARE](https://github.com/juglab/cryoCARE_pip).
-It is a good idea to use these noise-reduced images as the reference image while using
+There are many softwares that implement powerful denoising methods, such as
+[Topaz](https://github.com/tbepler/topaz), [cryoCARE](https://github.com/juglab/cryoCARE_pip) and [IsoNet](https://github.com/IsoNet-cryoET/IsoNet).
+It is a good idea to use these denoised images as the reference image while using
 the original image for the analysis. In this case, you can load any image as the
 reference using `open_reference_image`.
