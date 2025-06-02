@@ -51,11 +51,13 @@ class ManualPicker(ChildWidget):
         def __init__(self):
             self._old_binsize = 1
 
-        def _get_available_binsize(self, widget=None) -> "list[int]":
+        def _get_available_binsize(self, widget=None) -> "list[tuple[str, int]]":
+            """List up all available bin sizes (0 means using reference)."""
             try:
-                return self._get_main()._get_available_binsize(widget)
+                bin_sizes = self._get_main()._get_available_binsize(widget)
             except Exception:
-                return []
+                bin_sizes = []
+            return bin_sizes + [("Reference image", 0)]
 
         depth = vfield(4.0, label="depth (nm)").with_options(min=1.0, max=200.0, step=1.0)  # fmt: skip
         width_ = vfield(80.0, label="width (nm)").with_options(min=10.0, max=300.0, step=1.0)  # fmt: skip
@@ -204,19 +206,23 @@ class ManualPicker(ChildWidget):
             .translate_internal([0, self.Rot.focus, 0])
         )
 
-    def _calc_image_slice(self):
+    def _calc_image_slice(self) -> tuple[ip.ImgArray, "Molecules"]:
         tomo = self._get_main().tomogram
-        binsize = self.params.binsize
+        bsize = self.params.binsize
+        if bsize == 0:
+            img = self._get_main()._reserved_layers.image_data
+            bsize = img.scale.x / tomo.scale
+        else:
+            img = tomo._get_multiscale_or_original(bsize)
 
         # Calculate the coordinates
         mole = self._molecule_at_pos()
-        scale = tomo.scale * binsize
+        scale = tomo.scale * bsize
         d_px = roundint(self.params.depth / scale)
         w_px = roundint(self.params.width_ / scale)
         coords = mole.local_coordinates((w_px, d_px, w_px), scale)
 
         # trasform image
-        img = tomo._get_multiscale_or_original(self.params.binsize)
         try:
             out = map_coordinates(img, coords, order=1).mean(axis="y")[:, ::-1]
         except ValueError:
@@ -240,9 +246,10 @@ class ManualPicker(ChildWidget):
             return
         main = self._get_main()
         img, mole = self._calc_image_slice()
+        bsize = self._true_bin_size()
 
         if self.Row0.image_params.enable_lowpass:
-            scale = main.tomogram.scale * self.params.binsize
+            scale = main.tomogram.scale * bsize
             cutoff = self.Row0.image_params.lowpass_cutoff.value / scale
             cutoff_rel = 0.5 / cutoff
             img = img.lowpass_filter(cutoff_rel)
@@ -251,7 +258,7 @@ class ManualPicker(ChildWidget):
         def _update_image():
             self.canvas.image = img
             self.canvas.text_overlay.visible = False
-            factor = self.params._old_binsize / self.params.binsize
+            factor = self.params._old_binsize / bsize
             if factor != 1:
                 xlim = [(v + 0.5) * factor - 0.5 for v in self.canvas.xlim]
                 ylim = [(v + 0.5) * factor - 0.5 for v in self.canvas.ylim]
@@ -261,7 +268,7 @@ class ManualPicker(ChildWidget):
                 img_min, img_max = img.min(), img.max()
                 eps = 0.01 * (img_max - img_min)
                 self.canvas.contrast_limits = img_min + eps, img_max - eps
-            self.params._old_binsize = self.params.binsize
+            self.params._old_binsize = bsize
 
             # update point slices
             xdata, zdata, radius = self._points_in_canvas(img, mole)
@@ -279,7 +286,8 @@ class ManualPicker(ChildWidget):
 
     def _points_in_canvas(self, img: np.ndarray, mole: "Molecules"):
         main = self._get_main()
-        scale = main.tomogram.scale * self.params.binsize
+        bsize = self._true_bin_size()
+        scale = main.tomogram.scale * bsize
         data_transformed = mole.rotator.inv().apply(
             main._reserved_layers.work.data - mole.pos
         )
@@ -312,7 +320,8 @@ class ManualPicker(ChildWidget):
 
     def _plane_pos_to_world_pos(self, y: float, x: float):
         cy, cx = (np.array(self.canvas.image.shape) - 1) / 2
-        scale = self._get_main().tomogram.scale * self.params.binsize
+        bsize = self._true_bin_size()
+        scale = self._get_main().tomogram.scale * bsize
         vx, vy = -(x - cx) * scale, (y - cy) * scale
         mole = self._molecule_at_pos()
         world_pos = mole.x.ravel() * vx + mole.z.ravel() * vy + mole.pos.ravel()
@@ -348,6 +357,13 @@ class ManualPicker(ChildWidget):
         self._layer_points.data = xdata, zdata
         self._layer_points.size = radius * 2
         return None
+
+    def _true_bin_size(self) -> float:
+        bsize = self.params.binsize
+        if bsize == 0:
+            main = self._get_main()
+            bsize = main._reserved_layers.image_data.scale.x / main.tomogram.scale
+        return bsize
 
     @Rot.roll.connect
     @Rot.pitch.connect

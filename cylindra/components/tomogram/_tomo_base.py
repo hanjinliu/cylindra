@@ -288,14 +288,14 @@ class Tomogram:
         return None
 
     @overload
-    def nm2pixel(self, value: nm, binsize: int = 1) -> int: ...
+    def nm2pixel(self, value: nm, binsize: float = 1) -> int: ...
 
     @overload
     def nm2pixel(
-        self, value: Iterable[nm] | NDArray[np.number], binsize: int = 1
+        self, value: Iterable[nm] | NDArray[np.number], binsize: float = 1
     ) -> NDArray[np.intp]: ...
 
-    def nm2pixel(self, value, binsize: int = 1):
+    def nm2pixel(self, value, binsize: float = 1):
         """Convert nm float value into pixel value. Useful for conversion from
         coordinate to pixel position.
 
@@ -354,7 +354,7 @@ class Tomogram:
                 out = self.image
         return out
 
-    def multiscale_translation(self, binsize: int) -> nm:
+    def multiscale_translation(self, binsize: float) -> nm:
         """Get lateral translation of binned image in nm."""
         return (binsize - 1) / 2 * self.scale
 

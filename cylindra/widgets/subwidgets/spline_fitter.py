@@ -136,9 +136,11 @@ class SplineFitter(ChildWidget):
         i = self.num.value
         return np.round(self.shifts[i], 3)
 
-    def _get_binsize(self) -> int:
+    def _get_binsize(self) -> float:
+        """Get the float bin size."""
+        # NOTE: If the reference image is
         parent = self._get_main()
-        return roundint(parent._reserved_layers.scale / parent.tomogram.scale)
+        return parent._reserved_layers.scale / parent.tomogram.scale
 
     def _get_max_interval(self, _=None) -> nm:
         return self._max_interval

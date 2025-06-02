@@ -42,7 +42,7 @@ class CylindraToolbar(ChildWidget):
         points = main._reserved_layers.work.data
         if len(points) < 2:
             raise IndexError("Auto picking needs at least two points.")
-        imgb = max(main.tomogram.multiscaled, key=lambda x: x[0])[1]
+        imgb = main._reserved_layers.image_data
         scale = imgb.scale.x
         next_point = picker.iter_pick(imgb, points[-1], points[-2]).next()
         main._reserved_layers.work.add(next_point)

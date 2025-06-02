@@ -354,8 +354,11 @@ def test_load_macro(ui: CylindraMainWidget, tmpdir):
 
 def test_spline_control(ui: CylindraMainWidget, tmpdir):
     path = TEST_DIR / "13pf_MT.tif"
+    tmpdir = Path(tmpdir)
     ui.open_image(path=path, scale=1.052, tilt_range=(-60, 60), bin_size=2)
+    ui.deconvolve_reference_image()
     ui.filter_reference_image()
+    ui.save_reference_image(tmpdir / "ref.mrc")
     ui.register_path(coords=coords_13pf)
     ui.register_path(coords=coords_13pf[::-1])
 
@@ -460,13 +463,19 @@ def test_spline_control(ui: CylindraMainWidget, tmpdir):
     ui.OthersMenu.open_command_palette()
     ui.LocalProperties.copy_screenshot()
     ui.SplineControl.copy_screenshot()
-    ui.SplineControl.save_screenshot(Path(tmpdir) / "img.png")
-    ui.LocalProperties.save_screenshot(Path(tmpdir) / "img.png")
+    ui.SplineControl.save_screenshot(tmpdir / "img.png")
+    ui.LocalProperties.save_screenshot(tmpdir / "img.png")
     ui.SplineControl.log_screenshot()
     ui.LocalProperties.log_screenshot()
     cfg = get_config()
     ui.OthersMenu.configure_cylindra(use_gpu=cfg.use_gpu)
     cfg.to_user_dir()
+
+    ui.save_project(tmpdir / "test_spline_control.tar")
+    ui.load_project(
+        tmpdir / "test_spline_control.tar", read_image=False, read_reference=True
+    )
+    assert ui._reserved_layers.image_data.source == tmpdir / "ref.mrc"
 
 
 def test_preview(ui: CylindraMainWidget):
@@ -1419,6 +1428,9 @@ def test_function_menu(make_napari_viewer, tmpdir):
     tmpdir = Path(tmpdir)
     vol.save_volume(viewer.layers[-1], tmpdir / "test_image.tif")
     vol.save_volume(viewer.layers[-1], tmpdir / "test_image.mrc")
+    vol.open_volume(viewer.layers[-1], tmpdir / "test_image.tif")
+    vol.open_volume(viewer.layers[-1], tmpdir / "test_image.mrc")
+    vol.fit_volume(viewer.layers[-2], viewer.layers[-1], angle_max=2)
     lbl = viewer.add_labels((img < 320).astype(np.int32), name="test labels")
     vol.save_label_as_mask(lbl, tmpdir / "test_label.tif")
     vol.save_label_as_mask(lbl, tmpdir / "test_label.mrc")
@@ -1765,6 +1777,7 @@ def test_image_processor(ui: CylindraMainWidget, tmpdir):
     ui.image_processor.invert(input_path, output_path)
     ui.image_processor.lowpass_filter(input_path, output_path)
     ui.image_processor.binning(input_path, output_path, bin_size=2)
+    ui.image_processor.change_pixel_size(input_path, output_path, scale=1.102)
     ui.image_processor.flip(input_path, output_path, axes="z")
     ui.image_processor.preview(input_path)
 
