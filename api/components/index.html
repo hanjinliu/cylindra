@@ -20908,14 +20908,14 @@ subtomogram cache will automatically deleted from the old ones.</p>
         <span class="k">return</span> <span class="kc">None</span>
 
     <span class="nd">@overload</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">nm2pixel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">nm</span><span class="p">,</span> <span class="n">binsize</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span> <span class="o">...</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">nm2pixel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">nm</span><span class="p">,</span> <span class="n">binsize</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span> <span class="o">...</span>
 
     <span class="nd">@overload</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">nm2pixel</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">nm</span><span class="p">]</span> <span class="o">|</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">number</span><span class="p">],</span> <span class="n">binsize</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">nm</span><span class="p">]</span> <span class="o">|</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">number</span><span class="p">],</span> <span class="n">binsize</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">1</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">intp</span><span class="p">]:</span> <span class="o">...</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">nm2pixel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">binsize</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">nm2pixel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">binsize</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">1</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert nm float value into pixel value. Useful for conversion from</span>
 <span class="sd">        coordinate to pixel position.</span>
 
@@ -20974,7 +20974,7 @@ subtomogram cache will automatically deleted from the old ones.</p>
                 <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image</span>
         <span class="k">return</span> <span class="n">out</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">multiscale_translation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">binsize</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nm</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">multiscale_translation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">binsize</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nm</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Get lateral translation of binned image in nm.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">(</span><span class="n">binsize</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span>
 
@@ -22046,7 +22046,7 @@ into the memory.</p>
               <summary>Source code in <code>cylindra/components/tomogram/_tomo_base.py</code></summary>
               <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">357</span>
 <span class="normal">358</span>
-<span class="normal">359</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">multiscale_translation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">binsize</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nm</span><span class="p">:</span>
+<span class="normal">359</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">multiscale_translation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">binsize</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nm</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Get lateral translation of binned image in nm.&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="p">(</span><span class="n">binsize</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span>
 </code></pre></div></td></tr></table></div>
@@ -22063,8 +22063,8 @@ into the memory.</p>
 
 </h5>
           <div class="doc-overloads">
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">nm2pixel</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">nm</span><span class="p">,</span> <span class="n">binsize</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span>
-</code></pre></div><div class="doc-signature highlight"><pre><span></span><code><span class="nf">nm2pixel</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">nm</span><span class="p">]</span> <span class="o">|</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">number</span><span class="p">],</span> <span class="n">binsize</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">intp</span><span class="p">]</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">nm2pixel</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">nm</span><span class="p">,</span> <span class="n">binsize</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span>
+</code></pre></div><div class="doc-signature highlight"><pre><span></span><code><span class="nf">nm2pixel</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">nm</span><span class="p">]</span> <span class="o">|</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">number</span><span class="p">],</span> <span class="n">binsize</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">intp</span><span class="p">]</span>
 </code></pre></div>          </div>
 
 
@@ -22111,7 +22111,7 @@ coordinate to pixel position.</p>
 <span class="normal">307</span>
 <span class="normal">308</span>
 <span class="normal">309</span>
-<span class="normal">310</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">nm2pixel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">binsize</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">):</span>
+<span class="normal">310</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">nm2pixel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">binsize</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">1</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert nm float value into pixel value. Useful for conversion from</span>
 <span class="sd">    coordinate to pixel position.</span>
 

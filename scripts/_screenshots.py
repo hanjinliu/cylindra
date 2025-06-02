@@ -185,6 +185,7 @@ def main():
         ui.sta.classify_pca,
         # align
         ui.sta.align_all,
+        ui.sta.align_all_template_free,
         ui.sta.align_all_viterbi,
         ui.sta.align_all_rma,
         ui.sta.align_all_rfa,

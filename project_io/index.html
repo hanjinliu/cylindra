@@ -2252,11 +2252,17 @@ the current state.</p>
 </ul>
 <p>The project can be a directory, a zip file or a tar file.</p>
 <h2 id="load-project">Load Project</h2>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="load_project(path, filter=ImageFilter.Lowpass, read_image=True, update_config=False)" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.load_project"><code>load_project</code></a></p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="load_project(path, filter=ImageFilter.Lowpass, read_image=True, read_reference=True, update_config=False)" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.load_project"><code>load_project</code></a></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>File &gt; Load Project</code> or <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-k">K</kbd></span> &rarr; <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-p">P</kbd></span></p>
 <p>Saved projects can be loaded to the GUI. Loading a project does not rerun the script.
 It uses the saved files to reproduce the session.</p>
 <p><img alt="Load Project" src="../images/load_project.png" /></p>
+<p>To reduce the loading time, you can uncheck the "read image" option. This will postpone
+the evaluation of the image chunks (thus loading the image as a <code>dask</code> array). If the
+<a href="../open_image/#process-the-reference-image">reference image</a> is available, it will be
+loaded if "read reference" is checked. As reference image is usually much smaller than
+the original tomogram, this option will save a lot of time while will not affect the
+visual inspection of the tomogram.</p>
 <h2 id="stash-the-session">Stash the Session</h2>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>File &gt; Stash</code></p>
 <p>You may want to temporarily save the session for later use. In <code>cylindra</code>, some "stash"

@@ -520,6 +520,16 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#process-the-reference-image" class="md-nav__link">
+    <span class="md-ellipsis">
+      Process the Reference Image
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Process the Reference Image">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#filter-the-reference-image" class="md-nav__link">
     <span class="md-ellipsis">
       Filter the Reference Image
@@ -527,13 +537,36 @@
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
+        
+          <li class="md-nav__item">
+  <a href="#deconvolve-the-reference-image" class="md-nav__link">
+    <span class="md-ellipsis">
+      Deconvolve the Reference Image
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#saving-the-reference-image" class="md-nav__link">
+    <span class="md-ellipsis">
+      Saving the Reference Image
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#use-custom-reference" class="md-nav__link">
     <span class="md-ellipsis">
       Use Custom Reference
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -2294,6 +2327,16 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#process-the-reference-image" class="md-nav__link">
+    <span class="md-ellipsis">
+      Process the Reference Image
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Process the Reference Image">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#filter-the-reference-image" class="md-nav__link">
     <span class="md-ellipsis">
       Filter the Reference Image
@@ -2301,13 +2344,36 @@
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
+        
+          <li class="md-nav__item">
+  <a href="#deconvolve-the-reference-image" class="md-nav__link">
+    <span class="md-ellipsis">
+      Deconvolve the Reference Image
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#saving-the-reference-image" class="md-nav__link">
+    <span class="md-ellipsis">
+      Saving the Reference Image
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#use-custom-reference" class="md-nav__link">
     <span class="md-ellipsis">
       Use Custom Reference
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -2456,7 +2522,8 @@ transformation.</p>
 </div>
 <p>Note that <a href="#open-an-image"><code>open_image</code></a> can also run this method by specifying the
 <code>invert</code> argument.</p>
-<h3 id="filter-the-reference-image">Filter the Reference Image</h3>
+<h3 id="process-the-reference-image">Process the Reference Image</h3>
+<h4 id="filter-the-reference-image">Filter the Reference Image</h4>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="filter_reference_image(method=ImageFilter.Lowpass)" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.filter_reference_image"><code>filter_reference_image</code></a>.</p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Image &gt; Filter reference image</code></p>
 <p>The reference image shown in the viewer can be filtered for better visualization.
@@ -2469,12 +2536,25 @@ Currently, following filters are implemented:</p>
 </ul>
 <p>Note that <a href="#open-an-image"><code>open_image</code></a> can also run this method by specifying the
 <code>filter</code> argument.</p>
-<h3 id="use-custom-reference">Use Custom Reference</h3>
+<h4 id="deconvolve-the-reference-image">Deconvolve the Reference Image</h4>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="deconvolve_reference_image(kv=300.0, cs=2.7, defocus=-3.0, bfactor=0.0, snr_falloff=0.7, phase_flipped=True)" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.deconvolve_reference_image"><code>deconvolve_reference_image</code></a>.</p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Image &gt; Deconvolve reference image</code></p>
+<p>If you have information about the contrast transfer function (CTF) of the tomogram,
+you can run Wiener deconvolution on the reference image. This will improve the quality
+of the reference image much better than the filtering methods.</p>
+<p>The implementation of this method is directly ported from <a href="https://github.com/IsoNet-cryoET/IsoNet">IsoNet</a> (MIT license).</p>
+<h4 id="saving-the-reference-image">Saving the Reference Image</h4>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="save_reference_image(path)" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.save_reference_image"><code>save_reference_image</code></a>.
+<span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>File &gt; Save reference image</code></p>
+<p>The processed reference image can be saved to a file. The save path will be recorded
+when the project is saved, and the reference image can directly be used when the project
+is loaded. See <a href="../project_io/">Load &amp; Save Projects</a> for more details.</p>
+<h4 id="use-custom-reference">Use Custom Reference</h4>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="open_reference_image(path)" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.open_reference_image"><code>open_reference_image</code></a>.</p>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Image &gt; Open reference image</code></p>
-<p>There are many softwares that implement powerful denoising and deconvolution methods,
-such as <a href="https://github.com/tbepler/topaz">Topaz</a> and <a href="https://github.com/juglab/cryoCARE_pip">cryoCARE</a>.
-It is a good idea to use these noise-reduced images as the reference image while using
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>File &gt; Open reference image</code></p>
+<p>There are many softwares that implement powerful denoising methods, such as
+<a href="https://github.com/tbepler/topaz">Topaz</a>, <a href="https://github.com/juglab/cryoCARE_pip">cryoCARE</a> and <a href="https://github.com/IsoNet-cryoET/IsoNet">IsoNet</a>.
+It is a good idea to use these denoised images as the reference image while using
 the original image for the analysis. In this case, you can load any image as the
 reference using <code>open_reference_image</code>.</p>
 

@@ -1089,6 +1089,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#template-free-alignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      Template-free Alignment
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#fourier-shell-correlation-fsc" class="md-nav__link">
     <span class="md-ellipsis">
       Fourier Shell Correlation (FSC)
@@ -2230,6 +2239,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#template-free-alignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      Template-free Alignment
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#fourier-shell-correlation-fsc" class="md-nav__link">
     <span class="md-ellipsis">
       Fourier Shell Correlation (FSC)
@@ -2357,6 +2375,12 @@ should be <em>almost</em> well fitted to the template image.</p>
 <li>"method" is the method used to calculate cross correlation.</li>
 </ol>
 </details>
+<h2 id="template-free-alignment">Template-free Alignment</h2>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="align_all_template_free(layers, mask_params, size=12.0, max_shifts=(1.0, 1.0, 1.0), rotations=((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)), interpolation=3, method='zncc', bin_size=1, seed=0, tolerance=0.01)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.align_all_template_free"><code>align_all_template_free</code></a></p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>STA widget &gt; Alignment &gt; Align all molecules (template-free)</code></p>
+<p>This method iteratively align molecules to the current average image, and validate the
+alignment by <a href="#fourier-shell-correlation-fsc">FSC</a>.</p>
+<p><img alt="Align all template-free" loading="lazy," src="../../images/align_all_template_free.png" width="480px" /></p>
 <h2 id="fourier-shell-correlation-fsc">Fourier Shell Correlation (FSC)</h2>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="calculate_fsc(layers, template_path=None, mask_params=None, size=None, seed=0, interpolation=1, n_pairs=1, show_average=True, dfreq=None)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.calculate_fsc"><code>calculate_fsc</code></a></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>STA widget &gt; Analysis &gt; Calculate FSC</code></p>
