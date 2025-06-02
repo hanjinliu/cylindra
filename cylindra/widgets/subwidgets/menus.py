@@ -82,6 +82,7 @@ class FileMenu(ChildWidget):
     sep1 = Separator
     save_project = abstractapi()
     overwrite_project = abstractapi()
+    save_reference_image = abstractapi()
     save_spline = abstractapi()
     save_molecules = abstractapi()
     sep2 = Separator
@@ -212,6 +213,7 @@ class ImageMenu(ChildWidget):
     """Image processing and visualization"""
 
     filter_reference_image = abstractapi()
+    deconvolve_reference_image = abstractapi()
     invert_image = abstractapi()
     add_multiscale = abstractapi()
     set_multiscale = abstractapi()

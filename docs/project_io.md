@@ -34,6 +34,12 @@ It uses the saved files to reproduce the session.
 
 ![Load Project](images/load_project.png)
 
+To reduce the loading time, you can uncheck the "read image" option. This will postpone
+the evaluation of the image chunks (thus loading the image as a `dask` array). If the
+[reference image](open_image.md#process-the-reference-image) is available, it will be
+loaded if "read reference" is checked. As reference image is usually much smaller than
+the original tomogram, this option will save a lot of time while will not affect the
+visual inspection of the tomogram.
 
 ## Stash the Session
 

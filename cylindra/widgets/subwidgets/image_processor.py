@@ -29,6 +29,9 @@ def _autofill(input_path, suffix: str) -> Path:
     return output_path
 
 
+_TOTAL = "self._file_count(input)"
+
+
 @magicclass(record=False)
 class ImageProcessor(ChildWidget):
     """
@@ -66,9 +69,7 @@ class ImageProcessor(ChildWidget):
     def _confirm_path(self):
         return self.output_image.exists()
 
-    @dask_thread_worker.with_progress(
-        desc="Converting data type.", total="self._file_count(input)"
-    )
+    @dask_thread_worker.with_progress(desc="Converting data type ...", total=_TOTAL)
     @set_design(text="Convert dtype")
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
     def convert_dtype(
@@ -81,11 +82,8 @@ class ImageProcessor(ChildWidget):
         img = self._imread(input)
         out = img.as_img_type(dtype)
         yield from self._imsave(out, output)
-        return None
 
-    @dask_thread_worker.with_progress(
-        desc="Inverting image.", total="self._file_count(input)"
-    )
+    @dask_thread_worker.with_progress(desc="Inverting image ...", total=_TOTAL)
     @set_design(text="Invert intensity")
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
     def invert(
@@ -100,11 +98,25 @@ class ImageProcessor(ChildWidget):
         else:
             out = -img
         yield from self._imsave(out, output)
-        return None
 
-    @dask_thread_worker.with_progress(
-        desc="Low-pass filtering.", total="self._file_count(input)"
-    )
+    @dask_thread_worker.with_progress(desc="Changing pixel size ...", total=_TOTAL)
+    @set_design(text="Change pixel size")
+    @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
+    def change_pixel_size(
+        self,
+        input: _InputPath,
+        output: _OutputPath,
+        scale: Annotated[float, {"min": 0.01, "max": 10.0, "step": 0.0001}] = 1.0,
+    ):
+        """Change pixel size of the input image."""
+        img = self._imread(input)
+        if isinstance(img, ip.DataList):
+            out = ip.DataList([each.set_scale(zyx=scale, unit="nm") for each in img])
+        else:
+            out = img.set_scale(zyx=scale, unit="nm")
+        yield from self._imsave(out, output)
+
+    @dask_thread_worker.with_progress(desc="Low-pass filtering ...", total=_TOTAL)
     @set_design(text="Low-pass filter")
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
     def lowpass_filter(
@@ -118,9 +130,8 @@ class ImageProcessor(ChildWidget):
         img = self._imread(input).as_float()
         out = img.tiled(overlap=32).lowpass_filter(cutoff=cutoff, order=order)
         yield from self._imsave(out, output)
-        return None
 
-    @dask_thread_worker.with_progress(desc="Binning.", total="self._file_count(input)")
+    @dask_thread_worker.with_progress(desc="Binning ...", total=_TOTAL)
     @set_design(text="Binning")
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
     def binning(
@@ -133,11 +144,8 @@ class ImageProcessor(ChildWidget):
         img = self._imread(input)
         out = img.binning(bin_size, check_edges=False)
         yield from self._imsave(out, output)
-        return None
 
-    @dask_thread_worker.with_progress(
-        desc="Flipping image.", total="self._file_count(input)"
-    )
+    @dask_thread_worker.with_progress(desc="Flipping image.", total=_TOTAL)
     @set_design(text="Flip image")
     @confirm(text="Output path alreadly exists, overwrite?", condition=_confirm_path)
     def flip(
@@ -160,7 +168,6 @@ class ImageProcessor(ChildWidget):
             input = glob(str(input), recursive=True)
         prev = view_image(input, self)
         ACTIVE_WIDGETS.add(prev)
-        return None
 
     def _imread(self, path) -> "ip.LazyImgArray | ip.DataList[ip.LazyImgArray]":
         path = str(path)
@@ -200,4 +207,3 @@ class ImageProcessor(ChildWidget):
                 img = img.compute()
             img.imsave(path)
             yield
-        return None

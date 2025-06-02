@@ -6,6 +6,7 @@ import macrokit as mk
 import numpy as np
 import polars as pl
 from acryo import Molecules, SubtomogramLoader
+from acryo.ctf import CTFModel
 from magicclass import (
     MagicTemplate,
     bind_key,
@@ -62,6 +63,7 @@ from cylindra.widgets._annotated import (
     assert_layer,
     assert_list_of_layers,
 )
+from cylindra.widgets._callbacks import on_ctf_finished
 from cylindra.widgets._main_utils import (
     AutoSaver,
     SplineTracker,
@@ -524,12 +526,13 @@ class CylindraMainWidget(MagicTemplate):
             read_path = _config.cache_tomogram(path)
         else:
             read_path = Path(path)
-        img = ip.lazy.imread(read_path, chunks=_config.get_config().dask_chunk)
         if scale is not None:
             scale = float(scale)
-            img.scale.x = img.scale.y = img.scale.z = scale
         else:
-            scale = img.scale.x
+            scale_dict = ip.read_header(read_path).scale
+            if scale_dict is None or len(scale_dict) == 0:
+                raise ValueError("Could not infer scale from the image header.")
+            scale = scale_dict.get("x") or list(scale_dict.values())[-1]
         if isinstance(bin_size, int):
             bin_size = [bin_size]
         elif len(bin_size) == 0:
@@ -561,6 +564,7 @@ class CylindraMainWidget(MagicTemplate):
         path: Path.Read[FileFilter.PROJECT],
         filter: ImageFilter | None = ImageFilter.Lowpass,
         read_image: Annotated[bool, {"label": "read image data"}] = True,
+        read_reference: Annotated[bool, {"label": "read reference image"}] = True,
         update_config: bool = False,
     ):
         """Load a project file (project.json, tar file or zip file).
@@ -573,8 +577,12 @@ class CylindraMainWidget(MagicTemplate):
         {filter}
         read_image : bool, default True
             Whether to read image data from the project directory. If false, image data
-            will be memory-mapped and will not be shown in the viewer. Unchecking this
-            is useful to decrease loading time.
+            will be memory-mapped and will not be shown in the viewer, or the reference
+            image will be shown instead if `read_reference` is true. Unchecking this is
+            useful to decrease loading time.
+        read_reference : bool, default True
+            Whether to read the reference image instead of calculating it from the
+            loaded image data, if available.
         update_config : bool, default False
             Whether to update the default spline configuration with the one described
             in the project.
@@ -587,7 +595,8 @@ class CylindraMainWidget(MagicTemplate):
             project_path = project.project_path
         _Logger.print_html(
             f"<code>ui.load_project('{Path(project_path).as_posix()}', "
-            f"filter={str(filter)!r}, {read_image=}, {update_config=})</code>"
+            f"filter={str(filter)!r}, {read_image=}, {read_reference=}, "
+            f"{update_config=})</code>"
         )
         if project_path is not None:
             self._project_dir = project_path
@@ -595,6 +604,7 @@ class CylindraMainWidget(MagicTemplate):
             self,
             filter=filter,
             read_image=read_image,
+            read_reference=read_reference,
             update_config=update_config,
         )
         _Logger.print(f"Project loaded: {project_path.as_posix()}")
@@ -656,6 +666,15 @@ class CylindraMainWidget(MagicTemplate):
         return self.save_project(self._project_dir, ext)
 
     @set_design(text=capitalize, location=_sw.FileMenu)
+    def save_reference_image(self, path: Path.Save[FileFilter.IMAGE]):
+        """Save the current reference image to a file."""
+        path = Path(path)
+        img_ref = self._reserved_layers.image_data
+        img_ref.imsave(path)
+        img_ref.source = path
+        _Logger.print(f"Reference image saved: {path.as_posix()}")
+
+    @set_design(text=capitalize, location=_sw.FileMenu)
     def load_splines(self, paths: Path.Multiple[FileFilter.JSON]):
         """Load splines from a list of json paths.
 
@@ -710,7 +729,7 @@ class CylindraMainWidget(MagicTemplate):
     def save_molecules(
         self, layer: MoleculesLayerType, save_path: Path.Save[FileFilter.MOLE]
     ):
-        """Save monomer coordinates, orientation and features as a csv file.
+        """Save monomer coordinates, orientation and features to a file.
 
         Parameters
         ----------
@@ -728,7 +747,8 @@ class CylindraMainWidget(MagicTemplate):
         The input image is usually a denoised image created by other softwares, or
         simply a filtered image. Please note that this method does not check that the
         input image is appropriate as a reference of the current tomogram, as
-        potentially any 3D image can be used.
+        potentially any 3D image can be used. Make sure that the input image is dark
+        background.
 
         Parameters
         ----------
@@ -760,6 +780,7 @@ class CylindraMainWidget(MagicTemplate):
         """Apply filter to enhance contrast of the reference image."""
         method = ImageFilter(method)
         if self.tomogram.is_dummy:
+            _Logger.print("No tomogram is loaded. Skip this opperation.")
             return
         t0 = timer()
         with utils.set_gpu():
@@ -779,18 +800,40 @@ class CylindraMainWidget(MagicTemplate):
                 case _:  # pragma: no cover
                     raise ValueError(f"No method matches {method!r}")
 
-        contrast_limits = fast_percentile(img_filt, [1, 99.9])
+        t0.toc()
+        return self._reference_updated_callback.with_args(img_filt)
 
-        @thread_worker.callback
-        def _filter_reference_image_on_return():
-            self._reserved_layers.image.data = img_filt
-            self._reserved_layers.image.contrast_limits = contrast_limits
-            proj = self._reserved_layers.image.data.mean(axis="z")
-            self.Overview.image = proj
-            self.Overview.contrast_limits = contrast_limits
+    @set_design(text=capitalize, location=_sw.ImageMenu)
+    @thread_worker
+    @do_not_record
+    def deconvolve_reference_image(
+        self,
+        kv: Annotated[float, {"label": "Voltage [kV]"}] = 300.0,
+        cs: Annotated[float, {"label": "Cs [mm]"}] = 2.7,
+        defocus: Annotated[float, {"label": "Defocus [um]", "min": -100, "max": 0}] = -3.0,
+        bfactor: Annotated[float, {"label": "B-factor"}] = 0.0,
+        snr_falloff: Annotated[float, {"label": "SNR fall-off", "max": 10.0}] = 0.7,
+        phase_flipped: Annotated[bool, {"text": "Phase flipped"}] = True,
+    ):  # fmt: skip
+        """Deconvolve the reference image using CTF info with Wiener filter."""
+        if self.tomogram.is_dummy:
+            _Logger.print("No tomogram is loaded. Skip deconvolution.")
+            return
+        yield thread_worker.description("Deconvolving reference image...")
+        t0 = timer()
+        ctf = CTFModel.from_kv(kv, cs, defocus=defocus, bfactor=bfactor)
+        scale = self._reserved_layers.scale
+        yield on_ctf_finished.with_args(ctf, scale)
+        img_deconv = ctf.deconvolve(
+            self._reserved_layers.image_data.value,
+            scale=scale,
+            snr_falloff=snr_falloff,
+            phaseflipped=phase_flipped,
+        )
+        img_deconv = ip.asarray(img_deconv, axes="zyx").set_scale(zyx=scale)
 
         t0.toc()
-        return _filter_reference_image_on_return
+        return self._reference_updated_callback.with_args(img_deconv)
 
     @thread_worker.with_progress(desc="Inverting image")
     @set_design(text=capitalize, location=_sw.ImageMenu)
@@ -3108,6 +3151,15 @@ class CylindraMainWidget(MagicTemplate):
         )
 
     @thread_worker.callback
+    def _reference_updated_callback(self, ref: np.ndarray):
+        contrast_limits = fast_percentile(ref, [1, 99.9])
+        self._reserved_layers.image.data = ref
+        self._reserved_layers.image.contrast_limits = contrast_limits
+        proj = self._reserved_layers.image.data.mean(axis="z")
+        self.Overview.image = proj
+        self.Overview.contrast_limits = contrast_limits
+
+    @thread_worker.callback
     def _send_tomogram_to_viewer(
         self,
         tomo: CylTomogram,
@@ -3140,6 +3192,7 @@ class CylindraMainWidget(MagicTemplate):
                 _name = tomo.source.as_posix()
         else:
             _name = f"Tomogram<{hex(id(tomo))}>"
+        _Logger.print_html("<hr>")
         _Logger.print_html(f"<h2>{_name}</h2>")
 
         self.macro.clear_undo_stack()
@@ -3170,7 +3223,7 @@ class CylindraMainWidget(MagicTemplate):
     ):
         viewer = self.parent_viewer
         if bin_size is None:
-            bin_size = round(img.scale.x / self.tomogram.scale, 2)
+            bin_size = img.scale.x / self.tomogram.scale
         _is_lazy = isinstance(img, ip.LazyImgArray)
         self._reserved_layers.is_lazy = _is_lazy
         if _is_lazy:

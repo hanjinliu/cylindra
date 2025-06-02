@@ -43,6 +43,7 @@ from cylindra.const import PropertyNames as H
 from cylindra.utils import ceilint, roundint
 from cylindra.widget_utils import POLARS_NAMESPACE, capitalize
 from cylindra.widgets._annotated import MoleculesLayerType, _as_layer_name, assert_layer
+from cylindra.widgets._callbacks import on_ctf_finished
 from cylindra.widgets._widget_ext import CTFDict, CTFParams
 from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
@@ -557,7 +558,7 @@ class Simulator(ChildWidget):
         rng = ip.random.default_rng(seed)
         imax = ts.max()
         yield (
-            _on_ctf_finished.with_args(_ctf.ctf_model, scale=ts.scale.x).with_desc(
+            on_ctf_finished.with_args(_ctf.ctf_model, scale=ts.scale.x).with_desc(
                 "(1/3) Back-projection"
             )
         )
@@ -706,7 +707,7 @@ class Simulator(ChildWidget):
         degrees = np.linspace(*tilt_range, n_tilt)
         _ctf = _CTFInputTuple.from_dict(ctf)
         scale = self._get_main().tomogram.scale
-        yield _on_ctf_finished.with_args(_ctf.ctf_model, scale=scale)
+        yield on_ctf_finished.with_args(_ctf.ctf_model, scale=scale)
         ts = self._prep_radon(components, degrees, order=interpolation)
         _Logger.print(
             f"Tilt series simulated. Shape: {ts.shape}, size: {ts.nbytes / 2**20:.2f} MB"
@@ -914,25 +915,6 @@ def _add_noise(ts: ip.ImgArray, sd: float, rng: ip.random.ImageGenerator):
 
 
 @thread_worker.callback
-def _on_ctf_finished(ctf_model: CTFModel | None = None, scale: float = 1.0):
-    import matplotlib.pyplot as plt
-
-    if ctf_model is None:
-        return
-    with _Logger.set_plt():
-        ctf_image = ctf_model.simulate_image((128, 128), scale=scale)
-        _Logger.print_html(
-            f"CTF was simulated with parameters:<br>"
-            f"Spherical aberration = {ctf_model.spherical_aberration:.2f} mm<br>"
-            f"Defocus = {ctf_model.defocus:.2f} μm"
-        )
-        plt.figure()
-        plt.imshow(np.fft.fftshift(ctf_image), cmap="gray")
-        plt.title("Simulated CTF")
-        plt.show()
-
-
-@thread_worker.callback
 def _on_radon_finished(
     ts: ip.ImgArray,
     degrees: np.ndarray,
@@ -940,7 +922,7 @@ def _on_radon_finished(
 ):
     import matplotlib.pyplot as plt
 
-    _on_ctf_finished(ctf_model=ctf_model, scale=ts.scale.x)
+    on_ctf_finished(ctf_model=ctf_model, scale=ts.scale.x)
     with _Logger.set_plt():
         n_tilt = len(degrees)
         if n_tilt < 3:

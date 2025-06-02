@@ -93,6 +93,17 @@ should be *almost* well fitted to the template image.
     5. "bin size" is the binning factor for resampling.
     6. "method" is the method used to calculate cross correlation.
 
+## Template-free Alignment
+
+:material-arrow-right-thin-circle-outline: API: [`align_all_template_free`][cylindra.widgets.sta.SubtomogramAveraging.align_all_template_free]
+
+:material-arrow-right-thin-circle-outline: GUI: `STA widget > Alignment > Align all molecules (template-free)`
+
+This method iteratively align molecules to the current average image, and validate the
+alignment by [FSC](#fourier-shell-correlation-fsc).
+
+![Align all template-free](../images/align_all_template_free.png){ loading=lazy, width=480px }
+
 ## Fourier Shell Correlation (FSC)
 
 :material-arrow-right-thin-circle-outline: API: [`calculate_fsc`][cylindra.widgets.sta.SubtomogramAveraging.calculate_fsc]

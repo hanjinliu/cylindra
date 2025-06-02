@@ -40,15 +40,24 @@ class CylindraProject(BaseProject):
     version: str
     dependency_versions: dict[str, str]
     image: PathLike | None
+    """Path to the image file."""
     image_relative: PathLike | None = None
+    """Relative path to the image file, used as a fallback."""
     cache_image: bool = False
+    """Whether to cache the image in SSD."""
     scale: float
+    """Scale of the image, in nm/pixel."""
+    image_reference: PathLike | None = None
+    """Path to the reference image."""
     invert: bool = False
+    """Whether to invert the image when loaded."""
     multiscales: list[int]
+    """List of bin factors for multiscale tomogram."""
     molecules_info: list[MoleculesInfo] = Field(default_factory=list)
     landscape_info: list[LandscapeInfo] = Field(default_factory=list)
     interaction_info: list[InteractionInfo] = Field(default_factory=list)
     missing_wedge: MissingWedge = MissingWedge(params={}, kind="none")
+    """Missing wedge model, used for masking subtomograms."""
     project_path: Path | None = None
     project_description: str = ""
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -158,6 +167,7 @@ class CylindraProject(BaseProject):
             image_relative=_as_relative(orig_path, project_dir),
             cache_image=tomo.metadata.get("cache_image", False),
             scale=tomo.scale,
+            image_reference=gui._reserved_layers.image_data.source,
             invert=tomo.is_inverted,
             multiscales=[x[0] for x in tomo.multiscaled],
             molecules_info=mole_infos,
@@ -236,9 +246,11 @@ class CylindraProject(BaseProject):
         gui: "CylindraMainWidget | None" = None,
         filter: "ImageFilter | None" = True,
         read_image: bool = True,
+        read_reference: bool = True,
         update_config: bool = True,
     ):
         """Update CylindraMainWidget state based on the project model."""
+        import impy as ip
         from magicclass.utils import thread_worker
 
         from cylindra.components import SplineConfig
@@ -253,12 +265,37 @@ class CylindraProject(BaseProject):
             else:
                 default_config = None
 
+            if (
+                read_reference
+                and self.image_reference
+                and Path(self.image_reference).exists()
+            ):
+                path_ref = Path(self.image_reference)
+            else:
+                path_ref = None
+            if path_ref:
+                filter = None
             cb = gui._send_tomogram_to_viewer.with_args(
                 tomogram, filt=filter, invert=self.invert
             )
             yield cb
             cb.await_call()
             gui._init_macro_state()
+
+            if path_ref:
+                try:
+                    img_ref = ip.imread(path_ref)
+                except Exception as e:
+                    LOGGER.warning(
+                        f"Cannot read reference image at {path_ref.as_posix()}: {e}"
+                    )
+                    img_ref = None
+                else:
+                    cb = thread_worker.callback(gui._update_reference_image).with_args(
+                        img_ref
+                    )
+                    yield cb
+                    cb.await_call()
 
             @thread_worker.callback
             def _update_widget():
