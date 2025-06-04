@@ -351,6 +351,41 @@ def parse_tilt_model(tilt) -> TiltSeriesModel:
     return tilt
 
 
+def fit_to_shape(img: ip.ImgArray, shape: tuple[int, int, int]) -> ip.ImgArray:
+    """Fit image to the specified shape.
+
+    If the image is larger than the specified shape, it will be cropped.
+    If the image is smaller, it will be padded with zero.
+    """
+    if img.shape == shape:
+        return img
+    img = img.copy()
+    shifts = [0] * img.ndim
+    for i, (s, sh) in enumerate(zip(img.shape, shape, strict=False)):
+        ds = sh - s
+        if ds > 0:
+            if ds % 2 == 0:
+                img = img.pad([(ds // 2, ds // 2)], dims=img.axes[i], constant_values=0)
+            else:
+                img = img.pad(
+                    [(ds // 2, ds // 2 + 1)], dims=img.axes[i], constant_values=0
+                )
+                shifts[i] = 0.5
+        elif ds < 0:
+            if ds % 2 == 0:
+                sl = [slice(None)] * img.ndim
+                sl[i] = slice(-ds // 2, -ds // 2 + sh)
+                img = img[tuple(sl)]
+            else:
+                sl = [slice(None)] * img.ndim
+                sl[i] = slice(-ds // 2, -ds // 2 + sh)
+                img = img[tuple(sl)]
+                shifts[i] = -0.5
+    if any(s != 0 for s in shifts):
+        img = img.shift(shifts, dims=img.axes, mode=Mode.reflect)
+    return img
+
+
 class Projections:
     """
     Class that stores projections of a 3D image, calculated lazily.

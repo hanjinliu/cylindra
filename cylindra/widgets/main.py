@@ -28,7 +28,7 @@ from magicclass.undo import undo_callback
 from magicclass.utils import thread_worker
 from napari.layers import Layer
 
-from cylindra import _config, _shared_doc, cylmeasure, utils, widget_utils
+from cylindra import _config, _shared_doc, cylfilters, cylmeasure, utils, widget_utils
 from cylindra._napari import InteractionVector, LandscapeSurface, MoleculesLayer
 from cylindra.components import CylSpline, CylTomogram, SplineConfig
 from cylindra.components.interaction import InterMoleculeNet, align_molecules_to_spline
@@ -427,7 +427,6 @@ class CylindraMainWidget(MagicTemplate):
         self._reserved_layers.prof.selected_data = set()
         self.reset_choices()
         self.SplineControl.num = len(tomo.splines) - 1
-        return None
 
     _runner = field(_sw.Runner)
     _image_loader = _sw.ImageLoader
@@ -449,7 +448,6 @@ class CylindraMainWidget(MagicTemplate):
             self._reserved_layers.work.data = []
         else:
             self.delete_spline(self.SplineControl.num)
-        return None
 
     @set_design(icon="material-symbols:bomb", location=Toolbar)
     @confirm(text="Are you sure to clear all?\nYou cannot undo this.")
@@ -464,7 +462,6 @@ class CylindraMainWidget(MagicTemplate):
         del self.macro[self._macro_image_load_offset + 1 :]
         self._need_save = False
         self.reset_choices()
-        return None
 
     def _format_macro(self, macro: "mk.Macro | None" = None):
         if macro is None:
@@ -646,7 +643,6 @@ class CylindraMainWidget(MagicTemplate):
         if autosave_path.exists():
             with suppress(Exception):
                 autosave_path.unlink()
-        return None
 
     @set_design(text=capitalize, location=_sw.FileMenu)
     @do_not_record
@@ -804,22 +800,39 @@ class CylindraMainWidget(MagicTemplate):
         return self._reference_updated_callback.with_args(img_filt)
 
     @set_design(text=capitalize, location=_sw.ImageMenu)
-    @thread_worker
+    @thread_worker.with_progress(desc="Deconvolving reference image ...")
     @do_not_record
     def deconvolve_reference_image(
         self,
         kv: Annotated[float, {"label": "Voltage [kV]"}] = 300.0,
         cs: Annotated[float, {"label": "Cs [mm]"}] = 2.7,
-        defocus: Annotated[float, {"label": "Defocus [um]", "min": -100, "max": 0}] = -3.0,
+        defocus: Annotated[float, {"label": "Defocus [um]", "min": -100, "max": 100}] = -3.0,
         bfactor: Annotated[float, {"label": "B-factor"}] = 0.0,
         snr_falloff: Annotated[float, {"label": "SNR fall-off", "max": 10.0}] = 0.7,
         phase_flipped: Annotated[bool, {"text": "Phase flipped"}] = True,
     ):  # fmt: skip
-        """Deconvolve the reference image using CTF info with Wiener filter."""
+        """Deconvolve the reference image using CTF info with Wiener filter.
+
+        Parameters
+        ----------
+        kv : float, default 300.0
+            Accelerating voltage in kV.
+        cs : float, default 2.7
+            Spherical aberration in mm.
+        defocus : float, default -3.0
+            Defocus value in micrometers. For the standard image acquisition method,
+            this value should be negative.
+        bfactor : float, default 0.0
+            B-factor for the decay of the CTF amplitude.
+        snr_falloff : float, default 0.7
+            SNR fall-off factor, for the Wiener filter. Larger value means more
+            smoothing.
+        phase_flipped : bool, default True
+            If the tomogram is reconstructed from phase-flipped tilt series, check this.
+        """
         if self.tomogram.is_dummy:
             _Logger.print("No tomogram is loaded. Skip deconvolution.")
             return
-        yield thread_worker.description("Deconvolving reference image...")
         t0 = timer()
         ctf = CTFModel.from_kv(kv, cs, defocus=defocus, bfactor=bfactor)
         scale = self._reserved_layers.scale
@@ -927,7 +940,6 @@ class CylindraMainWidget(MagicTemplate):
 
         # reset contrast limits
         self.SplineControl._reset_contrast_limits()
-        return None
 
     def _get_spline_idx(self, *_) -> int:
         return self.SplineControl.num
@@ -2945,8 +2957,6 @@ class CylindraMainWidget(MagicTemplate):
         """
         from napari.utils.colormaps import label_colormap
 
-        from cylindra import cylfilters
-
         layer = assert_layer(layer, self.parent_viewer)
         utils.assert_column_exists(layer.molecules.features, target)
         if suffix == "":
@@ -3063,7 +3073,6 @@ class CylindraMainWidget(MagicTemplate):
         self.tomogram.update_scale(new_scale)
         self._reserved_layers.rescale_layers(factor)
         self.GeneralInfo._refer_tomogram(self.tomogram)
-        return None
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     #   Non-GUI methods
@@ -3116,14 +3125,12 @@ class CylindraMainWidget(MagicTemplate):
         self.SplineControl._init_widget()
         self.LocalProperties._init_text()
         self.LocalProperties._init_plot()
-        return None
 
     def _try_removing_layer(self, layer: Layer):
         try:
             self.parent_viewer.layers.remove(layer)
         except ValueError as e:
             _Logger.print(f"ValueError: {e}")
-        return None
 
     def _try_removing_layers(self, layers: "Layer | list[Layer]"):
         if isinstance(layers, Layer):
@@ -3264,7 +3271,6 @@ class CylindraMainWidget(MagicTemplate):
             expr = mk.Mock(mk.symbol(self)).parent_viewer.layers[layer.name].expr
             undo = self._add_layers_future(layer)
             self.macro.append_with_undo(mk.Expr("del", [expr]), undo)
-        return
 
     def _on_molecules_layer_renamed(self, event: "Event"):
         """When layer name is renamed, record `ui.parent_viewer["old"].name = "new"`"""
@@ -3322,7 +3328,6 @@ class CylindraMainWidget(MagicTemplate):
         # Connect layer events.
         viewer.layers.events.removing.connect(self._on_layer_removing)
         viewer.layers.events.inserted.connect(self._on_layer_inserted)
-        return None
 
     @contextmanager
     def _pend_reset_choices(self):
@@ -3346,7 +3351,6 @@ class CylindraMainWidget(MagicTemplate):
                 layer.color = SplineColor.DEFAULT
 
         self._reserved_layers.highlight_spline(i)
-        return None
 
     def _update_global_properties_in_widget(self):
         """Show global property values in widgets."""
@@ -3369,7 +3373,6 @@ class CylindraMainWidget(MagicTemplate):
             self.LocalProperties._init_text()
         if replot:
             self.LocalProperties._plot_properties(spl)
-        return None
 
     def _add_spline_to_images(self, spl: CylSpline, i: int):
         scale = self._reserved_layers.scale
@@ -3383,7 +3386,6 @@ class CylindraMainWidget(MagicTemplate):
             antialias=True,
         )
         self._set_orientation_marker(i)
-        return None
 
     def _set_orientation_marker(self, idx: int):
         spl = self.tomogram.splines[idx]
@@ -3409,7 +3411,6 @@ class CylindraMainWidget(MagicTemplate):
                 name=f"spline-{i}-anc",
             )
         self._highlight_spline()
-        return None
 
     def _refer_spline_config(self, cfg: SplineConfig):
         """Update GUI states that are related to global variables."""
