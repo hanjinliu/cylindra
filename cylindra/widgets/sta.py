@@ -1100,7 +1100,7 @@ class SubtomogramAveraging(ChildWidget):
             binsize=bin_size, molecules=molecules, order=interpolation
         ).reshape(shape=shape)
         _alignment_state = widget_utils.TemplateFreeAlignmentState(rng=rng)
-
+        _Logger.print(f"Start alignment ({molecules.count()} molecules) ...")
         while True:
             yield thread_worker.description(
                 f"Calculating FSC for iteration {_alignment_state.niter}"
