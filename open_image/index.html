@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.14">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.15">
     
     
       
@@ -551,15 +551,6 @@
   <a href="#saving-the-reference-image" class="md-nav__link">
     <span class="md-ellipsis">
       Saving the Reference Image
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#use-custom-reference" class="md-nav__link">
-    <span class="md-ellipsis">
-      Use Custom Reference
     </span>
   </a>
   
@@ -2363,15 +2354,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#use-custom-reference" class="md-nav__link">
-    <span class="md-ellipsis">
-      Use Custom Reference
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -2491,6 +2473,28 @@ images will be flipped.
 startup, so you don't have to worry about it. However, if you find the 3D images
 flipped, you may want to <a href="https://napari.org/stable/guides/handedness.html#d-data-3d-axis-orientation-and-handedness">check the handedness</a>.</p>
 </details>
+<details class="tip">
+<summary>Use custom reference image</summary>
+<p>In some cases, you may already have a reference image for each tomogram.</p>
+<ul>
+<li>Saving binned (and filtered) images does not take much storage space. For example,
+  a 4&times; binning increases the total storage size only by 1/64 = 1.6%. Directly
+  using this image as the reference image will save time.</li>
+<li>There are many softwares that implement powerful denoising methods, such as
+  <a href="https://github.com/tbepler/topaz">Topaz</a>,
+  <a href="https://github.com/juglab/cryoCARE_pip">cryoCARE</a> and
+  <a href="https://github.com/IsoNet-cryoET/IsoNet">IsoNet</a>.
+  It is a good idea to use these denoised images as the reference image while using
+  the original image for the analysis. In this case, you can load any image as the
+  reference using <code>open_reference_image</code>.</li>
+</ul>
+<p>To use a custom reference image check "Use user-supplied reference image" and
+provide the reference path in the open-image dialog.</p>
+<p>Alternatively, you can open a reference image after opening the tomogram using
+following method.</p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="open_reference_image(path)" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.open_reference_image"><code>open_reference_image</code></a>.</p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>File &gt; Open reference image</code></p>
+</details>
 <h3 id="use-multi-scaled-images">Use Multi-scaled Images</h3>
 <p>Tomograms can be loaded as multi-scaled images, which means that you can switch between
 the original and binned images. Many methods in <code>cylindra</code> have a <code>bin_size</code> argument.
@@ -2549,14 +2553,6 @@ of the reference image much better than the filtering methods.</p>
 <p>The processed reference image can be saved to a file. The save path will be recorded
 when the project is saved, and the reference image can directly be used when the project
 is loaded. See <a href="../project_io/">Load &amp; Save Projects</a> for more details.</p>
-<h4 id="use-custom-reference">Use Custom Reference</h4>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="open_reference_image(path)" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.open_reference_image"><code>open_reference_image</code></a>.</p>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>File &gt; Open reference image</code></p>
-<p>There are many softwares that implement powerful denoising methods, such as
-<a href="https://github.com/tbepler/topaz">Topaz</a>, <a href="https://github.com/juglab/cryoCARE_pip">cryoCARE</a> and <a href="https://github.com/IsoNet-cryoET/IsoNet">IsoNet</a>.
-It is a good idea to use these denoised images as the reference image while using
-the original image for the analysis. In this case, you can load any image as the
-reference using <code>open_reference_image</code>.</p>
 
 
 
@@ -2652,7 +2648,7 @@ reference using <code>open_reference_image</code>.</p>
       <script id="__config" type="application/json">{"base": "..", "features": ["content.code.annotate", "content.code.copy", "navigation.sections", "navigation.indexes", "navigation.footer", "toc.follow", "search.suggest", "search.share"], "search": "../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.13a4f30d.min.js"></script>
+      <script src="../assets/javascripts/bundle.56ea9cef.min.js"></script>
       
         <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
       
