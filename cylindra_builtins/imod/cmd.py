@@ -19,9 +19,7 @@ class IMODCommand(SimpleNamespace):
 
 
 def read_mod(path: str) -> pl.DataFrame:
-    """
-
-    Read a mod file.
+    """Read a mod file.
 
     A mod file stores 3D coordinates in xyz-order. This function read it as a data
     frame in either xyz- or zyx-order.
@@ -62,8 +60,7 @@ def read_mod(path: str) -> pl.DataFrame:
 
 
 def save_mod(path: str, data: pl.DataFrame):
-    """
-    Save array data as a mod file that can be used in IMOD.
+    """Save array data as a mod file that can be used in IMOD.
 
     Parameters
     ----------

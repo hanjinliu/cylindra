@@ -78,8 +78,13 @@ assert len(_TRANSLATION_MAP) == len(_PARAMETERS)  # check duplication
 def update_doc(doc: str, indent: int = 2) -> str:
     """Update docstring"""
     ind = "    " * indent
-    doc = doc.replace("}{", "}\n" + ind + "{")
-    out = doc.format(**_TRANSLATION_MAP)
+    if "{}" in doc:
+        return doc
+    doc_rep = doc.replace("}{", "}\n" + ind + "{")
+    try:
+        out = doc_rep.format(**_TRANSLATION_MAP)
+    except IndexError:  # pragma: no cover
+        raise IndexError(f"Failed to format docstring: {doc}")
     if indent < 2:  # only used for mkdocs
         out = out.replace("\n" + (2 - indent) * "    ", "\n")
     return out

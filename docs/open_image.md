@@ -110,6 +110,30 @@ The `"Drawing Layer"` will be selected, with the "add points" mode activated by 
     startup, so you don't have to worry about it. However, if you find the 3D images
     flipped, you may want to [check the handedness](https://napari.org/stable/guides/handedness.html#d-data-3d-axis-orientation-and-handedness).
 
+??? tip "Use custom reference image"
+
+    In some cases, you may already have a reference image for each tomogram.
+
+    - Saving binned (and filtered) images does not take much storage space. For example,
+      a 4&times; binning increases the total storage size only by 1/64 = 1.6%. Directly
+      using this image as the reference image will save time.
+    - There are many softwares that implement powerful denoising methods, such as
+      [Topaz](https://github.com/tbepler/topaz),
+      [cryoCARE](https://github.com/juglab/cryoCARE_pip) and
+      [IsoNet](https://github.com/IsoNet-cryoET/IsoNet).
+      It is a good idea to use these denoised images as the reference image while using
+      the original image for the analysis. In this case, you can load any image as the
+      reference using `open_reference_image`.
+
+    To use a custom reference image check "Use user-supplied reference image" and
+    provide the reference path in the open-image dialog.
+
+    Alternatively, you can open a reference image after opening the tomogram using
+    following method.
+
+    :material-arrow-right-thin-circle-outline: API: [`open_reference_image`][cylindra.widgets.main.CylindraMainWidget.open_reference_image].
+
+    :material-arrow-right-thin-circle-outline: GUI: `File > Open reference image`
 
 ### Use Multi-scaled Images
 
@@ -194,15 +218,3 @@ The implementation of this method is directly ported from [IsoNet](https://githu
 The processed reference image can be saved to a file. The save path will be recorded
 when the project is saved, and the reference image can directly be used when the project
 is loaded. See [Load & Save Projects](project_io.md) for more details.
-
-#### Use Custom Reference
-
-:material-arrow-right-thin-circle-outline: API: [`open_reference_image`][cylindra.widgets.main.CylindraMainWidget.open_reference_image].
-
-:material-arrow-right-thin-circle-outline: GUI: `File > Open reference image`
-
-There are many softwares that implement powerful denoising methods, such as
-[Topaz](https://github.com/tbepler/topaz), [cryoCARE](https://github.com/juglab/cryoCARE_pip) and [IsoNet](https://github.com/IsoNet-cryoET/IsoNet).
-It is a good idea to use these denoised images as the reference image while using
-the original image for the analysis. In this case, you can load any image as the
-reference using `open_reference_image`.
