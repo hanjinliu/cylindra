@@ -148,6 +148,7 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     ui.invert_image()
 
     AppConfig.from_user_dir()  # test reading config again
+    ui.open_image_with_reference(path, reference_path=path, bin_size=[1, 2])
 
 
 def test_io_with_different_data(ui: CylindraMainWidget, tmpdir):
@@ -1766,6 +1767,8 @@ def test_showing_widgets(ui: CylindraMainWidget):
     }
     loader.tilt_model.value = (-60, 60)
     assert loader.tilt_model.value == {"kind": "y", "range": (-60, 60)}
+
+    loader.use_reference = True
 
 
 def test_image_processor(ui: CylindraMainWidget, tmpdir):

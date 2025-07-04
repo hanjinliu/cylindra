@@ -3,6 +3,7 @@ from __future__ import annotations
 import inspect
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 from timeit import default_timer
 from typing import TYPE_CHECKING, Annotated, Any, Iterable, Sequence, TypedDict
 
@@ -17,7 +18,8 @@ from magicclass.types import ExprStr
 from magicclass.widgets import EvalLineEdit
 from numpy.typing import NDArray
 
-from cylindra.components._base import BaseComponent
+from cylindra import _config
+from cylindra.components import BaseComponent, CylTomogram
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import nm
 from cylindra.types import MoleculesLayer
@@ -500,3 +502,48 @@ def get_code_theme(self: MagicTemplate) -> str:
 def capitalize(s: str):
     """Just used for button texts."""
     return s.replace("_", " ").capitalize()
+
+
+def prep_tomogram(
+    path,
+    scale,
+    bin_size,
+    tilt_range=None,
+    eager: bool = False,
+    cache_image: bool = False,
+    compute: bool = True,
+) -> CylTomogram:
+    if cache_image:
+        read_path = _config.cache_tomogram(path)
+    else:
+        read_path = Path(path)
+    # check scale and bin size
+    scale_dict = ip.read_header(read_path).scale
+    if scale_dict is None or len(scale_dict) == 0:
+        orig_scale = None
+    else:
+        orig_scale = scale_dict.get("x") or list(scale_dict.values())[-1]
+    if scale is not None:
+        scale = float(scale)
+    else:
+        if orig_scale is None:
+            raise ValueError("Could not infer scale from the image header.")
+        scale = orig_scale
+    if isinstance(bin_size, int):
+        bin_size = [bin_size]
+    elif len(bin_size) == 0:
+        raise ValueError("You must specify at least one bin size.")
+    else:
+        bin_size = list(set(bin_size))  # delete duplication
+
+    tomo = CylTomogram.imread(
+        path=read_path,
+        scale=scale,
+        tilt=tilt_range,
+        binsize=bin_size,
+        eager=eager,
+        compute=compute,
+    ).with_cache_info(orig_path=Path(path), cached=cache_image)
+    if orig_scale is not None:
+        tomo.metadata["orig_scale"] = orig_scale
+    return tomo
