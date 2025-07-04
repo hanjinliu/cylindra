@@ -78,7 +78,7 @@ def main():
     ui.SplinesMenu.Fitting.fit_splines_manually()
     _imsave(ui.spline_fitter.native, "fit_splines_manually")
 
-    if (dock := ui.parent_viewer.window._dock_widgets.get("workflow_gui")) is None:
+    if (dock := ui.parent_viewer.window.dock_widgets.get("workflow_gui")) is None:
 
         @magicgui
         def _workflow_gui(path: Path, tilt_range: tuple[float, float] = (-60, 60)):

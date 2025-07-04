@@ -1080,8 +1080,8 @@ class OthersMenu(ChildWidget):
         """Open logger window."""
         wdt = _Logger.widget
         name = "Log"
-        if name in self.parent_viewer.window._dock_widgets:
-            self.parent_viewer.window._dock_widgets[name].show()
+        if name in self.parent_viewer.window.dock_widgets:
+            self.parent_viewer.window.dock_widgets[name].show()
         else:
             self.parent_viewer.window.add_dock_widget(wdt, name=name)
 

@@ -1,3 +1,4 @@
+import glob
 from pathlib import Path
 
 import impy as ip
@@ -24,8 +25,7 @@ from cylindra.utils import ceilint, find_tilt_angles
 
 @magicclass(widget_type="groupbox")
 class TiltModelEdit(MagicTemplate):
-    """
-    Parameters for the tilt model.
+    """Parameters for the tilt model.
 
     Attributes
     ----------
@@ -96,7 +96,17 @@ class ImageLoader(MagicTemplate):
     Attributes
     ----------
     path : Path
-        Path to the tomogram. Must be 3-D image.
+        Path to the tomogram. Must be a 3-D image.
+    use_reference : bool
+        Use a user-supplied reference image. The reference image is usually a binned
+        or denoised tomogram that will help to visualize the tomogram in the viewer.
+    reference_path : Path
+        Path to the reference image. Must be a 3-D image.
+    autofill_pattern : str
+        Pattern to autofill the reference image path. The pattern should contain a
+        placeholder `{}` that will be replaced with the name of the tomogram file. For
+        example, if you want to autofill like "TS_01.mrc" -> "TS_01_bin4.mrc", you can
+        set the pattern to "{}_bin4.mrc", or "{}_*.mrc" for more flexibility.
     bin_size : int or list of int, default [1]
         Initial bin size of image. Binned image will be used for visualization in the
         viewer. You can use both binned and non-binned image for analysis.
@@ -109,9 +119,42 @@ class ImageLoader(MagicTemplate):
     cache_image : bool
         Cache image on SSD for faster access. Cached image will be deleted when new
         tomogram is loaded or the application is closed.
+    fix_reference_scale : bool
+        Fix the pixel size of the reference image if the scale of the raw tomogram was
+        overridden. For example, if the header of the tomogram says 0.3 nm/pixel but is
+        overridden to 0.27 nm/pixel, and the reference image has a scale of 0.9 nm/pixel
+        (possibly binned by 3), the reference image will be rescaled to
+        0.9 / 0.3 * 0.27 = 0.81 nm/pixel.
     """
 
     path = vfield(Path).with_options(filter=FileFilter.IMAGE)
+    use_reference = vfield(False, label="Use user-supplied reference image")
+    reference_path = vfield(Path).with_options(filter=FileFilter.IMAGE)
+    autofill_pattern = vfield("{}_*.mrc")
+
+    @use_reference.connect
+    def _on_use_reference_change(self, use_ref: bool):
+        """Show or hide the reference path field based on the use_reference value."""
+        self["reference_path"].visible = use_ref
+        self["autofill_pattern"].visible = use_ref
+        self["fix_reference_scale"].visible = use_ref
+        self["eager"].visible = not use_ref
+
+        self["open_image"].visible = not use_ref
+        self["open_image_with_reference"].visible = use_ref
+
+    @path.connect
+    def _on_path_change(self, path: Path):
+        """Autofill the reference path if use_reference is True."""
+        path = Path(path)
+        if path.exists() and self.autofill_pattern:
+            ref_path_ptn = str(path.parent / self.autofill_pattern.format(path.stem))
+            ref_path = next(iter(glob.glob(ref_path_ptn)), None)
+            if ref_path is not None:
+                self.reference_path = Path(ref_path)
+
+    def __post_init__(self):
+        self._on_use_reference_change(self.use_reference)
 
     @magicclass(layout="horizontal", labels=False)
     class scale(MagicTemplate):
@@ -133,6 +176,7 @@ class ImageLoader(MagicTemplate):
     invert = vfield(False, label="Invert intensity")
     eager = vfield(False, label="Load the entire image into memory")
     cache_image = vfield(False, label="Cache image on SSD")
+    fix_reference_scale = vfield(True)
 
     @set_design(text="Scan header", max_width=90, location=scale)
     def scan_header(self):
@@ -163,6 +207,7 @@ class ImageLoader(MagicTemplate):
         return view_image(self.path, parent=self)
 
     open_image = abstractapi()
+    open_image_with_reference = abstractapi()
 
 
 @magicclass(record=False, widget_type="collapsible", labels=False)

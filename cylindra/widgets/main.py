@@ -522,35 +522,78 @@ class CylindraMainWidget(MagicTemplate):
             If true, the image will first be copied to the cache directory before
             loading.
         """
-        if cache_image:
-            read_path = _config.cache_tomogram(path)
-        else:
-            read_path = Path(path)
-        if scale is not None:
-            scale = float(scale)
-        else:
-            scale_dict = ip.read_header(read_path).scale
-            if scale_dict is None or len(scale_dict) == 0:
-                raise ValueError("Could not infer scale from the image header.")
-            scale = scale_dict.get("x") or list(scale_dict.values())[-1]
-        if isinstance(bin_size, int):
-            bin_size = [bin_size]
-        elif len(bin_size) == 0:
-            raise ValueError("You must specify at least one bin size.")
-        else:
-            bin_size = list(set(bin_size))  # delete duplication
-        tomo = CylTomogram.imread(
-            path=read_path,
-            scale=scale,
-            tilt=tilt_range,
-            binsize=bin_size,
-            eager=eager,
-        ).with_cache_info(orig_path=Path(path), cached=cache_image)
+        tomo = widget_utils.prep_tomogram(
+            path, scale, bin_size, tilt_range, eager, cache_image
+        )
         self._init_macro_state()
         self._project_dir = None
         return self._send_tomogram_to_viewer.with_args(tomo, filter, invert=invert)
 
+    @set_design(text="Open with reference", location=_image_loader)
+    @thread_worker.with_progress(desc="Reading image")
+    def open_image_with_reference(
+        self,
+        path: Annotated[str | Path, {"bind": _image_loader.path}],
+        reference_path: Annotated[str | Path, {"bind": _image_loader.reference_path}],
+        scale: Annotated[nm, {"bind": _image_loader.scale.scale_value}] = None,
+        tilt_range: Annotated[Any, {"bind": _image_loader.tilt_model}] = None,
+        bin_size: Annotated[int | Sequence[int], {"bind": _image_loader.bin_size}] = [1],
+        filter: Annotated[ImageFilter | None, {"bind": _image_loader.filter}] = ImageFilter.Lowpass,
+        invert: Annotated[bool, {"bind": _image_loader.invert}] = False,
+        fix_reference_scale: Annotated[bool, {"bind": _image_loader.fix_reference_scale}] = True,
+        cache_image: Annotated[bool, {"bind": _image_loader.cache_image}] = False,
+    ):  # fmt: skip
+        """Load a raw image file and a user-supplied reference image file.
+
+        Parameters
+        ----------
+        path : Path
+            Path to the tomogram. Must be 3-D image.
+        reference_path : Path
+            Path to the reference image. Must be a 3-D image.
+        scale : float, default 1.0
+            Pixel size in nm/pixel unit.
+        tilt_range : tuple of float, default None
+            Range of tilt angles in degrees.
+        bin_size : int or list of int, default [1]
+            Initial bin size of image. Binned image will be used for visualization in the viewer.
+            You can use both binned and non-binned image for analysis.
+        {filter}
+        invert : bool, default False
+            If true, invert the intensity of the raw image.
+        fix_reference_scale : bool, default True
+            Fix the pixel size of the reference image if the scale of the raw tomogram
+            was overridden.
+        cache_image : bool, default False
+            If true, the image will first be copied to the cache directory before
+            loading.
+        """
+        tomo = widget_utils.prep_tomogram(
+            path, scale, bin_size, tilt_range, cache_image=cache_image, compute=False
+        )
+        self._init_macro_state()
+        cb = self._send_tomogram_to_viewer.with_args(tomo, filt=None, invert=invert)
+        yield cb
+        cb.await_call()
+        img_ref = ip.imread(reference_path)
+        if (
+            fix_reference_scale
+            and (orig_scale := tomo.metadata.get("orig_scale", -1)) > 0
+            and abs((scale_factor := tomo.scale / orig_scale) - 1) > 1e-4
+        ):
+            img_ref = img_ref.set_scale(
+                **{k: v * scale_factor for k, v in img_ref.scale.items()},
+                unit=img_ref.scale_unit,
+            )
+        cb = thread_worker.callback(self._update_reference_image).with_args(img_ref)
+        yield cb
+        cb.await_call()
+        self._project_dir = None
+        if filter is not None:
+            yield from self.filter_reference_image.arun(filter)
+
     @open_image.started.connect
+    @open_image_with_reference.started.connect
     def _open_image_on_start(self):
         return self._image_loader.close()
 
