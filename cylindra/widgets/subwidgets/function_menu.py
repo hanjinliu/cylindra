@@ -24,7 +24,7 @@ from napari.types import LayerDataTuple
 from cylindra.components.imscale import ScaleOptimizer
 from cylindra.components.seam_search import SeamSearchResult
 from cylindra.const import PREVIEW_LAYER_NAME, SEAM_SEARCH_RESULT, FileFilter
-from cylindra.utils import set_gpu
+from cylindra.utils import fit_to_shape, set_gpu
 from cylindra.widget_utils import FscResult, add_image_to_sub_viewer, capitalize
 from cylindra.widgets._annotated import assert_layer
 
@@ -298,6 +298,7 @@ class Volume(MagicTemplate):
             )
         elif img.scale.x < target_img.scale.x:
             img = img.zoom(img.scale.x / target_img.scale.x, mode="reflect")
+        img = fit_to_shape(img, target_img.shape)
         aligner = ZNCCAlignment(target_img, rotations=[(angle_max, angle_step)] * 3)
         img_fit, al = aligner.fit(img, max_shifts=(shift_max, shift_max, shift_max))
         _Logger.print(f"Shift: {al.shift.round(2)}")
@@ -324,8 +325,14 @@ class Volume(MagicTemplate):
         mask: Annotated[Optional[Image], {"text": "Do not use mask"}] = None,
         zoom_range: tuple[float, float] = (0.9, 1.1),
         precision: Annotated[float, {"step": 0.0001}] = 0.001,
+        frequency_range: Annotated[
+            tuple[float, float], {"label": "Frequency range [nm]"}
+        ] = (1.0, 5.0),
     ):
         """Calculate the scale of the input layer to fit to the target layer.
+
+        FSC will be used as the metric to find the optimal scale. Mean FSC in the
+        specified frequency range will be used.
 
         Parameters
         ----------
@@ -337,6 +344,8 @@ class Volume(MagicTemplate):
             Range of zooming factor.
         precision : float
             Precision of the scale (nm/pixel).
+        frequency_range : (float, float)
+            Frequency range (in nm) to consider for FSC calculation.
         """
         import matplotlib.pyplot as plt
 
@@ -346,7 +355,8 @@ class Volume(MagicTemplate):
             _convert_array(mask.data, mask.scale[-1]) if mask is not None else None
         )
         opt = ScaleOptimizer(*zoom_range, precision=precision)
-        result = opt.fit(img, target_img, mask=mask_img)
+        fmin, fmax = frequency_range
+        result = opt.fit(img, target_img, mask=mask_img, freq_min=fmin, freq_max=fmax)
         with _Logger.set_plt():
             plt.figure(figsize=(3.6, 3.6))
             plt.plot(result.scales, result.scores, lw=1.5)

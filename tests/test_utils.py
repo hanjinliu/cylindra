@@ -207,3 +207,31 @@ def test_read_mdoc(tmpdir):
     path.write_text(text)
     tilt_angles = utils.read_tilt_angles_from_mdoc(path)
     assert_allclose(tilt_angles, [-19.993, 20.114])
+
+
+@pytest.mark.parametrize(
+    "shape_orig, shape_target",
+    [
+        ((7, 7, 7), (11, 11, 11)),
+        ((8, 8, 8), (11, 11, 11)),
+        ((7, 7, 7), (10, 10, 10)),
+        ((8, 8, 8), (10, 10, 10)),
+        ((7, 7, 7), (5, 5, 5)),
+        ((8, 8, 8), (5, 5, 5)),
+        ((7, 7, 7), (6, 6, 6)),
+        ((8, 8, 8), (6, 6, 6)),
+        ((7, 9, 6), (9, 8, 9)),
+    ],
+)
+def test_fit_to_shape(shape_orig, shape_target):
+    img = ip.gaussian_kernel(shape_orig)
+    out = utils.fit_to_shape(img, shape_target)
+    assert out.shape == shape_target
+    assert out.scale == img.scale
+    assert out.scale_unit == img.scale_unit
+    center = tuple(s // 2 for s in shape_target)
+    # due to interpolation, sometimes the center is not the maximum
+    assert np.all(out[center] - out > -1e-3)
+    assert np.all(np.abs(out - out[::-1]) < 1e-6)
+    assert np.all(np.abs(out - out[:, ::-1]) < 1e-6)
+    assert np.all(np.abs(out - out[:, :, ::-1]) < 1e-6)

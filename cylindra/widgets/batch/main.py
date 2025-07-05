@@ -14,6 +14,7 @@ from magicclass import (
 )
 from magicclass.types import Path
 from magicclass.utils import thread_worker
+from qtpy.QtWidgets import QSizePolicy
 
 from cylindra.const import FileFilter
 from cylindra.core import ACTIVE_WIDGETS
@@ -44,6 +45,11 @@ class CylindraBatchWidget(MagicTemplate):
         self._loaders.events.inserted.connect(self.reset_choices)
         self._loaders.events.removed.connect(self.reset_choices)
         self._loaders.events.moved.connect(self.reset_choices)
+
+    def __post_init__(self):
+        self.native.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
 
     def _get_loader_paths(self, *_) -> list[PathInfo]:
         return [prj._get_loader_paths() for prj in self.constructor.projects]

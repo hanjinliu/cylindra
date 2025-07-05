@@ -37,3 +37,13 @@ As an example of using RMA, see the [case study](../case_studies/rma.md).
 :material-arrow-right-thin-circle-outline: GUI: `Subtomogram Averaging > Alignment > Simulated Annealing`
 
 ![Run RMA](../images/align_all_rma.png){ loading=lazy, width=480px }
+
+## Template-free RMA
+
+:material-arrow-right-thin-circle-outline: API: [`align_all_rma_template_free`][cylindra.widgets.sta.SubtomogramAveraging.align_all_rma_template_free]
+
+:material-arrow-right-thin-circle-outline: GUI: `Subtomogram Averaging > Alignment > Simulated annealing (RMA, template free)`
+
+This method will iteratively construct landscape, align molecules by RMA, and validate
+the result by FSC. This method is useful when you know that the structure of interest
+is a cylindrical structure, but you do not know the monomer structure.
