@@ -4,7 +4,7 @@ import math
 import re
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Callable, Sequence, TypeVar
+from typing import Any, Callable, Sequence, TypeVar
 
 import impy as ip
 import numpy as np
@@ -361,28 +361,34 @@ def fit_to_shape(img: ip.ImgArray, shape: tuple[int, int, int]) -> ip.ImgArray:
         return img
     img = img.copy()
     shifts = [0] * img.ndim
+    tasks: list[tuple[str, Any]] = []
     for i, (s, sh) in enumerate(zip(img.shape, shape, strict=False)):
         ds = sh - s
         if ds > 0:
             if ds % 2 == 0:
-                img = img.pad([(ds // 2, ds // 2)], dims=img.axes[i], constant_values=0)
+                tasks.append(("pad", [(ds // 2, ds // 2)]))
             else:
-                img = img.pad(
-                    [(ds // 2, ds // 2 + 1)], dims=img.axes[i], constant_values=0
-                )
+                tasks.append(("pad", [(ds // 2, ds // 2 + 1)]))
                 shifts[i] = 0.5
         elif ds < 0:
             if ds % 2 == 0:
                 sl = [slice(None)] * img.ndim
                 sl[i] = slice(-ds // 2, -ds // 2 + sh)
-                img = img[tuple(sl)]
+                tasks.append(("slice", tuple(sl)))
             else:
                 sl = [slice(None)] * img.ndim
                 sl[i] = slice(-ds // 2, -ds // 2 + sh)
-                img = img[tuple(sl)]
+                tasks.append(("slice", tuple(sl)))
                 shifts[i] = -0.5
     if any(s != 0 for s in shifts):
-        img = img.shift(shifts, dims=img.axes, mode=Mode.reflect)
+        img = img.shift(shifts, dims=img.axes, mode=Mode.constant, cval=0.0)
+    for i, (task, args) in enumerate(tasks):
+        if task == "pad":
+            img = img.pad(args, dims=img.axes[i], constant_values=0)
+        elif task == "slice":
+            img = img[args]
+        else:  # pragma: no cover
+            raise RuntimeError(f"Unknown task {task!r} in fit_to_shape.")
     return img
 
 

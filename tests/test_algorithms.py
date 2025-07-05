@@ -341,9 +341,9 @@ def test_flat_view():
 def test_imscale():
     from cylindra.components.imscale import ScaleOptimizer
 
-    opt = ScaleOptimizer(0.9, 1.1)
-    img_ref = ip.gaussian_kernel((11, 11, 11), sigma=2, axes="zyx")
-    img = ip.gaussian_kernel((11, 11, 11), sigma=2.03, axes="zyx")
-    res = opt.fit(img, img_ref)
-    assert res.scale_optimal == pytest.approx(1.015, abs=1e-3)
-    assert res.score_optimal > 0.95
+    opt = ScaleOptimizer(0.95, 1.05)
+    img_ref = ip.gaussian_kernel((11, 11, 11), sigma=2, axes="zyx").set_scale(xyz=0.33)
+    img = ip.gaussian_kernel((11, 11, 11), sigma=2.03, axes="zyx").set_scale(xyz=0.33)
+    res = opt.fit(img, img_ref, freq_min=0.1, freq_max=100)
+    assert res.score_optimal > 0.99
+    assert res.scale_optimal == pytest.approx(0.33 * 2 / 2.03, abs=1e-3)

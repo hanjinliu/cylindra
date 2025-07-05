@@ -7,6 +7,7 @@ import impy as ip
 import numpy as np
 from numpy.typing import NDArray
 
+from cylindra.const import nm
 from cylindra.utils import fit_to_shape
 
 
@@ -36,8 +37,8 @@ class ScaleOptimizer(ScaleOptimizerBase):
         img: ip.ImgArray,
         img_ref: ip.ImgArray,
         mask: ip.ImgArray | None = None,
-        freq_min: float = 0.05,
-        freq_max: float = 0.35,
+        freq_min: nm = 0.5,
+        freq_max: nm = 100,
     ) -> OptimizationResult:
         scales = []
         scores = []
@@ -56,7 +57,7 @@ class ScaleOptimizer(ScaleOptimizerBase):
         zmin, zmax = self._zoom_min, self._zoom_max
         diff = (zmax - zmin) / (self._num - 1)
 
-        fmax = img.scale.x / freq_min
+        fmax = img.scale.x / freq_min if freq_min > 0 else np.inf
         fmin = img.scale.x / freq_max
 
         while img.scale.x * diff > self._precision:
@@ -80,11 +81,17 @@ class ScaleOptimizer(ScaleOptimizerBase):
         return OptimizationResult(_scales[_order], _scores[_order])
 
 
-def fsc_mean(img0: ip.ImgArray, img1: ip.ImgArray, freq_min=0.05, freq_max=0.35):
+def fsc_mean(img0: ip.ImgArray, img1: ip.ImgArray, freq_min: nm, freq_max: nm):
     """Calculate the mean FSC value within the specified frequency range."""
     freq, fsc = ip.fsc(img0, img1, dfreq=np.sqrt(3) / img0.shape[0])
     freq_range = (freq_min <= freq) & (freq <= freq_max)
-    return np.mean(fsc[freq_range])
+    fsc_of_interest = fsc[freq_range]
+    if fsc_of_interest.size == 0:
+        raise ValueError(
+            f"No frequencies found in the range {freq_min=}, {freq_max=}. Returned "
+            f"frequency was {freq!r}. Please adjust the frequency range."
+        )
+    return np.max(fsc_of_interest)
 
 
 class OptimizationResult(NamedTuple):

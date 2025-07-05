@@ -232,6 +232,6 @@ def test_fit_to_shape(shape_orig, shape_target):
     center = tuple(s // 2 for s in shape_target)
     # due to interpolation, sometimes the center is not the maximum
     assert np.all(out[center] - out > -1e-3)
-    assert np.all(np.abs(out - out[::-1]) < 1e-2)
-    assert np.all(np.abs(out - out[:, ::-1]) < 1e-2)
-    assert np.all(np.abs(out - out[:, :, ::-1]) < 1e-2)
+    assert np.all(np.abs(out - out[::-1]) < 1e-6)
+    assert np.all(np.abs(out - out[:, ::-1]) < 1e-6)
+    assert np.all(np.abs(out - out[:, :, ::-1]) < 1e-6)
