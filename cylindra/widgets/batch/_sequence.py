@@ -210,9 +210,15 @@ class Project(MagicTemplate):
 
     def _get_loader_paths(self) -> tuple[Path, list[str], Path]:
         """Return (image, molecules, project) paths."""
-        project = CylindraProject.from_file(self.path)
-        img_path = Path(project.image)
         prj_path = Path(self.path)
+        project = CylindraProject.from_file(self.path)
+        if project.image is None or not Path(project.image).exists():
+            if rpath := project._try_resolve_image_relative():
+                img_path = rpath
+            else:
+                raise ValueError("No image path found in the project.")
+        else:
+            img_path = Path(project.image)
         mole_paths = [mole.line.value for mole in self.molecules if mole.check]
         return img_path, mole_paths, prj_path
 

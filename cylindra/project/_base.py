@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 else:
     from pydantic_compat import BaseModel
 
-PathLike = Path | str | bytes
+PathLike = Path | str
 
 
 class BaseProject(BaseModel):

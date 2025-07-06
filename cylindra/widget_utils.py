@@ -335,11 +335,13 @@ class FscResult:
         return resolution
 
     def plot(self, criteria: list[float] = [0.143, 0.5]):
+        """Plot the FSC curve."""
         import matplotlib.pyplot as plt
 
         ind = self.freq <= 0.7
         plt.axhline(0.0, color="gray", alpha=0.5, ls="--")
         plt.axhline(1.0, color="gray", alpha=0.5, ls="--")
+        plt.axvline(0.5, color="gray", alpha=0.5, ls="--")  # Nyquist frequency
         for cr in criteria:
             plt.axhline(cr, color="violet", alpha=0.5, ls="--")
         plt.plot(self.freq[ind], self.mean[ind], color="gold")
@@ -350,7 +352,7 @@ class FscResult:
             color="gold",
             alpha=0.3,
         )
-        plt.xlabel("Spatial frequence (1/nm)")
+        plt.xlabel("Spatial frequency (1/nm)")
         plt.ylabel("FSC")
         plt.ylim(-0.1, 1.1)
         xticks = np.linspace(0, 0.7, 8)
