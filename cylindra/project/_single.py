@@ -256,8 +256,18 @@ class CylindraProject(BaseProject):
         from cylindra.components import SplineConfig
 
         gui = _get_instance(gui)
+        if (
+            read_reference
+            and self.image_reference
+            and Path(self.image_reference).exists()
+        ):
+            path_ref = Path(self.image_reference)
+        else:
+            path_ref = None
         with self.open_project() as project_dir:
-            tomogram = self.load_tomogram(project_dir, compute=read_image)
+            tomogram = self.load_tomogram(
+                project_dir, compute=read_image and path_ref is None
+            )
             macro_expr = extract(self._script_py_path(project_dir).read_text()).args
             cfg_path = project_dir / "default_spline_config.json"
             if cfg_path.exists() and update_config:
@@ -265,16 +275,6 @@ class CylindraProject(BaseProject):
             else:
                 default_config = None
 
-            if (
-                read_reference
-                and self.image_reference
-                and Path(self.image_reference).exists()
-            ):
-                path_ref = Path(self.image_reference)
-            else:
-                path_ref = None
-            if path_ref:
-                filter = None
             cb = gui._send_tomogram_to_viewer.with_args(
                 tomogram, filt=filter, invert=self.invert
             )
@@ -484,8 +484,7 @@ class CylindraProject(BaseProject):
             yield info, mole
 
     def load_molecules(self, name: str, dir: Path | None = None) -> "Molecules":
-        """
-        Load the molecule with the given name.
+        """Load the molecule with the given name.
 
         >>> mole = project.load_molecules("Mole-0")  # load one with name "Mole-0"
 
@@ -522,8 +521,7 @@ class CylindraProject(BaseProject):
         dir: Path | None = None,
         compute: bool = True,
     ) -> "CylTomogram":
-        """
-        Load the tomogram object of the project.
+        """Load the tomogram object of the project.
 
         Parameters
         ----------

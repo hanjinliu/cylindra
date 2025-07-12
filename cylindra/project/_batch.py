@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import macrokit as mk
+from pydantic import BaseModel
 
 from cylindra._config import get_config
 from cylindra.const import MoleculesHeader as Mole
@@ -10,11 +11,7 @@ from cylindra.project._base import BaseProject, PathLike, resolve_path
 from cylindra.project._utils import as_main_function
 
 if TYPE_CHECKING:
-    from pydantic import BaseModel
-
     from cylindra.widgets.batch import CylindraBatchWidget
-else:
-    from pydantic_compat import BaseModel
 
 
 class ImageInfo(BaseModel):

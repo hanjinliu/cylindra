@@ -19,6 +19,7 @@ if __name__ == "__main__":
 
 
 def as_main_function(expr: Expr, imports: Iterable[str] = ()) -> str:
+    """Convert a macro to a main(ui) function string."""
     txt = "\n".join(f"    {line}" for line in expr.args)
     import_statements = "\n".join(imports) + "\n"
     return _MACRO_FORMAT.format(import_statements, txt)
