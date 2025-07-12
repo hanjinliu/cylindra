@@ -2200,6 +2200,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#cylindra.project.as_main_function" class="md-nav__link">
+    <span class="md-ellipsis">
+      as_main_function
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#cylindra.project.extract" class="md-nav__link">
     <span class="md-ellipsis">
       extract
@@ -2984,6 +2993,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#cylindra.project.as_main_function" class="md-nav__link">
+    <span class="md-ellipsis">
+      as_main_function
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#cylindra.project.extract" class="md-nav__link">
     <span class="md-ellipsis">
       extract
@@ -3071,7 +3089,10 @@
 
               <details class="quote">
                 <summary>Source code in <code>cylindra/project/_batch.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 48</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 45</span>
+<span class="normal"> 46</span>
+<span class="normal"> 47</span>
+<span class="normal"> 48</span>
 <span class="normal"> 49</span>
 <span class="normal"> 50</span>
 <span class="normal"> 51</span>
@@ -3179,10 +3200,7 @@
 <span class="normal">153</span>
 <span class="normal">154</span>
 <span class="normal">155</span>
-<span class="normal">156</span>
-<span class="normal">157</span>
-<span class="normal">158</span>
-<span class="normal">159</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylindraBatchProject</span><span class="p">(</span><span class="n">BaseProject</span><span class="p">):</span>
+<span class="normal">156</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylindraBatchProject</span><span class="p">(</span><span class="n">BaseProject</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A project of cylindra batch processing.&quot;&quot;&quot;</span>
 
     <span class="n">datetime</span><span class="p">:</span> <span class="nb">str</span>
@@ -3325,11 +3343,11 @@
 
             <details class="quote">
               <summary>Source code in <code>cylindra/project/_batch.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">57</span>
-<span class="normal">58</span>
-<span class="normal">59</span>
-<span class="normal">60</span>
-<span class="normal">61</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">resolve_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_dir</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">):</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">54</span>
+<span class="normal">55</span>
+<span class="normal">56</span>
+<span class="normal">57</span>
+<span class="normal">58</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">resolve_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_dir</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Resolve the path of the project.&quot;&quot;&quot;</span>
     <span class="n">file_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">file_dir</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">loaders</span> <span class="o">=</span> <span class="p">[</span><span class="n">ldr</span><span class="o">.</span><span class="n">resolve_path</span><span class="p">(</span><span class="n">file_dir</span><span class="p">)</span> <span class="k">for</span> <span class="n">ldr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">loaders</span><span class="p">]</span>
@@ -3360,7 +3378,10 @@
 
             <details class="quote">
               <summary>Source code in <code>cylindra/project/_batch.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">113</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">110</span>
+<span class="normal">111</span>
+<span class="normal">112</span>
+<span class="normal">113</span>
 <span class="normal">114</span>
 <span class="normal">115</span>
 <span class="normal">116</span>
@@ -3378,10 +3399,7 @@
 <span class="normal">128</span>
 <span class="normal">129</span>
 <span class="normal">130</span>
-<span class="normal">131</span>
-<span class="normal">132</span>
-<span class="normal">133</span>
-<span class="normal">134</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">131</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">save_gui</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">:</span> <span class="s2">&quot;type[CylindraBatchProject]&quot;</span><span class="p">,</span>
     <span class="n">gui</span><span class="p">:</span> <span class="s2">&quot;CylindraBatchWidget&quot;</span><span class="p">,</span>
@@ -4097,9 +4115,7 @@
 <span class="normal">686</span>
 <span class="normal">687</span>
 <span class="normal">688</span>
-<span class="normal">689</span>
-<span class="normal">690</span>
-<span class="normal">691</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylindraProject</span><span class="p">(</span><span class="n">BaseProject</span><span class="p">):</span>
+<span class="normal">689</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylindraProject</span><span class="p">(</span><span class="n">BaseProject</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A project of cylindra.&quot;&quot;&quot;</span>
 
     <span class="c1"># this allows extra fields in the json file, for backward compatibility</span>
@@ -4325,8 +4341,18 @@
         <span class="kn">from</span><span class="w"> </span><span class="nn">cylindra.components</span><span class="w"> </span><span class="kn">import</span> <span class="n">SplineConfig</span>
 
         <span class="n">gui</span> <span class="o">=</span> <span class="n">_get_instance</span><span class="p">(</span><span class="n">gui</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">read_reference</span>
+            <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_reference</span>
+            <span class="ow">and</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">image_reference</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
+        <span class="p">):</span>
+            <span class="n">path_ref</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">image_reference</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">path_ref</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">open_project</span><span class="p">()</span> <span class="k">as</span> <span class="n">project_dir</span><span class="p">:</span>
-            <span class="n">tomogram</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_tomogram</span><span class="p">(</span><span class="n">project_dir</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="n">read_image</span><span class="p">)</span>
+            <span class="n">tomogram</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_tomogram</span><span class="p">(</span>
+                <span class="n">project_dir</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="n">read_image</span> <span class="ow">and</span> <span class="n">path_ref</span> <span class="ow">is</span> <span class="kc">None</span>
+            <span class="p">)</span>
             <span class="n">macro_expr</span> <span class="o">=</span> <span class="n">extract</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_script_py_path</span><span class="p">(</span><span class="n">project_dir</span><span class="p">)</span><span class="o">.</span><span class="n">read_text</span><span class="p">())</span><span class="o">.</span><span class="n">args</span>
             <span class="n">cfg_path</span> <span class="o">=</span> <span class="n">project_dir</span> <span class="o">/</span> <span class="s2">&quot;default_spline_config.json&quot;</span>
             <span class="k">if</span> <span class="n">cfg_path</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">and</span> <span class="n">update_config</span><span class="p">:</span>
@@ -4334,16 +4360,6 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">default_config</span> <span class="o">=</span> <span class="kc">None</span>
 
-            <span class="k">if</span> <span class="p">(</span>
-                <span class="n">read_reference</span>
-                <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_reference</span>
-                <span class="ow">and</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">image_reference</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
-            <span class="p">):</span>
-                <span class="n">path_ref</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">image_reference</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">path_ref</span> <span class="o">=</span> <span class="kc">None</span>
-            <span class="k">if</span> <span class="n">path_ref</span><span class="p">:</span>
-                <span class="nb">filter</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="n">cb</span> <span class="o">=</span> <span class="n">gui</span><span class="o">.</span><span class="n">_send_tomogram_to_viewer</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span>
                 <span class="n">tomogram</span><span class="p">,</span> <span class="n">filt</span><span class="o">=</span><span class="nb">filter</span><span class="p">,</span> <span class="n">invert</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">invert</span>
             <span class="p">)</span>
@@ -4553,8 +4569,7 @@
             <span class="k">yield</span> <span class="n">info</span><span class="p">,</span> <span class="n">mole</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">load_molecules</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Molecules&quot;</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Load the molecule with the given name.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load the molecule with the given name.</span>
 
 <span class="sd">        &gt;&gt;&gt; mole = project.load_molecules(&quot;Mole-0&quot;)  # load one with name &quot;Mole-0&quot;</span>
 
@@ -4591,8 +4606,7 @@
         <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">compute</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;CylTomogram&quot;</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Load the tomogram object of the project.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load the tomogram object of the project.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -5433,10 +5447,8 @@
 <span class="normal">514</span>
 <span class="normal">515</span>
 <span class="normal">516</span>
-<span class="normal">517</span>
-<span class="normal">518</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_molecules</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Molecules&quot;</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Load the molecule with the given name.</span>
+<span class="normal">517</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_molecules</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Molecules&quot;</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load the molecule with the given name.</span>
 
 <span class="sd">    &gt;&gt;&gt; mole = project.load_molecules(&quot;Mole-0&quot;)  # load one with name &quot;Mole-0&quot;</span>
 
@@ -5759,7 +5771,8 @@
 
             <details class="quote">
               <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">520</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">519</span>
+<span class="normal">520</span>
 <span class="normal">521</span>
 <span class="normal">522</span>
 <span class="normal">523</span>
@@ -5814,15 +5827,12 @@
 <span class="normal">572</span>
 <span class="normal">573</span>
 <span class="normal">574</span>
-<span class="normal">575</span>
-<span class="normal">576</span>
-<span class="normal">577</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_tomogram</span><span class="p">(</span>
+<span class="normal">575</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_tomogram</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">compute</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;CylTomogram&quot;</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Load the tomogram object of the project.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load the tomogram object of the project.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -5896,13 +5906,13 @@
 
             <details class="quote">
               <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">600</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">598</span>
+<span class="normal">599</span>
+<span class="normal">600</span>
 <span class="normal">601</span>
 <span class="normal">602</span>
 <span class="normal">603</span>
-<span class="normal">604</span>
-<span class="normal">605</span>
-<span class="normal">606</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">make_component_viewer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">604</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">make_component_viewer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a molecules viewer widget from this project.&quot;&quot;&quot;</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">cylindra.project._widgets</span><span class="w"> </span><span class="kn">import</span> <span class="n">ComponentsViewer</span>
 
@@ -5931,13 +5941,13 @@
 
             <details class="quote">
               <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">592</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">590</span>
+<span class="normal">591</span>
+<span class="normal">592</span>
 <span class="normal">593</span>
 <span class="normal">594</span>
 <span class="normal">595</span>
-<span class="normal">596</span>
-<span class="normal">597</span>
-<span class="normal">598</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">make_project_viewer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">596</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">make_project_viewer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a project viewer widget from this project.&quot;&quot;&quot;</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">cylindra.project._widgets</span><span class="w"> </span><span class="kn">import</span> <span class="n">ProjectViewer</span>
 
@@ -6047,7 +6057,9 @@
 
             <details class="quote">
               <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">608</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">606</span>
+<span class="normal">607</span>
+<span class="normal">608</span>
 <span class="normal">609</span>
 <span class="normal">610</span>
 <span class="normal">611</span>
@@ -6073,9 +6085,7 @@
 <span class="normal">631</span>
 <span class="normal">632</span>
 <span class="normal">633</span>
-<span class="normal">634</span>
-<span class="normal">635</span>
-<span class="normal">636</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@contextmanager</span>
+<span class="normal">634</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@contextmanager</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">open_project</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Generator</span><span class="p">[</span><span class="n">Path</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Open the project within this context.&quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">project_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -6159,7 +6169,9 @@ project directory.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">638</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">636</span>
+<span class="normal">637</span>
+<span class="normal">638</span>
 <span class="normal">639</span>
 <span class="normal">640</span>
 <span class="normal">641</span>
@@ -6190,9 +6202,7 @@ project directory.</p>
 <span class="normal">666</span>
 <span class="normal">667</span>
 <span class="normal">668</span>
-<span class="normal">669</span>
-<span class="normal">670</span>
-<span class="normal">671</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">rewrite</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">):</span>
+<span class="normal">669</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">rewrite</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Rewrite tar/zip file using given temporary directory.</span>
 
 <span class="sd">    This method is only used after some mutable operation on the</span>
@@ -9314,6 +9324,37 @@ found.</p>
 <div class="doc doc-object doc-function">
 
 
+<h4 id="cylindra.project.as_main_function" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">as_main_function</span><span class="p">(</span><span class="n">expr</span><span class="p">,</span> <span class="n">imports</span><span class="o">=</span><span class="p">())</span></code>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Convert a macro to a main(ui) function string.</p>
+
+
+            <details class="quote">
+              <summary>Source code in <code>cylindra/project/_utils.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">21</span>
+<span class="normal">22</span>
+<span class="normal">23</span>
+<span class="normal">24</span>
+<span class="normal">25</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">as_main_function</span><span class="p">(</span><span class="n">expr</span><span class="p">:</span> <span class="n">Expr</span><span class="p">,</span> <span class="n">imports</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">())</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert a macro to a main(ui) function string.&quot;&quot;&quot;</span>
+    <span class="n">txt</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;    </span><span class="si">{</span><span class="n">line</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">expr</span><span class="o">.</span><span class="n">args</span><span class="p">)</span>
+    <span class="n">import_statements</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">imports</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+    <span class="k">return</span> <span class="n">_MACRO_FORMAT</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">import_statements</span><span class="p">,</span> <span class="n">txt</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h4 id="cylindra.project.extract" class="doc doc-heading">
             <code class="highlight language-python"><span class="n">extract</span><span class="p">(</span><span class="n">text</span><span class="p">)</span></code>
 
@@ -9327,8 +9368,7 @@ found.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/project/_utils.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">27</span>
-<span class="normal">28</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">28</span>
 <span class="normal">29</span>
 <span class="normal">30</span>
 <span class="normal">31</span>
@@ -9337,7 +9377,8 @@ found.</p>
 <span class="normal">34</span>
 <span class="normal">35</span>
 <span class="normal">36</span>
-<span class="normal">37</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">extract</span><span class="p">(</span><span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Expr</span><span class="p">:</span>
+<span class="normal">37</span>
+<span class="normal">38</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">extract</span><span class="p">(</span><span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Expr</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Extract the content of main function.&quot;&quot;&quot;</span>
 
     <span class="n">macro_expr</span> <span class="o">=</span> <span class="n">parse</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">squeeze</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
@@ -9370,8 +9411,7 @@ found.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/project/_utils.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">40</span>
-<span class="normal">41</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">41</span>
 <span class="normal">42</span>
 <span class="normal">43</span>
 <span class="normal">44</span>
@@ -9380,7 +9420,8 @@ found.</p>
 <span class="normal">47</span>
 <span class="normal">48</span>
 <span class="normal">49</span>
-<span class="normal">50</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_project_file</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">):</span>
+<span class="normal">50</span>
+<span class="normal">51</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_project_file</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the path to the project file.&quot;&quot;&quot;</span>
     <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
