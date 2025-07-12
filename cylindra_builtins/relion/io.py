@@ -13,6 +13,7 @@ from cylindra.widget_utils import add_molecules
 from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets._annotated import MoleculesLayersType, assert_list_of_layers
 
+TOMO_NAME = "rlnTomoName"
 POS_COLUMNS = ["rlnCoordinateZ", "rlnCoordinateY", "rlnCoordinateX"]
 ROT_COLUMNS = ["rlnAngleRot", "rlnAngleTilt", "rlnAnglePsi"]
 POS_ORIGIN_COLUMNS = ["rlnOriginZAngst", "rlnOriginYAngst", "rlnOriginXAngst"]
@@ -20,12 +21,12 @@ RELION_TUBE_ID = "rlnHelicalTubeID"
 MOLE_ID = "MoleculeGroupID"
 PIXEL_SIZE = "rlnTomoTiltSeriesPixelSize"
 OPTICS_GROUP = "rlnOpticsGroup"
+IMAGE_PIXEL_SIZE = "rlnImagePixelSize"
 
 
 @register_function(name="Load molecules")
 def load_molecules(ui: CylindraMainWidget, path: Path.Read[FileFilter.STAR]):
-    """
-    Read monomer coordinates and angles from RELION .star file.
+    """Read monomer coordinates and angles from RELION .star file.
 
     Parameters
     ----------
@@ -40,8 +41,7 @@ def load_molecules(ui: CylindraMainWidget, path: Path.Read[FileFilter.STAR]):
 
 @register_function(name="Load splines")
 def load_splines(ui: CylindraMainWidget, path: Path.Read[FileFilter.STAR]):
-    """
-    Read a star file and register all the tubes as splines.
+    """Read a star file and register all the tubes as splines.
 
     The "rlnHelicalTubeID" column will be used to group the points into splines.
 
@@ -62,7 +62,6 @@ def load_splines(ui: CylindraMainWidget, path: Path.Read[FileFilter.STAR]):
     else:
         for _, each in mole.group_by(RELION_TUBE_ID):
             ui.register_path(each.pos, err_max=1e-8)
-    return None
 
 
 @register_function(name="Save molecules")
@@ -71,9 +70,9 @@ def save_molecules(
     save_path: Path.Save[FileFilter.STAR],
     layers: MoleculesLayersType,
     save_features: bool = True,
+    tomo_name_override: str = "",
 ):
-    """
-    Save the selected molecules to a RELION .star file.
+    """Save the selected molecules to a RELION .star file.
 
     If multiple layers are selected, the `MoleculeGroupID` column will be added
     to the star file to distinguish the layers.
@@ -92,14 +91,21 @@ def save_molecules(
     mole = Molecules.concat([layer.molecules for layer in layers])
     euler_angle = mole.euler_angle(seq="ZYZ", degrees=True)
     scale = ui.tomogram.scale
+    orig = ui.tomogram.origin
+    tomo_name = tomo_name_override or ui.tomogram.image.name
 
     out_dict = {
+        TOMO_NAME: [tomo_name] * mole.count(),
         POS_COLUMNS[2]: mole.pos[:, 2] / scale,
         POS_COLUMNS[1]: mole.pos[:, 1] / scale,
         POS_COLUMNS[0]: mole.pos[:, 0] / scale,
         ROT_COLUMNS[0]: euler_angle[:, 0],
         ROT_COLUMNS[1]: euler_angle[:, 1],
         ROT_COLUMNS[2]: euler_angle[:, 2],
+        POS_ORIGIN_COLUMNS[2]: orig.x * 10,  # convert to Angstrom
+        POS_ORIGIN_COLUMNS[1]: orig.y * 10,
+        POS_ORIGIN_COLUMNS[0]: orig.z * 10,
+        IMAGE_PIXEL_SIZE: scale * 10,  # convert to Angstrom
         OPTICS_GROUP: np.ones(mole.count(), dtype=np.uint32),
     }
     if len(layers) > 1:
@@ -114,7 +120,6 @@ def save_molecules(
             out_dict[col] = mole.features[col]
     df = pd.DataFrame(out_dict)
     _write_star(df, save_path, scale)
-    return None
 
 
 @register_function(name="Save splines")
@@ -122,9 +127,9 @@ def save_splines(
     ui: CylindraMainWidget,
     save_path: Path.Save[FileFilter.STAR],
     interval: Annotated[float, {"min": 0.01, "max": 1000.0, "label": "Sampling interval (nm)"}] = 10.0,
+    tomo_name_override: str = "",
 ):  # fmt: skip
-    """
-    Save the current splines to a RELION .star file.
+    """Save the current splines to a RELION .star file.
 
     Parameters
     ----------
@@ -139,25 +144,32 @@ def save_splines(
         raise ValueError("Interval must be larger than 1e-4.")
     save_path = Path(save_path)
     data_list: list[pl.DataFrame] = []
+    orig = ui.tomogram.origin
+    tomo_name = tomo_name_override or ui.tomogram.image.name
     for i, spl in enumerate(ui.splines):
         num = int(spl.length() / interval)
         coords = spl.partition(num) / ui.tomogram.scale
+        mole_count = coords.shape[0]
         df = pl.DataFrame(
             {
+                TOMO_NAME: [tomo_name] * mole_count,
                 POS_COLUMNS[2]: coords[:, 2],
                 POS_COLUMNS[1]: coords[:, 1],
                 POS_COLUMNS[0]: coords[:, 0],
                 ROT_COLUMNS[0]: 0.0,
                 ROT_COLUMNS[1]: 0.0,
                 ROT_COLUMNS[2]: 0.0,
+                POS_ORIGIN_COLUMNS[2]: orig.x * 10,  # convert to Angstrom
+                POS_ORIGIN_COLUMNS[1]: orig.y * 10,
+                POS_ORIGIN_COLUMNS[0]: orig.z * 10,
                 RELION_TUBE_ID: i,
-                OPTICS_GROUP: np.ones(coords.shape[0], dtype=np.uint32),
+                IMAGE_PIXEL_SIZE: ui.tomogram.scale * 10,  # convert to Angstrom
+                OPTICS_GROUP: np.ones(mole_count, dtype=np.uint32),
             }
         )
         data_list.append(df)
     df = pl.concat(data_list, how="vertical").to_pandas()
     _write_star(df, save_path, ui.tomogram.scale)
-    return None
 
 
 def _read_star(path: str, scale: float) -> list[Molecules]:
@@ -213,6 +225,4 @@ def _write_star(df: pd.DataFrame, path: str, scale: float):
             "$ pip install starfile"
         )
 
-    head = pd.DataFrame({OPTICS_GROUP: [1], PIXEL_SIZE: [scale * 10]})
-
-    return starfile.write({"optics": head, "particles": df}, path)
+    return starfile.write(df, path)

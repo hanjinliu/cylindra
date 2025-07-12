@@ -1452,7 +1452,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         spline: Annotated[int, {"bind": _get_spline_idx}],
         npf: Annotated[Optional[int], {"label": "number of PF", "text": "Do not update"}] = None,
-        start: Annotated[Optional[int], {"label": "start number", "text": "Do not update"}] = None,
+        start: Annotated[Optional[int], {"label": "start number", "text": "Do not update", "options": {"min": -100}}] = None,
         orientation: Annotated[Optional[Literal["MinusToPlus", "PlusToMinus"]], {"text": "Do not update"}] = None,
     ):  # fmt: skip
         """Set spline global properties.

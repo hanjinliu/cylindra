@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterable, overload
+from typing import TYPE_CHECKING, Any, Iterable, NamedTuple, overload
 
 import impy as ip
 import numpy as np
@@ -53,8 +53,15 @@ class Tomogram:
 
     @property
     def scale(self) -> nm:
-        """Scale of the tomogram."""
+        """Scale (nm/pixel) of the tomogram."""
         return self._scale
+
+    @property
+    def origin(self) -> OriginTuple:
+        """Origin of the tomogram in nm."""
+        if self._image is None:
+            return OriginTuple(z=0.0, y=0.0, x=0.0)
+        return OriginTuple(*self._image.metadata.get("origin_nm", [0, 0, 0]))
 
     def update_scale(self, new_scale: nm) -> None:
         self._scale = new_scale
@@ -403,3 +410,11 @@ def _norm_dtype(img: ip.LazyImgArray):
     if img.dtype not in (np.float32, np.int8, np.int16):
         img = img.as_float()
     return img
+
+
+class OriginTuple(NamedTuple):
+    """Origin of the tomogram in nm."""
+
+    z: nm
+    y: nm
+    x: nm

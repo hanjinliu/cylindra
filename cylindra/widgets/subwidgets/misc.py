@@ -236,6 +236,7 @@ class GeneralInfo(MagicTemplate):
         scale = tomo.scale
         shape_px = ", ".join(f"{s} px" for s in img.shape)
         shape_nm = ", ".join(f"{s*scale:.2f} nm" for s in img.shape)
+        orig_nm = tomo.origin
         if isinstance(tomo.tilt_model, NoWedge):
             tilt_range = "No missing wedge"
         elif isinstance(tomo.tilt_model, SingleAxis):
@@ -249,6 +250,7 @@ class GeneralInfo(MagicTemplate):
             f"Scale: {scale:.4f} nm/pixel\n"
             f"ZYX-Shape: ({shape_px})\n"
             f"ZYX-Shape (nm): ({shape_nm})\n"
+            f"ZYX-origin (nm): ({orig_nm.z:.2f}, {orig_nm.y:.2f}, {orig_nm.x:.2f})\n"
             f"Data type: {img.dtype}\n"
             f"Tilt range: {tilt_range}"
         )
