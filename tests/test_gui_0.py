@@ -149,6 +149,8 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
 
     AppConfig.from_user_dir()  # test reading config again
     ui.open_image_with_reference(path, reference_path=path, bin_size=[1, 2])
+    macro_str = str(ui._format_macro()[ui._macro_offset :])
+    assert macro_str.startswith("ui.open_image_with_reference(")
 
 
 def test_io_with_different_data(ui: CylindraMainWidget, tmpdir):

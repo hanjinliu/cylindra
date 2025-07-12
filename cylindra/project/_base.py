@@ -1,17 +1,13 @@
 import io
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
+from pydantic import BaseModel
 from typing_extensions import Self
 
 from cylindra.project._json import project_json_encoder
 from cylindra.project._utils import get_project_file
-
-if TYPE_CHECKING:
-    from pydantic import BaseModel
-else:
-    from pydantic_compat import BaseModel
 
 PathLike = Path | str
 
