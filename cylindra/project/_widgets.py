@@ -44,10 +44,10 @@ class TextInfo(MagicTemplate):
         if path.exists():
             self.project_text.value = path.read_text()
         else:
-            # NOTE: paths are alreadly resolved in project.json() so this might be
+            # NOTE: paths are alreadly resolved in project.json so this might be
             # different from the original json file.
             self.project_text.value = str(
-                project.json(indent=4, separators=(", ", ": "))
+                project.model_dump_json(indent=4, separators=(", ", ": "))
             )
 
         self.project_text.read_only = True
@@ -178,7 +178,7 @@ class ProjectViewer(MagicTemplate):
         """Load current project in main window."""
         from cylindra import instance
 
-        ui: "CylindraMainWidget | None" = None
+        ui: CylindraMainWidget | None = None
 
         @thread_worker.callback
         def _launch_ui():
