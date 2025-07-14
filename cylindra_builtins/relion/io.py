@@ -190,8 +190,13 @@ def save_splines(
     _write_star(df, save_path, ui.tomogram.scale)
 
 
-def open_relion_job(ui: CylindraMainWidget, path: Path.Dir):
-    """Open a RELION job folder.
+@register_function(name="Open RELION job")
+def open_relion_job(
+    ui: CylindraMainWidget,
+    path: Path.Dir,
+    invert: bool = True,
+):
+    """Open a RELION tomogram reconstruction job folder.
 
     Parameters
     ----------
@@ -206,7 +211,22 @@ def open_relion_job(ui: CylindraMainWidget, path: Path.Dir):
     if (tomogram_star_path := path / "tomograms.star").exists():
         # Reconstruct Tomogram job
         tomogram_star = starfile.read(tomogram_star_path)
-        print(tomogram_star)
+        tomo_paths = tomogram_star["rlnTomoReconstructedTomogram"]
+        tomo_orig_scale = tomogram_star["rlnTomoTiltSeriesPixelSize"]
+        tomo_bin = tomogram_star["rlnTomoTomogramBinning"]
+        scale_nm = np.asarray(tomo_orig_scale / 10 * tomo_bin)
+        if np.unique(scale_nm).size == 1:
+            scale = scale_nm[0]
+        else:
+            scale = None
+        ui.batch.constructor.new_projects(
+            [Path(path, *Path(p).parts[2:]) for p in tomo_paths],
+            save_root=path / "cylindra",
+            invert=invert,
+            scale=scale,
+        )
+    else:
+        raise ValueError(f"Job {path.name} is not a tomogram reconstruction job.")
 
 
 def _read_star(path: str, scale: float) -> list[Molecules]:

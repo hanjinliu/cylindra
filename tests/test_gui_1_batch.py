@@ -87,6 +87,15 @@ def test_project_io(ui: CylindraMainWidget, tmpdir):
         name="Loader_abs",
     )
 
+    ui.batch.constructor.clear_projects()
+    ui.batch.constructor.new_projects(
+        [TEST_DIR / "13pf_MT.tif", TEST_DIR / "14pf_MT.tif"],
+        save_root=root / "new_projects",
+        strip_prefix="1",
+        strip_suffix="_MT",
+    )
+    assert len(ui.batch.loader_infos) == 2
+
 
 def test_view(ui: CylindraMainWidget):
     ui.batch.constructor.add_projects(TEST_DIR / "test*" / "project.json")

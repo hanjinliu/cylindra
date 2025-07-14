@@ -113,7 +113,7 @@ class Project(MagicTemplate):
             from cylindra.core import instance
 
             if ui := instance():
-                ui.load_project(self.path.value)
+                ui.load_project(self.path.value, filter=None)
             else:
                 raise ValueError("No Cylindra widget found!")
 
@@ -480,18 +480,14 @@ class ProjectSequenceEdit(MagicTemplate):
         self,
         paths: Path.Multiple[FileFilter.IMAGE],
         save_root: Path.Save[FileFilter.DIRECTORY],
-        scale: Annotated[
-            Optional[float],
-            {
-                "text": "Use image original scale",
-                "options": {"min": 0.01, "step": 0.0001},
-            },
-        ] = None,
+        scale: Annotated[Optional[float], {"text": "Use image original scale", "options": {"min": 0.01, "step": 0.0001},}] = None,
         missing_wedge: Annotated[dict, {"widget_type": TiltModelEdit}] = None,
         bin_size: list[int] = [1],
         invert: bool = False,
         extension: Literal["", ".zip", ".tar"] = "",
-    ):
+        strip_prefix: str = "",
+        strip_suffix: str = "",
+    ):  # fmt: skip
         """Create new projects from images."""
         projects = list[tuple[CylindraProject, str]]()
         for img_path in paths:
@@ -502,7 +498,12 @@ class ProjectSequenceEdit(MagicTemplate):
                 missing_wedge=missing_wedge,
                 invert=invert,
             )
-            projects.append((each_project, img_path.stem))
+            prj_name = img_path.stem
+            if strip_prefix and img_path.stem.startswith(strip_prefix):
+                prj_name = prj_name[len(strip_prefix) :]
+            if strip_suffix and prj_name.endswith(strip_suffix):
+                prj_name = prj_name[: -len(strip_suffix)]
+            projects.append((each_project, prj_name))
         if len(projects) == 0:
             raise ValueError("No projects created.")
         save_root.mkdir(parents=True, exist_ok=True)
