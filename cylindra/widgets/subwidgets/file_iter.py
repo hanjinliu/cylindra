@@ -115,7 +115,7 @@ class FileIterator(ChildWidget):
 
     @set_design(text="Send to batch analyzer")
     def send_to_batch_analyzer(self):
-        self._get_main().batch.constructor.add_projects_glob(self.pattern)
+        self._get_main().batch.constructor.add_projects(self.pattern)
 
     @set_design(text="Preview all")
     def preview_all(self):

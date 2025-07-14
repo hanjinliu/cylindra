@@ -75,6 +75,7 @@ class CylindraProject(BaseProject):
         scale: float | None,
         multiscales: list[int],
         missing_wedge: tuple[float, float] | None = None,
+        invert: bool = False,
         project_path: Path | None = None,
     ):
         """Create a new project."""
@@ -84,8 +85,8 @@ class CylindraProject(BaseProject):
         if scale is None:
             import impy as ip
 
-            img = ip.lazy.imread(image)
-            scale = img.scale.x
+            header = ip.read_header(image)
+            scale = header.scale["x"]
         return CylindraProject(
             datetime=datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
             version=_versions.pop("cylindra", "unknown"),
@@ -94,6 +95,7 @@ class CylindraProject(BaseProject):
             scale=scale,
             multiscales=multiscales,
             missing_wedge=MissingWedge.parse(missing_wedge),
+            invert=invert,
             project_path=project_path,
         )
 
@@ -159,6 +161,9 @@ class CylindraProject(BaseProject):
                 interaction_infos.append(InteractionInfo.from_layer(gui, layer))
 
         orig_path = tomo.metadata.get("orig_path", None)
+        img_ref_path = gui._reserved_layers.image_data.source
+        if tomo.source == img_ref_path:
+            img_ref_path = None
         return cls(
             datetime=datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
             version=_versions.pop("cylindra", "unknown"),
@@ -167,7 +172,7 @@ class CylindraProject(BaseProject):
             image_relative=_as_relative(orig_path, project_dir),
             cache_image=tomo.metadata.get("cache_image", False),
             scale=tomo.scale,
-            image_reference=gui._reserved_layers.image_data.source,
+            image_reference=img_ref_path,
             invert=tomo.is_inverted,
             multiscales=[x[0] for x in tomo.multiscaled],
             molecules_info=mole_infos,

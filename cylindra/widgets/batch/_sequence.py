@@ -1,6 +1,6 @@
 import glob
 from fnmatch import fnmatch
-from typing import Annotated, Iterator
+from typing import Annotated, Iterator, Literal
 
 import impy as ip
 import polars as pl
@@ -18,7 +18,7 @@ from magicclass import (
     vfield,
 )
 from magicclass.ext.polars import DataFrameView
-from magicclass.types import ExprStr, Path
+from magicclass.types import ExprStr, Optional, Path
 from magicclass.widgets import ConsoleTextEdit, EvalLineEdit
 from magicgui.types import Separator
 from magicgui.widgets import ComboBox, Container, Widget
@@ -28,8 +28,9 @@ from cylindra.const import FileFilter
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.project import CylindraProject, get_project_file
-from cylindra.widget_utils import POLARS_NAMESPACE
+from cylindra.widget_utils import POLARS_NAMESPACE, capitalize
 from cylindra.widgets.batch._utils import PathInfo, TempFeatures
+from cylindra.widgets.subwidgets.misc import TiltModelEdit
 
 
 @magicclass(
@@ -185,6 +186,13 @@ class Project(MagicTemplate):
         for info in project.molecules_info:
             self.molecules._add_path(info.name)
 
+        # collapse empty lists
+        if len(self.splines) == 0:
+            self.splines.collapsed = True
+        if len(self.molecules) == 0:
+            self.molecules.collapsed = True
+        if len(self.splines) == 0 and len(self.molecules) == 0:
+            self.Components.collapsed = True
         return self
 
     @nogui
@@ -260,7 +268,8 @@ class ProjectPaths(MagicTemplate):
 
 @magicclass(name="Projects", record=False, use_native_menubar=False)
 class ProjectSequenceEdit(MagicTemplate):
-    """
+    """The left-side widget that contains list of projects.
+
     Attributes
     ----------
     scale : nm
@@ -273,15 +282,14 @@ class ProjectSequenceEdit(MagicTemplate):
 
     @magicmenu
     class File(MagicTemplate):
+        new_projects = abstractapi()
         add_projects = abstractapi()
-        add_projects_glob = abstractapi()
         clear_projects = abstractapi()
         sep0 = Separator
         load_batch_project = abstractapi()
         save_batch_project = abstractapi()
         sep1 = Separator
         construct_loader_by_list = abstractapi()
-        construct_loader_by_pattern = abstractapi()
 
     @magicmenu
     class Select(MagicTemplate):
@@ -466,58 +474,111 @@ class ProjectSequenceEdit(MagicTemplate):
             return None
         return wdt.value
 
-    @set_design(text="Add projects", location=File)
+    @set_design(text=capitalize, location=File)
+    @do_not_record
+    def new_projects(
+        self,
+        paths: Path.Multiple[FileFilter.IMAGE],
+        save_root: Path.Save[FileFilter.DIRECTORY],
+        scale: Annotated[
+            Optional[float],
+            {
+                "text": "Use image original scale",
+                "options": {"min": 0.01, "step": 0.0001},
+            },
+        ] = None,
+        missing_wedge: Annotated[dict, {"widget_type": TiltModelEdit}] = None,
+        bin_size: list[int] = [1],
+        invert: bool = False,
+        extension: Literal["", ".zip", ".tar"] = "",
+    ):
+        """Create new projects from images."""
+        projects = list[tuple[CylindraProject, str]]()
+        for img_path in paths:
+            each_project = CylindraProject.new(
+                img_path,
+                scale=scale,
+                multiscales=bin_size,
+                missing_wedge=missing_wedge,
+                invert=invert,
+            )
+            projects.append((each_project, img_path.stem))
+        if len(projects) == 0:
+            raise ValueError("No projects created.")
+        save_root.mkdir(parents=True, exist_ok=True)
+        for prj, prj_name in projects:
+            save_path = save_root / f"{prj_name}{extension}"
+            prj.save(save_path)
+            prj.project_path = save_path
+            self.projects._add(prj.project_path)
+
+    @set_design(text=capitalize, location=File)
     @do_not_record
     def add_projects(
         self,
         paths: Path.Multiple[FileFilter.PROJECT],
         clear: bool = False,
     ):
-        """Add project json files as the child projects."""
-        if clear:
-            self.projects.clear()
-        for path in paths:
-            wdt = self.projects._add(get_project_file(path))
-            self.scale.value = wdt.project.scale
-        self.reset_choices()
-        return None
-
-    @set_design(text="Add projects with wildcard path", location=File)
-    @do_not_record
-    def add_projects_glob(
-        self,
-        pattern: Annotated[list[str], {"value": ("",), "layout": "vertical"}],
-        clear: bool = True,
-    ):
-        """
-        Add project json files using wildcard path.
+        """Add project json files as the child projects.
 
         Parameters
         ----------
-        pattern : list of str
-            A list of wildcard patterns, such as "path/to/*.json".
+        paths : list of str or Path
+            A list of paths or wildcard patterns, such as "path/to/*.json".
         clear : bool, default True
             Whether to clear the existing projects added to the list.
         """
-        if isinstance(pattern, (str, Path)):
-            patterns = [str(pattern)]
+
+        if isinstance(paths, (str, Path)):
+            input_paths = [str(paths)]
         else:
-            patterns = [str(p) for p in pattern]
+            input_paths = [str(p) for p in paths]
         if clear:
             self.projects.clear()
-        for each_pattern in patterns:
-            for path in glob.glob(each_pattern):
-                wdt = self.projects._add(path)
+        for path_or_pattern in input_paths:
+            if "*" in path_or_pattern or "?" in path_or_pattern:
+                for path in glob.glob(path_or_pattern):
+                    wdt = self.projects._add(path)
+                    self.scale.value = wdt.project.scale
+            else:
+                wdt = self.projects._add(get_project_file(path))
                 self.scale.value = wdt.project.scale
         self.reset_choices()
-        return
+
+    # @set_design(text="Add projects with wildcard path", location=File)
+    # @do_not_record
+    # def add_projects_glob(
+    #     self,
+    #     pattern: Annotated[list[str], {"value": ("",), "layout": "vertical"}],
+    #     clear: bool = True,
+    # ):
+    #     """
+    #     Add project json files using wildcard path.
+
+    #     Parameters
+    #     ----------
+    #     pattern : list of str
+    #         A list of wildcard patterns, such as "path/to/*.json".
+    #     clear : bool, default True
+    #         Whether to clear the existing projects added to the list.
+    #     """
+    #     if isinstance(pattern, (str, Path)):
+    #         patterns = [str(pattern)]
+    #     else:
+    #         patterns = [str(p) for p in pattern]
+    #     if clear:
+    #         self.projects.clear()
+    #     for each_pattern in patterns:
+    #         for path in glob.glob(each_pattern):
+    #             wdt = self.projects._add(path)
+    #             self.scale.value = wdt.project.scale
+    #     self.reset_choices()
 
     @set_design(text="Clear projects", location=File)
     @do_not_record
     def clear_projects(self):
         """Clear all the projects in the list."""
         self.projects.clear()
-        return None
 
     construct_loader = abstractapi()
 
@@ -533,14 +594,17 @@ def _get_project_dir(path: str):
     return _path
 
 
-@impl_preview(ProjectSequenceEdit.add_projects_glob)
-def _(self: ProjectSequenceEdit, pattern: list[str]):
-    paths = list[str]()
-    patterns = [str(p) for p in pattern]
+@impl_preview(ProjectSequenceEdit.add_projects)
+def _(self: ProjectSequenceEdit, paths: list[str]):
+    input_paths = list[str]()
+    patterns = [str(p) for p in paths]
     for each_pattern in patterns:
-        for path in glob.glob(each_pattern):
-            paths.append(Path(path).as_posix())
-    wdt = ConsoleTextEdit(value="\n".join(paths))
+        if "*" in each_pattern or "?" in each_pattern:
+            for path in glob.glob(each_pattern):
+                input_paths.append(Path(path).as_posix())
+        else:
+            input_paths.append(Path(each_pattern).as_posix())
+    wdt = ConsoleTextEdit(value="\n".join(input_paths))
     _set_parent(wdt, self)
     ACTIVE_WIDGETS.add(wdt)
     wdt.show()

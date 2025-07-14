@@ -89,8 +89,8 @@ def test_project_io(ui: CylindraMainWidget, tmpdir):
 
 
 def test_view(ui: CylindraMainWidget):
-    ui.batch.constructor.add_projects_glob(TEST_DIR / "test*" / "project.json")
-    tester = mcls_testing.FunctionGuiTester(ui.batch.constructor.add_projects_glob)
+    ui.batch.constructor.add_projects(TEST_DIR / "test*" / "project.json")
+    tester = mcls_testing.FunctionGuiTester(ui.batch.constructor.add_projects)
     tester.update_parameters(pattern=[TEST_DIR / "test*" / "project.json"])
     tester.click_preview()
     ui.batch.constructor.clear_projects()

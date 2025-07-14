@@ -14,7 +14,11 @@ from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets._annotated import MoleculesLayersType, assert_list_of_layers
 
 TOMO_NAME = "rlnTomoName"
-POS_COLUMNS = ["rlnCoordinateZ", "rlnCoordinateY", "rlnCoordinateX"]
+POS_COLUMNS = [
+    "rlnCenteredCoordinateZAngst",
+    "rlnCenteredCoordinateYAngst",
+    "rlnCenteredCoordinateXAngst",
+]
 ROT_COLUMNS = ["rlnAngleRot", "rlnAngleTilt", "rlnAnglePsi"]
 POS_ORIGIN_COLUMNS = ["rlnOriginZAngst", "rlnOriginYAngst", "rlnOriginXAngst"]
 RELION_TUBE_ID = "rlnHelicalTubeID"
@@ -71,11 +75,12 @@ def save_molecules(
     layers: MoleculesLayersType,
     save_features: bool = True,
     tomo_name_override: str = "",
+    shift_by_origin: bool = True,
 ):
     """Save the selected molecules to a RELION .star file.
 
     If multiple layers are selected, the `MoleculeGroupID` column will be added
-    to the star file to distinguish the layers.
+    to the star file to distinguish the layers. This method is RELION 5 compliant.
 
     Parameters
     ----------
@@ -85,6 +90,12 @@ def save_molecules(
         The layers to save.
     save_features : bool, default True
         Whether to save the features of the molecules.
+    tomo_name_override : str, default ""
+        If provided, this will override the tomogram name identifier (the rlnTomoName
+        column) in the star file.
+    shift_by_origin : bool, default True
+        If True, the positions will be shifted by the origin of the tomogram. This
+        option is required if you picked molecules in a trimmed tomogram.
     """
     save_path = Path(save_path)
     layers = assert_list_of_layers(layers, ui.parent_viewer)
@@ -92,19 +103,18 @@ def save_molecules(
     euler_angle = mole.euler_angle(seq="ZYZ", degrees=True)
     scale = ui.tomogram.scale
     orig = ui.tomogram.origin
-    tomo_name = tomo_name_override or ui.tomogram.image.name
-
+    centerz, centery, centerx = (np.array(ui.tomogram.image.shape) / 2 - 1) * scale
+    tomo_name = tomo_name_override or _strip_relion5_prefix(ui.tomogram.image.name)
+    if not shift_by_origin:
+        orig = type(orig)(0.0, 0.0, 0.0)
     out_dict = {
         TOMO_NAME: [tomo_name] * mole.count(),
-        POS_COLUMNS[2]: mole.pos[:, 2] / scale,
-        POS_COLUMNS[1]: mole.pos[:, 1] / scale,
-        POS_COLUMNS[0]: mole.pos[:, 0] / scale,
+        POS_COLUMNS[2]: (mole.pos[:, 2] - centerx + orig.x) * 10,  # Angstrom
+        POS_COLUMNS[1]: (mole.pos[:, 1] - centery + orig.y) * 10,  # Angstrom
+        POS_COLUMNS[0]: (mole.pos[:, 0] - centerz + orig.z) * 10,  # Angstrom
         ROT_COLUMNS[0]: euler_angle[:, 0],
         ROT_COLUMNS[1]: euler_angle[:, 1],
         ROT_COLUMNS[2]: euler_angle[:, 2],
-        POS_ORIGIN_COLUMNS[2]: orig.x * 10,  # convert to Angstrom
-        POS_ORIGIN_COLUMNS[1]: orig.y * 10,
-        POS_ORIGIN_COLUMNS[0]: orig.z * 10,
         IMAGE_PIXEL_SIZE: scale * 10,  # convert to Angstrom
         OPTICS_GROUP: np.ones(mole.count(), dtype=np.uint32),
     }
@@ -128,6 +138,7 @@ def save_splines(
     save_path: Path.Save[FileFilter.STAR],
     interval: Annotated[float, {"min": 0.01, "max": 1000.0, "label": "Sampling interval (nm)"}] = 10.0,
     tomo_name_override: str = "",
+    shift_by_origin: bool = True,
 ):  # fmt: skip
     """Save the current splines to a RELION .star file.
 
@@ -138,6 +149,12 @@ def save_splines(
     interval : float, default 10.0
         Sampling interval along the splines. For example, if interval=10.0 and the
         length of a spline is 100.0, 11 points will be sampled.
+    tomo_name_override : str, default ""
+        If provided, this will override the tomogram name identifier (the rlnTomoName
+        column) in the star file.
+    shift_by_origin : bool, default True
+        If True, the positions will be shifted by the origin of the tomogram. This
+        option is required if you picked molecules in a trimmed tomogram.
     """
 
     if interval <= 1e-4:
@@ -145,23 +162,24 @@ def save_splines(
     save_path = Path(save_path)
     data_list: list[pl.DataFrame] = []
     orig = ui.tomogram.origin
+    if not shift_by_origin:
+        orig = type(orig)(0.0, 0.0, 0.0)
     tomo_name = tomo_name_override or ui.tomogram.image.name
+    scale = ui.tomogram.scale
+    centerz, centery, centerx = (np.array(ui.tomogram.image.shape) / 2 - 1) * scale
     for i, spl in enumerate(ui.splines):
         num = int(spl.length() / interval)
-        coords = spl.partition(num) / ui.tomogram.scale
+        coords = spl.partition(num)
         mole_count = coords.shape[0]
         df = pl.DataFrame(
             {
                 TOMO_NAME: [tomo_name] * mole_count,
-                POS_COLUMNS[2]: coords[:, 2],
-                POS_COLUMNS[1]: coords[:, 1],
-                POS_COLUMNS[0]: coords[:, 0],
+                POS_COLUMNS[2]: (coords[:, 2] - centerx + orig.x) * 10,  # Angstrom
+                POS_COLUMNS[1]: (coords[:, 1] - centery + orig.y) * 10,  # Angstrom
+                POS_COLUMNS[0]: (coords[:, 0] - centerz + orig.z) * 10,  # Angstrom
                 ROT_COLUMNS[0]: 0.0,
                 ROT_COLUMNS[1]: 0.0,
                 ROT_COLUMNS[2]: 0.0,
-                POS_ORIGIN_COLUMNS[2]: orig.x * 10,  # convert to Angstrom
-                POS_ORIGIN_COLUMNS[1]: orig.y * 10,
-                POS_ORIGIN_COLUMNS[0]: orig.z * 10,
                 RELION_TUBE_ID: i,
                 IMAGE_PIXEL_SIZE: ui.tomogram.scale * 10,  # convert to Angstrom
                 OPTICS_GROUP: np.ones(mole_count, dtype=np.uint32),
@@ -170,6 +188,25 @@ def save_splines(
         data_list.append(df)
     df = pl.concat(data_list, how="vertical").to_pandas()
     _write_star(df, save_path, ui.tomogram.scale)
+
+
+def open_relion_job(ui: CylindraMainWidget, path: Path.Dir):
+    """Open a RELION job folder.
+
+    Parameters
+    ----------
+    path : path-like
+        The path to the RELION job folder.
+    """
+    import starfile
+
+    path = Path(path)
+    if not (path / "job.star").exists():
+        raise ValueError(f"Directory {path} is not a RELION job folder.")
+    if (tomogram_star_path := path / "tomograms.star").exists():
+        # Reconstruct Tomogram job
+        tomogram_star = starfile.read(tomogram_star_path)
+        print(tomogram_star)
 
 
 def _read_star(path: str, scale: float) -> list[Molecules]:
@@ -226,3 +263,12 @@ def _write_star(df: pd.DataFrame, path: str, scale: float):
         )
 
     return starfile.write(df, path)
+
+
+def _strip_relion5_prefix(name: str):
+    """Strip the RELION 5.0 rec prefix from the name."""
+    if name.startswith("rec_"):
+        name = name[4:]
+    if "." in name:
+        name = name.split(".")[0]
+    return name
