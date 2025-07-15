@@ -74,7 +74,7 @@ class CylindraProject(BaseProject):
         image: PathLike,
         scale: float | None,
         multiscales: list[int],
-        missing_wedge: tuple[float, float] | None = None,
+        missing_wedge: Any | None = None,
         invert: bool = False,
         project_path: Path | None = None,
     ):

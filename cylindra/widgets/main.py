@@ -690,6 +690,10 @@ class CylindraMainWidget(MagicTemplate):
         if autosave_path.exists():
             with suppress(Exception):
                 autosave_path.unlink()
+        if batch := self._batch:
+            for proj in batch.constructor.projects:
+                if Path(proj.path) == self._project_dir:
+                    proj._update_from_project()
 
     @set_design(text=capitalize, location=_sw.FileMenu)
     @do_not_record
@@ -699,7 +703,7 @@ class CylindraMainWidget(MagicTemplate):
         if self._project_dir is None:
             raise ValueError(
                 "No project is loaded. You can use `Save project` "
-                "(ui.save_project(...)) to save the current state."
+                "(ui.save_project(...)) to save the current session."
             )
         project = CylindraProject.from_file(self._project_dir)
         if project.molecules_info:

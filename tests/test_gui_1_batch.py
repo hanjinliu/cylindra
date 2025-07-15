@@ -95,6 +95,12 @@ def test_project_io(ui: CylindraMainWidget, tmpdir):
         strip_suffix="_MT",
     )
     assert len(ui.batch.loader_infos) == 2
+    assert (p13dir := root.joinpath("new_projects", "3pf")).exists()
+    ui.load_project(p13dir)
+    ui.register_path([[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]])
+    assert len(ui.batch.constructor.projects[0].splines) == 0
+    ui.save_project(p13dir)
+    assert len(ui.batch.constructor.projects[0].splines) == 1
 
 
 def test_view(ui: CylindraMainWidget):

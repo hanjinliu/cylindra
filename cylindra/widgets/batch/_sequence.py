@@ -175,8 +175,18 @@ class Project(MagicTemplate):
         path = str(path)
         project = CylindraProject.from_file(path)
         self = cls(project)
-        self.Header.path.value = path
-        self.Header.path.tooltip = path
+        self._update_from_project(clear=False)
+        return self
+
+    def _update_from_project(self, clear: bool = True):
+        assert self._project is not None
+        if clear:
+            self.splines.clear()
+            self.molecules.clear()
+
+        project = self._project
+        self.Header.path.value = project.project_path.as_posix()
+        self.Header.path.tooltip = project.project_path.as_posix()
 
         # load splines
         for _, spline_path in project.iter_spline_paths():
@@ -193,7 +203,6 @@ class Project(MagicTemplate):
             self.molecules.collapsed = True
         if len(self.splines) == 0 and len(self.molecules) == 0:
             self.Components.collapsed = True
-        return self
 
     @nogui
     @do_not_record
@@ -252,6 +261,9 @@ class ProjectPaths(MagicTemplate):
         prj = Project._from_path(path)
         self.append(prj)
         return prj
+
+    def __getitem__(self, idx: int) -> Project:
+        return super().__getitem__(idx)
 
     def __iter__(self) -> Iterator[Project]:
         return super().__iter__()
@@ -481,21 +493,48 @@ class ProjectSequenceEdit(MagicTemplate):
         paths: Path.Multiple[FileFilter.IMAGE],
         save_root: Path.Save[FileFilter.DIRECTORY],
         scale: Annotated[Optional[float], {"text": "Use image original scale", "options": {"min": 0.01, "step": 0.0001},}] = None,
-        missing_wedge: Annotated[dict, {"widget_type": TiltModelEdit}] = None,
+        tilt_model: Annotated[dict, {"widget_type": TiltModelEdit}] = None,
         bin_size: list[int] = [1],
         invert: bool = False,
         extension: Literal["", ".zip", ".tar"] = "",
         strip_prefix: str = "",
         strip_suffix: str = "",
     ):  # fmt: skip
-        """Create new projects from images."""
+        """Create new projects from images.
+
+        This method is usually used for batch processing, efficient visual inspection,
+        and particle picking.
+
+        Parameters
+        ----------
+        paths : list of str or Path
+            A list of image paths or wildcard patterns, such as "path/to/*.mrc".
+        save_root : str or Path
+            The root directory to save the output projects.
+        scale : float, optional
+            The scale of the images in nanometers. If None, the original scale of the
+            images will be used.
+        tilt_model : dict, optional
+            A tilt model that describes the tilt angles and axis.
+        bin_size : list of int, default [1]
+            Initial bin size of image. Binned image will be used for visualization in
+            the viewer. You can use both binned and non-binned image for analysis.
+        invert : bool, default False
+            Whether to invert the image intensities.
+        extension : str, default ""
+            The file extension (or directory) of the saved project files.
+        strip_prefix : str, default ""
+            A prefix to strip from the project name.
+        strip_suffix : str, default ""
+            A suffix to strip from the project name.
+        """
         projects = list[tuple[CylindraProject, str]]()
         for img_path in paths:
             each_project = CylindraProject.new(
                 img_path,
                 scale=scale,
                 multiscales=bin_size,
-                missing_wedge=missing_wedge,
+                missing_wedge=tilt_model,
                 invert=invert,
             )
             prj_name = img_path.stem
@@ -542,38 +581,9 @@ class ProjectSequenceEdit(MagicTemplate):
                     wdt = self.projects._add(path)
                     self.scale.value = wdt.project.scale
             else:
-                wdt = self.projects._add(get_project_file(path))
+                wdt = self.projects._add(get_project_file(path_or_pattern))
                 self.scale.value = wdt.project.scale
         self.reset_choices()
-
-    # @set_design(text="Add projects with wildcard path", location=File)
-    # @do_not_record
-    # def add_projects_glob(
-    #     self,
-    #     pattern: Annotated[list[str], {"value": ("",), "layout": "vertical"}],
-    #     clear: bool = True,
-    # ):
-    #     """
-    #     Add project json files using wildcard path.
-
-    #     Parameters
-    #     ----------
-    #     pattern : list of str
-    #         A list of wildcard patterns, such as "path/to/*.json".
-    #     clear : bool, default True
-    #         Whether to clear the existing projects added to the list.
-    #     """
-    #     if isinstance(pattern, (str, Path)):
-    #         patterns = [str(pattern)]
-    #     else:
-    #         patterns = [str(p) for p in pattern]
-    #     if clear:
-    #         self.projects.clear()
-    #     for each_pattern in patterns:
-    #         for path in glob.glob(each_pattern):
-    #             wdt = self.projects._add(path)
-    #             self.scale.value = wdt.project.scale
-    #     self.reset_choices()
 
     @set_design(text="Clear projects", location=File)
     @do_not_record
