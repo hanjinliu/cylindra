@@ -11,6 +11,7 @@ def assert_molecules_equal(
 ):
     from numpy.testing import assert_allclose
 
+    assert mole1.molecules.count() == mole2.molecules.count()
     assert_allclose(mole1.molecules.pos, mole2.molecules.pos, rtol=rtol, atol=atol)
     # comparing quaternion is not safe.
     assert_allclose(mole1.molecules.x, mole2.molecules.x, rtol=rtol, atol=atol)

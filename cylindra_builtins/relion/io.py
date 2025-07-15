@@ -1,5 +1,5 @@
 import warnings
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 import numpy as np
 import pandas as pd
@@ -12,11 +12,14 @@ try:
 except ImportError:
     starfile = None
 
-from cylindra.const import FileFilter
+from cylindra.const import FileFilter, nm
 from cylindra.plugin import register_function
 from cylindra.widget_utils import add_molecules
 from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets._annotated import MoleculesLayersType, assert_list_of_layers
+
+if TYPE_CHECKING:
+    from cylindra.components.tomogram import CylTomogram
 
 TOMO_NAME = "rlnTomoName"
 POS_COLUMNS = [
@@ -45,7 +48,7 @@ def load_molecules(ui: CylindraMainWidget, path: Path.Read[FileFilter.STAR]):
         The path to the star file.
     """
     path = Path(path)
-    moles = _read_star(path, ui.tomogram.scale)
+    moles = _read_star(path, ui.tomogram)
     for i, mole in enumerate(moles):
         add_molecules(ui.parent_viewer, mole, f"{path.name}-{i}", source=None)
 
@@ -61,7 +64,7 @@ def load_splines(ui: CylindraMainWidget, path: Path.Read[FileFilter.STAR]):
     path : path-like
         The path to the star file.
     """
-    mole = Molecules.concat(_read_star(path, ui.tomogram.scale))
+    mole = Molecules.concat(_read_star(path, ui.tomogram))
     if RELION_TUBE_ID not in mole.features.columns:
         warnings.warn(
             f"{RELION_TUBE_ID!r} not found in star file. Use all points as a "
@@ -110,7 +113,7 @@ def save_molecules(
     euler_angle = mole.euler_angle(seq="ZYZ", degrees=True)
     scale = ui.tomogram.scale
     orig = ui.tomogram.origin
-    centerz, centery, centerx = (np.array(ui.tomogram.image.shape) / 2 - 1) * scale
+    centerz, centery, centerx = _shape_to_center_zyx(ui.tomogram.image.shape, scale)
     tomo_name = tomo_name_override or _strip_relion5_prefix(ui.tomogram.image.name)
     if not shift_by_origin:
         orig = type(orig)(0.0, 0.0, 0.0)
@@ -280,7 +283,7 @@ def _parse_tomo_star(path: Path) -> tuple[pd.Series, np.ndarray]:
     return tomo_paths, scale_nm
 
 
-def _read_star(path: str, scale: float) -> list[Molecules]:
+def _read_star(path: str, tomo: "CylTomogram") -> list[Molecules]:
     try:
         import starfile
     except ImportError:
@@ -289,31 +292,29 @@ def _read_star(path: str, scale: float) -> list[Molecules]:
             "$ pip install starfile"
         )
 
+    center_zyx = _shape_to_center_zyx(tomo.image.shape, tomo.scale)
     star = starfile.read(path)
     if not isinstance(star, dict):
         star = {"particles": star}  # assume particles block
 
-    particles = star["particles"]
+    particles = star["particles"]  # angstrom
+    for ix in range(3):
+        particles[POS_COLUMNS[ix]] += center_zyx[ix] * 10
     if not isinstance(particles, pd.DataFrame):
         raise NotImplementedError("Particles block must be a dataframe")
 
-    scale_a = scale / 10  # default scale (A) to use
     if "optics" in star:
         opt = star["optics"]
         if not isinstance(opt, pd.DataFrame):
             raise NotImplementedError("Optics block must be a dataframe")
         particles = particles.merge(opt, on=OPTICS_GROUP)
-        if PIXEL_SIZE in particles.columns:
-            pixel_sizes = particles[PIXEL_SIZE] / 10
-            for col in POS_COLUMNS:
-                particles[col] *= pixel_sizes  # update positions in place
-            scale_a = 1  # because already updated
-    particles[POS_COLUMNS] *= scale_a
+
     if all(c in particles.columns for c in POS_ORIGIN_COLUMNS):
         for target, source in zip(POS_COLUMNS, POS_ORIGIN_COLUMNS, strict=True):
-            particles[target] += particles[source] / 10
+            particles[target] += particles[source]
         particles.drop(columns=POS_ORIGIN_COLUMNS, inplace=True)
-    pos = particles[POS_COLUMNS].to_numpy()
+    # particles are in Angstrom, convert to nm
+    pos = particles[POS_COLUMNS].to_numpy() / 10
     euler = particles[ROT_COLUMNS].to_numpy()
     features = particles.drop(columns=POS_COLUMNS + ROT_COLUMNS)
     mole = Molecules.from_euler(
@@ -325,15 +326,11 @@ def _read_star(path: str, scale: float) -> list[Molecules]:
 
 
 def _write_star(df: pd.DataFrame, path: str, scale: float):
-    try:
-        import starfile
-    except ImportError:
-        raise ImportError(
-            "`starfile` is required to save RELION star files. Please\n"
-            "$ pip install starfile"
-        )
-
     return starfile.write(df, path)
+
+
+def _shape_to_center_zyx(shape: tuple[int, int, int], scale: nm) -> np.ndarray:
+    return (np.array(shape) / 2 - 1) * scale
 
 
 def _strip_relion5_prefix(name: str):

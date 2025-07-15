@@ -26,7 +26,7 @@ pip install cylindra -U
 If you install from the source, you'll need Rust to compile a part of the code.
 
 ```shell
-git clone git+https://github.com/hanjinliu/cylindra
+git clone https://github.com/hanjinliu/cylindra.git
 cd cylindra
 pip install -e .
 ```
