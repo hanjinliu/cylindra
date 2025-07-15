@@ -24,6 +24,7 @@ from magicgui.types import Separator
 from magicgui.widgets import ComboBox, Container, Widget
 
 from cylindra._config import get_config
+from cylindra.components import CylSpline
 from cylindra.const import FileFilter
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.core import ACTIVE_WIDGETS
@@ -528,27 +529,66 @@ class ProjectSequenceEdit(MagicTemplate):
         strip_suffix : str, default ""
             A suffix to strip from the project name.
         """
+        self._new_projects_from_table(
+            paths,
+            save_root=save_root,
+            scale=[scale] * len(paths),
+            tilt_model=[tilt_model] * len(paths),
+            bin_size=[bin_size] * len(paths),
+            invert=[invert] * len(paths),
+            extension=extension,
+            strip_prefix=strip_prefix,
+            strip_suffix=strip_suffix,
+        )
+
+    def _new_projects_from_table(
+        self,
+        path: list[Path],
+        save_root: Path,
+        scale: list[float | None] | None = None,
+        tilt_model: list[dict | None] | None = None,
+        bin_size: list[list[int]] | None = None,
+        invert: list[bool] | None = None,
+        splines: list["CylSpline"] | None = None,
+        molecules: list[dict[str, Molecules]] | None = None,
+        extension: Literal["", ".zip", ".tar"] = "",
+        strip_prefix: str = "",
+        strip_suffix: str = "",
+    ):
         projects = list[tuple[CylindraProject, str]]()
-        for img_path in paths:
+        num_projects = len(path)
+        for img_path, _scale, tlt, _bin_size, _inv in zip(
+            path,
+            scale or [None] * num_projects,
+            tilt_model or [None] * num_projects,
+            bin_size or [[1]] * num_projects,
+            invert or [False] * num_projects,
+            strict=True,
+        ):
             each_project = CylindraProject.new(
                 img_path,
-                scale=scale,
-                multiscales=bin_size,
-                missing_wedge=tilt_model,
-                invert=invert,
+                scale=_scale,
+                multiscales=_bin_size,
+                missing_wedge=tlt,
+                invert=_inv,
             )
             prj_name = img_path.stem
-            if strip_prefix and img_path.stem.startswith(strip_prefix):
-                prj_name = prj_name[len(strip_prefix) :]
-            if strip_suffix and prj_name.endswith(strip_suffix):
-                prj_name = prj_name[: -len(strip_suffix)]
             projects.append((each_project, prj_name))
         if len(projects) == 0:
             raise ValueError("No projects created.")
         save_root.mkdir(parents=True, exist_ok=True)
-        for prj, prj_name in projects:
+        for (prj, prj_name), spl, mole in zip(
+            projects,
+            splines or [[]] * num_projects,
+            molecules or [{}] * num_projects,
+            strict=True,
+        ):
+            if strip_prefix and img_path.stem.startswith(strip_prefix):
+                prj_name = prj_name[len(strip_prefix) :]
+            if strip_suffix and prj_name.endswith(strip_suffix):
+                prj_name = prj_name[: -len(strip_suffix)]
             save_path = save_root / f"{prj_name}{extension}"
-            prj.save(save_path)
+            prj.save(save_path, splines=spl, molecules=mole)
             prj.project_path = save_path
             self.projects._add(prj.project_path)
 

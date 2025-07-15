@@ -102,10 +102,13 @@ class CylindraProject(BaseProject):
     def save(
         self,
         project_dir: Path,
+        splines: "list[CylSpline]" = [],
         molecules: "dict[str, Molecules]" = {},
     ) -> None:
         """Save this project."""
         from macrokit import parse
+
+        from cylindra.components.tomogram._spline_list import SplineList
 
         path = Path(self.image).as_posix()
         scale = self.scale
@@ -119,6 +122,13 @@ class CylindraProject(BaseProject):
             expr = as_main_function(expr_open)
             self._script_py_path(results_dir).write_text(expr)
             self_copy = self.model_copy()
+            spl_list = SplineList(splines)
+            if (df_loc := spl_list.collect_localprops()) is not None:
+                df_loc.write_csv(self._localprops_path(results_dir))
+            if (df_glob := spl_list.collect_globalprops()) is not None:
+                df_glob.write_csv(self._globalprops_path(results_dir))
+            for ith, spl in spl_list.enumerate():
+                spl.to_json(results_dir / f"spline-{ith}.json")
             for name, mole in molecules.items():
                 save_path = results_dir / name
                 if save_path.suffix == "":
@@ -126,7 +136,6 @@ class CylindraProject(BaseProject):
                 self_copy.molecules_info.append(MoleculesInfo(name=save_path.name))
                 mole.to_file(save_path)
             self_copy.to_json(self._project_json_path(results_dir))
-        return None
 
     @classmethod
     def from_gui(
@@ -162,7 +171,7 @@ class CylindraProject(BaseProject):
 
         orig_path = tomo.metadata.get("orig_path", None)
         img_ref_path = gui._reserved_layers.image_data.source
-        if tomo.source == img_ref_path:
+        if tomo.metadata.get("source", None) == img_ref_path:
             img_ref_path = None
         return cls(
             datetime=datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
@@ -244,7 +253,6 @@ class CylindraProject(BaseProject):
             else:
                 self.metadata = gui._project_metadata
             self.to_json(self._project_json_path(results_dir))
-        return None
 
     def _to_gui(
         self,

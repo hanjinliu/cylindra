@@ -43,7 +43,7 @@ class ParserNew(ParserBase):
         self.add_argument("--scale", "-s", type=float, default=None)
         self.add_argument("--missing_wedge", "--mw", nargs=2, type=float, default=None)
         self.add_argument("--molecules", "-m", nargs="*", default=[])
-        self.add_argument("--invert", action="store_ture")
+        self.add_argument("--invert", action="store_true")
         self.add_argument("--like", type=str, default=None)
 
     def run_action(

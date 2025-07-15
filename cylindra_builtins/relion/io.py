@@ -7,6 +7,11 @@ import polars as pl
 from acryo import Molecules
 from magicclass.types import Path
 
+try:
+    import starfile
+except ImportError:
+    starfile = None
+
 from cylindra.const import FileFilter
 from cylindra.plugin import register_function
 from cylindra.widget_utils import add_molecules
@@ -26,6 +31,8 @@ MOLE_ID = "MoleculeGroupID"
 PIXEL_SIZE = "rlnTomoTiltSeriesPixelSize"
 OPTICS_GROUP = "rlnOpticsGroup"
 IMAGE_PIXEL_SIZE = "rlnImagePixelSize"
+REC_TOMO_PATH = "rlnTomoReconstructedTomogram"
+REC_TOMO_HALF1_PATH = "rlnTomoReconstructedTomogramHalf1"
 
 
 @register_function(name="Load molecules")
@@ -203,30 +210,74 @@ def open_relion_job(
     path : path-like
         The path to the RELION job folder.
     """
-    import starfile
 
     path = Path(path)
+    rln_project_path = _relion_project_path(path)
     if not (path / "job.star").exists():
         raise ValueError(f"Directory {path} is not a RELION job folder.")
-    if (tomogram_star_path := path / "tomograms.star").exists():
+    jobtype = _get_job_type(path)
+    if jobtype == "relion.reconstructtomograms":
         # Reconstruct Tomogram job
-        tomogram_star = starfile.read(tomogram_star_path)
-        tomo_paths = tomogram_star["rlnTomoReconstructedTomogram"]
-        tomo_orig_scale = tomogram_star["rlnTomoTiltSeriesPixelSize"]
-        tomo_bin = tomogram_star["rlnTomoTomogramBinning"]
-        scale_nm = np.asarray(tomo_orig_scale / 10 * tomo_bin)
-        if np.unique(scale_nm).size == 1:
-            scale = scale_nm[0]
-        else:
-            scale = None
-        ui.batch.constructor.new_projects(
-            [Path(path, *Path(p).parts[2:]) for p in tomo_paths],
+        tomogram_star_path = path / "tomograms.star"
+        tomo_paths, scale_nm = _parse_tomo_star(tomogram_star_path)
+        ui.batch.constructor._new_projects_from_table(
+            path=[rln_project_path / p for p in tomo_paths],
+            scale=scale_nm,
+            invert=[invert] * len(tomo_paths),
             save_root=path / "cylindra",
-            invert=invert,
-            scale=scale,
         )
+    elif (opt_star_path := path / "optimisation_set.star").exists():
+        opt = starfile.read(opt_star_path)
+        assert isinstance(opt, pd.DataFrame)
+        tomo_paths = opt["rlnTomoTomogramsFile"]
+        # XXX: WIP!
+        raise NotImplementedError
+        mole_dict = {}
+        for particle_path, tomo_path in zip(
+            opt["rlnTomoParticlesFile"], tomo_paths, strict=False
+        ):
+            tomo_paths, scale_nm = _parse_tomo_star(tomo_path)
+            moles = _read_star(rln_project_path / particle_path, scale_nm)
+            mole_dict[particle_path.stem] = moles
+
+        # ui.batch.constructor.new_projects(
+        #     [rln_project_path / p for p in tomo_paths],
+        #     save_root=path / "cylindra",
+        #     invert=invert,
+        #     scale=scale,
+        # )
     else:
         raise ValueError(f"Job {path.name} is not a tomogram reconstruction job.")
+
+
+def _relion_project_path(path: Path) -> Path:
+    return path.parent.parent
+
+
+def _get_job_type(job_dir: Path) -> str:
+    """Determine the type of RELION job based on the directory structure."""
+    if (job_star_path := job_dir / "job.star").exists():
+        return starfile.read(job_star_path, always_dict=True)["job"]["rlnJobTypeLabel"]
+    raise ValueError(f"{job_dir} is not a RELION job folder.")
+
+
+def _parse_tomo_star(path: Path) -> tuple[pd.Series, np.ndarray]:
+    df = starfile.read(path)
+    assert isinstance(df, pd.DataFrame)
+    if REC_TOMO_PATH in df:
+        tomo_paths = df[REC_TOMO_PATH]
+    elif REC_TOMO_HALF1_PATH in df:
+        tomo_paths = df[REC_TOMO_HALF1_PATH]
+    else:
+        raise ValueError(
+            "No tomogram paths found in the tomograms.star file. Expected either "
+            "'rlnTomoReconstructedTomogram' or 'rlnTomoReconstructedTomogramHalf1' "
+            "column."
+        )
+    tomo_orig_scale = df["rlnTomoTiltSeriesPixelSize"]
+    tomo_bin = df["rlnTomoTomogramBinning"]
+    scale_nm = np.asarray(tomo_orig_scale / 10 * tomo_bin)
+    return tomo_paths, scale_nm
 
 
 def _read_star(path: str, scale: float) -> list[Molecules]:
