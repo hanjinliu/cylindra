@@ -559,10 +559,10 @@ class ProjectSequenceEdit(MagicTemplate):
         num_projects = len(path)
         for img_path, _scale, tlt, _bin_size, _inv in zip(
             path,
-            scale or [None] * num_projects,
-            tilt_model or [None] * num_projects,
-            bin_size or [[1]] * num_projects,
-            invert or [False] * num_projects,
+            _or_default_list(scale, None, num_projects),
+            _or_default_list(tilt_model, None, num_projects),
+            _or_default_list(bin_size, [1], num_projects),
+            _or_default_list(invert, False, num_projects),
             strict=True,
         ):
             each_project = CylindraProject.new(
@@ -643,6 +643,15 @@ def _get_project_dir(path: str):
     if _path.suffix == ".json":
         return _path.parent
     return _path
+
+
+def _or_default_list(value, default, length: int):
+    """Return value if it is a list, otherwise return default."""
+    if value is None:
+        return [default] * length
+    if len(value) != length:
+        raise ValueError(f"Expected {length} items, got {len(value)}")
+    return value
 
 
 @impl_preview(ProjectSequenceEdit.add_projects)

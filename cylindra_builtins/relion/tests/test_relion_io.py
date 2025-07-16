@@ -1,12 +1,18 @@
 from pathlib import Path
 
+import impy as ip
+
 from cylindra.utils._test_utils import (
     PROJECT_DIR_14PF,
+    TEST_DIR,
     assert_molecules_equal,
     assert_splines_close,
 )
 from cylindra.widgets import CylindraMainWidget
 from cylindra_builtins import relion
+
+TEST_JOB_DIR = Path(__file__).parent / "test_jobs"
+JOB_TOMO_DIR = TEST_JOB_DIR / "Tomograms" / "job_tomo"
 
 
 def test_load_and_save_starfiles(ui: CylindraMainWidget, tmpdir):
@@ -27,3 +33,14 @@ def test_load_and_save_starfiles(ui: CylindraMainWidget, tmpdir):
     assert len(ui.splines) == len(all_spl)
     for spl, spl_new in zip(ui.splines, all_spl, strict=True):
         assert_splines_close(spl, spl_new)
+
+
+def test_opening_jobs(ui: CylindraMainWidget):
+    path_13pf = JOB_TOMO_DIR.joinpath("tomograms", "13pf_MT.mrc")
+    path_14pf = JOB_TOMO_DIR.joinpath("tomograms", "14pf_MT.mrc")
+    if not path_13pf.exists():
+        ip.imread(TEST_DIR / "13pf_MT.tif").imsave(path_13pf)
+    if not path_14pf.exists():
+        ip.imread(TEST_DIR / "14pf_MT.tif").imsave(path_14pf)
+    relion.open_relion_job(ui, JOB_TOMO_DIR)
+    assert len(ui.batch.constructor.projects) == 2
