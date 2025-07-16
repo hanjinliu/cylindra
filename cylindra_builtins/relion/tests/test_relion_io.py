@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import impy as ip
+import pytest
 
 from cylindra.utils._test_utils import (
     PROJECT_DIR_14PF,
@@ -44,3 +45,6 @@ def test_opening_jobs(ui: CylindraMainWidget):
         ip.imread(TEST_DIR / "14pf_MT.tif").imsave(path_14pf)
     relion.open_relion_job(ui, JOB_TOMO_DIR)
     assert len(ui.batch.constructor.projects) == 2
+    ui.batch.constructor.projects[0].send_to_viewer()
+    assert ui.tomogram.scale == pytest.approx(1.052)
+    assert not ui.tomogram.is_dummy

@@ -107,16 +107,7 @@ class Project(MagicTemplate):
         path = field("").with_options(enabled=False)
 
         remove_project = abstractapi()
-
-        @set_design(text="Open")
-        def send_to_viewer(self):
-            """Send this project to the viewer."""
-            from cylindra.core import instance
-
-            if ui := instance():
-                ui.load_project(self.path.value, filter=None)
-            else:
-                raise ValueError("No Cylindra widget found!")
+        send_to_viewer = abstractapi()
 
         def __post_init__(self):
             self["check"].text = ""  # NOTE: should be updated here!
@@ -149,6 +140,16 @@ class Project(MagicTemplate):
         parent = self.find_ancestor(ProjectPaths)
         idx = parent.index(self)
         del parent[idx]
+
+    @set_design(text="Open", location=Header)
+    def send_to_viewer(self):
+        """Send this project to the viewer."""
+        from cylindra.core import instance
+
+        if ui := instance():
+            ui.load_project(self.path, filter=None)
+        else:
+            raise ValueError("No Cylindra widget found!")
 
     @Header.check.connect
     def _on_checked(self, value: bool):

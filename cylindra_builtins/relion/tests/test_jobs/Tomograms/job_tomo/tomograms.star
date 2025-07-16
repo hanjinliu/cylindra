@@ -21,5 +21,5 @@ _rlnTomoSizeX #14
 _rlnTomoSizeY #15
 _rlnTomoSizeZ #16
 _rlnTomoReconstructedTomogram #17
-     TS_01 PATH/TO/TS_01.star   300.000000     2.700000     0.100000     1.052000     1.052000     -1.00000 XXX.edf     0.241600     0.159000     0.271900     4.830918         1000         800          200 Tomograms/job0tomo/tomograms/13_pf_MT.mrc
-     TS_02 PATH/TO/TS_02.star   300.000000     2.700000     0.100000     1.052000     1.052000     -1.00000 XXX.edf     0.241600     0.159000     0.271900     4.830918         1000         800          200 Tomograms/job0tomo/tomograms/14_pf_MT.mrc
+     TS_01 PATH/TO/TS_01.star   300.000000     2.700000     0.100000     10.52000     10.52000     -1.00000 XXX.edf     0.241600     0.159000     0.271900     1.0         1000         800          200 Tomograms/job_tomo/tomograms/13pf_MT.mrc
+     TS_02 PATH/TO/TS_02.star   300.000000     2.700000     0.100000     10.52000     10.52000     -1.00000 XXX.edf     0.241600     0.159000     0.271900     1.0         1000         800          200 Tomograms/job_tomo/tomograms/14pf_MT.mrc
