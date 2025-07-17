@@ -286,8 +286,6 @@ def export_project_batch(
     _coords_list = list[str]()
     _angle_list = list[str]()
     _count = 0
-    save_dir.joinpath("coordinates").mkdir(exist_ok=True)
-    save_dir.joinpath("angles").mkdir(exist_ok=True)
     for path_info in path_sets:
         path_info = PathInfo(*path_info)
         if prj := path_info.project_instance():
@@ -296,9 +294,9 @@ def export_project_batch(
             raise ValueError("No project instance found")
         moles = list(path_info.iter_molecules(_temp_feat, scale))
         if len(moles) > 0:
-            _tomogram_list.append(repr(str(path_info.image)))
-            mod_name = f"{path_info.image.stem}_coordinates-{_count}.mod"
-            csv_name = f"{path_info.image.stem}_angles-{_count}.csv"
+            _tomogram_list.append(repr(path_info.image.as_posix()))
+            mod_name = f"coordinates-{_count:0>3}_{path_info.image.stem}.mod"
+            csv_name = f"angles-{_count:0>3}_{path_info.image.stem}.csv"
             _save_molecules(
                 save_dir=save_dir,
                 mol=Molecules.concat(moles),
@@ -306,8 +304,8 @@ def export_project_batch(
                 mod_name=mod_name,
                 csv_name=csv_name,
             )
-            _coords_list.append(repr(str(f"./coordinates/{mod_name}")))
-            _angle_list.append(repr(str(f"./angles/{csv_name}")))
+            _coords_list.append(f"'./{mod_name}'")
+            _angle_list.append(f"'./{csv_name}'")
             _count += 1
 
     # paths
@@ -317,9 +315,10 @@ def export_project_batch(
         tomograms=", ".join(_tomogram_list),
         coordinates=", ".join(_coords_list),
         angles=", ".join(_angle_list),
-        tilt_range=list(ui.tomogram.tilt["range"]),
+        tilt_range=[-60, 60],  # TODO: better way to get this
         template="",
         project_name=project_name,
+        shape=[40, 40, 40],  # TODO: better way to get this
         mask_type="none",
     )
 

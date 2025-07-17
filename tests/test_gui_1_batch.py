@@ -88,7 +88,7 @@ def test_project_io(ui: CylindraMainWidget, tmpdir):
     )
 
     ui.batch.constructor.clear_projects()
-    ui.batch.constructor.new_projects(
+    ui.batch.new_projects(
         [TEST_DIR / "13pf_MT.tif", TEST_DIR / "14pf_MT.tif"],
         save_root=root / "new_projects",
         strip_prefix="1",

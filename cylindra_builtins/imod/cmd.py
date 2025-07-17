@@ -1,21 +1,7 @@
 from __future__ import annotations
 
-import tempfile
-from types import SimpleNamespace
-
 import numpy as np
 import polars as pl
-
-from cylindra_builtins.imod._mod_file import write_array
-from cylindra_builtins.imod._utils import CommandNotFound, translate_command
-
-
-class IMODCommand(SimpleNamespace):
-    """IMOD commands."""
-
-    model2point = translate_command("model2point")
-    point2model = translate_command("point2model")
-    _3dmod = translate_command("3dmod")
 
 
 def read_mod(path: str) -> pl.DataFrame:
@@ -34,28 +20,9 @@ def read_mod(path: str) -> pl.DataFrame:
     pd.DataFrame
         (N, 3) data frame with coordinates.
     """
-    path = str(path)
-    if IMODCommand.model2point.available():
-        with tempfile.NamedTemporaryFile(mode="r+") as fh:
-            # NOTE: output of model2point has separator "\s+". This is only supported in
-            # pandas.
-            import pandas as pd
+    import imodmodel
 
-            output_path = fh.name
-            IMODCommand.model2point(
-                input=path, output=output_path, object=True, contour=True
-            )
-            df = pd.read_csv(output_path, sep=r"\s+", header=None)
-            df.columns = ["object_id", "contour_id", "x", "y", "z"]
-    else:
-        try:
-            import imodmodel
-        except ImportError:
-            raise CommandNotFound(
-                "To read mod file, either the `model2point` command of IMOD or the "
-                "Python package `imodmodel` is required."
-            ) from None
-        df = imodmodel.read(path)
+    df = imodmodel.read(path)
     return pl.DataFrame(df)
 
 
@@ -69,11 +36,12 @@ def save_mod(path: str, data: pl.DataFrame):
     data : array-like
         Data that will be saved.
     """
+    import imodmodel
+
     path = str(path)
     if not path.endswith(".mod"):
         raise ValueError("File path must end with '.mod'.")
-    write_array(data.select(["x", "y", "z"]).to_numpy(), path)
-    return None
+    return imodmodel.write(data.to_pandas(), path)
 
 
 def save_angles(path: str, euler_angle: np.ndarray = None):

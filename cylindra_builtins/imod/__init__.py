@@ -1,5 +1,6 @@
 from .io import (
     export_project,
+    export_project_batch,
     load_molecules,
     load_splines,
     save_molecules,
@@ -12,4 +13,5 @@ __all__ = [
     "save_molecules",
     "save_splines",
     "export_project",
+    "export_project_batch",
 ]
