@@ -188,6 +188,7 @@ def save_molecules_batch(
             scale = prj.scale
         else:
             scale = ui.tomogram.scale
+        tomo_name = _strip_relion5_prefix(path_info.image.stem)
         img = path_info.lazy_imread()
         tomo = CylTomogram.from_image(
             img,
@@ -196,10 +197,11 @@ def save_molecules_batch(
             compute=False,
         )
         moles = list(path_info.iter_molecules(_temp_feat, scale))
-        df = _mole_to_star_df(
-            moles, tomo, prj.project_path.stem, save_features, shift_by_origin
-        )
-        star_dfs.append(df)
+        if len(moles) > 0:
+            df = _mole_to_star_df(
+                moles, tomo, tomo_name, save_features, shift_by_origin
+            )
+            star_dfs.append(df)
     df_all = pd.concat(star_dfs, ignore_index=True)
     starfile.write(df_all, save_path)
 
