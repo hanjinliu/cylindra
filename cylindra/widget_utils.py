@@ -442,7 +442,7 @@ def update_mole_pos(new: Molecules, old: Molecules, spl: CylSpline) -> Molecules
 
 def add_image_to_sub_viewer(
     viewer: napari.Viewer,
-    image: ip.ImgArray,
+    image: ip.ImgArray | ip.LazyImgArray,
     name: str | None = None,
     threshold: float | None = None,
 ) -> None:
@@ -450,16 +450,18 @@ def add_image_to_sub_viewer(
     image.scale_unit = "nm"
     viewer.scale_bar.visible = True
     viewer.scale_bar.unit = "nm"
-    if threshold is None:
+    if threshold is None and isinstance(image, ip.ImgArray):
         from skimage.filters.thresholding import threshold_yen
 
         threshold = threshold_yen(image.value)
 
     _scale = np.array(image.scale)
+    _trans = -(np.array(image.shape, dtype=np.float32) - 1) / 2 * _scale
+    _trans[:-3] = 0.0  # only translate in zyx
     return viewer.add_image(
         image,
         scale=_scale,
-        translate=-(np.array(image.shape, dtype=np.float32) - 1) / 2 * _scale,
+        translate=_trans,
         name=name,
         rendering="iso",
         iso_threshold=threshold,

@@ -312,40 +312,6 @@ class BatchSubtomogramAveraging(MagicTemplate):
         t0.toc()
         return self._show_rec.with_args(img, f"[AVG]{loader_name}", store=False)
 
-    @set_design(text="Split and average molecules", location=BatchSubtomogramAnalysis)
-    @dask_thread_worker.with_progress(desc="Split-and-average")
-    def split_and_average(
-        self,
-        loader_name: Annotated[str, {"bind": _get_current_loader_name}],
-        n_pairs: Annotated[int, {"min": 1, "label": "number of image pairs"}] = 1,
-        size: _SubVolumeSize = None,
-        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
-        bin_size: _BINSIZE = 1,
-    ):
-        """
-        Split molecules into two groups and average separately.
-
-        Parameters
-        ----------
-        {loader_name}{size}
-        n_pairs : int, default is 1
-            How many pairs of average will be calculated.
-        {size}{interpolation}{bin_size}
-        """
-        t0 = timer()
-        loader = self._get_parent().loader_infos[loader_name].loader
-        shape = self._get_shape_in_px(size, loader)
-
-        axes = "ipzyx" if n_pairs > 1 else "pzyx"
-        img = ip.asarray(
-            loader.replace(output_shape=shape, order=interpolation)
-            .binning(bin_size, compute=False)
-            .average_split(n_pairs),
-            axes=axes,
-        ).set_scale(zyx=loader.scale * bin_size, unit="nm")
-        t0.toc()
-        return self._show_rec.with_args(img, f"[Split]{loader_name}", store=False)
-
     @set_design(text="Align all molecules", location=BatchRefinement)
     @dask_thread_worker.with_progress(desc="Aligning all molecules")
     def align_all(
