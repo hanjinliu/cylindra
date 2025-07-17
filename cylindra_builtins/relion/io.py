@@ -1,6 +1,8 @@
 import warnings
-from typing import TYPE_CHECKING, Annotated
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Annotated, Any, Iterator
 
+import impy as ip
 import numpy as np
 import pandas as pd
 import polars as pl
@@ -49,7 +51,7 @@ def load_molecules(ui: CylindraMainWidget, path: Path.Read[FileFilter.STAR]):
     """
     path = Path(path)
     moles = _read_star(path, ui.tomogram)
-    for i, mole in enumerate(moles):
+    for i, mole in enumerate(moles.values()):
         add_molecules(ui.parent_viewer, mole, f"{path.name}-{i}", source=None)
 
 
@@ -64,7 +66,7 @@ def load_splines(ui: CylindraMainWidget, path: Path.Read[FileFilter.STAR]):
     path : path-like
         The path to the star file.
     """
-    mole = Molecules.concat(_read_star(path, ui.tomogram))
+    mole = Molecules.concat(_read_star(path, ui.tomogram).values())
     if RELION_TUBE_ID not in mole.features.columns:
         warnings.warn(
             f"{RELION_TUBE_ID!r} not found in star file. Use all points as a "
@@ -83,7 +85,7 @@ def save_molecules(
     ui: CylindraMainWidget,
     save_path: Path.Save[FileFilter.STAR],
     layers: MoleculesLayersType,
-    save_features: bool = True,
+    save_features: bool = False,
     tomo_name_override: str = "",
     shift_by_origin: bool = True,
 ):
@@ -109,12 +111,29 @@ def save_molecules(
     """
     save_path = Path(save_path)
     layers = assert_list_of_layers(layers, ui.parent_viewer)
-    mole = Molecules.concat([layer.molecules for layer in layers])
-    euler_angle = mole.euler_angle(seq="ZYZ", degrees=True)
-    scale = ui.tomogram.scale
-    orig = ui.tomogram.origin
-    centerz, centery, centerx = _shape_to_center_zyx(ui.tomogram.image.shape, scale)
     tomo_name = tomo_name_override or _strip_relion5_prefix(ui.tomogram.image.name)
+    df = _mole_to_star_df(
+        [layer.molecules for layer in layers],
+        ui.tomogram,
+        tomo_name,
+        save_features,
+        shift_by_origin,
+    )
+    starfile.write(df, save_path)
+
+
+def _mole_to_star_df(
+    moles: list[Molecules],
+    tomo: "CylTomogram",
+    tomo_name: str,
+    save_features: bool = False,
+    shift_by_origin: bool = True,
+):
+    mole = Molecules.concat(moles)
+    euler_angle = mole.euler_angle(seq="ZYZ", degrees=True)
+    scale = tomo.scale
+    orig = tomo.origin
+    centerz, centery, centerx = _shape_to_center_zyx(tomo.image.shape, scale)
     if not shift_by_origin:
         orig = type(orig)(0.0, 0.0, 0.0)
     out_dict = {
@@ -128,18 +147,61 @@ def save_molecules(
         IMAGE_PIXEL_SIZE: scale * 10,  # convert to Angstrom
         OPTICS_GROUP: np.ones(mole.count(), dtype=np.uint32),
     }
-    if len(layers) > 1:
+    if len(moles) > 1:
         out_dict[MOLE_ID] = np.concatenate(
             [
-                np.full(layer.molecules.count(), i, dtype=np.uint32)
-                for i, layer in enumerate(layers)
+                np.full(each_mole.count(), i, dtype=np.uint32)
+                for i, each_mole in enumerate(moles)
             ]
         )
     if save_features:
         for col in mole.features.columns:
             out_dict[col] = mole.features[col]
-    df = pd.DataFrame(out_dict)
-    _write_star(df, save_path, scale)
+    return pd.DataFrame(out_dict)
+
+
+def _get_loader_paths(*_):
+    from cylindra import instance
+
+    ui = instance()
+    return ui.batch._get_loader_paths(*_)
+
+
+@register_function(name="Save molecules in all projects")
+def save_molecules_batch(
+    ui: CylindraMainWidget,
+    save_path: Path.Save[FileFilter.STAR],
+    path_sets: Annotated[Any, {"bind": _get_loader_paths}],
+    save_features: bool = False,
+    shift_by_origin: bool = True,
+):
+    from cylindra.components.tomogram import CylTomogram
+    from cylindra.widgets.batch._sequence import PathInfo
+    from cylindra.widgets.batch._utils import TempFeatures
+
+    _temp_feat = TempFeatures()
+
+    star_dfs = []
+    for path_info in path_sets:
+        path_info = PathInfo(*path_info)
+        if prj := path_info.project_instance():
+            scale = prj.scale
+        else:
+            scale = ui.tomogram.scale
+        img = path_info.lazy_imread()
+        tomo = CylTomogram.from_image(
+            img,
+            scale=scale,
+            tilt=prj.missing_wedge.as_param(),
+            compute=False,
+        )
+        moles = list(path_info.iter_molecules(_temp_feat, scale))
+        df = _mole_to_star_df(
+            moles, tomo, prj.project_path.stem, save_features, shift_by_origin
+        )
+        star_dfs.append(df)
+    df_all = pd.concat(star_dfs, ignore_index=True)
+    starfile.write(df_all, save_path)
 
 
 @register_function(name="Save splines")
@@ -197,60 +259,63 @@ def save_splines(
         )
         data_list.append(df)
     df = pl.concat(data_list, how="vertical").to_pandas()
-    _write_star(df, save_path, ui.tomogram.scale)
+    starfile.write(df, save_path)
 
 
 @register_function(name="Open RELION job")
 def open_relion_job(
     ui: CylindraMainWidget,
-    path: Path.Dir,
+    path: Path.Read[FileFilter.STAR_JOB],
     invert: bool = True,
+    bin_size: list[int] = [1],
 ):
     """Open a RELION tomogram reconstruction job folder.
 
     Parameters
     ----------
     path : path-like
-        The path to the RELION job folder.
+        The path to the RELION job.star file.
     """
-
     path = Path(path)
-    rln_project_path = _relion_project_path(path)
-    if not (path / "job.star").exists():
-        raise ValueError(f"Directory {path} is not a RELION job folder.")
-    jobtype = _get_job_type(path)
+    if path.name != "job.star" or not path.is_file() or not path.exists():
+        raise ValueError("The path must point to an existing RELION job.star file.")
+    job_dir_path = Path(path).parent
+    rln_project_path = _relion_project_path(job_dir_path)
+    jobtype = _get_job_type(job_dir_path)
     if jobtype == "relion.reconstructtomograms":
         # Reconstruct Tomogram job
-        tomogram_star_path = path / "tomograms.star"
-        tomo_paths, scale_nm = _parse_tomo_star(tomogram_star_path)
+        tomogram_star_path = job_dir_path / "tomograms.star"
+        _, tomo_paths, scale_nm = _parse_tomo_star(tomogram_star_path)
         ui.batch.constructor._new_projects_from_table(
             path=[rln_project_path / p for p in tomo_paths],
             scale=scale_nm,
             invert=[invert] * len(tomo_paths),
-            save_root=path / "cylindra",
+            save_root=job_dir_path / "cylindra",
         )
-    elif (opt_star_path := path / "optimisation_set.star").exists():
-        opt = starfile.read(opt_star_path)
-        assert isinstance(opt, pd.DataFrame)
-        tomo_paths = opt["rlnTomoTomogramsFile"]
-        # XXX: WIP!
-        raise NotImplementedError
-        mole_dict = {}
-        for particle_path, tomo_path in zip(
-            opt["rlnTomoParticlesFile"], tomo_paths, strict=False
-        ):
-            tomo_paths, scale_nm = _parse_tomo_star(tomo_path)
-            moles = _read_star(rln_project_path / particle_path, scale_nm)
-            mole_dict[particle_path.stem] = moles
+    elif jobtype == "relion.picktomo":
+        if not (opt_star_path := job_dir_path / "optimisation_set.star").exists():
+            raise ValueError(
+                f"Optimisation set star file not found in {job_dir_path}. "
+                "Please ensure the job is a RELION 5.0 pick-particles job."
+            )
+        paths = []
+        scales = []
+        molecules = []
+        for item in _iter_from_optimisation_star(opt_star_path, rln_project_path):
+            paths.append(rln_project_path / item.tomo_path)
+            scales.append(item.scale)
+            molecules.append(item.molecules)
 
-        # ui.batch.constructor.new_projects(
-        #     [rln_project_path / p for p in tomo_paths],
-        #     save_root=path / "cylindra",
-        #     invert=invert,
-        #     scale=scale,
-        # )
+        ui.batch.constructor._new_projects_from_table(
+            paths,
+            save_root=job_dir_path / "cylindra",
+            invert=[invert] * len(paths),
+            scale=scales,
+            molecules=molecules,
+            bin_size=[bin_size] * len(paths),
+        )
     else:
-        raise ValueError(f"Job {path.name} is not a tomogram reconstruction job.")
+        raise ValueError(f"Job {job_dir_path.name} is not a supported RELION job.")
 
 
 def _relion_project_path(path: Path) -> Path:
@@ -264,7 +329,7 @@ def _get_job_type(job_dir: Path) -> str:
     raise ValueError(f"{job_dir} is not a RELION job folder.")
 
 
-def _parse_tomo_star(path: Path) -> tuple[pd.Series, np.ndarray]:
+def _parse_tomo_star(path: Path) -> tuple[pd.Series, pd.Series, np.ndarray]:
     df = starfile.read(path)
     assert isinstance(df, pd.DataFrame)
     if REC_TOMO_PATH in df:
@@ -279,54 +344,106 @@ def _parse_tomo_star(path: Path) -> tuple[pd.Series, np.ndarray]:
         )
     tomo_orig_scale = df["rlnTomoTiltSeriesPixelSize"]
     tomo_bin = df["rlnTomoTomogramBinning"]
+    tomo_names = df[TOMO_NAME]
     scale_nm = np.asarray(tomo_orig_scale / 10 * tomo_bin)
-    return tomo_paths, scale_nm
+    return tomo_names, tomo_paths, scale_nm
 
 
-def _read_star(path: str, tomo: "CylTomogram") -> list[Molecules]:
-    try:
-        import starfile
-    except ImportError:
-        raise ImportError(
-            "`starfile` is required to read RELION star files. Please\n"
-            "$ pip install starfile"
+@dataclass
+class OptimizationSetItem:
+    tomo_id: str
+    tomo_path: Path
+    scale: nm
+    molecules: dict[str, Molecules]
+
+
+def _iter_from_optimisation_star(
+    path: Path,
+    rln_project_path: Path,
+) -> "Iterator[OptimizationSetItem]":
+    opt_star_df = starfile.read(path)
+    assert isinstance(opt_star_df, pd.DataFrame)
+    tomo_star_path = opt_star_df["rlnTomoTomogramsFile"][0]
+    tomo_names, tomo_paths, scale_nm = _parse_tomo_star(
+        rln_project_path / tomo_star_path
+    )
+    tomo_paths = [rln_project_path / p for p in tomo_paths]  # resolve relative paths
+    particles_path = opt_star_df["rlnTomoParticlesFile"][0]
+    particles_df = starfile.read(rln_project_path / particles_path)
+    assert isinstance(particles_df, pd.DataFrame)
+    name_to_center_map = {
+        tomo_name: _shape_to_center_zyx(ip.lazy.imread(tomo_path).shape, sc_nm)
+        for tomo_name, tomo_path, sc_nm in zip(
+            tomo_names, tomo_paths, scale_nm, strict=False
+        )
+    }
+    name_to_path_map = dict(zip(tomo_names, tomo_paths, strict=False))
+    name_to_scale_map = dict(zip(tomo_names, scale_nm, strict=False))
+    for tomo_id, particles in particles_df.groupby(TOMO_NAME):
+        center_zyx = name_to_center_map.get(tomo_id)
+        if center_zyx is None:
+            warnings.warn(
+                f"Tomogram {tomo_id} not found in the tomograms.star file. Skipping.",
+                UserWarning,
+                stacklevel=2,
+            )
+            continue
+        yield OptimizationSetItem(
+            tomo_id,
+            Path(name_to_path_map[tomo_id]),
+            scale=name_to_scale_map[tomo_id],
+            molecules=_particles_to_molecules(particles, center_zyx),
         )
 
+
+def _read_star(path: str, tomo: "CylTomogram") -> dict[str, Molecules]:
+    fpath = Path(path)
     center_zyx = _shape_to_center_zyx(tomo.image.shape, tomo.scale)
-    star = starfile.read(path)
+    star = starfile.read(fpath)
     if not isinstance(star, dict):
         star = {"particles": star}  # assume particles block
 
     particles = star["particles"]  # angstrom
-    for ix in range(3):
-        particles[POS_COLUMNS[ix]] += center_zyx[ix] * 10
     if not isinstance(particles, pd.DataFrame):
         raise NotImplementedError("Particles block must be a dataframe")
 
-    if "optics" in star:
-        opt = star["optics"]
-        if not isinstance(opt, pd.DataFrame):
-            raise NotImplementedError("Optics block must be a dataframe")
-        particles = particles.merge(opt, on=OPTICS_GROUP)
+    return _particles_to_molecules(particles, center_zyx, fpath.stem)
 
+
+def _particles_to_molecules(
+    particles: pd.DataFrame,
+    center_zyx,
+    default_key: str = "Mole-0",
+) -> dict[str, Molecules]:
+    for ix in range(3):
+        particles[POS_COLUMNS[ix]] += center_zyx[ix] * 10
     if all(c in particles.columns for c in POS_ORIGIN_COLUMNS):
         for target, source in zip(POS_COLUMNS, POS_ORIGIN_COLUMNS, strict=True):
             particles[target] += particles[source]
         particles.drop(columns=POS_ORIGIN_COLUMNS, inplace=True)
-    # particles are in Angstrom, convert to nm
-    pos = particles[POS_COLUMNS].to_numpy() / 10
-    euler = particles[ROT_COLUMNS].to_numpy()
-    features = particles.drop(columns=POS_COLUMNS + ROT_COLUMNS)
+
+    # TODO: should optics properties be included?
+    # if "optics" in star:
+    #     opt = star["optics"]
+    #     if not isinstance(opt, pd.DataFrame):
+    #         raise NotImplementedError("Optics block must be a dataframe")
+    #     particles = particles.merge(opt, on=OPTICS_GROUP)
+
+    pos = particles[POS_COLUMNS].to_numpy() / 10  # angstrom to nm
+    if all(c in particles.columns for c in ROT_COLUMNS):
+        euler = particles[ROT_COLUMNS].to_numpy()
+        features = particles.drop(columns=POS_COLUMNS + ROT_COLUMNS)
+    else:
+        euler = np.zeros((particles.shape[0], 3), dtype=np.float32)
+        features = particles.drop(columns=POS_COLUMNS)
     mole = Molecules.from_euler(
         pos, euler, seq="ZYZ", degrees=True, order="xyz", features=features
     )
     if MOLE_ID in mole.features.columns:
-        return [m.drop_features(MOLE_ID) for _, m in mole.group_by(MOLE_ID)]
-    return [mole]
-
-
-def _write_star(df: pd.DataFrame, path: str, scale: float):
-    return starfile.write(df, path)
+        return {
+            mole_id: m.drop_features(MOLE_ID) for mole_id, m in mole.group_by(MOLE_ID)
+        }
+    return {default_key: mole}
 
 
 def _shape_to_center_zyx(shape: tuple[int, int, int], scale: nm) -> np.ndarray:

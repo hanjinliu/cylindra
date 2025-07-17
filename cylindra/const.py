@@ -111,6 +111,7 @@ class FileFilter(SimpleNamespace):
     PY = "Python (*.py);;All files (*)"
     MOD = "Model files (*.mod);;All files (*)"
     STAR = "STAR files (*.star);;All files (*)"
+    STAR_JOB = "RELION job files (job.star);;All files (*)"
     PDB = "PDB files (*.pdb);;All files (*)"
 
 

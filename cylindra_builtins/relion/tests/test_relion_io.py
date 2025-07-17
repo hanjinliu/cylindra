@@ -14,6 +14,7 @@ from cylindra_builtins import relion
 
 TEST_JOB_DIR = Path(__file__).parent / "test_jobs"
 JOB_TOMO_DIR = TEST_JOB_DIR / "Tomograms" / "job_tomo"
+JOB_PICK_DIR = TEST_JOB_DIR / "Picks" / "job_pick"
 
 
 def test_load_and_save_starfiles(ui: CylindraMainWidget, tmpdir):
@@ -39,11 +40,19 @@ def test_load_and_save_starfiles(ui: CylindraMainWidget, tmpdir):
 def test_opening_jobs(ui: CylindraMainWidget):
     path_13pf = JOB_TOMO_DIR.joinpath("tomograms", "13pf_MT.mrc")
     path_14pf = JOB_TOMO_DIR.joinpath("tomograms", "14pf_MT.mrc")
+    if not (tomo_dir := JOB_TOMO_DIR.joinpath("tomograms")).exists():
+        tomo_dir.mkdir()
     if not path_13pf.exists():
         ip.imread(TEST_DIR / "13pf_MT.tif").imsave(path_13pf)
     if not path_14pf.exists():
         ip.imread(TEST_DIR / "14pf_MT.tif").imsave(path_14pf)
-    relion.open_relion_job(ui, JOB_TOMO_DIR)
+    relion.open_relion_job(ui, JOB_TOMO_DIR / "job.star")
+    assert len(ui.batch.constructor.projects) == 2
+    ui.batch.constructor.projects[0].send_to_viewer()
+    assert ui.tomogram.scale == pytest.approx(1.052)
+    assert not ui.tomogram.is_dummy
+
+    relion.open_relion_job(ui, JOB_TOMO_DIR / "job.star")
     assert len(ui.batch.constructor.projects) == 2
     ui.batch.constructor.projects[0].send_to_viewer()
     assert ui.tomogram.scale == pytest.approx(1.052)

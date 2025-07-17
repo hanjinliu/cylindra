@@ -578,6 +578,7 @@ class ProjectSequenceEdit(MagicTemplate):
         if len(projects) == 0:
             raise ValueError("No projects created.")
         save_root.mkdir(parents=True, exist_ok=True)
+        self.projects.clear()
         for (prj, prj_name), spl, mole in zip(
             projects,
             splines or [[]] * num_projects,
