@@ -278,7 +278,7 @@ def open_relion_job(
     """
     path = Path(path)
     if path.name != "job.star" or not path.is_file() or not path.exists():
-        raise ValueError("The path must point to an existing RELION job.star file.")
+        raise ValueError(f"Path must be an existing RELION job.star file, got {path}")
     job_dir_path = Path(path).parent
     rln_project_path = _relion_project_path(job_dir_path)
     jobtype = _get_job_type(job_dir_path)
