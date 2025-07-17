@@ -1324,15 +1324,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#construct-from-a-file-pattern" class="md-nav__link">
-    <span class="md-ellipsis">
-      Construct from a file pattern
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -2329,15 +2320,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#construct-from-a-file-pattern" class="md-nav__link">
-    <span class="md-ellipsis">
-      Construct from a file pattern
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -2418,9 +2400,8 @@ If you want to use wildcard patterns, see <a href="#construct-from-a-file-patter
     <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Loader&quot;</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
-<h3 id="construct-from-a-file-pattern">Construct from a file pattern</h3>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="construct_loader_by_pattern(path_pattern, mole_pattern='*', predicate=None, name='Loader')" href="../../api/widgets/batch/#cylindra.widgets.batch.CylindraBatchWidget.construct_loader_by_pattern"><code>construct_loader_by_pattern</code></a></p>
-<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="o">.</span><span class="n">batch</span><span class="o">.</span><span class="n">construct_loader_by_pattern</span><span class="p">(</span>
+<p>File patterns can also be used.</p>
+<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="o">.</span><span class="n">batch</span><span class="o">.</span><span class="n">construct_loader_by_list</span><span class="p">(</span>
     <span class="s2">&quot;path/to/project-*.zip&quot;</span><span class="p">,</span>
     <span class="n">mole_pattern</span><span class="o">=</span><span class="s2">&quot;*-ALN1.csv&quot;</span><span class="p">,</span>  <span class="c1"># only use molecules with name ending with &quot;-ALN1.csv&quot;</span>
     <span class="n">predicate</span><span class="o">=</span><span class="s2">&quot;col(&#39;npf_glob&#39;) == 13&quot;</span><span class="p">,</span>  <span class="c1"># only use molecules from 13-pf microtubules</span>
