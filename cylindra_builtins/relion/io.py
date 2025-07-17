@@ -174,6 +174,7 @@ def save_molecules_batch(
     path_sets: Annotated[Any, {"bind": _get_loader_paths}],
     save_features: bool = False,
     shift_by_origin: bool = True,
+    tomogram_star: Path | None = None,
 ):
     from cylindra.components.tomogram import CylTomogram
     from cylindra.widgets.batch._sequence import PathInfo
@@ -202,8 +203,19 @@ def save_molecules_batch(
                 moles, tomo, tomo_name, save_features, shift_by_origin
             )
             star_dfs.append(df)
+
+    particles_star_path = Path(save_path).with_suffix(".star")
     df_all = pd.concat(star_dfs, ignore_index=True)
-    starfile.write(df_all, save_path)
+    starfile.write(df_all, particles_star_path)
+
+    if tomogram_star is not None:
+        opt_set = {
+            "rlnTomoTomogramsFile": [str(tomogram_star)],
+            "rlnTomoParticlesFile": [str(particles_star_path)],
+        }
+        starfile.write(
+            pd.DataFrame(opt_set), save_path.parent / "optimisation_set.star"
+        )
 
 
 @register_function(name="Save splines")
@@ -277,6 +289,10 @@ def open_relion_job(
     ----------
     path : path-like
         The path to the RELION job.star file.
+    invert : bool, default True
+        Set to True if the tomograms are light backgroud.
+    bin_size : list[int], default [1]
+        The multiscale binning size for the tomograms.
     """
     path = Path(path)
     if path.name != "job.star" or not path.is_file() or not path.exists():
@@ -288,7 +304,7 @@ def open_relion_job(
         # Reconstruct Tomogram job
         tomogram_star_path = job_dir_path / "tomograms.star"
         _, tomo_paths, scale_nm = _parse_tomo_star(tomogram_star_path)
-        ui.batch.constructor._new_projects_from_table(
+        ui.batch._new_projects_from_table(
             path=[rln_project_path / p for p in tomo_paths],
             scale=scale_nm,
             invert=[invert] * len(tomo_paths),
@@ -308,7 +324,7 @@ def open_relion_job(
             scales.append(item.scale)
             molecules.append(item.molecules)
 
-        ui.batch.constructor._new_projects_from_table(
+        ui.batch._new_projects_from_table(
             paths,
             save_root=job_dir_path / "cylindra",
             invert=[invert] * len(paths),

@@ -21,6 +21,8 @@ if __name__ == "__main__":
 def as_main_function(expr: Expr, imports: Iterable[str] = ()) -> str:
     """Convert a macro to a main(ui) function string."""
     txt = "\n".join(f"    {line}" for line in expr.args)
+    if all(line.strip().startswith("#") for line in txt.splitlines()):
+        txt += "\n    pass"
     import_statements = "\n".join(imports) + "\n"
     return _MACRO_FORMAT.format(import_statements, txt)
 
@@ -49,3 +51,38 @@ def get_project_file(path: str | Path):
                 "project directory should contain a 'project.json' file."
             )
     return path
+
+
+def as_relative(
+    p: str | Path | None,
+    project_dir: Path | None,
+    absolute_ok: bool = False,
+) -> Path | None:
+    if p is None or project_dir is None:
+        return None
+    if isinstance(p, str):
+        p = Path(p)
+    if isinstance(p, Path):
+        rel_path = Path("..")
+        cur_path = project_dir
+        for _ in range(5):
+            cur_path = cur_path.parent
+            if p.is_relative_to(cur_path):
+                return rel_path.parent / p.relative_to(cur_path)
+            rel_path = rel_path / ".."
+        if absolute_ok:
+            return p
+    return None
+
+
+def resolve_relative_paths(rel_path: Path, cur_dir: Path) -> Path | None:
+    for part in Path(rel_path).parts:
+        # NOTE: Path("./XX") -> Path("XX")
+        # if part == ".":
+        #     continue
+        if part.startswith(".."):
+            cur_dir = cur_dir.parent
+        else:
+            cur_dir = cur_dir / part
+    if cur_dir.exists():
+        return cur_dir

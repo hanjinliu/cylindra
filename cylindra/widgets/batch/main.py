@@ -1,7 +1,7 @@
 from typing import Annotated, Any, Literal
 
 import polars as pl
-from acryo import BatchLoader
+from acryo import BatchLoader, Molecules
 from macrokit import Expr, Symbol
 from magicclass import (
     MagicTemplate,
@@ -12,13 +12,14 @@ from magicclass import (
     magicclass,
     set_design,
 )
-from magicclass.types import Path
+from magicclass.types import Optional, Path
 from magicclass.utils import thread_worker
 from qtpy.QtWidgets import QSizePolicy
 
+from cylindra.components import CylSpline
 from cylindra.const import FileFilter
 from cylindra.core import ACTIVE_WIDGETS
-from cylindra.project import CylindraBatchProject
+from cylindra.project import CylindraBatchProject, CylindraProject
 from cylindra.utils import parse_tilt_model
 from cylindra.widget_utils import POLARS_NAMESPACE, capitalize
 from cylindra.widgets._accessors import BatchLoaderAccessor
@@ -26,6 +27,7 @@ from cylindra.widgets.batch._loaderlist import LoaderList
 from cylindra.widgets.batch._sequence import PathInfo, ProjectSequenceEdit
 from cylindra.widgets.batch._utils import LoaderInfo, TempFeatures
 from cylindra.widgets.batch.sta import BatchSubtomogramAveraging
+from cylindra.widgets.subwidgets.misc import TiltModelEdit
 
 
 @magicclass(
@@ -59,6 +61,113 @@ class CylindraBatchWidget(MagicTemplate):
 
     def _get_constructor_scale(self, *_) -> float:
         return self.constructor.scale.value
+
+    @set_design(text=capitalize, location=ProjectSequenceEdit.File)
+    @do_not_record
+    def new_projects(
+        self,
+        paths: Path.Multiple[FileFilter.IMAGE],
+        save_root: Path.Save[FileFilter.DIRECTORY],
+        scale: Annotated[Optional[float], {"text": "Use image original scale", "options": {"min": 0.01, "step": 0.0001},}] = None,
+        tilt_model: Annotated[dict, {"widget_type": TiltModelEdit}] = None,
+        bin_size: list[int] = [1],
+        invert: bool = False,
+        extension: Literal["", ".zip", ".tar"] = "",
+        strip_prefix: str = "",
+        strip_suffix: str = "",
+    ):  # fmt: skip
+        """Create new projects from images.
+
+        This method is usually used for batch processing, efficient visual inspection,
+        and particle picking.
+
+        Parameters
+        ----------
+        paths : list of str or Path
+            A list of image paths or wildcard patterns, such as "path/to/*.mrc".
+        save_root : str or Path
+            The root directory to save the output projects.
+        scale : float, optional
+            The scale of the images in nanometers. If None, the original scale of the
+            images will be used.
+        tilt_model : dict, optional
+            A tilt model that describes the tilt angles and axis.
+        bin_size : list of int, default [1]
+            Initial bin size of image. Binned image will be used for visualization in
+            the viewer. You can use both binned and non-binned image for analysis.
+        invert : bool, default False
+            Whether to invert the image intensities.
+        extension : str, default ""
+            The file extension (or directory) of the saved project files.
+        strip_prefix : str, default ""
+            A prefix to strip from the project name.
+        strip_suffix : str, default ""
+            A suffix to strip from the project name.
+        """
+        self._new_projects_from_table(
+            paths,
+            save_root=save_root,
+            scale=[scale] * len(paths),
+            tilt_model=[tilt_model] * len(paths),
+            bin_size=[bin_size] * len(paths),
+            invert=[invert] * len(paths),
+            extension=extension,
+            strip_prefix=strip_prefix,
+            strip_suffix=strip_suffix,
+        )
+
+    def _new_projects_from_table(
+        self,
+        path: list[Path],
+        save_root: Path,
+        scale: list[float | None] | None = None,
+        tilt_model: list[dict | None] | None = None,
+        bin_size: list[list[int]] | None = None,
+        invert: list[bool] | None = None,
+        splines: list["CylSpline"] | None = None,
+        molecules: list[dict[str, Molecules]] | None = None,
+        extension: Literal["", ".zip", ".tar"] = "",
+        strip_prefix: str = "",
+        strip_suffix: str = "",
+    ):
+        projects = list[tuple[CylindraProject, str]]()
+        num_projects = len(path)
+        for img_path, _scale, tlt, _bin_size, _inv in zip(
+            path,
+            _or_default_list(scale, None, num_projects),
+            _or_default_list(tilt_model, None, num_projects),
+            _or_default_list(bin_size, [1], num_projects),
+            _or_default_list(invert, False, num_projects),
+            strict=True,
+        ):
+            each_project = CylindraProject.new(
+                img_path,
+                scale=_scale,
+                multiscales=_bin_size,
+                missing_wedge=tlt,
+                invert=_inv,
+            )
+            prj_name = img_path.stem
+            projects.append((each_project, prj_name))
+        if len(projects) == 0:
+            raise ValueError("No projects created.")
+        save_root.mkdir(parents=True, exist_ok=True)
+        self.constructor.projects.clear()
+        for (prj, prj_name), spl, mole in zip(
+            projects,
+            splines or [[]] * num_projects,
+            molecules or [{}] * num_projects,
+            strict=True,
+        ):
+            if strip_prefix and img_path.stem.startswith(strip_prefix):
+                prj_name = prj_name[len(strip_prefix) :]
+            if strip_suffix and prj_name.endswith(strip_suffix):
+                prj_name = prj_name[: -len(strip_suffix)]
+            save_path = save_root / f"{prj_name}{extension}"
+            prj.save(save_path, splines=spl, molecules=mole)
+            prj.project_path = save_path
+            self.constructor.projects._add(prj.project_path)
+        self.save_batch_project(save_path=save_root)
 
     @set_design(text=capitalize, location=constructor)
     @thread_worker
@@ -219,6 +328,7 @@ class CylindraBatchWidget(MagicTemplate):
     @set_design(
         text="Save as batch analysis project", location=ProjectSequenceEdit.File
     )
+    @do_not_record
     def save_batch_project(
         self,
         save_path: Path.Save,
@@ -235,3 +345,12 @@ class CylindraBatchWidget(MagicTemplate):
             Extension of the molecule files.
         """
         return CylindraBatchProject.save_gui(self, Path(save_path), molecules_ext)
+
+
+def _or_default_list(value, default, length: int):
+    """Return value if it is a list, otherwise return default."""
+    if value is None:
+        return [default] * length
+    if len(value) != length:
+        raise ValueError(f"Expected {length} items, got {len(value)}")
+    return value

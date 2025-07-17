@@ -17,7 +17,12 @@ from cylindra.const import PropertyNames as H
 from cylindra.project._base import BaseProject, MissingWedge, PathLike, resolve_path
 from cylindra.project._json import project_json_encoder
 from cylindra.project._layer_info import InteractionInfo, LandscapeInfo, MoleculesInfo
-from cylindra.project._utils import as_main_function, extract
+from cylindra.project._utils import (
+    as_main_function,
+    as_relative,
+    extract,
+    resolve_relative_paths,
+)
 
 if TYPE_CHECKING:
     import tarfile
@@ -178,7 +183,7 @@ class CylindraProject(BaseProject):
             version=_versions.pop("cylindra", "unknown"),
             dependency_versions=_versions,
             image=orig_path,
-            image_relative=_as_relative(orig_path, project_dir),
+            image_relative=as_relative(orig_path, project_dir),
             cache_image=tomo.metadata.get("cache_image", False),
             scale=tomo.scale,
             image_reference=img_ref_path,
@@ -590,15 +595,7 @@ class CylindraProject(BaseProject):
     def _try_resolve_image_relative(self) -> Path | None:
         if self.image_relative is None or self.project_path is None:
             return None
-        cur_dir = self.project_path.parent
-        for part in Path(self.image_relative).parts:
-            if part.startswith(".."):
-                cur_dir = cur_dir.parent
-            else:
-                cur_dir = cur_dir / part
-        if cur_dir.exists():
-            return cur_dir
-        return None
+        return resolve_relative_paths(self.image_relative, self.project_path.parent)
 
     def make_project_viewer(self):
         """Build a project viewer widget from this project."""
@@ -711,20 +708,6 @@ def _get_instance(gui: "CylindraMainWidget | None" = None):
     if ui is None:
         raise RuntimeError("No CylindraMainWidget GUI found.")
     return ui
-
-
-def _as_relative(p: Path | None, project_dir: Path | None):
-    if p is None or project_dir is None:
-        return None
-    elif isinstance(p, Path):
-        cur_path = project_dir
-        rel_path = Path("..")
-        for _ in range(5):
-            cur_path = cur_path.parent
-            if p.is_relative_to(cur_path):
-                return rel_path.parent / p.relative_to(cur_path)
-            rel_path = rel_path / ".."
-    return None
 
 
 def _drop_null_columns(df: pl.DataFrame) -> pl.DataFrame:

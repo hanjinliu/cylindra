@@ -1,6 +1,6 @@
 import glob
 from fnmatch import fnmatch
-from typing import Annotated, Iterator, Literal
+from typing import TYPE_CHECKING, Iterator
 
 import impy as ip
 import polars as pl
@@ -18,20 +18,18 @@ from magicclass import (
     vfield,
 )
 from magicclass.ext.polars import DataFrameView
-from magicclass.types import ExprStr, Optional, Path
+from magicclass.types import ExprStr, Path
 from magicclass.widgets import ConsoleTextEdit, EvalLineEdit
 from magicgui.types import Separator
 from magicgui.widgets import ComboBox, Container, Widget
 
 from cylindra._config import get_config
-from cylindra.components import CylSpline
 from cylindra.const import FileFilter
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.project import CylindraProject, get_project_file
 from cylindra.widget_utils import POLARS_NAMESPACE, capitalize
 from cylindra.widgets.batch._utils import PathInfo, TempFeatures
-from cylindra.widgets.subwidgets.misc import TiltModelEdit
 
 
 @magicclass(
@@ -47,14 +45,17 @@ class MoleculeWidget(MagicTemplate):
 
 @magicclass(widget_type="collapsible", record=False, name="Molecules")
 class MoleculeList(MagicTemplate):
-    def __iter__(self) -> Iterator[MoleculeWidget]:
-        return super().__iter__()
 
     def _add_path(self, path: str):
         wdt = MoleculeWidget()
         wdt.line.value = path
         wdt["check"].text = ""
         self.append(wdt)
+
+    if TYPE_CHECKING:
+
+        def __iter__(self) -> Iterator[MoleculeWidget]: ...
+        def __getitem__(self, idx: int) -> MoleculeWidget: ...
 
 
 @magicclass(
@@ -75,6 +76,11 @@ class SplineList(MagicTemplate):
         wdt.line.value = str(path)
         wdt["check"].text = ""
         self.append(wdt)
+
+    if TYPE_CHECKING:
+
+        def __iter__(self) -> Iterator[SplineWidget]: ...
+        def __getitem__(self, idx: int) -> SplineWidget: ...
 
 
 @magicclass(
@@ -490,112 +496,6 @@ class ProjectSequenceEdit(MagicTemplate):
 
     @set_design(text=capitalize, location=File)
     @do_not_record
-    def new_projects(
-        self,
-        paths: Path.Multiple[FileFilter.IMAGE],
-        save_root: Path.Save[FileFilter.DIRECTORY],
-        scale: Annotated[Optional[float], {"text": "Use image original scale", "options": {"min": 0.01, "step": 0.0001},}] = None,
-        tilt_model: Annotated[dict, {"widget_type": TiltModelEdit}] = None,
-        bin_size: list[int] = [1],
-        invert: bool = False,
-        extension: Literal["", ".zip", ".tar"] = "",
-        strip_prefix: str = "",
-        strip_suffix: str = "",
-    ):  # fmt: skip
-        """Create new projects from images.
-
-        This method is usually used for batch processing, efficient visual inspection,
-        and particle picking.
-
-        Parameters
-        ----------
-        paths : list of str or Path
-            A list of image paths or wildcard patterns, such as "path/to/*.mrc".
-        save_root : str or Path
-            The root directory to save the output projects.
-        scale : float, optional
-            The scale of the images in nanometers. If None, the original scale of the
-            images will be used.
-        tilt_model : dict, optional
-            A tilt model that describes the tilt angles and axis.
-        bin_size : list of int, default [1]
-            Initial bin size of image. Binned image will be used for visualization in
-            the viewer. You can use both binned and non-binned image for analysis.
-        invert : bool, default False
-            Whether to invert the image intensities.
-        extension : str, default ""
-            The file extension (or directory) of the saved project files.
-        strip_prefix : str, default ""
-            A prefix to strip from the project name.
-        strip_suffix : str, default ""
-            A suffix to strip from the project name.
-        """
-        self._new_projects_from_table(
-            paths,
-            save_root=save_root,
-            scale=[scale] * len(paths),
-            tilt_model=[tilt_model] * len(paths),
-            bin_size=[bin_size] * len(paths),
-            invert=[invert] * len(paths),
-            extension=extension,
-            strip_prefix=strip_prefix,
-            strip_suffix=strip_suffix,
-        )
-
-    def _new_projects_from_table(
-        self,
-        path: list[Path],
-        save_root: Path,
-        scale: list[float | None] | None = None,
-        tilt_model: list[dict | None] | None = None,
-        bin_size: list[list[int]] | None = None,
-        invert: list[bool] | None = None,
-        splines: list["CylSpline"] | None = None,
-        molecules: list[dict[str, Molecules]] | None = None,
-        extension: Literal["", ".zip", ".tar"] = "",
-        strip_prefix: str = "",
-        strip_suffix: str = "",
-    ):
-        projects = list[tuple[CylindraProject, str]]()
-        num_projects = len(path)
-        for img_path, _scale, tlt, _bin_size, _inv in zip(
-            path,
-            _or_default_list(scale, None, num_projects),
-            _or_default_list(tilt_model, None, num_projects),
-            _or_default_list(bin_size, [1], num_projects),
-            _or_default_list(invert, False, num_projects),
-            strict=True,
-        ):
-            each_project = CylindraProject.new(
-                img_path,
-                scale=_scale,
-                multiscales=_bin_size,
-                missing_wedge=tlt,
-                invert=_inv,
-            )
-            prj_name = img_path.stem
-            projects.append((each_project, prj_name))
-        if len(projects) == 0:
-            raise ValueError("No projects created.")
-        save_root.mkdir(parents=True, exist_ok=True)
-        self.projects.clear()
-        for (prj, prj_name), spl, mole in zip(
-            projects,
-            splines or [[]] * num_projects,
-            molecules or [{}] * num_projects,
-            strict=True,
-        ):
-            if strip_prefix and img_path.stem.startswith(strip_prefix):
-                prj_name = prj_name[len(strip_prefix) :]
-            if strip_suffix and prj_name.endswith(strip_suffix):
-                prj_name = prj_name[: -len(strip_suffix)]
-            save_path = save_root / f"{prj_name}{extension}"
-            prj.save(save_path, splines=spl, molecules=mole)
-            prj.project_path = save_path
-            self.projects._add(prj.project_path)
-
-    @set_design(text=capitalize, location=File)
-    @do_not_record
     def add_projects(
         self,
         paths: Path.Multiple[FileFilter.PROJECT],
@@ -645,15 +545,6 @@ def _get_project_dir(path: str):
     if _path.suffix == ".json":
         return _path.parent
     return _path
-
-
-def _or_default_list(value, default, length: int):
-    """Return value if it is a list, otherwise return default."""
-    if value is None:
-        return [default] * length
-    if len(value) != length:
-        raise ValueError(f"Expected {length} items, got {len(value)}")
-    return value
 
 
 @impl_preview(ProjectSequenceEdit.add_projects)
