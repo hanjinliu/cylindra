@@ -2413,9 +2413,9 @@ for the average image.</p>
 </details>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>If you need the two average images separately, you can run:</p>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="split_and_average(layers, n_pairs=1, size=None, interpolation=1, bin_size=1)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.split_and_average"><code>split_and_average</code></a></p>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>STA widget &gt; Averaging &gt; Split and average molecules</code></p>
+<p>Half maps can be found in <code>"fsc_halfmaps"</code> attribute of the average image layer.</p>
+<div class="highlight"><pre><span></span><code>    <span class="n">ui</span><span class="o">.</span><span class="n">sub_viewer</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="s2">&quot;layer-name&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;fsc_halfmaps&quot;</span><span class="p">]</span>
+</code></pre></div>
 </div>
 <h2 id="pcak-means-classification">PCA/K-means Classification</h2>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="classify_pca(layer, template_path=None, mask_params=None, size=None, cutoff=0.5, interpolation=3, bin_size=1, n_components=2, n_clusters=2, seed=0)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.classify_pca"><code>classify_pca</code></a></p>
