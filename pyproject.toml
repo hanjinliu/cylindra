@@ -22,14 +22,14 @@ classifiers = [
 license = { file = "LICENSE" }
 dynamic = ["version"]
 dependencies = [
-    "impy-array>=2.4.5",
+    "impy-array>=2.4.10",
     "acryo>=0.5.1",
     "macro-kit>=0.4.6",
     "magicgui>=0.8.1",
     "magic-class>=0.7.16",
     "psygnal>=0.9.1",
     "superqt[iconify]>=0.6.1",
-    "pydantic>=1.10.0",
+    "pydantic>=2.8.2",
     "pyqtgraph>=0.12.4",
     "pyarrow>=11.0.0",
     "numpy>=1.23.0",

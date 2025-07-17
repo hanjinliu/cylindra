@@ -17,8 +17,7 @@ def register_function(
     *,
     record: bool = True,
     name: str | None = None,
-) -> CylindraPluginFunction[_P, _R]:
-    ...
+) -> CylindraPluginFunction[_P, _R]: ...
 
 
 @overload
@@ -27,8 +26,7 @@ def register_function(
     *,
     record: bool = True,
     name: str | None = None,
-) -> Callable[..., CylindraPluginFunction[_P, _R]]:
-    ...
+) -> Callable[..., CylindraPluginFunction[_P, _R]]: ...
 
 
 def register_function(
@@ -70,4 +68,3 @@ def load_plugin(ui: CylindraMainWidget) -> None:
 
     for plugin_info in iter_plugin_info():
         plugin_info.load(ui)
-    return None

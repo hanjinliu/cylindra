@@ -87,10 +87,25 @@ def test_project_io(ui: CylindraMainWidget, tmpdir):
         name="Loader_abs",
     )
 
+    ui.batch.constructor.clear_projects()
+    ui.batch.constructor.new_projects(
+        [TEST_DIR / "13pf_MT.tif", TEST_DIR / "14pf_MT.tif"],
+        save_root=root / "new_projects",
+        strip_prefix="1",
+        strip_suffix="_MT",
+    )
+    assert len(ui.batch.loader_infos) == 2
+    assert (p13dir := root.joinpath("new_projects", "3pf")).exists()
+    ui.load_project(p13dir)
+    ui.register_path([[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]])
+    assert len(ui.batch.constructor.projects[0].splines) == 0
+    ui.save_project(p13dir)
+    assert len(ui.batch.constructor.projects[0].splines) == 1
+
 
 def test_view(ui: CylindraMainWidget):
-    ui.batch.constructor.add_projects_glob(TEST_DIR / "test*" / "project.json")
-    tester = mcls_testing.FunctionGuiTester(ui.batch.constructor.add_projects_glob)
+    ui.batch.constructor.add_projects(TEST_DIR / "test*" / "project.json")
+    tester = mcls_testing.FunctionGuiTester(ui.batch.constructor.add_projects)
     tester.update_parameters(pattern=[TEST_DIR / "test*" / "project.json"])
     tester.click_preview()
     ui.batch.constructor.clear_projects()

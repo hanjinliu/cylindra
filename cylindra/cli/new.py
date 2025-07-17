@@ -43,6 +43,7 @@ class ParserNew(ParserBase):
         self.add_argument("--scale", "-s", type=float, default=None)
         self.add_argument("--missing_wedge", "--mw", nargs=2, type=float, default=None)
         self.add_argument("--molecules", "-m", nargs="*", default=[])
+        self.add_argument("--invert", action="store_true")
         self.add_argument("--like", type=str, default=None)
 
     def run_action(
@@ -53,6 +54,7 @@ class ParserNew(ParserBase):
         scale: float | None = None,
         missing_wedge: tuple[float, float] | None = None,
         molecules: list[str] = [],
+        invert: bool = False,
         like: str | None = None,
         **kwargs,
     ):
@@ -71,7 +73,14 @@ class ParserNew(ParserBase):
         if image is None:
             raise ValueError("Image file is required.")
         path = Path(output)
-        prj = CylindraProject.new(image, scale, multiscales, missing_wedge, path)
+        prj = CylindraProject.new(
+            image,
+            scale=scale,
+            multiscales=multiscales,
+            missing_wedge=missing_wedge,
+            invert=invert,
+            project_path=path,
+        )
         mole_input = {}
         if molecules:
             from acryo import Molecules

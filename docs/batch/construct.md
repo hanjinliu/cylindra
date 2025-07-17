@@ -79,12 +79,10 @@ ui.batch.construct_loader_by_list(
 )
 ```
 
-### Construct from a file pattern
-
-:material-arrow-right-thin-circle-outline: API: [`construct_loader_by_pattern`][cylindra.widgets.batch.CylindraBatchWidget.construct_loader_by_pattern]
+File patterns can also be used.
 
 ```python
-ui.batch.construct_loader_by_pattern(
+ui.batch.construct_loader_by_list(
     "path/to/project-*.zip",
     mole_pattern="*-ALN1.csv",  # only use molecules with name ending with "-ALN1.csv"
     predicate="col('npf_glob') == 13",  # only use molecules from 13-pf microtubules

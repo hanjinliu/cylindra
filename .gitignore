@@ -1,6 +1,8 @@
 .vscode/
 test_script.py
 scripts/user_consts.py
+**/test_jobs/**/*.mrc
+**/test_jobs/**/cylindra
 
 # Project files and results
 tests/**/*.txt

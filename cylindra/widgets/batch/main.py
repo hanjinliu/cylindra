@@ -147,13 +147,13 @@ class CylindraBatchWidget(MagicTemplate):
         predicate: Annotated[str | pl.Expr | None, {"bind": _get_expression}] = None,
         name: str = "Loader",
     ):
-        """
-        Construct a batch loader from a list of project paths and a molecule pattern.
+        """Construct a batch loader from a list of project paths and a molecule pattern.
 
         Parameters
         ----------
         project_paths : list of path-like
-            All the project paths to be used for construction.
+            All the project paths to be used for construction. Entries can contain
+            glob patterns such as "*" and "?".
         mole_pattern : str, default "*"
             A glob pattern for molecule file names. For example, "*-ALN1.csv" will only
             collect the molecule file names ends with "-ALN1.csv".
@@ -163,34 +163,6 @@ class CylindraBatchWidget(MagicTemplate):
             Name of the loader.
         """
         self.constructor.add_projects(project_paths, clear=True)
-        self.constructor.select_molecules_by_pattern(mole_pattern)
-        self.construct_loader(self._get_loader_paths(), predicate=predicate, name=name)
-        return None
-
-    @set_design(text=capitalize, location=ProjectSequenceEdit.File)
-    def construct_loader_by_pattern(
-        self,
-        path_pattern: Annotated[list[str], {"value": ("",), "layout": "vertical"}],
-        mole_pattern: str = "*",
-        predicate: Annotated[str | pl.Expr | None, {"bind": _get_expression}] = None,
-        name: str = "Loader",
-    ):
-        """
-        Construct a batch loader from a pattern of project paths and molecule paths.
-
-        Parameters
-        ----------
-        path_pattern : str
-            A glob pattern for project paths.
-        mole_pattern : str, default "*"
-            A glob pattern for molecule file names. For example, "*-ALN1.csv" will only
-            collect the molecule file names ends with "-ALN1.csv".
-        predicate : str or polars expression, optional
-            Filter predicate of molecules.
-        name : str, default "Loader"
-            Name of the loader.
-        """
-        self.constructor.add_projects_glob(path_pattern, clear=True)
         self.constructor.select_molecules_by_pattern(mole_pattern)
         self.construct_loader(self._get_loader_paths(), predicate=predicate, name=name)
         return None

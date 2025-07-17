@@ -37,6 +37,15 @@ class TiltModelEdit(MagicTemplate):
         Range of the tilt around y-axis in degree.
     """
 
+    def __init__(self, value=None, **kwargs):
+        super().__init__()
+        if name := kwargs.get("name"):
+            self.name = name
+        if label := kwargs.get("label"):
+            self.label = label
+        if value is not None:
+            self.value = value
+
     axis = vfield("y").with_choices(["none", "x", "y", "dual"])
     xrange = field(tuple[float, float]).with_options(
         visible=False, options={"min": -90, "max": 90, "step": 1}, value=(-60, 60)
@@ -149,7 +158,7 @@ class ImageLoader(MagicTemplate):
         path = Path(path)
         if path.exists() and self.autofill_pattern:
             ref_path_ptn = str(path.parent / self.autofill_pattern.format(path.stem))
-            ref_path = next(iter(glob.glob(ref_path_ptn)), None)
+            ref_path = next(iter(list(glob.glob(ref_path_ptn))[::-1]), None)
             if ref_path is not None:
                 self.reference_path = Path(ref_path)
 
@@ -236,6 +245,7 @@ class GeneralInfo(MagicTemplate):
         scale = tomo.scale
         shape_px = ", ".join(f"{s} px" for s in img.shape)
         shape_nm = ", ".join(f"{s*scale:.2f} nm" for s in img.shape)
+        orig_nm = tomo.origin
         if isinstance(tomo.tilt_model, NoWedge):
             tilt_range = "No missing wedge"
         elif isinstance(tomo.tilt_model, SingleAxis):
@@ -249,6 +259,7 @@ class GeneralInfo(MagicTemplate):
             f"Scale: {scale:.4f} nm/pixel\n"
             f"ZYX-Shape: ({shape_px})\n"
             f"ZYX-Shape (nm): ({shape_nm})\n"
+            f"ZYX-origin (nm): ({orig_nm.z:.2f}, {orig_nm.y:.2f}, {orig_nm.x:.2f})\n"
             f"Data type: {img.dtype}\n"
             f"Tilt range: {tilt_range}"
         )

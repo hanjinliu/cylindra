@@ -74,7 +74,8 @@ class CylindraProject(BaseProject):
         image: PathLike,
         scale: float | None,
         multiscales: list[int],
-        missing_wedge: tuple[float, float] | None = None,
+        missing_wedge: Any | None = None,
+        invert: bool = False,
         project_path: Path | None = None,
     ):
         """Create a new project."""
@@ -84,8 +85,8 @@ class CylindraProject(BaseProject):
         if scale is None:
             import impy as ip
 
-            img = ip.lazy.imread(image)
-            scale = img.scale.x
+            header = ip.read_header(image)
+            scale = header.scale["x"]
         return CylindraProject(
             datetime=datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
             version=_versions.pop("cylindra", "unknown"),
@@ -94,16 +95,20 @@ class CylindraProject(BaseProject):
             scale=scale,
             multiscales=multiscales,
             missing_wedge=MissingWedge.parse(missing_wedge),
+            invert=invert,
             project_path=project_path,
         )
 
     def save(
         self,
         project_dir: Path,
+        splines: "list[CylSpline]" = [],
         molecules: "dict[str, Molecules]" = {},
     ) -> None:
         """Save this project."""
         from macrokit import parse
+
+        from cylindra.components.tomogram._spline_list import SplineList
 
         path = Path(self.image).as_posix()
         scale = self.scale
@@ -117,6 +122,13 @@ class CylindraProject(BaseProject):
             expr = as_main_function(expr_open)
             self._script_py_path(results_dir).write_text(expr)
             self_copy = self.model_copy()
+            spl_list = SplineList(splines)
+            if (df_loc := spl_list.collect_localprops()) is not None:
+                df_loc.write_csv(self._localprops_path(results_dir))
+            if (df_glob := spl_list.collect_globalprops()) is not None:
+                df_glob.write_csv(self._globalprops_path(results_dir))
+            for ith, spl in spl_list.enumerate():
+                spl.to_json(results_dir / f"spline-{ith}.json")
             for name, mole in molecules.items():
                 save_path = results_dir / name
                 if save_path.suffix == "":
@@ -124,7 +136,6 @@ class CylindraProject(BaseProject):
                 self_copy.molecules_info.append(MoleculesInfo(name=save_path.name))
                 mole.to_file(save_path)
             self_copy.to_json(self._project_json_path(results_dir))
-        return None
 
     @classmethod
     def from_gui(
@@ -159,6 +170,9 @@ class CylindraProject(BaseProject):
                 interaction_infos.append(InteractionInfo.from_layer(gui, layer))
 
         orig_path = tomo.metadata.get("orig_path", None)
+        img_ref_path = gui._reserved_layers.image_data.source
+        if tomo.metadata.get("source", None) == img_ref_path:
+            img_ref_path = None
         return cls(
             datetime=datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
             version=_versions.pop("cylindra", "unknown"),
@@ -167,7 +181,7 @@ class CylindraProject(BaseProject):
             image_relative=_as_relative(orig_path, project_dir),
             cache_image=tomo.metadata.get("cache_image", False),
             scale=tomo.scale,
-            image_reference=gui._reserved_layers.image_data.source,
+            image_reference=img_ref_path,
             invert=tomo.is_inverted,
             multiscales=[x[0] for x in tomo.multiscaled],
             molecules_info=mole_infos,
@@ -239,7 +253,6 @@ class CylindraProject(BaseProject):
             else:
                 self.metadata = gui._project_metadata
             self.to_json(self._project_json_path(results_dir))
-        return None
 
     def _to_gui(
         self,

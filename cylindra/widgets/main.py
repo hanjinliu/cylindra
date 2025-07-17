@@ -507,8 +507,8 @@ class CylindraMainWidget(MagicTemplate):
         tilt_range : tuple of float, default None
             Range of tilt angles in degrees.
         bin_size : int or list of int, default [1]
-            Initial bin size of image. Binned image will be used for visualization in the viewer.
-            You can use both binned and non-binned image for analysis.
+            Initial bin size of image. Binned image will be used for visualization in
+            the viewer. You can use both binned and non-binned image for analysis.
         {filter}
         invert : bool, default False
             If true, invert the intensity of the image.
@@ -553,8 +553,8 @@ class CylindraMainWidget(MagicTemplate):
         tilt_range : tuple of float, default None
             Range of tilt angles in degrees.
         bin_size : int or list of int, default [1]
-            Initial bin size of image. Binned image will be used for visualization in the viewer.
-            You can use both binned and non-binned image for analysis.
+            Initial bin size of image. Binned image will be used for visualization in
+            the viewer. You can use both binned and non-binned image for analysis.
         {filter}
         invert : bool, default False
             If true, invert the intensity of the raw image.
@@ -578,8 +578,12 @@ class CylindraMainWidget(MagicTemplate):
             and (orig_scale := tomo.metadata.get("orig_scale", -1)) > 0
             and abs((scale_factor := tomo.scale / orig_scale) - 1) > 1e-4
         ):
+            _Logger.print(
+                f"Original tomogram has scale {orig_scale:.4f} nm/pixel, while "
+                f"reference has scale {tomo.scale:.4f} nm/pixel. "
+            )
             img_ref = img_ref.set_scale(
-                **{k: v * scale_factor for k, v in img_ref.scale.items()},
+                **{str(k): v * scale_factor for k, v in img_ref.scale.items()},
                 unit=img_ref.scale_unit,
             )
         cb = thread_worker.callback(self._update_reference_image).with_args(img_ref)
@@ -686,6 +690,10 @@ class CylindraMainWidget(MagicTemplate):
         if autosave_path.exists():
             with suppress(Exception):
                 autosave_path.unlink()
+        if batch := self._batch:
+            for proj in batch.constructor.projects:
+                if Path(proj.path) == self._project_dir:
+                    proj._update_from_project()
 
     @set_design(text=capitalize, location=_sw.FileMenu)
     @do_not_record
@@ -695,7 +703,7 @@ class CylindraMainWidget(MagicTemplate):
         if self._project_dir is None:
             raise ValueError(
                 "No project is loaded. You can use `Save project` "
-                "(ui.save_project(...)) to save the current state."
+                "(ui.save_project(...)) to save the current session."
             )
         project = CylindraProject.from_file(self._project_dir)
         if project.molecules_info:
@@ -1452,7 +1460,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         spline: Annotated[int, {"bind": _get_spline_idx}],
         npf: Annotated[Optional[int], {"label": "number of PF", "text": "Do not update"}] = None,
-        start: Annotated[Optional[int], {"label": "start number", "text": "Do not update"}] = None,
+        start: Annotated[Optional[int], {"label": "start number", "text": "Do not update", "options": {"min": -100}}] = None,
         orientation: Annotated[Optional[Literal["MinusToPlus", "PlusToMinus"]], {"text": "Do not update"}] = None,
     ):  # fmt: skip
         """Set spline global properties.
@@ -2040,7 +2048,7 @@ class CylindraMainWidget(MagicTemplate):
         out_net = layer.net.filter(widget_utils.norm_expr(predicate))
         new_layer = InteractionVector(out_net, name=f"{layer.name}-Filt")
         _Logger.print(f"{out_net.count()} interactions left after filtering.")
-        _Logger.print(f"{layer.name} &#8594; {new_layer.name}")
+        _Logger.print_html(f"{layer.name} &#8594; {new_layer.name}")
         return self._undo_callback_for_layer(self.parent_viewer.add_layer(new_layer))
 
     @set_design(text=capitalize, location=_sw.AnalysisMenu.Interaction)
@@ -2506,7 +2514,7 @@ class CylindraMainWidget(MagicTemplate):
             source = layer.source_component if inherit_source else None
             new = self.add_molecules(out, name=f"{layer.name}-Shift", source=source)
             new_layers.append(new)
-            _Logger.print(f"{layer.name!r} &#8594; {new.name!r}")
+            _Logger.print_html(f"{layer.name!r} &#8594; {new.name!r}")
         return self._undo_callback_for_layer(new_layers)
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu)
@@ -2540,7 +2548,7 @@ class CylindraMainWidget(MagicTemplate):
             source = layer.source_component if inherit_source else None
             new = self.add_molecules(mole, name=f"{layer.name}-Rot", source=source)
             new_layers.append(new)
-            _Logger.print(f"{layer.name!r} &#8594; {new.name!r}")
+            _Logger.print_html(f"{layer.name!r} &#8594; {new.name!r}")
         return self._undo_callback_for_layer(new_layers)
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu)
@@ -2645,7 +2653,7 @@ class CylindraMainWidget(MagicTemplate):
         _Logger.print(f"Filter molecules resulted in {out.count()} molecules.")
         source = layer.source_component if inherit_source else None
         new = self.add_molecules(out, name=f"{layer.name}-Filt", source=source)
-        _Logger.print(f"{layer.name!r} &#8594; {new.name!r}")
+        _Logger.print_html(f"{layer.name!r} &#8594; {new.name!r}")
         return self._undo_callback_for_layer(new)
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu)

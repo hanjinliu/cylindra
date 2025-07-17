@@ -1,6 +1,6 @@
 import glob
 from fnmatch import fnmatch
-from typing import Annotated, Iterator
+from typing import Annotated, Iterator, Literal
 
 import impy as ip
 import polars as pl
@@ -18,18 +18,20 @@ from magicclass import (
     vfield,
 )
 from magicclass.ext.polars import DataFrameView
-from magicclass.types import ExprStr, Path
+from magicclass.types import ExprStr, Optional, Path
 from magicclass.widgets import ConsoleTextEdit, EvalLineEdit
 from magicgui.types import Separator
 from magicgui.widgets import ComboBox, Container, Widget
 
 from cylindra._config import get_config
+from cylindra.components import CylSpline
 from cylindra.const import FileFilter
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.project import CylindraProject, get_project_file
-from cylindra.widget_utils import POLARS_NAMESPACE
+from cylindra.widget_utils import POLARS_NAMESPACE, capitalize
 from cylindra.widgets.batch._utils import PathInfo, TempFeatures
+from cylindra.widgets.subwidgets.misc import TiltModelEdit
 
 
 @magicclass(
@@ -105,16 +107,7 @@ class Project(MagicTemplate):
         path = field("").with_options(enabled=False)
 
         remove_project = abstractapi()
-
-        @set_design(text="Open")
-        def send_to_viewer(self):
-            """Send this project to the viewer."""
-            from cylindra.core import instance
-
-            if ui := instance():
-                ui.load_project(self.path.value)
-            else:
-                raise ValueError("No Cylindra widget found!")
+        send_to_viewer = abstractapi()
 
         def __post_init__(self):
             self["check"].text = ""  # NOTE: should be updated here!
@@ -148,6 +141,16 @@ class Project(MagicTemplate):
         idx = parent.index(self)
         del parent[idx]
 
+    @set_design(text="Open", location=Header)
+    def send_to_viewer(self):
+        """Send this project to the viewer."""
+        from cylindra.core import instance
+
+        if ui := instance():
+            ui.load_project(self.path, filter=None)
+        else:
+            raise ValueError("No Cylindra widget found!")
+
     @Header.check.connect
     def _on_checked(self, value: bool):
         self.splines.enabled = value
@@ -174,8 +177,18 @@ class Project(MagicTemplate):
         path = str(path)
         project = CylindraProject.from_file(path)
         self = cls(project)
-        self.Header.path.value = path
-        self.Header.path.tooltip = path
+        self._update_from_project(clear=False)
+        return self
+
+    def _update_from_project(self, clear: bool = True):
+        assert self._project is not None
+        if clear:
+            self.splines.clear()
+            self.molecules.clear()
+
+        project = self._project
+        self.Header.path.value = project.project_path.as_posix()
+        self.Header.path.tooltip = project.project_path.as_posix()
 
         # load splines
         for _, spline_path in project.iter_spline_paths():
@@ -185,7 +198,13 @@ class Project(MagicTemplate):
         for info in project.molecules_info:
             self.molecules._add_path(info.name)
 
-        return self
+        # collapse empty lists
+        if len(self.splines) == 0:
+            self.splines.collapsed = True
+        if len(self.molecules) == 0:
+            self.molecules.collapsed = True
+        if len(self.splines) == 0 and len(self.molecules) == 0:
+            self.Components.collapsed = True
 
     @nogui
     @do_not_record
@@ -245,6 +264,9 @@ class ProjectPaths(MagicTemplate):
         self.append(prj)
         return prj
 
+    def __getitem__(self, idx: int) -> Project:
+        return super().__getitem__(idx)
+
     def __iter__(self) -> Iterator[Project]:
         return super().__iter__()
 
@@ -260,7 +282,8 @@ class ProjectPaths(MagicTemplate):
 
 @magicclass(name="Projects", record=False, use_native_menubar=False)
 class ProjectSequenceEdit(MagicTemplate):
-    """
+    """The left-side widget that contains list of projects.
+
     Attributes
     ----------
     scale : nm
@@ -273,15 +296,14 @@ class ProjectSequenceEdit(MagicTemplate):
 
     @magicmenu
     class File(MagicTemplate):
+        new_projects = abstractapi()
         add_projects = abstractapi()
-        add_projects_glob = abstractapi()
         clear_projects = abstractapi()
         sep0 = Separator
         load_batch_project = abstractapi()
         save_batch_project = abstractapi()
         sep1 = Separator
         construct_loader_by_list = abstractapi()
-        construct_loader_by_pattern = abstractapi()
 
     @magicmenu
     class Select(MagicTemplate):
@@ -466,58 +488,150 @@ class ProjectSequenceEdit(MagicTemplate):
             return None
         return wdt.value
 
-    @set_design(text="Add projects", location=File)
+    @set_design(text=capitalize, location=File)
+    @do_not_record
+    def new_projects(
+        self,
+        paths: Path.Multiple[FileFilter.IMAGE],
+        save_root: Path.Save[FileFilter.DIRECTORY],
+        scale: Annotated[Optional[float], {"text": "Use image original scale", "options": {"min": 0.01, "step": 0.0001},}] = None,
+        tilt_model: Annotated[dict, {"widget_type": TiltModelEdit}] = None,
+        bin_size: list[int] = [1],
+        invert: bool = False,
+        extension: Literal["", ".zip", ".tar"] = "",
+        strip_prefix: str = "",
+        strip_suffix: str = "",
+    ):  # fmt: skip
+        """Create new projects from images.
+
+        This method is usually used for batch processing, efficient visual inspection,
+        and particle picking.
+
+        Parameters
+        ----------
+        paths : list of str or Path
+            A list of image paths or wildcard patterns, such as "path/to/*.mrc".
+        save_root : str or Path
+            The root directory to save the output projects.
+        scale : float, optional
+            The scale of the images in nanometers. If None, the original scale of the
+            images will be used.
+        tilt_model : dict, optional
+            A tilt model that describes the tilt angles and axis.
+        bin_size : list of int, default [1]
+            Initial bin size of image. Binned image will be used for visualization in
+            the viewer. You can use both binned and non-binned image for analysis.
+        invert : bool, default False
+            Whether to invert the image intensities.
+        extension : str, default ""
+            The file extension (or directory) of the saved project files.
+        strip_prefix : str, default ""
+            A prefix to strip from the project name.
+        strip_suffix : str, default ""
+            A suffix to strip from the project name.
+        """
+        self._new_projects_from_table(
+            paths,
+            save_root=save_root,
+            scale=[scale] * len(paths),
+            tilt_model=[tilt_model] * len(paths),
+            bin_size=[bin_size] * len(paths),
+            invert=[invert] * len(paths),
+            extension=extension,
+            strip_prefix=strip_prefix,
+            strip_suffix=strip_suffix,
+        )
+
+    def _new_projects_from_table(
+        self,
+        path: list[Path],
+        save_root: Path,
+        scale: list[float | None] | None = None,
+        tilt_model: list[dict | None] | None = None,
+        bin_size: list[list[int]] | None = None,
+        invert: list[bool] | None = None,
+        splines: list["CylSpline"] | None = None,
+        molecules: list[dict[str, Molecules]] | None = None,
+        extension: Literal["", ".zip", ".tar"] = "",
+        strip_prefix: str = "",
+        strip_suffix: str = "",
+    ):
+        projects = list[tuple[CylindraProject, str]]()
+        num_projects = len(path)
+        for img_path, _scale, tlt, _bin_size, _inv in zip(
+            path,
+            _or_default_list(scale, None, num_projects),
+            _or_default_list(tilt_model, None, num_projects),
+            _or_default_list(bin_size, [1], num_projects),
+            _or_default_list(invert, False, num_projects),
+            strict=True,
+        ):
+            each_project = CylindraProject.new(
+                img_path,
+                scale=_scale,
+                multiscales=_bin_size,
+                missing_wedge=tlt,
+                invert=_inv,
+            )
+            prj_name = img_path.stem
+            projects.append((each_project, prj_name))
+        if len(projects) == 0:
+            raise ValueError("No projects created.")
+        save_root.mkdir(parents=True, exist_ok=True)
+        self.projects.clear()
+        for (prj, prj_name), spl, mole in zip(
+            projects,
+            splines or [[]] * num_projects,
+            molecules or [{}] * num_projects,
+            strict=True,
+        ):
+            if strip_prefix and img_path.stem.startswith(strip_prefix):
+                prj_name = prj_name[len(strip_prefix) :]
+            if strip_suffix and prj_name.endswith(strip_suffix):
+                prj_name = prj_name[: -len(strip_suffix)]
+            save_path = save_root / f"{prj_name}{extension}"
+            prj.save(save_path, splines=spl, molecules=mole)
+            prj.project_path = save_path
+            self.projects._add(prj.project_path)
+
+    @set_design(text=capitalize, location=File)
     @do_not_record
     def add_projects(
         self,
         paths: Path.Multiple[FileFilter.PROJECT],
         clear: bool = False,
     ):
-        """Add project json files as the child projects."""
-        if clear:
-            self.projects.clear()
-        for path in paths:
-            wdt = self.projects._add(get_project_file(path))
-            self.scale.value = wdt.project.scale
-        self.reset_choices()
-        return None
-
-    @set_design(text="Add projects with wildcard path", location=File)
-    @do_not_record
-    def add_projects_glob(
-        self,
-        pattern: Annotated[list[str], {"value": ("",), "layout": "vertical"}],
-        clear: bool = True,
-    ):
-        """
-        Add project json files using wildcard path.
+        """Add project json files as the child projects.
 
         Parameters
         ----------
-        pattern : list of str
-            A list of wildcard patterns, such as "path/to/*.json".
+        paths : list of str or Path
+            A list of paths or wildcard patterns, such as "path/to/*.json".
         clear : bool, default True
             Whether to clear the existing projects added to the list.
         """
-        if isinstance(pattern, (str, Path)):
-            patterns = [str(pattern)]
+
+        if isinstance(paths, (str, Path)):
+            input_paths = [str(paths)]
         else:
-            patterns = [str(p) for p in pattern]
+            input_paths = [str(p) for p in paths]
         if clear:
             self.projects.clear()
-        for each_pattern in patterns:
-            for path in glob.glob(each_pattern):
-                wdt = self.projects._add(path)
+        for path_or_pattern in input_paths:
+            if "*" in path_or_pattern or "?" in path_or_pattern:
+                for path in glob.glob(path_or_pattern):
+                    wdt = self.projects._add(path)
+                    self.scale.value = wdt.project.scale
+            else:
+                wdt = self.projects._add(get_project_file(path_or_pattern))
                 self.scale.value = wdt.project.scale
         self.reset_choices()
-        return
 
     @set_design(text="Clear projects", location=File)
     @do_not_record
     def clear_projects(self):
         """Clear all the projects in the list."""
         self.projects.clear()
-        return None
 
     construct_loader = abstractapi()
 
@@ -533,14 +647,26 @@ def _get_project_dir(path: str):
     return _path
 
 
-@impl_preview(ProjectSequenceEdit.add_projects_glob)
-def _(self: ProjectSequenceEdit, pattern: list[str]):
-    paths = list[str]()
-    patterns = [str(p) for p in pattern]
+def _or_default_list(value, default, length: int):
+    """Return value if it is a list, otherwise return default."""
+    if value is None:
+        return [default] * length
+    if len(value) != length:
+        raise ValueError(f"Expected {length} items, got {len(value)}")
+    return value
+
+
+@impl_preview(ProjectSequenceEdit.add_projects)
+def _(self: ProjectSequenceEdit, paths: list[str]):
+    input_paths = list[str]()
+    patterns = [str(p) for p in paths]
     for each_pattern in patterns:
-        for path in glob.glob(each_pattern):
-            paths.append(Path(path).as_posix())
-    wdt = ConsoleTextEdit(value="\n".join(paths))
+        if "*" in each_pattern or "?" in each_pattern:
+            for path in glob.glob(each_pattern):
+                input_paths.append(Path(path).as_posix())
+        else:
+            input_paths.append(Path(each_pattern).as_posix())
+    wdt = ConsoleTextEdit(value="\n".join(input_paths))
     _set_parent(wdt, self)
     ACTIVE_WIDGETS.add(wdt)
     wdt.show()
