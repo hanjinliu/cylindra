@@ -297,11 +297,12 @@ class SphericalParameters(MagicTemplate):
 class Averaging(MagicTemplate):
     """Average subtomograms."""
 
+    extract_subtomograms = abstractapi()
+    sep0 = Separator
     average_all = abstractapi()
     average_subset = abstractapi()
     average_groups = abstractapi()
     average_filtered = abstractapi()
-    split_and_average = abstractapi()
 
 
 @magicmenu
@@ -510,7 +511,7 @@ class StaParameters(MagicTemplate):
 
     def _show_reconstruction(
         self,
-        image: ip.ImgArray,
+        image: ip.ImgArray | ip.LazyImgArray,
         name: str,
         store: bool = True,
         threshold: float | None = None,
@@ -539,7 +540,7 @@ class StaParameters(MagicTemplate):
             viewer.window.activate()
             with suppress(Exception):  # napari>=0.6.0
                 viewer.camera.orientation = ("away", "down", "right")
-        if store:
+        if store and isinstance(image, ip.ImgArray):
             self._set_last_average(image)
         return widget_utils.add_image_to_sub_viewer(
             StaParameters._viewer, image, name=name, threshold=threshold
@@ -669,6 +670,43 @@ class SubtomogramAveraging(ChildWidget):
 
     def _get_available_binsize(self, _=None) -> list[tuple[str, int]]:
         return self._get_main()._get_available_binsize()
+
+    @set_design(text="Extract subtomograms", location=Averaging)
+    @dask_worker.with_progress(desc=_pdesc.fmt_layers("Extract subtomograms of {!r}"))
+    def extract_subtomograms(
+        self,
+        layers: MoleculesLayersType,
+        size: _SubVolumeSize = None,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        compute: bool = False,
+    ):
+        """Extract subtomograms around molecules in the selected layer(s).
+
+        Extracted 3D images will be sent to the sub-viewer. Note that this extraction
+        operation is NOT needed for subsequent averaging/alignment operations, as they
+        internally extract subtomograms by themselves.
+
+        Parameters
+        ----------
+        {layers}{size}{interpolation}{bin_size}
+        compute : bool, default: False
+            If True, the subtomograms will be computed immediately, and in-memory data
+            will be sent to the sub-viewer.
+        """
+        layers = assert_list_of_layers(layers, self.parent_viewer)
+        parent = self._get_main()
+        tomo = parent.tomogram
+        shape = self._get_shape_in_nm(size)
+        loader = tomo.get_subtomogram_loader(
+            _concat_molecules(layers), shape, binsize=bin_size, order=interpolation
+        )
+        subtomos = ip.lazy.asarray(loader.construct_dask(), axes="pzyx")
+        if compute:
+            subtomos = subtomos.compute()
+        return self._show_rec.with_args(
+            subtomos, f"[Subtomos]{_avg_name(layers)}", store=False
+        )
 
     @set_design(text="Average all molecules", location=Averaging)
     @dask_worker.with_progress(desc=_pdesc.fmt_layers("Subtomogram averaging of {!r}"))
@@ -830,39 +868,6 @@ class SubtomogramAveraging(ChildWidget):
             f"Average of {loader.molecules.count()} molecules. Image size: {shape[0]:.2f} nm ({img.shape[0]} pixel)"
         )
         return self._show_rec.with_args(img, f"[AVG]{_avg_name(layers)}")
-
-    @set_design(text="Split and average molecules", location=Averaging)
-    @dask_worker.with_progress(desc=_pdesc.fmt_layers("Split-and-averaging of {!r}"))  # fmt: skip
-    def split_and_average(
-        self,
-        layers: MoleculesLayersType,
-        n_pairs: Annotated[int, {"min": 1, "label": "number of image pairs"}] = 1,
-        size: _SubVolumeSize = None,
-        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
-    ):
-        """Split molecules into two groups and average separately.
-
-        Parameters
-        ----------
-        {layers}
-        n_pairs : int, default 1
-            How many pairs of average will be calculated.
-        {size}{interpolation}{bin_size}
-        """
-        t0 = timer()
-        layers = assert_list_of_layers(layers, self.parent_viewer)
-        parent = self._get_main()
-        molecules = _concat_molecules(layers)
-        shape = self._get_shape_in_nm(size)
-        loader = parent.tomogram.get_subtomogram_loader(
-            molecules, shape, binsize=bin_size, order=interpolation
-        )
-        axes = "ipzyx" if n_pairs > 1 else "pzyx"
-        img = ip.asarray(loader.average_split(n_set=n_pairs), axes=axes)
-        img.set_scale(zyx=loader.scale)
-        t0.toc()
-        return self._show_rec.with_args(img, f"[Split]{_avg_name(layers)}", store=False)
 
     @set_design(text="Align average to template", location=Alignment)
     @dask_worker.with_progress()

@@ -137,11 +137,12 @@ for the average image.
        manually.
 
 !!! note
-    If you need the two average images separately, you can run:
 
-    :material-arrow-right-thin-circle-outline: API: [`split_and_average`][cylindra.widgets.sta.SubtomogramAveraging.split_and_average]
+    Half maps can be found in `"fsc_halfmaps"` attribute of the average image layer.
 
-    :material-arrow-right-thin-circle-outline: GUI: `STA widget > Averaging > Split and average molecules`
+    ```python
+        ui.sub_viewer.layers["layer-name"].metadata["fsc_halfmaps"]
+    ```
 
 ## PCA/K-means Classification
 
