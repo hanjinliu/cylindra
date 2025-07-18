@@ -25,7 +25,7 @@ from cylindra.widget_utils import POLARS_NAMESPACE, capitalize
 from cylindra.widgets._accessors import BatchLoaderAccessor
 from cylindra.widgets.batch._loaderlist import LoaderList
 from cylindra.widgets.batch._sequence import PathInfo, ProjectSequenceEdit
-from cylindra.widgets.batch._utils import LoaderInfo, TempFeatures
+from cylindra.widgets.batch._utils import LoaderInfo, TempFeatures, unwrap_wildcard
 from cylindra.widgets.batch.sta import BatchSubtomogramAveraging
 from cylindra.widgets.subwidgets.misc import TiltModelEdit
 
@@ -68,6 +68,7 @@ class CylindraBatchWidget(MagicTemplate):
         self,
         paths: Path.Multiple[FileFilter.IMAGE],
         save_root: Path.Save[FileFilter.DIRECTORY],
+        ref_paths: Path.Multiple[FileFilter.IMAGE] = [],
         scale: Annotated[Optional[float], {"text": "Use image original scale", "options": {"min": 0.01, "step": 0.0001},}] = None,
         tilt_model: Annotated[dict, {"widget_type": TiltModelEdit}] = None,
         bin_size: list[int] = [1],
@@ -105,8 +106,9 @@ class CylindraBatchWidget(MagicTemplate):
             A suffix to strip from the project name.
         """
         self._new_projects_from_table(
-            paths,
+            unwrap_wildcard(paths),
             save_root=save_root,
+            ref_paths=unwrap_wildcard(ref_paths) or None,
             scale=[scale] * len(paths),
             tilt_model=[tilt_model] * len(paths),
             bin_size=[bin_size] * len(paths),
@@ -120,6 +122,7 @@ class CylindraBatchWidget(MagicTemplate):
         self,
         path: list[Path],
         save_root: Path,
+        ref_paths: list[Path] | None = None,
         scale: list[float | None] | None = None,
         tilt_model: list[dict | None] | None = None,
         bin_size: list[list[int]] | None = None,
@@ -132,9 +135,10 @@ class CylindraBatchWidget(MagicTemplate):
     ):
         projects = list[tuple[CylindraProject, str]]()
         num_projects = len(path)
-        for img_path, _scale, tlt, _bin_size, _inv in zip(
+        for img_path, _scale, _ref, tlt, _bin_size, _inv in zip(
             path,
             _or_default_list(scale, None, num_projects),
+            _or_default_list(ref_paths, None, num_projects),
             _or_default_list(tilt_model, None, num_projects),
             _or_default_list(bin_size, [1], num_projects),
             _or_default_list(invert, False, num_projects),
@@ -143,6 +147,7 @@ class CylindraBatchWidget(MagicTemplate):
             each_project = CylindraProject.new(
                 img_path,
                 scale=_scale,
+                image_reference=_ref,
                 multiscales=_bin_size,
                 missing_wedge=tlt,
                 invert=_inv,

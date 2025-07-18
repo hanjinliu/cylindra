@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import glob
 from pathlib import Path
-from typing import TYPE_CHECKING, Iterator, NamedTuple
+from typing import TYPE_CHECKING, Iterator, Literal, NamedTuple, overload
 
 import impy as ip
 import polars as pl
@@ -106,9 +107,16 @@ class PathInfo:
                         mole._pos = mole._pos * scale_factor
                     yield mole
 
-    def project_instance(self) -> CylindraProject | None:
+    @overload
+    def project_instance(self) -> CylindraProject | None: ...
+    @overload
+    def project_instance(self, missing_ok: Literal[False]) -> CylindraProject: ...
+
+    def project_instance(self, missing_ok=True) -> CylindraProject | None:
         if self.project is None:
-            return None
+            if missing_ok:
+                return None
+            raise ValueError(f"No project instance found for image at {self.image}")
         if self._project_instance is None:
             self._project_instance = CylindraProject.from_file(self.project)
         return self._project_instance
@@ -136,3 +144,17 @@ def _find_source(
                 return None
             return project.load_spline(source, dir=dir)
     return None
+
+
+def unwrap_wildcard(path: str | Path | list[str | Path]) -> list[Path]:
+    """Unwrap a wildcard path to a string."""
+    all_paths = []
+    if isinstance(path, (str, Path)):
+        path = [str(path)]
+    for p in path:
+        p = str(p)
+        if "*" in p or "?" in p:
+            all_paths.extend(glob.glob(p))
+        else:
+            all_paths.append(p)
+    return [Path(p) for p in all_paths]

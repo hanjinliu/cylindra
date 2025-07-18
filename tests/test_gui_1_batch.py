@@ -101,6 +101,11 @@ def test_project_io(ui: CylindraMainWidget, tmpdir):
     assert len(ui.batch.constructor.projects[0].splines) == 0
     ui.save_project(p13dir)
     assert len(ui.batch.constructor.projects[0].splines) == 1
+    ui.batch.new_projects(
+        [TEST_DIR / "13pf_MT.tif", TEST_DIR / "14pf_MT.tif"],
+        save_root=root / "new_projects",
+        ref_paths=[TEST_DIR / "13pf_MT.tif", TEST_DIR / "14pf_MT.tif"],
+    )
 
 
 def test_view(ui: CylindraMainWidget):

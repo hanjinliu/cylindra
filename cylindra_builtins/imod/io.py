@@ -272,6 +272,9 @@ def export_project_batch(
     save_dir: Path.Dir,
     path_sets: Annotated[Any, {"bind": _get_loader_paths}],
     project_name: str = "project-0",
+    size: Annotated[
+        float, {"label": "Subtomogram size (nm)", "min": 1.0, "max": 1000.0}
+    ] = 10.0,
 ):
     from cylindra.widgets.batch._sequence import PathInfo
     from cylindra.widgets.batch._utils import TempFeatures
@@ -285,14 +288,13 @@ def export_project_batch(
     _tomogram_list = list[str]()
     _coords_list = list[str]()
     _angle_list = list[str]()
+    _tilt_list = list[str]()
     _count = 0
+    scales = []
     for path_info in path_sets:
         path_info = PathInfo(*path_info)
-        if prj := path_info.project_instance():
-            scale = prj.scale
-        else:
-            raise ValueError("No project instance found")
-        moles = list(path_info.iter_molecules(_temp_feat, scale))
+        prj = path_info.project_instance(missing_ok=False)
+        moles = list(path_info.iter_molecules(_temp_feat, prj.scale))
         if len(moles) > 0:
             _tomogram_list.append(repr(path_info.image.as_posix()))
             mod_name = f"coordinates-{_count:0>3}_{path_info.image.stem}.mod"
@@ -300,30 +302,43 @@ def export_project_batch(
             _save_molecules(
                 save_dir=save_dir,
                 mol=Molecules.concat(moles),
-                scale=scale,
+                scale=prj.scale,
                 mod_name=mod_name,
                 csv_name=csv_name,
             )
             _coords_list.append(f"'./{mod_name}'")
             _angle_list.append(f"'./{csv_name}'")
+            if mw_dict := prj.missing_wedge.as_param():
+                if "range" in mw_dict:
+                    tilt_range = mw_dict["range"]
+                    _tilt_list.append(f"[{tilt_range[0]}, {tilt_range[1]}]")
+            scales.append(prj.scale)
             _count += 1
+
+    # determine shape using the average scale
+    if len(scales) == 0:
+        raise ValueError("No tomograms found in the project.")
+    scale = np.mean(scales)
+    shape = [int(round(size / scale / 2)) * 2] * 3  # must be even
 
     # paths
     prm_path = save_dir / f"{project_name}.prm"
+    epe_path = save_dir / f"{project_name}.epe"
 
-    txt = PEET_TEMPLATE.format(
+    prm_txt = PEET_TEMPLATE.format(
         tomograms=", ".join(_tomogram_list),
         coordinates=", ".join(_coords_list),
         angles=", ".join(_angle_list),
-        tilt_range=[-60, 60],  # TODO: better way to get this
+        tilt_range=", ".join(_tilt_list),
         template="",
         project_name=project_name,
-        shape=[40, 40, 40],  # TODO: better way to get this
+        shape=shape,
         mask_type="none",
     )
 
     # save files
-    prm_path.write_text(txt)
+    prm_path.write_text(prm_txt)
+    epe_path.write_text(f"Peet.RootName={project_name}\n")
 
 
 def _read_angle(ang_path: str) -> np.ndarray:

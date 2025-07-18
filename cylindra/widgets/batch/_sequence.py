@@ -1,4 +1,3 @@
-import glob
 from fnmatch import fnmatch
 from typing import TYPE_CHECKING, Iterator
 
@@ -29,7 +28,7 @@ from cylindra.const import MoleculesHeader as Mole
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.project import CylindraProject, get_project_file
 from cylindra.widget_utils import POLARS_NAMESPACE, capitalize
-from cylindra.widgets.batch._utils import PathInfo, TempFeatures
+from cylindra.widgets.batch._utils import PathInfo, TempFeatures, unwrap_wildcard
 
 
 @magicclass(
@@ -517,14 +516,9 @@ class ProjectSequenceEdit(MagicTemplate):
             input_paths = [str(p) for p in paths]
         if clear:
             self.projects.clear()
-        for path_or_pattern in input_paths:
-            if "*" in path_or_pattern or "?" in path_or_pattern:
-                for path in glob.glob(path_or_pattern):
-                    wdt = self.projects._add(path)
-                    self.scale.value = wdt.project.scale
-            else:
-                wdt = self.projects._add(get_project_file(path_or_pattern))
-                self.scale.value = wdt.project.scale
+        for path in unwrap_wildcard(input_paths):
+            wdt = self.projects._add(get_project_file(path))
+            self.scale.value = wdt.project.scale
         self.reset_choices()
 
     @set_design(text="Clear projects", location=File)
@@ -549,14 +543,7 @@ def _get_project_dir(path: str):
 
 @impl_preview(ProjectSequenceEdit.add_projects)
 def _(self: ProjectSequenceEdit, paths: list[str]):
-    input_paths = list[str]()
-    patterns = [str(p) for p in paths]
-    for each_pattern in patterns:
-        if "*" in each_pattern or "?" in each_pattern:
-            for path in glob.glob(each_pattern):
-                input_paths.append(Path(path).as_posix())
-        else:
-            input_paths.append(Path(each_pattern).as_posix())
+    input_paths = [path.as_posix() for path in unwrap_wildcard(paths)]
     wdt = ConsoleTextEdit(value="\n".join(input_paths))
     _set_parent(wdt, self)
     ACTIVE_WIDGETS.add(wdt)

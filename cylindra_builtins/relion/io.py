@@ -185,19 +185,16 @@ def save_molecules_batch(
     star_dfs = []
     for path_info in path_sets:
         path_info = PathInfo(*path_info)
-        if prj := path_info.project_instance():
-            scale = prj.scale
-        else:
-            scale = ui.tomogram.scale
+        prj = path_info.project_instance(missing_ok=False)
         tomo_name = _strip_relion5_prefix(path_info.image.stem)
         img = path_info.lazy_imread()
         tomo = CylTomogram.from_image(
             img,
-            scale=scale,
+            scale=prj.scale,
             tilt=prj.missing_wedge.as_param(),
             compute=False,
         )
-        moles = list(path_info.iter_molecules(_temp_feat, scale))
+        moles = list(path_info.iter_molecules(_temp_feat, prj.scale))
         if len(moles) > 0:
             df = _mole_to_star_df(
                 moles, tomo, tomo_name, save_features, shift_by_origin
