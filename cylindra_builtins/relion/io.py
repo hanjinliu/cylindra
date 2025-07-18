@@ -24,7 +24,12 @@ if TYPE_CHECKING:
     from cylindra.components.tomogram import CylTomogram
 
 TOMO_NAME = "rlnTomoName"
-POS_COLUMNS = [
+POS = [
+    "rlnCoordinateZ",
+    "rlnCoordinateY",
+    "rlnCoordinateX",
+]
+POS_CENTERED = [
     "rlnCenteredCoordinateZAngst",
     "rlnCenteredCoordinateYAngst",
     "rlnCenteredCoordinateXAngst",
@@ -35,7 +40,6 @@ RELION_TUBE_ID = "rlnHelicalTubeID"
 MOLE_ID = "MoleculeGroupID"
 PIXEL_SIZE = "rlnTomoTiltSeriesPixelSize"
 OPTICS_GROUP = "rlnOpticsGroup"
-IMAGE_PIXEL_SIZE = "rlnImagePixelSize"
 REC_TOMO_PATH = "rlnTomoReconstructedTomogram"
 REC_TOMO_HALF1_PATH = "rlnTomoReconstructedTomogramHalf1"
 
@@ -128,25 +132,37 @@ def _mole_to_star_df(
     tomo_name: str,
     save_features: bool = False,
     shift_by_origin: bool = True,
+    centered: bool = True,
 ):
     mole = Molecules.concat(moles)
     euler_angle = mole.euler_angle(seq="ZYZ", degrees=True)
     scale = tomo.scale
     orig = tomo.origin
-    centerz, centery, centerx = _shape_to_center_zyx(tomo.image.shape, scale)
     if not shift_by_origin:
         orig = type(orig)(0.0, 0.0, 0.0)
-    out_dict = {
-        TOMO_NAME: [tomo_name] * mole.count(),
-        POS_COLUMNS[2]: (mole.pos[:, 2] - centerx + orig.x) * 10,  # Angstrom
-        POS_COLUMNS[1]: (mole.pos[:, 1] - centery + orig.y) * 10,  # Angstrom
-        POS_COLUMNS[0]: (mole.pos[:, 0] - centerz + orig.z) * 10,  # Angstrom
+    out_dict = {TOMO_NAME: [tomo_name] * mole.count()}
+    _rot_dict = {
         ROT_COLUMNS[0]: euler_angle[:, 0],
         ROT_COLUMNS[1]: euler_angle[:, 1],
         ROT_COLUMNS[2]: euler_angle[:, 2],
-        IMAGE_PIXEL_SIZE: scale * 10,  # convert to Angstrom
-        OPTICS_GROUP: np.ones(mole.count(), dtype=np.uint32),
     }
+    if centered:
+        centerz, centery, centerx = _shape_to_center_zyx(tomo.image.shape, scale)
+        # Angstrom
+        _pos_dict = {
+            POS_CENTERED[2]: (mole.pos[:, 2] - centerx + orig.x) * 10,
+            POS_CENTERED[1]: (mole.pos[:, 1] - centery + orig.y) * 10,
+            POS_CENTERED[0]: (mole.pos[:, 0] - centerz + orig.z) * 10,
+        }
+    else:
+        # pixels
+        _pos_dict = {
+            POS[2]: (mole.pos[:, 2] + orig.x) / scale,
+            POS[1]: (mole.pos[:, 1] + orig.y) / scale,
+            POS[0]: (mole.pos[:, 0] + orig.z) / scale,
+        }
+    out_dict.update(_pos_dict)
+    out_dict.update(_rot_dict)
     if len(moles) > 1:
         out_dict[MOLE_ID] = np.concatenate(
             [
@@ -167,14 +183,14 @@ def _get_loader_paths(*_):
     return ui.batch._get_loader_paths(*_)
 
 
-@register_function(name="Save optimisation set")
-def save_optimisation_set(
+@register_function(name="Save coordinates for import", record=False)
+def save_coordinates_for_import(
     ui: CylindraMainWidget,
     particles_path: Path.Save[FileFilter.STAR],
     path_sets: Annotated[Any, {"bind": _get_loader_paths}],
     save_features: bool = False,
     shift_by_origin: bool = True,
-    tomogram_star: Path | None = None,
+    centered: bool = False,
 ):
     """Save the batch analyzer state as a optimisation set for subtomogram extraction.
 
@@ -199,7 +215,7 @@ def save_optimisation_set(
 
     _temp_feat = TempFeatures()
 
-    star_dfs = []
+    particles_dfs = list[pd.DataFrame]()
     for path_info in path_sets:
         path_info = PathInfo(*path_info)
         prj = path_info.project_instance(missing_ok=False)
@@ -214,22 +230,17 @@ def save_optimisation_set(
         moles = list(path_info.iter_molecules(_temp_feat, prj.scale))
         if len(moles) > 0:
             df = _mole_to_star_df(
-                moles, tomo, tomo_name, save_features, shift_by_origin
+                moles,
+                tomo,
+                tomo_name,
+                save_features,
+                shift_by_origin,
+                centered=centered,
             )
-            star_dfs.append(df)
+            particles_dfs.append(df)
 
-    particles_star_path = Path(particles_path).with_suffix(".star")
-    df_all = pd.concat(star_dfs, ignore_index=True)
-    starfile.write(df_all, particles_star_path)
-
-    if tomogram_star is not None:
-        opt_set = {
-            "rlnTomoTomogramsFile": [str(tomogram_star)],
-            "rlnTomoParticlesFile": [str(particles_star_path)],
-        }
-        starfile.write(
-            pd.DataFrame(opt_set), particles_path.parent / "optimisation_set.star"
-        )
+        df_all = pd.concat(particles_dfs, ignore_index=True)
+    starfile.write(df_all, particles_path)
 
 
 @register_function(name="Save splines")
@@ -274,15 +285,13 @@ def save_splines(
         df = pl.DataFrame(
             {
                 TOMO_NAME: [tomo_name] * mole_count,
-                POS_COLUMNS[2]: (coords[:, 2] - centerx + orig.x) * 10,  # Angstrom
-                POS_COLUMNS[1]: (coords[:, 1] - centery + orig.y) * 10,  # Angstrom
-                POS_COLUMNS[0]: (coords[:, 0] - centerz + orig.z) * 10,  # Angstrom
+                POS_CENTERED[2]: (coords[:, 2] - centerx + orig.x) * 10,  # Angstrom
+                POS_CENTERED[1]: (coords[:, 1] - centery + orig.y) * 10,  # Angstrom
+                POS_CENTERED[0]: (coords[:, 0] - centerz + orig.z) * 10,  # Angstrom
                 ROT_COLUMNS[0]: 0.0,
                 ROT_COLUMNS[1]: 0.0,
                 ROT_COLUMNS[2]: 0.0,
                 RELION_TUBE_ID: i,
-                IMAGE_PIXEL_SIZE: ui.tomogram.scale * 10,  # convert to Angstrom
-                OPTICS_GROUP: np.ones(mole_count, dtype=np.uint32),
             }
         )
         data_list.append(df)
@@ -448,9 +457,9 @@ def _particles_to_molecules(
     default_key: str = "Mole-0",
 ) -> dict[str, Molecules]:
     for ix in range(3):
-        particles[POS_COLUMNS[ix]] += center_zyx[ix] * 10
+        particles[POS_CENTERED[ix]] += center_zyx[ix] * 10
     if all(c in particles.columns for c in POS_ORIGIN_COLUMNS):
-        for target, source in zip(POS_COLUMNS, POS_ORIGIN_COLUMNS, strict=True):
+        for target, source in zip(POS_CENTERED, POS_ORIGIN_COLUMNS, strict=True):
             particles[target] += particles[source]
         particles.drop(columns=POS_ORIGIN_COLUMNS, inplace=True)
 
@@ -461,13 +470,13 @@ def _particles_to_molecules(
     #         raise NotImplementedError("Optics block must be a dataframe")
     #     particles = particles.merge(opt, on=OPTICS_GROUP)
 
-    pos = particles[POS_COLUMNS].to_numpy() / 10  # angstrom to nm
+    pos = particles[POS_CENTERED].to_numpy() / 10  # angstrom to nm
     if all(c in particles.columns for c in ROT_COLUMNS):
         euler = particles[ROT_COLUMNS].to_numpy()
-        features = particles.drop(columns=POS_COLUMNS + ROT_COLUMNS)
+        features = particles.drop(columns=POS_CENTERED + ROT_COLUMNS)
     else:
         euler = np.zeros((particles.shape[0], 3), dtype=np.float32)
-        features = particles.drop(columns=POS_COLUMNS)
+        features = particles.drop(columns=POS_CENTERED)
     mole = Molecules.from_euler(
         pos, euler, seq="ZYZ", degrees=True, order="xyz", features=features
     )
