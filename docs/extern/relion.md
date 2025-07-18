@@ -17,14 +17,13 @@ contains the description of the job.
 
 ### Save Pick Results As A "Optimisation Set"
 
-:material-arrow-right-thin-circle-outline: API: [`cylindra_builtins.relion.save_optimisation_set`][cylindra_builtins.relion.save_optimisation_set]
+:material-arrow-right-thin-circle-outline: API: [`cylindra_builtins.relion.save_coordinates_for_import`][cylindra_builtins.relion.save_coordinates_for_import]
 
-:material-arrow-right-thin-circle-outline: GUI: `Plugins > RELION > Save optimisation set`
+:material-arrow-right-thin-circle-outline: GUI: `Plugins > RELION > Save coordinates for import`
 
-In RELION, tomograms and particles are connected together using an "optimisation set"
-file. This function saves the current state of the `cylindra` batch analyzer, which
-contains individual tomograms and multiple molecules, as an optimisation set file. This
-file can directly be used for the [subtomogram extraction job in RELION](https://relion.readthedocs.io/en/release-5.0/STA_tutorial/ExtractSubtomos.html).
+This method saves the current state of the `cylindra` batch analyzer, which contains
+individual tomograms and multiple molecules, as an particle star file. This file can
+directly be used for the [subtomogram extraction job in RELION](https://relion.readthedocs.io/en/release-5.0/STA_tutorial/ExtractSubtomos.html).
 
 ## Low-level File I/O
 ### Import Molecules from RELION

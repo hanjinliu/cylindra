@@ -239,7 +239,7 @@ def save_coordinates_for_import(
             )
             particles_dfs.append(df)
 
-        df_all = pd.concat(particles_dfs, ignore_index=True)
+    df_all = pd.concat(particles_dfs, ignore_index=True)
     starfile.write(df_all, particles_path)
 
 
