@@ -58,4 +58,19 @@ def test_opening_jobs(ui: CylindraMainWidget, tmpdir):
     ui.batch.constructor.projects[0].send_to_viewer()
     assert ui.tomogram.scale == pytest.approx(1.052)
     assert not ui.tomogram.is_dummy
-    relion.save_molecules_batch(ui, tmpdir / "prj.zip", ui.batch._get_loader_paths())
+    relion.save_optimisation_set(ui, tmpdir / "p.star", ui.batch._get_loader_paths())
+    ui.batch.save_batch_project(tmpdir / "prj.zip")
+    ui.batch.load_batch_project(tmpdir / "prj.zip")
+    relion.save_optimisation_set(
+        ui,
+        tmpdir / "p.star",
+        ui.batch._get_loader_paths(),
+        tomogram_star=JOB_TOMO_DIR / "tomograms.star",
+    )
+    ui.batch.constructor.projects[0].molecules[0].check = False
+    relion.save_optimisation_set(
+        ui,
+        tmpdir / "p.star",
+        ui.batch._get_loader_paths(),
+        tomogram_star=JOB_TOMO_DIR / "tomograms.star",
+    )

@@ -266,7 +266,7 @@ def _get_loader_paths(*_):
     return ui.batch._get_loader_paths(*_)
 
 
-@register_function(name="Export project from batch")
+@register_function(name="Export project as batch")
 def export_project_batch(
     ui: CylindraMainWidget,
     save_dir: Path.Dir,

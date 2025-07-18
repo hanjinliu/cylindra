@@ -46,6 +46,7 @@ as segmented lines in a `.mod` file.
 
 ## Create a `.prm` File for PEET
 
+### Single Tomogram
 :material-arrow-right-thin-circle-outline: API: [`cylindra_builtins.imod.export_project`][cylindra_builtins.imod.export_project]
 
 :material-arrow-right-thin-circle-outline: GUI: `Plugins > IMOD > Export project`
@@ -53,3 +54,8 @@ as segmented lines in a `.mod` file.
 For subtomogram averaging and alignment, PEET uses a `.prm` file for the project
 configuration. This function refers to the [STA widget](../alignment/index.md) and
 creates a `.prm` file according to the parameters in the widget.
+
+### Multiple Tomograms
+:material-arrow-right-thin-circle-outline: API: [`cylindra_builtins.imod.export_project_batch`][cylindra_builtins.imod.export_project_batch]
+
+:material-arrow-right-thin-circle-outline: GUI: `Plugins > IMOD > Export project as batch`

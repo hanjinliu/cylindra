@@ -167,15 +167,32 @@ def _get_loader_paths(*_):
     return ui.batch._get_loader_paths(*_)
 
 
-@register_function(name="Save molecules in all projects")
-def save_molecules_batch(
+@register_function(name="Save optimisation set")
+def save_optimisation_set(
     ui: CylindraMainWidget,
-    save_path: Path.Save[FileFilter.STAR],
+    particles_path: Path.Save[FileFilter.STAR],
     path_sets: Annotated[Any, {"bind": _get_loader_paths}],
     save_features: bool = False,
     shift_by_origin: bool = True,
     tomogram_star: Path | None = None,
 ):
+    """Save the batch analyzer state as a optimisation set for subtomogram extraction.
+
+    Parameters
+    ----------
+    particles_path : path-like
+        The path to save the star file containing the particles.
+    path_sets : sequence of PathInfo
+        The path sets to the tomograms and molecules.
+    save_features : bool, default False
+        Whether to save the features of the molecules to the star file.
+    shift_by_origin : bool, default True
+        If True, the positions will be shifted by the origin of the tomogram. This
+        option is required if you picked molecules in a trimmed tomogram.
+    tomogram_star : path-like, optional
+        If provided, this will be used to match the tomograms with the particles.
+        If not provided, optimisation_set.star will not be created.
+    """
     from cylindra.components.tomogram import CylTomogram
     from cylindra.widgets.batch._sequence import PathInfo
     from cylindra.widgets.batch._utils import TempFeatures
@@ -201,7 +218,7 @@ def save_molecules_batch(
             )
             star_dfs.append(df)
 
-    particles_star_path = Path(save_path).with_suffix(".star")
+    particles_star_path = Path(particles_path).with_suffix(".star")
     df_all = pd.concat(star_dfs, ignore_index=True)
     starfile.write(df_all, particles_star_path)
 
@@ -211,7 +228,7 @@ def save_molecules_batch(
             "rlnTomoParticlesFile": [str(particles_star_path)],
         }
         starfile.write(
-            pd.DataFrame(opt_set), save_path.parent / "optimisation_set.star"
+            pd.DataFrame(opt_set), particles_path.parent / "optimisation_set.star"
         )
 
 
