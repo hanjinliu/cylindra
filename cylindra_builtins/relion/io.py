@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from cylindra.components.tomogram import CylTomogram
 
 TOMO_NAME = "rlnTomoName"
+IMPORT_PARTICLE_FILE = "rlnTomoImportParticleFile"
 POS = [
     "rlnCoordinateZ",
     "rlnCoordinateY",
@@ -133,7 +134,7 @@ def _mole_to_star_df(
     save_features: bool = False,
     shift_by_origin: bool = True,
     centered: bool = True,
-):
+) -> pd.DataFrame:
     mole = Molecules.concat(moles)
     euler_angle = mole.euler_angle(seq="ZYZ", degrees=True)
     scale = tomo.scale
@@ -186,7 +187,7 @@ def _get_loader_paths(*_):
 @register_function(name="Save coordinates for import", record=False)
 def save_coordinates_for_import(
     ui: CylindraMainWidget,
-    particles_path: Path.Save[FileFilter.STAR],
+    coordinates_path: Path.Save[FileFilter.STAR],
     path_sets: Annotated[Any, {"bind": _get_loader_paths}],
     save_features: bool = False,
     shift_by_origin: bool = True,
@@ -213,8 +214,13 @@ def save_coordinates_for_import(
     from cylindra.widgets.batch._sequence import PathInfo
     from cylindra.widgets.batch._utils import TempFeatures
 
+    coordinates_path = Path(coordinates_path)
+    save_dir = coordinates_path.parent / f"{coordinates_path.stem}_particles"
+    save_dir.mkdir(exist_ok=True)
     _temp_feat = TempFeatures()
 
+    tomo_names = list[str]()
+    particles_paths = list[str]()
     particles_dfs = list[pd.DataFrame]()
     for path_info in path_sets:
         path_info = PathInfo(*path_info)
@@ -237,10 +243,19 @@ def save_coordinates_for_import(
                 shift_by_origin,
                 centered=centered,
             )
+            particles_path = save_dir / f"{tomo_name}_particles.star"
             particles_dfs.append(df)
+            particles_paths.append(particles_path)
+            tomo_names.append(tomo_name)
+            starfile.write(df, particles_path)
 
-    df_all = pd.concat(particles_dfs, ignore_index=True)
-    starfile.write(df_all, particles_path)
+    df_opt = pd.DataFrame(
+        {
+            TOMO_NAME: tomo_names,
+            IMPORT_PARTICLE_FILE: particles_paths,
+        }
+    )
+    starfile.write(df_opt, coordinates_path)
 
 
 @register_function(name="Save splines")
