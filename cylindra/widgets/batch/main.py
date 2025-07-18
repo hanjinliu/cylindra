@@ -88,6 +88,9 @@ class CylindraBatchWidget(MagicTemplate):
             A list of image paths or wildcard patterns, such as "path/to/*.mrc".
         save_root : str or Path
             The root directory to save the output projects.
+        ref_paths : list of str or Path, optional
+            A list of reference image paths. Reference images are usually a binned or
+            denoised version of the original images.
         scale : float, optional
             The scale of the images in nanometers. If None, the original scale of the
             images will be used.
@@ -164,7 +167,7 @@ class CylindraBatchWidget(MagicTemplate):
             molecules or [{}] * num_projects,
             strict=True,
         ):
-            if strip_prefix and img_path.stem.startswith(strip_prefix):
+            if strip_prefix and prj_name.startswith(strip_prefix):
                 prj_name = prj_name[len(strip_prefix) :]
             if strip_suffix and prj_name.endswith(strip_suffix):
                 prj_name = prj_name[: -len(strip_suffix)]

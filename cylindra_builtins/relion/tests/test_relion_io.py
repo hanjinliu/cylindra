@@ -37,7 +37,8 @@ def test_load_and_save_starfiles(ui: CylindraMainWidget, tmpdir):
         assert_splines_close(spl, spl_new)
 
 
-def test_opening_jobs(ui: CylindraMainWidget):
+def test_opening_jobs(ui: CylindraMainWidget, tmpdir):
+    tmpdir = Path(tmpdir)
     path_13pf = JOB_TOMO_DIR.joinpath("tomograms", "13pf_MT.mrc")
     path_14pf = JOB_TOMO_DIR.joinpath("tomograms", "14pf_MT.mrc")
     if not (tomo_dir := JOB_TOMO_DIR.joinpath("tomograms")).exists():
@@ -57,3 +58,4 @@ def test_opening_jobs(ui: CylindraMainWidget):
     ui.batch.constructor.projects[0].send_to_viewer()
     assert ui.tomogram.scale == pytest.approx(1.052)
     assert not ui.tomogram.is_dummy
+    relion.save_molecules_batch(ui, tmpdir / "prj.zip", ui.batch._get_loader_paths())
