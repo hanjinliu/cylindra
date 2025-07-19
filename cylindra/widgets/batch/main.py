@@ -76,6 +76,7 @@ class CylindraBatchWidget(MagicTemplate):
         extension: Literal["", ".zip", ".tar"] = "",
         strip_prefix: str = "",
         strip_suffix: str = "",
+        overwrite: bool = True,
     ):  # fmt: skip
         """Create new projects from images.
 
@@ -107,6 +108,10 @@ class CylindraBatchWidget(MagicTemplate):
             A prefix to strip from the project name.
         strip_suffix : str, default ""
             A suffix to strip from the project name.
+        overwrite : bool, default True
+            If child project files of the same name already exist under the save root,
+            they will be overwritten. This is useful when cylindra batch project is
+            imported from file outputs of a long-running job from other softwares.
         """
         self._new_projects_from_table(
             unwrap_wildcard(paths),
@@ -119,6 +124,7 @@ class CylindraBatchWidget(MagicTemplate):
             extension=extension,
             strip_prefix=strip_prefix,
             strip_suffix=strip_suffix,
+            overwrite=overwrite,
         )
 
     def _new_projects_from_table(
@@ -135,6 +141,7 @@ class CylindraBatchWidget(MagicTemplate):
         extension: Literal["", ".zip", ".tar"] = "",
         strip_prefix: str = "",
         strip_suffix: str = "",
+        overwrite: bool = True,
     ):
         projects = list[tuple[CylindraProject, str]]()
         num_projects = len(path)
@@ -172,8 +179,11 @@ class CylindraBatchWidget(MagicTemplate):
             if strip_suffix and prj_name.endswith(strip_suffix):
                 prj_name = prj_name[: -len(strip_suffix)]
             save_path = save_root / f"{prj_name}{extension}"
-            prj.save(save_path, splines=spl, molecules=mole)
-            prj.project_path = save_path
+            if save_path.exists() and overwrite:
+                prj.save(save_path, splines=spl, molecules=mole)
+                prj.project_path = save_path
+            else:
+                prj = CylindraProject.from_file(save_path)
             self.constructor.projects._add(prj.project_path)
         self.save_batch_project(save_path=save_root)
 

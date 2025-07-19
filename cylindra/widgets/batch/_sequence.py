@@ -186,21 +186,21 @@ class Project(MagicTemplate):
         return self
 
     def _update_from_project(self, clear: bool = True):
-        assert self._project is not None
+        assert (ppath := self._project.project_path) is not None
         if clear:
             self.splines.clear()
             self.molecules.clear()
 
-        project = self._project
-        self.Header.path.value = project.project_path.as_posix()
-        self.Header.path.tooltip = project.project_path.as_posix()
+        self._project = CylindraProject.from_file(ppath)  # reload
+        self.Header.path.value = ppath.as_posix()
+        self.Header.path.tooltip = ppath.as_posix()
 
         # load splines
-        for _, spline_path in project.iter_spline_paths():
+        for _, spline_path in self._project.iter_spline_paths():
             self.splines._add_path(spline_path.name)
 
         # load molecules
-        for info in project.molecules_info:
+        for info in self._project.molecules_info:
             self.molecules._add_path(info.name)
 
         # collapse empty lists

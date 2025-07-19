@@ -692,12 +692,9 @@ class CylindraMainWidget(MagicTemplate):
                 autosave_path.unlink()
 
         # update the spline/molecules list in the batch analyzer
-        def _path_equal(a, b):
-            return Path(a).samefile == Path(b)
-
         if batch := self._batch:
             for proj in batch.constructor.projects:
-                if Path(proj.path).samefile(self._project_dir):
+                if self._project_dir and Path(proj.path).samefile(self._project_dir):
                     proj._update_from_project()
 
     @set_design(text=capitalize, location=_sw.FileMenu)

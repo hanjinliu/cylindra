@@ -15,6 +15,14 @@ After [reconstruction of a tomogram in RELION](https://relion.readthedocs.io/en/
 In this method, you have to specify the path to the RELION `job.star` file, which
 contains the description of the job.
 
+Currently, following RELION jobs are supported:
+- Reconstruct tomograms
+- Denoise tomograms (predict)
+- Pick tomograms
+- Extract subotomos
+- 3D initial reference
+- 3D auto-refine
+
 ### Save Pick Results As A "Optimisation Set"
 
 :material-arrow-right-thin-circle-outline: API: [`cylindra_builtins.relion.save_coordinates_for_import`][cylindra_builtins.relion.save_coordinates_for_import]

@@ -338,9 +338,14 @@ def open_relion_job(
     job_dir_path = Path(path).parent
     rln_project_path = _relion_project_path(job_dir_path)
     jobtype = _get_job_type(job_dir_path)
-    if jobtype == "relion.reconstructtomograms":
+    if jobtype in ("relion.reconstructtomograms", "relion.denoisetomo"):
         # Reconstruct Tomogram job
         tomogram_star_path = job_dir_path / "tomograms.star"
+        if not tomogram_star_path.exists():
+            raise FileNotFoundError(
+                f"tomogram.star file {tomogram_star_path} does not exist. Make sure "
+                "the input job has an tomogram output."
+            )
         _, tomo_paths, scale_nm = _parse_tomo_star(tomogram_star_path)
         ui.batch._new_projects_from_table(
             path=[rln_project_path / p for p in tomo_paths],
@@ -348,26 +353,39 @@ def open_relion_job(
             invert=[invert] * len(tomo_paths),
             save_root=job_dir_path / "cylindra",
         )
-    elif jobtype == "relion.picktomo":
+    elif jobtype in ("relion.picktomo", "relion.pseudosubtomo"):
         if not (opt_star_path := job_dir_path / "optimisation_set.star").exists():
             raise ValueError(
                 f"Optimisation set star file not found in {job_dir_path}. "
                 "Please ensure the job is a RELION 5.0 pick-particles job."
             )
-        paths = []
-        scales = []
-        molecules = []
-        for item in _iter_from_optimisation_star(opt_star_path, rln_project_path):
-            paths.append(rln_project_path / item.tomo_path)
-            scales.append(item.scale)
-            molecules.append(item.molecules)
-
+        paths, scales, moles = _parse_optimisation_star(opt_star_path, rln_project_path)
         ui.batch._new_projects_from_table(
             paths,
             save_root=job_dir_path / "cylindra",
             invert=[invert] * len(paths),
             scale=scales,
-            molecules=molecules,
+            molecules=moles,
+            bin_size=[bin_size] * len(paths),
+        )
+    elif jobtype in ("relion.initialmodel.tomo", "relion.refine3d.tomo"):
+        opt_set_path_list = sorted(
+            job_dir_path.glob("run_it*_optimisation_set.star"),
+            key=lambda p: p.stem,
+        )
+        if len(opt_set_path_list) == 0:
+            raise ValueError(
+                f"No optimisation set star files found in {job_dir_path}. "
+                "Please ensure at least one iteration has finished."
+            )
+        opt_star_path = opt_set_path_list[-1]
+        paths, scales, moles = _parse_optimisation_star(opt_star_path, rln_project_path)
+        ui.batch._new_projects_from_table(
+            paths,
+            save_root=job_dir_path / "cylindra",
+            invert=[invert] * len(paths),
+            scale=scales,
+            molecules=moles,
             bin_size=[bin_size] * len(paths),
         )
     else:
@@ -403,6 +421,17 @@ def _parse_tomo_star(path: Path) -> tuple[pd.Series, pd.Series, np.ndarray]:
     tomo_names = df[TOMO_NAME]
     scale_nm = np.asarray(tomo_orig_scale / 10 * tomo_bin)
     return tomo_names, tomo_paths, scale_nm
+
+
+def _parse_optimisation_star(opt_star_path: Path, rln_project_path: Path):
+    paths = []
+    scales = []
+    molecules = []
+    for item in _iter_from_optimisation_star(opt_star_path, rln_project_path):
+        paths.append(rln_project_path / item.tomo_path)
+        scales.append(item.scale)
+        molecules.append(item.molecules)
+    return paths, scales, molecules
 
 
 @dataclass
@@ -484,6 +513,8 @@ def _particles_to_molecules(
     #     if not isinstance(opt, pd.DataFrame):
     #         raise NotImplementedError("Optics block must be a dataframe")
     #     particles = particles.merge(opt, on=OPTICS_GROUP)
+
+    # TODO: support rlnCoordinateX/Y/Z
 
     pos = particles[POS_CENTERED].to_numpy() / 10  # angstrom to nm
     if all(c in particles.columns for c in ROT_COLUMNS):
