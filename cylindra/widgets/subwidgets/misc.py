@@ -253,10 +253,10 @@ class GeneralInfo(MagicTemplate):
             tilt_range = f"{deg0:.1f}° — {deg1:.1f}° (axis: {axis})"
         else:
             tilt_range = repr(tomo.tilt_model)
-        if img.nbytes < 1024**3:
-            size = f"{img.nbytes / 1024**2:.2f} MB"
+        if (nbytes := img.value.nbytes) < 1024**3:
+            size = f"{nbytes / 1024**2:.2f} MB"
         else:
-            size = f"{img.nbytes / 1024**3:.2f} GB"
+            size = f"{nbytes / 1024**3:.2f} GB"
         value = (
             f"File: {fpath}\n"
             f"Scale: {scale:.4f} nm/pixel\n"
