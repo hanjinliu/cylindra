@@ -447,16 +447,19 @@ def _iter_from_optimisation_star(
     rln_project_path: Path,
 ) -> "Iterator[OptimizationSetItem]":
     opt_star_df = starfile.read(path)
-    if isinstance(opt_star_df, dict):
-        opt_star_df = opt_star_df["particles"]
-    assert isinstance(opt_star_df, pd.DataFrame)
-    tomo_star_path = opt_star_df["rlnTomoTomogramsFile"][0]
+    if isinstance(opt_star_df, pd.DataFrame):
+        tomo_star_path: str = opt_star_df["rlnTomoTomogramsFile"][0]
+        particles_path: str = opt_star_df["rlnTomoParticlesFile"][0]
+    else:
+        tomo_star_path: str = opt_star_df["rlnTomoTomogramsFile"]
+        particles_path: str = opt_star_df["rlnTomoParticlesFile"]
     tomo_names, tomo_paths, scale_nm = _parse_tomo_star(
         rln_project_path / tomo_star_path
     )
     tomo_paths = [rln_project_path / p for p in tomo_paths]  # resolve relative paths
-    particles_path = opt_star_df["rlnTomoParticlesFile"][0]
     particles_df = starfile.read(rln_project_path / particles_path)
+    if isinstance(particles_df, dict):
+        particles_df = particles_df["particles"]
     assert isinstance(particles_df, pd.DataFrame)
     name_to_center_map = {
         tomo_name: _shape_to_center_zyx(ip.lazy.imread(tomo_path).shape, sc_nm)
