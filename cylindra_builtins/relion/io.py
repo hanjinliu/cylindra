@@ -43,6 +43,7 @@ PIXEL_SIZE = "rlnTomoTiltSeriesPixelSize"
 OPTICS_GROUP = "rlnOpticsGroup"
 REC_TOMO_PATH = "rlnTomoReconstructedTomogram"
 REC_TOMO_HALF1_PATH = "rlnTomoReconstructedTomogramHalf1"
+REC_TOMO_DENOISED_PATH = "rlnTomoReconstructedTomogramDenoised"
 
 
 @register_function(name="Load molecules")
@@ -346,7 +347,10 @@ def open_relion_job(
                 f"tomogram.star file {tomogram_star_path} does not exist. Make sure "
                 "the input job has an tomogram output."
             )
-        _, tomo_paths, scale_nm = _parse_tomo_star(tomogram_star_path)
+        col = (
+            REC_TOMO_DENOISED_PATH if jobtype == "relion.denoisetomo" else REC_TOMO_PATH
+        )
+        _, tomo_paths, scale_nm = _parse_tomo_star(tomogram_star_path, col)
         ui.batch._new_projects_from_table(
             path=[rln_project_path / p for p in tomo_paths],
             scale=scale_nm,
@@ -403,17 +407,20 @@ def _get_job_type(job_dir: Path) -> str:
     raise ValueError(f"{job_dir} is not a RELION job folder.")
 
 
-def _parse_tomo_star(path: Path) -> tuple[pd.Series, pd.Series, np.ndarray]:
+def _parse_tomo_star(
+    path: Path,
+    col: str = REC_TOMO_PATH,
+) -> tuple[pd.Series, pd.Series, np.ndarray]:
     df = starfile.read(path)
     assert isinstance(df, pd.DataFrame)
-    if REC_TOMO_PATH in df:
-        tomo_paths = df[REC_TOMO_PATH]
+    if col in df:
+        tomo_paths = df[col]
     elif REC_TOMO_HALF1_PATH in df:
         tomo_paths = df[REC_TOMO_HALF1_PATH]
     else:
         raise ValueError(
             "No tomogram paths found in the tomograms.star file. Expected either "
-            "'rlnTomoReconstructedTomogram' or 'rlnTomoReconstructedTomogramHalf1' "
+            f"{col!r} or 'rlnTomoReconstructedTomogramHalf1' "
             "column."
         )
     tomo_orig_scale = df["rlnTomoTiltSeriesPixelSize"]
