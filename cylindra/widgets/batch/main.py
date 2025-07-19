@@ -179,11 +179,11 @@ class CylindraBatchWidget(MagicTemplate):
             if strip_suffix and prj_name.endswith(strip_suffix):
                 prj_name = prj_name[: -len(strip_suffix)]
             save_path = save_root / f"{prj_name}{extension}"
-            if save_path.exists() and overwrite:
+            if save_path.exists() and not overwrite:
+                prj = CylindraProject.from_file(save_path)
+            else:
                 prj.save(save_path, splines=spl, molecules=mole)
                 prj.project_path = save_path
-            else:
-                prj = CylindraProject.from_file(save_path)
             self.constructor.projects._add(prj.project_path)
         self.save_batch_project(save_path=save_root)
 

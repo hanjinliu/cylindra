@@ -447,6 +447,8 @@ def _iter_from_optimisation_star(
     rln_project_path: Path,
 ) -> "Iterator[OptimizationSetItem]":
     opt_star_df = starfile.read(path)
+    if isinstance(opt_star_df, dict):
+        opt_star_df = opt_star_df["particles"]
     assert isinstance(opt_star_df, pd.DataFrame)
     tomo_star_path = opt_star_df["rlnTomoTomogramsFile"][0]
     tomo_names, tomo_paths, scale_nm = _parse_tomo_star(
