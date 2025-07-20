@@ -48,8 +48,8 @@ def register_function(func=None, *, record=True, name=None):
         used.
     """
 
-    def _inner(func: Callable[_P, _R]) -> CylindraPluginFunction[_P, _R]:
-        f = CylindraPluginFunction(func, name=name)
+    def _inner(fn: Callable[_P, _R]) -> CylindraPluginFunction[_P, _R]:
+        f = CylindraPluginFunction(fn, name=name)
         if not record:
             f._is_recordable = record
         return f

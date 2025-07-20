@@ -7,7 +7,6 @@ from acryo import BatchLoader, Molecules, SubtomogramLoader
 from magicclass import (
     MagicTemplate,
     abstractapi,
-    confirm,
     do_not_record,
     field,
     impl_preview,
@@ -147,7 +146,6 @@ class Project(MagicTemplate):
         del parent[idx]
 
     @set_design(text="Open", location=Header)
-    @confirm(text="You may have unsaved data. Open a new project?", condition="self._get_main()._need_save")  # fmt: skip
     def send_to_viewer(self):
         """Send this project to the viewer."""
         from cylindra.core import instance

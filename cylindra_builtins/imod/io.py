@@ -272,10 +272,23 @@ def export_project_batch(
     save_dir: Path.Dir,
     path_sets: Annotated[Any, {"bind": _get_loader_paths}],
     project_name: str = "project-0",
-    size: Annotated[
-        float, {"label": "Subtomogram size (nm)", "min": 1.0, "max": 1000.0}
-    ] = 10.0,
+    size: Annotated[float, {"label": "Subtomogram size (nm)", "min": 1.0, "max": 1000.0}] = 10.0,  # fmt: skip
 ):
+    """Export cylindra batch analyzer state as a PEET prm file.
+
+    A epe file will be generated, which can directly be used by `etomo <name>.epe`.
+
+    Parameters
+    ----------
+    save_dir : Path
+        Directory to save the files needed for a PEET project.
+    path_sets : Any
+        Path sets of the tomograms and coordinates.
+    project_name : str, default "project-0"
+        Name of the PEET project.
+    size : float, default 10.0
+        Size of the subtomograms in nanometers.
+    """
     from cylindra.widgets.batch._sequence import PathInfo
     from cylindra.widgets.batch._utils import TempFeatures
 
