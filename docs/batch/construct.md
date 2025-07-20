@@ -64,7 +64,6 @@ ui.batch.construct_loader(
 :material-arrow-right-thin-circle-outline: API: [`construct_loader_by_list`][cylindra.widgets.batch.CylindraBatchWidget.construct_loader_by_list]
 
 The simplest way to construct a loader is to provide a list of paths of project files.
-If you want to use wildcard patterns, see [Construct from a file pattern](#construct-from-a-file-pattern).
 
 ```python
 ui.batch.construct_loader_by_list(
