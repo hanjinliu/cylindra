@@ -10,12 +10,13 @@
 
 :material-arrow-right-thin-circle-outline: GUI: `Plugins > RELION > Open RELION job`
 
-After [reconstruction of a tomogram in RELION](https://relion.readthedocs.io/en/release-5.0/STA_tutorial/ReconstructTomo.html), the next step is usually to pick particles from the tomogram.
+After [reconstruction of a tomogram in RELION](https://relion.readthedocs.io/en/release-5.0/STA_tutorial/ReconstructTomo.html), the next step is usually to pick particles from the tomogram. You may also want to check the distribution of the refined particles in the
+tomogram. This method provides a convenient way to open a RELION job folder and
+load the tomograms (and particles) directly into the `cylindra` [batch analyzer](../batch/index.md).
 
 In this method, you have to specify the path to the RELION `job.star` file, which
-contains the description of the job.
+contains the description of the job. Currently, following RELION jobs are supported:
 
-Currently, following RELION jobs are supported:
 - Reconstruct tomograms
 - Denoise tomograms (predict)
 - Pick tomograms
@@ -23,7 +24,7 @@ Currently, following RELION jobs are supported:
 - 3D initial reference
 - 3D auto-refine
 
-### Save Pick Results As A "Optimisation Set"
+### Save Pick Results for Import to RELION
 
 :material-arrow-right-thin-circle-outline: API: [`cylindra_builtins.relion.save_coordinates_for_import`][cylindra_builtins.relion.save_coordinates_for_import]
 
@@ -31,7 +32,7 @@ Currently, following RELION jobs are supported:
 
 This method saves the current state of the `cylindra` batch analyzer, which contains
 individual tomograms and multiple molecules, as an particle star file. This file can
-directly be used for the [subtomogram extraction job in RELION](https://relion.readthedocs.io/en/release-5.0/STA_tutorial/ExtractSubtomos.html).
+directly be used for the [subtomogram extraction job in RELION](https://relion.readthedocs.io/en/release-5.0/STA_tutorial/ExtractSubtomos.html). To do this, you need to set "OR: use direct entries?" to "Yes".
 
 ## Low-level File I/O
 ### Import Molecules from RELION

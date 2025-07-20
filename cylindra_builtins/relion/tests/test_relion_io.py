@@ -15,7 +15,7 @@ from cylindra_builtins import relion
 TEST_JOB_DIR = Path(__file__).parent / "test_jobs"
 JOB_TOMO_DIR = TEST_JOB_DIR / "Tomograms" / "job_tomo"
 JOB_PICK_DIR = TEST_JOB_DIR / "Picks" / "job_picks"
-JOB_REFINE_DIR = TEST_JOB_DIR / "Refine" / "job_refine"
+JOB_REFINE_DIR = TEST_JOB_DIR / "Refine3D" / "job_refine"
 
 
 def test_load_and_save_starfiles(ui: CylindraMainWidget, tmpdir):
