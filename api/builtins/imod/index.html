@@ -2103,6 +2103,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#cylindra_builtins.imod.export_project_batch" class="md-nav__link">
+    <span class="md-ellipsis">
+      export_project_batch
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#cylindra_builtins.imod.load_molecules" class="md-nav__link">
     <span class="md-ellipsis">
       load_molecules
@@ -2224,6 +2233,15 @@
   <a href="#cylindra_builtins.imod.export_project" class="md-nav__link">
     <span class="md-ellipsis">
       export_project
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cylindra_builtins.imod.export_project_batch" class="md-nav__link">
+    <span class="md-ellipsis">
+      export_project_batch
     </span>
   </a>
   
@@ -2426,7 +2444,11 @@ directly used by PEET.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra_builtins/imod/io.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">192</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">188</span>
+<span class="normal">189</span>
+<span class="normal">190</span>
+<span class="normal">191</span>
+<span class="normal">192</span>
 <span class="normal">193</span>
 <span class="normal">194</span>
 <span class="normal">195</span>
@@ -2493,14 +2515,7 @@ directly used by PEET.</p>
 <span class="normal">256</span>
 <span class="normal">257</span>
 <span class="normal">258</span>
-<span class="normal">259</span>
-<span class="normal">260</span>
-<span class="normal">261</span>
-<span class="normal">262</span>
-<span class="normal">263</span>
-<span class="normal">264</span>
-<span class="normal">265</span>
-<span class="normal">266</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Export project&quot;</span><span class="p">)</span>
+<span class="normal">259</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Export project&quot;</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">export_project</span><span class="p">(</span>
     <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
@@ -2509,8 +2524,7 @@ directly used by PEET.</p>
     <span class="n">mask_params</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;bind&quot;</span><span class="p">:</span> <span class="n">_get_mask_params</span><span class="p">}]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">project_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;project-0&quot;</span><span class="p">,</span>
 <span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Export cylindra state as a PEET prm file.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Export cylindra state as a PEET prm file.</span>
 
 <span class="sd">    Molecules and images will be exported to a directory that can be</span>
 <span class="sd">    directly used by PEET.</span>
@@ -2552,9 +2566,9 @@ directly used by PEET.</p>
     <span class="n">prm_path</span> <span class="o">=</span> <span class="n">save_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">project_name</span><span class="si">}</span><span class="s2">.prm&quot;</span>
 
     <span class="n">txt</span> <span class="o">=</span> <span class="n">PEET_TEMPLATE</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-        <span class="n">tomograms</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">ui</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">source</span><span class="p">),</span>
-        <span class="n">coordinates</span><span class="o">=</span><span class="n">coordinates_path</span><span class="p">,</span>
-        <span class="n">angles</span><span class="o">=</span><span class="n">angles_path</span><span class="p">,</span>
+        <span class="n">tomograms</span><span class="o">=</span><span class="nb">repr</span><span class="p">(</span><span class="n">ui</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">source</span><span class="p">),</span>
+        <span class="n">coordinates</span><span class="o">=</span><span class="nb">repr</span><span class="p">(</span><span class="n">coordinates_path</span><span class="p">),</span>
+        <span class="n">angles</span><span class="o">=</span><span class="nb">repr</span><span class="p">(</span><span class="n">angles_path</span><span class="p">),</span>
         <span class="n">tilt_range</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">ui</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">tilt</span><span class="p">[</span><span class="s2">&quot;range&quot;</span><span class="p">]),</span>
         <span class="n">template</span><span class="o">=</span><span class="n">template_path</span><span class="p">,</span>
         <span class="n">project_name</span><span class="o">=</span><span class="n">project_name</span><span class="p">,</span>
@@ -2573,8 +2587,279 @@ directly used by PEET.</p>
         <span class="n">ip</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">mask_image</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="s2">&quot;zyx&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">set_scale</span><span class="p">(</span>
             <span class="n">zyx</span><span class="o">=</span><span class="n">ui</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">scale</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;nm&quot;</span>
         <span class="p">)</span><span class="o">.</span><span class="n">imsave</span><span class="p">(</span><span class="n">save_dir</span> <span class="o">/</span> <span class="n">mask_path</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
 
-    <span class="k">return</span> <span class="kc">None</span>
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="cylindra_builtins.imod.export_project_batch" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">export_project_batch</span><span class="p">(</span><span class="n">ui</span><span class="p">,</span> <span class="n">save_dir</span><span class="p">,</span> <span class="n">path_sets</span><span class="p">,</span> <span class="n">project_name</span><span class="o">=</span><span class="s1">&#39;project-0&#39;</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mf">10.0</span><span class="p">)</span></code>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Export cylindra batch analyzer state as a PEET prm file.</p>
+<p>A epe file will be generated, which can directly be used by <code>etomo &lt;name&gt;.epe</code>.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>save_dir</code>
+            </td>
+            <td>
+                  <code><span title="magicclass.types.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Directory to save the files needed for a PEET project.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>path_sets</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" title="typing.Any" href="https://docs.python.org/3/library/typing.html#typing.Any">Any</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path sets of the tomograms and coordinates.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>project_name</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Name of the PEET project.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#34;project-0&#34;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>size</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Size of the subtomograms in nanometers.</p>
+              </div>
+            </td>
+            <td>
+                  <code>10.0</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="quote">
+              <summary>Source code in <code>cylindra_builtins/imod/io.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">269</span>
+<span class="normal">270</span>
+<span class="normal">271</span>
+<span class="normal">272</span>
+<span class="normal">273</span>
+<span class="normal">274</span>
+<span class="normal">275</span>
+<span class="normal">276</span>
+<span class="normal">277</span>
+<span class="normal">278</span>
+<span class="normal">279</span>
+<span class="normal">280</span>
+<span class="normal">281</span>
+<span class="normal">282</span>
+<span class="normal">283</span>
+<span class="normal">284</span>
+<span class="normal">285</span>
+<span class="normal">286</span>
+<span class="normal">287</span>
+<span class="normal">288</span>
+<span class="normal">289</span>
+<span class="normal">290</span>
+<span class="normal">291</span>
+<span class="normal">292</span>
+<span class="normal">293</span>
+<span class="normal">294</span>
+<span class="normal">295</span>
+<span class="normal">296</span>
+<span class="normal">297</span>
+<span class="normal">298</span>
+<span class="normal">299</span>
+<span class="normal">300</span>
+<span class="normal">301</span>
+<span class="normal">302</span>
+<span class="normal">303</span>
+<span class="normal">304</span>
+<span class="normal">305</span>
+<span class="normal">306</span>
+<span class="normal">307</span>
+<span class="normal">308</span>
+<span class="normal">309</span>
+<span class="normal">310</span>
+<span class="normal">311</span>
+<span class="normal">312</span>
+<span class="normal">313</span>
+<span class="normal">314</span>
+<span class="normal">315</span>
+<span class="normal">316</span>
+<span class="normal">317</span>
+<span class="normal">318</span>
+<span class="normal">319</span>
+<span class="normal">320</span>
+<span class="normal">321</span>
+<span class="normal">322</span>
+<span class="normal">323</span>
+<span class="normal">324</span>
+<span class="normal">325</span>
+<span class="normal">326</span>
+<span class="normal">327</span>
+<span class="normal">328</span>
+<span class="normal">329</span>
+<span class="normal">330</span>
+<span class="normal">331</span>
+<span class="normal">332</span>
+<span class="normal">333</span>
+<span class="normal">334</span>
+<span class="normal">335</span>
+<span class="normal">336</span>
+<span class="normal">337</span>
+<span class="normal">338</span>
+<span class="normal">339</span>
+<span class="normal">340</span>
+<span class="normal">341</span>
+<span class="normal">342</span>
+<span class="normal">343</span>
+<span class="normal">344</span>
+<span class="normal">345</span>
+<span class="normal">346</span>
+<span class="normal">347</span>
+<span class="normal">348</span>
+<span class="normal">349</span>
+<span class="normal">350</span>
+<span class="normal">351</span>
+<span class="normal">352</span>
+<span class="normal">353</span>
+<span class="normal">354</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Export project as batch&quot;</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">export_project_batch</span><span class="p">(</span>
+    <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span>
+    <span class="n">save_dir</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Dir</span><span class="p">,</span>
+    <span class="n">path_sets</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;bind&quot;</span><span class="p">:</span> <span class="n">_get_loader_paths</span><span class="p">}],</span>
+    <span class="n">project_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;project-0&quot;</span><span class="p">,</span>
+    <span class="n">size</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Subtomogram size (nm)&quot;</span><span class="p">,</span> <span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mf">1000.0</span><span class="p">}]</span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">,</span>  <span class="c1"># fmt: skip</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Export cylindra batch analyzer state as a PEET prm file.</span>
+
+<span class="sd">    A epe file will be generated, which can directly be used by `etomo &lt;name&gt;.epe`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    save_dir : Path</span>
+<span class="sd">        Directory to save the files needed for a PEET project.</span>
+<span class="sd">    path_sets : Any</span>
+<span class="sd">        Path sets of the tomograms and coordinates.</span>
+<span class="sd">    project_name : str, default &quot;project-0&quot;</span>
+<span class="sd">        Name of the PEET project.</span>
+<span class="sd">    size : float, default 10.0</span>
+<span class="sd">        Size of the subtomograms in nanometers.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">cylindra.widgets.batch._sequence</span><span class="w"> </span><span class="kn">import</span> <span class="n">PathInfo</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">cylindra.widgets.batch._utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">TempFeatures</span>
+
+    <span class="n">save_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">save_dir</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">save_dir</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="n">save_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">()</span>
+
+    <span class="n">_temp_feat</span> <span class="o">=</span> <span class="n">TempFeatures</span><span class="p">()</span>
+
+    <span class="n">_tomogram_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]()</span>
+    <span class="n">_coords_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]()</span>
+    <span class="n">_angle_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]()</span>
+    <span class="n">_tilt_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]()</span>
+    <span class="n">_count</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">scales</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">path_info</span> <span class="ow">in</span> <span class="n">path_sets</span><span class="p">:</span>
+        <span class="n">path_info</span> <span class="o">=</span> <span class="n">PathInfo</span><span class="p">(</span><span class="o">*</span><span class="n">path_info</span><span class="p">)</span>
+        <span class="n">prj</span> <span class="o">=</span> <span class="n">path_info</span><span class="o">.</span><span class="n">project_instance</span><span class="p">(</span><span class="n">missing_ok</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">moles</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">path_info</span><span class="o">.</span><span class="n">iter_molecules</span><span class="p">(</span><span class="n">_temp_feat</span><span class="p">,</span> <span class="n">prj</span><span class="o">.</span><span class="n">scale</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">moles</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">_tomogram_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">path_info</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()))</span>
+            <span class="n">mod_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;coordinates-</span><span class="si">{</span><span class="n">_count</span><span class="si">:</span><span class="s2">0&gt;3</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">path_info</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">stem</span><span class="si">}</span><span class="s2">.mod&quot;</span>
+            <span class="n">csv_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;angles-</span><span class="si">{</span><span class="n">_count</span><span class="si">:</span><span class="s2">0&gt;3</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">path_info</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">stem</span><span class="si">}</span><span class="s2">.csv&quot;</span>
+            <span class="n">_save_molecules</span><span class="p">(</span>
+                <span class="n">save_dir</span><span class="o">=</span><span class="n">save_dir</span><span class="p">,</span>
+                <span class="n">mol</span><span class="o">=</span><span class="n">Molecules</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">moles</span><span class="p">),</span>
+                <span class="n">scale</span><span class="o">=</span><span class="n">prj</span><span class="o">.</span><span class="n">scale</span><span class="p">,</span>
+                <span class="n">mod_name</span><span class="o">=</span><span class="n">mod_name</span><span class="p">,</span>
+                <span class="n">csv_name</span><span class="o">=</span><span class="n">csv_name</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">_coords_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;./</span><span class="si">{</span><span class="n">mod_name</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+            <span class="n">_angle_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;./</span><span class="si">{</span><span class="n">csv_name</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">mw_dict</span> <span class="o">:=</span> <span class="n">prj</span><span class="o">.</span><span class="n">missing_wedge</span><span class="o">.</span><span class="n">as_param</span><span class="p">():</span>
+                <span class="k">if</span> <span class="s2">&quot;range&quot;</span> <span class="ow">in</span> <span class="n">mw_dict</span><span class="p">:</span>
+                    <span class="n">tilt_range</span> <span class="o">=</span> <span class="n">mw_dict</span><span class="p">[</span><span class="s2">&quot;range&quot;</span><span class="p">]</span>
+                    <span class="n">_tilt_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[</span><span class="si">{</span><span class="n">tilt_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">tilt_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">]&quot;</span><span class="p">)</span>
+            <span class="n">scales</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">prj</span><span class="o">.</span><span class="n">scale</span><span class="p">)</span>
+            <span class="n">_count</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="c1"># determine shape using the average scale</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">scales</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No tomograms found in the project.&quot;</span><span class="p">)</span>
+    <span class="n">scale</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">scales</span><span class="p">)</span>
+    <span class="n">shape</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">size</span> <span class="o">/</span> <span class="n">scale</span> <span class="o">/</span> <span class="mi">2</span><span class="p">))</span> <span class="o">*</span> <span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="mi">3</span>  <span class="c1"># must be even</span>
+
+    <span class="c1"># paths</span>
+    <span class="n">prm_path</span> <span class="o">=</span> <span class="n">save_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">project_name</span><span class="si">}</span><span class="s2">.prm&quot;</span>
+    <span class="n">epe_path</span> <span class="o">=</span> <span class="n">save_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">project_name</span><span class="si">}</span><span class="s2">.epe&quot;</span>
+
+    <span class="n">prm_txt</span> <span class="o">=</span> <span class="n">PEET_TEMPLATE</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+        <span class="n">tomograms</span><span class="o">=</span><span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">_tomogram_list</span><span class="p">),</span>
+        <span class="n">coordinates</span><span class="o">=</span><span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">_coords_list</span><span class="p">),</span>
+        <span class="n">angles</span><span class="o">=</span><span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">_angle_list</span><span class="p">),</span>
+        <span class="n">tilt_range</span><span class="o">=</span><span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">_tilt_list</span><span class="p">),</span>
+        <span class="n">template</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span>
+        <span class="n">project_name</span><span class="o">=</span><span class="n">project_name</span><span class="p">,</span>
+        <span class="n">shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span>
+        <span class="n">mask_type</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># save files</span>
+    <span class="n">prm_path</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="n">prm_txt</span><span class="p">)</span>
+    <span class="n">epe_path</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Peet.RootName=</span><span class="si">{</span><span class="n">project_name</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -2692,16 +2977,14 @@ be directly applied to the molecule coordinates.</p>
 <span class="normal">50</span>
 <span class="normal">51</span>
 <span class="normal">52</span>
-<span class="normal">53</span>
-<span class="normal">54</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Load molecules&quot;</span><span class="p">)</span>
+<span class="normal">53</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Load molecules&quot;</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">load_molecules</span><span class="p">(</span>
     <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span>
     <span class="n">mod_path</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Path</span><span class="o">.</span><span class="n">Read</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">MOD</span><span class="p">],</span> <span class="p">{</span><span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Path to MOD file&quot;</span><span class="p">}],</span>
     <span class="n">ang_path</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Path</span><span class="o">.</span><span class="n">Read</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">CSV</span><span class="p">],</span> <span class="p">{</span><span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Path to csv file&quot;</span><span class="p">}],</span>
     <span class="n">shift_mol</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Apply shifts to monomers if offsets are available.&quot;</span><span class="p">}]</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
 <span class="p">):</span>  <span class="c1"># fmt: skip</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Read molecule coordinates and angles from IMOD .mod files.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Read molecule coordinates and angles from IMOD .mod files.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -2748,7 +3031,8 @@ be directly applied to the molecule coordinates.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra_builtins/imod/io.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">57</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">56</span>
+<span class="normal">57</span>
 <span class="normal">58</span>
 <span class="normal">59</span>
 <span class="normal">60</span>
@@ -2759,8 +3043,7 @@ be directly applied to the molecule coordinates.</p>
 <span class="normal">65</span>
 <span class="normal">66</span>
 <span class="normal">67</span>
-<span class="normal">68</span>
-<span class="normal">69</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Load splines&quot;</span><span class="p">)</span>
+<span class="normal">68</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Load splines&quot;</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">load_splines</span><span class="p">(</span>
     <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span>
     <span class="n">mod_path</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Path</span><span class="o">.</span><span class="n">Read</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">MOD</span><span class="p">],</span> <span class="p">{</span><span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Path to MOD file&quot;</span><span class="p">}],</span>
@@ -2842,7 +3125,8 @@ be directly applied to the molecule coordinates.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra_builtins/imod/io.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">72</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">71</span>
+<span class="normal">72</span>
 <span class="normal">73</span>
 <span class="normal">74</span>
 <span class="normal">75</span>
@@ -2857,14 +3141,11 @@ be directly applied to the molecule coordinates.</p>
 <span class="normal">84</span>
 <span class="normal">85</span>
 <span class="normal">86</span>
-<span class="normal">87</span>
-<span class="normal">88</span>
-<span class="normal">89</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Save molecules&quot;</span><span class="p">)</span>
+<span class="normal">87</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Save molecules&quot;</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">save_molecules</span><span class="p">(</span>
     <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span> <span class="n">save_dir</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Dir</span><span class="p">,</span> <span class="n">layers</span><span class="p">:</span> <span class="n">MoleculesLayersType</span>
 <span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Save monomer positions and angles in the PEET format.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Save monomer positions and angles in the PEET format.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -2950,7 +3231,9 @@ length of a spline is 100.0, 11 points will be sampled.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra_builtins/imod/io.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 92</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 90</span>
+<span class="normal"> 91</span>
+<span class="normal"> 92</span>
 <span class="normal"> 93</span>
 <span class="normal"> 94</span>
 <span class="normal"> 95</span>
@@ -2987,17 +3270,13 @@ length of a spline is 100.0, 11 points will be sampled.</p>
 <span class="normal">126</span>
 <span class="normal">127</span>
 <span class="normal">128</span>
-<span class="normal">129</span>
-<span class="normal">130</span>
-<span class="normal">131</span>
-<span class="normal">132</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Save splines&quot;</span><span class="p">)</span>
+<span class="normal">129</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Save splines&quot;</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">save_splines</span><span class="p">(</span>
     <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span>
     <span class="n">save_path</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Save</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">MOD</span><span class="p">],</span>
     <span class="n">interval</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mf">1000.0</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Sampling interval (nm)&quot;</span><span class="p">}]</span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">,</span>
 <span class="p">):</span>  <span class="c1"># fmt: skip</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Save splines as a mod file.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Save splines as a mod file.</span>
 
 <span class="sd">    This function will sample coordinates along the splines and save the coordinates</span>
 <span class="sd">    as a mod file. The mod file will be labeled with object_id=1 and contour_id=i+1,</span>
