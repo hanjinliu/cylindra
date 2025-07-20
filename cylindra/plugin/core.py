@@ -29,14 +29,8 @@ def register_function(
 ) -> Callable[..., CylindraPluginFunction[_P, _R]]: ...
 
 
-def register_function(
-    func=None,
-    *,
-    record=True,
-    name=None,
-):
-    """
-    Register a function as a plugin function.
+def register_function(func=None, *, record=True, name=None):
+    """Register a function as a plugin function.
 
     The registered function will be added to the plugin menu when the module is
     installed as a plugin.
@@ -54,8 +48,8 @@ def register_function(
         used.
     """
 
-    def _inner(func: Callable[_P, _R]) -> CylindraPluginFunction[_P, _R]:
-        f = CylindraPluginFunction(func, name=name)
+    def _inner(fn: Callable[_P, _R]) -> CylindraPluginFunction[_P, _R]:
+        f = CylindraPluginFunction(fn, name=name)
         if not record:
             f._is_recordable = record
         return f

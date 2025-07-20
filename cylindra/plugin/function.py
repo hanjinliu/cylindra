@@ -83,6 +83,8 @@ class CylindraPluginFunction(Generic[_P, _R]):
         _method.__signature__ = inspect.Signature(params[1:])
         _method.__name__ = self._name
         _method.__doc__ = getattr(self._func, "__doc__", "")
+        if qualname := getattr(self._func, "__qualname__", None):
+            _method.__qualname__ = qualname
         upgrade_signature(_method)
         return _method
 

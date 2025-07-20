@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from cylindra.utils._test_utils import (
+    PROJECT_DIR_13PF,
     PROJECT_DIR_14PF,
     TEST_DIR,
     assert_molecules_equal,
@@ -29,3 +30,8 @@ def test_load_and_save_mod_files(ui: CylindraMainWidget, tmpdir):
         template_path=TEST_DIR / "beta-tubulin.mrc",
         mask_params=(0.3, 0.8),
     )
+
+    ui.batch.constructor.add_projects(
+        paths=[PROJECT_DIR_13PF, PROJECT_DIR_14PF],
+    )
+    imod.export_project_batch(ui, tmpdir, ui.batch._get_loader_paths())

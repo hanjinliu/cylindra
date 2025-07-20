@@ -24,7 +24,13 @@ if TYPE_CHECKING:
     from cylindra.components.tomogram import CylTomogram
 
 TOMO_NAME = "rlnTomoName"
-POS_COLUMNS = [
+IMPORT_PARTICLE_FILE = "rlnTomoImportParticleFile"
+POS = [
+    "rlnCoordinateZ",
+    "rlnCoordinateY",
+    "rlnCoordinateX",
+]
+POS_CENTERED = [
     "rlnCenteredCoordinateZAngst",
     "rlnCenteredCoordinateYAngst",
     "rlnCenteredCoordinateXAngst",
@@ -35,9 +41,9 @@ RELION_TUBE_ID = "rlnHelicalTubeID"
 MOLE_ID = "MoleculeGroupID"
 PIXEL_SIZE = "rlnTomoTiltSeriesPixelSize"
 OPTICS_GROUP = "rlnOpticsGroup"
-IMAGE_PIXEL_SIZE = "rlnImagePixelSize"
 REC_TOMO_PATH = "rlnTomoReconstructedTomogram"
 REC_TOMO_HALF1_PATH = "rlnTomoReconstructedTomogramHalf1"
+REC_TOMO_DENOISED_PATH = "rlnTomoReconstructedTomogramDenoised"
 
 
 @register_function(name="Load molecules")
@@ -128,25 +134,37 @@ def _mole_to_star_df(
     tomo_name: str,
     save_features: bool = False,
     shift_by_origin: bool = True,
-):
+    centered: bool = True,
+) -> pd.DataFrame:
     mole = Molecules.concat(moles)
     euler_angle = mole.euler_angle(seq="ZYZ", degrees=True)
     scale = tomo.scale
     orig = tomo.origin
-    centerz, centery, centerx = _shape_to_center_zyx(tomo.image.shape, scale)
     if not shift_by_origin:
         orig = type(orig)(0.0, 0.0, 0.0)
-    out_dict = {
-        TOMO_NAME: [tomo_name] * mole.count(),
-        POS_COLUMNS[2]: (mole.pos[:, 2] - centerx + orig.x) * 10,  # Angstrom
-        POS_COLUMNS[1]: (mole.pos[:, 1] - centery + orig.y) * 10,  # Angstrom
-        POS_COLUMNS[0]: (mole.pos[:, 0] - centerz + orig.z) * 10,  # Angstrom
+    out_dict = {TOMO_NAME: [tomo_name] * mole.count()}
+    _rot_dict = {
         ROT_COLUMNS[0]: euler_angle[:, 0],
         ROT_COLUMNS[1]: euler_angle[:, 1],
         ROT_COLUMNS[2]: euler_angle[:, 2],
-        IMAGE_PIXEL_SIZE: scale * 10,  # convert to Angstrom
-        OPTICS_GROUP: np.ones(mole.count(), dtype=np.uint32),
     }
+    if centered:
+        centerz, centery, centerx = _shape_to_center_zyx(tomo.image.shape, scale)
+        # Angstrom
+        _pos_dict = {
+            POS_CENTERED[2]: (mole.pos[:, 2] - centerx + orig.x) * 10,
+            POS_CENTERED[1]: (mole.pos[:, 1] - centery + orig.y) * 10,
+            POS_CENTERED[0]: (mole.pos[:, 0] - centerz + orig.z) * 10,
+        }
+    else:
+        # pixels
+        _pos_dict = {
+            POS[2]: (mole.pos[:, 2] + orig.x) / scale,
+            POS[1]: (mole.pos[:, 1] + orig.y) / scale,
+            POS[0]: (mole.pos[:, 0] + orig.z) / scale,
+        }
+    out_dict.update(_pos_dict)
+    out_dict.update(_rot_dict)
     if len(moles) > 1:
         out_dict[MOLE_ID] = np.concatenate(
             [
@@ -167,41 +185,79 @@ def _get_loader_paths(*_):
     return ui.batch._get_loader_paths(*_)
 
 
-@register_function(name="Save molecules in all projects")
-def save_molecules_batch(
+@register_function(name="Save coordinates for import", record=False)
+def save_coordinates_for_import(
     ui: CylindraMainWidget,
-    save_path: Path.Save[FileFilter.STAR],
+    coordinates_path: Path.Save[FileFilter.STAR],
     path_sets: Annotated[Any, {"bind": _get_loader_paths}],
     save_features: bool = False,
     shift_by_origin: bool = True,
+    centered: bool = True,
 ):
+    """Save the batch analyzer state as a optimisation set for subtomogram extraction.
+
+    Parameters
+    ----------
+    coordinates_path : path-like
+        The path to save the star file containing the particles.
+    path_sets : sequence of PathInfo
+        The path sets to the tomograms and molecules.
+    save_features : bool, default False
+        Whether to save the features of the molecules to the star file.
+    shift_by_origin : bool, default True
+        If True, the positions will be shifted by the origin of the tomogram. This
+        option is required if you picked molecules in a trimmed tomogram.
+    centered : bool, default True
+        If True, the positions will be centered around the tomogram center, and columns
+        "rlnCenteredCoordinateX/Y/ZAngst" will be used. If False, columns
+        "rlnCoordinateX/Y/Z" will be used.
+    """
     from cylindra.components.tomogram import CylTomogram
     from cylindra.widgets.batch._sequence import PathInfo
     from cylindra.widgets.batch._utils import TempFeatures
 
+    coordinates_path = Path(coordinates_path)
+    save_dir = coordinates_path.parent / f"{coordinates_path.stem}_particles"
+    save_dir.mkdir(exist_ok=True)
     _temp_feat = TempFeatures()
 
-    star_dfs = []
+    tomo_names = list[str]()
+    particles_paths = list[str]()
+    particles_dfs = list[pd.DataFrame]()
     for path_info in path_sets:
         path_info = PathInfo(*path_info)
-        if prj := path_info.project_instance():
-            scale = prj.scale
-        else:
-            scale = ui.tomogram.scale
+        prj = path_info.project_instance(missing_ok=False)
+        tomo_name = _strip_relion5_prefix(path_info.image.stem)
         img = path_info.lazy_imread()
         tomo = CylTomogram.from_image(
             img,
-            scale=scale,
+            scale=prj.scale,
             tilt=prj.missing_wedge.as_param(),
             compute=False,
         )
-        moles = list(path_info.iter_molecules(_temp_feat, scale))
-        df = _mole_to_star_df(
-            moles, tomo, prj.project_path.stem, save_features, shift_by_origin
-        )
-        star_dfs.append(df)
-    df_all = pd.concat(star_dfs, ignore_index=True)
-    starfile.write(df_all, save_path)
+        moles = list(path_info.iter_molecules(_temp_feat, prj.scale))
+        if len(moles) > 0:
+            df = _mole_to_star_df(
+                moles,
+                tomo,
+                tomo_name,
+                save_features,
+                shift_by_origin,
+                centered=centered,
+            )
+            particles_path = save_dir / f"{tomo_name}_particles.star"
+            particles_dfs.append(df)
+            particles_paths.append(particles_path)
+            tomo_names.append(tomo_name)
+            starfile.write(df, particles_path)
+
+    df_opt = pd.DataFrame(
+        {
+            TOMO_NAME: tomo_names,
+            IMPORT_PARTICLE_FILE: particles_paths,
+        }
+    )
+    starfile.write(df_opt, coordinates_path)
 
 
 @register_function(name="Save splines")
@@ -246,15 +302,13 @@ def save_splines(
         df = pl.DataFrame(
             {
                 TOMO_NAME: [tomo_name] * mole_count,
-                POS_COLUMNS[2]: (coords[:, 2] - centerx + orig.x) * 10,  # Angstrom
-                POS_COLUMNS[1]: (coords[:, 1] - centery + orig.y) * 10,  # Angstrom
-                POS_COLUMNS[0]: (coords[:, 0] - centerz + orig.z) * 10,  # Angstrom
+                POS_CENTERED[2]: (coords[:, 2] - centerx + orig.x) * 10,  # Angstrom
+                POS_CENTERED[1]: (coords[:, 1] - centery + orig.y) * 10,  # Angstrom
+                POS_CENTERED[0]: (coords[:, 0] - centerz + orig.z) * 10,  # Angstrom
                 ROT_COLUMNS[0]: 0.0,
                 ROT_COLUMNS[1]: 0.0,
                 ROT_COLUMNS[2]: 0.0,
                 RELION_TUBE_ID: i,
-                IMAGE_PIXEL_SIZE: ui.tomogram.scale * 10,  # convert to Angstrom
-                OPTICS_GROUP: np.ones(mole_count, dtype=np.uint32),
             }
         )
         data_list.append(df)
@@ -275,6 +329,10 @@ def open_relion_job(
     ----------
     path : path-like
         The path to the RELION job.star file.
+    invert : bool, default True
+        Set to True if the tomograms are light backgroud.
+    bin_size : list[int], default [1]
+        The multiscale binning size for the tomograms.
     """
     path = Path(path)
     if path.name != "job.star" or not path.is_file() or not path.exists():
@@ -282,36 +340,57 @@ def open_relion_job(
     job_dir_path = Path(path).parent
     rln_project_path = _relion_project_path(job_dir_path)
     jobtype = _get_job_type(job_dir_path)
-    if jobtype == "relion.reconstructtomograms":
+    if jobtype in ("relion.reconstructtomograms", "relion.denoisetomo"):
         # Reconstruct Tomogram job
         tomogram_star_path = job_dir_path / "tomograms.star"
-        _, tomo_paths, scale_nm = _parse_tomo_star(tomogram_star_path)
-        ui.batch.constructor._new_projects_from_table(
+        if not tomogram_star_path.exists():
+            raise FileNotFoundError(
+                f"tomogram.star file {tomogram_star_path} does not exist. Make sure "
+                "the input job has an tomogram output."
+            )
+        col = (
+            REC_TOMO_DENOISED_PATH if jobtype == "relion.denoisetomo" else REC_TOMO_PATH
+        )
+        _, tomo_paths, scale_nm = _parse_tomo_star(tomogram_star_path, col)
+        ui.batch._new_projects_from_table(
             path=[rln_project_path / p for p in tomo_paths],
             scale=scale_nm,
             invert=[invert] * len(tomo_paths),
             save_root=job_dir_path / "cylindra",
         )
-    elif jobtype == "relion.picktomo":
+    elif jobtype in ("relion.picktomo", "relion.pseudosubtomo"):
         if not (opt_star_path := job_dir_path / "optimisation_set.star").exists():
             raise ValueError(
                 f"Optimisation set star file not found in {job_dir_path}. "
                 "Please ensure the job is a RELION 5.0 pick-particles job."
             )
-        paths = []
-        scales = []
-        molecules = []
-        for item in _iter_from_optimisation_star(opt_star_path, rln_project_path):
-            paths.append(rln_project_path / item.tomo_path)
-            scales.append(item.scale)
-            molecules.append(item.molecules)
-
-        ui.batch.constructor._new_projects_from_table(
+        paths, scales, moles = _parse_optimisation_star(opt_star_path, rln_project_path)
+        ui.batch._new_projects_from_table(
             paths,
             save_root=job_dir_path / "cylindra",
             invert=[invert] * len(paths),
             scale=scales,
-            molecules=molecules,
+            molecules=moles,
+            bin_size=[bin_size] * len(paths),
+        )
+    elif jobtype in ("relion.initialmodel.tomo", "relion.refine3d.tomo"):
+        opt_set_path_list = sorted(
+            job_dir_path.glob("run_it*_optimisation_set.star"),
+            key=lambda p: p.stem,
+        )
+        if len(opt_set_path_list) == 0:
+            raise ValueError(
+                f"No optimisation set star files found in {job_dir_path}. "
+                "Please ensure at least one iteration has finished."
+            )
+        opt_star_path = opt_set_path_list[-1]
+        paths, scales, moles = _parse_optimisation_star(opt_star_path, rln_project_path)
+        ui.batch._new_projects_from_table(
+            paths,
+            save_root=job_dir_path / "cylindra",
+            invert=[invert] * len(paths),
+            scale=scales,
+            molecules=moles,
             bin_size=[bin_size] * len(paths),
         )
     else:
@@ -329,17 +408,20 @@ def _get_job_type(job_dir: Path) -> str:
     raise ValueError(f"{job_dir} is not a RELION job folder.")
 
 
-def _parse_tomo_star(path: Path) -> tuple[pd.Series, pd.Series, np.ndarray]:
+def _parse_tomo_star(
+    path: Path,
+    col: str = REC_TOMO_PATH,
+) -> tuple[pd.Series, pd.Series, np.ndarray]:
     df = starfile.read(path)
     assert isinstance(df, pd.DataFrame)
-    if REC_TOMO_PATH in df:
-        tomo_paths = df[REC_TOMO_PATH]
+    if col in df:
+        tomo_paths = df[col]
     elif REC_TOMO_HALF1_PATH in df:
         tomo_paths = df[REC_TOMO_HALF1_PATH]
     else:
         raise ValueError(
             "No tomogram paths found in the tomograms.star file. Expected either "
-            "'rlnTomoReconstructedTomogram' or 'rlnTomoReconstructedTomogramHalf1' "
+            f"{col!r} or 'rlnTomoReconstructedTomogramHalf1' "
             "column."
         )
     tomo_orig_scale = df["rlnTomoTiltSeriesPixelSize"]
@@ -347,6 +429,17 @@ def _parse_tomo_star(path: Path) -> tuple[pd.Series, pd.Series, np.ndarray]:
     tomo_names = df[TOMO_NAME]
     scale_nm = np.asarray(tomo_orig_scale / 10 * tomo_bin)
     return tomo_names, tomo_paths, scale_nm
+
+
+def _parse_optimisation_star(opt_star_path: Path, rln_project_path: Path):
+    paths = []
+    scales = []
+    molecules = []
+    for item in _iter_from_optimisation_star(opt_star_path, rln_project_path):
+        paths.append(rln_project_path / item.tomo_path)
+        scales.append(item.scale)
+        molecules.append(item.molecules)
+    return paths, scales, molecules
 
 
 @dataclass
@@ -362,14 +455,19 @@ def _iter_from_optimisation_star(
     rln_project_path: Path,
 ) -> "Iterator[OptimizationSetItem]":
     opt_star_df = starfile.read(path)
-    assert isinstance(opt_star_df, pd.DataFrame)
-    tomo_star_path = opt_star_df["rlnTomoTomogramsFile"][0]
+    if isinstance(opt_star_df, pd.DataFrame):
+        tomo_star_path: str = opt_star_df["rlnTomoTomogramsFile"][0]
+        particles_path: str = opt_star_df["rlnTomoParticlesFile"][0]
+    else:
+        tomo_star_path: str = opt_star_df["rlnTomoTomogramsFile"]
+        particles_path: str = opt_star_df["rlnTomoParticlesFile"]
     tomo_names, tomo_paths, scale_nm = _parse_tomo_star(
         rln_project_path / tomo_star_path
     )
     tomo_paths = [rln_project_path / p for p in tomo_paths]  # resolve relative paths
-    particles_path = opt_star_df["rlnTomoParticlesFile"][0]
     particles_df = starfile.read(rln_project_path / particles_path)
+    if isinstance(particles_df, dict):
+        particles_df = particles_df["particles"]
     assert isinstance(particles_df, pd.DataFrame)
     name_to_center_map = {
         tomo_name: _shape_to_center_zyx(ip.lazy.imread(tomo_path).shape, sc_nm)
@@ -416,9 +514,9 @@ def _particles_to_molecules(
     default_key: str = "Mole-0",
 ) -> dict[str, Molecules]:
     for ix in range(3):
-        particles[POS_COLUMNS[ix]] += center_zyx[ix] * 10
+        particles[POS_CENTERED[ix]] += center_zyx[ix] * 10
     if all(c in particles.columns for c in POS_ORIGIN_COLUMNS):
-        for target, source in zip(POS_COLUMNS, POS_ORIGIN_COLUMNS, strict=True):
+        for target, source in zip(POS_CENTERED, POS_ORIGIN_COLUMNS, strict=True):
             particles[target] += particles[source]
         particles.drop(columns=POS_ORIGIN_COLUMNS, inplace=True)
 
@@ -429,13 +527,15 @@ def _particles_to_molecules(
     #         raise NotImplementedError("Optics block must be a dataframe")
     #     particles = particles.merge(opt, on=OPTICS_GROUP)
 
-    pos = particles[POS_COLUMNS].to_numpy() / 10  # angstrom to nm
+    # TODO: support rlnCoordinateX/Y/Z
+
+    pos = particles[POS_CENTERED].to_numpy() / 10  # angstrom to nm
     if all(c in particles.columns for c in ROT_COLUMNS):
         euler = particles[ROT_COLUMNS].to_numpy()
-        features = particles.drop(columns=POS_COLUMNS + ROT_COLUMNS)
+        features = particles.drop(columns=POS_CENTERED + ROT_COLUMNS)
     else:
         euler = np.zeros((particles.shape[0], 3), dtype=np.float32)
-        features = particles.drop(columns=POS_COLUMNS)
+        features = particles.drop(columns=POS_CENTERED)
     mole = Molecules.from_euler(
         pos, euler, seq="ZYZ", degrees=True, order="xyz", features=features
     )

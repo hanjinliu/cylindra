@@ -26,8 +26,7 @@ def load_molecules(
     ang_path: Annotated[Path.Read[FileFilter.CSV], {"label": "Path to csv file"}],
     shift_mol: Annotated[bool, {"label": "Apply shifts to monomers if offsets are available."}] = True,
 ):  # fmt: skip
-    """
-    Read molecule coordinates and angles from IMOD .mod files.
+    """Read molecule coordinates and angles from IMOD .mod files.
 
     Parameters
     ----------
@@ -73,8 +72,7 @@ def load_splines(
 def save_molecules(
     ui: CylindraMainWidget, save_dir: Path.Dir, layers: MoleculesLayersType
 ):
-    """
-    Save monomer positions and angles in the PEET format.
+    """Save monomer positions and angles in the PEET format.
 
     Parameters
     ----------
@@ -95,8 +93,7 @@ def save_splines(
     save_path: Path.Save[FileFilter.MOD],
     interval: Annotated[float, {"min": 0.01, "max": 1000.0, "label": "Sampling interval (nm)"}] = 10.0,
 ):  # fmt: skip
-    """
-    Save splines as a mod file.
+    """Save splines as a mod file.
 
     This function will sample coordinates along the splines and save the coordinates
     as a mod file. The mod file will be labeled with object_id=1 and contour_id=i+1,
@@ -139,8 +136,7 @@ def shift_molecules(
     layer: MoleculesLayerType,
     update: bool = False,
 ):
-    """
-    Shift monomer coordinates in PEET format.
+    """Shift monomer coordinates in PEET format.
 
     Parameters
     ----------
@@ -198,8 +194,7 @@ def export_project(
     mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
     project_name: str = "project-0",
 ):
-    """
-    Export cylindra state as a PEET prm file.
+    """Export cylindra state as a PEET prm file.
 
     Molecules and images will be exported to a directory that can be
     directly used by PEET.
@@ -241,9 +236,9 @@ def export_project(
     prm_path = save_dir / f"{project_name}.prm"
 
     txt = PEET_TEMPLATE.format(
-        tomograms=str(ui.tomogram.source),
-        coordinates=coordinates_path,
-        angles=angles_path,
+        tomograms=repr(ui.tomogram.source),
+        coordinates=repr(coordinates_path),
+        angles=repr(angles_path),
         tilt_range=list(ui.tomogram.tilt["range"]),
         template=template_path,
         project_name=project_name,
@@ -263,7 +258,100 @@ def export_project(
             zyx=ui.tomogram.scale, unit="nm"
         ).imsave(save_dir / mask_path)
 
-    return None
+
+def _get_loader_paths(*_):
+    from cylindra import instance
+
+    ui = instance()
+    return ui.batch._get_loader_paths(*_)
+
+
+@register_function(name="Export project as batch")
+def export_project_batch(
+    ui: CylindraMainWidget,
+    save_dir: Path.Dir,
+    path_sets: Annotated[Any, {"bind": _get_loader_paths}],
+    project_name: str = "project-0",
+    size: Annotated[float, {"label": "Subtomogram size (nm)", "min": 1.0, "max": 1000.0}] = 10.0,  # fmt: skip
+):
+    """Export cylindra batch analyzer state as a PEET prm file.
+
+    A epe file will be generated, which can directly be used by `etomo <name>.epe`.
+
+    Parameters
+    ----------
+    save_dir : Path
+        Directory to save the files needed for a PEET project.
+    path_sets : Any
+        Path sets of the tomograms and coordinates.
+    project_name : str, default "project-0"
+        Name of the PEET project.
+    size : float, default 10.0
+        Size of the subtomograms in nanometers.
+    """
+    from cylindra.widgets.batch._sequence import PathInfo
+    from cylindra.widgets.batch._utils import TempFeatures
+
+    save_dir = Path(save_dir)
+    if not save_dir.exists():
+        save_dir.mkdir()
+
+    _temp_feat = TempFeatures()
+
+    _tomogram_list = list[str]()
+    _coords_list = list[str]()
+    _angle_list = list[str]()
+    _tilt_list = list[str]()
+    _count = 0
+    scales = []
+    for path_info in path_sets:
+        path_info = PathInfo(*path_info)
+        prj = path_info.project_instance(missing_ok=False)
+        moles = list(path_info.iter_molecules(_temp_feat, prj.scale))
+        if len(moles) > 0:
+            _tomogram_list.append(repr(path_info.image.as_posix()))
+            mod_name = f"coordinates-{_count:0>3}_{path_info.image.stem}.mod"
+            csv_name = f"angles-{_count:0>3}_{path_info.image.stem}.csv"
+            _save_molecules(
+                save_dir=save_dir,
+                mol=Molecules.concat(moles),
+                scale=prj.scale,
+                mod_name=mod_name,
+                csv_name=csv_name,
+            )
+            _coords_list.append(f"'./{mod_name}'")
+            _angle_list.append(f"'./{csv_name}'")
+            if mw_dict := prj.missing_wedge.as_param():
+                if "range" in mw_dict:
+                    tilt_range = mw_dict["range"]
+                    _tilt_list.append(f"[{tilt_range[0]}, {tilt_range[1]}]")
+            scales.append(prj.scale)
+            _count += 1
+
+    # determine shape using the average scale
+    if len(scales) == 0:
+        raise ValueError("No tomograms found in the project.")
+    scale = np.mean(scales)
+    shape = [int(round(size / scale / 2)) * 2] * 3  # must be even
+
+    # paths
+    prm_path = save_dir / f"{project_name}.prm"
+    epe_path = save_dir / f"{project_name}.epe"
+
+    prm_txt = PEET_TEMPLATE.format(
+        tomograms=", ".join(_tomogram_list),
+        coordinates=", ".join(_coords_list),
+        angles=", ".join(_angle_list),
+        tilt_range=", ".join(_tilt_list),
+        template="",
+        project_name=project_name,
+        shape=shape,
+        mask_type="none",
+    )
+
+    # save files
+    prm_path.write_text(prm_txt)
+    epe_path.write_text(f"Peet.RootName={project_name}\n")
 
 
 def _read_angle(ang_path: str) -> np.ndarray:
@@ -337,9 +425,9 @@ def _save_molecules(
 
 
 PEET_TEMPLATE = """
-fnVolume = {{{tomograms!r}}}
-fnModParticle = {{{coordinates!r}}}
-initMOTL = {{{angles!r}}}
+fnVolume = {{{tomograms}}}
+fnModParticle = {{{coordinates}}}
+initMOTL = {{{angles}}}
 tiltRange = {{{tilt_range!r}}}
 dPhi = {{0:0:0}}
 dTheta = {{0:0:0}}

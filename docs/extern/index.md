@@ -7,4 +7,4 @@ plugins using the `cylindra` [plugin system](../plugins.md).
 Currently supported softwares are:
 
 - [IMOD](imod.md)
-- [RELION](relion.md)
+- [RELION](relion.md) (&ge;5.0.0)

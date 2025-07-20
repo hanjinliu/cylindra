@@ -1,3 +1,4 @@
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -8,7 +9,7 @@ from cylindra._config import get_config
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import get_versions, nm
 from cylindra.project._base import BaseProject, PathLike, resolve_path
-from cylindra.project._utils import as_main_function
+from cylindra.project._utils import as_main_function, resolve_relative_paths
 
 if TYPE_CHECKING:
     from cylindra.widgets.batch import CylindraBatchWidget
@@ -42,12 +43,21 @@ class LoaderInfoModel(BaseModel):
         return self
 
 
+class ChildProjectInfo(BaseModel):
+    """Model that describes the state of a child project."""
+
+    path: Path
+    spline_selected: list[bool]
+    molecules_selected: list[bool]
+
+
 class CylindraBatchProject(BaseProject):
     """A project of cylindra batch processing."""
 
     datetime: str
     version: str
     dependency_versions: dict[str, str]
+    children: list[ChildProjectInfo] = []
     loaders: list[LoaderInfoModel]
     project_path: Path | None = None
 
@@ -99,10 +109,31 @@ class CylindraBatchProject(BaseProject):
                     scale=info.loader.scale,
                 )
             )
+
+        children = list[ChildProjectInfo]()
+        for child_widget in gui.constructor.projects:
+            child_project_path = as_relative(Path(child_widget.path))
+            if child_project_path is None:
+                warnings.warn(
+                    f"Child project path {child_widget.path!r} could not be resolved "
+                    f"as relative to {project_dir}, skipping.",
+                    UserWarning,
+                    stacklevel=1,
+                )
+                continue
+            spl_checked = [s.check for s in child_widget.splines]
+            mol_checked = [m.check for m in child_widget.molecules]
+            info = ChildProjectInfo(
+                path=child_project_path,
+                spline_selected=spl_checked,
+                molecules_selected=mol_checked,
+            )
+            children.append(info)
         return cls(
             datetime=datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
             version=next(iter(_versions.values())),
             dependency_versions=_versions,
+            children=children,
             loaders=loaders,
             project_path=project_dir,
         )
@@ -128,12 +159,33 @@ class CylindraBatchProject(BaseProject):
 
         # save objects
         self.to_json(project_dir / "project.json")
-        return None
 
     def _to_gui(self, gui: "CylindraBatchWidget") -> None:
         import impy as ip
         from acryo import BatchLoader, Molecules
 
+        gui.constructor.clear_projects()
+        for child in self.children:
+            # solve relative path
+            child_path = resolve_relative_paths(child.path, self.project_path)
+            if child_path is None:
+                warnings.warn(
+                    f"Child project path {child.path!r} could not be resolved "
+                    f"as relative to {self.project_path}, skipping.",
+                    UserWarning,
+                    stacklevel=1,
+                )
+                continue
+            gui.constructor.add_projects([child_path], clear=False)
+            last_project = gui.constructor.projects[-1]
+            for spl_widget, checked in zip(
+                iter(last_project.splines), child.spline_selected, strict=False
+            ):
+                spl_widget.check = checked
+            for mol_widget, checked in zip(
+                iter(last_project.molecules), child.molecules_selected, strict=False
+            ):
+                mol_widget.check = checked
         for lmodel in self.loaders:
             loader = BatchLoader(scale=lmodel.scale)
             mole_dict = dict(Molecules.from_file(lmodel.molecule).groupby(Mole.image))
@@ -153,4 +205,3 @@ class CylindraBatchProject(BaseProject):
         macro = mk.parse(txt)
         gui.macro.extend(macro.args)
         gui.reset_choices()
-        return None

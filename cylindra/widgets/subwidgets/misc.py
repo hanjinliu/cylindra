@@ -221,8 +221,7 @@ class ImageLoader(MagicTemplate):
 
 @magicclass(record=False, widget_type="collapsible", labels=False)
 class GeneralInfo(MagicTemplate):
-    """
-    General information of the current project.
+    """General information of the current project.
 
     Attributes
     ----------
@@ -245,7 +244,7 @@ class GeneralInfo(MagicTemplate):
         scale = tomo.scale
         shape_px = ", ".join(f"{s} px" for s in img.shape)
         shape_nm = ", ".join(f"{s*scale:.2f} nm" for s in img.shape)
-        orig_nm = tomo.origin
+        orig_nm = ", ".join(f"{o:.2f} nm" for o in tomo.origin)
         if isinstance(tomo.tilt_model, NoWedge):
             tilt_range = "No missing wedge"
         elif isinstance(tomo.tilt_model, SingleAxis):
@@ -254,14 +253,19 @@ class GeneralInfo(MagicTemplate):
             tilt_range = f"{deg0:.1f}° — {deg1:.1f}° (axis: {axis})"
         else:
             tilt_range = repr(tomo.tilt_model)
+        if (nbytes := img.value.nbytes) < 1024**3:
+            size = f"{nbytes / 1024**2:.2f} MB"
+        else:
+            size = f"{nbytes / 1024**3:.2f} GB"
         value = (
             f"File: {fpath}\n"
             f"Scale: {scale:.4f} nm/pixel\n"
-            f"ZYX-Shape: ({shape_px})\n"
-            f"ZYX-Shape (nm): ({shape_nm})\n"
-            f"ZYX-origin (nm): ({orig_nm.z:.2f}, {orig_nm.y:.2f}, {orig_nm.x:.2f})\n"
+            f"ZYX shape: ({shape_px})\n"
+            f"ZYX shape (nm): ({shape_nm})\n"
+            f"ZYX origin (nm): ({orig_nm})\n"
+            f"Tilt range: {tilt_range}\n"
             f"Data type: {img.dtype}\n"
-            f"Tilt range: {tilt_range}"
+            f"Data size: {size}\n"
         )
         self.image_info.value = value
 

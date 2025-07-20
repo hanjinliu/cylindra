@@ -15,6 +15,7 @@ from cylindra_builtins import relion
 TEST_JOB_DIR = Path(__file__).parent / "test_jobs"
 JOB_TOMO_DIR = TEST_JOB_DIR / "Tomograms" / "job_tomo"
 JOB_PICK_DIR = TEST_JOB_DIR / "Picks" / "job_picks"
+JOB_REFINE_DIR = TEST_JOB_DIR / "Refine3D" / "job_refine"
 
 
 def test_load_and_save_starfiles(ui: CylindraMainWidget, tmpdir):
@@ -37,7 +38,8 @@ def test_load_and_save_starfiles(ui: CylindraMainWidget, tmpdir):
         assert_splines_close(spl, spl_new)
 
 
-def test_opening_jobs(ui: CylindraMainWidget):
+def test_opening_jobs(ui: CylindraMainWidget, tmpdir):
+    tmpdir = Path(tmpdir)
     path_13pf = JOB_TOMO_DIR.joinpath("tomograms", "13pf_MT.mrc")
     path_14pf = JOB_TOMO_DIR.joinpath("tomograms", "14pf_MT.mrc")
     if not (tomo_dir := JOB_TOMO_DIR.joinpath("tomograms")).exists():
@@ -57,3 +59,22 @@ def test_opening_jobs(ui: CylindraMainWidget):
     ui.batch.constructor.projects[0].send_to_viewer()
     assert ui.tomogram.scale == pytest.approx(1.052)
     assert not ui.tomogram.is_dummy
+    relion.save_coordinates_for_import(
+        ui, tmpdir / "p.star", ui.batch._get_loader_paths()
+    )
+    ui.batch.save_batch_project(tmpdir / "prj.zip")
+    ui.batch.load_batch_project(tmpdir / "prj.zip")
+    relion.save_coordinates_for_import(
+        ui,
+        tmpdir / "p.star",
+        ui.batch._get_loader_paths(),
+        centered=True,
+    )
+    ui.batch.constructor.projects[0].molecules[0].check = False
+    relion.save_coordinates_for_import(
+        ui,
+        tmpdir / "p.star",
+        ui.batch._get_loader_paths(),
+    )
+
+    relion.open_relion_job(ui, JOB_REFINE_DIR / "job.star")

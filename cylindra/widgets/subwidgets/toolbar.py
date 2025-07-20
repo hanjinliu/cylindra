@@ -51,8 +51,7 @@ class CylindraToolbar(ChildWidget):
 
     @magicmenu(icon="carbon:settings-adjust", record=False)
     class Adjust(ChildWidget):
-        """
-        Adjust auto picker parameters.
+        """Adjust auto picker parameters.
 
         Attributes
         ----------
@@ -80,6 +79,13 @@ class CylindraToolbar(ChildWidget):
 
     clear_current = abstractapi()
     clear_all = abstractapi()
+
+    @set_design(icon="tdesign:add-circle")
+    @do_not_record(recursive=False)
+    def register_molecules(self):
+        """Register manually added points as molecules."""
+        main = self._get_main()
+        main.register_molecules(main._get_spline_coordinates())
 
     sep2 = Separator
 

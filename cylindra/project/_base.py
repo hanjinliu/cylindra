@@ -58,6 +58,8 @@ class BaseProject(BaseModel):
     def from_file(cls, path: "str | Path") -> Self:
         """Construct a project from a file."""
         path = Path(path).absolute()
+        if not path.exists():
+            raise FileNotFoundError(f"Project file {path!r} does not exist.")
         if path.is_dir():
             return cls.from_json(get_project_file(path))
         elif path.suffix == ".json":
