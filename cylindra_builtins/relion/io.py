@@ -192,13 +192,13 @@ def save_coordinates_for_import(
     path_sets: Annotated[Any, {"bind": _get_loader_paths}],
     save_features: bool = False,
     shift_by_origin: bool = True,
-    centered: bool = False,
+    centered: bool = True,
 ):
     """Save the batch analyzer state as a optimisation set for subtomogram extraction.
 
     Parameters
     ----------
-    particles_path : path-like
+    coordinates_path : path-like
         The path to save the star file containing the particles.
     path_sets : sequence of PathInfo
         The path sets to the tomograms and molecules.
@@ -207,9 +207,10 @@ def save_coordinates_for_import(
     shift_by_origin : bool, default True
         If True, the positions will be shifted by the origin of the tomogram. This
         option is required if you picked molecules in a trimmed tomogram.
-    tomogram_star : path-like, optional
-        If provided, this will be used to match the tomograms with the particles.
-        If not provided, optimisation_set.star will not be created.
+    centered : bool, default True
+        If True, the positions will be centered around the tomogram center, and columns
+        "rlnCenteredCoordinateX/Y/ZAngst" will be used. If False, columns
+        "rlnCoordinateX/Y/Z" will be used.
     """
     from cylindra.components.tomogram import CylTomogram
     from cylindra.widgets.batch._sequence import PathInfo
