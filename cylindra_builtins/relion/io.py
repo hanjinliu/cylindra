@@ -94,6 +94,7 @@ def save_molecules(
     save_features: bool = False,
     tomo_name_override: str = "",
     shift_by_origin: bool = True,
+    centered: bool = True,
 ):
     """Save the selected molecules to a RELION .star file.
 
@@ -112,8 +113,7 @@ def save_molecules(
         If provided, this will override the tomogram name identifier (the rlnTomoName
         column) in the star file.
     shift_by_origin : bool, default True
-        If True, the positions will be shifted by the origin of the tomogram. This
-        option is required if you picked molecules in a trimmed tomogram.
+        If True, the positions will be shifted by the rlnOrigin(Z/Y/X)Angst columns.
     """
     save_path = Path(save_path)
     layers = assert_list_of_layers(layers, ui.parent_viewer)
@@ -121,9 +121,11 @@ def save_molecules(
     df = _mole_to_star_df(
         [layer.molecules for layer in layers],
         ui.tomogram,
-        tomo_name,
-        save_features,
-        shift_by_origin,
+        tomo_name_override=tomo_name_override,
+        default_tomo_name=tomo_name,
+        save_features=save_features,
+        shift_by_origin=shift_by_origin,
+        centered=centered,
     )
     starfile.write(df, save_path)
 
@@ -131,7 +133,8 @@ def save_molecules(
 def _mole_to_star_df(
     moles: list[Molecules],
     tomo: "CylTomogram",
-    tomo_name: str,
+    tomo_name_override: str,
+    default_tomo_name: str,
     save_features: bool = False,
     shift_by_origin: bool = True,
     centered: bool = True,
@@ -142,7 +145,14 @@ def _mole_to_star_df(
     orig = tomo.origin
     if not shift_by_origin:
         orig = type(orig)(0.0, 0.0, 0.0)
-    out_dict = {TOMO_NAME: [tomo_name] * mole.count()}
+    if TOMO_NAME in mole.features.columns:
+        if tomo_name_override == "":
+            out_dict = {TOMO_NAME: mole.features[TOMO_NAME].to_list()}
+        else:
+            out_dict = {TOMO_NAME: [tomo_name_override] * mole.count()}
+    else:
+        _tomo_name = tomo_name_override or default_tomo_name
+        out_dict = {TOMO_NAME: [_tomo_name] * mole.count()}
     _rot_dict = {
         ROT_COLUMNS[0]: euler_angle[:, 0],
         ROT_COLUMNS[1]: euler_angle[:, 1],
@@ -205,8 +215,7 @@ def save_coordinates_for_import(
     save_features : bool, default False
         Whether to save the features of the molecules to the star file.
     shift_by_origin : bool, default True
-        If True, the positions will be shifted by the origin of the tomogram. This
-        option is required if you picked molecules in a trimmed tomogram.
+        If True, the positions will be shifted by the rlnOrigin(Z/Y/X)Angst columns.
     centered : bool, default True
         If True, the positions will be centered around the tomogram center, and columns
         "rlnCenteredCoordinateX/Y/ZAngst" will be used. If False, columns
@@ -240,9 +249,10 @@ def save_coordinates_for_import(
             df = _mole_to_star_df(
                 moles,
                 tomo,
-                tomo_name,
-                save_features,
-                shift_by_origin,
+                tomo_name_override="",
+                default_tomo_name=tomo_name,
+                save_features=save_features,
+                shift_by_origin=shift_by_origin,
                 centered=centered,
             )
             particles_path = save_dir / f"{tomo_name}_particles.star"
@@ -281,8 +291,7 @@ def save_splines(
         If provided, this will override the tomogram name identifier (the rlnTomoName
         column) in the star file.
     shift_by_origin : bool, default True
-        If True, the positions will be shifted by the origin of the tomogram. This
-        option is required if you picked molecules in a trimmed tomogram.
+        If True, the positions will be shifted by the rlnOrigin(Z/Y/X)Angst columns.
     """
 
     if interval <= 1e-4:
@@ -450,6 +459,15 @@ class OptimizationSetItem:
     molecules: dict[str, Molecules]
 
 
+@dataclass
+class TomoInfo:
+    name: str
+    path: Path
+    scale: nm
+    center: Any
+    shape: tuple[int, int, int]
+
+
 def _iter_from_optimisation_star(
     path: Path,
     rln_project_path: Path,
@@ -469,29 +487,35 @@ def _iter_from_optimisation_star(
     if isinstance(particles_df, dict):
         particles_df = particles_df["particles"]
     assert isinstance(particles_df, pd.DataFrame)
-    name_to_center_map = {
-        tomo_name: _shape_to_center_zyx(ip.lazy.imread(tomo_path).shape, sc_nm)
-        for tomo_name, tomo_path, sc_nm in zip(
-            tomo_names, tomo_paths, scale_nm, strict=False
+
+    tomo_info_map = dict[str, TomoInfo]()
+    for tomo_name, tomo_path, sc_nm in zip(
+        tomo_names, tomo_paths, scale_nm, strict=False
+    ):
+        shape = ip.lazy.imread(tomo_path).shape
+        center = _shape_to_center_zyx(shape, sc_nm)
+        tomo_info_map[tomo_name] = TomoInfo(
+            name=tomo_name,
+            path=Path(tomo_path),
+            scale=sc_nm,
+            center=center,
+            shape=shape,
         )
-    }
-    name_to_path_map = dict(zip(tomo_names, tomo_paths, strict=False))
-    name_to_scale_map = dict(zip(tomo_names, scale_nm, strict=False))
+
     for tomo_id, particles in particles_df.groupby(TOMO_NAME):
-        center_zyx = name_to_center_map.get(tomo_id)
-        if center_zyx is None:
+        if tomo_info := tomo_info_map.get(tomo_id):
+            yield OptimizationSetItem(
+                tomo_id,
+                Path(tomo_info.path),
+                scale=tomo_info.scale,
+                molecules=_particles_to_molecules(particles, tomo_info.center, tomo_id),
+            )
+        else:
             warnings.warn(
                 f"Tomogram {tomo_id} not found in the tomograms.star file. Skipping.",
                 UserWarning,
                 stacklevel=2,
             )
-            continue
-        yield OptimizationSetItem(
-            tomo_id,
-            Path(name_to_path_map[tomo_id]),
-            scale=name_to_scale_map[tomo_id],
-            molecules=_particles_to_molecules(particles, center_zyx),
-        )
 
 
 def _read_star(path: str, tomo: "CylTomogram") -> dict[str, Molecules]:
@@ -514,6 +538,7 @@ def _particles_to_molecules(
     default_key: str = "Mole-0",
 ) -> dict[str, Molecules]:
     for ix in range(3):
+        # FIXME: off by one pixel?
         particles[POS_CENTERED[ix]] += center_zyx[ix] * 10
     if all(c in particles.columns for c in POS_ORIGIN_COLUMNS):
         for target, source in zip(POS_CENTERED, POS_ORIGIN_COLUMNS, strict=True):
