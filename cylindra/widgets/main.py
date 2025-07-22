@@ -852,6 +852,38 @@ class CylindraMainWidget(MagicTemplate):
         t0.toc()
         return self._reference_updated_callback.with_args(img_filt)
 
+    @set_design(text="Z-project reference image", location=_sw.ImageMenu)
+    @thread_worker.with_progress(desc="Projecting reference image")
+    @do_not_record
+    def z_project_reference_image(self, method: Literal["max", "min", "mean"] = "max"):
+        """Z-project the reference image and overlay it on the viewer.
+
+        Parameters
+        ----------
+        method : str, default "max"
+            Method to use for z-projection. Can be "max", "min" or "mean".
+        """
+        if self.tomogram.is_dummy:
+            _Logger.print("No tomogram is loaded. Skip this operation.")
+            return
+        img_ref = self._reserved_layers.image_data
+        img_proj = img_ref.proj(axis="z", method=method)
+
+        @thread_worker.callback
+        def _z_project_on_return(img_proj):
+            layer_proj = self.parent_viewer.add_image(
+                img_proj,
+                name=f"Z-projection ({method})",
+                scale=self._reserved_layers.image.scale[-2:],
+                translate=self._reserved_layers.image.translate[-2:],
+                opacity=0.5,
+                colormap="twilight",
+                blending="additive",
+            )
+            self._reserved_layers.to_be_removed.add(layer_proj)
+
+        return _z_project_on_return.with_args(img_proj)
+
     @set_design(text=capitalize, location=_sw.ImageMenu)
     @thread_worker.with_progress(desc="Deconvolving reference image ...")
     @do_not_record

@@ -362,6 +362,7 @@ def test_spline_control(ui: CylindraMainWidget, tmpdir):
     ui.deconvolve_reference_image()
     ui.filter_reference_image()
     ui.save_reference_image(tmpdir / "ref.mrc")
+    ui.z_project_reference_image(method="max")
     ui.register_path(coords=coords_13pf)
     ui.register_path(coords=coords_13pf[::-1])
 
