@@ -214,6 +214,7 @@ class ImageMenu(ChildWidget):
 
     filter_reference_image = abstractapi()
     deconvolve_reference_image = abstractapi()
+    z_project_reference_image = abstractapi()
     invert_image = abstractapi()
     add_multiscale = abstractapi()
     set_multiscale = abstractapi()
