@@ -185,8 +185,8 @@ def _get_loader_paths(*_):
     return ui.batch._get_loader_paths(*_)
 
 
-@register_function(name="Save coordinates for import", record=False)
-def save_coordinates_for_import(
+@register_function(name="Save molecules for import", record=False)
+def save_molecules_for_import(
     ui: CylindraMainWidget,
     coordinates_path: Path.Save[FileFilter.STAR],
     path_sets: Annotated[Any, {"bind": _get_loader_paths}],
@@ -194,7 +194,7 @@ def save_coordinates_for_import(
     shift_by_origin: bool = True,
     centered: bool = True,
 ):
-    """Save the batch analyzer state as a optimisation set for subtomogram extraction.
+    """Save the batch analyzer state as star files for "Import" job.
 
     Parameters
     ----------
@@ -212,18 +212,85 @@ def save_coordinates_for_import(
         "rlnCenteredCoordinateX/Y/ZAngst" will be used. If False, columns
         "rlnCoordinateX/Y/Z" will be used.
     """
-    from cylindra.components.tomogram import CylTomogram
-    from cylindra.widgets.batch._sequence import PathInfo
-    from cylindra.widgets.batch._utils import TempFeatures
-
     coordinates_path = Path(coordinates_path)
     save_dir = coordinates_path.parent / f"{coordinates_path.stem}_particles"
     save_dir.mkdir(exist_ok=True)
-    _temp_feat = TempFeatures()
 
     tomo_names = list[str]()
     particles_paths = list[str]()
     particles_dfs = list[pd.DataFrame]()
+    for tomo_name, df in _iter_dataframe_from_path_sets(
+        path_sets,
+        save_features=save_features,
+        shift_by_origin=shift_by_origin,
+        centered=centered,
+    ):
+        particles_path = save_dir / f"{tomo_name}_particles.star"
+        particles_dfs.append(df)
+        particles_paths.append(particles_path)
+        tomo_names.append(tomo_name)
+        starfile.write(df, particles_path)
+
+    df_opt = pd.DataFrame(
+        {
+            TOMO_NAME: tomo_names,
+            IMPORT_PARTICLE_FILE: particles_paths,
+        }
+    )
+    starfile.write(df_opt, coordinates_path)
+
+
+@register_function(name="Save molecules for extract", record=False)
+def save_molecules_for_extract(
+    ui: CylindraMainWidget,
+    coordinates_path: Path.Save[FileFilter.STAR],
+    path_sets: Annotated[Any, {"bind": _get_loader_paths}],
+    save_features: bool = False,
+    shift_by_origin: bool = True,
+    centered: bool = True,
+):
+    """Save the batch analyzer state as a star file for "Extract subtomo" job.
+
+    Parameters
+    ----------
+    coordinates_path : path-like
+        The path to save the star file containing the particles.
+    path_sets : sequence of PathInfo
+        The path sets to the tomograms and molecules.
+    save_features : bool, default False
+        Whether to save the features of the molecules to the star file.
+    shift_by_origin : bool, default True
+        If True, the positions will be shifted by the origin of the tomogram. This
+        option is required if you picked molecules in a trimmed tomogram.
+    centered : bool, default True
+        If True, the positions will be centered around the tomogram center, and columns
+        "rlnCenteredCoordinateX/Y/ZAngst" will be used. If False, columns
+        "rlnCoordinateX/Y/Z" will be used.
+    """
+    particles_dfs = list[pd.DataFrame]()
+    for _, df in _iter_dataframe_from_path_sets(
+        path_sets,
+        save_features=save_features,
+        shift_by_origin=shift_by_origin,
+        centered=centered,
+    ):
+        particles_dfs.append(df)
+    particles_df = pd.concat(particles_dfs)
+    starfile.write(particles_df, coordinates_path)
+
+
+def _iter_dataframe_from_path_sets(
+    path_sets,
+    save_features: bool = False,
+    shift_by_origin: bool = True,
+    centered: bool = True,
+) -> Iterator[tuple[str, pd.DataFrame]]:
+    from cylindra.components.tomogram import CylTomogram
+    from cylindra.widgets.batch._sequence import PathInfo
+    from cylindra.widgets.batch._utils import TempFeatures
+
+    _temp_feat = TempFeatures()
+
     for path_info in path_sets:
         path_info = PathInfo(*path_info)
         prj = path_info.project_instance(missing_ok=False)
@@ -245,19 +312,7 @@ def save_coordinates_for_import(
                 shift_by_origin,
                 centered=centered,
             )
-            particles_path = save_dir / f"{tomo_name}_particles.star"
-            particles_dfs.append(df)
-            particles_paths.append(particles_path)
-            tomo_names.append(tomo_name)
-            starfile.write(df, particles_path)
-
-    df_opt = pd.DataFrame(
-        {
-            TOMO_NAME: tomo_names,
-            IMPORT_PARTICLE_FILE: particles_paths,
-        }
-    )
-    starfile.write(df_opt, coordinates_path)
+            yield tomo_name, df
 
 
 @register_function(name="Save splines")
