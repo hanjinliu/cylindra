@@ -26,9 +26,9 @@ contains the description of the job. Currently, following RELION jobs are suppor
 
 ### Save Pick Results for Import to RELION
 
-:material-arrow-right-thin-circle-outline: API: [`cylindra_builtins.relion.save_coordinates_for_import`][cylindra_builtins.relion.save_coordinates_for_import]
+:material-arrow-right-thin-circle-outline: API: [`cylindra_builtins.relion.save_molecules_for_import`][cylindra_builtins.relion.save_molecules_for_import]
 
-:material-arrow-right-thin-circle-outline: GUI: `Plugins > RELION > Save coordinates for import`
+:material-arrow-right-thin-circle-outline: GUI: `Plugins > RELION > Save molecules for import`
 
 This method saves the current state of the `cylindra` batch analyzer, which contains
 individual tomograms and multiple molecules, as an particle star file. This file can
