@@ -744,7 +744,6 @@ class CylindraMainWidget(MagicTemplate):
         self.tomogram.splines.extend(splines)
         self._update_splines_in_images()
         self.reset_choices()
-        return None
 
     @set_design(text=capitalize, location=_sw.FileMenu)
     def load_molecules(self, paths: Path.Multiple[FileFilter.MOLE]):
@@ -755,7 +754,6 @@ class CylindraMainWidget(MagicTemplate):
         for mole, path in zip(moles, paths, strict=False):
             name = Path(path).stem
             add_molecules(self.parent_viewer, mole, name)
-        return None
 
     @set_design(text=capitalize, location=_sw.FileMenu)
     def load_volumes(self, paths: Path.Multiple[FileFilter.IMAGE]):
@@ -765,7 +763,6 @@ class CylindraMainWidget(MagicTemplate):
             if img.ndim != 3:
                 raise ValueError("Input image must be 3-D.")
             self.sta._show_rec(img, name=img.name)
-        return None
 
     @set_design(text=capitalize, location=_sw.FileMenu)
     @do_not_record
@@ -777,7 +774,6 @@ class CylindraMainWidget(MagicTemplate):
         """Save splines as a json file."""
         spl = self.tomogram.splines[spline]
         spl.to_json(save_path)
-        return None
 
     @do_not_record
     @set_design(text=capitalize, location=_sw.FileMenu)
