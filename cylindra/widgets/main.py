@@ -27,6 +27,7 @@ from magicclass.types import Optional, Path
 from magicclass.undo import undo_callback
 from magicclass.utils import thread_worker
 from napari.layers import Layer
+from napari.utils.notifications import show_info as _napari_show_info
 
 from cylindra import _config, _shared_doc, cylfilters, cylmeasure, utils, widget_utils
 from cylindra._napari import InteractionVector, LandscapeSurface, MoleculesLayer
@@ -697,6 +698,11 @@ class CylindraMainWidget(MagicTemplate):
                 if self._project_dir and Path(proj.path).samefile(self._project_dir):
                     proj._update_from_project()
 
+        # if the drawing layer has non-registered points, notify the user
+        if self._reserved_layers.work.data.size > 0:
+            _name = self._reserved_layers.work.name
+            _napari_show_info(f"Points in the {_name!r} is not registered yet.")
+
     @set_design(text=capitalize, location=_sw.FileMenu)
     @do_not_record
     @bind_key("Ctrl+K, Ctrl+Shift+S")
@@ -738,7 +744,6 @@ class CylindraMainWidget(MagicTemplate):
         self.tomogram.splines.extend(splines)
         self._update_splines_in_images()
         self.reset_choices()
-        return None
 
     @set_design(text=capitalize, location=_sw.FileMenu)
     def load_molecules(self, paths: Path.Multiple[FileFilter.MOLE]):
@@ -749,7 +754,6 @@ class CylindraMainWidget(MagicTemplate):
         for mole, path in zip(moles, paths, strict=False):
             name = Path(path).stem
             add_molecules(self.parent_viewer, mole, name)
-        return None
 
     @set_design(text=capitalize, location=_sw.FileMenu)
     def load_volumes(self, paths: Path.Multiple[FileFilter.IMAGE]):
@@ -759,7 +763,6 @@ class CylindraMainWidget(MagicTemplate):
             if img.ndim != 3:
                 raise ValueError("Input image must be 3-D.")
             self.sta._show_rec(img, name=img.name)
-        return None
 
     @set_design(text=capitalize, location=_sw.FileMenu)
     @do_not_record
@@ -771,7 +774,6 @@ class CylindraMainWidget(MagicTemplate):
         """Save splines as a json file."""
         spl = self.tomogram.splines[spline]
         spl.to_json(save_path)
-        return None
 
     @do_not_record
     @set_design(text=capitalize, location=_sw.FileMenu)
