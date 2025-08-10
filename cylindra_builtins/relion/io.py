@@ -529,7 +529,7 @@ def _particles_to_molecules(
 
     if all(c in particles.columns for c in POS_ORIGIN_COLUMNS):
         for target, source in enumerate(POS_ORIGIN_COLUMNS):
-            pos[target] += particles[source] / 10
+            pos[:, target] += particles[source] / 10
         particles.drop(columns=POS_ORIGIN_COLUMNS, inplace=True)
 
     # TODO: should optics properties be included?
