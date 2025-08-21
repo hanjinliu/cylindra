@@ -643,8 +643,6 @@ class CylindraMainWidget(MagicTemplate):
             f"filter={str(filter)!r}, {read_image=}, {read_reference=}, "
             f"{update_config=})</code>"
         )
-        if project_path is not None:
-            self._project_dir = project_path
         yield from project._to_gui(
             self,
             filter=filter,
@@ -652,6 +650,8 @@ class CylindraMainWidget(MagicTemplate):
             read_reference=read_reference,
             update_config=update_config,
         )
+        if project_path is not None:
+            self._project_dir = project_path
         _Logger.print(f"Project loaded: {project_path.as_posix()}")
 
     @set_design(text=capitalize, location=_sw.FileMenu)
@@ -857,19 +857,32 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Z-project reference image", location=_sw.ImageMenu)
     @thread_worker.with_progress(desc="Projecting reference image")
     @do_not_record
-    def z_project_reference_image(self, method: Literal["max", "min", "mean"] = "max"):
+    def z_project_reference_image(
+        self,
+        method: Literal["max", "min", "mean"] = "max",
+        colormap: Literal["twilight", "cyan", "magenta", "gray"] = "twilight",
+        overlay: bool = True,
+    ):
         """Z-project the reference image and overlay it on the viewer.
 
         Parameters
         ----------
         method : str, default "max"
             Method to use for z-projection. Can be "max", "min" or "mean".
+        colormap : str, default "twilight"
+            Colormap to use for the projected image.
         """
         if self.tomogram.is_dummy:
             _Logger.print("No tomogram is loaded. Skip this operation.")
             return
         img_ref = self._reserved_layers.image_data
         img_proj = img_ref.proj(axis="z", method=method)
+        if overlay:
+            opacity = 0.5
+            blending = "additive"
+        else:
+            opacity = 1.0
+            blending = "translucent_no_depth"
 
         @thread_worker.callback
         def _z_project_on_return(img_proj):
@@ -878,9 +891,9 @@ class CylindraMainWidget(MagicTemplate):
                 name=f"Z-projection ({method})",
                 scale=self._reserved_layers.image.scale[-2:],
                 translate=self._reserved_layers.image.translate[-2:],
-                opacity=0.5,
-                colormap="twilight",
-                blending="additive",
+                opacity=opacity,
+                colormap=colormap,
+                blending=blending,
             )
             self._reserved_layers.to_be_removed.add(layer_proj)
 
