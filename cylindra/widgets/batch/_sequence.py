@@ -18,6 +18,7 @@ from magicclass import (
 )
 from magicclass.ext.polars import DataFrameView
 from magicclass.types import ExprStr, Path
+from magicclass.utils import thread_worker
 from magicclass.widgets import ConsoleTextEdit, EvalLineEdit
 from magicgui.types import Separator
 from magicgui.widgets import ComboBox, Container, Widget
@@ -146,12 +147,13 @@ class Project(MagicTemplate):
         del parent[idx]
 
     @set_design(text="Open", location=Header)
+    @thread_worker
     def send_to_viewer(self):
         """Send this project to the viewer."""
         from cylindra.core import instance
 
         if ui := instance():
-            ui.load_project(self.path, filter=None)
+            yield from ui.load_project.arun(self.path, filter=None)
         else:
             raise ValueError("No Cylindra widget found!")
 
@@ -203,12 +205,9 @@ class Project(MagicTemplate):
             self.molecules._add_path(info.name)
 
         # collapse empty lists
-        if len(self.splines) == 0:
-            self.splines.collapsed = True
-        if len(self.molecules) == 0:
-            self.molecules.collapsed = True
-        if len(self.splines) == 0 and len(self.molecules) == 0:
-            self.Components.collapsed = True
+        self.splines.collapsed = len(self.splines) == 0
+        self.molecules.collapsed = len(self.molecules) == 0
+        self.Components.collapsed = self.splines.collapsed and self.molecules.collapsed
 
     @nogui
     @do_not_record

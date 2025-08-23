@@ -27,6 +27,7 @@ from magicclass.types import Optional, Path
 from magicclass.undo import undo_callback
 from magicclass.utils import thread_worker
 from napari.layers import Layer
+from napari.utils.notifications import show_info as _napari_show_info
 
 from cylindra import _config, _shared_doc, cylfilters, cylmeasure, utils, widget_utils
 from cylindra._napari import InteractionVector, LandscapeSurface, MoleculesLayer
@@ -642,8 +643,6 @@ class CylindraMainWidget(MagicTemplate):
             f"filter={str(filter)!r}, {read_image=}, {read_reference=}, "
             f"{update_config=})</code>"
         )
-        if project_path is not None:
-            self._project_dir = project_path
         yield from project._to_gui(
             self,
             filter=filter,
@@ -651,6 +650,8 @@ class CylindraMainWidget(MagicTemplate):
             read_reference=read_reference,
             update_config=update_config,
         )
+        if project_path is not None:
+            self._project_dir = project_path
         _Logger.print(f"Project loaded: {project_path.as_posix()}")
 
     @set_design(text=capitalize, location=_sw.FileMenu)
@@ -697,6 +698,11 @@ class CylindraMainWidget(MagicTemplate):
                 if self._project_dir and Path(proj.path).samefile(self._project_dir):
                     proj._update_from_project()
 
+        # if the drawing layer has non-registered points, notify the user
+        if self._reserved_layers.work.data.size > 0:
+            _name = self._reserved_layers.work.name
+            _napari_show_info(f"Points in the {_name!r} is not registered yet.")
+
     @set_design(text=capitalize, location=_sw.FileMenu)
     @do_not_record
     @bind_key("Ctrl+K, Ctrl+Shift+S")
@@ -738,7 +744,6 @@ class CylindraMainWidget(MagicTemplate):
         self.tomogram.splines.extend(splines)
         self._update_splines_in_images()
         self.reset_choices()
-        return None
 
     @set_design(text=capitalize, location=_sw.FileMenu)
     def load_molecules(self, paths: Path.Multiple[FileFilter.MOLE]):
@@ -749,7 +754,6 @@ class CylindraMainWidget(MagicTemplate):
         for mole, path in zip(moles, paths, strict=False):
             name = Path(path).stem
             add_molecules(self.parent_viewer, mole, name)
-        return None
 
     @set_design(text=capitalize, location=_sw.FileMenu)
     def load_volumes(self, paths: Path.Multiple[FileFilter.IMAGE]):
@@ -759,7 +763,6 @@ class CylindraMainWidget(MagicTemplate):
             if img.ndim != 3:
                 raise ValueError("Input image must be 3-D.")
             self.sta._show_rec(img, name=img.name)
-        return None
 
     @set_design(text=capitalize, location=_sw.FileMenu)
     @do_not_record
@@ -771,7 +774,6 @@ class CylindraMainWidget(MagicTemplate):
         """Save splines as a json file."""
         spl = self.tomogram.splines[spline]
         spl.to_json(save_path)
-        return None
 
     @do_not_record
     @set_design(text=capitalize, location=_sw.FileMenu)
@@ -827,10 +829,9 @@ class CylindraMainWidget(MagicTemplate):
         method: ImageFilter = ImageFilter.Lowpass,
     ):  # fmt: skip
         """Apply filter to enhance contrast of the reference image."""
-        method = ImageFilter(method)
-        if self.tomogram.is_dummy:
-            _Logger.print("No tomogram is loaded. Skip this opperation.")
+        if _is_dummy_tomogram(self):
             return
+        method = ImageFilter(method)
         t0 = timer()
         with utils.set_gpu():
             img = self._reserved_layers.image_data
@@ -855,16 +856,28 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Z-project reference image", location=_sw.ImageMenu)
     @thread_worker.with_progress(desc="Projecting reference image")
     @do_not_record
-    def z_project_reference_image(self, method: Literal["max", "min", "mean"] = "max"):
+    def z_project_reference_image(
+        self,
+        method: Literal["max", "min", "mean"] = "max",
+        colormap: Literal["twilight", "cyan", "magenta", "gray"] = "twilight",
+        overlay: bool = True,
+    ):
         """Z-project the reference image and overlay it on the viewer.
+
+        This method is useful to visualize the overall distribution of specific features
+        in the tomogram during particle picking.
 
         Parameters
         ----------
         method : str, default "max"
             Method to use for z-projection. Can be "max", "min" or "mean".
+        colormap : str, default "twilight"
+            Colormap to use for the projected image.
+        overlay : bool, default True
+            If true, the new image layer will be setup to be overlayed on the
+            tomogram.
         """
-        if self.tomogram.is_dummy:
-            _Logger.print("No tomogram is loaded. Skip this operation.")
+        if _is_dummy_tomogram(self):
             return
         img_ref = self._reserved_layers.image_data
         img_proj = img_ref.proj(axis="z", method=method)
@@ -876,9 +889,9 @@ class CylindraMainWidget(MagicTemplate):
                 name=f"Z-projection ({method})",
                 scale=self._reserved_layers.image.scale[-2:],
                 translate=self._reserved_layers.image.translate[-2:],
-                opacity=0.5,
-                colormap="twilight",
-                blending="additive",
+                opacity=0.5 if overlay else 1.0,
+                colormap=colormap,
+                blending="additive" if overlay else "translucent_no_depth",
             )
             self._reserved_layers.to_be_removed.add(layer_proj)
 
@@ -915,8 +928,7 @@ class CylindraMainWidget(MagicTemplate):
         phase_flipped : bool, default True
             If the tomogram is reconstructed from phase-flipped tilt series, check this.
         """
-        if self.tomogram.is_dummy:
-            _Logger.print("No tomogram is loaded. Skip deconvolution.")
+        if _is_dummy_tomogram(self):
             return
         t0 = timer()
         ctf = CTFModel.from_kv(kv, cs, defocus=defocus, bfactor=bfactor)
@@ -3580,3 +3592,10 @@ def _assert_source_spline_exists(layer: MoleculesLayer) -> "CylSpline":
     if (spl := layer.source_spline) is None:
         raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
     return spl
+
+
+def _is_dummy_tomogram(ui: "CylindraMainWidget") -> bool:
+    if ui.tomogram.is_dummy:
+        _Logger.print("No tomogram is loaded. Skip this operation.")
+        return True
+    return False
