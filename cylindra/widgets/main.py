@@ -829,10 +829,9 @@ class CylindraMainWidget(MagicTemplate):
         method: ImageFilter = ImageFilter.Lowpass,
     ):  # fmt: skip
         """Apply filter to enhance contrast of the reference image."""
-        method = ImageFilter(method)
-        if self.tomogram.is_dummy:
-            _Logger.print("No tomogram is loaded. Skip this opperation.")
+        if _is_dummy_tomogram(self):
             return
+        method = ImageFilter(method)
         t0 = timer()
         with utils.set_gpu():
             img = self._reserved_layers.image_data
@@ -865,24 +864,23 @@ class CylindraMainWidget(MagicTemplate):
     ):
         """Z-project the reference image and overlay it on the viewer.
 
+        This method is useful to visualize the overall distribution of specific features
+        in the tomogram during particle picking.
+
         Parameters
         ----------
         method : str, default "max"
             Method to use for z-projection. Can be "max", "min" or "mean".
         colormap : str, default "twilight"
             Colormap to use for the projected image.
+        overlay : bool, default True
+            If true, the new image layer will be setup to be overlayed on the
+            tomogram.
         """
-        if self.tomogram.is_dummy:
-            _Logger.print("No tomogram is loaded. Skip this operation.")
+        if _is_dummy_tomogram(self):
             return
         img_ref = self._reserved_layers.image_data
         img_proj = img_ref.proj(axis="z", method=method)
-        if overlay:
-            opacity = 0.5
-            blending = "additive"
-        else:
-            opacity = 1.0
-            blending = "translucent_no_depth"
 
         @thread_worker.callback
         def _z_project_on_return(img_proj):
@@ -891,9 +889,9 @@ class CylindraMainWidget(MagicTemplate):
                 name=f"Z-projection ({method})",
                 scale=self._reserved_layers.image.scale[-2:],
                 translate=self._reserved_layers.image.translate[-2:],
-                opacity=opacity,
+                opacity=0.5 if overlay else 1.0,
                 colormap=colormap,
-                blending=blending,
+                blending="additive" if overlay else "translucent_no_depth",
             )
             self._reserved_layers.to_be_removed.add(layer_proj)
 
@@ -930,8 +928,7 @@ class CylindraMainWidget(MagicTemplate):
         phase_flipped : bool, default True
             If the tomogram is reconstructed from phase-flipped tilt series, check this.
         """
-        if self.tomogram.is_dummy:
-            _Logger.print("No tomogram is loaded. Skip deconvolution.")
+        if _is_dummy_tomogram(self):
             return
         t0 = timer()
         ctf = CTFModel.from_kv(kv, cs, defocus=defocus, bfactor=bfactor)
@@ -3595,3 +3592,10 @@ def _assert_source_spline_exists(layer: MoleculesLayer) -> "CylSpline":
     if (spl := layer.source_spline) is None:
         raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
     return spl
+
+
+def _is_dummy_tomogram(ui: "CylindraMainWidget") -> bool:
+    if ui.tomogram.is_dummy:
+        _Logger.print("No tomogram is loaded. Skip this operation.")
+        return True
+    return False
