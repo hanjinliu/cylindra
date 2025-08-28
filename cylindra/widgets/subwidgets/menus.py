@@ -1172,7 +1172,7 @@ class OthersMenu(ChildWidget):
         use_gpu : bool, optional
             (currently does no effect)
         tomogram_cache_dir : Path, optional
-            Directory to store cached tomogram files.
+            Directory to store cached tomogram files (the scratch directory).
         """
         if not isinstance(molecules_color, str):
             molecules_color = str_color(molecules_color)
@@ -1187,7 +1187,6 @@ class OthersMenu(ChildWidget):
         cfg.default_dask_n_workers = default_dask_n_workers
         cfg.use_gpu = use_gpu
         cfg.tomogram_cache_dir = Path(tomogram_cache_dir).as_posix()
-        return None
 
     @set_design(text=capitalize, location=Help)
     @do_not_record
