@@ -105,6 +105,7 @@ _TOMOGRAM_CACHES: list[Path] = []
 
 
 def cache_tomogram(path: Path) -> Path:
+    """Cache tomogram from the given path to the cache directory."""
     if not path.exists():
         raise FileNotFoundError(f"File not found: {path}")
     cache_dir = Path(get_config().tomogram_cache_dir)
