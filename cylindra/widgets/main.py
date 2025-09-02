@@ -2839,6 +2839,7 @@ class CylindraMainWidget(MagicTemplate):
                 for i, c in enumerate(spl.props.loc.columns)
             ]
         )
+        self.reset_choices()  # choices regarding of features need update
         return undo_callback(layer.feature_setter(feat, layer.colormap_info))
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
@@ -2969,6 +2970,7 @@ class CylindraMainWidget(MagicTemplate):
         dist = utils.distance_matrix(layer.molecules.pos, sample_points)
         dist_min = pl.Series(column_name, np.min(dist, axis=1))
         layer.molecules = layer.molecules.with_features(dist_min)
+        self.reset_choices()  # choices regarding of features need update
         return undo_callback(layer.feature_setter(feat, cmap_info))
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
@@ -2993,6 +2995,7 @@ class CylindraMainWidget(MagicTemplate):
         net = InterMoleculeNet.from_molecules_closest(layer.molecules, other_moles)
         dist = net.distances()
         layer.molecules = layer.molecules.with_features(pl.Series(column_name, dist))
+        self.reset_choices()  # choices regarding of features need update
         return undo_callback(layer.feature_setter(feat, cmap_info))
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
@@ -3067,6 +3070,7 @@ class CylindraMainWidget(MagicTemplate):
         label_max = int(out.max())
         cmap = label_colormap(label_max, seed=0.9414)
         layer.set_colormap(feature_name, (0, label_max), cmap)
+        self.reset_choices()  # choices regarding of features need update
         return undo_callback(layer.feature_setter(feat, cmap_info))
 
     @set_design(text="Analyze region properties", location=_sw.MoleculesMenu.Features)
@@ -3105,6 +3109,7 @@ class CylindraMainWidget(MagicTemplate):
         view = DataFrameView(value=df)
         dock = self.parent_viewer.window.add_dock_widget(view, name="Region properties")
         dock.setFloating(True)
+        self.reset_choices()  # choices regarding of features need update
         return undo_callback(dock.close).with_redo(dock.show)
 
     @set_design(text="Update pixel scale", location=_sw.ImageMenu)

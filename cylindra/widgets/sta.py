@@ -2178,7 +2178,8 @@ class SubtomogramAveraging(ChildWidget):
         by : str
             Name of the feature that will be used for seam search.
         """
-        layer = assert_layer(layer, self.parent_viewer)
+        ui = self._get_main()
+        layer = assert_layer(layer, ui.parent_viewer)
         feat = layer.molecules.features
         if by not in feat.columns:
             raise ValueError(f"Column {by} does not exist.")
@@ -2187,6 +2188,7 @@ class SubtomogramAveraging(ChildWidget):
         result = seam_searcher.search(feat[by])
         new_feat = result.as_series(feat.shape[0])
         layer.features = layer.molecules.features.with_columns(new_feat)
+        ui.reset_choices()  # choices regarding of features need update
         return undo_callback(layer.feature_setter(feat, layer.colormap_info))
 
     @set_design(text=capitalize, location=STAnalysis.SeamSearch)
@@ -2205,13 +2207,15 @@ class SubtomogramAveraging(ChildWidget):
         location : int
             Seam location.
         """
-        layer = assert_layer(layer, self.parent_viewer)
+        ui = self._get_main()
+        layer = assert_layer(layer, ui.parent_viewer)
         feat = layer.molecules.features
         npf = utils.roundint(layer.molecules.features[Mole.pf].max() + 1)
         seam_searcher = ManualSeamSearcher(npf)
         result = seam_searcher.search(location)
         new_feat = result.as_series(feat.shape[0])
         layer.features = layer.molecules.features.with_columns(new_feat)
+        ui.reset_choices()  # choices regarding of features need update
         return undo_callback(layer.feature_setter(feat, layer.colormap_info))
 
     def _seam_search_input(
