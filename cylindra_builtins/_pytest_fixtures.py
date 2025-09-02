@@ -2,6 +2,7 @@ import sys
 from contextlib import suppress
 
 import pytest
+from qtpy import QtWidgets as QtW
 
 
 @pytest.fixture
@@ -18,6 +19,9 @@ def ui(make_napari_viewer, request: "pytest.FixtureRequest"):
     yield _ui
 
     _ui._disconnect_layerlist_events()
+    QtW.QApplication.processEvents()
+    QtW.QApplication.processEvents()
+
     dock_widgets = list(viewer.window.dock_widgets.values())
     for dock in dock_widgets:
         dock.close()
@@ -34,7 +38,8 @@ def ui(make_napari_viewer, request: "pytest.FixtureRequest"):
         with suppress(RuntimeError):
             sv.close()
         StaParameters._viewer = None
-    viewer.close()
+    if request.config.getoption("--show-viewer", default=None):
+        viewer.close()
 
 
 @pytest.fixture
