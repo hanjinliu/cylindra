@@ -1,4 +1,4 @@
-[![BSD 3-Clause License](https://img.shields.io/pypi/l/cylindra.svg?color=green)](https://github.com/hanjinliu/cylindra/blob/main/LICENSE)
+[![BSD-3-Clause License](https://img.shields.io/pypi/l/cylindra.svg?color=green)](https://github.com/hanjinliu/cylindra/blob/main/LICENSE)
 [![Python package index download statistics](https://img.shields.io/pypi/dm/cylindra.svg)](https://pypistats.org/packages/cylindra)
 [![PyPI version](https://badge.fury.io/py/cylindra.svg)](https://badge.fury.io/py/cylindra)
 [![codecov](https://codecov.io/gh/hanjinliu/cylindra/graph/badge.svg?token=X1F259JYT5)](https://codecov.io/gh/hanjinliu/cylindra)

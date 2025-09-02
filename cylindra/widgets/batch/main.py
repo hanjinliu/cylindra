@@ -34,7 +34,7 @@ from cylindra.widgets.subwidgets.misc import TiltModelEdit
     widget_type="split",
     layout="horizontal",
     name="Batch Analysis",
-    properties={"min_height": 400},
+    properties={"min_height": 360},
     symbol=Expr("getattr", [Symbol("ui"), "batch"]),
 )
 class CylindraBatchWidget(MagicTemplate):
@@ -52,6 +52,7 @@ class CylindraBatchWidget(MagicTemplate):
         self.native.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
         )
+        self.sta.visible = False
 
     def _get_loader_paths(self, *_) -> list[PathInfo]:
         return [prj._get_loader_paths() for prj in self.constructor.projects]
@@ -196,8 +197,7 @@ class CylindraBatchWidget(MagicTemplate):
         name: str = "Loader",
         scale: Annotated[float | None, {"bind": _get_constructor_scale}] = None,
     ):  # fmt: skip
-        """
-        Construct a batch loader object from the given paths and predicate.
+        """Construct a batch loader object from the given paths and predicate.
 
         Parameters
         ----------
@@ -292,7 +292,6 @@ class CylindraBatchWidget(MagicTemplate):
         self.constructor.add_projects(project_paths, clear=True)
         self.constructor.select_molecules_by_pattern(mole_pattern)
         self.construct_loader(self._get_loader_paths(), predicate=predicate, name=name)
-        return None
 
     def _add_loader(
         self,
@@ -302,6 +301,7 @@ class CylindraBatchWidget(MagicTemplate):
         invert: dict[int, bool],
     ):
         self._loaders.append(LoaderInfo(loader, name, image_paths, invert))
+        self.sta.visible = True
         try:
             self.sta["loader_name"].value = self.sta["loader_name"].choices[-1]
         except Exception:
@@ -317,7 +317,6 @@ class CylindraBatchWidget(MagicTemplate):
         assert ui is not None
         macro_str = self.macro.widget.textedit.value
         ui.OthersMenu.Macro._get_macro_window(macro_str, "Batch")
-        return None
 
     @set_design(text=capitalize, location=ProjectSequenceEdit.MacroMenu)
     @do_not_record
@@ -325,15 +324,13 @@ class CylindraBatchWidget(MagicTemplate):
         """Show the native macro widget of the batch analyzer."""
         self.macro.widget.show()
         ACTIVE_WIDGETS.add(self.macro.widget)
-        return None
 
     @set_design(text="Load batch analysis project", location=ProjectSequenceEdit.File)
     @confirm(
         text="Are you sure to clear all loaders?", condition="len(self._loaders) > 0"
     )
     def load_batch_project(self, path: Path.Read[FileFilter.PROJECT]):
-        """
-        Load a batch project from a JSON file.
+        """Load a batch project from a JSON file.
 
         Parameters
         ----------
@@ -352,8 +349,7 @@ class CylindraBatchWidget(MagicTemplate):
         save_path: Path.Save,
         molecules_ext: Literal[".csv", ".parquet"] = ".csv",
     ):
-        """
-        Save the GUI state to a JSON file.
+        """Save the GUI state to a JSON file.
 
         Parameters
         ----------
