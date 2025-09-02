@@ -4739,7 +4739,11 @@
 <span class="normal">2421</span>
 <span class="normal">2422</span>
 <span class="normal">2423</span>
-<span class="normal">2424</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">widget_type</span><span class="o">=</span><span class="s2">&quot;scrollable&quot;</span><span class="p">,</span> <span class="n">use_native_menubar</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="normal">2424</span>
+<span class="normal">2425</span>
+<span class="normal">2426</span>
+<span class="normal">2427</span>
+<span class="normal">2428</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">widget_type</span><span class="o">=</span><span class="s2">&quot;scrollable&quot;</span><span class="p">,</span> <span class="n">use_native_menubar</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="nd">@_shared_doc</span><span class="o">.</span><span class="n">update_cls</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">SubtomogramAveraging</span><span class="p">(</span><span class="n">ChildWidget</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Widget for subtomogram averaging.&quot;&quot;&quot;</span>
@@ -6370,7 +6374,8 @@
 <span class="sd">        by : str</span>
 <span class="sd">            Name of the feature that will be used for seam search.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">layer</span> <span class="o">=</span> <span class="n">assert_layer</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
+        <span class="n">ui</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_main</span><span class="p">()</span>
+        <span class="n">layer</span> <span class="o">=</span> <span class="n">assert_layer</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">ui</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
         <span class="n">feat</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span>
         <span class="k">if</span> <span class="n">by</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">feat</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Column </span><span class="si">{</span><span class="n">by</span><span class="si">}</span><span class="s2"> does not exist.&quot;</span><span class="p">)</span>
@@ -6379,6 +6384,7 @@
         <span class="n">result</span> <span class="o">=</span> <span class="n">seam_searcher</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">feat</span><span class="p">[</span><span class="n">by</span><span class="p">])</span>
         <span class="n">new_feat</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">as_series</span><span class="p">(</span><span class="n">feat</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
         <span class="n">layer</span><span class="o">.</span><span class="n">features</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">with_columns</span><span class="p">(</span><span class="n">new_feat</span><span class="p">)</span>
+        <span class="n">ui</span><span class="o">.</span><span class="n">reset_choices</span><span class="p">()</span>  <span class="c1"># choices regarding of features need update</span>
         <span class="k">return</span> <span class="n">undo_callback</span><span class="p">(</span><span class="n">layer</span><span class="o">.</span><span class="n">feature_setter</span><span class="p">(</span><span class="n">feat</span><span class="p">,</span> <span class="n">layer</span><span class="o">.</span><span class="n">colormap_info</span><span class="p">))</span>
 
     <span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
@@ -6397,13 +6403,15 @@
 <span class="sd">        location : int</span>
 <span class="sd">            Seam location.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">layer</span> <span class="o">=</span> <span class="n">assert_layer</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
+        <span class="n">ui</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_main</span><span class="p">()</span>
+        <span class="n">layer</span> <span class="o">=</span> <span class="n">assert_layer</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">ui</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
         <span class="n">feat</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span>
         <span class="n">npf</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">roundint</span><span class="p">(</span><span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span><span class="p">[</span><span class="n">Mole</span><span class="o">.</span><span class="n">pf</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
         <span class="n">seam_searcher</span> <span class="o">=</span> <span class="n">ManualSeamSearcher</span><span class="p">(</span><span class="n">npf</span><span class="p">)</span>
         <span class="n">result</span> <span class="o">=</span> <span class="n">seam_searcher</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">location</span><span class="p">)</span>
         <span class="n">new_feat</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">as_series</span><span class="p">(</span><span class="n">feat</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
         <span class="n">layer</span><span class="o">.</span><span class="n">features</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">with_columns</span><span class="p">(</span><span class="n">new_feat</span><span class="p">)</span>
+        <span class="n">ui</span><span class="o">.</span><span class="n">reset_choices</span><span class="p">()</span>  <span class="c1"># choices regarding of features need update</span>
         <span class="k">return</span> <span class="n">undo_callback</span><span class="p">(</span><span class="n">layer</span><span class="o">.</span><span class="n">feature_setter</span><span class="p">(</span><span class="n">feat</span><span class="p">,</span> <span class="n">layer</span><span class="o">.</span><span class="n">colormap_info</span><span class="p">))</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_seam_search_input</span><span class="p">(</span>
@@ -12166,11 +12174,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2319</span>
-<span class="normal">2320</span>
-<span class="normal">2321</span>
-<span class="normal">2322</span>
-<span class="normal">2323</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2323</span>
 <span class="normal">2324</span>
 <span class="normal">2325</span>
 <span class="normal">2326</span>
@@ -12189,7 +12193,11 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">2339</span>
 <span class="normal">2340</span>
 <span class="normal">2341</span>
-<span class="normal">2342</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+<span class="normal">2342</span>
+<span class="normal">2343</span>
+<span class="normal">2344</span>
+<span class="normal">2345</span>
+<span class="normal">2346</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">get_mask</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -12337,11 +12345,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2344</span>
-<span class="normal">2345</span>
-<span class="normal">2346</span>
-<span class="normal">2347</span>
-<span class="normal">2348</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2348</span>
 <span class="normal">2349</span>
 <span class="normal">2350</span>
 <span class="normal">2351</span>
@@ -12370,7 +12374,11 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">2374</span>
 <span class="normal">2375</span>
 <span class="normal">2376</span>
-<span class="normal">2377</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+<span class="normal">2377</span>
+<span class="normal">2378</span>
+<span class="normal">2379</span>
+<span class="normal">2380</span>
+<span class="normal">2381</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">get_subtomograms</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -12426,16 +12434,16 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2308</span>
-<span class="normal">2309</span>
-<span class="normal">2310</span>
-<span class="normal">2311</span>
-<span class="normal">2312</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2312</span>
 <span class="normal">2313</span>
 <span class="normal">2314</span>
 <span class="normal">2315</span>
 <span class="normal">2316</span>
-<span class="normal">2317</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+<span class="normal">2317</span>
+<span class="normal">2318</span>
+<span class="normal">2319</span>
+<span class="normal">2320</span>
+<span class="normal">2321</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">get_template</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">template_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">,</span> <span class="n">scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
@@ -13355,16 +13363,16 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2227</span>
-<span class="normal">2228</span>
-<span class="normal">2229</span>
-<span class="normal">2230</span>
-<span class="normal">2231</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2231</span>
 <span class="normal">2232</span>
 <span class="normal">2233</span>
 <span class="normal">2234</span>
 <span class="normal">2235</span>
-<span class="normal">2236</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Save last average&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
+<span class="normal">2236</span>
+<span class="normal">2237</span>
+<span class="normal">2238</span>
+<span class="normal">2239</span>
+<span class="normal">2240</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Save last average&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">save_last_average</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Save</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">IMAGE</span><span class="p">]):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Save the lastly generated average image.&quot;&quot;&quot;</span>
     <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
@@ -13803,7 +13811,9 @@ corresponding spline will be used.</p>
 <span class="normal">2187</span>
 <span class="normal">2188</span>
 <span class="normal">2189</span>
-<span class="normal">2190</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
+<span class="normal">2190</span>
+<span class="normal">2191</span>
+<span class="normal">2192</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">seam_search_by_feature</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
@@ -13817,7 +13827,8 @@ corresponding spline will be used.</p>
 <span class="sd">    by : str</span>
 <span class="sd">        Name of the feature that will be used for seam search.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">layer</span> <span class="o">=</span> <span class="n">assert_layer</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
+    <span class="n">ui</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_main</span><span class="p">()</span>
+    <span class="n">layer</span> <span class="o">=</span> <span class="n">assert_layer</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">ui</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
     <span class="n">feat</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span>
     <span class="k">if</span> <span class="n">by</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">feat</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Column </span><span class="si">{</span><span class="n">by</span><span class="si">}</span><span class="s2"> does not exist.&quot;</span><span class="p">)</span>
@@ -13826,6 +13837,7 @@ corresponding spline will be used.</p>
     <span class="n">result</span> <span class="o">=</span> <span class="n">seam_searcher</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">feat</span><span class="p">[</span><span class="n">by</span><span class="p">])</span>
     <span class="n">new_feat</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">as_series</span><span class="p">(</span><span class="n">feat</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
     <span class="n">layer</span><span class="o">.</span><span class="n">features</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">with_columns</span><span class="p">(</span><span class="n">new_feat</span><span class="p">)</span>
+    <span class="n">ui</span><span class="o">.</span><span class="n">reset_choices</span><span class="p">()</span>  <span class="c1"># choices regarding of features need update</span>
     <span class="k">return</span> <span class="n">undo_callback</span><span class="p">(</span><span class="n">layer</span><span class="o">.</span><span class="n">feature_setter</span><span class="p">(</span><span class="n">feat</span><span class="p">,</span> <span class="n">layer</span><span class="o">.</span><span class="n">colormap_info</span><span class="p">))</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -13897,9 +13909,7 @@ corresponding spline will be used.</p>
 
             <details class="quote">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2192</span>
-<span class="normal">2193</span>
-<span class="normal">2194</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2194</span>
 <span class="normal">2195</span>
 <span class="normal">2196</span>
 <span class="normal">2197</span>
@@ -13920,7 +13930,11 @@ corresponding spline will be used.</p>
 <span class="normal">2212</span>
 <span class="normal">2213</span>
 <span class="normal">2214</span>
-<span class="normal">2215</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
+<span class="normal">2215</span>
+<span class="normal">2216</span>
+<span class="normal">2217</span>
+<span class="normal">2218</span>
+<span class="normal">2219</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">seam_search_manually</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
@@ -13936,13 +13950,15 @@ corresponding spline will be used.</p>
 <span class="sd">    location : int</span>
 <span class="sd">        Seam location.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">layer</span> <span class="o">=</span> <span class="n">assert_layer</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
+    <span class="n">ui</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_main</span><span class="p">()</span>
+    <span class="n">layer</span> <span class="o">=</span> <span class="n">assert_layer</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">ui</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
     <span class="n">feat</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span>
     <span class="n">npf</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">roundint</span><span class="p">(</span><span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span><span class="p">[</span><span class="n">Mole</span><span class="o">.</span><span class="n">pf</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
     <span class="n">seam_searcher</span> <span class="o">=</span> <span class="n">ManualSeamSearcher</span><span class="p">(</span><span class="n">npf</span><span class="p">)</span>
     <span class="n">result</span> <span class="o">=</span> <span class="n">seam_searcher</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">location</span><span class="p">)</span>
     <span class="n">new_feat</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">as_series</span><span class="p">(</span><span class="n">feat</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
     <span class="n">layer</span><span class="o">.</span><span class="n">features</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">with_columns</span><span class="p">(</span><span class="n">new_feat</span><span class="p">)</span>
+    <span class="n">ui</span><span class="o">.</span><span class="n">reset_choices</span><span class="p">()</span>  <span class="c1"># choices regarding of features need update</span>
     <span class="k">return</span> <span class="n">undo_callback</span><span class="p">(</span><span class="n">layer</span><span class="o">.</span><span class="n">feature_setter</span><span class="p">(</span><span class="n">feat</span><span class="p">,</span> <span class="n">layer</span><span class="o">.</span><span class="n">colormap_info</span><span class="p">))</span>
 </code></pre></div></td></tr></table></div>
             </details>
