@@ -38,7 +38,8 @@ def ui(make_napari_viewer, request: "pytest.FixtureRequest"):
         with suppress(RuntimeError):
             sv.close()
         StaParameters._viewer = None
-    viewer.close()
+    if request.config.getoption("--show-viewer", default=None):
+        viewer.close()
 
 
 @pytest.fixture
