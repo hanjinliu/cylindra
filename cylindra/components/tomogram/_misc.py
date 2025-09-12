@@ -5,8 +5,10 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Concatenate,
     Iterable,
     Literal,
+    ParamSpec,
     Protocol,
     Sequence,
     TypeVar,
@@ -22,7 +24,6 @@ from numpy.typing import NDArray
 from scipy import ndimage as ndi
 from scipy.fft import fft2, ifft2
 from scipy.spatial.transform import Rotation
-from typing_extensions import Concatenate, ParamSpec
 
 from cylindra._dask import compute, delayed
 from cylindra.const import Mode, nm
@@ -51,21 +52,17 @@ class BatchCallable(Protocol[_P, _R]):
     @overload
     def __call__(
         self, i: Literal[None], *args: _P.args, **kwargs: _P.kwargs
-    ) -> list[_R]:
-        ...
+    ) -> list[_R]: ...
 
     @overload
-    def __call__(self, i: int, *args: _P.args, **kwargs: _P.kwargs) -> _R:
-        ...
+    def __call__(self, i: int, *args: _P.args, **kwargs: _P.kwargs) -> _R: ...
 
     @overload
     def __call__(
         self, i: Iterable[int] | None, *args: _P.args, **kwargs: _P.kwargs
-    ) -> list[_R]:
-        ...
+    ) -> list[_R]: ...
 
-    def __call__(self, i, *args, **kwargs):
-        ...  # pragma: no cover
+    def __call__(self, i, *args, **kwargs): ...  # pragma: no cover
 
 
 def batch_process(

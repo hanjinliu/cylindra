@@ -9,6 +9,7 @@ from typing import (
     Generic,
     Iterator,
     MutableSequence,
+    Self,
     TypeVar,
 )
 
@@ -20,7 +21,6 @@ from cylindra.types import MoleculesLayer
 if TYPE_CHECKING:
     from acryo import Molecules
     from magicclass import MagicTemplate
-    from typing_extensions import Self
 
     from cylindra.widgets.batch import CylindraBatchWidget  # noqa: F401
     from cylindra.widgets.batch._utils import LoaderInfo

@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import math as m
 from dataclasses import dataclass
-from typing import Literal
-
-from typing_extensions import TypeGuard
+from typing import Literal, TypeGuard
 
 from cylindra.utils import roundint
 

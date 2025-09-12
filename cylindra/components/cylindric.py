@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple, Self
 
 import numpy as np
 import polars as pl
@@ -12,9 +12,7 @@ from cylindra._cylindra_ext import cylinder_faces
 from cylindra.const import MoleculesHeader as Mole
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
-
-    from .spline import Spline
+    from cylindra.components import Spline
 
 
 class CylindricSlice(NamedTuple):
