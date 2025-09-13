@@ -2694,7 +2694,8 @@ it will be automatically created in the RELION job directory.</p>
 <span class="normal">396</span>
 <span class="normal">397</span>
 <span class="normal">398</span>
-<span class="normal">399</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Open RELION job&quot;</span><span class="p">)</span>
+<span class="normal">399</span>
+<span class="normal">400</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Open RELION job&quot;</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">open_relion_job</span><span class="p">(</span>
     <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span>
     <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Read</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">STAR_JOB</span><span class="p">],</span>
@@ -2759,6 +2760,7 @@ it will be automatically created in the RELION job directory.</p>
         <span class="n">paths</span><span class="p">,</span> <span class="n">scales</span><span class="p">,</span> <span class="n">moles</span> <span class="o">=</span> <span class="n">_parse_optimisation_star</span><span class="p">(</span><span class="n">opt_star_path</span><span class="p">,</span> <span class="n">rln_project_path</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Job </span><span class="si">{</span><span class="n">job_dir_path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> is not a supported RELION job.&quot;</span><span class="p">)</span>
+    <span class="c1"># TODO: parse tilt angles</span>
     <span class="n">ui</span><span class="o">.</span><span class="n">batch</span><span class="o">.</span><span class="n">_new_projects_from_table</span><span class="p">(</span>
         <span class="n">paths</span><span class="p">,</span>
         <span class="n">save_root</span><span class="o">=</span><span class="n">project_root</span><span class="p">,</span>
