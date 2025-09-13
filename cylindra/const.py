@@ -113,6 +113,7 @@ class FileFilter(SimpleNamespace):
     STAR = "STAR files (*.star);;All files (*)"
     STAR_JOB = "RELION job files (job.star);;All files (*)"
     PDB = "PDB files (*.pdb);;All files (*)"
+    EDF = "IMOD project file (*.edf);;All files (*)"
 
 
 class Mode(SimpleNamespace):

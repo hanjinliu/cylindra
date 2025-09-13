@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import impy as ip
+
 from cylindra.utils._test_utils import (
     PROJECT_DIR_13PF,
     PROJECT_DIR_14PF,
@@ -35,3 +37,21 @@ def test_load_and_save_mod_files(ui: CylindraMainWidget, tmpdir):
         paths=[PROJECT_DIR_13PF, PROJECT_DIR_14PF],
     )
     imod.export_project_batch(ui, tmpdir, ui.batch._get_loader_paths())
+
+
+def test_import_project(ui: CylindraMainWidget, tmpdir):
+    tmpdir = Path(tmpdir)
+    root = Path(__file__).parent / "imod_test_projects"
+    path1 = root / "position_1" / "position_1_rec.mrc"
+    path2 = root / "position_2" / "position_2.rec"  # old version
+    ip.imread(TEST_DIR / "13pf_MT.tif").imsave(path1)
+    ip.imread(TEST_DIR / "14pf_MT.tif").imsave(path2)
+    try:
+        imod.open_image_from_imod_project(ui, root / "position_1" / "position_1.edf")
+        imod.import_imod_projects(
+            ui, root / "*/*.edf", project_root=tmpdir, scale_override=1.04
+        )
+        assert len(ui.batch.constructor.projects) == 2
+    finally:
+        path1.unlink(missing_ok=True)
+        path2.unlink(missing_ok=True)
