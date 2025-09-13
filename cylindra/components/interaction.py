@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 
 import numpy as np
 import polars as pl
@@ -12,8 +12,6 @@ from numpy.typing import NDArray
 from cylindra import utils
 
 if TYPE_CHECKING:
-    from typing import Self
-
     from cylindra.components import Spline
 
 

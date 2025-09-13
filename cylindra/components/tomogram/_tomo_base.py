@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterable, NamedTuple, overload
+from typing import TYPE_CHECKING, Any, Iterable, NamedTuple, Self, overload
 
 import impy as ip
 import numpy as np
@@ -16,7 +16,6 @@ from cylindra.utils import parse_tilt_model
 
 if TYPE_CHECKING:
     from acryo import Molecules, SubtomogramLoader
-    from typing_extensions import Self
 
 
 class Tomogram:

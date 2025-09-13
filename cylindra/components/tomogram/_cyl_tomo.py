@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, Self
 
 import impy as ip
 import numpy as np
@@ -30,8 +30,6 @@ from cylindra.utils import (
 )
 
 if TYPE_CHECKING:
-    from typing_extensions import Literal, Self
-
     from cylindra.components.cylindric import CylinderModel
     from cylindra.components.spline import SplineConfig
 

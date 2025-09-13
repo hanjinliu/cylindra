@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from types import MappingProxyType
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Iterable, Mapping, Self, Sequence
 
 import numpy as np
 import polars as pl
-from typing_extensions import Self
 
 from cylindra.const import nm
 from cylindra.utils import with_columns
@@ -135,7 +134,7 @@ class SplineProps:
         else:
             ws = _pos_float(window_size)
             self._window_size.update({c: ws for c in df.columns})
-        if isinstance(bin_size, (int, np.integer)):
+        if isinstance(bin_size, int | np.integer):
             for key in df.columns:
                 self._binsize_loc[key] = bin_size
         elif isinstance(bin_size, Mapping):
@@ -160,7 +159,7 @@ class SplineProps:
         if df.shape[0] > 1:
             raise ValueError("Global properties must be a single row.")
         self._glob = with_columns(self._glob, df)
-        if isinstance(bin_size, (int, np.integer)):
+        if isinstance(bin_size, int | np.integer):
             for key in df.columns:
                 self._binsize_glob[key] = bin_size
         elif isinstance(bin_size, Mapping):

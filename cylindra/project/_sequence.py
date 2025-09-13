@@ -13,6 +13,7 @@ from typing import (
     Literal,
     MutableSequence,
     NamedTuple,
+    Self,
     Sequence,
     SupportsIndex,
     TypeVar,
@@ -32,7 +33,6 @@ if TYPE_CHECKING:
     import numpy as np
     from acryo import BatchLoader, Molecules
     from numpy.typing import NDArray
-    from typing_extensions import Self
 
     from cylindra.components import CylSpline
 
@@ -97,12 +97,10 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         return f"{type(self).__name__} (empty)"
 
     @overload
-    def __getitem__(self, key: int) -> CylindraProject:
-        ...
+    def __getitem__(self, key: int) -> CylindraProject: ...
 
     @overload
-    def __getitem__(self, key: slice) -> ProjectSequence:
-        ...
+    def __getitem__(self, key: slice) -> ProjectSequence: ...
 
     def __getitem__(self, key: int):
         out = self._projects[key]

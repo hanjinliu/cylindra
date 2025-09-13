@@ -1,13 +1,13 @@
 """Filtering functions for cylindric structure, with `scipy.ndimage`-like API."""
+
 from __future__ import annotations
 
 import operator
-from typing import Any, Callable
+from typing import Any, Callable, Self
 
 import numpy as np
 import polars as pl
 from numpy.typing import ArrayLike, NDArray
-from typing_extensions import Self
 
 from cylindra._cylindra_ext import CylindricArray as _CylindricArray
 from cylindra.const import MoleculesHeader as Mole

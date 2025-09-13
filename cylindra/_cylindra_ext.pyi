@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from typing import Self
+
 import numpy as np
 from numpy.typing import NDArray
-from typing_extensions import Self
 
 class ViterbiGrid:
     def __init__(

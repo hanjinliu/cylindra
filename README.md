@@ -72,7 +72,7 @@ cylindra --help
 
 ## Prerequisite and Recommendations
 
-- **Python &ge; 3.10**. This project follows [spec-0000](https://scientific-python.org/specs/spec-0000/).
+- **Python &ge; 3.11**. This project follows [spec-0000](https://scientific-python.org/specs/spec-0000/).
 - **Sufficient memory size**. Most of the intense calculations are done out-of-core
   using `dask`, so that you can even run on 8-GB memory PC in many cases. However,
   larger memory size will make parallel processing more efficient. &ge;32 GB is
