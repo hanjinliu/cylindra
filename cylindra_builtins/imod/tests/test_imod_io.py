@@ -48,7 +48,9 @@ def test_import_project(ui: CylindraMainWidget, tmpdir):
     ip.imread(TEST_DIR / "14pf_MT.tif").imsave(path2)
     try:
         imod.open_image_from_imod_project(ui, root / "position_1" / "position_1.edf")
-        imod.import_imod_projects(ui, root / "*/*.edf", project_root=tmpdir)
+        imod.import_imod_projects(
+            ui, root / "*/*.edf", project_root=tmpdir, scale_override=1.04
+        )
         assert len(ui.batch.constructor.projects) == 2
     finally:
         path1.unlink(missing_ok=True)
