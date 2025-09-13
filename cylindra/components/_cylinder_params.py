@@ -9,8 +9,7 @@ from cylindra.utils import roundint
 
 @dataclass(frozen=True)
 class CylinderParameters:
-    """
-    Data structure that represents the parameters of a cylinder.
+    """Data structure that represents the parameters of a cylinder.
 
     There are several parameters that are mutually dependent. This class
     provides a way to normalize the parameters and calculate parameters

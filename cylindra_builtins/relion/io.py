@@ -389,6 +389,7 @@ def open_relion_job(
         paths, scales, moles = _parse_optimisation_star(opt_star_path, rln_project_path)
     else:
         raise ValueError(f"Job {job_dir_path.name} is not a supported RELION job.")
+    # TODO: parse tilt angles
     ui.batch._new_projects_from_table(
         paths,
         save_root=project_root,

@@ -62,7 +62,7 @@ testing = [
     "starfile>=0.5.11",
     "imodmodel>=0.1.0",
     "cookiecutter",
-    "maturin>=1.5.0,<2.0.0",
+    "maturin>=1.8.3,<2.0.0",
 ]
 all = [
     "pyqt5",
