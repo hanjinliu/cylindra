@@ -32,7 +32,6 @@ from magicgui.widgets import ComboBox, Container
 
 from cylindra import _config
 from cylindra._napari import MoleculesLayer
-from cylindra.components.spline import SplineConfig
 from cylindra.const import (
     INTERPOLATION_CHOICES,
     FileFilter,
@@ -402,96 +401,6 @@ class SplinesMenu(ChildWidget):
         align_to_polarity = abstractapi()
         infer_polarity = abstractapi()
 
-    @magicmenu(record=False)
-    class Config(ChildWidget):
-        def _get_saved_config_files(self, w=None) -> list[str]:
-            return [path.stem for path in _config.get_config().list_config_paths()]
-
-        @set_design(text=capitalize)
-        @bind_key("Ctrl+K, Ctrl+[")
-        def update_default_config(
-            self,
-            npf_range: Annotated[tuple[int, int], {"options": {"min": 2, "max": 100}}] = (11, 17),
-            spacing_range: Annotated[tuple[nm, nm], {"options": {"step": 0.05}}] = (3.9, 4.3),
-            twist_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.05}}] = (-1.0, 1.0),
-            rise_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.1}}] = (0.0, 45.0),
-            rise_sign: Literal[-1, 1] = -1,
-            clockwise: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus",
-            thickness_inner: Annotated[nm, {"min": 0.0, "step": 0.1}] = 2.8,
-            thickness_outer: Annotated[nm, {"min": 0.0, "step": 0.1}] = 2.8,
-            fit_depth: Annotated[nm, {"min": 4.0, "step": 1}] = 48.0,
-            fit_width: Annotated[nm, {"min": 4.0, "step": 1}] = 44.0,
-        ):  # fmt: skip
-            """Update the default spline config.
-
-            Parameters
-            ----------
-            npf_range : (int, int), default (11, 17)
-                Range of protofilament number.
-            spacing_range : (float, float), default
-                Range of longitudinal lattice spacing.
-            twist_range : (float, float), default (-1.0, 1.0)
-                Range of twist angle in degree.
-            rise_range : (float, float), default (0.0, 45.0)
-                Range of rise angle in degree.
-            rise_sign : -1 or 1, default -1
-                Sign of the rise angle.
-            clockwise : "PlusToMinus" or "MinusToPlus", default "MinusToPlus"
-                Closewise rotation of the y-project corresponds to which orientation.
-            thickness_inner : float, default 2.0
-                Cylinder thickness inside the radial peak.
-            thickness_outer : float, default 3.0
-                Cylinder thickness outside the radial peak.
-            fit_depth : float, default 48.0
-                Depth in nm used during spline fitting.
-            fit_width : float, default.0
-                Width in nm used during spline fitting.
-            """
-            loc = locals()
-            del loc["self"]
-            self._get_main().default_config = SplineConfig().updated(**loc)
-            return None
-
-        sep0 = Separator
-
-        @set_design(text=capitalize)
-        def load_default_config(
-            self, name: Annotated[str, {"choices": _get_saved_config_files}]
-        ):
-            """Load a preset config file as the default config."""
-            path = _config.get_config().spline_config_path(name)
-            self._get_main().default_config = SplineConfig.from_file(path)
-
-        @set_design(text=capitalize)
-        def save_default_config(self, name: str):
-            """Save current default config as a preset."""
-            path = _config.get_config().spline_config_path(name)
-            if path.exists():
-                raise FileExistsError(f"Config file {path} already exists.")
-            self._get_main().default_config.to_file(path)
-            return self.reset_choices()
-
-        @set_design(text=capitalize)
-        def view_config_presets(self):
-            """View the spline config presets."""
-            cbox = ComboBox(choices=self._get_saved_config_files())
-            params_wdt = Container.from_callable(self.update_default_config)
-            params_wdt.enabled = False
-
-            @cbox.changed.connect
-            def _on_changed(name: str):
-                path = _config.get_config().spline_config_path(name)
-                config = SplineConfig.from_file(path)
-                params_wdt.update(config.asdict())
-
-            widget = Container(widgets=[cbox, params_wdt], labels=False)
-            self.parent_viewer.window.add_dock_widget(
-                widget, area="left", name="Config presets"
-            ).setFloating(True)
-            cbox.changed.emit(cbox.value)
-
-        update_spline_config = abstractapi()
-
     @magicmenu
     class Fitting(ChildWidget):
         """Methods for spline fitting."""
@@ -514,6 +423,11 @@ class SplinesMenu(ChildWidget):
 
     sep1 = Separator
     clip_spline = abstractapi()
+
+    @set_design(text="Open config editor")
+    def show_config_edit(self):
+        """Open the config editor widget to edit spline fitting parameters."""
+        return self._get_main().config_edit.show()
 
     @set_design(text=capitalize)
     @do_not_record

@@ -219,6 +219,8 @@ class CylindraMainWidget(MagicTemplate):
     image_processor = field(_sw.ImageProcessor, name="_Image Processor")
     # Widget for tomogram simulator
     simulator = field(_sw.Simulator, name="_Simulator")
+    # Widget for spline config
+    config_edit = field(_sw.ConfigEdit, name="_Config editor")
     # Widget for measuring FFT parameters from a 2D power spectra
     spectra_inspector = field(_sw.SpectraInspector, name="_SpectraInspector")
     # Widget for subtomogram analysis
@@ -310,10 +312,12 @@ class CylindraMainWidget(MagicTemplate):
             self._auto_saver.save()
 
         self.default_config = SplineConfig.from_file(cfg.default_spline_config_path)
+        self.config_edit.config_new.set_config(
+            self.config_edit.config_current.get_config()
+        )
 
         # load plugins
         load_plugin(self)
-        return None
 
     @property
     def tomogram(self) -> CylTomogram:
@@ -333,14 +337,13 @@ class CylindraMainWidget(MagicTemplate):
     @property
     def default_config(self) -> SplineConfig:
         """Default spline configuration."""
-        return self._default_cfg
+        return self.config_edit.config_current.get_config()
 
     @default_config.setter
     def default_config(self, cfg: SplineConfig | dict[str, Any]):
         if not isinstance(cfg, SplineConfig):
             cfg = SplineConfig.from_dict(cfg, unknown="error")
-        self._default_cfg = cfg
-        self._refer_spline_config(cfg)
+        self.config_edit.config_current.set_config(cfg)
 
     @property
     def sub_viewer(self) -> "napari.Viewer":
@@ -1313,31 +1316,21 @@ class CylindraMainWidget(MagicTemplate):
         self.SplineControl.num = len(self.tomogram.splines) - 1
         return undo_callback(self.delete_spline).with_args(-1)
 
-    @set_design(text=capitalize, location=_sw.SplinesMenu.Config)
+    @nogui
     def update_spline_config(
         self,
         splines: SplinesType = None,
-        npf_range: Annotated[tuple[int, int], {"options": {"min": 2, "max": 100}}] = (
-            11,
-            17,
-        ),
-        spacing_range: Annotated[tuple[nm, nm], {"options": {"step": 0.05}}] = (
-            3.9,
-            4.3,
-        ),
-        twist_range: Annotated[
-            tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.05}}
-        ] = (-1.0, 1.0),
-        rise_range: Annotated[
-            tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.1}}
-        ] = (0.0, 45.0),
+        npf_range: Annotated[tuple[int, int], {"options": {"min": 2, "max": 100}}] = (11, 17),
+        spacing_range: Annotated[tuple[nm, nm], {"options": {"step": 0.05}}] = (3.9, 4.3),
+        twist_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.05}}] = (-1.0, 1.0),
+        rise_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.1}}] = (0.0, 45.0),
         rise_sign: Literal[-1, 1] = -1,
         clockwise: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus",
         thickness_inner: Annotated[nm, {"min": 0.0, "step": 0.1}] = 2.8,
         thickness_outer: Annotated[nm, {"min": 0.0, "step": 0.1}] = 2.8,
-        fit_depth: Annotated[nm, {"min": 4.0, "step": 1}] = 49.0,
+        fit_depth: Annotated[nm, {"min": 4.0, "step": 1}] = 48.0,
         fit_width: Annotated[nm, {"min": 4.0, "step": 1}] = 44.0,
-    ):
+    ):  # fmt: skip
         config = locals()
         del config["splines"], config["self"]
         _splines = self._norm_splines(splines)
@@ -1931,9 +1924,7 @@ class CylindraMainWidget(MagicTemplate):
             return tracker.as_undo_callback()
 
     @set_design(text="Global CFT analysis", location=_sw.AnalysisMenu)
-    @thread_worker.with_progress(
-        desc="Global Cylindric Fourier transform", total=_NSPLINES
-    )
+    @thread_worker.with_progress(desc="Global Cylindric Fourier transform", total=_NSPLINES)  # fmt: skip
     def global_cft_analysis(
         self,
         splines: SplinesType = None,
@@ -3533,6 +3524,7 @@ class CylindraMainWidget(MagicTemplate):
 
     def _refer_spline_config(self, cfg: SplineConfig):
         """Update GUI states that are related to global variables."""
+        self.config_edit.Header.config_current.value = cfg
         fgui = get_function_gui(self.set_spline_props)
         fgui.npf.min, fgui.npf.max = cfg.npf_range.astuple()
         fgui.npf.value = int(cfg.npf_range.center)
