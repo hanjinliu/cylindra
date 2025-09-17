@@ -456,7 +456,7 @@ def test_spline_control(ui: CylindraMainWidget, tmpdir):
 
         assert_canvas(ui, [False, False, False])
         ui.copy_spline(0)
-        ui.copy_spline_new_config(0, npf_range=(4, 10))
+        ui.update_spline_config([0], npf_range=(4, 10))
 
         ui.clear_all()
 

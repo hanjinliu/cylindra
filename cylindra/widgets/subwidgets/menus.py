@@ -461,7 +461,6 @@ class SplinesMenu(ChildWidget):
             """Load a preset config file as the default config."""
             path = _config.get_config().spline_config_path(name)
             self._get_main().default_config = SplineConfig.from_file(path)
-            return None
 
         @set_design(text=capitalize)
         def save_default_config(self, name: str):
@@ -490,7 +489,8 @@ class SplinesMenu(ChildWidget):
                 widget, area="left", name="Config presets"
             ).setFloating(True)
             cbox.changed.emit(cbox.value)
-            return None
+
+        update_spline_config = abstractapi()
 
     @magicmenu
     class Fitting(ChildWidget):
@@ -523,11 +523,9 @@ class SplinesMenu(ChildWidget):
         main.spline_clipper.show()
         if len(main.tomogram.splines) > 0:
             main.spline_clipper.load_spline(main.SplineControl.num)
-        return None
 
     delete_spline = abstractapi()
     copy_spline = abstractapi()
-    copy_spline_new_config = abstractapi()
     sep2 = Separator
 
     split_spline = abstractapi()

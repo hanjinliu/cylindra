@@ -129,13 +129,24 @@ class ImageWithPeak:
         """Calculate power spectrum"""
         return self.image.power_spectra(dims="rya").mean(axis="r")
 
-    def power_upsampled(self, key=None, upsample: int = 5) -> ip.ImgArray:
+    def power_upsampled(self, upsample: int = 5) -> ip.ImgArray:
         """Calculate local upsampled power spectrum"""
+        ny, na = self.image.shape[1:3]
+        y_key = self._make_key(ny)
+        a_key = self._make_key(na)
+        start = (upsample + 1) // 2
+        end = upsample - start
         return self.image.local_power_spectra(
-            key=key,
+            key=f"y={y_key};a={a_key}",
             upsample_factor=[1, upsample, upsample],
             dims="rya",
-        ).mean(axis="r")
+        ).mean(axis="r")[start:-end, start:-end]
+
+    def _make_key(self, size: int):
+        if size % 2 == 0:
+            return f"{-size//2-1}:{size//2}"
+        else:
+            return f"{-size//2}:{size//2+1}"
 
 
 def dask_angle_corr(

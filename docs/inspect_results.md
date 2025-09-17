@@ -12,8 +12,7 @@ splines, and the estimated peak positions (red markers) if available. By clickin
 
 ![Inspection result](images/inspect_local_cft.png){ loading=lazy, width=570px }
 
-After clicking "Upsample spectrum" to enable the upsampling mode, you can upsample the
-local power spectrum interactively by clicking the canvas.
+The upsampled local-CFT is useful to check the sub-pixel peak positions.
 
 ![Upsampled Result](images/inspect_local_cft_upsampled.png){ loading=lazy, width=570px }
 

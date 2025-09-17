@@ -728,6 +728,11 @@ class CylTomogram(Tomogram):
         i: int = None,
         binsize: int | None = None,
     ) -> list[_misc.ImageWithPeak]:
+        """Recalculate local images and peaks.
+
+        This method reuses the existing spline properties to get the peaks. To measure
+        local lattice parameters, use `local_cft_params` method beforehand.
+        """
         spl = self.splines[i]
         depth = spl.props.window_size[H.twist]
         if binsize is None:
@@ -735,20 +740,24 @@ class CylTomogram(Tomogram):
         df_loc = spl.props.loc
         out = list[_misc.ImageWithPeak]()
         for j, polar_img in enumerate(self.iter_local_image(i, depth, binsize=binsize)):
-            cparams = spl.cylinder_params(
-                spacing=_misc.get_component(df_loc, H.spacing, j),
-                pitch=_misc.get_component(df_loc, H.pitch, j),
-                twist=_misc.get_component(df_loc, H.twist, j),
-                skew=_misc.get_component(df_loc, H.skew, j),
-                rise_angle=_misc.get_component(df_loc, H.rise, j),
-                start=_misc.get_component(df_loc, H.start, j),
-                npf=_misc.get_component(df_loc, H.npf, j),
-            )
-            analyzer = LatticeAnalyzer(spl.config)
-            peakv, peakh = analyzer.params_to_peaks(polar_img[0], cparams)
-            peakv = peakv.shift_to_center()
-            peakh = peakh.shift_to_center()
-            out.append(_misc.ImageWithPeak(polar_img, [peakv, peakh]))
+            try:
+                cparams = spl.cylinder_params(
+                    spacing=_misc.get_component(df_loc, H.spacing, j),
+                    pitch=_misc.get_component(df_loc, H.pitch, j),
+                    twist=_misc.get_component(df_loc, H.twist, j),
+                    skew=_misc.get_component(df_loc, H.skew, j),
+                    rise_angle=_misc.get_component(df_loc, H.rise, j),
+                    start=_misc.get_component(df_loc, H.start, j),
+                    npf=_misc.get_component(df_loc, H.npf, j),
+                )
+            except ValueError:
+                out.append(_misc.ImageWithPeak(polar_img, []))
+            else:
+                analyzer = LatticeAnalyzer(spl.config)
+                peakv, peakh = analyzer.params_to_peaks(polar_img[0], cparams)
+                peakv = peakv.shift_to_center()
+                peakh = peakh.shift_to_center()
+                out.append(_misc.ImageWithPeak(polar_img, [peakv, peakh]))
         return out
 
     @_misc.batch_process
@@ -782,25 +791,34 @@ class CylTomogram(Tomogram):
         i: int = None,
         binsize: int | None = None,
     ) -> _misc.ImageWithPeak:
+        """Recalculate global image and peaks.
+
+        This method reuses the existing spline properties to get the peaks. To measure
+        global lattice parameters, use `global_cft_params` method beforehand.
+        """
         spl = self.splines[i]
         if binsize is None:
             binsize = spl.props.binsize_glob[H.twist]
         img_st = self.straighten_cylindric(i, binsize=binsize)
         img_st -= np.mean(img_st)
-        cparams = spl.cylinder_params(
-            spacing=spl.props.get_glob(H.spacing, default=None),
-            pitch=spl.props.get_glob(H.pitch, default=None),
-            twist=spl.props.get_glob(H.twist, default=None),
-            skew=spl.props.get_glob(H.skew, default=None),
-            rise_angle=spl.props.get_glob(H.rise, default=None),
-            start=spl.props.get_glob(H.start, default=None),
-            npf=spl.props.get_glob(H.npf, default=None),
-        )
-        analyzer = LatticeAnalyzer(spl.config)
-        peakv, peakh = analyzer.params_to_peaks(img_st[0], cparams)
-        peakv = peakv.shift_to_center()
-        peakh = peakh.shift_to_center()
-        return _misc.ImageWithPeak(img_st, [peakv, peakh])
+        try:
+            cparams = spl.cylinder_params(
+                spacing=spl.props.get_glob(H.spacing, default=None),
+                pitch=spl.props.get_glob(H.pitch, default=None),
+                twist=spl.props.get_glob(H.twist, default=None),
+                skew=spl.props.get_glob(H.skew, default=None),
+                rise_angle=spl.props.get_glob(H.rise, default=None),
+                start=spl.props.get_glob(H.start, default=None),
+                npf=spl.props.get_glob(H.npf, default=None),
+            )
+        except ValueError:
+            return _misc.ImageWithPeak(img_st, [])
+        else:
+            analyzer = LatticeAnalyzer(spl.config)
+            peakv, peakh = analyzer.params_to_peaks(img_st[0], cparams)
+            peakv = peakv.shift_to_center()
+            peakh = peakh.shift_to_center()
+            return _misc.ImageWithPeak(img_st, [peakv, peakh])
 
     @_misc.batch_process
     def global_cft_params(
@@ -827,7 +845,7 @@ class CylTomogram(Tomogram):
             Number of cylindrical coordinate samplings for Fourier transformation.
             Multiple samplings are needed because up-sampled discrete Fourier
             transformation does not return exactly the same power spectra with shifted
-            inputs, unlike FFT. Larger ``nsamples`` reduces the error but is slower.
+            inputs, unlike FFT. Larger `nsamples` reduces the error but is slower.
         update : bool, default True
             If True, spline properties will be updated.
 
