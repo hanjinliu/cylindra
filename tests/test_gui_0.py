@@ -22,6 +22,12 @@ from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import PropertyNames as H
 from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets.sta import MaskChoice, TemplateChoice
+from cylindra.widgets.subwidgets.measure import (
+    GLOBAL_CFT,
+    GLOBAL_CFT_UP,
+    LOCAL_CFT,
+    LOCAL_CFT_UP,
+)
 
 from ._const import PROJECT_DIR_13PF, PROJECT_DIR_14PF, TEST_DIR
 from .utils import ExceptionGroup, pytest_group
@@ -667,18 +673,20 @@ def test_sub_widgets(ui: CylindraMainWidget, tmpdir):
         ui.spectra_inspector._click_at((20, 10))
         ui.spectra_inspector.select_angular_peak()
         ui.spectra_inspector._click_at((15, 25))
-        ui.spectra_inspector.peak_viewer.show_what = "Local-CFT"
+        ui.spectra_inspector.peak_viewer.show_what = LOCAL_CFT
         ui.spectra_inspector._click_at((5, 5))
-        ui.spectra_inspector.peak_viewer.show_what = "Local-CFT (5x upsampling)"
+        ui.spectra_inspector.peak_viewer.show_what = LOCAL_CFT_UP
         ui.spectra_inspector.peak_viewer.pos = 1
-        ui.spectra_inspector.peak_viewer.show_what = "Global-CFT"
+        ui.spectra_inspector.peak_viewer.show_what = GLOBAL_CFT
+        ui.spectra_inspector.peak_viewer.show_what = GLOBAL_CFT_UP
+        ui.spectra_inspector.peak_viewer.show_what = GLOBAL_CFT
         ui.spectra_inspector.SidePanel.current_bin_size.set_bin_size(1)
         ui.spectra_inspector.SidePanel.current_bin_size.set_bin_size(2)
-        ui.spectra_inspector.peak_viewer.show_what = "Local-CFT"
+        ui.spectra_inspector.peak_viewer.show_what = LOCAL_CFT
         ui.spectra_inspector._click_at((5, 5))
-        ui.spectra_inspector.peak_viewer.show_what = "Local-CFT (5x upsampling)"
+        ui.spectra_inspector.peak_viewer.show_what = LOCAL_CFT_UP
         ui.spectra_inspector.peak_viewer.pos = 1
-        ui.spectra_inspector.peak_viewer.show_what = "Global-CFT"
+        ui.spectra_inspector.peak_viewer.show_what = GLOBAL_CFT
         ui.spectra_inspector.parameters.export(Path(tmpdir) / "params.csv")
 
         # file iterator
