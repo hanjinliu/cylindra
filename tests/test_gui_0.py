@@ -22,6 +22,12 @@ from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import PropertyNames as H
 from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets.sta import MaskChoice, TemplateChoice
+from cylindra.widgets.subwidgets.measure import (
+    GLOBAL_CFT,
+    GLOBAL_CFT_UP,
+    LOCAL_CFT,
+    LOCAL_CFT_UP,
+)
 
 from ._const import PROJECT_DIR_13PF, PROJECT_DIR_14PF, TEST_DIR
 from .utils import ExceptionGroup, pytest_group
@@ -271,12 +277,14 @@ def test_workflow_undo_redo(ui: CylindraMainWidget):
 
 def test_config(ui: CylindraMainWidget, tmpdir):
     ui.load_project(PROJECT_DIR_14PF, filter=None)
-    ui.SplinesMenu.Config.update_default_config(npf_range=(13, 15))
+
+    ui.config_edit.config_new.refer_current_spline_config()
+    ui.config_edit.config_new.npf_range.value = (13, 15)
     tmpdir = Path(tmpdir)
     with _config.patch_config_dir(tmpdir):
-        ui.SplinesMenu.Config.save_default_config(tmpdir)
-        ui.SplinesMenu.Config.load_default_config(tmpdir)
-    ui.SplinesMenu.Config.view_config_presets()
+        ui.config_edit.config_current.save_as_config_preset(tmpdir)
+        ui.config_edit.config_current.load_config_preset(tmpdir)
+    ui.config_edit.config_new.apply_to_splines([0])
 
 
 def test_reanalysis(ui: CylindraMainWidget):
@@ -456,7 +464,7 @@ def test_spline_control(ui: CylindraMainWidget, tmpdir):
 
         assert_canvas(ui, [False, False, False])
         ui.copy_spline(0)
-        ui.copy_spline_new_config(0, npf_range=(4, 10))
+        ui.update_spline_config([0], npf_range=(4, 10))
 
         ui.clear_all()
 
@@ -601,7 +609,10 @@ def test_sub_widgets(ui: CylindraMainWidget, tmpdir):
         ui.spline_slicer._next_pos()
         ui.spline_slicer._prev_pos()
         ui.spline_slicer.measure_cft_here()
+        ui.spline_slicer.measure_clockwise()
+        ui.spline_slicer.measure_radius()
         ui.spline_slicer._show_overlay_text("some text")
+        ui.spline_slicer.fit_spline_manually()
 
         ui.manual_picker.refresh_widget_state()
         ui.manual_picker._yaw_left()
@@ -661,21 +672,21 @@ def test_sub_widgets(ui: CylindraMainWidget, tmpdir):
         ui.spectra_inspector.select_axial_peak()
         ui.spectra_inspector._click_at((20, 10))
         ui.spectra_inspector.select_angular_peak()
-        ui.spectra_inspector._click_at((10, 20))
-        ui.spectra_inspector.upsample_spectrum()
         ui.spectra_inspector._click_at((15, 25))
-        ui.spectra_inspector.peak_viewer.show_what = "Local-CFT"
+        ui.spectra_inspector.peak_viewer.show_what = LOCAL_CFT
         ui.spectra_inspector._click_at((5, 5))
-        ui.spectra_inspector.peak_viewer.show_what = "Local-CFT (5x upsampling)"
+        ui.spectra_inspector.peak_viewer.show_what = LOCAL_CFT_UP
         ui.spectra_inspector.peak_viewer.pos = 1
-        ui.spectra_inspector.peak_viewer.show_what = "Global-CFT"
-        ui.spectra_inspector.set_bin_size(1)
-        ui.spectra_inspector.set_bin_size(2)
-        ui.spectra_inspector.peak_viewer.show_what = "Local-CFT"
+        ui.spectra_inspector.peak_viewer.show_what = GLOBAL_CFT
+        ui.spectra_inspector.peak_viewer.show_what = GLOBAL_CFT_UP
+        ui.spectra_inspector.peak_viewer.show_what = GLOBAL_CFT
+        ui.spectra_inspector.SidePanel.current_bin_size.set_bin_size(1)
+        ui.spectra_inspector.SidePanel.current_bin_size.set_bin_size(2)
+        ui.spectra_inspector.peak_viewer.show_what = LOCAL_CFT
         ui.spectra_inspector._click_at((5, 5))
-        ui.spectra_inspector.peak_viewer.show_what = "Local-CFT (5x upsampling)"
+        ui.spectra_inspector.peak_viewer.show_what = LOCAL_CFT_UP
         ui.spectra_inspector.peak_viewer.pos = 1
-        ui.spectra_inspector.peak_viewer.show_what = "Global-CFT"
+        ui.spectra_inspector.peak_viewer.show_what = GLOBAL_CFT
         ui.spectra_inspector.parameters.export(Path(tmpdir) / "params.csv")
 
         # file iterator

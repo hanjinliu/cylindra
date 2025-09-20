@@ -1,4 +1,5 @@
 """Implement preview functions for the main widget."""
+
 from __future__ import annotations
 
 from contextlib import contextmanager, suppress
@@ -424,8 +425,8 @@ def _setup_paint_molecules(self: CylindraMainWidget, gui: FunctionGui):
     return None
 
 
-@setup_function_gui(CylindraMainWidget.copy_spline_new_config)
-def _setup_copy_spline_new_config(self: CylindraMainWidget, gui: FunctionGui):
+@setup_function_gui(CylindraMainWidget.update_spline_config)
+def _setup_update_spline_config(self: CylindraMainWidget, gui: FunctionGui):
     btn = PushButton(
         text="Scan spline config",
         tooltip="Scan current spline config and update the parameters.",

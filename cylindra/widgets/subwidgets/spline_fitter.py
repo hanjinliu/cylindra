@@ -281,7 +281,7 @@ class SplineFitter(ChildWidget):
         r_inner = max(r_peak - spl.config.thickness_inner, 0) / _scale
         r_outer = (r_peak + spl.config.thickness_outer) / _scale
 
-        theta = np.linspace(0, 2 * np.pi, 100, endpoint=False)
+        theta = np.linspace(0, 2 * np.pi, 100, endpoint=True)
         self._circ_inner.xdata = r_inner * np.cos(theta) + x
         self._circ_inner.ydata = r_inner * np.sin(theta) + z
         self._circ_outer.xdata = r_outer * np.cos(theta) + x

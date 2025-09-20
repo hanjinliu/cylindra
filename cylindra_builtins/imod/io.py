@@ -180,7 +180,7 @@ def _get_mask_params(*_):
     return instance().sta._get_mask_params()
 
 
-@register_function(name="Open image from an IMOD project")
+@register_function(name="Open image from an IMOD project", record=False)
 def open_image_from_imod_project(
     ui: CylindraMainWidget,
     edf_path: Annotated[Path.Read[FileFilter.EDF], {"label": "IMOD edf file"}],

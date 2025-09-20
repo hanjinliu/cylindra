@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from logging import Logger
 from typing import NamedTuple
 
 import impy as ip
@@ -228,3 +229,42 @@ class LatticeAnalyzer:
         mask[ip.slicer.a[slice(*self.get_arange(polar))]] = True
         polar_ft[~mask] = 0.0
         return polar_ft.ifft(shift=False, dims="rya")
+
+
+def is_clockwise(
+    cfg: SplineConfig,
+    polar: ip.ImgArray,
+    mask_freq: bool = True,
+    npf: int | None = None,
+    logger: Logger | None = None,
+) -> bool:
+    """Check if the polar image has clockwise slew.
+
+    This function is used for determining the polarity of the cylinder.
+    """
+    if mask_freq:
+        polar = LatticeAnalyzer(cfg).mask_spectra(polar)
+    img_flat = polar.mean(axis="y")
+
+    if npf is None:
+        # if the global properties are already calculated, use it
+        # otherwise, calculate the number of PFs from the power spectrum
+        ft = img_flat.fft(shift=False, dims="ra")
+        pw = ft.real**2 + ft.imag**2
+        img_pw = np.mean(pw, axis=0)
+        npf = np.argmax(img_pw[cfg.npf_range.asslice()]) + cfg.npf_range.min
+
+    pw_peak = img_flat.local_power_spectra(
+        key=ip.slicer.a[npf - 1 : npf + 2],
+        upsample_factor=20,
+        dims="ra",
+    ).mean(axis="a")
+    r_argmax = np.argmax(pw_peak)
+    out = r_argmax - (pw_peak.size + 1) // 2 <= 0
+
+    if logger:
+        _val = pw_peak[r_argmax]
+        pw_non_peak = np.delete(pw_peak, r_argmax)
+        _ave, _std = np.mean(pw_non_peak), np.std(pw_non_peak, ddof=1)
+        logger.info(f" >> clockwise = {out} (peak intensity={_val:.2g} compared to {_ave:.2g} ± {_std:.2g})")  # fmt: skip
+    return out

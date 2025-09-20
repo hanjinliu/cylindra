@@ -39,12 +39,7 @@ Make sure the correct configuration is used before adding splines.
   - `fit_width` ... the width of sub-volumes used for spline fitting region (in
     nanometer).
 
-## Change the Default Configuration
-
-The configuration is optimized for microtubules by default. To analyze other structures,
-you need to change the default configuration.
-
-The default configuration is stored in the `default_config` property.
+The default configuration is optimized for microtubules on startup.
 
 ``` python
 ui.default_config
@@ -65,26 +60,20 @@ SplineConfig(
 )
 ```
 
-### Manually set the parameters
+## Edit the Default Config
 
-:material-arrow-right-thin-circle-outline: GUI: `Splines > Config > Update default config`
+The config editor widget is designed to easily edit, apply, and save the spline config.
 
-![update_default_config](../images/update_default_config.png){ lazy loading, width=400px }
+:material-arrow-right-thin-circle-outline: GUI: `Splines > Open config editor`
 
-### Measuring the approximate parameters of unknown structures
+![config_editor](../images/config_editor.png){ lazy loading, width=750px }
 
-:material-arrow-right-thin-circle-outline: GUI: `Analysis > Open spectra inspector`
-
-![spectra_inspector](../images/spectra_inspector.png){ lazy loading, width=480px }
-
-The widget for inspecting the power spectrum of the spline can also be used to measure
-lattice parameters. After enabling "Select axial peak" mode, you can manally select the
-peak position to measure the lattice parameters. After selecting the axial peak, you can
-then "Select angular peak".
+The left panel shows the current config. Splines added to the tomogram are initialized
+with this config. The right panel is used for editing the config without changing the
+current config. These parameter sets can be copied between each other with the buttons
+in the middle.
 
 ### Load presets
-
-:material-arrow-right-thin-circle-outline: GUI: `Splines > Config > Load default config`
 
 Presets are stored in the user directory. You can load the presets from the menu.
 
@@ -95,8 +84,6 @@ By default, presets for following biological components are available:
 - BtubAB (a bacterial microtubule)
 - Tobacco mosaic virus
 
-## Save the Configuration
+### Save as a preset
 
-:material-arrow-right-thin-circle-outline: GUI: `Splines > Config > Save default config`
-
-You can save current default configuration as a preset with arbitrary name.
+You can save current configuration parameters as a preset with an arbitrary name.
