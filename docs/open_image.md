@@ -45,6 +45,11 @@ variables are pushed to the console global namespace:
 
 ### Open an Image
 
+??? info "Open an image from IMOD or RELION project"
+
+    If tomograms are reconstructed using IMOD or RELION, the built-in plugins can
+    directly read it. See [here](extern/index.md) for more details.
+
 :material-arrow-right-thin-circle-outline: API: [`open_image`][cylindra.widgets.main.CylindraMainWidget.open_image].
 
 :material-arrow-right-thin-circle-outline: GUI: `File > Open image` or ++ctrl+k++ &rarr; ++ctrl+o++.

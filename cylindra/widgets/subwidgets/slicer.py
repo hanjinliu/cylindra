@@ -18,7 +18,7 @@ from magicclass.types import Optional
 from magicclass.utils import thread_worker
 from numpy.typing import NDArray
 
-from cylindra.components._ftprops import LatticeAnalyzer
+from cylindra.components._ftprops import LatticeAnalyzer, is_clockwise
 from cylindra.const import nm
 from cylindra.cyltransform import get_polar_image
 from cylindra.utils import map_coordinates
@@ -139,6 +139,7 @@ class SplineSlicer(ChildWidget):
         fit_spline_manually = abstractapi()
         measure_radius = abstractapi()
         measure_cft_here = abstractapi()
+        measure_clockwise = abstractapi()
 
     @magicclass(layout="horizontal")
     class Row3(ChildWidget):
@@ -228,6 +229,22 @@ class SplineSlicer(ChildWidget):
             f"{_col('PF:')} {params.npf}<br>"
             f"{_col('start:')} {params.start}"
         )
+
+    @set_design(text="Measure CW/CCW", location=Row2)
+    def measure_clockwise(self):
+        """Measure if the helix is clockwise or counter-clockwise."""
+        idx, pos, depth = self._get_cropping_params()
+        binsize = self.params.binsize
+        radius = self._get_radius()
+        img = self.get_cylindric_image(
+            idx, pos, depth=depth, binsize=binsize, radius=radius, order=3
+        )
+        tomo = self._get_main().tomogram
+        spl = tomo.splines[idx]
+        is_cw = is_clockwise(spl.config, img)
+        spl_info = _col(f"spline ID = {idx}; position = {pos:.2f} nm", color="#003FFF")
+        direction = "clockwise" if is_cw else "counter-clockwise"
+        _Logger.print_html(f"{spl_info}<br>The helix is {_col(direction)}.")
 
     @set_design(text="Refresh", location=Row3)
     def refresh_widget_state(self):

@@ -37,8 +37,10 @@ To delete the last spline, click ![](images/toolbutton_clear_current.png){ width
 
     Each spline is tagged with a `SplineConfig` object, which describes the average
     feature of the cylindric structure it represents. **Default values are optimized for
-    microtubules**. If you want to analyze other structures, see
-    [here](spline/config.md).
+    microtubules**. If you want to analyze other structures, you should first learn the
+    spline config [here](spline/config.md). If `cylindra` don't have a config preset for
+    your structure, you need to define a custom config. Please follow the instructions
+    [here](case_studies/custom_config.md).
 
 ## Fit Automatically
 

@@ -11,7 +11,12 @@ from acryo import Molecules
 from numpy.typing import ArrayLike, NDArray
 
 from cylindra._dask import Delayed, compute
-from cylindra.components._ftprops import LatticeAnalyzer, LatticeParams, get_polar_image
+from cylindra.components._ftprops import (
+    LatticeAnalyzer,
+    LatticeParams,
+    get_polar_image,
+    is_clockwise,
+)
 from cylindra.components._peak import find_centroid_peak
 from cylindra.components.spline import CylSpline
 from cylindra.components.tomogram import _misc, _straighten
@@ -927,39 +932,18 @@ class CylTomogram(Tomogram):
         cfg = spl.config
         ori_clockwise = Ori(cfg.clockwise)
         ori_counterclockwise = Ori.invert(ori_clockwise, allow_none=False)
-        if spl.radius is None:
-            r_range = 0.5 * current_scale, cfg.fit_width / 2
-        else:
-            r_range = spl.radius_range()
+        r_range = spl.radius_range()
         point = 0.5  # the sampling point
         coords = spl.local_cylindrical(r_range, depth, point, scale=current_scale)
         polar = get_polar_image(imgb, coords, spl.radius, order=1)
-        if mask_freq:
-            polar = LatticeAnalyzer(cfg).mask_spectra(polar)
-        img_flat = polar.mean(axis="y")
-
-        if (npf := spl.props.get_glob(H.npf, None)) is None:
-            # if the global properties are already calculated, use it
-            # otherwise, calculate the number of PFs from the power spectrum
-            ft = img_flat.fft(shift=False, dims="ra")
-            pw = ft.real**2 + ft.imag**2
-            img_pw = np.mean(pw, axis=0)
-            npf = np.argmax(img_pw[cfg.npf_range.asslice()]) + cfg.npf_range.min
-
-        pw_peak = img_flat.local_power_spectra(
-            key=ip.slicer.a[npf - 1 : npf + 2],
-            upsample_factor=20,
-            dims="ra",
-        ).mean(axis="a")
-        r_argmax = np.argmax(pw_peak)
-        clkwise = r_argmax - (pw_peak.size + 1) // 2 <= 0
+        clkwise = is_clockwise(
+            cfg,
+            polar,
+            mask_freq=mask_freq,
+            npf=spl.props.get_glob(H.npf, None),
+            logger=LOGGER,
+        )
         ori = ori_clockwise if clkwise else ori_counterclockwise
-
-        # logging
-        _val = pw_peak[r_argmax]
-        pw_non_peak = np.delete(pw_peak, r_argmax)
-        _ave, _std = np.mean(pw_non_peak), np.std(pw_non_peak, ddof=1)
-        LOGGER.info(f" >> polarity = {ori.name} (peak intensity={_val:.2g} compared to {_ave:.2g} ± {_std:.2g})")  # fmt: skip
         if update:
             spl.orientation = ori
         return ori

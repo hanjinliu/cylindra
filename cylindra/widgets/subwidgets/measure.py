@@ -5,7 +5,6 @@ import impy as ip
 import numpy as np
 import polars as pl
 from magicclass import (
-    MagicTemplate,
     abstractapi,
     field,
     get_button,
@@ -222,7 +221,7 @@ class PeakInspector(ChildWidget):
 
 
 @magicclass(widget_type="groupbox", record=False)
-class Parameters(MagicTemplate):
+class Parameters(ChildWidget):
     """Cylinder paramters.
 
     Attributes
@@ -255,14 +254,23 @@ class Parameters(MagicTemplate):
     def _to_polars(self):
         return pl.DataFrame(
             {
-                "radius": [self.radius],
-                "spacing": [self.spacing],
-                "rise": [self.rise],
-                "twist": [self.twist],
-                "npf": [self.npf],
-                "rise_sign": [self.rise_sign],
+                "name": ["radius", "spacing", "rise", "twist", "npf", "rise_sign"],
+                "value": [
+                    self.radius,
+                    self.spacing,
+                    self.rise,
+                    self.twist,
+                    self.npf,
+                    self.rise_sign,
+                ],
             }
         )
+
+    @set_design(text="Log to console")
+    def log_to_console(self):
+        """Log these parameters to the console."""
+        main = self._get_main()
+        main.logger.print_table(self._to_polars())
 
     @set_design(text="Copy to clipboard")
     def copy_to_clipboard(self):

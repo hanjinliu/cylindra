@@ -98,6 +98,10 @@ def main():
     _imsave(ui.sta.native, "sta_widget")
     ui.sta.close()
 
+    ui.config_edit.show()
+    _imsave(ui.config_edit.native, "config_editor")
+    ui.config_edit.close()
+
     ui._runner.run(interval=12, n_refine=0, map_monomers=True)
 
     ### inspect local CFT ###
@@ -158,7 +162,6 @@ def main():
         ui.merge_molecule_info,
         ui.copy_molecules_features,
         # others
-        ui.SplinesMenu.Config.update_default_config,
         ui.OthersMenu.configure_cylindra,
     ]:
         get_button(meth).changed.emit()
