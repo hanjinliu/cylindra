@@ -666,16 +666,14 @@ def test_sub_widgets(ui: CylindraMainWidget, tmpdir):
         ui.spectra_inspector.select_axial_peak()
         ui.spectra_inspector._click_at((20, 10))
         ui.spectra_inspector.select_angular_peak()
-        ui.spectra_inspector._click_at((10, 20))
-        ui.spectra_inspector.upsample_spectrum()
         ui.spectra_inspector._click_at((15, 25))
         ui.spectra_inspector.peak_viewer.show_what = "Local-CFT"
         ui.spectra_inspector._click_at((5, 5))
         ui.spectra_inspector.peak_viewer.show_what = "Local-CFT (5x upsampling)"
         ui.spectra_inspector.peak_viewer.pos = 1
         ui.spectra_inspector.peak_viewer.show_what = "Global-CFT"
-        ui.spectra_inspector.set_bin_size(1)
-        ui.spectra_inspector.set_bin_size(2)
+        ui.spectra_inspector.SidePanel.current_bin_size.set_bin_size(1)
+        ui.spectra_inspector.SidePanel.current_bin_size.set_bin_size(2)
         ui.spectra_inspector.peak_viewer.show_what = "Local-CFT"
         ui.spectra_inspector._click_at((5, 5))
         ui.spectra_inspector.peak_viewer.show_what = "Local-CFT (5x upsampling)"

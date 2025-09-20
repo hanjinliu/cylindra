@@ -68,7 +68,6 @@ class PeakInspector(ChildWidget):
         self._power_spectra = list[ip.ImgArray | None]()
         self._image = np.zeros((1, 1))
         self._is_log_scale = False
-        self._current_spline_index = 0
 
     def __post_init__(self):
         self._infline_x = self.canvas.add_infline((0, 0), 0, color="yellow")
@@ -378,25 +377,14 @@ class SpectraInspector(ChildWidget):
 
     @magicclass(properties={"min_width": 200})
     class SidePanel(ChildWidget):
-        """Measure/inspect spectrum.
-
-        Attributes
-        ----------
-        current_spline : str
-            Current spline whose power spectrum is being displayed.
-        current_bin_size : str
-            Current bin size used for calculating the power spectrum (maybe different
-            from the bin size of the tomogram).
-        """
-
         parameters = abstractapi()
 
         @magicclass(labels=False, layout="horizontal")
         class current_spline(ChildWidget):
-            """ID of the current spline."""
+            """Current spline whose power spectrum is being displayed."""
 
             label_text = vfield("Spline:", widget_type="Label")
-            param_value = vfield("").with_options(enabled=False)
+            param_value = vfield("0").with_options(enabled=False)
 
             def _get_splines(self, _=None) -> list[tuple[str, int]]:
                 """Get list of spline objects for categorical widgets."""
@@ -419,10 +407,11 @@ class SpectraInspector(ChildWidget):
 
         @magicclass(labels=False, layout="horizontal")
         class current_bin_size(ChildWidget):
-            """Current bin size used for calculating the power spectrum."""
+            """Current bin size used for calculating the power spectrum (maybe different
+            from the bin size of the tomogram)."""
 
             label_text = vfield("Bin size:", widget_type="Label")
-            param_value = vfield("").with_options(enabled=False)
+            param_value = vfield("1").with_options(enabled=False)
 
             def _get_binsize_choices(self, *_) -> list[int]:
                 parent = self._get_main()

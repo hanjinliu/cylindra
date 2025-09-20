@@ -3594,6 +3594,8 @@ def _filter_macro_for_reanalysis(macro_expr: mk.Expr, ui_sym: mk.Symbol):
 def _remove_config_kwargs(macro: mk.Macro) -> mk.Macro:
     macro_args_new = []
     for line in macro.args:
+        if line.head is mk.Head.comment:
+            continue
         _fn, _args, _kwargs = line.split_call()
         if "config" in _kwargs:
             _kwargs.pop("config")
