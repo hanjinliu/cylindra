@@ -69,7 +69,6 @@ class PeakInspector(ChildWidget):
         self._image = np.zeros((1, 1))
         self._is_log_scale = False
         self._current_spline_index = 0
-        self._current_binsize = 1
 
     def __post_init__(self):
         self._infline_x = self.canvas.add_infline((0, 0), 0, color="yellow")
@@ -106,7 +105,8 @@ class PeakInspector(ChildWidget):
         spl = main.splines[i]
         self._layer_axial.data = [], []
         self._layer_angular.data = [], []
-        self._current_spline_index = i
+        ins = self.find_ancestor(SpectraInspector)
+        ins.SidePanel.current_spline.value = i
         upsample = 1 if self.show_what in (LOCAL_CFT, GLOBAL_CFT) else UPSAMPLE
         if self.show_what in (LOCAL_CFT, LOCAL_CFT_UP):
             if spl.props.has_loc(H.twist) and spl.has_anchors:
@@ -140,7 +140,7 @@ class PeakInspector(ChildWidget):
         else:  # pragma: no cover
             raise RuntimeError(f"Unreachable: {self.show_what=}")
 
-        self._current_binsize = binsize
+        ins.SidePanel.current_bin_size.value = binsize
 
         if (img := self._power_spectra[0]) is not None:
             shape = self._fix_shape(img.shape)
@@ -200,7 +200,10 @@ class PeakInspector(ChildWidget):
     @show_what.connect
     def _show_what_changed(self, value: str):
         if len(self._power_spectra) > 0:
-            self._set_spline(self._current_spline_index, binsize=None)
+            ins = self.find_ancestor(SpectraInspector)
+            idx = ins.SidePanel.current_spline.value
+            binsize = ins.SidePanel.current_bin_size.value
+            self._set_spline(idx, binsize=binsize)
 
     def _may_show_text_overlay(self, when: bool, text: str) -> bool:
         if when:
@@ -404,7 +407,7 @@ class SpectraInspector(ChildWidget):
             def set_spline(self, idx: Annotated[int, {"choices": _get_splines}]):
                 """Override the current bin size."""
                 ins = self.find_ancestor(SpectraInspector)
-                ins.load_spline(idx)
+                ins.load_spline(idx, ins.SidePanel.current_bin_size.value)
 
             @property
             def value(self):
@@ -423,7 +426,10 @@ class SpectraInspector(ChildWidget):
 
             def _get_binsize_choices(self, *_) -> list[int]:
                 parent = self._get_main()
-                return [k for k, _ in parent.tomogram.multiscaled]
+                binsizes = [k for k, _ in parent.tomogram.multiscaled]
+                if 1 not in binsizes:
+                    binsizes.append(1)
+                return sorted(binsizes)
 
             @set_design(text="Set ...")
             def set_bin_size(
@@ -460,13 +466,14 @@ class SpectraInspector(ChildWidget):
         idx = self.SidePanel.current_spline.value
         if idx >= len(main.splines):
             raise ValueError("No spline available.")
+        bin_size = self.SidePanel.current_bin_size.value
         main.local_cft_analysis(
             [idx],
             interval=interval,
             depth=depth,
-            bin_size=self.peak_viewer._current_binsize,
+            bin_size=bin_size,
         )
-        self.load_spline(idx, binsize=None)
+        self.load_spline(idx, binsize=bin_size)
 
     @property
     def canvas(self):
@@ -522,7 +529,6 @@ class SpectraInspector(ChildWidget):
 
         self.canvas.mouse_clicked.connect(self._on_mouse_clicked, unique=True)
         self.mode = MouseMode.none
-        self.SidePanel.current_bin_size.value = self.peak_viewer._current_binsize
         self.SidePanel.current_spline.value = idx
 
     @set_design(text=capitalize, location=SidePanel)

@@ -271,12 +271,14 @@ def test_workflow_undo_redo(ui: CylindraMainWidget):
 
 def test_config(ui: CylindraMainWidget, tmpdir):
     ui.load_project(PROJECT_DIR_14PF, filter=None)
-    ui.SplinesMenu.Config.update_default_config(npf_range=(13, 15))
+
+    ui.config_edit.config_new.refer_current_spline_config()
+    ui.config_edit.config_new.npf_range.value = (13, 15)
     tmpdir = Path(tmpdir)
     with _config.patch_config_dir(tmpdir):
-        ui.SplinesMenu.Config.save_default_config(tmpdir)
-        ui.SplinesMenu.Config.load_default_config(tmpdir)
-    ui.SplinesMenu.Config.view_config_presets()
+        ui.config_edit.config_current.save_as_config_preset(tmpdir)
+        ui.config_edit.config_current.load_config_preset(tmpdir)
+    ui.config_edit.config_new.apply_to_splines([0])
 
 
 def test_reanalysis(ui: CylindraMainWidget):
@@ -601,7 +603,10 @@ def test_sub_widgets(ui: CylindraMainWidget, tmpdir):
         ui.spline_slicer._next_pos()
         ui.spline_slicer._prev_pos()
         ui.spline_slicer.measure_cft_here()
+        ui.spline_slicer.measure_clockwise()
+        ui.spline_slicer.measure_radius()
         ui.spline_slicer._show_overlay_text("some text")
+        ui.spline_slicer.fit_spline_manually()
 
         ui.manual_picker.refresh_widget_state()
         ui.manual_picker._yaw_left()

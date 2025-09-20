@@ -66,7 +66,7 @@ The config editor widget is designed to easily edit, apply, and save the spline 
 
 :material-arrow-right-thin-circle-outline: GUI: `Splines > Open config editor`
 
-![config_editor](../images/config_editor.png){ lazy loading, width=550px }
+![config_editor](../images/config_editor.png){ lazy loading, width=750px }
 
 The left panel shows the current config. Splines added to the tomogram are initialized
 with this config. The right panel is used for editing the config without changing the

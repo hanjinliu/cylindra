@@ -7,8 +7,8 @@ inspector widget.
 :material-arrow-right-thin-circle-outline: GUI: `Analysis > Open spectra inspector` or ++ctrl+k++ &rarr; ++ctrl+v++
 
 In this window, you can see the local- and global-CFT power spectra of the existing
-splines, and the estimated peak positions (red markers) if available. By clicking the
-"Load spline" button, you can set other splines in the tomogram for inspection.
+splines, and the estimated peak positions (red markers) if available. You can change the
+current spline and bin size for inspection in this GUI.
 
 ![Inspection result](images/inspect_local_cft.png){ loading=lazy, width=570px }
 
@@ -23,5 +23,4 @@ blurred, especially in the x (angular) direction.
 
 !!! note
     This widget is also used to measure the lattice parameters of unknown structures.
-    See [here](spline/config.md#measuring-the-approximate-parameters-of-unknown-structures)
-    for more information.
+    See [here](case_studies/custom_config.md) for more information.

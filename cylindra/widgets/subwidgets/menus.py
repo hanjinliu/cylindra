@@ -425,6 +425,8 @@ class SplinesMenu(ChildWidget):
     clip_spline = abstractapi()
 
     @set_design(text="Open config editor")
+    @do_not_record
+    @bind_key("Ctrl+K, Ctrl+G")
     def show_config_edit(self):
         """Open the config editor widget to edit spline fitting parameters."""
         return self._get_main().config_edit.show()

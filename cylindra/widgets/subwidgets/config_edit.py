@@ -13,7 +13,7 @@ def _get_saved_config_files(self, w=None) -> list[str]:
     return [path.stem for path in _config.get_config().list_config_paths()]
 
 
-@magicclass(widget_type="groupbox")
+@magicclass(widget_type="groupbox", record=False)
 class ConfigContainer(ChildWidget):
     """Widget to edit the spline config.
 
@@ -74,7 +74,7 @@ class ConfigContainer(ChildWidget):
         self.set_config(config)
 
     @set_design(text="Save as new preset")
-    def save_default_config(self, name: str):
+    def save_as_config_preset(self, name: str):
         """Save current default config as a preset."""
         path = _config.get_config().spline_config_path(name)
         if path.exists():

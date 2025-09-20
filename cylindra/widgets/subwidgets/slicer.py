@@ -136,13 +136,13 @@ class SplineSlicer(ChildWidget):
 
     @magicclass(layout="horizontal")
     class Row2(ChildWidget):
-        fit_spline_manually = abstractapi()
         measure_radius = abstractapi()
         measure_cft_here = abstractapi()
         measure_clockwise = abstractapi()
 
     @magicclass(layout="horizontal")
     class Row3(ChildWidget):
+        fit_spline_manually = abstractapi()
         apply_radius_and_thickness = abstractapi()
         refresh_widget_state = abstractapi()
 
@@ -197,13 +197,6 @@ class SplineSlicer(ChildWidget):
         main.measure_radius([idx], bin_size=self.params.binsize)
         self.radius = main.tomogram.splines[idx].radius
 
-    @set_design(text="Fit spline manually ...", location=Row2)
-    def fit_spline_manually(self):
-        """Open the spline fitter and run fitting tasks there."""
-        main = self._get_main()
-        main.SplinesMenu.Fitting.fit_splines_manually()
-        main.spline_fitter.num.value = self.controller.spline_id
-
     @set_design(text="Measure CFT", location=Row2)
     def measure_cft_here(self):
         """Measure CFT parameters at the current position."""
@@ -229,6 +222,13 @@ class SplineSlicer(ChildWidget):
             f"{_col('PF:')} {params.npf}<br>"
             f"{_col('start:')} {params.start}"
         )
+
+    @set_design(text="Fit spline manually ...", location=Row3)
+    def fit_spline_manually(self):
+        """Open the spline fitter and run fitting tasks there."""
+        main = self._get_main()
+        main.SplinesMenu.Fitting.fit_splines_manually()
+        main.spline_fitter.num.value = self.controller.spline_id
 
     @set_design(text="Measure CW/CCW", location=Row2)
     def measure_clockwise(self):

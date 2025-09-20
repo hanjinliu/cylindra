@@ -1,8 +1,11 @@
 # Prepare Spline Configuration for Your Structure of Interest
 
-The default state of `cylindra` is optimized for microtubules. If you want to analyze
-other cylindrical structures, you need to define a custom spline configuration. This is
-a tedious task, but is very important for successful analysis.
+The default [spline configuration](../spline/config.md) on startup is optimized for
+microtubules. If you want to analyze other cylindrical structures, you need to define a
+custom spline configuration. This is a tedious task, but is very important for
+successful analysis.
+
+A sample containing tobacco mosaic virus (TMV) is used to make the example images below.
 
 ## 1. Manually fit spline
 
@@ -18,6 +21,11 @@ To define a custom configuration, you will have to prepare a well-fitted spline 
 4. Click "Fit" button to apply the shift to the spline. This will update the spline
    coordinates.
 
+If the spline is fitted correctly, you should see the spline follows the center of the
+structure in the napari viewer.
+
+![](../images/case-study-config-00-fit.png)
+
 ## 2. Measure cylinder radius and thickness
 
 Building a cylindrical coordinate system requires the radius and the thickness. Radius
@@ -31,11 +39,15 @@ in the config.
    slice will be shown in the canvas, based on the radius. If the measured value largely
    deviates from your expectation, you can manually adjust the "Radius (nm)" value in
    the GUI.
-3. Adjust the "Inner thickness" and "Outer thickness" parameters so that the circles
+3. In the upper area of the widget, change the bin size and filter so that the
+   cross-sectional slice clearly displays the structure.
+4. Adjust the "Inner thickness" and "Outer thickness" parameters so that the circles
    shown in the canvas accurately represent the inner and outer surfaces of your
    structure. Cylindrical coordinate system will be constructed between these two
    surfaces.
-4. Click "Apply radius and thickness" button to update spline radius and config.
+5. Click "Apply radius and thickness" button to update spline radius and config.
+
+![](../images/case-study-config-01-slicer.png)
 
 ## 3. Measure lattice parameters
 
@@ -50,6 +62,8 @@ parameters.
 4. Enable "Select angular peak" mode, and click the angular peak in the power spectrum.
 5. The measured lattice parameters will be shown in the "Measured parameters" section.
    For later use, you can log these parameters to the console.
+
+![](../images/case-study-config-02-measure-params.png)
 
 ## 4. Determine config parameters
 
