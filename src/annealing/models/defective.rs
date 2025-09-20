@@ -280,7 +280,7 @@ impl DefectiveCylindricAnnealingModel {
         if self.temperature() <= 0.0 {
             return value_error!("temperature must be positive");
         }
-        py.allow_threads(
+        py.detach(
             move || {
                 // Simulate while cooling.
                 let mut reject_count = 0;
@@ -314,7 +314,7 @@ impl DefectiveCylindricAnnealingModel {
         // connected to it. However, since this method is called only in the end,
         // and usually it is very fast (<10 ms). just leave it as it is for better
         // readability.
-        py.allow_threads(
+        py.detach(
             move || {
                 loop {
                     let shift = self.graph.try_all_shifts();
