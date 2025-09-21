@@ -6,6 +6,8 @@ from importlib.metadata import distributions
 from types import ModuleType
 from typing import TYPE_CHECKING, Iterator, NamedTuple
 
+from magicgui.types import Separator
+
 from cylindra.plugin.function import CylindraPluginFunction
 
 if TYPE_CHECKING:
@@ -66,9 +68,14 @@ def load_plugin(
         ui.PluginsMenu.append(_newmenu)
         _newmenu.native.setParent(ui.PluginsMenu.native, _newmenu.native.windowFlags())
     for attr in _dir_or_all(mod):
-        obj = getattr(mod, attr)
+        if isinstance(attr, str):
+            obj = getattr(mod, attr)
+        else:
+            obj = attr
         if isinstance(obj, CylindraPluginFunction):
             _newmenu.append(obj.update_module(mod).as_method(ui))
+        elif obj is Separator:
+            _newmenu.native.addSeparator()
     return True
 
 
@@ -91,6 +98,8 @@ def reload_plugin(
 
 
 def _dir_or_all(mod: ModuleType) -> list[str]:
+    if hasattr(mod, "__cylindra_methods__"):
+        return mod.__cylindra_methods__
     if hasattr(mod, "__all__"):
         return mod.__all__
     else:
