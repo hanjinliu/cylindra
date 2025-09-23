@@ -1869,8 +1869,8 @@ def test_plugin(ui: CylindraMainWidget, tmpdir):
     with pytest.raises(TypeError):
         wrong_signature(3)
 
+    assert len(ui.macro) == 2
     assert str(ui.macro[1]) == "tests.test_gui_0.test_func(ui)"
-    assert str(ui.macro[2]) == "tests.test_gui_0.test_func_no_record(ui)"
     ui.save_project(Path(tmpdir) / "test-project.tar")
 
 
