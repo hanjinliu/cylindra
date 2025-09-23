@@ -4,13 +4,15 @@ import importlib
 import warnings
 from importlib.metadata import distributions
 from types import ModuleType
-from typing import TYPE_CHECKING, Iterator, NamedTuple
+from typing import TYPE_CHECKING, Any, Iterator, NamedTuple
 
 from magicgui.types import Separator
 
 from cylindra.plugin.function import CylindraPluginFunction
 
 if TYPE_CHECKING:
+    from magicclass._gui import MenuGui
+
     from cylindra.widgets import CylindraMainWidget
 
 ENTRY_POINT_GROUP_NAME = "cylindra.plugin"
@@ -67,15 +69,7 @@ def load_plugin(
         _newmenu = newmenu()
         ui.PluginsMenu.append(_newmenu)
         _newmenu.native.setParent(ui.PluginsMenu.native, _newmenu.native.windowFlags())
-    for attr in _dir_or_all(mod):
-        if isinstance(attr, str):
-            obj = getattr(mod, attr)
-        else:
-            obj = attr
-        if isinstance(obj, CylindraPluginFunction):
-            _newmenu.append(obj.update_module(mod).as_method(ui))
-        elif obj is Separator:
-            _newmenu.native.addSeparator()
+    _update_menu_gui(mod, ui, _newmenu)
     return True
 
 
@@ -91,16 +85,27 @@ def reload_plugin(
 
     _newmenu = ui.PluginsMenu[display_name]
     _newmenu.clear()
-    for attr in _dir_or_all(mod):
-        obj = getattr(mod, attr)
-        if isinstance(obj, CylindraPluginFunction):
-            _newmenu.append(obj.update_module(mod).as_method(ui))
+    _update_menu_gui(mod, ui, _newmenu)
 
 
-def _dir_or_all(mod: ModuleType) -> list[str]:
+def _dir_or_all(mod: ModuleType) -> Iterator[Any]:
     if hasattr(mod, "__cylindra_methods__"):
-        return mod.__cylindra_methods__
-    if hasattr(mod, "__all__"):
-        return mod.__all__
+        _list = mod.__cylindra_methods__
+    elif hasattr(mod, "__all__"):
+        _list = mod.__all__
     else:
-        return dir(mod)
+        _list = dir(mod)
+    for attr in _list:
+        if isinstance(attr, str):
+            obj = getattr(mod, attr)
+        else:
+            obj = attr
+        yield obj
+
+
+def _update_menu_gui(mod: ModuleType, ui: CylindraMainWidget, menu: MenuGui):
+    for obj in _dir_or_all(mod):
+        if isinstance(obj, CylindraPluginFunction):
+            menu.append(obj.update_module(mod).as_method(ui))
+        elif obj is Separator:
+            menu.native.addSeparator()
