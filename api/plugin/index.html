@@ -2469,7 +2469,10 @@
 <span class="normal">126</span>
 <span class="normal">127</span>
 <span class="normal">128</span>
-<span class="normal">129</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylindraPluginFunction</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">_P</span><span class="p">,</span> <span class="n">_R</span><span class="p">]):</span>
+<span class="normal">129</span>
+<span class="normal">130</span>
+<span class="normal">131</span>
+<span class="normal">132</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylindraPluginFunction</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">_P</span><span class="p">,</span> <span class="n">_R</span><span class="p">]):</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="n">_P</span><span class="p">,</span> <span class="n">_R</span><span class="p">],</span>
@@ -2538,12 +2541,13 @@
             <span class="k">return</span> <span class="bp">self</span><span class="p">(</span><span class="n">ui</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
         <span class="n">params</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__signature__</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="n">aopt</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__signature__</span><span class="p">,</span> <span class="s2">&quot;additional_options&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="n">_method</span><span class="o">.</span><span class="n">__signature__</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">Signature</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
         <span class="n">_method</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_name</span>
         <span class="n">_method</span><span class="o">.</span><span class="vm">__doc__</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_func</span><span class="p">,</span> <span class="s2">&quot;__doc__&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">qualname</span> <span class="o">:=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_func</span><span class="p">,</span> <span class="s2">&quot;__qualname__&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
             <span class="n">_method</span><span class="o">.</span><span class="vm">__qualname__</span> <span class="o">=</span> <span class="n">qualname</span>
-        <span class="n">upgrade_signature</span><span class="p">(</span><span class="n">_method</span><span class="p">)</span>
+        <span class="n">upgrade_signature</span><span class="p">(</span><span class="n">_method</span><span class="p">,</span> <span class="n">additional_options</span><span class="o">=</span><span class="n">aopt</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">_method</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">_P</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">_P</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_R</span><span class="p">:</span>
@@ -2561,29 +2565,31 @@
                 <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_ui_arg_name</span><span class="si">!r}</span><span class="s2"> but got </span><span class="si">{</span><span class="n">ui</span><span class="si">!r}</span><span class="s2">&quot;</span>
             <span class="p">)</span>
         <span class="c1"># TODO: how to use thread_worker?</span>
-        <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_func</span><span class="p">(</span><span class="o">*</span><span class="n">bound</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">bound</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">ui</span><span class="o">.</span><span class="n">macro</span><span class="o">.</span><span class="n">blocked</span><span class="p">():</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_func</span><span class="p">(</span><span class="o">*</span><span class="n">bound</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">bound</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span>
 
         <span class="c1"># macro recording</span>
-        <span class="n">_args</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">_kwargs</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">bound</span><span class="o">.</span><span class="n">signature</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ui_arg_name</span><span class="p">:</span>
-                <span class="n">_args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ui</span><span class="o">.</span><span class="n">_my_symbol</span><span class="p">)</span>
-            <span class="k">elif</span> <span class="n">param</span><span class="o">.</span><span class="n">kind</span> <span class="ow">is</span> <span class="n">inspect</span><span class="o">.</span><span class="n">Parameter</span><span class="o">.</span><span class="n">POSITIONAL_ONLY</span><span class="p">:</span>
-                <span class="n">_args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">bound</span><span class="o">.</span><span class="n">arguments</span><span class="p">[</span><span class="n">name</span><span class="p">])</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_recordable</span><span class="p">:</span>
+            <span class="n">_args</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">_kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">bound</span><span class="o">.</span><span class="n">signature</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ui_arg_name</span><span class="p">:</span>
+                    <span class="n">_args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ui</span><span class="o">.</span><span class="n">_my_symbol</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">param</span><span class="o">.</span><span class="n">kind</span> <span class="ow">is</span> <span class="n">inspect</span><span class="o">.</span><span class="n">Parameter</span><span class="o">.</span><span class="n">POSITIONAL_ONLY</span><span class="p">:</span>
+                    <span class="n">_args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">bound</span><span class="o">.</span><span class="n">arguments</span><span class="p">[</span><span class="n">name</span><span class="p">])</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">_kwargs</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">bound</span><span class="o">.</span><span class="n">arguments</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+            <span class="n">fn_expr</span> <span class="o">=</span> <span class="n">Expr</span><span class="p">(</span><span class="s2">&quot;getattr&quot;</span><span class="p">,</span> <span class="p">[</span><span class="n">Symbol</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_module</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_func</span><span class="o">.</span><span class="vm">__name__</span><span class="p">])</span>
+            <span class="n">expr</span> <span class="o">=</span> <span class="n">Expr</span><span class="o">.</span><span class="n">parse_call</span><span class="p">(</span><span class="n">fn_expr</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">_args</span><span class="p">),</span> <span class="n">_kwargs</span><span class="p">)</span>
+            <span class="n">ui</span><span class="o">.</span><span class="n">macro</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">expr</span><span class="p">)</span>
+            <span class="n">ui</span><span class="o">.</span><span class="n">macro</span><span class="o">.</span><span class="n">_last_setval</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="bp">self</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">ui</span><span class="o">.</span><span class="n">_plugins_called</span><span class="p">:</span>
+                <span class="n">ui</span><span class="o">.</span><span class="n">_plugins_called</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">UndoCallback</span><span class="p">):</span>
+                <span class="n">ui</span><span class="o">.</span><span class="n">macro</span><span class="o">.</span><span class="n">_append_undo</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">with_name</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">expr</span><span class="p">)))</span>
+                <span class="n">out</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">return_value</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">_kwargs</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">bound</span><span class="o">.</span><span class="n">arguments</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
-        <span class="n">fn_expr</span> <span class="o">=</span> <span class="n">Expr</span><span class="p">(</span><span class="s2">&quot;getattr&quot;</span><span class="p">,</span> <span class="p">[</span><span class="n">Symbol</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_module</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_func</span><span class="o">.</span><span class="vm">__name__</span><span class="p">])</span>
-        <span class="n">expr</span> <span class="o">=</span> <span class="n">Expr</span><span class="o">.</span><span class="n">parse_call</span><span class="p">(</span><span class="n">fn_expr</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">_args</span><span class="p">),</span> <span class="n">_kwargs</span><span class="p">)</span>
-        <span class="n">ui</span><span class="o">.</span><span class="n">macro</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">expr</span><span class="p">)</span>
-        <span class="n">ui</span><span class="o">.</span><span class="n">macro</span><span class="o">.</span><span class="n">_last_setval</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="k">if</span> <span class="bp">self</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">ui</span><span class="o">.</span><span class="n">_plugins_called</span><span class="p">:</span>
-            <span class="n">ui</span><span class="o">.</span><span class="n">_plugins_called</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">UndoCallback</span><span class="p">):</span>
-            <span class="n">ui</span><span class="o">.</span><span class="n">macro</span><span class="o">.</span><span class="n">_append_undo</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">with_name</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">expr</span><span class="p">)))</span>
-            <span class="n">out</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">return_value</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">ui</span><span class="o">.</span><span class="n">macro</span><span class="o">.</span><span class="n">clear_undo_stack</span><span class="p">()</span>
+                <span class="n">ui</span><span class="o">.</span><span class="n">macro</span><span class="o">.</span><span class="n">clear_undo_stack</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">out</span>
 </code></pre></div></td></tr></table></div>
               </details>
@@ -2788,8 +2794,7 @@ used.</p>
 <span class="normal">53</span>
 <span class="normal">54</span>
 <span class="normal">55</span>
-<span class="normal">56</span>
-<span class="normal">57</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">register_function</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="normal">56</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">register_function</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Register a function as a plugin function.</span>
 
 <span class="sd">    The registered function will be added to the plugin menu when the module is</span>
@@ -2810,8 +2815,7 @@ used.</p>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_inner</span><span class="p">(</span><span class="n">fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="n">_P</span><span class="p">,</span> <span class="n">_R</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">CylindraPluginFunction</span><span class="p">[</span><span class="n">_P</span><span class="p">,</span> <span class="n">_R</span><span class="p">]:</span>
         <span class="n">f</span> <span class="o">=</span> <span class="n">CylindraPluginFunction</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">record</span><span class="p">:</span>
-            <span class="n">f</span><span class="o">.</span><span class="n">_is_recordable</span> <span class="o">=</span> <span class="n">record</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">_is_recordable</span> <span class="o">=</span> <span class="n">record</span>
         <span class="k">return</span> <span class="n">f</span>
 
     <span class="k">return</span> <span class="n">_inner</span> <span class="k">if</span> <span class="n">func</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">_inner</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>

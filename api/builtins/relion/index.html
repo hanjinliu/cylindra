@@ -3577,7 +3577,7 @@ option is required if you picked molecules in a trimmed tomogram.</p>
 <span class="normal">321</span>
 <span class="normal">322</span>
 <span class="normal">323</span>
-<span class="normal">324</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Save splines&quot;</span><span class="p">)</span>
+<span class="normal">324</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Save splines&quot;</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">save_splines</span><span class="p">(</span>
     <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span>
     <span class="n">save_path</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Save</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">STAR</span><span class="p">],</span>

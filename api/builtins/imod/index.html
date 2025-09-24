@@ -2578,7 +2578,7 @@ directly used by PEET.</p>
 <span class="normal">377</span>
 <span class="normal">378</span>
 <span class="normal">379</span>
-<span class="normal">380</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Export project&quot;</span><span class="p">)</span>
+<span class="normal">380</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Export project&quot;</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">export_project</span><span class="p">(</span>
     <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
@@ -2837,7 +2837,7 @@ directly used by PEET.</p>
 <span class="normal">472</span>
 <span class="normal">473</span>
 <span class="normal">474</span>
-<span class="normal">475</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Export project as batch&quot;</span><span class="p">)</span>
+<span class="normal">475</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Export project as batch&quot;</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">export_project_batch</span><span class="p">(</span>
     <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span>
     <span class="n">save_dir</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Dir</span><span class="p">,</span>
@@ -3092,7 +3092,7 @@ will be created under the same level as the first IMOD project.</p>
 <span class="normal">282</span>
 <span class="normal">283</span>
 <span class="normal">284</span>
-<span class="normal">285</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Import IMOD projects&quot;</span><span class="p">)</span>
+<span class="normal">285</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Import IMOD projects&quot;</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">import_imod_projects</span><span class="p">(</span>
     <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span>
     <span class="n">edf_path</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Path</span><span class="o">.</span><span class="n">Read</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">EDF</span><span class="p">],</span> <span class="p">{</span><span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;IMOD edf file(s)&quot;</span><span class="p">}],</span>
@@ -3665,7 +3665,7 @@ loading.</p>
 <span class="normal">82</span>
 <span class="normal">83</span>
 <span class="normal">84</span>
-<span class="normal">85</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Save molecules&quot;</span><span class="p">)</span>
+<span class="normal">85</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Save molecules&quot;</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">save_molecules</span><span class="p">(</span>
     <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span> <span class="n">save_dir</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Dir</span><span class="p">,</span> <span class="n">layers</span><span class="p">:</span> <span class="n">MoleculesLayersType</span>
 <span class="p">):</span>
@@ -3792,7 +3792,7 @@ length of a spline is 100.0, 11 points will be sampled.</p>
 <span class="normal">122</span>
 <span class="normal">123</span>
 <span class="normal">124</span>
-<span class="normal">125</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Save splines&quot;</span><span class="p">)</span>
+<span class="normal">125</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Save splines&quot;</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">save_splines</span><span class="p">(</span>
     <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span>
     <span class="n">save_path</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Save</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">MOD</span><span class="p">],</span>
