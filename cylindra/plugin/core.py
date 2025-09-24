@@ -50,8 +50,7 @@ def register_function(func=None, *, record=True, name=None):
 
     def _inner(fn: Callable[_P, _R]) -> CylindraPluginFunction[_P, _R]:
         f = CylindraPluginFunction(fn, name=name)
-        if not record:
-            f._is_recordable = record
+        f._is_recordable = record
         return f
 
     return _inner if func is None else _inner(func)

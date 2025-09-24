@@ -268,7 +268,7 @@ def _iter_dataframe_from_path_sets(
             yield tomo_name, df
 
 
-@register_function(name="Save splines")
+@register_function(name="Save splines", record=False)
 def save_splines(
     ui: CylindraMainWidget,
     save_path: Path.Save[FileFilter.STAR],

@@ -66,7 +66,7 @@ def load_splines(
         ui.register_path(coords * ui.tomogram.scale, err_max=1e-8)
 
 
-@register_function(name="Save molecules")
+@register_function(name="Save molecules", record=False)
 def save_molecules(
     ui: CylindraMainWidget, save_dir: Path.Dir, layers: MoleculesLayersType
 ):
@@ -85,7 +85,7 @@ def save_molecules(
     return _save_molecules(save_dir=save_dir, mol=mol, scale=ui.tomogram.scale)
 
 
-@register_function(name="Save splines")
+@register_function(name="Save splines", record=False)
 def save_splines(
     ui: CylindraMainWidget,
     save_path: Path.Save[FileFilter.MOD],
@@ -231,7 +231,7 @@ def open_image_from_imod_project(
     )
 
 
-@register_function(name="Import IMOD projects")
+@register_function(name="Import IMOD projects", record=False)
 def import_imod_projects(
     ui: CylindraMainWidget,
     edf_path: Annotated[Path.Read[FileFilter.EDF], {"label": "IMOD edf file(s)"}],
@@ -306,7 +306,7 @@ def _edf_to_tomo_and_tilt(edf_path: Path) -> tuple[Path, dict] | None:
     return tomo_path, tilt_model
 
 
-@register_function(name="Export project")
+@register_function(name="Export project", record=False)
 def export_project(
     ui: CylindraMainWidget,
     layer: MoleculesLayerType,
@@ -387,7 +387,7 @@ def _get_loader_paths(*_):
     return ui.batch._get_loader_paths(*_)
 
 
-@register_function(name="Export project as batch")
+@register_function(name="Export project as batch", record=False)
 def export_project_batch(
     ui: CylindraMainWidget,
     save_dir: Path.Dir,
