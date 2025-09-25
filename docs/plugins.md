@@ -72,6 +72,8 @@ Let's start with a simple plugin function that prints a message and a random arr
 
 ``` python title="my_first_plugin/__init__.py"
 from .core import my_plugin_function
+
+__all__ = ["my_plugin_function"]
 ```
 
 ``` python title="my_first_plugin/core.py"
@@ -82,6 +84,17 @@ from cylindra.plugin import register_function
 def my_plugin_function(ui):
     ui.logger.print("My first plugin!")
     ui.logger.print(np.random.rand(5))
+```
+
+`cylindra` creates menus for the registered plugin functions in the order of `__all__`
+if available. Alternatively, you can define a special list `__cylindra_methods__` to
+explicitly do this. The safest way is to define both.
+
+``` python title="my_first_plugin/__init__.py"
+from .core import my_plugin_function
+
+__all__ = ["my_plugin_function"]
+__cylindra_methods__ = [my_plugin_function]
 ```
 
 ### Step 3. Metadata
