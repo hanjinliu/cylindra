@@ -19,14 +19,18 @@ ENTRY_POINT_GROUP_NAME = "cylindra.plugin"
 
 
 class PluginInfo(NamedTuple):
+    """Tuple for plugin specification."""
+
     name: str
     value: str
     version: str
 
     def load(self, ui: CylindraMainWidget) -> bool:
+        """Load this plugin to the cylindra widget."""
         return load_plugin(ui, module_name=self.value, display_name=self.name)
 
     def reload(self, ui: CylindraMainWidget) -> None:
+        """Reload this plugin to the cylindra widget."""
         reload_plugin(ui, module_name=self.value, display_name=self.name)
 
 
@@ -78,8 +82,6 @@ def reload_plugin(
     module_name: str,
     display_name: str,
 ) -> None:
-    import importlib
-
     mod = importlib.import_module(module_name)
     mod = importlib.reload(mod)
 
