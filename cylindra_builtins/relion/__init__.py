@@ -1,3 +1,5 @@
+from magicgui.types import Separator
+
 from cylindra_builtins.relion.io import (
     load_molecules,
     load_splines,
@@ -22,8 +24,10 @@ __cylindra_methods__ = [
     load_molecules,
     load_splines,
     save_molecules,
+    save_splines,
+    Separator,
     save_molecules_for_import,
     save_molecules_for_extract,
-    save_splines,
+    Separator,
     open_relion_job,
 ]
