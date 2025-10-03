@@ -19,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
-        platform: [ubuntu-latest, macos-latest, windows-latest]
+        platform: [ubuntu-latest, macos-latest, windows-2022]
 
     steps:
       - name: Cancel Previous Runs
@@ -35,7 +35,7 @@ jobs:
 
       - name: Create virtual environment
         env:
-          BIN: ${{ matrix.os == 'windows-latest' && 'Scripts' || 'bin' }}
+          BIN: ${{ matrix.os == 'windows-2022' && 'Scripts' || 'bin' }}
         run: |
           python -m venv .venv
           echo "$GITHUB_WORKSPACE/.venv/$BIN" >> $GITHUB_PATH
