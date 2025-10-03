@@ -9,7 +9,9 @@ from magicclass import get_button, get_function_gui, logging
 from magicgui import magicgui
 from qtpy import QtWidgets as QtW
 
-from cylindra import instance, widgets
+from cylindra import instance
+from cylindra.widgets import CylindraMainWidget
+from cylindra.widgets.subwidgets.measure import LOCAL_CFT, LOCAL_CFT_UP
 
 DOCS = Path(__file__).parent.parent
 PATH_13_3 = DOCS.parent / "tests" / "13pf_MT.tif"
@@ -32,9 +34,7 @@ def _imsave(widget: QtW.QWidget, name: str):
         widget.grab().save(f.name, "png")
 
 
-def _viewer_screenshot(
-    ui: widgets.CylindraMainWidget, name: str, canvas_only: bool = True
-):
+def _viewer_screenshot(ui: CylindraMainWidget, name: str, canvas_only: bool = True):
     with _open(f"images/{name}.png", "wb") as f:
         ui.parent_viewer.screenshot(f.name, canvas_only=canvas_only, flash=False)
 
@@ -98,12 +98,16 @@ def main():
     _imsave(ui.sta.native, "sta_widget")
     ui.sta.close()
 
+    ui.config_edit.show()
+    _imsave(ui.config_edit.native, "config_editor")
+    ui.config_edit.close()
+
     ui._runner.run(interval=12, n_refine=0, map_monomers=True)
 
     ### inspect local CFT ###
     ui.spectra_inspector.show()
     ui.spectra_inspector.load_spline(0)
-    ui.spectra_inspector.peak_viewer.show_what = "Local-CFT"
+    ui.spectra_inspector.peak_viewer.show_what = LOCAL_CFT
     ui.spectra_inspector.width = 500
     ui.spectra_inspector.height = 525
     QtW.QApplication.processEvents()
@@ -111,7 +115,7 @@ def main():
     ui.spectra_inspector.peak_viewer.canvas.xlim = (28, 52)
     QtW.QApplication.processEvents()
     _imsave(ui.spectra_inspector.native, "inspect_local_cft")
-    ui.spectra_inspector.peak_viewer._upsample_and_update_image(45, 23)
+    ui.spectra_inspector.peak_viewer.show_what = LOCAL_CFT_UP
     ui.spectra_inspector.peak_viewer.canvas.xlim = (41, 49)
     ui.spectra_inspector.peak_viewer.canvas.ylim = (18, 28)
     QtW.QApplication.processEvents()
@@ -122,11 +126,9 @@ def main():
     ui.measure_radius(1)
     ui.local_cft_analysis(1, interval=50)
     ui.spectra_inspector.load_spline(1)
-    ui.spectra_inspector.peak_viewer.show_what = "Local-CFT"
+    ui.spectra_inspector.peak_viewer.show_what = LOCAL_CFT
     ui.spectra_inspector.width = 500
     ui.spectra_inspector.height = 525
-    QtW.QApplication.processEvents()
-    ui.spectra_inspector.peak_viewer._upsample_and_update_image(45, 23)
     ui.spectra_inspector.peak_viewer.canvas.xlim = (41, 49)
     ui.spectra_inspector.peak_viewer.canvas.ylim = (18, 28)
     QtW.QApplication.processEvents()
@@ -158,7 +160,6 @@ def main():
         ui.merge_molecule_info,
         ui.copy_molecules_features,
         # others
-        ui.SplinesMenu.Config.update_default_config,
         ui.OthersMenu.configure_cylindra,
     ]:
         get_button(meth).changed.emit()

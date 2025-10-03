@@ -268,7 +268,7 @@ def _iter_dataframe_from_path_sets(
             yield tomo_name, df
 
 
-@register_function(name="Save splines")
+@register_function(name="Save splines", record=False)
 def save_splines(
     ui: CylindraMainWidget,
     save_path: Path.Save[FileFilter.STAR],
@@ -389,6 +389,7 @@ def open_relion_job(
         paths, scales, moles = _parse_optimisation_star(opt_star_path, rln_project_path)
     else:
         raise ValueError(f"Job {job_dir_path.name} is not a supported RELION job.")
+    # TODO: parse tilt angles
     ui.batch._new_projects_from_table(
         paths,
         save_root=project_root,

@@ -25,6 +25,12 @@ install from [PyPI](https://pypi.org), you'll need [`git`](https://git-scm.com) 
     pip install cylindra[all] -U
     ```
 
+    If you are using `venv` from `uv`,
+
+    ```shell
+    uv pip install cylindra[all] -U
+    ```
+
 === "From napari hub"
 
     `cylindra` is available as a [napari plugin](https://napari-hub.org/plugins/cylindra).
@@ -54,7 +60,7 @@ install from [PyPI](https://pypi.org), you'll need [`git`](https://git-scm.com) 
     If you don't want all of these, you can manually select the dependencies. The
     optional dependencies are:
 
-    - `pyqt5` ... This is the default GUI backend. You can also use `pyqt6` or
+    - `pyqt6` ... This is the default GUI backend. You can also use `pyqt5` or
       `pyside6`.
     - `scikit-learn` ... Conventional machine learning library. Princilple component
       analysis (PCA) and k-means clustering need this library.

@@ -4,9 +4,7 @@ import io
 import json
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any
-
-from typing_extensions import Self
+from typing import Any, Self
 
 
 class BaseComponent(ABC):

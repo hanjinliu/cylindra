@@ -5,8 +5,10 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Concatenate,
     Iterable,
     Literal,
+    ParamSpec,
     Protocol,
     Sequence,
     TypeVar,
@@ -22,7 +24,6 @@ from numpy.typing import NDArray
 from scipy import ndimage as ndi
 from scipy.fft import fft2, ifft2
 from scipy.spatial.transform import Rotation
-from typing_extensions import Concatenate, ParamSpec
 
 from cylindra._dask import compute, delayed
 from cylindra.const import Mode, nm
@@ -51,21 +52,17 @@ class BatchCallable(Protocol[_P, _R]):
     @overload
     def __call__(
         self, i: Literal[None], *args: _P.args, **kwargs: _P.kwargs
-    ) -> list[_R]:
-        ...
+    ) -> list[_R]: ...
 
     @overload
-    def __call__(self, i: int, *args: _P.args, **kwargs: _P.kwargs) -> _R:
-        ...
+    def __call__(self, i: int, *args: _P.args, **kwargs: _P.kwargs) -> _R: ...
 
     @overload
     def __call__(
         self, i: Iterable[int] | None, *args: _P.args, **kwargs: _P.kwargs
-    ) -> list[_R]:
-        ...
+    ) -> list[_R]: ...
 
-    def __call__(self, i, *args, **kwargs):
-        ...  # pragma: no cover
+    def __call__(self, i, *args, **kwargs): ...  # pragma: no cover
 
 
 def batch_process(
@@ -132,13 +129,24 @@ class ImageWithPeak:
         """Calculate power spectrum"""
         return self.image.power_spectra(dims="rya").mean(axis="r")
 
-    def power_upsampled(self, key=None, upsample: int = 5) -> ip.ImgArray:
+    def power_upsampled(self, upsample: int = 5) -> ip.ImgArray:
         """Calculate local upsampled power spectrum"""
+        ny, na = self.image.shape[1:3]
+        y_key = self._make_key(ny)
+        a_key = self._make_key(na)
+        start = (upsample + 1) // 2
+        end = upsample - start
         return self.image.local_power_spectra(
-            key=key,
+            key=f"y={y_key};a={a_key}",
             upsample_factor=[1, upsample, upsample],
             dims="rya",
-        ).mean(axis="r")
+        ).mean(axis="r")[start:-end, start:-end]
+
+    def _make_key(self, size: int):
+        if size % 2 == 0:
+            return f"{-size//2-1}:{size//2}"
+        else:
+            return f"{-size//2}:{size//2+1}"
 
 
 def dask_angle_corr(

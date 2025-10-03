@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, Self
 
 import impy as ip
 import numpy as np
@@ -11,7 +11,12 @@ from acryo import Molecules
 from numpy.typing import ArrayLike, NDArray
 
 from cylindra._dask import Delayed, compute
-from cylindra.components._ftprops import LatticeAnalyzer, LatticeParams, get_polar_image
+from cylindra.components._ftprops import (
+    LatticeAnalyzer,
+    LatticeParams,
+    get_polar_image,
+    is_clockwise,
+)
 from cylindra.components._peak import find_centroid_peak
 from cylindra.components.spline import CylSpline
 from cylindra.components.tomogram import _misc, _straighten
@@ -30,8 +35,6 @@ from cylindra.utils import (
 )
 
 if TYPE_CHECKING:
-    from typing_extensions import Literal, Self
-
     from cylindra.components.cylindric import CylinderModel
     from cylindra.components.spline import SplineConfig
 
@@ -730,6 +733,11 @@ class CylTomogram(Tomogram):
         i: int = None,
         binsize: int | None = None,
     ) -> list[_misc.ImageWithPeak]:
+        """Recalculate local images and peaks.
+
+        This method reuses the existing spline properties to get the peaks. To measure
+        local lattice parameters, use `local_cft_params` method beforehand.
+        """
         spl = self.splines[i]
         depth = spl.props.window_size[H.twist]
         if binsize is None:
@@ -737,20 +745,24 @@ class CylTomogram(Tomogram):
         df_loc = spl.props.loc
         out = list[_misc.ImageWithPeak]()
         for j, polar_img in enumerate(self.iter_local_image(i, depth, binsize=binsize)):
-            cparams = spl.cylinder_params(
-                spacing=_misc.get_component(df_loc, H.spacing, j),
-                pitch=_misc.get_component(df_loc, H.pitch, j),
-                twist=_misc.get_component(df_loc, H.twist, j),
-                skew=_misc.get_component(df_loc, H.skew, j),
-                rise_angle=_misc.get_component(df_loc, H.rise, j),
-                start=_misc.get_component(df_loc, H.start, j),
-                npf=_misc.get_component(df_loc, H.npf, j),
-            )
-            analyzer = LatticeAnalyzer(spl.config)
-            peakv, peakh = analyzer.params_to_peaks(polar_img[0], cparams)
-            peakv = peakv.shift_to_center()
-            peakh = peakh.shift_to_center()
-            out.append(_misc.ImageWithPeak(polar_img, [peakv, peakh]))
+            try:
+                cparams = spl.cylinder_params(
+                    spacing=_misc.get_component(df_loc, H.spacing, j),
+                    pitch=_misc.get_component(df_loc, H.pitch, j),
+                    twist=_misc.get_component(df_loc, H.twist, j),
+                    skew=_misc.get_component(df_loc, H.skew, j),
+                    rise_angle=_misc.get_component(df_loc, H.rise, j),
+                    start=_misc.get_component(df_loc, H.start, j),
+                    npf=_misc.get_component(df_loc, H.npf, j),
+                )
+            except ValueError:
+                out.append(_misc.ImageWithPeak(polar_img, []))
+            else:
+                analyzer = LatticeAnalyzer(spl.config)
+                peakv, peakh = analyzer.params_to_peaks(polar_img[0], cparams)
+                peakv = peakv.shift_to_center()
+                peakh = peakh.shift_to_center()
+                out.append(_misc.ImageWithPeak(polar_img, [peakv, peakh]))
         return out
 
     @_misc.batch_process
@@ -784,25 +796,34 @@ class CylTomogram(Tomogram):
         i: int = None,
         binsize: int | None = None,
     ) -> _misc.ImageWithPeak:
+        """Recalculate global image and peaks.
+
+        This method reuses the existing spline properties to get the peaks. To measure
+        global lattice parameters, use `global_cft_params` method beforehand.
+        """
         spl = self.splines[i]
         if binsize is None:
             binsize = spl.props.binsize_glob[H.twist]
         img_st = self.straighten_cylindric(i, binsize=binsize)
         img_st -= np.mean(img_st)
-        cparams = spl.cylinder_params(
-            spacing=spl.props.get_glob(H.spacing, default=None),
-            pitch=spl.props.get_glob(H.pitch, default=None),
-            twist=spl.props.get_glob(H.twist, default=None),
-            skew=spl.props.get_glob(H.skew, default=None),
-            rise_angle=spl.props.get_glob(H.rise, default=None),
-            start=spl.props.get_glob(H.start, default=None),
-            npf=spl.props.get_glob(H.npf, default=None),
-        )
-        analyzer = LatticeAnalyzer(spl.config)
-        peakv, peakh = analyzer.params_to_peaks(img_st[0], cparams)
-        peakv = peakv.shift_to_center()
-        peakh = peakh.shift_to_center()
-        return _misc.ImageWithPeak(img_st, [peakv, peakh])
+        try:
+            cparams = spl.cylinder_params(
+                spacing=spl.props.get_glob(H.spacing, default=None),
+                pitch=spl.props.get_glob(H.pitch, default=None),
+                twist=spl.props.get_glob(H.twist, default=None),
+                skew=spl.props.get_glob(H.skew, default=None),
+                rise_angle=spl.props.get_glob(H.rise, default=None),
+                start=spl.props.get_glob(H.start, default=None),
+                npf=spl.props.get_glob(H.npf, default=None),
+            )
+        except ValueError:
+            return _misc.ImageWithPeak(img_st, [])
+        else:
+            analyzer = LatticeAnalyzer(spl.config)
+            peakv, peakh = analyzer.params_to_peaks(img_st[0], cparams)
+            peakv = peakv.shift_to_center()
+            peakh = peakh.shift_to_center()
+            return _misc.ImageWithPeak(img_st, [peakv, peakh])
 
     @_misc.batch_process
     def global_cft_params(
@@ -829,7 +850,7 @@ class CylTomogram(Tomogram):
             Number of cylindrical coordinate samplings for Fourier transformation.
             Multiple samplings are needed because up-sampled discrete Fourier
             transformation does not return exactly the same power spectra with shifted
-            inputs, unlike FFT. Larger ``nsamples`` reduces the error but is slower.
+            inputs, unlike FFT. Larger `nsamples` reduces the error but is slower.
         update : bool, default True
             If True, spline properties will be updated.
 
@@ -911,39 +932,18 @@ class CylTomogram(Tomogram):
         cfg = spl.config
         ori_clockwise = Ori(cfg.clockwise)
         ori_counterclockwise = Ori.invert(ori_clockwise, allow_none=False)
-        if spl.radius is None:
-            r_range = 0.5 * current_scale, cfg.fit_width / 2
-        else:
-            r_range = spl.radius_range()
+        r_range = spl.radius_range()
         point = 0.5  # the sampling point
         coords = spl.local_cylindrical(r_range, depth, point, scale=current_scale)
         polar = get_polar_image(imgb, coords, spl.radius, order=1)
-        if mask_freq:
-            polar = LatticeAnalyzer(cfg).mask_spectra(polar)
-        img_flat = polar.mean(axis="y")
-
-        if (npf := spl.props.get_glob(H.npf, None)) is None:
-            # if the global properties are already calculated, use it
-            # otherwise, calculate the number of PFs from the power spectrum
-            ft = img_flat.fft(shift=False, dims="ra")
-            pw = ft.real**2 + ft.imag**2
-            img_pw = np.mean(pw, axis=0)
-            npf = np.argmax(img_pw[cfg.npf_range.asslice()]) + cfg.npf_range.min
-
-        pw_peak = img_flat.local_power_spectra(
-            key=ip.slicer.a[npf - 1 : npf + 2],
-            upsample_factor=20,
-            dims="ra",
-        ).mean(axis="a")
-        r_argmax = np.argmax(pw_peak)
-        clkwise = r_argmax - (pw_peak.size + 1) // 2 <= 0
+        clkwise = is_clockwise(
+            cfg,
+            polar,
+            mask_freq=mask_freq,
+            npf=spl.props.get_glob(H.npf, None),
+            logger=LOGGER,
+        )
         ori = ori_clockwise if clkwise else ori_counterclockwise
-
-        # logging
-        _val = pw_peak[r_argmax]
-        pw_non_peak = np.delete(pw_peak, r_argmax)
-        _ave, _std = np.mean(pw_non_peak), np.std(pw_non_peak, ddof=1)
-        LOGGER.info(f" >> polarity = {ori.name} (peak intensity={_val:.2g} compared to {_ave:.2g} ± {_std:.2g})")  # fmt: skip
         if update:
             spl.orientation = ori
         return ori

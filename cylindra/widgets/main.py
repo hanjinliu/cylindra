@@ -219,6 +219,8 @@ class CylindraMainWidget(MagicTemplate):
     image_processor = field(_sw.ImageProcessor, name="_Image Processor")
     # Widget for tomogram simulator
     simulator = field(_sw.Simulator, name="_Simulator")
+    # Widget for spline config
+    config_edit = field(_sw.ConfigEdit, name="_Config editor")
     # Widget for measuring FFT parameters from a 2D power spectra
     spectra_inspector = field(_sw.SpectraInspector, name="_SpectraInspector")
     # Widget for subtomogram analysis
@@ -310,10 +312,12 @@ class CylindraMainWidget(MagicTemplate):
             self._auto_saver.save()
 
         self.default_config = SplineConfig.from_file(cfg.default_spline_config_path)
+        self.config_edit.config_new.set_config(
+            self.config_edit.config_current.get_config()
+        )
 
         # load plugins
         load_plugin(self)
-        return None
 
     @property
     def tomogram(self) -> CylTomogram:
@@ -333,14 +337,13 @@ class CylindraMainWidget(MagicTemplate):
     @property
     def default_config(self) -> SplineConfig:
         """Default spline configuration."""
-        return self._default_cfg
+        return self.config_edit.config_current.get_config()
 
     @default_config.setter
     def default_config(self, cfg: SplineConfig | dict[str, Any]):
         if not isinstance(cfg, SplineConfig):
             cfg = SplineConfig.from_dict(cfg, unknown="error")
-        self._default_cfg = cfg
-        self._refer_spline_config(cfg)
+        self.config_edit.config_current.set_config(cfg)
 
     @property
     def sub_viewer(self) -> "napari.Viewer":
@@ -738,7 +741,7 @@ class CylindraMainWidget(MagicTemplate):
         paths : list of path-like objects
             Paths to json files that describe spline parameters in the correct format.
         """
-        if isinstance(paths, (str, Path, bytes)):
+        if isinstance(paths, str | Path | bytes):
             paths = [paths]
         splines = [CylSpline.from_json(path) for path in paths]
         self.tomogram.splines.extend(splines)
@@ -748,7 +751,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text=capitalize, location=_sw.FileMenu)
     def load_molecules(self, paths: Path.Multiple[FileFilter.MOLE]):
         """Load molecules from a csv file."""
-        if isinstance(paths, (str, Path, bytes)):
+        if isinstance(paths, str | Path | bytes):
             paths = [paths]
         moles = [Molecules.from_file(path) for path in paths]
         for mole, path in zip(moles, paths, strict=False):
@@ -1313,10 +1316,10 @@ class CylindraMainWidget(MagicTemplate):
         self.SplineControl.num = len(self.tomogram.splines) - 1
         return undo_callback(self.delete_spline).with_args(-1)
 
-    @set_design(text="Copy spline (new config)", location=_sw.SplinesMenu)
-    def copy_spline_new_config(
+    @nogui
+    def update_spline_config(
         self,
-        i: Annotated[int, {"bind": _get_spline_idx}],
+        splines: SplinesType = None,
         npf_range: Annotated[tuple[int, int], {"options": {"min": 2, "max": 100}}] = (11, 17),
         spacing_range: Annotated[tuple[nm, nm], {"options": {"step": 0.05}}] = (3.9, 4.3),
         twist_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.05}}] = (-1.0, 1.0),
@@ -1325,19 +1328,26 @@ class CylindraMainWidget(MagicTemplate):
         clockwise: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus",
         thickness_inner: Annotated[nm, {"min": 0.0, "step": 0.1}] = 2.8,
         thickness_outer: Annotated[nm, {"min": 0.0, "step": 0.1}] = 2.8,
-        fit_depth: Annotated[nm, {"min": 4.0, "step": 1}] = 49.0,
+        fit_depth: Annotated[nm, {"min": 4.0, "step": 1}] = 48.0,
         fit_width: Annotated[nm, {"min": 4.0, "step": 1}] = 44.0,
-        copy_props: bool = False,
     ):  # fmt: skip
-        """Make a copy of the current spline with a new configuration."""
         config = locals()
-        del config["i"], config["self"], config["copy_props"]
-        spl = self.tomogram.splines[i]
-        spl_new = spl.with_config(config, copy_props=copy_props)
-        self.tomogram.splines.append(spl_new)
-        self.reset_choices()
-        self.SplineControl.num = len(self.tomogram.splines) - 1
-        return undo_callback(self.delete_spline).with_args(-1)
+        del config["splines"], config["self"]
+        _splines = self._norm_splines(splines)
+        _old_spls = {i: self.tomogram.splines[i].copy() for i in _splines}
+        for i in _splines:
+            spl = self.tomogram.splines[i]
+            spl_new = spl.with_config(config, copy_props=True)
+            self.tomogram.splines[i] = spl_new
+        self._update_splines_in_images()
+
+        @undo_callback
+        def out():
+            for i, old_spl in _old_spls.items():
+                self.tomogram.splines[i] = old_spl
+            self._update_splines_in_images()
+
+        return out
 
     @set_design(text=capitalize, location=_sw.SplinesMenu.Fitting)
     @thread_worker.with_progress(desc="Spline Fitting", total=_NSPLINES)
@@ -1726,7 +1736,7 @@ class CylindraMainWidget(MagicTemplate):
         rdict = dict[int, float]()
         for i in splines:
             _radius = self.splines[i].props.get_glob(radius_expr)
-            if not isinstance(_radius, (int, float)):
+            if not isinstance(_radius, int | float):
                 raise ValueError(
                     f"Radius must be converted into a number, got {_radius!r}."
                 )
@@ -1914,9 +1924,7 @@ class CylindraMainWidget(MagicTemplate):
             return tracker.as_undo_callback()
 
     @set_design(text="Global CFT analysis", location=_sw.AnalysisMenu)
-    @thread_worker.with_progress(
-        desc="Global Cylindric Fourier transform", total=_NSPLINES
-    )
+    @thread_worker.with_progress(desc="Global Cylindric Fourier transform", total=_NSPLINES)  # fmt: skip
     def global_cft_analysis(
         self,
         splines: SplinesType = None,
@@ -2737,7 +2745,7 @@ class CylindraMainWidget(MagicTemplate):
         for i in indices:
             if isinstance(i, slice):
                 _to_drop.update(range(*i.indices(mole.count())))
-            elif isinstance(i, (int, np.integer)):
+            elif isinstance(i, int | np.integer):
                 _to_drop.add(int(i))
             else:
                 raise ValueError(f"Indices must be integers, got {type(i)!r}.")
@@ -3408,7 +3416,7 @@ class CylindraMainWidget(MagicTemplate):
         # remove all the molecules layers
         _layers_to_remove = list[str]()
         for layer in viewer.layers:
-            if isinstance(layer, (MoleculesLayer, LandscapeSurface, InteractionVector)):
+            if isinstance(layer, MoleculesLayer | LandscapeSurface | InteractionVector):
                 _layers_to_remove.append(layer.name)
             elif layer in (self._reserved_layers.prof, self._reserved_layers.work):
                 _layers_to_remove.append(layer.name)
@@ -3516,6 +3524,7 @@ class CylindraMainWidget(MagicTemplate):
 
     def _refer_spline_config(self, cfg: SplineConfig):
         """Update GUI states that are related to global variables."""
+        self.config_edit.Header.config_current.value = cfg
         fgui = get_function_gui(self.set_spline_props)
         fgui.npf.min, fgui.npf.max = cfg.npf_range.astuple()
         fgui.npf.value = int(cfg.npf_range.center)
@@ -3585,6 +3594,8 @@ def _filter_macro_for_reanalysis(macro_expr: mk.Expr, ui_sym: mk.Symbol):
 def _remove_config_kwargs(macro: mk.Macro) -> mk.Macro:
     macro_args_new = []
     for line in macro.args:
+        if line.head is mk.Head.comment:
+            continue
         _fn, _args, _kwargs = line.split_call()
         if "config" in _kwargs:
             _kwargs.pop("config")

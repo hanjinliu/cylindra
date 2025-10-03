@@ -1,3 +1,4 @@
+from cylindra.widgets.subwidgets.config_edit import ConfigEdit
 from cylindra.widgets.subwidgets.file_iter import FileIterator
 from cylindra.widgets.subwidgets.function_menu import Volume
 from cylindra.widgets.subwidgets.image_processor import ImageProcessor
@@ -49,4 +50,5 @@ __all__ = [
     "Runner",
     "ImageLoader",
     "GeneralInfo",
+    "ConfigEdit",
 ]

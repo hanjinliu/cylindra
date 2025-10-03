@@ -1,10 +1,9 @@
 import io
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 
 from pydantic import BaseModel
-from typing_extensions import Self
 
 from cylindra.project._json import project_json_encoder
 from cylindra.project._utils import get_project_file
@@ -171,7 +170,7 @@ class MissingWedge(BaseModel):
             else:
                 raise ValueError(f"Unknown missing wedge kind {kind!r}.")
             return MissingWedge(kind=kind, params=params)
-        elif isinstance(obj, (tuple, list)) and len(obj) == 2:
+        elif isinstance(obj, tuple | list) and len(obj) == 2:
             return MissingWedge(params={"min": obj[0], "max": obj[1]})
         elif obj is None:
             return MissingWedge(params={}, kind="none")

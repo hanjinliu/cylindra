@@ -7,6 +7,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Self,
     Sequence,
     TypeVar,
     overload,
@@ -29,7 +30,6 @@ from cylindra.utils import ceilint, interval_divmod, roundint
 
 if TYPE_CHECKING:
     from numpy.typing import ArrayLike, NDArray
-    from typing_extensions import Self
 
 logger = logging.getLogger("cylindra")
 

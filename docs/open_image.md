@@ -57,6 +57,11 @@ In this dialog, you can configure how to open the image. Note that the image ope
 the viewer is **NOT the original image**. `cylindra` uses a binned and optionally
 filtered image for visualization.
 
+??? info "Open an image from IMOD or RELION project"
+
+    If tomograms are reconstructed using IMOD or RELION, the built-in plugins can
+    directly read it. See [here](extern/index.md) for more details.
+
 !!! danger "Important: Use dark background images"
 
     Most of the methods require dark-background images, while most of the raw images of

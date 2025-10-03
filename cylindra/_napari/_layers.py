@@ -336,7 +336,6 @@ class MoleculesLayer(_FeatureBoundLayer, Points, _SourceBoundLayer):
             )
         self._colormap_info = ColormapInfo(_cmap, limits, by)
         self.refresh()
-        return None
 
     def feature_setter(
         self, features: pl.DataFrame, cmap_info: ColormapInfo | str | None = None
@@ -382,13 +381,15 @@ class MoleculesLayer(_FeatureBoundLayer, Points, _SourceBoundLayer):
 
     @Points.face_color.setter
     def face_color(self, color: Any):
-        Points.face_color.fset(self, color)
+        with self.events.face_color.blocker():
+            Points.face_color.fset(self, color)
         if self._view_ndim == 3:
             self.border_color = color
         if isinstance(color, str):
             self._colormap_info = color
         elif isinstance(color[0], (int, float, np.number)):
             self._colormap_info = str_color(color)
+        self.events.face_color()
 
     def regular_shape(self) -> tuple[int, int]:
         """Get the regular shape (long, lat) of the layer."""

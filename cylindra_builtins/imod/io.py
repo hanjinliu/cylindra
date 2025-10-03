@@ -4,11 +4,12 @@ import impy as ip
 import numpy as np
 import polars as pl
 from acryo import Molecules
-from magicclass.types import Path
+from magicclass.types import Optional, Path
 
 from cylindra import instance
-from cylindra.const import FileFilter
+from cylindra.const import FileFilter, ImageFilter
 from cylindra.plugin import register_function
+from cylindra.utils import find_tilt_angles
 from cylindra.widget_utils import add_molecules
 from cylindra.widgets._annotated import (
     MoleculesLayersType,
@@ -17,6 +18,7 @@ from cylindra.widgets._annotated import (
     assert_list_of_layers,
 )
 from cylindra.widgets.main import CylindraMainWidget
+from cylindra_builtins.imod.cmd import read_edf, read_mod, save_angles, save_mod
 
 
 @register_function(name="Load molecules")
@@ -38,8 +40,6 @@ def load_molecules(
         In PEET output csv there may be xOffset, yOffset, zOffset columns that can
         be directly applied to the molecule coordinates.
     """
-    from .cmd import read_mod
-
     mod_path = Path(mod_path)
     df = read_mod(mod_path)
     mod = df.select("z", "y", "x").to_numpy(writable=True)
@@ -59,8 +59,6 @@ def load_splines(
     mod_path: Annotated[Path.Read[FileFilter.MOD], {"label": "Path to MOD file"}],
 ):
     """Read a mod file and register all the contours as splines."""
-    from .cmd import read_mod
-
     df = read_mod(mod_path)
     for _, sub in df.group_by("object_id", "contour_id", maintain_order=True):
         coords = sub.select("z", "y", "x").to_numpy(writable=True)
@@ -68,7 +66,7 @@ def load_splines(
         ui.register_path(coords * ui.tomogram.scale, err_max=1e-8)
 
 
-@register_function(name="Save molecules")
+@register_function(name="Save molecules", record=False)
 def save_molecules(
     ui: CylindraMainWidget, save_dir: Path.Dir, layers: MoleculesLayersType
 ):
@@ -87,7 +85,7 @@ def save_molecules(
     return _save_molecules(save_dir=save_dir, mol=mol, scale=ui.tomogram.scale)
 
 
-@register_function(name="Save splines")
+@register_function(name="Save splines", record=False)
 def save_splines(
     ui: CylindraMainWidget,
     save_path: Path.Save[FileFilter.MOD],
@@ -107,8 +105,6 @@ def save_splines(
         Sampling interval along the splines. For example, if interval=10.0 and the
         length of a spline is 100.0, 11 points will be sampled.
     """
-    from .cmd import save_mod
-
     if interval <= 1e-4:
         raise ValueError("Interval must be larger than 1e-4.")
     data_list = []
@@ -174,7 +170,6 @@ def shift_molecules(
         layer.molecules = mol_shifted
     else:
         add_molecules(ui.parent_viewer, mol_shifted, name="Molecules from PEET")
-    return None
 
 
 def _get_template_path(*_) -> Path:
@@ -185,7 +180,133 @@ def _get_mask_params(*_):
     return instance().sta._get_mask_params()
 
 
-@register_function(name="Export project")
+@register_function(name="Open image from an IMOD project", record=False)
+def open_image_from_imod_project(
+    ui: CylindraMainWidget,
+    edf_path: Annotated[Path.Read[FileFilter.EDF], {"label": "IMOD edf file"}],
+    scale_override: Annotated[
+        Optional[float],
+        {"text": "Use header scale", "options": {"step": 0.0001, "value": 1.0}},
+    ] = None,
+    bin_size: list[int] = [4],
+    filter: ImageFilter | None = ImageFilter.Lowpass,
+    invert: bool = True,
+    eager: Annotated[bool, {"label": "Load the entire image into memory"}] = False,
+    cache_image: Annotated[bool, {"label": "Cache image on SSD"}] = False,
+):
+    """Open an image from an IMOD project.
+
+    Parameters
+    ----------
+    edf_path : Path
+        Path to the edf file.
+    scale_override : float, default None
+        Override the scale used for all the tomograms inside cylindra.
+    bin_size : list of int, default [1]
+        Bin sizes to load the tomograms.
+    filter : ImageFilter, default ImageFilter.Lowpass
+        Filter to apply when binning the image.
+    invert : bool, default False
+        If true, invert the intensity of the image.
+    eager : bool, default False
+        If true, the image will be loaded immediately. Otherwise, it will be loaded
+        lazily.
+    cache_image : bool, default False
+        If true, the image will first be copied to the cache directory before
+        loading.
+    """
+    res = _edf_to_tomo_and_tilt(edf_path)
+    if res is None:
+        raise ValueError(f"Could not find tomogram in the IMOD project {edf_path}.")
+    tomo_path, tilt_model = res
+    ui.open_image(
+        tomo_path,
+        scale=scale_override,
+        invert=invert,
+        tilt_range=tilt_model,
+        bin_size=bin_size,
+        filter=filter,
+        eager=eager,
+        cache_image=cache_image,
+    )
+
+
+@register_function(name="Import IMOD projects", record=False)
+def import_imod_projects(
+    ui: CylindraMainWidget,
+    edf_path: Annotated[Path.Read[FileFilter.EDF], {"label": "IMOD edf file(s)"}],
+    project_root: Optional[Path.Save] = None,
+    scale_override: Annotated[Optional[float], {"text": "Use header scale", "options": {"step": 0.0001, "value": 1.0}}] = None,
+    invert: bool = True,
+    bin_size: list[int] = [1],
+):  # fmt: skip
+    """Import IMOD projects as batch analyzer entries.
+
+    Parameters
+    ----------
+    edf_path : Path
+        Path to the edf file(s). Path can contain wildcards.
+    project_root : Path, default None
+        Root directory to save the cylindra project folders. If None, a new directory
+        will be created under the same level as the first IMOD project.
+    scale_override : float, default None
+        Override the scale used for all the tomograms inside cylindra.
+    invert : bool, default False
+        If true, invert the intensity of the image.
+    bin_size : list of int, default [1]
+        Bin sizes to load the tomograms.
+    """
+    from cylindra.widgets.batch._utils import unwrap_wildcard
+
+    tomo_paths: list[Path] = []
+    tilt_models: list[dict | None] = []
+    for each in unwrap_wildcard(edf_path):
+        if (res := _edf_to_tomo_and_tilt(each)) is not None:
+            tomo_path, tilt_model = res
+            tomo_paths.append(tomo_path)
+            tilt_models.append(tilt_model)
+    if len(tomo_paths) == 0:
+        raise ValueError(f"No tomograms found with the given path input: {edf_path}")
+    if scale_override is not None:
+        scales = [scale_override] * len(tomo_paths)
+    else:
+        scales = None
+
+    if project_root is None:
+        project_root = tomo_paths[0].parent.parent / "cylindra"
+
+    ui.batch._new_projects_from_table(
+        tomo_paths,
+        save_root=project_root,
+        scale=scales,
+        tilt_model=tilt_models,
+        invert=[invert] * len(tomo_paths),
+        bin_size=[bin_size] * len(tomo_paths),
+    )
+
+
+def _edf_to_tomo_and_tilt(edf_path: Path) -> tuple[Path, dict] | None:
+    edf_path = Path(edf_path)
+    edf = read_edf(edf_path)
+    if dataset_name := edf.get("Setup.DatasetName", None):
+        if (rec_path := edf_path.parent / f"{dataset_name}_rec.mrc").exists():
+            tomo_path = rec_path
+        elif (rec_path := edf_path.parent / f"{dataset_name}.rec").exists():  # old IMOD
+            tomo_path = rec_path
+        else:
+            return None
+        if (tilt_arr := find_tilt_angles(edf_path.parent)) is not None:
+            tilt_min = round(float(tilt_arr.min()), 1)
+            tilt_max = round(float(tilt_arr.max()), 1)
+            tilt_model = {"kind": "y", "range": (tilt_min, tilt_max)}
+        else:
+            tilt_model = None
+    else:
+        return None
+    return tomo_path, tilt_model
+
+
+@register_function(name="Export project", record=False)
 def export_project(
     ui: CylindraMainWidget,
     layer: MoleculesLayerType,
@@ -266,7 +387,7 @@ def _get_loader_paths(*_):
     return ui.batch._get_loader_paths(*_)
 
 
-@register_function(name="Export project as batch")
+@register_function(name="Export project as batch", record=False)
 def export_project_batch(
     ui: CylindraMainWidget,
     save_dir: Path.Dir,
@@ -401,8 +522,6 @@ def _save_molecules(
     mod_name: "str | None" = None,
     csv_name: "str | None" = None,
 ):
-    from .cmd import save_angles, save_mod
-
     if mod_name is None:
         mod_name = "coordinates.mod"
     elif not mod_name.endswith(".mod"):

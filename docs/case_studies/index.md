@@ -4,9 +4,10 @@
 
 1. [Analyzing Local Structures with RMA](rma.md)
 2. [Microtubule Seam-search](seam_search.md)
-3. [Segmented Subtomogram Averaging (SSTA)](ssta.md)
+3. [Prepare Spline Configuration for Your Structure of Interest](custom_config.md)
+4. [Segmented Subtomogram Averaging (SSTA)](ssta.md)
 
-## Understanding How It Works
+## Understanding How Things Work
 
 1. [Learning CFT](learning_cft.md)
 

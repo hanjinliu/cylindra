@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Any
+
 import numpy as np
 import polars as pl
 
@@ -80,3 +83,14 @@ def save_angles(path: str, euler_angle: np.ndarray = None):
     with open(path, "w") as fh:
         fh.write(header_text + "\n" + text)
     return None
+
+
+def read_edf(path: str) -> dict[str, Any]:
+    """Read the IMOD project .edf file."""
+    out = {}
+    for line in Path(path).read_text().splitlines():
+        if line.startswith("#"):  # comment line
+            continue
+        field_name, field_value = line.split("=", 1)
+        out[field_name.strip()] = field_value.strip()
+    return out
