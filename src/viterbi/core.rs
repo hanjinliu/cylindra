@@ -123,7 +123,7 @@ impl ViterbiGrid {
         dist_max: f32,
         angle_max: Option<f32>,
     ) -> PyResult<(Py<PyArray2<isize>>, f32)> {
-        let (states, score) = py.allow_threads(
+        let (states, score) = py.detach(
             move || {
                 match angle_max {
                     Some(s) => self.viterbi_with_angle(dist_min, dist_max, s),
@@ -148,7 +148,7 @@ impl ViterbiGrid {
     ) -> PyResult<(Py<PyArray2<isize>>, f32)> {
         let coords = Vector3D::from(coords.as_array());
         let origin = Vector3D::from(origin.as_array());
-        let (states, score) = py.allow_threads(
+        let (states, score) = py.detach(
             move || {
                 match angle_max {
                     Some(s) => self.viterbi_with_angle_fixed_start(
