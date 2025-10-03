@@ -1,24 +1,33 @@
 from __future__ import annotations
 
-from contextlib import contextmanager
-from enum import Enum
-from fnmatch import fnmatch
 from typing import TYPE_CHECKING
 
-import napari
-import numpy as np
-from magicclass.ext.polars import DataFrameView
-from napari._qt.layer_controls.qt_points_controls import QtPointsControls
+from napari._qt.layer_controls.qt_layer_controls_base import QtLayerControls
 from napari._qt.layer_controls.qt_surface_controls import QtSurfaceControls
-from napari._qt.layer_controls.qt_vectors_controls import QtVectorsControls
-from qtpy import QtCore
+from napari._qt.layer_controls.widgets import (
+    QtOutSliceCheckBoxControl,
+    QtProjectionModeControl,
+    QtTextVisibilityControl,
+)
+from napari._qt.layer_controls.widgets._vectors import (
+    QtEdgeColorFeatureControl,
+    QtVectorStyleComboBoxControl,
+    QtWidthSpinBoxControl,
+)
+from napari.layers.base._base_constants import Mode as BaseMode
+from napari.layers.points._points_constants import Mode as PointsMode
+from napari.utils.events import disconnect_events
 from qtpy import QtWidgets as QtW
-from qtpy.QtCore import Qt
-from superqt import QEnumComboBox, QLabeledDoubleSlider
+
+from cylindra._napari._sub_controls import (
+    QtBorderControls,
+    QtFaceControls,
+    QtHasFeaturesControls,
+    QtLandscapeSubControls,
+    QtPointStateControl,
+)
 
 if TYPE_CHECKING:
-    from qtpy.QtWidgets import QFormLayout
-
     from cylindra._napari._layers import (
         InteractionVector,
         LandscapeSurface,
@@ -26,138 +35,42 @@ if TYPE_CHECKING:
     )
 
 
-@contextmanager
-def qt_signals_blocked(obj: QtCore.QObject):
-    previous = obj.blockSignals(True)
-    try:
-        yield
-    finally:
-        obj.blockSignals(previous)
-
-
-class ViewDimension(Enum):
-    """Enum for how to display the molecules."""
-
-    flat = 2
-    sphere = 3
-
-
-class QtMoleculesControls(QtPointsControls):
+class QtMoleculesControls(QtLayerControls):
     layer: MoleculesLayer
+    MODE = PointsMode
+    PAN_ZOOM_ACTION_NAME = "activate_points_pan_zoom_mode"
+    TRANSFORM_ACTION_NAME = "activate_points_transform_mode"
 
-    def __init__(self, layer: MoleculesLayer) -> None:
+    def __init__(self, layer) -> None:
         super().__init__(layer)
-        # hide buttons to avoid mutable operations
         self.panzoom_button.hide()
-        self.select_button.hide()
-        self.addition_button.hide()
-        self.delete_button.hide()
         self.transform_button.hide()
 
-        self.faceColorEdit.color_changed.disconnect()
-        self.faceColorEdit.color_changed.connect(self._change_face_color)
-        self.borderColorEdit.color_changed.disconnect()
-        self.borderColorEdit.setColor(_first_or(layer.border_color, "dimgray"))
-        self.borderColorEdit.color_changed.connect(self._change_border_color)
+        self._on_editable_or_visible_change()
 
-        slider = QLabeledDoubleSlider(orientation=Qt.Orientation.Horizontal)
-        slider.setRange(0.1, 12.0)
-        slider.setSingleStep(0.02)
-        slider.setValue(layer.point_size)
-        slider.setToolTip("Point size of all the molecules")
-        slider.valueChanged.connect(self._change_point_size)
-        self.pointSizeSlider = slider
-
-        self.borderWidth = QtW.QDoubleSpinBox()
-        self.borderWidth.setRange(0.0, 1.0)
-        self.borderWidth.valueChanged.connect(self._change_border_width)
-        self.borderWidth.setSingleStep(0.05)
-        self.borderWidth.setValue(_first_or(layer.border_width, 0.05))
-        self.borderWidth.setToolTip("Width of the molecule borders")
-        layer.events.border_width.connect(self._on_border_width_change)
-
-        self.dimComboBox = QEnumComboBox(enum_class=ViewDimension)
-        self.dimComboBox.currentEnumChanged.connect(self._change_dim)
-        self.dimComboBox.setCurrentEnum(ViewDimension(layer.view_ndim))
-
-        layout: QFormLayout = self.layout()
-        layout.addRow("point size:", self.pointSizeSlider)
-        layout.addRow("border width:", self.borderWidth)
-        layout.addRow("view mode:", self.dimComboBox)
-
-        btns = QtW.QHBoxLayout()
-        self.showFeatureButton = QtW.QPushButton("show", self)
-        self.showFeatureButton.setToolTip("Show features of the molecules in a table")
-        self.showFeatureButton.clicked.connect(self._show_features)
-        btns.addWidget(self.showFeatureButton)
-        self.copyFeatureButton = QtW.QPushButton("copy", self)
-        self.copyFeatureButton.setToolTip("Copy features of the molecules to clipboard")
-        self.copyFeatureButton.clicked.connect(self._copy_features)
-        btns.addWidget(self.copyFeatureButton)
-        layout.addRow("features:", btns)
-
-        self.propertyFilter = QtW.QLineEdit()
-        self.propertyFilter.setPlaceholderText("Filter status tip ...")
-        self.propertyFilter.setToolTip(
-            "Filter the mouse-hover status tip by the column name.\n"
-            "e.g. 'align-* will match all columns starting with 'align-'\n"
+        # Setup widgets controls
+        self._projection_mode_control = QtProjectionModeControl(self, layer)
+        self._add_widget_controls(self._projection_mode_control)
+        self._face_color_control = QtFaceControls(
+            self,
+            layer,
         )
-        self.propertyFilter.editingFinished.connect(self._set_property_filter)
-        layout.addRow("filter status:", self.propertyFilter)
+        self._add_widget_controls(self._face_color_control)
+        self._border_color_control = QtBorderControls(self, layer)
+        self._add_widget_controls(self._border_color_control)
+        self._text_visibility_control = QtTextVisibilityControl(self, layer)
+        self._add_widget_controls(self._text_visibility_control)
+        self._out_slice_checkbox_control = QtOutSliceCheckBoxControl(self, layer)
+        self._add_widget_controls(self._out_slice_checkbox_control)
+        self._point_state_control = QtPointStateControl(self, layer)
+        self._add_widget_controls(self._point_state_control)
+        self._has_features_control = QtHasFeaturesControls(self, layer)
+        self._add_widget_controls(self._has_features_control)
 
-        layout.removeRow(self.sizeSlider)
-        layout.removeRow(self.symbolComboBox)
-        layer.events.point_size.connect(self._on_point_size_change)
-        layer.events.view_ndim.connect(self._on_dim_change)
-
-    def _on_point_size_change(self, event):
-        with qt_signals_blocked(self.pointSizeSlider):
-            self.pointSizeSlider.setValue(event.value)
-
-    def _on_dim_change(self, event):
-        with qt_signals_blocked(self.dimComboBox):
-            self.dimComboBox.setCurrentEnum(ViewDimension(event.value))
-
-    def _on_border_width_change(self, event):
-        with qt_signals_blocked(self.borderWidth):
-            self.borderWidth.setValue(_first_or(self.layer.border_width, 0.05))
-
-    def _change_point_size(self, value: float):
-        self.layer.point_size = value
-
-    def _change_border_width(self, value: float):
-        self.layer.border_width = value
-
-    def _change_dim(self, value: ViewDimension):
-        self.layer.view_ndim = value.value
-
-    def _change_face_color(self, value):
-        self.layer.face_color = value
-
-    def _change_border_color(self, value):
-        self.layer.border_color = value
-
-    def _on_current_face_color_change(self):
-        pass
-
-    def _show_features(self):
-        df = self.layer.molecules.features
-        table = DataFrameView(value=df)
-
-        napari.current_viewer().window.add_dock_widget(
-            table, area="left", name=f"Features of {self.layer.name!r}"
-        ).setFloating(True)
-
-    def _copy_features(self):
-        df = self.layer.features
-        df.to_clipboard(index=False)
-
-    def _set_property_filter(self):
-        text = self.propertyFilter.text()
-        if text:
-            self.layer._property_filter = lambda x: fnmatch(x, text)
-        else:
-            self.layer._property_filter = lambda _: True
+    def close(self):
+        """Disconnect events when widget is closing."""
+        disconnect_events(self.layer.text.events, self)
+        super().close()
 
 
 class QtLandscapeSurfaceControls(QtSurfaceControls):
@@ -165,122 +78,46 @@ class QtLandscapeSurfaceControls(QtSurfaceControls):
 
     def __init__(self, layer: LandscapeSurface) -> None:
         super().__init__(layer)
-        layout: QFormLayout = self.layout()
-        self.levelSlider = QLabeledDoubleSlider(orientation=Qt.Orientation.Horizontal)
-        self.levelSlider.setRange(layer._level_min, layer._level_max)
-        layout.addRow("level:", self.levelSlider)
-        self.levelSlider.sliderReleased.connect(self._change_level)
-        self.levelSlider.setSingleStep(0.001)
-        self.levelSlider.setValue(layer.level)
-        self.levelSlider.setToolTip("Threshold level for surface rendering")
-        layer.events.level.connect(self._on_level_change)
-
-        self.resolution = QtW.QDoubleSpinBox()
-        layout.addRow("resolution:", self.resolution)
-        self.resolution.setRange(0.1, 10)
-        self.resolution.setSingleStep(0.05)
-        self.resolution.setToolTip("Resolution of the surface")
-        self.resolution.setValue(layer.resolution)
-        self.resolution.valueChanged.connect(self._change_resolution)
-        layer.events.resolution.connect(self._on_resolution_change)
-
-        self.wireWidth = QtW.QDoubleSpinBox()
-        self.wireWidth.setRange(0.0, 10.0)
-        layout.addRow("wire width:", self.wireWidth)
-        self.wireWidth.valueChanged.connect(self._change_wire_width)
-        self.wireWidth.setSingleStep(0.05)
-        self.wireWidth.setValue(layer.wireframe.width)
-        self.wireWidth.setToolTip("Width of the wireframe")
-        layer.wireframe.events.width.connect(self._on_wire_width_change)
-
-        self.showMinCheckBox = QtW.QCheckBox("show min")
-        layout.addRow(self.showMinCheckBox)
-        self.showMinCheckBox.setChecked(layer.show_min)
-        self.showMinCheckBox.stateChanged.connect(self._change_show_min)
-        self.showMinCheckBox.setToolTip(
-            "Show the surface of the minimum values of the energy"
-        )
-        layer.events.show_min.connect(self._on_show_min_change)
-
-    def _on_level_change(self, event):
-        with qt_signals_blocked(self.levelSlider):
-            self.levelSlider.setValue(event.value)
-
-    def _on_resolution_change(self, event):
-        with qt_signals_blocked(self.resolution):
-            self.resolution.setValue(event.value)
-
-    def _on_show_min_change(self, event):
-        with qt_signals_blocked(self.showMinCheckBox):
-            self.showMinCheckBox.setChecked(bool(event.value))
-
-    def _on_wire_width_change(self, event):
-        with qt_signals_blocked(self.wireWidth):
-            self.wireWidth.setValue(event.value)
-
-    def _change_level(self):
-        self.layer.level = self.levelSlider.value()
-
-    def _change_resolution(self):
-        self.layer.resolution = self.resolution.value()
-
-    def _change_show_min(self, state):
-        self.layer.show_min = state == Qt.CheckState.Checked
-
-    def _change_wire_width(self, value):
-        self.layer.wireframe.width = value
+        self.panzoom_button.hide()
+        self.transform_button.hide()
+        self._landscape_sub_controls = QtLandscapeSubControls(self, layer)
+        self._add_widget_controls(self._landscape_sub_controls)
 
 
-class QtInteractionControls(QtVectorsControls):
+class QtInteractionControls(QtLayerControls):
     layer: InteractionVector
+    MODE = BaseMode
+    PAN_ZOOM_ACTION_NAME = "activate_tracks_pan_zoom_mode"
+    TRANSFORM_ACTION_NAME = "activate_tracks_transform_mode"
 
     def __init__(self, layer: InteractionVector) -> None:
         super().__init__(layer)
-        layout: QFormLayout = self.layout()
+        self.panzoom_button.hide()
+        self.transform_button.hide()
+        # Setup widgets controls
+        self._width_spinbox_control = QtWidthSpinBoxControl(self, layer)
+        self._add_widget_controls(self._width_spinbox_control)
+        self._projection_mode_control = QtProjectionModeControl(self, layer)
+        self._add_widget_controls(self._projection_mode_control)
+        self._vector_style_combobox_control = QtVectorStyleComboBoxControl(self, layer)
+        self._add_widget_controls(self._vector_style_combobox_control)
+        self._edge_color_feature_control = QtEdgeColorFeatureControl(self, layer)
+        self._add_widget_controls(self._edge_color_feature_control)
+        self._out_slice_checkbox_control = QtOutSliceCheckBoxControl(self, layer)
+        self._add_widget_controls(self._out_slice_checkbox_control)
 
-        btns = QtW.QHBoxLayout()
-        self.showFeatureButton = QtW.QPushButton("show", self)
-        self.showFeatureButton.setToolTip("Show features of the interaction in a table")
-        self.showFeatureButton.clicked.connect(self._show_features)
-        btns.addWidget(self.showFeatureButton)
-        self.copyFeatureButton = QtW.QPushButton("copy", self)
-        self.copyFeatureButton.setToolTip(
-            "Copy features of the interaction to clipboard"
-        )
-        self.copyFeatureButton.clicked.connect(self._copy_features)
-        btns.addWidget(self.copyFeatureButton)
-        layout.addRow("features:", btns)
+        self._has_features_control = QtHasFeaturesControls(self, layer)
+        self._add_widget_controls(self._has_features_control)
 
-        layout.removeRow(self.lengthSpinBox)
-        layout.removeRow(self.color_mode_comboBox)
         self.autoContrastBtn = QtW.QPushButton("Auto Contrast", self)
-        layout.addWidget(self.autoContrastBtn)
+        self.layout().addWidget(self.autoContrastBtn)
         self.autoContrastBtn.clicked.connect(self._auto_contrast_edge)
 
-    def _show_features(self):
-        df = self.layer.net.features
-        table = DataFrameView(value=df)
-
-        napari.current_viewer().window.add_dock_widget(
-            table, area="left", name=f"Features of {self.layer.name!r}"
-        ).setFloating(True)
-
-    def _copy_features(self):
-        df = self.layer.features
-        df.to_clipboard(index=False)
-
     def _auto_contrast_edge(self):
-        pname = self.color_prop_box.currentText()
+        pname = self._edge_color_feature_control.color_feature_box.currentText()
         values = self.layer.features[pname]
         self.layer.edge_contrast_limits = values.min(), values.max()
         self.layer.refresh()
-
-
-def _first_or(arr: np.ndarray, default):
-    """Get the first element of the array or the default value."""
-    if arr.size > 0:
-        return arr[0]
-    return default
 
 
 def install_custom_layers():

@@ -80,12 +80,13 @@ class CylindraPluginFunction(Generic[_P, _R]):
             return self(ui, *args, **kwargs)
 
         params = list(self.__signature__.parameters.values())
+        aopt = getattr(self.__signature__, "additional_options", None)
         _method.__signature__ = inspect.Signature(params[1:])
         _method.__name__ = self._name
         _method.__doc__ = getattr(self._func, "__doc__", "")
         if qualname := getattr(self._func, "__qualname__", None):
             _method.__qualname__ = qualname
-        upgrade_signature(_method)
+        upgrade_signature(_method, additional_options=aopt)
         return _method
 
     def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _R:
@@ -103,29 +104,31 @@ class CylindraPluginFunction(Generic[_P, _R]):
                 f"{self._ui_arg_name!r} but got {ui!r}"
             )
         # TODO: how to use thread_worker?
-        out = self._func(*bound.args, **bound.kwargs)
+        with ui.macro.blocked():
+            out = self._func(*bound.args, **bound.kwargs)
 
         # macro recording
-        _args = []
-        _kwargs = {}
-        for name, param in bound.signature.parameters.items():
-            if name == self._ui_arg_name:
-                _args.append(ui._my_symbol)
-            elif param.kind is inspect.Parameter.POSITIONAL_ONLY:
-                _args.append(bound.arguments[name])
+        if self._is_recordable:
+            _args = []
+            _kwargs = {}
+            for name, param in bound.signature.parameters.items():
+                if name == self._ui_arg_name:
+                    _args.append(ui._my_symbol)
+                elif param.kind is inspect.Parameter.POSITIONAL_ONLY:
+                    _args.append(bound.arguments[name])
+                else:
+                    _kwargs[name] = bound.arguments[name]
+            fn_expr = Expr("getattr", [Symbol(self._module), self._func.__name__])
+            expr = Expr.parse_call(fn_expr, tuple(_args), _kwargs)
+            ui.macro.append(expr)
+            ui.macro._last_setval = None
+            if self not in ui._plugins_called:
+                ui._plugins_called.append(self)
+            if isinstance(out, UndoCallback):
+                ui.macro._append_undo(out.with_name(str(expr)))
+                out = out.return_value
             else:
-                _kwargs[name] = bound.arguments[name]
-        fn_expr = Expr("getattr", [Symbol(self._module), self._func.__name__])
-        expr = Expr.parse_call(fn_expr, tuple(_args), _kwargs)
-        ui.macro.append(expr)
-        ui.macro._last_setval = None
-        if self not in ui._plugins_called:
-            ui._plugins_called.append(self)
-        if isinstance(out, UndoCallback):
-            ui.macro._append_undo(out.with_name(str(expr)))
-            out = out.return_value
-        else:
-            ui.macro.clear_undo_stack()
+                ui.macro.clear_undo_stack()
         return out
 
 
@@ -134,4 +137,4 @@ def _is_recordable(func: Callable) -> bool:
         return func.__is_recordable__
     if hasattr(func, "__func__"):
         return _is_recordable(func.__func__)
-    return False
+    return True
