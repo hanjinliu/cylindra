@@ -25,6 +25,12 @@ install from [PyPI](https://pypi.org), you'll need [`git`](https://git-scm.com) 
     pip install cylindra[all] -U
     ```
 
+    If you are using `venv` from `uv`,
+
+    ```shell
+    uv pip install cylindra[all] -U
+    ```
+
 === "From napari hub"
 
     `cylindra` is available as a [napari plugin](https://napari-hub.org/plugins/cylindra).
