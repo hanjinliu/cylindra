@@ -151,7 +151,6 @@ def start(
 def start_as_plugin(run: bool = True):
     """Start Cylindra as a napari plugin"""
     import napari
-    from magicclass import logging
 
     ui = start(
         viewer=napari.current_viewer(),
@@ -159,7 +158,7 @@ def start_as_plugin(run: bool = True):
         run=run,
     )
     # float logger widget
-    logger = logging.getLogger("cylindra")
+    logger = ui.logger
     logger.widget.native.parentWidget().setFloating(True)
     logger.widget.height = 160
     return ui

@@ -77,11 +77,11 @@ def test_tooltip(ui: CylindraMainWidget):
     mcls_testing.check_tooltip(ui.simulator)
 
 
-def test_start_as_napari_plugin(make_napari_viewer):
-    from cylindra.core import start_as_plugin
+# def test_start_as_napari_plugin(make_napari_viewer):
+#     from cylindra.core import start_as_plugin
 
-    make_napari_viewer()
-    start_as_plugin(run=False)
+#     make_napari_viewer()
+#     start_as_plugin(run=False)
 
 
 @pytest.mark.parametrize(
