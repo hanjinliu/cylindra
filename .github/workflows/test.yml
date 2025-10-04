@@ -19,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
-        platform: [ubuntu-latest, macos-latest, windows-2022]
+        platform: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
       - name: Cancel Previous Runs
@@ -35,7 +35,7 @@ jobs:
 
       - name: Create virtual environment
         env:
-          BIN: ${{ matrix.os == 'windows-2022' && 'Scripts' || 'bin' }}
+          BIN: ${{ matrix.os == 'windows-latest' && 'Scripts' || 'bin' }}
         run: |
           python -m venv .venv
           echo "$GITHUB_WORKSPACE/.venv/$BIN" >> $GITHUB_PATH
@@ -51,6 +51,11 @@ jobs:
         uses: aganders3/headless-gui@v1
         with:
           run: python -m pytest --cov=cylindra --cov=cylindra_builtins --cov-report=xml
+        env:
+          # Windows-only: Force Qt to render windows offscreen to avoid OpenGL context issues
+          QT_QPA_PLATFORM: ${{ runner.os == 'Windows' && 'offscreen' || '' }}
+          # Force software rendering to avoid OpenGL context issues
+          QT_OPENGL: software
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4.0.1
