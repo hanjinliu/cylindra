@@ -48,12 +48,10 @@ jobs:
         run: maturin develop --release
 
       - name: Test
-        uses: aganders3/headless-gui@v1
-        with:
-          run: python -m pytest --cov=cylindra --cov=cylindra_builtins --cov-report=xml
+        run: python -m pytest --cov=cylindra --cov=cylindra_builtins --cov-report=xml
         env:
           # Windows-only: Force Qt to render windows offscreen to avoid OpenGL context issues
-          QT_QPA_PLATFORM: ${{ runner.os == 'Windows' && 'offscreen' || '' }}
+          QT_QPA_PLATFORM: ${{ matrix.os == 'windows-latest' && 'offscreen' || '' }}
           # Force software rendering to avoid OpenGL context issues
           QT_OPENGL: software
 
