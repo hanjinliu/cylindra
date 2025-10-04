@@ -51,11 +51,6 @@ jobs:
         uses: aganders3/headless-gui@v1
         with:
           run: python -m pytest --cov=cylindra --cov=cylindra_builtins --cov-report=xml
-        env:
-          # Windows-only: Force Qt to render windows offscreen to avoid OpenGL context issues
-          QT_QPA_PLATFORM: ${{ matrix.os == 'windows-latest' && 'offscreen' || '' }}
-          # Force software rendering to avoid OpenGL context issues
-          QT_OPENGL: software
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4.0.1
