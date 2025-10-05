@@ -1632,7 +1632,7 @@ def test_landscape_and_interaction(ui: CylindraMainWidget, tmpdir):
     ui.sta.run_align_on_landscape(layer_land)
     ui.sta.run_viterbi_on_landscape(
         layer_land,
-        range_long=("-0.1", "+0.1"),
+        range_long=("d.mean()-0.1", "d.mean() + 0.1"),
         angle_max=10,
     )
     # click preview
@@ -1641,8 +1641,8 @@ def test_landscape_and_interaction(ui: CylindraMainWidget, tmpdir):
     tester.click_preview()
     ui.sta.run_rma_on_landscape(
         layer_land.name,
-        range_long=("-0.1", "+0.1"),
-        range_lat=("-0.1", "+0.1"),
+        range_long=("d.mean() -0.1", "d.mean()+ 0.1"),
+        range_lat=("d.mean()- 0.1", "d.mean()  + 0.1"),
         angle_max=20,
         random_seeds=[0, 1],
     )
@@ -1700,7 +1700,7 @@ def test_landscape_and_interaction(ui: CylindraMainWidget, tmpdir):
     assert isinstance(layer_land, LandscapeSurface)
     ui.sta.run_rfa_on_landscape(
         layer_land,
-        range_long=("-0.1", "+0.1"),
+        range_long=("d.mean()-0.1", "d.mean()+0.1"),
         angle_max=5,
     )
 
