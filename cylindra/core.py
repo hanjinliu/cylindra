@@ -147,13 +147,15 @@ def start(
     return ui
 
 
-def start_as_plugin(run: bool = True):
+def start_as_plugin(
+    run: bool = True, viewer: napari.Viewer | None = None
+) -> CylindraMainWidget:
     """Start Cylindra as a napari plugin"""
     import napari
     from magicclass import logging
 
     ui = start(
-        viewer=napari.current_viewer(),
+        viewer=viewer or napari.current_viewer(),
         add_main_widget=False,
         run=run,
     )

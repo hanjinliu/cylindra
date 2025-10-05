@@ -82,8 +82,8 @@ def test_start_as_napari_plugin(make_napari_viewer):
 
     from cylindra.core import _discard_current_instance, start_as_plugin
 
-    make_napari_viewer()
-    ui = start_as_plugin(run=False)
+    viewer = make_napari_viewer()
+    ui = start_as_plugin(run=False, viewer=viewer)
     ui._disconnect_layerlist_events()
     _discard_current_instance()
     gc.collect()
