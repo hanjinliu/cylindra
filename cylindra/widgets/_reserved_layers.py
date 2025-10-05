@@ -146,7 +146,17 @@ class ReservedLayers:
         symbol_arr[spec] = symbol_of_interest
         layer.symbol = list(symbol_arr)
         layer.refresh()
-        return None
+
+    def cleanup(self):
+        import gc
+
+        del self.image
+        del self.prof
+        del self.work
+        del self.highlight
+        del self.plane
+        self.to_be_removed.clear()
+        gc.collect()
 
 
 def _prof_layer() -> Points:

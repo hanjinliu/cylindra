@@ -18,6 +18,7 @@ def ui(make_napari_viewer, request: "pytest.FixtureRequest"):
     yield _ui
 
     _ui._disconnect_layerlist_events()
+    _ui._reserved_layers.cleanup()
     dock_widgets = list(viewer.window.dock_widgets.values())
     for dock in dock_widgets:
         dock.close()
