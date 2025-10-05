@@ -28,6 +28,7 @@ from magicclass.undo import undo_callback
 from magicclass.utils import thread_worker
 from napari.layers import Layer
 from napari.utils.notifications import show_info as _napari_show_info
+from qtpy import QtWidgets as QtW
 
 from cylindra import _config, _shared_doc, cylfilters, cylmeasure, utils, widget_utils
 from cylindra._napari import InteractionVector, LandscapeSurface, MoleculesLayer
@@ -3314,9 +3315,12 @@ class CylindraMainWidget(MagicTemplate):
 
         self.macro.clear_undo_stack()
         self.Overview.layers.clear()
+        QtW.QApplication.processEvents()
         with self._pend_reset_choices():
             self._init_widget_state()
+            QtW.QApplication.processEvents()
             self._init_layers()
+            QtW.QApplication.processEvents()
 
             # backward compatibility
             if isinstance(filt, bool):
