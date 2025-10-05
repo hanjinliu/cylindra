@@ -50,7 +50,7 @@ jobs:
       - name: Test
         uses: aganders3/headless-gui@v1
         with:
-          run: python -m pytest --cov=cylindra --cov=cylindra_builtins --cov-report=xml --show-viewer
+          run: python -m pytest --cov=cylindra --cov=cylindra_builtins --cov-report=xml --show-viewer True
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4.0.1
