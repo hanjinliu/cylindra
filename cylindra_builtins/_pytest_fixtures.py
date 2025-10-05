@@ -1,3 +1,4 @@
+import gc
 import sys
 from contextlib import suppress
 
@@ -21,6 +22,7 @@ def ui(make_napari_viewer, request: "pytest.FixtureRequest"):
     _ui._disconnect_layerlist_events()
     QtW.QApplication.processEvents()
     QtW.QApplication.processEvents()
+    gc.collect()
 
     dock_widgets = list(viewer.window.dock_widgets.values())
     for dock in dock_widgets:
@@ -40,6 +42,7 @@ def ui(make_napari_viewer, request: "pytest.FixtureRequest"):
         StaParameters._viewer = None
     if request.config.getoption("--show-viewer", default=None):
         viewer.close()
+    gc.collect()
 
 
 @pytest.fixture
