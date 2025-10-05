@@ -71,7 +71,7 @@ You now have lattice parameters of a representative segment of your structure. B
 these values, you can determine the config parameters. Open the config editor widget
 by following these steps:
 
-1. Open the spline slicer widget.
+1. Open the spline slicer widget as in 2.
    - `thickness_inner` and `thickness_outer` ... Set to the same value as the values you
      set in the spline slicer.
    - `clockwise` ... Click "Measure CW/CCW" button. This method will measure whether the
@@ -80,7 +80,7 @@ by following these steps:
      visually appears to have the "PlusToMinus" polarity, set this parameter to
      "PlusToMinus". Do the same for other cases.
 
-2. Open the spectra inspector widget.
+2. Open the spectra inspector widget as in 3.
    - `npf_range`, `spacing_range` and `twist_range` ... Set to a range that covers the
      measured parameters in the spectra inspector. There is no standard way to determine
      the range, as the actual achievable range depends on both the heterogeneity of the

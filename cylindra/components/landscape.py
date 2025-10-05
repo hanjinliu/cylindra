@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import (
@@ -771,15 +770,6 @@ class Landscape:
 def _norm_distance(v: str | nm, arr) -> nm:
     if not isinstance(v, str):
         return v
-    if v.startswith(("*", "+", "-")):
-        warnings.warn(
-            f"Distance specification using relative values like {v!r} is deprecated. "
-            f"Please use the numpy array object `d` for the array of distance. For "
-            "example, `d.mean()` for the mean distance.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        v = f"d.mean(){v}"
     ns = {"__builtins__": {}, "d": arr, "np": np}
     out = eval(v, ns, {})
     out_float = float(out)
