@@ -3423,8 +3423,7 @@ class CylindraMainWidget(MagicTemplate):
 
         with self._pend_reset_choices():
             for name in _layers_to_remove:
-                layer: Layer = viewer.layers[name]
-                viewer.layers.remove(layer)
+                viewer.layers.remove(name)
 
             self._reserved_layers.init_layers()
             for layer in self._reserved_layers.to_be_removed:

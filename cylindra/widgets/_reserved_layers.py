@@ -146,7 +146,6 @@ class ReservedLayers:
         symbol_arr[spec] = symbol_of_interest
         layer.symbol = list(symbol_arr)
         layer.refresh()
-        return None
 
 
 def _prof_layer() -> Points:
