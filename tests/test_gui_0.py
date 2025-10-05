@@ -84,6 +84,7 @@ def test_start_as_napari_plugin(make_napari_viewer):
 
     viewer = make_napari_viewer()
     ui = start_as_plugin(run=False, viewer=viewer)
+    viewer.window.add_dock_widget(ui)
     ui._disconnect_layerlist_events()
     _discard_current_instance()
     gc.collect()
