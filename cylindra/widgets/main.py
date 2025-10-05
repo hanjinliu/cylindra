@@ -28,6 +28,7 @@ from magicclass.undo import undo_callback
 from magicclass.utils import thread_worker
 from napari.layers import Layer
 from napari.utils.notifications import show_info as _napari_show_info
+from qtpy import QtWidgets as QtW
 
 from cylindra import _config, _shared_doc, cylfilters, cylmeasure, utils, widget_utils
 from cylindra._napari import InteractionVector, LandscapeSurface, MoleculesLayer
@@ -3314,9 +3315,12 @@ class CylindraMainWidget(MagicTemplate):
 
         self.macro.clear_undo_stack()
         self.Overview.layers.clear()
+        QtW.QApplication.processEvents()
         with self._pend_reset_choices():
             self._init_widget_state()
+            QtW.QApplication.processEvents()
             self._init_layers()
+            QtW.QApplication.processEvents()
 
             # backward compatibility
             if isinstance(filt, bool):
@@ -3412,6 +3416,7 @@ class CylindraMainWidget(MagicTemplate):
     def _init_layers(self):
         viewer = self.parent_viewer
         self._disconnect_layerlist_events()
+        QtW.QApplication.processEvents()
 
         # remove all the molecules layers
         _layers_to_remove = list[str]()
@@ -3423,12 +3428,13 @@ class CylindraMainWidget(MagicTemplate):
 
         with self._pend_reset_choices():
             for name in _layers_to_remove:
-                layer: Layer = viewer.layers[name]
-                viewer.layers.remove(layer)
+                QtW.QApplication.processEvents()
+                viewer.layers.remove(viewer.layers[name])
 
             self._reserved_layers.init_layers()
             for layer in self._reserved_layers.to_be_removed:
                 if layer in viewer.layers:
+                    QtW.QApplication.processEvents()
                     viewer.layers.remove(layer)
             viewer.add_layer(self._reserved_layers.prof)
             viewer.add_layer(self._reserved_layers.work)

@@ -78,11 +78,16 @@ def test_tooltip(ui: CylindraMainWidget):
 
 
 def test_start_as_napari_plugin(make_napari_viewer):
-    from cylindra.core import start_as_plugin
+    import gc
 
-    make_napari_viewer()
-    start_as_plugin(run=False)
+    from cylindra.core import _discard_current_instance, start_as_plugin
 
+    viewer = make_napari_viewer()
+    ui = start_as_plugin(run=False, viewer=viewer)
+    viewer.window.add_dock_widget(ui)
+    ui._disconnect_layerlist_events()
+    _discard_current_instance()
+    gc.collect()
 
 @pytest.mark.parametrize(
     "save_path,npf", [(PROJECT_DIR_13PF, 13), (PROJECT_DIR_14PF, 14)]

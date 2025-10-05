@@ -1,29 +1,39 @@
+import gc
 import sys
 from contextlib import suppress
 
 import pytest
+from qtpy import QtWidgets as QtW
 
 
 @pytest.fixture
 def ui(make_napari_viewer, request: "pytest.FixtureRequest"):
     import napari
+    from magicclass.utils import thread_worker
 
-    from cylindra.core import ACTIVE_WIDGETS, start
+    from cylindra.core import ACTIVE_WIDGETS, _discard_current_instance, start
     from cylindra.widgets.sta import StaParameters
 
     viewer: napari.Viewer = make_napari_viewer()
     _ui = start(viewer=viewer)
     if request.config.getoption("--show-viewer", default=None):
         viewer.show()
-    yield _ui
+    with thread_worker.no_progress_mode():
+        yield _ui
 
     _ui._disconnect_layerlist_events()
+    _discard_current_instance()
+    QtW.QApplication.processEvents()
+    QtW.QApplication.processEvents()
+    gc.collect()
+
     dock_widgets = list(viewer.window.dock_widgets.values())
     for dock in dock_widgets:
         dock.close()
     for _w in ACTIVE_WIDGETS:
-        with suppress(RuntimeError):
-            _w.close()
+        if _w is not _ui:
+            with suppress(RuntimeError):
+                _w.close()
     if batch := _ui._batch:
         with suppress(RuntimeError):
             batch.constructor.close()
@@ -34,7 +44,9 @@ def ui(make_napari_viewer, request: "pytest.FixtureRequest"):
         with suppress(RuntimeError):
             sv.close()
         StaParameters._viewer = None
-    viewer.close()
+    if request.config.getoption("--show-viewer", default=None):
+        viewer.close()
+    gc.collect()
 
 
 @pytest.fixture

@@ -121,8 +121,7 @@ def start(
         # napari-console disables calltips by default. It's better to enable it.
         viewer.window._qt_viewer.console.enable_calltips = True
 
-    with suppress(Exception):  # napari>=0.6.0
-        viewer.camera.orientation = ("away", "down", "right")
+    viewer.camera.orientation = ("away", "down", "right")
 
     @viewer.bind_key("J", overwrite=True)
     def _focus_up(v: napari.Viewer):
@@ -148,18 +147,20 @@ def start(
     return ui
 
 
-def start_as_plugin(run: bool = True):
+def start_as_plugin(
+    run: bool = True, viewer: napari.Viewer | None = None
+) -> CylindraMainWidget:
     """Start Cylindra as a napari plugin"""
     import napari
     from magicclass import logging
 
     ui = start(
-        viewer=napari.current_viewer(),
+        viewer=viewer or napari.current_viewer(),
         add_main_widget=False,
         run=run,
     )
     # float logger widget
-    logger = logging.getLogger("cylindra")
+    logger = logging.getLogger("cylindra")  # NOTE: don't use ui.logger
     logger.widget.native.parentWidget().setFloating(True)
     logger.widget.height = 160
     return ui
@@ -179,6 +180,12 @@ def instance(create=False):
     if ins is None and create:
         ins = start()
     return ins
+
+
+def _discard_current_instance():
+    """Discard the current CylindraMainWidget instance."""
+    global _CURRENT_INSTANCE
+    _CURRENT_INSTANCE = None
 
 
 def view_project(project_file: PathLike, show: bool = True):
