@@ -121,8 +121,7 @@ def start(
         # napari-console disables calltips by default. It's better to enable it.
         viewer.window._qt_viewer.console.enable_calltips = True
 
-    with suppress(Exception):  # napari>=0.6.0
-        viewer.camera.orientation = ("away", "down", "right")
+    viewer.camera.orientation = ("away", "down", "right")
 
     @viewer.bind_key("J", overwrite=True)
     def _focus_up(v: napari.Viewer):
