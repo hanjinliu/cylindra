@@ -3416,6 +3416,7 @@ class CylindraMainWidget(MagicTemplate):
     def _init_layers(self):
         viewer = self.parent_viewer
         self._disconnect_layerlist_events()
+        QtW.QApplication.processEvents()
 
         # remove all the molecules layers
         _layers_to_remove = list[str]()
@@ -3427,11 +3428,13 @@ class CylindraMainWidget(MagicTemplate):
 
         with self._pend_reset_choices():
             for name in _layers_to_remove:
+                QtW.QApplication.processEvents()
                 viewer.layers.remove(viewer.layers[name])
 
             self._reserved_layers.init_layers()
             for layer in self._reserved_layers.to_be_removed:
                 if layer in viewer.layers:
+                    QtW.QApplication.processEvents()
                     viewer.layers.remove(layer)
             viewer.add_layer(self._reserved_layers.prof)
             viewer.add_layer(self._reserved_layers.work)
