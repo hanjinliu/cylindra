@@ -28,8 +28,9 @@ def ui(make_napari_viewer, request: "pytest.FixtureRequest"):
     for dock in dock_widgets:
         dock.close()
     for _w in ACTIVE_WIDGETS:
-        with suppress(RuntimeError):
-            _w.close()
+        if _w is not _ui:
+            with suppress(RuntimeError):
+                _w.close()
     if batch := _ui._batch:
         with suppress(RuntimeError):
             batch.constructor.close()

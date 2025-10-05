@@ -113,16 +113,15 @@ def start(
     with suppress(Exception):  # This block uses private API.
         # napari viewer does not disconnect layer events when the viewer is closed,
         # so we need to do it manually
-        @viewer.window._qt_window.destroyed.connect
-        def _on_destroy():
-            viewer.layers.events.removing.disconnect()
-            viewer.layers.events.removed.disconnect()
+        # @viewer.window._qt_window.destroyed.connect
+        # def _on_destroy():
+        #     viewer.layers.events.removing.disconnect()
+        #     viewer.layers.events.removed.disconnect()
 
         # napari-console disables calltips by default. It's better to enable it.
         viewer.window._qt_viewer.console.enable_calltips = True
 
-    with suppress(Exception):  # napari>=0.6.0
-        viewer.camera.orientation = ("away", "down", "right")
+    viewer.camera.orientation = ("away", "down", "right")
 
     @viewer.bind_key("J", overwrite=True)
     def _focus_up(v: napari.Viewer):
