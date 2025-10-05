@@ -9,6 +9,7 @@ from qtpy import QtWidgets as QtW
 @pytest.fixture
 def ui(make_napari_viewer, request: "pytest.FixtureRequest"):
     import napari
+    from magicclass.utils import thread_worker
 
     from cylindra.core import ACTIVE_WIDGETS, _discard_current_instance, start
     from cylindra.widgets.sta import StaParameters
@@ -17,7 +18,8 @@ def ui(make_napari_viewer, request: "pytest.FixtureRequest"):
     _ui = start(viewer=viewer)
     if request.config.getoption("--show-viewer", default=None):
         viewer.show()
-    yield _ui
+    with thread_worker.no_progress_mode():
+        yield _ui
 
     _ui._disconnect_layerlist_events()
     _discard_current_instance()
