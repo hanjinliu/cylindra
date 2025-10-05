@@ -78,10 +78,14 @@ def test_tooltip(ui: CylindraMainWidget):
 
 
 def test_start_as_napari_plugin(make_napari_viewer):
+    import gc
+
     from cylindra.core import start_as_plugin
 
     make_napari_viewer()
-    start_as_plugin(run=False)
+    ui = start_as_plugin(run=False)
+    ui._disconnect_layerlist_events()
+    gc.collect()
 
 def test_temp_00(ui: CylindraMainWidget):
     path = TEST_DIR / "13pf_MT.tif"
