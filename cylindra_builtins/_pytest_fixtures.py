@@ -10,7 +10,7 @@ from qtpy import QtWidgets as QtW
 def ui(make_napari_viewer, request: "pytest.FixtureRequest"):
     import napari
 
-    from cylindra.core import ACTIVE_WIDGETS, start
+    from cylindra.core import ACTIVE_WIDGETS, _discard_current_instance, start
     from cylindra.widgets.sta import StaParameters
 
     viewer: napari.Viewer = make_napari_viewer()
@@ -20,6 +20,7 @@ def ui(make_napari_viewer, request: "pytest.FixtureRequest"):
     yield _ui
 
     _ui._disconnect_layerlist_events()
+    _discard_current_instance()
     QtW.QApplication.processEvents()
     QtW.QApplication.processEvents()
     gc.collect()

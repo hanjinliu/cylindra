@@ -113,10 +113,10 @@ def start(
     with suppress(Exception):  # This block uses private API.
         # napari viewer does not disconnect layer events when the viewer is closed,
         # so we need to do it manually
-        # @viewer.window._qt_window.destroyed.connect
-        # def _on_destroy():
-        #     viewer.layers.events.removing.disconnect()
-        #     viewer.layers.events.removed.disconnect()
+        @viewer.window._qt_window.destroyed.connect
+        def _on_destroy():
+            viewer.layers.events.removing.disconnect()
+            viewer.layers.events.removed.disconnect()
 
         # napari-console disables calltips by default. It's better to enable it.
         viewer.window._qt_viewer.console.enable_calltips = True
@@ -177,6 +177,12 @@ def instance(create=False):
     if ins is None and create:
         ins = start()
     return ins
+
+
+def _discard_current_instance():
+    """Discard the current CylindraMainWidget instance."""
+    global _CURRENT_INSTANCE
+    _CURRENT_INSTANCE = None
 
 
 def view_project(project_file: PathLike, show: bool = True):

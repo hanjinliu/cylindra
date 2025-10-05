@@ -80,22 +80,13 @@ def test_tooltip(ui: CylindraMainWidget):
 def test_start_as_napari_plugin(make_napari_viewer):
     import gc
 
-    from cylindra.core import start_as_plugin
+    from cylindra.core import _discard_current_instance, start_as_plugin
 
     make_napari_viewer()
     ui = start_as_plugin(run=False)
     ui._disconnect_layerlist_events()
+    _discard_current_instance()
     gc.collect()
-
-def test_temp_00(ui: CylindraMainWidget):
-    path = TEST_DIR / "13pf_MT.tif"
-    ui.open_image(path=path, scale=1.052, tilt_range=(-60, 60), bin_size=[1])
-    ui.add_multiscale(2)
-    ui.set_multiscale(1)
-    ui.register_path(coords=coords[13])
-    ui.register_path(coords=coords[13][::-1])
-    ui._runner.run(interval=24.0)
-    ui.infer_polarity()
 
 @pytest.mark.parametrize(
     "save_path,npf", [(PROJECT_DIR_13PF, 13), (PROJECT_DIR_14PF, 14)]
