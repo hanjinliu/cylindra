@@ -1,5 +1,5 @@
 [build-system]
-requires = ["maturin>=1.9.4,<2.0.0"]
+requires = ["maturin==1.9.4"]
 build-backend = "maturin"
 
 [project]
@@ -46,7 +46,7 @@ dependencies = [
     "platformdirs>=4.3.6",
 ]
 authors = [
-    { email = "liuha@med.kobe-u.ac.jp" },
+    { email = "liuhanjin.sc@gmail.com" },
     { name = "Hanjin Liu" }
 ]
 
@@ -62,7 +62,7 @@ testing = [
     "starfile>=0.5.11",
     "imodmodel>=0.1.0",
     "cookiecutter",
-    "maturin>=1.8.3,<2.0.0",
+    "maturin==1.9.4",
 ]
 all = [
     "pyqt6",
