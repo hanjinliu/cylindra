@@ -1,5 +1,6 @@
 use rand::SeedableRng;
 use rand::prelude::Distribution;
+use rand::seq::index::sample;
 use rand::Rng;
 use numpy::ndarray::Array3;
 use mt19937::MT19937;
@@ -65,6 +66,18 @@ impl RandomNumberGenerator {
         Self { rng, seed, neighbor_list: NeighborList::empty() }
     }
 
+    /// Create multiple children random number generators with different seeds.
+    /// Possibly used for parallel computing.
+    pub fn make_children(&mut self, nchildren: usize) -> Vec<Self> {
+        let mut children = Vec::with_capacity(nchildren);
+        for _ in 0..nchildren {
+            let seed: u64 = self.rng.gen();
+            let rng = MT19937::seed_from_u64(seed);
+            children.push(Self { rng, seed, neighbor_list: self.neighbor_list.clone() });
+        }
+        children
+    }
+
     /// Create a new random number generator with a different seed.
     /// As the shape does not change, the neighbor list can be cloned.
     pub fn with_seed(&self, seed: u64) -> Self {
@@ -94,10 +107,24 @@ impl RandomNumberGenerator {
         (v >> (BUF + 8)) < p_int
     }
 
+    pub fn bernoulli_multi(&mut self, ptrues: Vec<f32>) -> Vec<bool> {
+        let mut results = Vec::with_capacity(ptrues.len());
+        for ptrue in ptrues {
+            results.push(self.bernoulli(ptrue));
+        }
+        results
+    }
+
     /// Sample a random positive integer from a uniform distribution.
     pub fn uniform_int(&mut self, max: usize) -> usize {
         let dist = rand::distributions::Uniform::new(0, max);
         dist.sample(&mut self.rng)
+    }
+
+    pub fn uniform_ints_no_overlap(&mut self, max: usize, num: usize) -> Vec<usize> {
+        let indices = sample(&mut self.rng, max, num);
+        let out: Vec<usize> = indices.iter().collect();
+        out
     }
 
     /// Sample a random integer vector from a uniform distribution.

@@ -1832,7 +1832,7 @@ class SubtomogramAveraging(ChildWidget):
             raise ValueError(
                 f"Layer {layer!r} does not have annealing result."
             ) from None
-        x = result.batch_size * np.arange(result.energies.size)
+        x = result.epoch_size * np.arange(result.energies.size)
         df = pl.DataFrame({"iteration": x, "score": -result.energies})
         return df.write_csv(path, include_header=False)
 

@@ -153,8 +153,8 @@ pub trait GraphTrait<N: Clone, E: Clone> {
     }
 
     /// Apply the shift result to the graph.
-    fn apply_shift(&mut self, result: &ShiftResult<N>) {
-        self.components_mut().set_node_state(result.index, result.state.clone());
+    fn apply_shift(&mut self, result: ShiftResult<N>) {
+        self.components_mut().set_node_state(result.index, result.state);
     }
 
 
@@ -170,6 +170,23 @@ pub trait GraphTrait<N: Clone, E: Clone> {
         let state_new = self.random_local_neighbor_state(&state_old, rng);
         let de = self.energy_diff_by_shift(idx, &state_old, &state_new);
         ShiftResult { index: idx, state: state_new, energy_diff: de }
+    }
+
+    fn try_random_shift_multi(
+        &self,
+        rng: &mut RandomNumberGenerator,
+        num: usize,
+    ) -> Vec<ShiftResult<N>> {
+        let graph = self.components();
+        let indices = rng.uniform_ints_no_overlap(graph.node_count(), num);
+        let mut results = Vec::with_capacity(num);
+        for idx in indices {
+            let state_old = graph.node_state(idx);
+            let state_new = self.random_local_neighbor_state(&state_old, rng);
+            let de = self.energy_diff_by_shift(idx, &state_old, &state_new);
+            results.push(ShiftResult { index: idx, state: state_new, energy_diff: de })
+        }
+        results
     }
 }
 
