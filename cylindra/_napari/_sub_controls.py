@@ -16,14 +16,15 @@ from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
 from superqt import QEnumComboBox, QLabeledDoubleSlider
 
+from cylindra._napari._layers import (
+    InteractionVector,
+    LandscapeSurface,
+    MoleculesLayer,
+)
+from cylindra.utils import roundint
+
 if TYPE_CHECKING:
     import pandas as pd
-
-    from cylindra._napari._layers import (
-        InteractionVector,
-        LandscapeSurface,
-        MoleculesLayer,
-    )
 
 
 @contextmanager
@@ -70,7 +71,19 @@ class QtFaceControls(QtWidgetControlsBase):
             if isinstance(col := self._layer._colormap_info, str):
                 self.face_color_edit.setColor(col)
             else:
-                pass  # TODO: set to a gradient
+                nstops = 6
+                colors = col.cmap.map(np.linspace(0, 1, nstops))
+                # Build a horizontal gradient from the colormap colors
+                rgba_stops: list[str] = []
+                for i, c in enumerate(colors * 255):
+                    r, g, b, _ = c
+                    rgba = f"rgb({roundint(r)}, {roundint(g)}, {roundint(b)})"
+                    pos = i / max(len(colors) - 1, 1)
+                    rgba_stops.append(f"stop:{pos:.3f} {rgba}")
+                gradient = ", ".join(rgba_stops)
+                self.face_color_edit.color_swatch.setStyleSheet(
+                    f"#colorSwatch {{ background: qlineargradient(x1:0, y1:0, x2:1, y2:0, {gradient}); }}"
+                )
 
     def _on_face_color_edit_changed(self, color) -> None:
         self._layer.face_color = color
