@@ -150,7 +150,7 @@ impl FilamentousGraph {
 
             let coord0 = &self.coords[pos0.index as isize];
             let coord1 = &self.coords[pos1.index as isize];
-            let dr = coord0.at_vec_fast(pos0.state.into()) - coord1.at_vec_fast(pos1.state.into());
+            let dr = coord0.at_vec(pos0.state.into()) - coord1.at_vec(pos1.state.into());
             distances.push(dr.length())
         }
         Array1::from(distances)
@@ -186,8 +186,8 @@ impl FilamentousGraph {
                 let coord_l = &self.coords[pos_l.index as isize];
                 let coord_r = &self.coords[pos_r.index as isize];
 
-                let dr_l = coord_c.at_vec_fast(pos_c.state.into()) - coord_l.at_vec_fast(pos_l.state.into());
-                let dr_r = coord_c.at_vec_fast(pos_c.state.into()) - coord_r.at_vec_fast(pos_r.state.into());
+                let dr_l = coord_c.at_vec(pos_c.state.into()) - coord_l.at_vec(pos_l.state.into());
+                let dr_r = coord_c.at_vec(pos_c.state.into()) - coord_r.at_vec(pos_r.state.into());
                 angles[i] = dr_l.angle(&dr_r);
             }
 

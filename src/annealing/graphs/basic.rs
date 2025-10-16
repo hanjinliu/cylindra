@@ -155,7 +155,7 @@ impl CylindricGraph {
 
             let coord0 = &self.coords[(pos0.index.y, pos0.index.a)];
             let coord1 = &self.coords[(pos1.index.y, pos1.index.a)];
-            let dr = coord0.at_vec_fast(pos0.state.into()) - coord1.at_vec_fast(pos1.state.into());
+            let dr = coord0.at_vec(pos0.state.into()) - coord1.at_vec(pos1.state.into());
             distances.push(dr.length())
         }
         Array1::from(distances)
@@ -194,8 +194,8 @@ impl CylindricGraph {
                 let coord_l = &self.coords[(pos_l.index.y, pos_l.index.a)];
                 let coord_r = &self.coords[(pos_r.index.y, pos_r.index.a)];
 
-                let dr_l = coord_c.at_vec_fast(pos_c.state.into()) - coord_l.at_vec_fast(pos_l.state.into());
-                let dr_r = coord_c.at_vec_fast(pos_c.state.into()) - coord_r.at_vec_fast(pos_r.state.into());
+                let dr_l = coord_c.at_vec(pos_c.state.into()) - coord_l.at_vec_fast(pos_l.state.into());
+                let dr_r = coord_c.at_vec(pos_c.state.into()) - coord_r.at_vec_fast(pos_r.state.into());
                 angles[i] = dr_l.angle(&dr_r);
             }
 
@@ -234,8 +234,8 @@ impl CylindricGraph {
             let ends = self.components.edge_end(i);
             let node0 = self.components.node_state(ends.0);
             let node1 = self.components.node_state(ends.1);
-            let coord0 = self.coords[(node0.index.y, node0.index.a)].at_vec_fast(node0.state.into());
-            let coord1 = self.coords[(node1.index.y, node1.index.a)].at_vec_fast(node1.state.into());
+            let coord0 = self.coords[(node0.index.y, node0.index.a)].at_vec(node0.state.into());
+            let coord1 = self.coords[(node1.index.y, node1.index.a)].at_vec(node1.state.into());
             out0[[i, 0]] = coord0.z;
             out0[[i, 1]] = coord0.y;
             out0[[i, 2]] = coord0.x;
