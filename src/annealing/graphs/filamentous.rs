@@ -39,7 +39,6 @@ impl FilamentousGraph {
         }
     }
 
-
     /// Construct a graph from a cylindric parameters.
     pub fn construct(&mut self, num: usize) -> PyResult<&Self> {
         self.components.clear();
@@ -84,28 +83,6 @@ impl FilamentousGraph {
             );
         }
         self.coords = Arc::new(_coords);
-        Ok(self)
-    }
-
-    /// Set the energy landscape array to the graph.
-    pub fn set_energy_landscape(&mut self, energy: ArcArray<f32, Ix4>) -> PyResult<&Self> {
-        let n_nodes = self.components.node_count();
-        let shape = energy.shape();
-        if shape[0] != n_nodes {
-            return value_error!(
-                format!("`energy` has wrong shape, Expected ({n_nodes}, ...) but got {shape:?}.")
-            );
-        }
-
-        let (_nz, _ny, _nx) = (shape[1], shape[2], shape[3]);
-        self.local_shape = Vector3D::new(_nz, _ny, _nx).into();
-        let center: Vector3D<isize> = Vector3D::new(_nz / 2, _ny / 2, _nx / 2).into();
-        let mut _energy: HashMap1D<Array<f32, Ix3>> = HashMap1D::from_shape(n_nodes);
-        for i in 0..n_nodes {
-            _energy.insert(i, energy.slice(s![i, .., .., ..]).to_owned());
-            self.components.set_node_state(i, Node1D { index: i, state: center.clone() })
-        }
-        self.energy = Arc::new(_energy);
         Ok(self)
     }
 
@@ -173,7 +150,7 @@ impl FilamentousGraph {
 
             let coord0 = &self.coords[pos0.index as isize];
             let coord1 = &self.coords[pos1.index as isize];
-            let dr = coord0.at_vec(pos0.state.into()) - coord1.at_vec(pos1.state.into());
+            let dr = coord0.at_vec_fast(pos0.state.into()) - coord1.at_vec_fast(pos1.state.into());
             distances.push(dr.length())
         }
         Array1::from(distances)
@@ -209,8 +186,8 @@ impl FilamentousGraph {
                 let coord_l = &self.coords[pos_l.index as isize];
                 let coord_r = &self.coords[pos_r.index as isize];
 
-                let dr_l = coord_c.at_vec(pos_c.state.into()) - coord_l.at_vec(pos_l.state.into());
-                let dr_r = coord_c.at_vec(pos_c.state.into()) - coord_r.at_vec(pos_r.state.into());
+                let dr_l = coord_c.at_vec_fast(pos_c.state.into()) - coord_l.at_vec_fast(pos_l.state.into());
+                let dr_r = coord_c.at_vec_fast(pos_c.state.into()) - coord_r.at_vec_fast(pos_r.state.into());
                 angles[i] = dr_l.angle(&dr_r);
             }
 
@@ -286,8 +263,8 @@ impl FilamentousGraph {
         let coord = &self.coords[node_state.index as isize];
         let coord1 = &self.coords[node_state_prev.index as isize];
         let coord2 = &self.coords[node_state_next.index as isize];
-        let dr1 = coord.at_vec(vec.into()) - coord1.at_vec(vec1.into());
-        let dr2 = coord.at_vec(vec.into()) - coord2.at_vec(vec2.into());
+        let dr1 = coord.at_vec_fast(vec.into()) - coord1.at_vec_fast(vec1.into());
+        let dr2 = coord.at_vec_fast(vec.into()) - coord2.at_vec_fast(vec2.into());
         self.binding_potential.calculate_deform(&dr1, &dr2)
     }
 
@@ -352,7 +329,7 @@ impl GraphTrait<Node1D<Shift>, EdgeType> for FilamentousGraph {
         let vec2 = node_state1.state;
         let coord1 = &self.coords[node_state0.index as isize];
         let coord2 = &self.coords[node_state1.index as isize];
-        let dr = coord1.at_vec(vec1.into()) - coord2.at_vec(vec2.into());
+        let dr = coord1.at_vec_fast(vec1.into()) - coord2.at_vec_fast(vec2.into());
         self.binding_potential.calculate_bind(&dr)
     }
 
@@ -430,6 +407,12 @@ impl GraphTrait<Node1D<Shift>, EdgeType> for FilamentousGraph {
         }
 
         let (_nz, _ny, _nx) = (shape[1], shape[2], shape[3]);
+        let mut new_coords = HashMap1D::from_shape(n_nodes);
+        for (index, coord) in self.coords.iter() {
+            new_coords.insert(index, coord.with_cache(_nz, _ny, _nx));
+        }
+        self.coords = Arc::new(new_coords);
+
         self.local_shape = Vector3D::new(_nz, _ny, _nx).into();
         let center: Vector3D<isize> = Vector3D::new(_nz / 2, _ny / 2, _nx / 2).into();
         let mut _energy: HashMap1D<Array<f32, Ix3>> = HashMap1D::from_shape(n_nodes);
