@@ -129,6 +129,21 @@ pub trait GraphTrait<N: Clone, E: Clone> {
     /// Set the energy landscape array to the graph.
     fn set_energy_landscape(&mut self, energy: ArcArray<f32, Ix4>) -> PyResult<&Self>;
 
+    /// Return the old and new binding energies.
+    /// Override this if a more efficient implementation is available.
+    fn binding_old_new(
+        &self,
+        state_old: &N,
+        state_new: &N,
+        other_state: &N,
+        typ: &E,
+    ) -> (f32, f32) {
+        (
+            self.binding(state_old, other_state, typ),
+            self.binding(state_new, other_state, typ),
+        )
+    }
+
     /// Energy difference by shifting a state of node at idx.
     fn energy_diff_by_shift(
         &self,

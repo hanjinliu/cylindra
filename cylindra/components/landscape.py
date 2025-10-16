@@ -891,7 +891,7 @@ class AnnealingResult:
     ----------
     energies : np.ndarray
         History of energies of the annealing process.
-    batch_size : int
+    epoch_size : int
         Batch size used in the annealing process.
     time_const : float
         Time constant used for cooling.

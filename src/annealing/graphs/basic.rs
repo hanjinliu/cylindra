@@ -347,6 +347,30 @@ impl GraphTrait<Node2D<Shift>, EdgeType> for CylindricGraph {
         self.binding_potential.calculate(&dr, &ey, typ)
     }
 
+    fn binding_old_new(
+        &self,
+        state_old: &Node2D<Shift>,
+        state_new: &Node2D<Shift>,
+        other_state: &Node2D<Shift>,
+        typ: &EdgeType,
+    ) -> (f32, f32) {
+        let vec_old = state_old.state;
+        let vec_new = state_new.state;
+        let vec_other = other_state.state;
+        let coord_old = &self.coords[(state_old.index.y, state_old.index.a)];
+        let coord_new = &self.coords[(state_new.index.y, state_new.index.a)];
+        let coord_other = &self.coords[(other_state.index.y, other_state.index.a)];
+        let point_other = coord_other.at_vec_fast(vec_other.into());
+        let dr_old = coord_old.at_vec_fast(vec_old.into()) - point_other;
+        let dr_new = coord_new.at_vec_fast(vec_new.into()) - point_other;
+        // ey_* is required for the angle constraint.
+        let ey_old = coord_other.origin - coord_old.origin;
+        let ey_new = coord_other.origin - coord_new.origin;
+        let e_old = self.binding_potential.calculate(&dr_old, &ey_old, typ);
+        let e_new = self.binding_potential.calculate(&dr_new, &ey_new, typ);
+        (e_old, e_new)
+    }
+
     /// Return a random neighbor state of a given node state.
     fn random_local_neighbor_state(
         &self,
@@ -374,8 +398,9 @@ impl GraphTrait<Node2D<Shift>, EdgeType> for CylindricGraph {
             let ends = graph.edge_end(edge_id);
             let other_idx = if ends.0 == idx { ends.1 } else { ends.0 };
             let other_state = graph.node_state(other_idx);
-            e_old += self.binding(&state_old, &other_state, graph.edge_state(edge_id));
-            e_new += self.binding(&state_new, &other_state, graph.edge_state(edge_id));
+            let (e_old_diff, e_new_diff) = self.binding_old_new(&state_old, &state_new, &other_state, graph.edge_state(edge_id));
+            e_old += e_old_diff;
+            e_new += e_new_diff;
         }
         e_new - e_old
     }

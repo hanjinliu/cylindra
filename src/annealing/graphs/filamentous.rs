@@ -333,6 +333,28 @@ impl GraphTrait<Node1D<Shift>, EdgeType> for FilamentousGraph {
         self.binding_potential.calculate_bind(&dr)
     }
 
+    fn binding_old_new(
+        &self,
+        state_old: &Node1D<Shift>,
+        state_new: &Node1D<Shift>,
+        other_state: &Node1D<Shift>,
+        _: &EdgeType,
+    ) -> (f32, f32) {
+        let vec_old = state_old.state;
+        let vec_new = state_new.state;
+        let vec_other = other_state.state;
+        let coord_old = &self.coords[state_old.index as isize];
+        let coord_new = &self.coords[state_new.index as isize];
+        let coord_other = &self.coords[other_state.index as isize];
+
+        let point_other = coord_other.at_vec_fast(vec_other.into());
+        let dr_old = coord_old.at_vec_fast(vec_old.into()) - point_other;
+        let dr_new = coord_new.at_vec_fast(vec_new.into()) - point_other;
+        let e_old = self.binding_potential.calculate_bind(&dr_old);
+        let e_new = self.binding_potential.calculate_bind(&dr_new);
+        (e_old, e_new)
+    }
+
     fn energy_diff_by_shift(
         &self,
         idx: usize,
@@ -347,8 +369,9 @@ impl GraphTrait<Node1D<Shift>, EdgeType> for FilamentousGraph {
             let ends = graph.edge_end(edge_id);
             let other_idx = if ends.0 == idx { ends.1 } else { ends.0 };
             let other_state = graph.node_state(other_idx);
-            e_old += self.binding(&state_old, &other_state, graph.edge_state(edge_id));
-            e_new += self.binding(&state_new, &other_state, graph.edge_state(edge_id));
+            let (e_old_diff, e_new_diff) = self.binding_old_new(&state_old, &state_new, &other_state, graph.edge_state(edge_id));
+            e_old += e_old_diff;
+            e_new += e_new_diff;
         }
         if 0 < idx && idx < graph.node_count() - 1 {
             let state_prev = graph.node_state(idx - 1);
@@ -362,8 +385,8 @@ impl GraphTrait<Node1D<Shift>, EdgeType> for FilamentousGraph {
             }
             if idx < graph.node_count() - 2 {
                 let state_nextnext = graph.node_state(idx + 2);
-                e_old += self.deforming(&state_next, &state_old, &state_nextnext);
-                e_new += self.deforming(&state_next, &state_new, &state_nextnext);
+                e_old += self.deforming(&state_old, &state_next, &state_nextnext);
+                e_new += self.deforming(&state_new, &state_next, &state_nextnext);
             }
         }
         e_new - e_old
