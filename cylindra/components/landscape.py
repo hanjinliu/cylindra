@@ -26,7 +26,6 @@ from cylindra.components._peak import find_peak
 from cylindra.components.spline import CylSpline
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import nm
-from cylindra.utils._misc import roundint
 
 if TYPE_CHECKING:
     from acryo.alignment._base import ParametrizedModel, TomographyInput
@@ -452,13 +451,11 @@ class Landscape:
         cooling_rate: float | None = None,
         reject_limit: int | None = None,
         random_seeds: list[int] = [0],
-        batch_size_relative: float = 0.0,
     ) -> list[AnnealingResult]:
         """Run simulated mesh annealing."""
 
         if angle_max is None:
             angle_max = 90.0
-        batch_size = max(1, roundint(self.energies.shape[0] * batch_size_relative))
         random_seeds = _normalize_random_seeds(random_seeds)
         annealing = self.cylindric_annealing_model(
             spl,
@@ -476,7 +473,7 @@ class Landscape:
         _Logger.info("Running annealing")
         _Logger.info(f"  shape: {self.energies.shape[1:]!r}")
         tasks = [
-            _run_annealing(annealing.with_seed(s), epoch_size, temp0, batch_size)
+            _run_annealing(annealing.with_seed(s), epoch_size, temp0)
             for s in random_seeds
         ]
         return compute(*tasks)
@@ -488,7 +485,6 @@ class Landscape:
         range_lat: tuple[_DistLike, _DistLike],
         angle_max: float,
         temperature_time_const: float = 1.0,
-        batch_size_relative: float = 0.0,
         random_seeds: Sequence[int] = (0, 1, 2, 3, 4),
     ):
         results = self.run_annealing(
@@ -497,7 +493,6 @@ class Landscape:
             range_lat,
             angle_max,
             temperature_time_const=temperature_time_const,
-            batch_size_relative=batch_size_relative,
             random_seeds=random_seeds,
         )
         if all(result.state == "failed" for result in results):
@@ -818,14 +813,10 @@ def _run_annealing(
     model: CylindricAnnealingModel,
     epoch_size: int,
     temp: float,
-    batch_size: int = 1,
 ) -> AnnealingResult:
     model.init_shift_random()
     energies = [model.energy()]
-    if batch_size == 1:
-        _sim = model.simulate
-    else:
-        _sim = model.simulate_batched
+    _sim = model.simulate
     while (
         model.temperature() > temp * 1e-5
         and model.optimization_state() == "not_converged"
