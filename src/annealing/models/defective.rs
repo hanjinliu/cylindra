@@ -319,7 +319,7 @@ impl DefectiveCylindricAnnealingModel {
                 loop {
                     let shift = self.graph.try_all_shifts();
                     if shift.energy_diff < 0.0 {
-                        self.graph.apply_shift(&shift);
+                        self.graph.apply_shift(shift);
                         self.iteration += 1;
                     } else {
                         break;
@@ -362,7 +362,7 @@ impl DefectiveCylindricAnnealingModel {
         let prob = self.reservoir.prob(result.energy_diff);
         if self.rng.bernoulli(prob) {
             // accept shift
-            self.graph.apply_shift(&result);
+            self.graph.apply_shift(result);
             true
         } else {
             false

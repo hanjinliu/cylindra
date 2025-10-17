@@ -313,28 +313,30 @@ class MoleculesLayer(_FeatureBoundLayer, Points, _SourceBoundLayer):
         if cmap is None:
             cmap = {0: "black", 1: "white"}
         _cmap = _normalize_colormap(cmap)
-        if column.dtype in POLARS_INTEGER_DTYPES:
-            cmin, cmax = limits
-            arr = (column.cast(pl.Float32).clip(cmin, cmax) - cmin) / (cmax - cmin)
-            colors = _cmap.map(arr)
-            self.face_color = colors
-        elif column.dtype in POLARS_FLOAT_DTYPES:
-            self.face_color = column.name
-            self.face_colormap = _cmap
-            self.face_contrast_limits = limits
-            if self._view_ndim == 3:
-                self.border_colormap = _cmap
-                self.border_contrast_limits = limits
-        elif column.dtype == pl.Boolean:  # NOTE: since polars>=0.20, `is` fails
-            cfalse, ctrue = _cmap.map([0, 1])
-            column2d = np.repeat(column.to_numpy()[:, np.newaxis], 4, axis=1)
-            col = np.where(column2d, ctrue, cfalse)
-            self.face_color = col
-        else:
-            raise ValueError(
-                f"Cannot paint by feature {column.name} of type {column.dtype}."
-            )
+        with self.events.face_color.blocker():
+            if column.dtype in POLARS_INTEGER_DTYPES:
+                cmin, cmax = limits
+                arr = (column.cast(pl.Float32).clip(cmin, cmax) - cmin) / (cmax - cmin)
+                colors = _cmap.map(arr)
+                self.face_color = colors
+            elif column.dtype in POLARS_FLOAT_DTYPES:
+                self.face_color = column.name
+                self.face_colormap = _cmap
+                self.face_contrast_limits = limits
+                if self._view_ndim == 3:
+                    self.border_colormap = _cmap
+                    self.border_contrast_limits = limits
+            elif column.dtype == pl.Boolean:  # NOTE: since polars>=0.20, `is` fails
+                cfalse, ctrue = _cmap.map([0, 1])
+                column2d = np.repeat(column.to_numpy()[:, np.newaxis], 4, axis=1)
+                col = np.where(column2d, ctrue, cfalse)
+                self.face_color = col
+            else:
+                raise ValueError(
+                    f"Cannot paint by feature {column.name} of type {column.dtype}."
+                )
         self._colormap_info = ColormapInfo(_cmap, limits, by)
+        self.events.face_color()
         self.refresh()
 
     def feature_setter(
@@ -356,7 +358,6 @@ class MoleculesLayer(_FeatureBoundLayer, Points, _SourceBoundLayer):
 
     def face_color_setter(self, color):
         self.face_color = color
-        self._colormap_info = str_color(color)
         self.refresh()
 
     @property

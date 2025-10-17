@@ -287,6 +287,43 @@ impl CylindricAnnealingModel {
         )
     }
 
+    #[pyo3(signature = (nsteps=10000, batch_size=100))]
+    pub fn simulate_batched<'py>(&mut self, py: Python<'py>, nsteps: usize, batch_size: usize) -> PyResult<()> {
+        if nsteps <= 0 {
+            return value_error!("nsteps must be positive");
+        }
+        if self.temperature() <= 0.0 {
+            return value_error!("temperature must be positive");
+        }
+        py.detach(
+            move || {
+                // Simulate while cooling.
+                let mut reject_count = 0;
+                let nloops = nsteps / batch_size;
+                for _ in 0..nloops {
+                    let accepted = self.proceed_multi(batch_size);
+                    if accepted > 0 {
+                        reject_count = 0;
+                    } else {
+                        reject_count += batch_size;
+                        if reject_count > self.reject_limit {
+                            if self.graph.energy() == std::f32::INFINITY {
+                                self.optimization_state = OptimizationState::Failed;
+                            } else {
+                                self.optimization_state = OptimizationState::Converged;
+                            }
+                            break;
+                        }
+                    }
+                    self.iteration += batch_size;
+                    self.reservoir.cool(self.iteration);
+                    self.graph.cool(self.iteration);
+                }
+                Ok(())
+            }
+        )
+    }
+
     /// Cool the system until the energy is not decreased. This method is deterministic.
     pub fn cool_completely<'py>(&mut self, py: Python<'py>) {
         // NOTE: This is not efficient, because shifting a local state does not alter
@@ -299,7 +336,7 @@ impl CylindricAnnealingModel {
                 loop {
                     let shift = self.graph.try_all_shifts();
                     if shift.energy_diff < 0.0 {
-                        self.graph.apply_shift(&shift);
+                        self.graph.apply_shift(shift);
                         self.iteration += 1;
                     } else {
                         break;
@@ -325,10 +362,26 @@ impl CylindricAnnealingModel {
         let prob = self.reservoir.prob(result.energy_diff);
         if self.rng.bernoulli(prob) {
             // accept shift
-            self.graph.apply_shift(&result);
+            self.graph.apply_shift(result);
             true
         } else {
             false
         }
+    }
+
+    fn proceed_multi(&mut self, num: usize) -> usize {
+        let results = self.graph.try_random_shift_multi(&mut self.rng, num);
+        let mut accept_count = 0;
+        for result in results {
+            if result.energy_diff.is_nan() {
+                continue;
+            }
+            let prob = self.reservoir.prob(result.energy_diff);
+            if self.rng.bernoulli(prob) {
+                self.graph.apply_shift(result);
+                accept_count += 1;
+            }
+        }
+        accept_count
     }
 }

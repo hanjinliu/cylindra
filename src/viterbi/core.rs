@@ -60,7 +60,7 @@ impl ViterbiGrid {
             );
         }
 
-        let mut coords: Vec<CoordinateSystem<f32>> = Vec::new();
+        let mut coords: Vec<CoordinateSystem<f32>> = Vec::with_capacity(nmole);
 
         for t in 0..nmole {
             let _ori = Vector3D::new(origin[[t, 0]], origin[[t, 1]], origin[[t, 2]]);

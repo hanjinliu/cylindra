@@ -231,7 +231,7 @@ def _eval_dist_like(val: str, data: np.ndarray) -> float | None:
 
 def plot_annealing_result(results: list[AnnealingResult]):
     for i, r in enumerate(results):
-        _x = np.arange(r.energies.size) * 1e-6 * r.batch_size
+        _x = np.arange(r.energies.size) * 1e-6 * r.epoch_size
         plt.plot(_x, -r.energies, label=f"{i}", alpha=0.5)
     plt.xlabel("Repeat (x10^6)")
     plt.ylabel("Score")
