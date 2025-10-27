@@ -114,14 +114,15 @@ class CylindraBatchWidget(MagicTemplate):
             they will be overwritten. This is useful when cylindra batch project is
             imported from file outputs of a long-running job from other softwares.
         """
+        _paths = unwrap_wildcard(paths)
         self._new_projects_from_table(
-            unwrap_wildcard(paths),
+            _paths,
             save_root=save_root,
             ref_paths=unwrap_wildcard(ref_paths) or None,
-            scale=[scale] * len(paths),
-            tilt_model=[tilt_model] * len(paths),
-            bin_size=[bin_size] * len(paths),
-            invert=[invert] * len(paths),
+            scale=[scale] * len(_paths),
+            tilt_model=[tilt_model] * len(_paths),
+            bin_size=[bin_size] * len(_paths),
+            invert=[invert] * len(_paths),
             extension=extension,
             strip_prefix=strip_prefix,
             strip_suffix=strip_suffix,
