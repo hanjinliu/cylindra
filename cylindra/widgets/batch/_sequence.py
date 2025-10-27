@@ -45,7 +45,6 @@ class MoleculeWidget(MagicTemplate):
 
 @magicclass(widget_type="collapsible", record=False, name="Molecules")
 class MoleculeList(MagicTemplate):
-
     def _add_path(self, path: str):
         wdt = MoleculeWidget()
         wdt.line.value = path
@@ -507,14 +506,10 @@ class ProjectSequenceEdit(MagicTemplate):
         clear : bool, default True
             Whether to clear the existing projects added to the list.
         """
-
-        if isinstance(paths, (str, Path)):
-            input_paths = [str(paths)]
-        else:
-            input_paths = [str(p) for p in paths]
+        _paths = unwrap_wildcard(paths)
         if clear:
             self.projects.clear()
-        for path in unwrap_wildcard(input_paths):
+        for path in _paths:
             wdt = self.projects._add(get_project_file(path))
             self.scale.value = wdt.project.scale
         self.reset_choices()
