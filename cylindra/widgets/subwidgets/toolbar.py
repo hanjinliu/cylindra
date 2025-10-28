@@ -11,7 +11,7 @@ from magicclass.logging import getLogger
 from magicgui.types import Separator
 
 from cylindra.components.picker import AutoCorrelationPicker
-from cylindra.widget_utils import change_viewer_focus
+from cylindra.widget_utils import change_viewer_focus, find_dock_widget
 from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 _Logger = getLogger("cylindra")
@@ -108,3 +108,13 @@ class CylindraToolbar(ChildWidget):
         self.macro.redo()
         expr = self.macro[-1]
         return _Logger.print_html(f"Redo: <code>{expr}</code>")
+
+    sep3 = Separator
+
+    @do_not_record
+    @set_design(icon="material-symbols:dock-to-left")
+    def dock_all(self):
+        """Dock all the dockable windows."""
+        for w in self.parent_viewer.window.dock_widgets.values():
+            if dock := find_dock_widget(w):
+                dock.setFloating(False)

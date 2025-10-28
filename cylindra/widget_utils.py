@@ -16,7 +16,9 @@ from acryo import Molecules, SubtomogramLoader
 from magicclass.logging import getLogger
 from magicclass.types import ExprStr
 from magicclass.widgets import EvalLineEdit
+from magicgui.widgets import Widget
 from numpy.typing import NDArray
+from qtpy import QtWidgets as QtW
 
 from cylindra import _config
 from cylindra.components import BaseComponent, CylTomogram
@@ -549,3 +551,14 @@ def prep_tomogram(
     if orig_scale is not None:
         tomo.metadata["orig_scale"] = orig_scale
     return tomo
+
+
+def find_dock_widget(widget: QtW.QWidget | Widget) -> QtW.QDockWidget | None:
+    """Find the parent dock widget of a given widget."""
+    if isinstance(widget, Widget):
+        qwidget: QtW.QWidget = widget.native
+    else:
+        qwidget = widget
+    parent = qwidget.parent()
+    if isinstance(parent, QtW.QDockWidget):
+        return parent
