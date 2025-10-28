@@ -10,6 +10,7 @@ from magicgui import magicgui
 from qtpy import QtWidgets as QtW
 
 from cylindra import instance
+from cylindra.widget_utils import find_dock_widget
 from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets.subwidgets.measure import LOCAL_CFT, LOCAL_CFT_UP
 
@@ -89,7 +90,7 @@ def main():
         )
         dock_inner = _qdock.inner_widget()
 
-    dock = dock_inner.native.parentWidget()
+    dock = find_dock_widget(dock_inner)
     assert isinstance(dock, QtW.QDockWidget)
     dock.setFloating(True)
     _imsave(dock.widget(), "workflow_with_args")
