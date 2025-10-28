@@ -560,7 +560,5 @@ def find_dock_widget(widget: QtW.QWidget | Widget) -> QtW.QDockWidget | None:
     else:
         qwidget = widget
     parent = qwidget.parent()
-    while parent is not None:
-        if isinstance(parent, QtW.QDockWidget):
-            return parent
-        parent = parent.parent()
+    if isinstance(parent, QtW.QDockWidget):
+        return parent
