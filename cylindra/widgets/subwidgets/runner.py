@@ -167,7 +167,7 @@ class Runner(ChildWidget):
             )
             yield
         if infer_polarity:
-            yield from main.infer_polarity.arun(bin_size=bin_size)
+            yield from main.infer_polarity.arun(splines=splines, bin_size=bin_size)
             yield
         if global_props:
             yield from main.global_cft_analysis.arun(splines=splines, bin_size=bin_size)
@@ -175,4 +175,3 @@ class Runner(ChildWidget):
         if map_monomers:
             yield from main.map_monomers.arun(splines, orientation="MinusToPlus")
             yield
-        return None

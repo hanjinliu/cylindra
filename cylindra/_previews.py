@@ -152,7 +152,7 @@ def view_tables(
         container = DataFrameView(value=df, name=Path(paths).name)
     else:
         container = TabbedContainer(labels=False)
-        for _i, path in enumerate(paths):
+        for path in paths:
             df = pl.read_csv(path, **kwargs)
             view = DataFrameView(value=df, name=Path(path).name)
             container.append(view)

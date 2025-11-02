@@ -818,8 +818,6 @@ def test_sta(ui: CylindraMainWidget, bin_size: int, tmpdir):
         method="ncc",
     )
 
-    ui.Toolbar.dock_all()
-
 
 def test_seam_search(ui: CylindraMainWidget, tmpdir):
     from cylindra.widgets.subwidgets import Volume
