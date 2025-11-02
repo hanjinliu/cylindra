@@ -236,8 +236,7 @@ class ImageMenu(ChildWidget):
         """Open manual picker widget"""
         main = self._get_main()
         main.manual_picker.show()
-        if dock := main.manual_picker.native.parentWidget():
-            dock.resize(640, 640)
+        main.manual_picker.native.resize(640, 640)
         return main.manual_picker.refresh_widget_state()
 
     @set_design(text="Simulate cylindric structure")
@@ -416,8 +415,7 @@ class SplinesMenu(ChildWidget):
             main = self._get_main()
             main.spline_fitter.resample_volumes()
             main.spline_fitter.show()
-            if parent := main.spline_fitter.native.parent():
-                parent.resize(380, 220)
+            main.spline_fitter.native.resize(380, 220)
 
         refine_splines = abstractapi()
 
