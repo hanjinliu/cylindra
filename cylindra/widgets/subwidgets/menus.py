@@ -218,6 +218,13 @@ class ImageMenu(ChildWidget):
     add_multiscale = abstractapi()
     set_multiscale = abstractapi()
     update_scale = abstractapi()
+
+    @magicmenu(name="Labels")
+    class LabelsMenu(ChildWidget):
+        new_labels = abstractapi()
+        molecules_to_labels = abstractapi()
+        add_molecule_feature_from_labels_layer = abstractapi()
+
     sep0 = Separator
 
     @do_not_record

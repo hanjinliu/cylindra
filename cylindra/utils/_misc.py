@@ -392,6 +392,20 @@ def fit_to_shape(img: ip.ImgArray, shape: tuple[int, int, int]) -> ip.ImgArray:
     return img
 
 
+def nd_take(
+    arr: NDArray[np.int_],
+    indices: NDArray[np.int_],
+    default: int = -1,
+) -> NDArray[np.int_]:
+    nz, ny, nx = arr.shape
+    flat_indices = ny * nx * indices[:, 0] + nx * indices[:, 1] + indices[:, 2]
+    ids = np.full(indices.shape[0], default, dtype=np.int32)
+    is_valid = (indices >= 0) & (indices < np.array([[nz, ny, nx]]))
+    is_valid = np.all(is_valid, axis=1)
+    ids[is_valid] = np.take(arr, flat_indices[is_valid])
+    return ids
+
+
 class Projections:
     """
     Class that stores projections of a 3D image, calculated lazily.

@@ -26,7 +26,7 @@ from magicclass.types import Colormap as ColormapType
 from magicclass.types import Optional, Path
 from magicclass.undo import undo_callback
 from magicclass.utils import thread_worker
-from napari.layers import Layer
+from napari.layers import Labels, Layer
 from napari.utils.notifications import show_info as _napari_show_info
 
 from cylindra import _config, _shared_doc, cylfilters, cylmeasure, utils, widget_utils
@@ -402,8 +402,19 @@ class CylindraMainWidget(MagicTemplate):
         return config
 
     def _norm_splines(self, splines: list[int] | Literal["all"]) -> list[int]:
-        if isinstance(splines, str) and splines == "all":
-            return list(range(self.splines.count()))
+        if isinstance(splines, str):
+            indices = list(range(self.splines.count()))
+            if splines == "all":
+                return indices
+            else:
+                expr = widget_utils.norm_expr(splines)
+                df_glob = self.splines.collect_globalprops(indices)
+                cname = ".index"
+                return (
+                    df_glob.with_columns(pl.Series(cname, indices))
+                    .filter(expr)[cname]
+                    .to_list()
+                )
         return splines
 
     @set_design(icon="iconoir:curve-array", location=Toolbar)
@@ -813,7 +824,6 @@ class CylindraMainWidget(MagicTemplate):
         return self._update_reference_image(img)
 
     @set_design(text=capitalize, location=_sw.FileMenu)
-    @do_not_record
     def open_label_image(self, path: Path.Read[FileFilter.IMAGE]):
         """Open an image file as a label image of the current tomogram."""
         label = ip.imread(path)
@@ -977,6 +987,111 @@ class CylindraMainWidget(MagicTemplate):
 
         t0.toc()
         return _invert_image_on_return
+
+    @set_design(text=capitalize, location=_sw.ImageMenu.LabelsMenu)
+    def new_labels(
+        self,
+        name: str = "Labels",
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+    ):
+        """Create an empty labels layer."""
+        shape = tuple(np.array(self.tomogram.image.shape) // bin_size)
+        labels_data = ip.aslabel(np.zeros(shape, dtype=np.int8), axes="zyx", name=name)
+        new_layer = widget_utils.add_labels(
+            self.parent_viewer,
+            labels_data,
+            self.tomogram.multiscale_translation(bin_size),
+        )
+        self._reserved_layers.to_be_removed.add(new_layer)
+
+    @set_design(text=capitalize, location=_sw.ImageMenu.LabelsMenu)
+    def splines_to_labels(
+        self,
+        splines: SplinesType,
+        target_layer: Labels,
+        label_id: int = 1,
+        radius_override: Optional[nm] = None,
+    ):
+        """Update a Labels layer by masking the splines.
+
+        Parameters
+        ----------
+        {splines}
+        target_layer : Labels
+            Target Labels layer to be updated.
+        label_id : int, default 1
+            Label ID to assign to the masked region.
+        radius_override : float, optional
+            If given, override the radius of splines (without updating the spline
+            properties) for masking.
+        """
+        target_label_arr = target_layer.data
+        for i in self._norm_splines(splines):
+            spl = self.splines[i]
+            num = utils.roundint(spl.length() / target_layer.scale[-1] / 2)
+            mole = spl.anchors_to_molecules(np.linspace(0, 1, num))
+            if radius_override is not None:
+                radius = radius_override
+            else:
+                radius = spl.radius
+            mask = _mole_to_mask(mole, size=radius * 2, shape=target_layer.data.shape)
+            target_label_arr[mask] = label_id
+        target_layer.data = target_label_arr
+
+    @set_design(text=capitalize, location=_sw.ImageMenu.LabelsMenu)
+    def molecules_to_labels(
+        self,
+        layers: MoleculesLayersType,
+        target_layer: Labels,
+        label_id: int = 1,
+        radius: nm = 3.0,
+    ):
+        """Update a Labels layer by masking the molecules
+
+        Parameters
+        ----------
+        {layers}
+        target_layer : Labels
+            Target Labels layer to be updated.
+        label_id : int, default 1
+            Label ID to assign to the masked region.
+        radius : nm, optional
+            Point radius of molecules for masking.
+        """
+        layers = assert_list_of_layers(layers, self.parent_viewer)
+        target_label_arr = target_layer.data
+        for layer in layers:
+            mask = _mole_to_mask(
+                layer.molecules, size=radius * 2, shape=target_label_arr.shape
+            )
+            target_label_arr[mask] = label_id
+        target_layer.data = target_label_arr
+
+    @set_design(text=capitalize, location=_sw.ImageMenu.Labels)
+    def add_molecule_feature_from_labels_layer(
+        self,
+        layers: MoleculesLayersType,
+        labels_layer: Labels,
+        column_name: str = "label-id",
+    ):
+        """Add a new column to the molecules feature by an existing napari Labels layer.
+
+        Parameters
+        ----------
+        {layers}
+        labels_layer : Labels
+            The napari Labels layer to get the label IDs.
+        column_name : str, optional
+            Name of the new feature column.
+        """
+        layers = assert_list_of_layers(layers, self.parent_viewer)
+        labels_val = labels_layer.data
+        for layer in layers:
+            pos = (layer.molecules.pos - labels_layer.translate) / labels_layer.scale
+            pos_int = pos.astype(np.int32)
+            ids = pl.Series(column_name, utils.nd_take(labels_val, pos_int))
+            layer.features = layer.molecules.features.with_columns(ids)
+        self.reset_choices()  # choices regarding to features need update
 
     @set_design(text="Add multi-scale", location=_sw.ImageMenu)
     @dask_thread_worker.with_progress(desc=lambda bin_size: f"Adding multiscale (bin = {bin_size})")  # fmt: skip
@@ -1355,7 +1470,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: SplinesType = None,
         max_interval: Annotated[nm, {"label": "max interval (nm)"}] = 30,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1.0,
+        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
         err_max: Annotated[nm, {"label": "max fit error (nm)", "step": 0.1}] = 1.0,
         degree_precision: float = 0.5,
         edge_sigma: Annotated[Optional[nm], {"text": "Do not mask image", "label": "edge σ"}] = 2.0,
@@ -3615,3 +3730,7 @@ def _is_dummy_tomogram(ui: "CylindraMainWidget") -> bool:
         _Logger.print("No tomogram is loaded. Skip this operation.")
         return True
     return False
+
+
+def _mole_to_mask(mole: Molecules, size: float, shape: tuple[int, int, int]):
+    return MoleculesLayer(mole, size=size).to_mask(shape=shape)
