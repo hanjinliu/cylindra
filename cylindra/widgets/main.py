@@ -1010,8 +1010,8 @@ class CylindraMainWidget(MagicTemplate):
         splines: SplinesType,
         target_layer: Labels,
         label_id: int = 1,
-        radius_override: Optional[nm] = None,
-    ):
+        radius_override: Annotated[Optional[nm], {"label": "radius override (nm)", "text": "Use spline global property"}] = None,
+    ):  # fmt: skip
         """Update a Labels layer by masking the splines.
 
         Parameters
@@ -1044,7 +1044,7 @@ class CylindraMainWidget(MagicTemplate):
         layers: MoleculesLayersType,
         target_layer: Labels,
         label_id: int = 1,
-        radius: nm = 3.0,
+        radius: Annotated[nm, {"label": "radius (nm)"}] = 3.0,
     ):
         """Update a Labels layer by masking the molecules
 
@@ -1746,7 +1746,6 @@ class CylindraMainWidget(MagicTemplate):
         self.reset_choices()
         self.sample_subtomograms()
         self._update_splines_in_images()
-        return None
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu.FromToSpline)
     def protofilaments_to_spline(
@@ -2963,6 +2962,10 @@ class CylindraMainWidget(MagicTemplate):
             ]
         )
         self.reset_choices()  # choices regarding of features need update
+        _napari_show_info(
+            "Spline properties are interpolated to molecule features. Call "
+            "paint_molecules (Ctrl+K, C) to visualize them."
+        )
         return undo_callback(layer.feature_setter(feat, layer.colormap_info))
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
@@ -2989,6 +2992,10 @@ class CylindraMainWidget(MagicTemplate):
 
         layer.molecules = layer.molecules.with_features([_calculate(p) for p in props])
         self.reset_choices()  # choices regarding of features need update
+        _napari_show_info(
+            "Molecule features updated. Call "
+            "paint_molecules (Ctrl+K, C) to visualize them."
+        )
         return undo_callback(layer.feature_setter(feat))
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
