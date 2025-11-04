@@ -1067,7 +1067,7 @@ class CylindraMainWidget(MagicTemplate):
             target_label_arr[mask] = label_id
         target_layer.data = target_label_arr
 
-    @set_design(text=capitalize, location=_sw.ImageMenu.Labels)
+    @set_design(text=capitalize, location=_sw.ImageMenu.LabelsMenu)
     def add_molecule_feature_from_labels_layer(
         self,
         layers: MoleculesLayersType,
