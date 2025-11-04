@@ -222,6 +222,7 @@ class ImageMenu(ChildWidget):
     @magicmenu(name="Labels")
     class LabelsMenu(ChildWidget):
         new_labels = abstractapi()
+        splines_to_labels = abstractapi()
         molecules_to_labels = abstractapi()
         add_molecule_feature_from_labels_layer = abstractapi()
 
