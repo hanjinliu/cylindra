@@ -17,6 +17,7 @@ from cylindra.const import (
 from cylindra.widgets._main_utils import fast_percentile
 
 if TYPE_CHECKING:
+    from cylindra._napari._layers import SplineLayer
     from cylindra.components import CylSpline
 
 
@@ -142,10 +143,10 @@ class ReservedLayers:
                 size_edge = 0.01
             case Ori.MinusToPlus:
                 symbol_a, symbol_b = "-", "+"
-                size_edge = 10
+                size_edge = 10 if layer.show_polarity else 0.01
             case Ori.PlusToMinus:
                 symbol_a, symbol_b = "+", "-"
-                size_edge = 10
+                size_edge = 10 if layer.show_polarity else 0.01
             case ori:  # pragma: no cover
                 raise RuntimeError(ori)
 
@@ -159,11 +160,14 @@ class ReservedLayers:
         size_arr[spec] = size_of_interest
         layer.symbol = list(symbol_arr)
         layer.size = size_arr
+        layer.selected_data = []
         layer.refresh()
 
 
-def _prof_layer() -> Points:
-    prof = Points(
+def _prof_layer() -> SplineLayer:
+    from cylindra._napari._layers import SplineLayer
+
+    prof = SplineLayer(
         ndim=3,
         out_of_slice_display=True,
         size=8,
@@ -175,7 +179,6 @@ def _prof_layer() -> Points:
         text={"color": "yellow"},
     )
     prof.feature_defaults[SPLINE_ID] = 0
-    prof.editable = False
     return prof
 
 
