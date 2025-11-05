@@ -26,7 +26,7 @@ dependencies = [
     "acryo>=0.5.1",
     "macro-kit>=0.4.6",
     "magicgui>=0.8.1",
-    "magic-class>=0.7.16",
+    "magic-class>=0.7.20",
     "psygnal>=0.9.1",
     "superqt[iconify]>=0.6.1",
     "pydantic>=2.8.2",
@@ -62,7 +62,7 @@ testing = [
     "starfile>=0.5.11",
     "imodmodel>=0.1.0",
     "cookiecutter",
-    "maturin==1.9.4",
+    "maturin>=1.9.6,<2.0.0",
 ]
 all = [
     "pyqt6",

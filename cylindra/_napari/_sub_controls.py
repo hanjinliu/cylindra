@@ -20,6 +20,7 @@ from cylindra._napari._layers import (
     InteractionVector,
     LandscapeSurface,
     MoleculesLayer,
+    SplineLayer,
 )
 from cylindra.utils import roundint
 
@@ -320,6 +321,27 @@ class QtLandscapeSubControls(QtWidgetControlsBase):
 
     def _change_wire_width(self, value):
         self._layer.wireframe.width = value
+
+
+class QtSplineLayerSubControl(QtWidgetControlsBase):
+    _layer: SplineLayer
+
+    def __init__(self, parent: QtW.QWidget, layer: SplineLayer) -> None:
+        super().__init__(parent, layer)
+        self.checkbox = QtW.QCheckBox()
+        self.checkbox.setChecked(layer._show_polarity)
+        layer.events.show_polarity.connect(self._on_show_polarity_change)
+        self.checkbox.checkStateChanged.connect(self._change_show_polarity)
+
+    def get_widget_controls(self) -> list[tuple[QtWrappedLabel, QtW.QWidget]]:
+        return [(QtWrappedLabel("show orientation:"), self.checkbox)]
+
+    def _on_show_polarity_change(self, event):
+        with qt_signals_blocked(self.checkbox):
+            self.checkbox.setChecked(bool(event.value))
+
+    def _change_show_polarity(self, *_):
+        self._layer.show_polarity = self.checkbox.isChecked()
 
 
 def _first_or(arr: np.ndarray, default):

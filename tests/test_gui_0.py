@@ -306,6 +306,10 @@ def test_reanalysis(ui: CylindraMainWidget):
 
 def test_map_molecules(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=None)
+    ui._reserved_layers.prof.show_polarity = False
+    assert ui._reserved_layers.prof.size[0] < 0.1
+    ui._reserved_layers.prof.show_polarity = True
+    assert ui._reserved_layers.prof.size[0] > 0.1
     assert ui.get_loader("Mole-0").molecules is ui.mole_layers["Mole-0"].molecules
     ui.map_monomers_with_extensions(0, {0: (1, 1), 1: (-1, -1)})
     ui.map_along_pf(0, molecule_interval=4.0)
