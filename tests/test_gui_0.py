@@ -1896,6 +1896,7 @@ def test_split_splines(ui: CylindraMainWidget):
 def test_labels_methods(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None, read_image=False)
     ui.new_labels(name="Labels-0")
-    ui.splines_to_labels(splines=[0], target_layer="Labels-0")
-    ui.molecules_to_labels(layers=["Mole-0"], target_layer="Labels-0", label_id=2)
-    ui.add_molecule_feature_from_labels_layer("Mole-0", labels_layer="Labels-0")
+    labels_layer = ui.parent_viewer.layers["Labels-0"]
+    ui.splines_to_labels(splines=[0], target_layer=labels_layer)
+    ui.molecules_to_labels(layers=["Mole-0"], target_layer=labels_layer, label_id=2)
+    ui.add_molecule_feature_from_labels_layer("Mole-0", labels_layer=labels_layer)
