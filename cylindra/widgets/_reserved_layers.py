@@ -17,6 +17,7 @@ from cylindra.const import (
 from cylindra.widgets._main_utils import fast_percentile
 
 if TYPE_CHECKING:
+    from cylindra._napari._layers import SplineLayer
     from cylindra.components import CylSpline
 
 
@@ -80,11 +81,17 @@ class ReservedLayers:
         """Add spline sample data to the layer."""
         interval = 8.0
         length = spl.length()
-        n = max(int(length / interval) + 1, 2)
-        fit = spl.map(np.linspace(0, 1, n))
+        num = max(int(length / interval) + 1, 2)
+        offset = interval * 1.8 / length
+        spl_pos = np.linspace(0, 1, num)
+        pos = np.concatenate([[-offset], spl_pos, [1 + offset]])
+        fit = spl.map(pos)
         self.prof.feature_defaults[SPLINE_ID] = i
         self.prof.add(fit)
-        return fit
+        sizes = self.prof.size.astype(np.float32)
+        sizes[-num - 2] = sizes[-1] = 0.01
+        self.prof.size = sizes
+        return spl.map(spl_pos)
 
     def rescale_layers(self, factor: float):
         """Update the scale of the reserved layers."""
@@ -125,32 +132,42 @@ class ReservedLayers:
         spline_id = layer.features[SPLINE_ID]
         spec = spline_id == idx
         symbol_arr = layer.symbol.copy()
+        size_arr = layer.size.astype(np.float32)
 
         symbol_of_interest = symbol_arr[spec]
+        size_of_interest = size_arr[spec]
 
         match orientation:
             case Ori.none:
-                symbol_of_interest[:] = "o"
+                symbol_a, symbol_b = "x", "x"
+                size_edge = 0.01
             case Ori.MinusToPlus:
-                symbol_of_interest[0], symbol_of_interest[-1] = "-", "+"
-                if len(symbol_of_interest) > 2:
-                    symbol_of_interest[1:-1] = "o"
+                symbol_a, symbol_b = "-", "+"
+                size_edge = 10 if layer.show_polarity else 0.01
             case Ori.PlusToMinus:
-                symbol_of_interest[0], symbol_of_interest[-1] = "+", "-"
-                if len(symbol_of_interest) > 2:
-                    symbol_of_interest[1:-1] = "o"
+                symbol_a, symbol_b = "+", "-"
+                size_edge = 10 if layer.show_polarity else 0.01
             case ori:  # pragma: no cover
                 raise RuntimeError(ori)
 
+        symbol_of_interest[0], symbol_of_interest[-1] = symbol_a, symbol_b
+        size_of_interest[0] = size_of_interest[-1] = size_edge
+        if len(symbol_of_interest) > 2:
+            symbol_of_interest[1:-1] = "o"
+
         # update
         symbol_arr[spec] = symbol_of_interest
+        size_arr[spec] = size_of_interest
         layer.symbol = list(symbol_arr)
+        layer.size = size_arr
+        layer.selected_data = []
         layer.refresh()
-        return None
 
 
-def _prof_layer() -> Points:
-    prof = Points(
+def _prof_layer() -> SplineLayer:
+    from cylindra._napari._layers import SplineLayer
+
+    prof = SplineLayer(
         ndim=3,
         out_of_slice_display=True,
         size=8,
@@ -162,7 +179,6 @@ def _prof_layer() -> Points:
         text={"color": "yellow"},
     )
     prof.feature_defaults[SPLINE_ID] = 0
-    prof.editable = False
     return prof
 
 
