@@ -1126,8 +1126,7 @@ def test_molecules_methods(ui: CylindraMainWidget):
     ui.rotate_molecule_toward_spline(ui.mole_layers.last(), 0)
     ui.distance_from_closest_molecule(ui.mole_layers.last(), ui.mole_layers[0])
 
-
-def test_transform_molecules(ui: CylindraMainWidget):
+    ## transform moleules
     ui.load_project(PROJECT_DIR_14PF, filter=None)
     layer = ui.mole_layers["Mole-0"]
     ui.translate_molecules("Mole-0", [3, -5, 2.2], internal=False)
@@ -1157,8 +1156,7 @@ def test_transform_molecules(ui: CylindraMainWidget):
     ui.macro.undo()
     ui.macro.redo()
 
-
-def test_merge_molecules(ui: CylindraMainWidget):
+    # merge molecules
     ui.load_project(PROJECT_DIR_14PF, filter=None)
     ui.merge_molecule_info(pos="Mole-0", rotation="Mole-1", features="Mole-0")
     assert_allclose(ui.mole_layers.last().data, ui.mole_layers["Mole-0"].data)
@@ -1894,3 +1892,11 @@ def test_split_splines(ui: CylindraMainWidget):
     ui.splines[0].props.update_loc(pl.Series(H.spacing, prop), window_size=50)
     ui.split_splines_at_changing_point(0, estimate_by=H.spacing, diff_cutoff=0.08)
     assert len(ui.splines) == 3
+
+def test_labels_methods(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_13PF, filter=None, read_image=False)
+    ui.new_labels(name="Labels-0")
+    labels_layer = ui.parent_viewer.layers["Labels-0"]
+    ui.splines_to_labels(splines=[0], target_layer=labels_layer)
+    ui.molecules_to_labels(layers=["Mole-0"], target_layer=labels_layer, label_id=2)
+    ui.add_molecule_feature_from_labels_layer("Mole-0", labels_layer=labels_layer)
