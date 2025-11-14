@@ -46,6 +46,7 @@ from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import PropertyNames as H
 from cylindra.plugin.core import load_plugin
 from cylindra.project import CylindraProject, extract
+from cylindra.types import get_available_binsize
 from cylindra.widget_utils import (
     PolarsExprStr,
     PolarsExprStrOrScalar,
@@ -58,9 +59,11 @@ from cylindra.widgets import _progress_desc as _pdesc
 from cylindra.widgets import subwidgets as _sw
 from cylindra.widgets._accessors import MoleculesLayerAccessor
 from cylindra.widgets._annotated import (
+    BinSizeType,
     MoleculesLayersType,
     MoleculesLayerType,
     SplinesType,
+    SplineType,
     assert_layer,
     assert_list_of_layers,
 )
@@ -378,17 +381,8 @@ class CylindraMainWidget(MagicTemplate):
             raise ValueError("Input coordinates must be a (N, 3) numeric array.")
         return out
 
-    def _get_available_binsize(self, _=None) -> list[tuple[str, int]]:
-        bins = [x[0] for x in self.tomogram.multiscaled]
-        if 1 not in bins:
-            bins = [1, *bins]
-        return [
-            (
-                f"{b} pixel{'s' if b > 1 else ''} ({self.tomogram.scale * b:.2f} nm/pixel)",
-                b,
-            )
-            for b in sorted(bins)
-        ]
+    def _get_available_binsize(self, w=None) -> list[tuple[str, int]]:
+        return get_available_binsize(w)
 
     def _get_default_config(self, config):
         if config is None:
@@ -782,7 +776,7 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def save_spline(
         self,
-        spline: Annotated[int, {"choices": _get_splines}],
+        spline: SplineType,
         save_path: Path.Save[FileFilter.JSON],
     ):
         """Save splines as a json file."""
@@ -992,7 +986,7 @@ class CylindraMainWidget(MagicTemplate):
     def new_labels(
         self,
         name: str = "Labels",
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
     ):
         """Create an empty labels layer."""
         shape = tuple(np.array(self.tomogram.image.shape) // bin_size)
@@ -1111,7 +1105,7 @@ class CylindraMainWidget(MagicTemplate):
         return thread_worker.callback(self.set_multiscale).with_args(bin_size)
 
     @set_design(text="Set multi-scale", location=_sw.ImageMenu)
-    def set_multiscale(self, bin_size: Annotated[int, {"choices": _get_available_binsize}]):  # fmt: skip
+    def set_multiscale(self, bin_size: BinSizeType):  # fmt: skip
         """Set multiscale used for image display.
 
         Parameters
@@ -1216,7 +1210,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: SplinesType = None,
         depth: Annotated[nm, {"min": 5.0, "max": 500.0, "step": 5.0}] = 40,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
     ):  # fmt: skip
         """Automatically detect the cylinder polarities.
 
@@ -1268,7 +1262,7 @@ class CylindraMainWidget(MagicTemplate):
     @bind_key("Ctrl+K, Ctrl+X")
     def clip_spline(
         self,
-        spline: Annotated[int, {"choices": _get_splines}],
+        spline: SplineType,
         lengths: Annotated[tuple[nm, nm], {"options": {"min": -1000.0, "max": 1000.0, "step": 0.1, "label": "clip length (nm)"}}] = (0.0, 0.0),
     ):  # fmt: skip
         """Clip selected spline at its edges by given lengths.
@@ -1301,7 +1295,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text=capitalize, location=_sw.SplinesMenu)
     def split_spline(
         self,
-        spline: Annotated[int, {"choices": _get_splines}],
+        spline: SplineType,
         at: Annotated[nm, {"min": 0.0, "max": 10000.0, "step": 0.1, "label": "split at (nm)"}] = 100.0,
         from_start: bool = True,
         trim: Annotated[nm, {"min": 0.0, "max": 100.0, "step": 0.1, "label": "trim (nm)"}] = 0.0,
@@ -1470,7 +1464,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: SplinesType = None,
         max_interval: Annotated[nm, {"label": "max interval (nm)"}] = 30,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         err_max: Annotated[nm, {"label": "max fit error (nm)", "step": 0.1}] = 1.0,
         degree_precision: float = 0.5,
         edge_sigma: Annotated[Optional[nm], {"text": "Do not mask image", "label": "edge σ"}] = 2.0,
@@ -1518,7 +1512,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: SplinesType = None,
         max_interval: Annotated[nm, {"label": "max interval (nm)"}] = 30,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1.0,
+        bin_size: BinSizeType = 1.0,
         err_max: Annotated[nm, {"label": "max fit error (nm)", "step": 0.1}] = 1.0,
         max_shift: nm = 5.0,
     ):  # fmt: skip
@@ -1592,7 +1586,7 @@ class CylindraMainWidget(MagicTemplate):
         max_interval: Annotated[nm, {"label": "maximum interval (nm)"}] = 30,
         err_max: Annotated[nm, {"label": "max fit error (nm)", "step": 0.1}] = 0.8,
         corr_allowed: Annotated[float, {"label": "correlation allowed", "max": 1.0, "step": 0.1}] = 0.9,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
     ):  # fmt: skip
         """Refine splines using the global cylindric structural parameters.
 
@@ -1809,7 +1803,7 @@ class CylindraMainWidget(MagicTemplate):
     def measure_radius(
         self,
         splines: SplinesType = None,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         min_radius: Annotated[nm, {"min": 0.1, "step": 0.1}] = 1.0,
         max_radius: Annotated[nm, {"min": 0.1, "step": 0.1}] = 100.0,
     ):  # fmt: skip
@@ -1870,7 +1864,7 @@ class CylindraMainWidget(MagicTemplate):
         splines: SplinesType = None,
         interval: _Interval = None,
         depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 50.0,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         min_radius: Annotated[nm, {"min": 0.1, "step": 0.1}] = 1.0,
         max_radius: Annotated[nm, {"min": 0.1, "step": 0.1}] = 100.0,
         update_glob: Annotated[bool, {"text": "Also update the global radius"}] = True,
@@ -1971,7 +1965,7 @@ class CylindraMainWidget(MagicTemplate):
         splines: SplinesType = None,
         interval: _Interval = None,
         depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 50.0,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         radius: Literal["local", "global"] = "global",
         update_glob: Annotated[bool, {"text": "Also update the global properties"}] = False,
     ):  # fmt: skip
@@ -2042,7 +2036,7 @@ class CylindraMainWidget(MagicTemplate):
     def global_cft_analysis(
         self,
         splines: SplinesType = None,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
     ):  # fmt: skip
         """Determine cylindrical global structural parameters by Fourier transformation.
 
@@ -2352,7 +2346,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text=capitalize, location=_sw.MoleculesMenu.FromToSpline)
     def map_monomers_with_extensions(
         self,
-        spline: Annotated[int, {"choices": _get_splines}],
+        spline: SplineType,
         n_extend: Annotated[dict[int, tuple[int, int]], {"label": "prepend/append", "widget_type": ProtofilamentEdit}] = {},
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
         offsets: _OffsetType = None,
@@ -2461,7 +2455,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Map alogn PF", location=_sw.MoleculesMenu.FromToSpline)
     def map_along_pf(
         self,
-        spline: Annotated[int, {"choices": _get_splines}],
+        spline: SplineType,
         molecule_interval: PolarsExprStrOrScalar = "col('spacing')",
         offsets: _OffsetType = None,
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
@@ -2492,7 +2486,7 @@ class CylindraMainWidget(MagicTemplate):
     def set_source_spline(
         self,
         layer: MoleculesLayerType,
-        spline: Annotated[int, {"choices": _get_splines}],
+        spline: SplineType,
     ):
         """Set source spline for a molecules layer.
 
@@ -2723,7 +2717,7 @@ class CylindraMainWidget(MagicTemplate):
     def rotate_molecule_toward_spline(
         self,
         layer: MoleculesLayerType,
-        spline: Annotated[int, {"choices": _get_splines}],
+        spline: SplineType,
         inherit_source: Annotated[bool, {"label": "Inherit source spline"}] = True,
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
     ):
@@ -3068,7 +3062,7 @@ class CylindraMainWidget(MagicTemplate):
     def distance_from_spline(
         self,
         layer: MoleculesLayerType,
-        spline: Annotated[int, {"choices": _get_splines}],
+        spline: SplineType,
         column_name: str = "distance",
         interval: nm = 1.0,
         extrapolation: tuple[nm, nm] = (0.0, 0.0),

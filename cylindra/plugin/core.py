@@ -57,6 +57,7 @@ def register_function(func=None, *, record=True, name=None):
 
 
 def load_plugin(ui: CylindraMainWidget) -> None:
+    """Load all the available plugins into the given instance."""
     from cylindra.plugin._find import iter_plugin_info
 
     for plugin_info in iter_plugin_info():

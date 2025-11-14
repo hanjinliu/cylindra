@@ -769,11 +769,12 @@ class PluginsMenu(ChildWidget):
     @set_design(text=capitalize)
     @do_not_record
     def reload_plugins(self):
+        """Reload all plugins."""
         from cylindra.plugin._find import iter_plugin_info
 
         for plugin_info in iter_plugin_info():
             plugin_info.reload(self._get_main())
-        return None
+            _Logger.print(f"Plugin reloaded: {plugin_info.name}")
 
     sep0 = Separator
 

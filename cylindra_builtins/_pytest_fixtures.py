@@ -8,7 +8,7 @@ import pytest
 def ui(make_napari_viewer, request: "pytest.FixtureRequest"):
     import napari
 
-    from cylindra.core import ACTIVE_WIDGETS, start
+    from cylindra.core import ACTIVE_WIDGETS, _delete_instance, start
     from cylindra.widget_utils import find_dock_widget
     from cylindra.widgets.sta import StaParameters
 
@@ -32,6 +32,7 @@ def ui(make_napari_viewer, request: "pytest.FixtureRequest"):
             batch.close()
     del _ui.tomogram._image
     _ui.close()
+    _delete_instance()
     if sv := StaParameters._viewer:
         with suppress(RuntimeError):
             sv.close()

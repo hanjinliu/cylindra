@@ -4,7 +4,14 @@ import napari
 from magicclass._gui import BaseGui
 from magicclass.types import Optional
 
-from cylindra.types import MoleculesLayer, get_monomer_layers, get_splines
+from cylindra.types import (
+    LandscapeSurface,
+    MoleculesLayer,
+    get_available_binsize,
+    get_landscape_layers,
+    get_molecules_layers,
+    get_splines,
+)
 from cylindra.widgets._widget_ext import CheckBoxes
 
 
@@ -26,6 +33,15 @@ def _as_layer_names(self: Any, layers: list[MoleculesLayer | str]) -> str:
         else:
             out.append(layer.name)
     return out
+
+
+def _validate_landscape_layer(self: Any, layer) -> str:
+    if isinstance(layer, LandscapeSurface):
+        return layer.name
+    elif isinstance(layer, str):
+        return layer
+    else:
+        raise TypeError(f"{layer!r} is not a valid landscape.")
 
 
 def _splines_validator(self: BaseGui, splines) -> list[int] | Literal["all"]:
@@ -69,10 +85,18 @@ MoleculesLayerType = Annotated[
 MoleculesLayersType = Annotated[
     list[MoleculesLayer],
     {
-        "choices": get_monomer_layers,
+        "choices": get_molecules_layers,
         "widget_type": CheckBoxes,
         "value": (),
         "validator": _as_layer_names,
+    },
+]
+
+LandscapeLayerType = Annotated[
+    LandscapeSurface,
+    {
+        "choices": get_landscape_layers,
+        "validator": _validate_landscape_layer,
     },
 ]
 
@@ -85,6 +109,7 @@ FSCFreq = Annotated[
     },
 ]
 
+SplineType = Annotated[int, {"choices": get_splines}]
 SplinesType = Annotated[
     list[int],
     {
@@ -93,6 +118,8 @@ SplinesType = Annotated[
         "validator": _splines_validator,
     },
 ]
+
+BinSizeType = Annotated[int, {"choices": get_available_binsize}]
 
 
 def assert_layer(layer: Any, viewer: "napari.Viewer") -> MoleculesLayer:
