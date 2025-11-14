@@ -181,6 +181,12 @@ def instance(create=False):
     return ins
 
 
+def _delete_instance():
+    """Delete the current CylindraMainWidget instance."""
+    global _CURRENT_INSTANCE
+    _CURRENT_INSTANCE = None
+
+
 def view_project(project_file: PathLike, show: bool = True):
     """View the Cylindra project file."""
     from cylindra.project import CylindraProject
