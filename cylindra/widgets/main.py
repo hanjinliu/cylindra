@@ -63,6 +63,7 @@ from cylindra.widgets._annotated import (
     MoleculesLayersType,
     MoleculesLayerType,
     SplinesType,
+    SplineType,
     assert_layer,
     assert_list_of_layers,
 )
@@ -775,7 +776,7 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def save_spline(
         self,
-        spline: Annotated[int, {"choices": _get_splines}],
+        spline: SplineType,
         save_path: Path.Save[FileFilter.JSON],
     ):
         """Save splines as a json file."""
@@ -1261,7 +1262,7 @@ class CylindraMainWidget(MagicTemplate):
     @bind_key("Ctrl+K, Ctrl+X")
     def clip_spline(
         self,
-        spline: Annotated[int, {"choices": _get_splines}],
+        spline: SplineType,
         lengths: Annotated[tuple[nm, nm], {"options": {"min": -1000.0, "max": 1000.0, "step": 0.1, "label": "clip length (nm)"}}] = (0.0, 0.0),
     ):  # fmt: skip
         """Clip selected spline at its edges by given lengths.
@@ -1294,7 +1295,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text=capitalize, location=_sw.SplinesMenu)
     def split_spline(
         self,
-        spline: Annotated[int, {"choices": _get_splines}],
+        spline: SplineType,
         at: Annotated[nm, {"min": 0.0, "max": 10000.0, "step": 0.1, "label": "split at (nm)"}] = 100.0,
         from_start: bool = True,
         trim: Annotated[nm, {"min": 0.0, "max": 100.0, "step": 0.1, "label": "trim (nm)"}] = 0.0,
@@ -2345,7 +2346,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text=capitalize, location=_sw.MoleculesMenu.FromToSpline)
     def map_monomers_with_extensions(
         self,
-        spline: Annotated[int, {"choices": _get_splines}],
+        spline: SplineType,
         n_extend: Annotated[dict[int, tuple[int, int]], {"label": "prepend/append", "widget_type": ProtofilamentEdit}] = {},
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
         offsets: _OffsetType = None,
@@ -2454,7 +2455,7 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text="Map alogn PF", location=_sw.MoleculesMenu.FromToSpline)
     def map_along_pf(
         self,
-        spline: Annotated[int, {"choices": _get_splines}],
+        spline: SplineType,
         molecule_interval: PolarsExprStrOrScalar = "col('spacing')",
         offsets: _OffsetType = None,
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
@@ -2485,7 +2486,7 @@ class CylindraMainWidget(MagicTemplate):
     def set_source_spline(
         self,
         layer: MoleculesLayerType,
-        spline: Annotated[int, {"choices": _get_splines}],
+        spline: SplineType,
     ):
         """Set source spline for a molecules layer.
 
@@ -2716,7 +2717,7 @@ class CylindraMainWidget(MagicTemplate):
     def rotate_molecule_toward_spline(
         self,
         layer: MoleculesLayerType,
-        spline: Annotated[int, {"choices": _get_splines}],
+        spline: SplineType,
         inherit_source: Annotated[bool, {"label": "Inherit source spline"}] = True,
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
     ):
@@ -3061,7 +3062,7 @@ class CylindraMainWidget(MagicTemplate):
     def distance_from_spline(
         self,
         layer: MoleculesLayerType,
-        spline: Annotated[int, {"choices": _get_splines}],
+        spline: SplineType,
         column_name: str = "distance",
         interval: nm = 1.0,
         extrapolation: tuple[nm, nm] = (0.0, 0.0),

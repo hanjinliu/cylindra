@@ -69,6 +69,7 @@ from cylindra.widgets._annotated import (
     LandscapeLayerType,
     MoleculesLayersType,
     MoleculesLayerType,
+    SplineType,
     assert_layer,
     assert_list_of_layers,
 )
@@ -1441,14 +1442,11 @@ class SubtomogramAveraging(ChildWidget):
 
         return _on_return
 
-    def _get_splines(self, *_) -> list[int]:
-        return self._get_main()._get_splines()
-
     @set_design(text="Fit spline by RFA", location=Alignment)
     @dask_worker.with_progress(descs=_pdesc.fit_spline_rfa_fmt)
     def fit_spline_rfa(
         self,
-        spline: Annotated[int, {"choices": _get_splines}],
+        spline: SplineType,
         template_path: Annotated[_PathOrPathsOrNone, {"bind": _template_params}],
         forward_is: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus",
         interval: PolarsExprStrOrScalar = "4.1",

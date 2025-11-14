@@ -35,10 +35,14 @@ class PluginInfo(NamedTuple):
 
 
 def iter_plugin_info() -> Iterator[PluginInfo]:
+    dist_observed = set()
     for dist in distributions():
+        if dist.name in dist_observed:
+            continue
         for ep in dist.entry_points:
             if ep.group == ENTRY_POINT_GROUP_NAME:
                 yield PluginInfo(ep.name, ep.value, dist.version)
+        dist_observed.add(dist.name)
 
 
 def load_plugin(
@@ -83,12 +87,21 @@ def reload_plugin(
     display_name: str,
 ) -> None:
     """Reload the plugin module and update the menu."""
+
     mod = importlib.import_module(module_name)
-    mod = importlib.reload(mod)
+    mod = _reload(mod, module_name)
 
     _newmenu = ui.PluginsMenu[display_name]
     _newmenu.clear()
     _update_menu_gui(mod, ui, _newmenu)
+
+
+def _reload(mod: ModuleType, root_mod: str) -> ModuleType:
+    """Recursively reload a module and its submodules."""
+    for obj in mod.__dict__.values():
+        if isinstance(obj, ModuleType) and obj.__package__ == root_mod:
+            _reload(obj, root_mod)
+    return importlib.reload(mod)
 
 
 def _dir_or_all(mod: ModuleType) -> Iterator[Any]:
