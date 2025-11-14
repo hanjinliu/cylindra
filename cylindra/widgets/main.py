@@ -46,6 +46,7 @@ from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import PropertyNames as H
 from cylindra.plugin.core import load_plugin
 from cylindra.project import CylindraProject, extract
+from cylindra.types import get_available_binsize
 from cylindra.widget_utils import (
     PolarsExprStr,
     PolarsExprStrOrScalar,
@@ -58,6 +59,7 @@ from cylindra.widgets import _progress_desc as _pdesc
 from cylindra.widgets import subwidgets as _sw
 from cylindra.widgets._accessors import MoleculesLayerAccessor
 from cylindra.widgets._annotated import (
+    BinSizeType,
     MoleculesLayersType,
     MoleculesLayerType,
     SplinesType,
@@ -378,17 +380,8 @@ class CylindraMainWidget(MagicTemplate):
             raise ValueError("Input coordinates must be a (N, 3) numeric array.")
         return out
 
-    def _get_available_binsize(self, _=None) -> list[tuple[str, int]]:
-        bins = [x[0] for x in self.tomogram.multiscaled]
-        if 1 not in bins:
-            bins = [1, *bins]
-        return [
-            (
-                f"{b} pixel{'s' if b > 1 else ''} ({self.tomogram.scale * b:.2f} nm/pixel)",
-                b,
-            )
-            for b in sorted(bins)
-        ]
+    def _get_available_binsize(self, w=None) -> list[tuple[str, int]]:
+        return get_available_binsize(w)
 
     def _get_default_config(self, config):
         if config is None:
@@ -992,7 +985,7 @@ class CylindraMainWidget(MagicTemplate):
     def new_labels(
         self,
         name: str = "Labels",
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
     ):
         """Create an empty labels layer."""
         shape = tuple(np.array(self.tomogram.image.shape) // bin_size)
@@ -1111,7 +1104,7 @@ class CylindraMainWidget(MagicTemplate):
         return thread_worker.callback(self.set_multiscale).with_args(bin_size)
 
     @set_design(text="Set multi-scale", location=_sw.ImageMenu)
-    def set_multiscale(self, bin_size: Annotated[int, {"choices": _get_available_binsize}]):  # fmt: skip
+    def set_multiscale(self, bin_size: BinSizeType):  # fmt: skip
         """Set multiscale used for image display.
 
         Parameters
@@ -1216,7 +1209,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: SplinesType = None,
         depth: Annotated[nm, {"min": 5.0, "max": 500.0, "step": 5.0}] = 40,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
     ):  # fmt: skip
         """Automatically detect the cylinder polarities.
 
@@ -1470,7 +1463,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: SplinesType = None,
         max_interval: Annotated[nm, {"label": "max interval (nm)"}] = 30,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         err_max: Annotated[nm, {"label": "max fit error (nm)", "step": 0.1}] = 1.0,
         degree_precision: float = 0.5,
         edge_sigma: Annotated[Optional[nm], {"text": "Do not mask image", "label": "edge σ"}] = 2.0,
@@ -1518,7 +1511,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: SplinesType = None,
         max_interval: Annotated[nm, {"label": "max interval (nm)"}] = 30,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1.0,
+        bin_size: BinSizeType = 1.0,
         err_max: Annotated[nm, {"label": "max fit error (nm)", "step": 0.1}] = 1.0,
         max_shift: nm = 5.0,
     ):  # fmt: skip
@@ -1592,7 +1585,7 @@ class CylindraMainWidget(MagicTemplate):
         max_interval: Annotated[nm, {"label": "maximum interval (nm)"}] = 30,
         err_max: Annotated[nm, {"label": "max fit error (nm)", "step": 0.1}] = 0.8,
         corr_allowed: Annotated[float, {"label": "correlation allowed", "max": 1.0, "step": 0.1}] = 0.9,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
     ):  # fmt: skip
         """Refine splines using the global cylindric structural parameters.
 
@@ -1809,7 +1802,7 @@ class CylindraMainWidget(MagicTemplate):
     def measure_radius(
         self,
         splines: SplinesType = None,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         min_radius: Annotated[nm, {"min": 0.1, "step": 0.1}] = 1.0,
         max_radius: Annotated[nm, {"min": 0.1, "step": 0.1}] = 100.0,
     ):  # fmt: skip
@@ -1870,7 +1863,7 @@ class CylindraMainWidget(MagicTemplate):
         splines: SplinesType = None,
         interval: _Interval = None,
         depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 50.0,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         min_radius: Annotated[nm, {"min": 0.1, "step": 0.1}] = 1.0,
         max_radius: Annotated[nm, {"min": 0.1, "step": 0.1}] = 100.0,
         update_glob: Annotated[bool, {"text": "Also update the global radius"}] = True,
@@ -1971,7 +1964,7 @@ class CylindraMainWidget(MagicTemplate):
         splines: SplinesType = None,
         interval: _Interval = None,
         depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 50.0,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         radius: Literal["local", "global"] = "global",
         update_glob: Annotated[bool, {"text": "Also update the global properties"}] = False,
     ):  # fmt: skip
@@ -2042,7 +2035,7 @@ class CylindraMainWidget(MagicTemplate):
     def global_cft_analysis(
         self,
         splines: SplinesType = None,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
     ):  # fmt: skip
         """Determine cylindrical global structural parameters by Fourier transformation.
 

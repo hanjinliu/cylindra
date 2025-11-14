@@ -15,6 +15,7 @@ class ParserNone(ParserBase):
     [u bold cyan]commands[/u bold cyan]
         [bold]open[/bold]     Open a project or an image.
         [bold]preview[/bold]  View a project, image etc.
+        [bold]plugin[/bold]   List or manage plugins.
         [bold]find[/bold]     Find cylindra projects.
         [bold]run[/bold]      Run a script.
         [bold]config[/bold]   Edit/view the configuration.

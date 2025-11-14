@@ -773,7 +773,7 @@ class PluginsMenu(ChildWidget):
 
         for plugin_info in iter_plugin_info():
             plugin_info.reload(self._get_main())
-        return None
+            _Logger.info(f"Plugin reloaded: {plugin_info.name}")
 
     sep0 = Separator
 

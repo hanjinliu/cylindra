@@ -64,7 +64,9 @@ from cylindra.widget_utils import (
 from cylindra.widgets import _annealing
 from cylindra.widgets import _progress_desc as _pdesc
 from cylindra.widgets._annotated import (
+    BinSizeType,
     FSCFreq,
+    LandscapeLayerType,
     MoleculesLayersType,
     MoleculesLayerType,
     assert_layer,
@@ -103,24 +105,6 @@ def _get_template_shape(
     return _size
 
 
-def _validate_landscape_layer(self: "SubtomogramAveraging", layer) -> str:
-    if isinstance(layer, LandscapeSurface):
-        return layer.name
-    elif isinstance(layer, str):
-        if layer not in self.parent_viewer.layers:
-            raise ValueError(f"{layer!r} does not exist in the viewer.")
-        return layer
-    else:
-        raise TypeError(f"{layer!r} is not a valid landscape.")
-
-
-def _get_landscape_layers(self: "SubtomogramAveraging", *_) -> list[LandscapeSurface]:
-    viewer = self.parent_viewer
-    if viewer is None:
-        return []
-    return [l for l in viewer.layers if isinstance(l, LandscapeSurface)]
-
-
 _PathOrNone = str | Path | None
 _PathOrPathsOrNone = str | Path | list[str | Path] | None
 
@@ -156,13 +140,6 @@ _DistRangeLat = Annotated[
 ]
 _AngleMaxLon = Annotated[
     float, {"max": 90.0, "step": 0.5, "label": "maximum angle (deg)"}
-]
-_LandscapeLayer = Annotated[
-    LandscapeSurface,
-    {
-        "choices": _get_landscape_layers,
-        "validator": _validate_landscape_layer,
-    },
 ]
 _RandomSeeds = Annotated[list[int], {"widget_type": RandomSeedEdit}]
 
@@ -677,7 +654,7 @@ class SubtomogramAveraging(ChildWidget):
         layers: MoleculesLayersType,
         size: _SubVolumeSize = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         compute: bool = False,
     ):
         """Extract subtomograms around molecules in the selected layer(s).
@@ -714,7 +691,7 @@ class SubtomogramAveraging(ChildWidget):
         layers: MoleculesLayersType,
         size: _SubVolumeSize = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
     ):
         """Subtomogram averaging using all the molecules in the selected layer(s).
 
@@ -749,7 +726,7 @@ class SubtomogramAveraging(ChildWidget):
         size: _SubVolumeSize = None,
         method: Literal["steps", "first", "last", "random"] = "steps",
         number: int = 64,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
     ):
         """Subtomogram averaging using a subset of subvolumes.
 
@@ -792,7 +769,7 @@ class SubtomogramAveraging(ChildWidget):
         size: _SubVolumeSize = None,
         by: PolarsExprStr = "col('pf-id')",
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
     ):
         """Group-wise subtomogram averaging.
 
@@ -837,7 +814,7 @@ class SubtomogramAveraging(ChildWidget):
         size: _SubVolumeSize = None,
         predicate: PolarsExprStr = "col('pf-id') == 0",
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
     ):
         """Subtomogram averaging using molecules filtered by the given expression.
 
@@ -877,7 +854,7 @@ class SubtomogramAveraging(ChildWidget):
         mask_params: Annotated[Any, {"bind": _get_mask_params}],
         max_shifts: Optional[_MaxShifts] = None,
         rotations: _Rotations = ((0.0, 0.0), (15.0, 1.0), (3.0, 1.0)),
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
     ):  # fmt: skip
         """Align the averaged image at current monomers to the template image.
@@ -1025,7 +1002,7 @@ class SubtomogramAveraging(ChildWidget):
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
     ):  # fmt: skip
         """Align the input template image to all the molecules.
 
@@ -1072,7 +1049,7 @@ class SubtomogramAveraging(ChildWidget):
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
         tolerance: float = 0.01,
     ):  # fmt: skip
@@ -1147,7 +1124,7 @@ class SubtomogramAveraging(ChildWidget):
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         range_long: _DistRangeLon = (4.0, 4.28),
         angle_max: _AngleMaxLon = 5.0,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
     ):  # fmt: skip
         """Subtomogram alignment using 1D Viterbi alignment.
@@ -1200,7 +1177,7 @@ class SubtomogramAveraging(ChildWidget):
         range_long: _DistRangeLon = (4.0, 4.28),
         range_lat: _DistRangeLat = (5.1, 5.3),
         angle_max: _AngleMaxLon = 5.0,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
@@ -1278,7 +1255,7 @@ class SubtomogramAveraging(ChildWidget):
         range_long: _DistRangeLon = (4.0, 4.28),
         range_lat: _DistRangeLat = (5.1, 5.3),
         angle_max: _AngleMaxLon = 5.0,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 0.7,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
@@ -1404,7 +1381,7 @@ class SubtomogramAveraging(ChildWidget):
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         range_long: _DistRangeLon = (4.0, 4.28),
         angle_max: _AngleMaxLon = 5.0,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
@@ -1483,7 +1460,7 @@ class SubtomogramAveraging(ChildWidget):
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         range_long: _DistRangeLon = (4.0, 4.28),
         angle_max: _AngleMaxLon = 5.0,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 100.0}] = 10.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
@@ -1599,7 +1576,7 @@ class SubtomogramAveraging(ChildWidget):
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
         norm: bool = True,
@@ -1634,7 +1611,7 @@ class SubtomogramAveraging(ChildWidget):
 
     @set_design(text="Run alignment", location=LandscapeMenu)
     @dask_worker.with_progress(desc="Peak detection on landscape")
-    def run_align_on_landscape(self, landscape_layer: _LandscapeLayer):
+    def run_align_on_landscape(self, landscape_layer: LandscapeLayerType):
         """Find the optimal displacement for each molecule on the landscape."""
         landscape_layer = _assert_landscape_layer(landscape_layer, self.parent_viewer)
         landscape = landscape_layer.landscape
@@ -1648,7 +1625,7 @@ class SubtomogramAveraging(ChildWidget):
     @dask_worker.with_progress(desc="Running Viterbi alignment")
     def run_viterbi_on_landscape(
         self,
-        landscape_layer: _LandscapeLayer,
+        landscape_layer: LandscapeLayerType,
         range_long: _DistRangeLon = (4.0, 4.28),
         angle_max: _AngleMaxLon = 5.0,
     ):
@@ -1675,7 +1652,7 @@ class SubtomogramAveraging(ChildWidget):
     @dask_worker.with_progress(desc="Running simulated annealing")
     def run_rma_on_landscape(
         self,
-        landscape_layer: _LandscapeLayer,
+        landscape_layer: LandscapeLayerType,
         range_long: _DistRangeLon = (4.0, 4.28),
         range_lat: _DistRangeLat = (5.1, 5.3),
         angle_max: _AngleMaxLon = 5.0,
@@ -1721,7 +1698,7 @@ class SubtomogramAveraging(ChildWidget):
     @dask_worker.with_progress(desc="Running simulated annealing")
     def run_rfa_on_landscape(
         self,
-        landscape_layer: _LandscapeLayer,
+        landscape_layer: LandscapeLayerType,
         range_long: _DistRangeLon = (4.0, 4.28),
         angle_max: _AngleMaxLon = 5.0,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
@@ -1759,7 +1736,7 @@ class SubtomogramAveraging(ChildWidget):
     @set_design(text=capitalize, location=LandscapeMenu)
     def remove_landscape_outliers(
         self,
-        landscape_layer: _LandscapeLayer,
+        landscape_layer: LandscapeLayerType,
         lower: Annotated[Optional[float], {"text": "Do not process lower outliers"}] = None,
         upper: Annotated[Optional[float], {"text": "Do not process upper outliers"}] = None,
     ):  # fmt: skip
@@ -1784,7 +1761,7 @@ class SubtomogramAveraging(ChildWidget):
     @set_design(text=capitalize, location=LandscapeMenu)
     def normalize_landscape(
         self,
-        landscape_layer: _LandscapeLayer,
+        landscape_layer: LandscapeLayerType,
         norm_sd: bool = True,
     ):
         """Normalize the landscape.
@@ -1845,7 +1822,7 @@ class SubtomogramAveraging(ChildWidget):
         mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         cutoff: _CutoffFreq = 0.5,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
         column_prefix: str = "score",
     ):
@@ -1995,7 +1972,7 @@ class SubtomogramAveraging(ChildWidget):
         size: _SubVolumeSize = None,
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         n_components: Annotated[int, {"min": 2, "max": 20}] = 2,
         n_clusters: Annotated[int, {"min": 2, "max": 100}] = 2,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,

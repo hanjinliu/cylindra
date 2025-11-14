@@ -82,6 +82,7 @@ def reload_plugin(
     module_name: str,
     display_name: str,
 ) -> None:
+    """Reload the plugin module and update the menu."""
     mod = importlib.import_module(module_name)
     mod = importlib.reload(mod)
 
