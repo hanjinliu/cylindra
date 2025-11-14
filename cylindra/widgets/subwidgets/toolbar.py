@@ -28,7 +28,9 @@ class CylindraToolbar(ChildWidget):
     @do_not_record
     def open_runner(self):
         """Run cylindrical fitting algorithm with various settings."""
-        return self._get_main()._runner.show(run=False)
+        runner = self._get_main()._runner
+        runner.show(run=False)
+        runner._auto_adjust_binsize()
 
     sep0 = Separator
 
