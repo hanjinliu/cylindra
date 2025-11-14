@@ -476,13 +476,13 @@ def _setup_binarize_feature(self: CylindraMainWidget, gui: FunctionGui):
 def _setup_map_monomers_with_extensions(self: CylindraMainWidget, gui: FunctionGui):
     @gui.spline.changed.connect
     def _on_spline_change(spline: int | None):
-        if spline is None:
+        if spline is None or self.splines.count() <= spline:
             return None
         npf = self.splines[spline].props.get_glob(H.npf, None)
         if npf is None:
             value = {}
         else:
-            value = {i: (0, 0) for i in range(npf)}
+            value = dict.fromkeys(range(npf), (0, 0))
         if gui.n_extend.value.keys() != value.keys():
             gui.n_extend.value = value
 
