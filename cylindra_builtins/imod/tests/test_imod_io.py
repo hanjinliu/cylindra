@@ -22,6 +22,8 @@ def test_load_and_save_mod_files(ui: CylindraMainWidget, tmpdir):
     imod.save_molecules(ui, tmpdir, ui.mole_layers.nth(0))
     imod.load_molecules(ui, tmpdir / "coordinates.mod", tmpdir / "angles.csv")
     assert_molecules_equal(ui.mole_layers.nth(0), ui.mole_layers.nth(1))
+    imod.shift_molecules(ui, tmpdir / "angles.csv", layer=ui.mole_layers.nth(0))
+    imod.shift_molecules(ui, tmpdir / "angles.csv", layer=ui.mole_layers.nth(0), update=True)
     imod.save_splines(ui, spline_path, interval=1.0)
     imod.load_splines(ui, spline_path)
     assert_splines_close(ui.splines[0], ui.splines[1], tol=0.06)
