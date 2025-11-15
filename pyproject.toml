@@ -93,6 +93,7 @@ cylindra = "cylindra.__main__:main"
 cylindra = "cylindra:napari.yaml"
 
 [project.entry-points."cylindra.plugin"]
+Fetch = "cylindra_builtins.fetch"
 IMOD = "cylindra_builtins.imod"
 RELION = "cylindra_builtins.relion"
 
