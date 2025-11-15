@@ -48,7 +48,7 @@ class CylindraPluginFunction(Generic[_P, _R]):
         if first_arg.annotation is not inspect.Parameter.empty:
             from cylindra.widgets import CylindraMainWidget
 
-            if first_arg.annotation is not CylindraMainWidget:
+            if first_arg.annotation not in [CylindraMainWidget, "CylindraMainWidget"]:
                 warnings.warn(
                     f"The first argument of a plugin function {func!r} should be a "
                     f"CylindraMainWidget but was {first_arg.annotation!r}.",
