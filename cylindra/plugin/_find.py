@@ -37,9 +37,10 @@ class PluginInfo(NamedTuple):
 def iter_plugin_info() -> Iterator[PluginInfo]:
     dist_observed = set()
     for dist in distributions():
-        if dist.name in dist_observed:
+        entry_points = dist.entry_points
+        if len(entry_points) == 0 or dist.name in dist_observed:
             continue
-        for ep in dist.entry_points:
+        for ep in entry_points:
             if ep.group == ENTRY_POINT_GROUP_NAME:
                 yield PluginInfo(ep.name, ep.value, dist.version)
         dist_observed.add(dist.name)
