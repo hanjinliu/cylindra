@@ -393,7 +393,9 @@ def export_project_batch(
     save_dir: Path.Dir,
     path_sets: Annotated[Any, {"bind": _get_loader_paths}],
     project_name: str = "project-0",
-    size: Annotated[float, {"label": "Subtomogram size (nm)", "min": 1.0, "max": 1000.0}] = 10.0,  # fmt: skip
+    size: Annotated[
+        float, {"label": "Subtomogram size (nm)", "min": 1.0, "max": 1000.0}
+    ] = 10.0,  # fmt: skip
 ):
     """Export cylindra batch analyzer state as a PEET prm file.
 
@@ -540,7 +542,6 @@ def _save_molecules(
         pl.DataFrame({"x": pos[:, 0], "y": pos[:, 1], "z": pos[:, 2]}),
     )
     save_angles(save_dir / csv_name, mol.euler_angle("ZXZ", degrees=True))
-    return None
 
 
 PEET_TEMPLATE = """
