@@ -2550,6 +2550,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#cylindra_builtins.imod.shift_molecules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        shift_molecules
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2721,6 +2732,17 @@
     <span class="md-ellipsis">
       
         save_splines
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cylindra_builtins.imod.shift_molecules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        shift_molecules
       
     </span>
   </a>
@@ -3221,13 +3243,17 @@ directly used by PEET.</p>
 <span class="normal">472</span>
 <span class="normal">473</span>
 <span class="normal">474</span>
-<span class="normal">475</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Export project as batch&quot;</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="normal">475</span>
+<span class="normal">476</span>
+<span class="normal">477</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Export project as batch&quot;</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">export_project_batch</span><span class="p">(</span>
     <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span>
     <span class="n">save_dir</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Dir</span><span class="p">,</span>
     <span class="n">path_sets</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;bind&quot;</span><span class="p">:</span> <span class="n">_get_loader_paths</span><span class="p">}],</span>
     <span class="n">project_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;project-0&quot;</span><span class="p">,</span>
-    <span class="n">size</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Subtomogram size (nm)&quot;</span><span class="p">,</span> <span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mf">1000.0</span><span class="p">}]</span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">,</span>  <span class="c1"># fmt: skip</span>
+    <span class="n">size</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+        <span class="nb">float</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Subtomogram size (nm)&quot;</span><span class="p">,</span> <span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mf">1000.0</span><span class="p">}</span>
+    <span class="p">]</span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">,</span>  <span class="c1"># fmt: skip</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Export cylindra batch analyzer state as a PEET prm file.</span>
 
@@ -4214,6 +4240,180 @@ length of a spline is 100.0, 11 points will be sampled.</p>
         <span class="n">data_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
     <span class="n">data_all</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">data_list</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;vertical&quot;</span><span class="p">)</span>
     <span class="n">save_mod</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="n">data_all</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="cylindra_builtins.imod.shift_molecules" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">shift_molecules</span><span class="p">(</span><span class="n">ui</span><span class="p">,</span> <span class="n">ang_path</span><span class="p">,</span> <span class="n">layer</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Shift monomer coordinates in PEET format.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>ang_path</code>
+            </td>
+            <td>
+                  <code><span title="magicclass.types.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path of offset file.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>layer</code>
+            </td>
+            <td>
+                  <code><span title="MoleculesLayer">MoleculesLayer</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Points layer of target monomers.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>update</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Check if update monomer coordinates in place.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>cylindra_builtins/imod/io.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">128</span>
+<span class="normal">129</span>
+<span class="normal">130</span>
+<span class="normal">131</span>
+<span class="normal">132</span>
+<span class="normal">133</span>
+<span class="normal">134</span>
+<span class="normal">135</span>
+<span class="normal">136</span>
+<span class="normal">137</span>
+<span class="normal">138</span>
+<span class="normal">139</span>
+<span class="normal">140</span>
+<span class="normal">141</span>
+<span class="normal">142</span>
+<span class="normal">143</span>
+<span class="normal">144</span>
+<span class="normal">145</span>
+<span class="normal">146</span>
+<span class="normal">147</span>
+<span class="normal">148</span>
+<span class="normal">149</span>
+<span class="normal">150</span>
+<span class="normal">151</span>
+<span class="normal">152</span>
+<span class="normal">153</span>
+<span class="normal">154</span>
+<span class="normal">155</span>
+<span class="normal">156</span>
+<span class="normal">157</span>
+<span class="normal">158</span>
+<span class="normal">159</span>
+<span class="normal">160</span>
+<span class="normal">161</span>
+<span class="normal">162</span>
+<span class="normal">163</span>
+<span class="normal">164</span>
+<span class="normal">165</span>
+<span class="normal">166</span>
+<span class="normal">167</span>
+<span class="normal">168</span>
+<span class="normal">169</span>
+<span class="normal">170</span>
+<span class="normal">171</span>
+<span class="normal">172</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Shift molecules&quot;</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">shift_molecules</span><span class="p">(</span>
+    <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span>
+    <span class="n">ang_path</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Path</span><span class="o">.</span><span class="n">Read</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">CSV</span><span class="p">],</span> <span class="p">{</span><span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Path to csv file&quot;</span><span class="p">}],</span>
+    <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
+    <span class="n">update</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Shift monomer coordinates in PEET format.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ang_path : Path</span>
+<span class="sd">        Path of offset file.</span>
+<span class="sd">    layer : MoleculesLayer</span>
+<span class="sd">        Points layer of target monomers.</span>
+<span class="sd">    update : bool, default False</span>
+<span class="sd">        Check if update monomer coordinates in place.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">mol</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span>
+    <span class="n">shifts</span><span class="p">,</span> <span class="n">angs</span> <span class="o">=</span> <span class="n">_read_shift_and_angle</span><span class="p">(</span><span class="n">ang_path</span><span class="p">)</span>
+    <span class="n">mol_shifted</span> <span class="o">=</span> <span class="n">mol</span><span class="o">.</span><span class="n">translate</span><span class="p">(</span><span class="n">shifts</span> <span class="o">*</span> <span class="n">ui</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">scale</span><span class="p">)</span>
+    <span class="n">mol_shifted</span> <span class="o">=</span> <span class="n">Molecules</span><span class="o">.</span><span class="n">from_euler</span><span class="p">(</span><span class="n">pos</span><span class="o">=</span><span class="n">mol_shifted</span><span class="o">.</span><span class="n">pos</span><span class="p">,</span> <span class="n">angles</span><span class="o">=</span><span class="n">angs</span><span class="p">,</span> <span class="n">degrees</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">vector_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">mol_shifted</span><span class="o">.</span><span class="n">pos</span><span class="p">,</span> <span class="n">mol_shifted</span><span class="o">.</span><span class="n">z</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">update</span><span class="p">:</span>
+        <span class="n">layer</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">mol_shifted</span><span class="o">.</span><span class="n">pos</span>
+        <span class="n">vector_layer</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">vector_layer_name</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot; Z-axis&quot;</span>
+        <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">ui</span><span class="o">.</span><span class="n">parent_viewer</span><span class="o">.</span><span class="n">layers</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">l</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">vector_layer_name</span><span class="p">:</span>
+                <span class="n">vector_layer</span> <span class="o">=</span> <span class="n">l</span>
+                <span class="k">break</span>
+        <span class="k">if</span> <span class="n">vector_layer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">vector_layer</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">vector_data</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ui</span><span class="o">.</span><span class="n">parent_viewer</span><span class="o">.</span><span class="n">add_vectors</span><span class="p">(</span>
+                <span class="n">vector_data</span><span class="p">,</span>
+                <span class="n">edge_width</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span>
+                <span class="n">edge_color</span><span class="o">=</span><span class="s2">&quot;crimson&quot;</span><span class="p">,</span>
+                <span class="n">length</span><span class="o">=</span><span class="mf">2.4</span><span class="p">,</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">vector_layer_name</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span> <span class="o">=</span> <span class="n">mol_shifted</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">add_molecules</span><span class="p">(</span><span class="n">ui</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">,</span> <span class="n">mol_shifted</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Molecules from PEET&quot;</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
