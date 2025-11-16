@@ -858,10 +858,13 @@ class SubtomogramAveraging(ChildWidget):
         bin_size: BinSizeType = 1,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
     ):  # fmt: skip
-        """Align the averaged image at current monomers to the template image.
+        """Align the averaged image at current molecules to the template image.
 
-        This function creates a new layer with transformed monomers, which should
-        align well with template image.
+        This function creates a new layer with transformed molecules, which should
+        align well with the template image. Users usually run this function after using
+        `map_monomers` on microtubules etc, because the initial coordinates have
+        correct periodicity but the centers may not align well with the actual
+        structure.
 
         Parameters
         ----------
@@ -873,9 +876,7 @@ class SubtomogramAveraging(ChildWidget):
 
         new_layers = list[MoleculesLayer]()
         total = 2 * len(layers) + 1
-        yield thread_worker.description(
-            f"(0/{total}) Preparing template images for alignment"
-        )
+        yield thread_worker.description(_pdesc.align_averaged_0(total))
 
         @thread_worker.callback
         def _on_yield(mole_trans: Molecules, layer: MoleculesLayer):
@@ -915,13 +916,9 @@ class SubtomogramAveraging(ChildWidget):
         for i, layer in enumerate(layers):
             mole = layer.molecules
             loader = self._get_loader(bin_size, mole, order=1)
-            yield thread_worker.description(
-                f"({i * 2 + 1}/{total}) Subtomogram averaging of {layer.name!r}"
-            )
+            yield thread_worker.description(_pdesc.align_averaged_1(i, total, layer))
             avg = loader.average(template.shape)
-            yield thread_worker.description(
-                f"({i * 2 + 2}/{total}) Aligning template to the average image of {layer.name!r}"
-            )
+            yield thread_worker.description(_pdesc.align_averaged_2(i, total, layer))
             _img_trans, result = model.fit(
                 avg,
                 max_shifts=[_s / _scale for _s in max_shifts],
