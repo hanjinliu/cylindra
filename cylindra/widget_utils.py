@@ -249,7 +249,6 @@ def change_viewer_focus(
     viewer.camera.events.zoom()
     viewer.camera.zoom = zoom
     viewer.dims.set_current_step(axis=0, value=center[0] / v_scale[0] * scale)
-    return None
 
 
 def plot_seam_search_result(score: np.ndarray, npf: int):
@@ -273,7 +272,7 @@ def plot_projections(merge: np.ndarray):
     """Projection of the result of `align_averaged`."""
     import matplotlib.pyplot as plt
 
-    _, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 3.5))
+    _, axes = plt.subplots(nrows=1, ncols=2, figsize=(5.8, 2.5))
     axes: Sequence[plt.Axes]
     # normalize
     if merge.dtype.kind == "f":
@@ -290,7 +289,6 @@ def plot_projections(merge: np.ndarray):
     axes[1].set_ylabel("Z")
     plt.tight_layout()
     plt.show()
-    return None
 
 
 @dataclass
@@ -562,3 +560,14 @@ def find_dock_widget(widget: QtW.QWidget | Widget) -> QtW.QDockWidget | None:
     parent = qwidget.parent()
     if isinstance(parent, QtW.QDockWidget):
         return parent
+
+
+def show_widget(widget: Widget, title: str, parent: Widget | QtW.QWidget):
+    from cylindra.core import ACTIVE_WIDGETS
+
+    if isinstance(parent, Widget):
+        parent = parent.native
+    widget.native.setParent(parent, widget.native.windowFlags())
+    widget.native.setWindowTitle(title)
+    widget.show()
+    ACTIVE_WIDGETS.add(widget)

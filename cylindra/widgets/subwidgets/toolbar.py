@@ -49,7 +49,6 @@ class CylindraToolbar(ChildWidget):
         next_point = picker.iter_pick(imgb, points[-1], points[-2]).next()
         main._reserved_layers.work.add(next_point)
         change_viewer_focus(main.parent_viewer, next_point / scale, scale)
-        return None
 
     @magicmenu(icon="carbon:settings-adjust", record=False)
     class Adjust(ChildWidget):

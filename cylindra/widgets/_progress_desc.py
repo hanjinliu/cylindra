@@ -41,17 +41,6 @@ def filter_image_fmt(method: ImageFilter):
     return f"Running {ImageFilter(method).name} filter"
 
 
-def align_averaged_fmt(layers: list[Layer]):
-    n = len(layers)
-    total = 2 * n + 1
-    yield f"(0/{total}) Preparing template images for alignment"
-    for i in range(n):
-        name = _get_name(layers[i])
-        yield f"({i * 2 + 1}/{total}) Subtomogram averaging of {name!r}"
-        yield f"({i * 2 + 2}/{total}) Aligning template to the average image of {name!r}"
-    yield f"({total}/{total}) Finishing"
-
-
 def align_all_fmt(layers: list[Layer]):
     name = _get_name(layers)
     yield f"(0/2) Preparing template images for {name!r}"
@@ -108,3 +97,31 @@ def fit_spline_rfa_fmt():
     yield "(4/6) Calculating the correlation landscape for reverse fitting"
     yield "(5/6) Running reverse RFA"
     yield "(6/6) Finishing"
+
+
+def align_averaged_0(total: int):
+    return f"(0/{total}) Preparing template images for alignment"
+
+
+def align_averaged_1(i: int, total: int, layer: Layer):
+    return f"({i * 2 + 1}/{total}) Subtomogram averaging of {layer.name!r}"
+
+
+def align_averaged_2(i: int, total: int, layer: Layer):
+    return f"({i * 2 + 2}/{total}) Aligning template to the average image of {layer.name!r}"
+
+
+def align_tf_0(alignment_state):
+    return f"Calculating FSC for iteration {alignment_state.niter}"
+
+
+def align_tf_1(alignment_state):
+    return f"Alignment for iteration {alignment_state.niter}"
+
+
+def align_tf_2(alignment_state):
+    return f"Landscape construction (iteration {alignment_state.niter})"
+
+
+def align_tf_3(alignment_state):
+    return f"Running RMA (iteration {alignment_state.niter})"
