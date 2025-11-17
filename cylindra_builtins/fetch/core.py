@@ -27,7 +27,7 @@ COORDS_14_FIT = [
 ]
 
 
-@register_function(name="13 PF microtubule")
+@register_function(name="13-PF microtubule")
 def mt_13pf(
     ui: "CylindraMainWidget",
     filter: ImageFilter = ImageFilter.Lowpass,
@@ -41,7 +41,7 @@ def mt_13pf(
             ui.register_path(COORDS_13_FIT)
 
 
-@register_function(name="14 PF microtubule")
+@register_function(name="14-PF microtubule")
 def mt_14pf(
     ui: "CylindraMainWidget",
     filter: ImageFilter = ImageFilter.Lowpass,

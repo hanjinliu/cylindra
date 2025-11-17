@@ -158,9 +158,7 @@ def start_as_plugin(run: bool = True):
         add_main_widget=False,
         run=run,
     )
-    # float logger widget
     logger = logging.getLogger("cylindra")
-    logger.widget.native.parentWidget().setFloating(True)
     logger.widget.height = 160
     return ui
 

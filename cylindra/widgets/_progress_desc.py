@@ -109,3 +109,19 @@ def align_averaged_1(i: int, total: int, layer: Layer):
 
 def align_averaged_2(i: int, total: int, layer: Layer):
     return f"({i * 2 + 2}/{total}) Aligning template to the average image of {layer.name!r}"
+
+
+def align_tf_0(alignment_state):
+    return f"Calculating FSC for iteration {alignment_state.niter}"
+
+
+def align_tf_1(alignment_state):
+    return f"Alignment for iteration {alignment_state.niter}"
+
+
+def align_tf_2(alignment_state):
+    return f"Landscape construction (iteration {alignment_state.niter})"
+
+
+def align_tf_3(alignment_state):
+    return f"Running RMA (iteration {alignment_state.niter})"

@@ -293,7 +293,6 @@ class SplineSlicer(ChildWidget):
     def _on_show_what_changed(self):
         if self.visible:
             yield from self._update_canvas.arun(update_clim=True)
-        return None
 
     @params.depth.connect_async(timeout=0.1)
     @radius.connect_async(timeout=0.1)
@@ -305,7 +304,6 @@ class SplineSlicer(ChildWidget):
     def _on_widget_state_changed(self):
         if self.visible:
             yield from self._update_canvas.arun()
-        return None
 
     @thread_worker(force_async=True)
     def _update_canvas(self, update_clim: bool = False):
@@ -348,7 +346,9 @@ class SplineSlicer(ChildWidget):
             y0 = int(round(depth / spl.config.spacing_range.max * 1.2))
             a0 = int(round(spl.config.npf_range.max * 6))
             pw = result.local_power_spectra(
-                f"y={-y0}:{y0+1};a={-a0}:{a0+1}", dims="rya", upsample_factor=[1, 5, 5]
+                f"y={-y0}:{y0 + 1};a={-a0}:{a0 + 1}",
+                dims="rya",
+                upsample_factor=[1, 5, 5],
             ).mean(axis="r")
             yield
             pw[:] = pw / pw.max()
@@ -396,7 +396,6 @@ class SplineSlicer(ChildWidget):
                 self.canvas.contrast_limits = lims
 
             return _update_clim
-        return None
 
     def _show_overlay_text(self, txt):
         self.canvas.text_overlay.visible = True

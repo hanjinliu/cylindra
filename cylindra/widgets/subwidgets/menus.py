@@ -43,7 +43,7 @@ from cylindra.core import ACTIVE_WIDGETS
 from cylindra.project import CylindraProject, extract
 from cylindra.types import ColoredLayer
 from cylindra.utils import str_color
-from cylindra.widget_utils import capitalize, get_code_theme
+from cylindra.widget_utils import capitalize, get_code_theme, show_widget
 from cylindra.widgets._annotated import assert_layer
 from cylindra.widgets._widget_ext import CheckBoxes
 from cylindra.widgets.subwidgets._child_widget import ChildWidget
@@ -380,11 +380,8 @@ class SplinesMenu(ChildWidget):
                     table.value = spl.props.loc
 
             container = Container(widgets=[cbox, table], labels=False)
-            self.parent_viewer.window.add_dock_widget(
-                container, area="left", name="Spline Local Properties"
-            ).setFloating(True)
+            show_widget(container, "Spline Local Properties", main)
             cbox.changed.emit(cbox.value)
-            return None
 
         @set_design(text="Show global properties in table")
         def show_globalprops(self):
@@ -392,10 +389,7 @@ class SplinesMenu(ChildWidget):
             main = self._get_main()
             df = main.splines.collect_globalprops()
             table = DataFrameView(value=df)
-            self.parent_viewer.window.add_dock_widget(
-                table, area="left", name="Spline Global Properties"
-            ).setFloating(True)
-            return None
+            show_widget(table, "Spline Global Properties", main)
 
     add_anchors = abstractapi()
     sep0 = Separator

@@ -1081,9 +1081,7 @@ class SubtomogramAveraging(ChildWidget):
         _alignment_state = widget_utils.TemplateFreeAlignmentState(rng=rng)
         _Logger.print(f"Start alignment ({molecules.count()} molecules) ...")
         while True:
-            yield thread_worker.description(
-                f"Calculating FSC for iteration {_alignment_state.niter}"
-            )
+            yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
             fsc_result, avg = _alignment_state.eval_fsc(
                 aligned_loader,
                 mask,
@@ -1091,7 +1089,7 @@ class SubtomogramAveraging(ChildWidget):
             )
             yield _plot_current_fsc.with_args(
                 fsc_result, _alignment_state.niter, avg
-            ).with_desc(f"Alignment for iteration {_alignment_state.niter}")
+            ).with_desc(_pdesc.align_tf_1(_alignment_state))
             if _alignment_state.converged:
                 _Logger.print("FSC converged.")
                 yield self._show_rec.with_args(avg, f"[Aligned]{_avg_name(layers)}")
@@ -1303,15 +1301,13 @@ class SubtomogramAveraging(ChildWidget):
 
         next_layer_name = _coerce_aligned_name(layer.name, self.parent_viewer)
         while True:
-            yield thread_worker.description(
-                f"Calculating FSC (iteration {_alignment_state.niter})"
-            )
+            yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
             fsc_result, avg = _alignment_state.eval_fsc(
                 aligned_loader, mask, tolerance=tolerance
             )
             yield _plot_current_fsc.with_args(
                 fsc_result, _alignment_state.niter, avg
-            ).with_desc(f"Landscape construction (iteration {_alignment_state.niter})")
+            ).with_desc(_pdesc.align_tf_2(_alignment_state))
             if _alignment_state.converged:
                 _Logger.print("FSC converged.")
                 yield self._show_rec.with_args(avg, f"[Aligned]{next_layer_name}")
@@ -1329,9 +1325,7 @@ class SubtomogramAveraging(ChildWidget):
                     tilt=main.tomogram.tilt_model,
                 ),
             )
-            yield thread_worker.description(
-                f"Running RMA (iteration {_alignment_state.niter})"
-            )
+            yield thread_worker.description(_pdesc.align_tf_3(_alignment_state))
             mole, results = landscape.run_annealing_along_spline(
                 layer.source_spline,
                 range_long=range_long,
@@ -1778,7 +1772,6 @@ class SubtomogramAveraging(ChildWidget):
         self.parent_viewer.add_layer(new)
         self._get_main()._reserved_layers.to_be_removed.add(new)
         old.visible = False
-        return None
 
     def _get_layers_with_annealing_result(self, *_) -> list[MoleculesLayer]:
         if self.parent_viewer is None:

@@ -560,3 +560,14 @@ def find_dock_widget(widget: QtW.QWidget | Widget) -> QtW.QDockWidget | None:
     parent = qwidget.parent()
     if isinstance(parent, QtW.QDockWidget):
         return parent
+
+
+def show_widget(widget: Widget, title: str, parent: Widget | QtW.QWidget):
+    from cylindra.core import ACTIVE_WIDGETS
+
+    if isinstance(parent, Widget):
+        parent = parent.native
+    widget.native.setParent(parent, widget.native.windowFlags())
+    widget.native.setWindowTitle(title)
+    widget.show()
+    ACTIVE_WIDGETS.add(widget)

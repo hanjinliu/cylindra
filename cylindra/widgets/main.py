@@ -3231,10 +3231,7 @@ class CylindraMainWidget(MagicTemplate):
         )
         df = reg.calculate(properties)
         view = DataFrameView(value=df)
-        dock = self.parent_viewer.window.add_dock_widget(view, name="Region properties")
-        dock.setFloating(True)
-        self.reset_choices()  # choices regarding of features need update
-        return undo_callback(dock.close).with_redo(dock.show)
+        widget_utils.show_widget(view, "Region properties", self)
 
     @set_design(text="Update pixel scale", location=_sw.ImageMenu)
     def update_scale(

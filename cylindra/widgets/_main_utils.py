@@ -17,14 +17,12 @@ from cylindra.const import PropertyNames as H
 from cylindra.project import CylindraProject
 
 if TYPE_CHECKING:
-
     from cylindra.components import CylSpline
     from cylindra.widgets.main import CylindraMainWidget
 
 
 class SplineTracker(ContextManager):
-    """
-    Object that tracks changes in splines and allows to undo them.
+    """Object that tracks changes in splines and allows to undo them.
 
     Parameters
     ----------
@@ -183,7 +181,7 @@ def fast_percentile(arr: np.ndarray, q: list[float]) -> list[float]: ...
 
 
 def fast_percentile(arr: np.ndarray, q):
-    thresh = 1000000
+    thresh = 1_000_000
     if arr.ndim < 3 or arr.size < thresh:
         return np.percentile(arr, q)
     step_size = int(arr.size / thresh) + 1
@@ -196,6 +194,7 @@ def rescale_molecules(
     factor: float,
     drop_unsafe: bool = False,
 ) -> Molecules:
+    """Update molecule positions by a scaling factor (process change in pixel size)."""
     df = mole.features
     if Mole.position in df.columns:
         df = df.with_columns(pl.col(Mole.position) * factor)
