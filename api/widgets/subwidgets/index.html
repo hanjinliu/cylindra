@@ -8097,8 +8097,7 @@ denoising the Y-projection images.</p>
 <span class="normal">674</span>
 <span class="normal">675</span>
 <span class="normal">676</span>
-<span class="normal">677</span>
-<span class="normal">678</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="normal">677</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">SplineSlicer</span><span class="p">(</span><span class="n">ChildWidget</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Slicer along spline.</span>
 
@@ -8350,7 +8349,6 @@ denoising the Y-projection images.</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">_on_show_what_changed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">visible</span><span class="p">:</span>
             <span class="k">yield from</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_canvas</span><span class="o">.</span><span class="n">arun</span><span class="p">(</span><span class="n">update_clim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="k">return</span> <span class="kc">None</span>
 
     <span class="nd">@params</span><span class="o">.</span><span class="n">depth</span><span class="o">.</span><span class="n">connect_async</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
     <span class="nd">@radius</span><span class="o">.</span><span class="n">connect_async</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
@@ -8362,7 +8360,6 @@ denoising the Y-projection images.</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">_on_widget_state_changed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">visible</span><span class="p">:</span>
             <span class="k">yield from</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_canvas</span><span class="o">.</span><span class="n">arun</span><span class="p">()</span>
-        <span class="k">return</span> <span class="kc">None</span>
 
     <span class="nd">@thread_worker</span><span class="p">(</span><span class="n">force_async</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_update_canvas</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update_clim</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
@@ -8405,7 +8402,9 @@ denoising the Y-projection images.</p>
             <span class="n">y0</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">depth</span> <span class="o">/</span> <span class="n">spl</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">spacing_range</span><span class="o">.</span><span class="n">max</span> <span class="o">*</span> <span class="mf">1.2</span><span class="p">))</span>
             <span class="n">a0</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">spl</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">npf_range</span><span class="o">.</span><span class="n">max</span> <span class="o">*</span> <span class="mi">6</span><span class="p">))</span>
             <span class="n">pw</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">local_power_spectra</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;y=</span><span class="si">{</span><span class="o">-</span><span class="n">y0</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">y0</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">;a=</span><span class="si">{</span><span class="o">-</span><span class="n">a0</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">a0</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">dims</span><span class="o">=</span><span class="s2">&quot;rya&quot;</span><span class="p">,</span> <span class="n">upsample_factor</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">]</span>
+                <span class="sa">f</span><span class="s2">&quot;y=</span><span class="si">{</span><span class="o">-</span><span class="n">y0</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">y0</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">;a=</span><span class="si">{</span><span class="o">-</span><span class="n">a0</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">a0</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">dims</span><span class="o">=</span><span class="s2">&quot;rya&quot;</span><span class="p">,</span>
+                <span class="n">upsample_factor</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span>
             <span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="p">)</span>
             <span class="k">yield</span>
             <span class="n">pw</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">pw</span> <span class="o">/</span> <span class="n">pw</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
@@ -8453,7 +8452,6 @@ denoising the Y-projection images.</p>
                 <span class="bp">self</span><span class="o">.</span><span class="n">canvas</span><span class="o">.</span><span class="n">contrast_limits</span> <span class="o">=</span> <span class="n">lims</span>
 
             <span class="k">return</span> <span class="n">_update_clim</span>
-        <span class="k">return</span> <span class="kc">None</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_show_overlay_text</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">txt</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">canvas</span><span class="o">.</span><span class="n">text_overlay</span><span class="o">.</span><span class="n">visible</span> <span class="o">=</span> <span class="kc">True</span>
@@ -9244,7 +9242,8 @@ will be the output image shape.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/subwidgets/slicer.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">478</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">477</span>
+<span class="normal">478</span>
 <span class="normal">479</span>
 <span class="normal">480</span>
 <span class="normal">481</span>
@@ -9303,8 +9302,7 @@ will be the output image shape.</p>
 <span class="normal">534</span>
 <span class="normal">535</span>
 <span class="normal">536</span>
-<span class="normal">537</span>
-<span class="normal">538</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+<span class="normal">537</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">get_cartesian_image</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">spline</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
@@ -9523,7 +9521,8 @@ direction parallel to the spline vector at the given position.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/subwidgets/slicer.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">540</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">539</span>
+<span class="normal">540</span>
 <span class="normal">541</span>
 <span class="normal">542</span>
 <span class="normal">543</span>
@@ -9575,8 +9574,7 @@ direction parallel to the spline vector at the given position.</p>
 <span class="normal">589</span>
 <span class="normal">590</span>
 <span class="normal">591</span>
-<span class="normal">592</span>
-<span class="normal">593</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+<span class="normal">592</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">get_cylindric_image</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">spline</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
@@ -9772,7 +9770,8 @@ direction parallel to the spline vector at the given position.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/subwidgets/slicer.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">595</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">594</span>
+<span class="normal">595</span>
 <span class="normal">596</span>
 <span class="normal">597</span>
 <span class="normal">598</span>
@@ -9813,8 +9812,7 @@ direction parallel to the spline vector at the given position.</p>
 <span class="normal">633</span>
 <span class="normal">634</span>
 <span class="normal">635</span>
-<span class="normal">636</span>
-<span class="normal">637</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+<span class="normal">636</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">get_cylindric_power_spectrum</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">spline</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>

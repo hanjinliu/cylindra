@@ -8204,10 +8204,7 @@
 <span class="normal">3656</span>
 <span class="normal">3657</span>
 <span class="normal">3658</span>
-<span class="normal">3659</span>
-<span class="normal">3660</span>
-<span class="normal">3661</span>
-<span class="normal">3662</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span>
+<span class="normal">3659</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span>
     <span class="n">widget_type</span><span class="o">=</span><span class="s2">&quot;scrollable&quot;</span><span class="p">,</span>
     <span class="n">stylesheet</span><span class="o">=</span><span class="n">_STYLE</span><span class="p">,</span>
     <span class="n">name</span><span class="o">=</span><span class="s2">&quot;cylindra&quot;</span><span class="p">,</span>
@@ -11238,10 +11235,7 @@
         <span class="p">)</span>
         <span class="n">df</span> <span class="o">=</span> <span class="n">reg</span><span class="o">.</span><span class="n">calculate</span><span class="p">(</span><span class="n">properties</span><span class="p">)</span>
         <span class="n">view</span> <span class="o">=</span> <span class="n">DataFrameView</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">df</span><span class="p">)</span>
-        <span class="n">dock</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">add_dock_widget</span><span class="p">(</span><span class="n">view</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Region properties&quot;</span><span class="p">)</span>
-        <span class="n">dock</span><span class="o">.</span><span class="n">setFloating</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">reset_choices</span><span class="p">()</span>  <span class="c1"># choices regarding of features need update</span>
-        <span class="k">return</span> <span class="n">undo_callback</span><span class="p">(</span><span class="n">dock</span><span class="o">.</span><span class="n">close</span><span class="p">)</span><span class="o">.</span><span class="n">with_redo</span><span class="p">(</span><span class="n">dock</span><span class="o">.</span><span class="n">show</span><span class="p">)</span>
+        <span class="n">widget_utils</span><span class="o">.</span><span class="n">show_widget</span><span class="p">(</span><span class="n">view</span><span class="p">,</span> <span class="s2">&quot;Region properties&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
 
     <span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Update pixel scale&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">ImageMenu</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">update_scale</span><span class="p">(</span>
@@ -12164,7 +12158,10 @@ all the existing local properties.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3307</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3304</span>
+<span class="normal">3305</span>
+<span class="normal">3306</span>
+<span class="normal">3307</span>
 <span class="normal">3308</span>
 <span class="normal">3309</span>
 <span class="normal">3310</span>
@@ -12181,10 +12178,7 @@ all the existing local properties.</p>
 <span class="normal">3321</span>
 <span class="normal">3322</span>
 <span class="normal">3323</span>
-<span class="normal">3324</span>
-<span class="normal">3325</span>
-<span class="normal">3326</span>
-<span class="normal">3327</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+<span class="normal">3324</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">add_molecules</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -15849,7 +15843,10 @@ must be "almost" fitted in dense mode.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3329</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3326</span>
+<span class="normal">3327</span>
+<span class="normal">3328</span>
+<span class="normal">3329</span>
 <span class="normal">3330</span>
 <span class="normal">3331</span>
 <span class="normal">3332</span>
@@ -15864,10 +15861,7 @@ must be "almost" fitted in dense mode.</p>
 <span class="normal">3341</span>
 <span class="normal">3342</span>
 <span class="normal">3343</span>
-<span class="normal">3344</span>
-<span class="normal">3345</span>
-<span class="normal">3346</span>
-<span class="normal">3347</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+<span class="normal">3344</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">get_loader</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -21484,10 +21478,7 @@ the the property "mean" will be [1.5, 3.5]. For some properties such as "length"
 <span class="normal">3231</span>
 <span class="normal">3232</span>
 <span class="normal">3233</span>
-<span class="normal">3234</span>
-<span class="normal">3235</span>
-<span class="normal">3236</span>
-<span class="normal">3237</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Analyze region properties&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Features</span><span class="p">)</span>
+<span class="normal">3234</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Analyze region properties&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Features</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">regionprops_features</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
@@ -21521,10 +21512,7 @@ the the property "mean" will be [1.5, 3.5]. For some properties such as "length"
     <span class="p">)</span>
     <span class="n">df</span> <span class="o">=</span> <span class="n">reg</span><span class="o">.</span><span class="n">calculate</span><span class="p">(</span><span class="n">properties</span><span class="p">)</span>
     <span class="n">view</span> <span class="o">=</span> <span class="n">DataFrameView</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">df</span><span class="p">)</span>
-    <span class="n">dock</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">add_dock_widget</span><span class="p">(</span><span class="n">view</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Region properties&quot;</span><span class="p">)</span>
-    <span class="n">dock</span><span class="o">.</span><span class="n">setFloating</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">reset_choices</span><span class="p">()</span>  <span class="c1"># choices regarding of features need update</span>
-    <span class="k">return</span> <span class="n">undo_callback</span><span class="p">(</span><span class="n">dock</span><span class="o">.</span><span class="n">close</span><span class="p">)</span><span class="o">.</span><span class="n">with_redo</span><span class="p">(</span><span class="n">dock</span><span class="o">.</span><span class="n">show</span><span class="p">)</span>
+    <span class="n">widget_utils</span><span class="o">.</span><span class="n">show_widget</span><span class="p">(</span><span class="n">view</span><span class="p">,</span> <span class="s2">&quot;Region properties&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -24015,7 +24003,10 @@ affected by this operation will be dropped.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3239</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3236</span>
+<span class="normal">3237</span>
+<span class="normal">3238</span>
+<span class="normal">3239</span>
 <span class="normal">3240</span>
 <span class="normal">3241</span>
 <span class="normal">3242</span>
@@ -24074,10 +24065,7 @@ affected by this operation will be dropped.</p>
 <span class="normal">3295</span>
 <span class="normal">3296</span>
 <span class="normal">3297</span>
-<span class="normal">3298</span>
-<span class="normal">3299</span>
-<span class="normal">3300</span>
-<span class="normal">3301</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Update pixel scale&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">ImageMenu</span><span class="p">)</span>
+<span class="normal">3298</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Update pixel scale&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">ImageMenu</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">update_scale</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">new_scale</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">nm</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s2">&quot;step&quot;</span><span class="p">:</span> <span class="mf">0.0001</span><span class="p">}]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
