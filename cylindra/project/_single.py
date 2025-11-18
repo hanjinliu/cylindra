@@ -286,13 +286,12 @@ class CylindraProject(BaseProject):
             and self.image_reference
             and Path(self.image_reference).exists()
         ):
-            path_ref = Path(self.image_reference)
+            path_ref = Path(self.image_reference)  # user-supplied reference image
         else:
             path_ref = None
         with self.open_project() as project_dir:
-            tomogram = self.load_tomogram(
-                project_dir, compute=read_image and path_ref is None
-            )
+            _need_compute = read_image and path_ref is None
+            tomogram = self.load_tomogram(project_dir, compute=_need_compute)
             macro_expr = extract(self._script_py_path(project_dir).read_text()).args
             cfg_path = project_dir / "default_spline_config.json"
             if cfg_path.exists() and update_config:
@@ -321,6 +320,12 @@ class CylindraProject(BaseProject):
                     )
                     yield cb
                     cb.await_call()
+                    # filter and invert are needed to be called on the newly opened
+                    # user-supplied reference image
+                    if filter is not None:
+                        yield from gui.filter_reference_image.arun(filter)
+                    if self.invert_reference:
+                        yield from gui.invert_image.arun(reference_only=True)
 
             @thread_worker.callback
             def _update_widget():

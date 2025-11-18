@@ -12,7 +12,14 @@ from magicclass.types import Optional, Path
 try:
     import starfile
 except ImportError:
-    starfile = None
+
+    class starfile:
+        def __getattr__(self, name):
+            raise ImportError(
+                "The 'starfile' package is required for RELION I/O functions. "
+                "Please install it via 'pip install starfile'."
+            )
+
 
 from cylindra.const import FileFilter, nm
 from cylindra.plugin import register_function
