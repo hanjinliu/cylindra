@@ -56,12 +56,14 @@ class CylindraProject(BaseProject):
     """Path to the reference image."""
     invert: bool = False
     """Whether to invert the image when loaded."""
+    invert_reference: bool = False
+    """Whether to invert the reference image when loaded from `image_reference`."""
     multiscales: list[int]
     """List of bin factors for multiscale tomogram."""
     molecules_info: list[MoleculesInfo] = Field(default_factory=list)
     landscape_info: list[LandscapeInfo] = Field(default_factory=list)
     interaction_info: list[InteractionInfo] = Field(default_factory=list)
-    missing_wedge: MissingWedge = MissingWedge(params={}, kind="none")
+    missing_wedge: MissingWedge = Field(default_factory=MissingWedge.default)
     """Missing wedge model, used for masking subtomograms."""
     project_path: Path | None = None
     project_description: str = ""
@@ -83,6 +85,7 @@ class CylindraProject(BaseProject):
         missing_wedge: Any | None = None,
         invert: bool = False,
         project_path: Path | None = None,
+        invert_reference: bool = False,
     ):
         """Create a new project."""
         _versions = get_versions()
@@ -103,6 +106,7 @@ class CylindraProject(BaseProject):
             multiscales=list(multiscales),
             missing_wedge=MissingWedge.parse(missing_wedge),
             invert=invert,
+            invert_reference=invert_reference,
             project_path=project_path,
         )
 
@@ -190,6 +194,7 @@ class CylindraProject(BaseProject):
             scale=tomo.scale,
             image_reference=img_ref_path,
             invert=tomo.is_inverted,
+            invert_reference=gui._reserved_layers.ref_inverted,
             multiscales=[x[0] for x in tomo.multiscaled],
             molecules_info=mole_infos,
             landscape_info=landscape_infos,

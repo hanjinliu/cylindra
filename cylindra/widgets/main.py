@@ -546,6 +546,7 @@ class CylindraMainWidget(MagicTemplate):
         bin_size: Annotated[int | Sequence[int], {"bind": _image_loader.bin_size}] = [1],
         filter: Annotated[ImageFilter | None, {"bind": _image_loader.filter}] = ImageFilter.Lowpass,
         invert: Annotated[bool, {"bind": _image_loader.invert}] = False,
+        invert_reference: Annotated[bool, {"bind": _image_loader.invert_reference}] = False,
         fix_reference_scale: Annotated[bool, {"bind": _image_loader.fix_reference_scale}] = True,
         cache_image: Annotated[bool, {"bind": _image_loader.cache_image}] = False,
     ):  # fmt: skip
@@ -567,6 +568,8 @@ class CylindraMainWidget(MagicTemplate):
         {filter}
         invert : bool, default False
             If true, invert the intensity of the raw image.
+        invert_reference : bool, default False
+            If true, invert the intensity of the reference image.
         fix_reference_scale : bool, default True
             Fix the pixel size of the reference image if the scale of the raw tomogram
             was overridden.
@@ -601,6 +604,8 @@ class CylindraMainWidget(MagicTemplate):
         self._project_dir = None
         if filter is not None:
             yield from self.filter_reference_image.arun(filter)
+        if invert_reference:
+            yield from self.invert_image.arun(reference_only=True)
 
     @open_image.started.connect
     @open_image_with_reference.started.connect
@@ -954,10 +959,11 @@ class CylindraMainWidget(MagicTemplate):
 
     @thread_worker.with_progress(desc="Inverting image")
     @set_design(text=capitalize, location=_sw.ImageMenu)
-    def invert_image(self):
+    def invert_image(self, reference_only: Annotated[bool, {"bind": False}] = False):
         """Invert the intensity of the images."""
         t0 = timer()
-        self.tomogram.invert()
+        if not reference_only:
+            self.tomogram.invert()
         if self._reserved_layers.is_lazy:
 
             @thread_worker.callback
@@ -974,6 +980,9 @@ class CylindraMainWidget(MagicTemplate):
             def _invert_image_on_return():
                 self._reserved_layers.image.data = img_inv
                 self._reserved_layers.image.contrast_limits = (cmin, cmax)
+                self._reserved_layers.ref_inverted = (
+                    not self._reserved_layers.ref_inverted
+                )
                 clow, chigh = self.Overview.contrast_limits
                 self.Overview.image = -self.Overview.image
                 self.Overview.contrast_limits = -chigh, -clow

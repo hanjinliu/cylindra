@@ -146,6 +146,11 @@ class MissingWedge(BaseModel):
     kind: str = "y"
 
     @classmethod
+    def default(self) -> Self:
+        """Return the default missing wedge model."""
+        return MissingWedge(params={}, kind="none")
+
+    @classmethod
     def parse(self, obj):
         """Parse an object as a MissingWedge model."""
         if isinstance(obj, MissingWedge):
@@ -173,7 +178,7 @@ class MissingWedge(BaseModel):
         elif isinstance(obj, tuple | list) and len(obj) == 2:
             return MissingWedge(params={"min": obj[0], "max": obj[1]})
         elif obj is None:
-            return MissingWedge(params={}, kind="none")
+            return MissingWedge.default()
         raise TypeError(f"Cannot parse {obj!r} as a MissingWedge.")
 
     def as_param(self):
