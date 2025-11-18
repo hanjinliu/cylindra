@@ -10,8 +10,7 @@ from cylindra.core import read_project
 
 
 class ParserFind(ParserBase):
-    """
-    cylindra find [bold green]pattern[/bold green] [bold yellow]options[/bold yellow] [bold cyan]flags[/bold cyan]
+    """cylindra find [bold green]pattern[/bold green] [bold yellow]options[/bold yellow] [bold cyan]flags[/bold cyan]
 
     [u bold green]pattern[/u bold green] (positional)
         File pattern to match projects.

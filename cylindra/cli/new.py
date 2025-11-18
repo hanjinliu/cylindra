@@ -7,8 +7,7 @@ from cylindra.cli._base import ParserBase
 
 
 class ParserNew(ParserBase):
-    """
-    cylindra new [bold green]output[/bold green] [bold cyan]options[/bold cyan]
+    """cylindra new [bold green]output[/bold green] [bold cyan]options[/bold cyan]
 
     [u bold green]output[/u bold green]
         Path of the project file. It can be a directory or a zip/tar file.

@@ -9,8 +9,7 @@ from cylindra.core import read_project, start
 
 
 class ParserOpen(ParserBase):
-    """
-    cylindra open [bold green]path[/bold green] [bold cyan]options[/bold cyan]
+    """cylindra open [bold green]path[/bold green] [bold cyan]options[/bold cyan]
 
     [u bold green]path[/u bold green]
         Path to the project/image file.

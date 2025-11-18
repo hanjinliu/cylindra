@@ -5,23 +5,24 @@ from cylindra.core import start
 
 
 class ParserNone(ParserBase):
-    """
-    cylindra [bold green]options[/bold green] [bold cyan]commands[/bold cyan] [italic]arguments[/italic]
+    """cylindra [bold green]options[/bold green] [bold cyan]commands[/bold cyan] [italic]arguments[/italic]
 
     [u bold green]options[/u bold green]
         -v, --version   Show version.
         -h, --help      Show this message and exit.
 
     [u bold cyan]commands[/u bold cyan]
-        [bold]open[/bold]     Open a project or an image.
-        [bold]preview[/bold]  View a project, image etc.
-        [bold]plugin[/bold]   List or manage plugins.
-        [bold]find[/bold]     Find cylindra projects.
-        [bold]run[/bold]      Run a script.
-        [bold]config[/bold]   Edit/view the configuration.
-        [bold]average[/bold]  Average images.
-        [bold]new[/bold]      Create a new project.
-        [bold]add[/bold]      Add splines by coordinates.
+        [bold]open[/bold]          Open a project or an image.
+        [bold]preview[/bold]       View a project, image etc.
+        [bold]plugin[/bold]        List or manage plugins.
+        [bold]find[/bold]          Find cylindra projects.
+        [bold]run[/bold]           Run a script.
+        [bold]config[/bold]        Edit/view the configuration.
+        [bold]average[/bold]       Average images.
+        [bold]new[/bold]           Create a new project.
+        [bold]add[/bold]           Add splines by coordinates.
+        [bold]workflow[/bold]      Show workflows.
+        [bold]prep-defaults[/bold] Create or validate .cylindra-defaults.toml file.
     """
 
     def __init__(self):

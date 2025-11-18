@@ -820,7 +820,8 @@ class CylindraMainWidget(MagicTemplate):
             Path to the image file. The image must be 3-D.
         """
         img = ip.imread(path)
-        return self._update_reference_image(img)
+        self._update_reference_image(img)
+        self._reserved_layers.ref_inverted = False
 
     @set_design(text=capitalize, location=_sw.FileMenu)
     def open_label_image(self, path: Path.Read[FileFilter.IMAGE]):

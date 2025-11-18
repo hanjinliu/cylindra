@@ -19,6 +19,7 @@ def test_help(run_cli):
         "preview",
         "run",
         "workflow",
+        "prep-defaults",
     ]:
         run_cli("cylindra", cmd, "--help")
 
@@ -127,3 +128,8 @@ def test_workflow(run_cli, tmpdir):
 def test_plugin(run_cli, tmpdir):
     run_cli("cylindra", "plugin", "list")
     run_cli("cylindra", "plugin", "new", tmpdir)
+
+def test_prep_defaults(run_cli, tmpdir):
+    dirpath = Path(tmpdir)
+    run_cli("cylindra", "prep-defaults", dirpath.as_posix())
+    run_cli("cylindra", "prep-defaults", dirpath.as_posix(), "--validate")

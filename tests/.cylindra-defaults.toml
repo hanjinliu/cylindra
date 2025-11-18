@@ -1,0 +1,7 @@
+scale = 1.052
+invert = false
+invert_reference = true
+bin_size = [1, 2]
+[missing_wedge]
+kind = "y"
+range = [-60, 60]
