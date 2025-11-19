@@ -104,17 +104,6 @@ After opening an image, you'll find three layers added to the viewer:
 
 The `"Drawing Layer"` will be selected, with the "add points" mode activated by default.
 
-??? warning "Handedness since napari v0.6"
-
-    Since v0.6, napari introduced full accessivility to the
-    [axis directionality](https://napari.org/stable/guides/handedness.html), and the
-    default handedness was changed from "left-handed" to "right-handed". This means that
-    if you set the axis directionality to wrong parameters, tomograms and the average
-    images will be flipped.
-    `cylindra` will automatically change the viewer handedness to "left-handed" on
-    startup, so you don't have to worry about it. However, if you find the 3D images
-    flipped, you may want to [check the handedness](https://napari.org/stable/guides/handedness.html#d-data-3d-axis-orientation-and-handedness).
-
 ??? tip "Use custom reference image"
 
     In some cases, you may already have a reference image for each tomogram.
@@ -139,6 +128,31 @@ The `"Drawing Layer"` will be selected, with the "add points" mode activated by 
     :material-arrow-right-thin-circle-outline: API: [`open_reference_image`][cylindra.widgets.main.CylindraMainWidget.open_reference_image].
 
     :material-arrow-right-thin-circle-outline: GUI: `File > Open reference image`
+
+??? tip "New in v1.0.3: Directory-specific defaults"
+
+    It takes time to set all the parameters in the open-image dialog every time you open
+    a tomogram. Since v1.0.3, you can specify directory-specific default parameters
+    using a `.cylindra-defaults.toml` file. You can make a template toml file by running
+
+    ```shell
+    cylindra prep-defaults
+    ```
+
+    and edit the generated file. By clicking the "Scan" button in the open-image dialog,
+    the parameters in the toml file located in the same directory or any parent
+    directories of the selected tomogram will be loaded as the default parameters.
+
+??? warning "Handedness since napari v0.6"
+
+    Since v0.6, napari introduced full accessivility to the
+    [axis directionality](https://napari.org/stable/guides/handedness.html), and the
+    default handedness was changed from "left-handed" to "right-handed". This means that
+    if you set the axis directionality to wrong parameters, tomograms and the average
+    images will be flipped.
+    `cylindra` will automatically change the viewer handedness to "left-handed" on
+    startup, so you don't have to worry about it. However, if you find the 3D images
+    flipped, you may want to [check the handedness](https://napari.org/stable/guides/handedness.html#d-data-3d-axis-orientation-and-handedness).
 
 ### Use Multi-scaled Images
 

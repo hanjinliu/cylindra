@@ -5,6 +5,7 @@ from typing import Self
 import tomllib
 from pydantic import BaseModel, field_validator
 
+from cylindra.const import ImageFilter
 from cylindra.project._base import MissingWedge
 
 TOMOGRAM_DEFAULTS_PATH_NAME = ".cylindra-defaults.toml"
@@ -19,9 +20,10 @@ class TomogramDefaults(BaseModel):
     image_reference: str | None = None
     """Absolute or relative path to the reference image file. Can use format string
     to include tomogram stem."""
-    invert_reference: bool | None = None
+    invert_reference: bool = False
     missing_wedge: MissingWedge | None = None
     bin_size: list[int] | None = None
+    filter: ImageFilter | None = None
 
     @classmethod
     def from_dir(cls, dirpath: str | Path, parent_ok: bool = True) -> Self | None:

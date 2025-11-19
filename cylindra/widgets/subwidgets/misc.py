@@ -211,6 +211,8 @@ class ImageLoader(MagicTemplate):
                 bin_size_new = _bin_size
             if (_mw := default_setting.missing_wedge) is not None:
                 self.tilt_model.value = _mw.as_param()
+            if (_filter := default_setting.filter) is not None:
+                self.filter = _filter
             if _img_ref := default_setting.resolve_reference_path(path):
                 self.use_reference = True
                 self.reference_path = _img_ref

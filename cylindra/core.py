@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from magicgui.widgets import Widget
 
     from cylindra.components import CylSpline
-    from cylindra.project import CylindraProject, ProjectSequence
+    from cylindra.project import CylindraBatchProject, CylindraProject, ProjectSequence
     from cylindra.widgets import CylindraMainWidget
 
     PathLike = str | Path
@@ -201,6 +201,13 @@ def read_project(file: PathLike) -> CylindraProject:
     from cylindra.project import CylindraProject
 
     return CylindraProject.from_file(file)
+
+
+def read_batch_project(file: PathLike) -> CylindraBatchProject:
+    """Read the Cylindra batch project file."""
+    from cylindra.project import CylindraBatchProject
+
+    return CylindraBatchProject.from_file(file)
 
 
 def read_molecules(

@@ -73,6 +73,10 @@ invert_reference = true
 # bin sizes to make multiscale tomograms.
 bin_size = [2, 4]
 
+# filter to apply to the reference image or binned tomograms.
+# Options are: "Lowpass", "Gaussian", "DoG" or "LoG".
+filter = "Lowpass"
+
 # missing wedge specification
 [missing_wedge]
 kind = "y"
