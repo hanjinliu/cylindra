@@ -1,5 +1,4 @@
 from cylindra.widgets.subwidgets.config_edit import ConfigEdit
-from cylindra.widgets.subwidgets.file_iter import FileIterator
 from cylindra.widgets.subwidgets.function_menu import Volume
 from cylindra.widgets.subwidgets.image_processor import ImageProcessor
 from cylindra.widgets.subwidgets.manual_picker import ManualPicker
@@ -39,7 +38,6 @@ __all__ = [
     "SplineControl",
     "SplineFitter",
     "FileMenu",
-    "FileIterator",
     "ImageMenu",
     "SplinesMenu",
     "MoleculesMenu",

@@ -439,7 +439,6 @@ class CylindraMainWidget(MagicTemplate):
 
     _runner = field(_sw.Runner)
     _image_loader = _sw.ImageLoader
-    _file_iterator = field(_sw.FileIterator)
 
     def _confirm_delete(self):
         i = self.SplineControl.num
