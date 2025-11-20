@@ -4,6 +4,7 @@ import math
 import warnings
 from pathlib import Path
 
+from cylindra import _io
 from cylindra.cli._base import ParserBase
 from cylindra.core import read_batch_project, read_project, start
 
@@ -92,7 +93,6 @@ class ParserOpen(ParserBase):
                 ui.load_project(fp, read_image=not no_reference)
         else:
             print(f"Opening image: {fp.as_posix()}")
-            import impy as ip
 
             from cylindra.project import TomogramDefaults
 
@@ -109,7 +109,7 @@ class ParserOpen(ParserBase):
                 inv_ref = defaults.invert_reference
 
             ui = start(viewer=self.viewer)
-            img_meta = ip.read_header(path)
+            img_meta = _io.read_header(path)
             scale = scale or img_meta.scale.x
             bin_size = bin_size or [int(math.ceil(0.96 / scale))]
             if ref_image:

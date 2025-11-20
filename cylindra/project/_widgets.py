@@ -1,6 +1,5 @@
 from typing import TYPE_CHECKING, Annotated
 
-import impy as ip
 import numpy as np
 import polars as pl
 from magicclass import (
@@ -17,6 +16,7 @@ from magicclass.types import Path
 from magicclass.utils import thread_worker
 from magicclass.widgets import ConsoleTextEdit, FrameContainer, Label, ToggleSwitch
 
+from cylindra._io import lazy_imread
 from cylindra.const import ImageFilter
 from cylindra.widget_utils import capitalize
 
@@ -105,7 +105,7 @@ class ComponentsViewer(MagicTemplate):
         # draw edge
         if project.image is None or not project.image.exists():
             return
-        img = ip.lazy.imread(project.image)
+        img = lazy_imread(project.image)
         nz, ny, nx = img.shape
         for z in [0, nz]:
             arr = (

@@ -193,8 +193,9 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             If True, this method will not raise an error when the image file is not
             found.
         """
-        import impy as ip
         from acryo import BatchLoader
+
+        from cylindra._io import lazy_imread
 
         col = BatchLoader(scale=self._scale_validator.value)
         if name_filter is None:
@@ -212,7 +213,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
 
                 img = np.zeros((0, 0, 0), dtype=np.float32)  # dummy
             else:
-                img = ip.lazy.imread(prj.image, chunks=get_config().dask_chunk).value
+                img = lazy_imread(prj.image, chunks=get_config().dask_chunk).value
             with prj.open_project() as dir:
                 for info, mole in prj.iter_load_molecules(dir):
                     if not name_filter(info.stem):

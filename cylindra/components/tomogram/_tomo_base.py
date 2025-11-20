@@ -11,6 +11,7 @@ from acryo.tilt.core import SingleAxisX, SingleAxisY, UnionAxes
 from numpy.typing import NDArray
 
 from cylindra._config import get_config
+from cylindra._io import lazy_imread
 from cylindra.const import nm
 from cylindra.utils import parse_tilt_model
 
@@ -238,7 +239,7 @@ class Tomogram:
             Tomogram object with the image that has just been read and multi-scales.
         """
         chunks = get_config().dask_chunk
-        img = ip.lazy.imread(path, chunks=chunks)
+        img = lazy_imread(path, chunks=chunks)
         if eager:
             img = img.compute()
         return cls.from_image(

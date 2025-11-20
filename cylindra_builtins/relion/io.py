@@ -2,7 +2,6 @@ import warnings
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Annotated, Any, Iterator
 
-import impy as ip
 import numpy as np
 import pandas as pd
 import polars as pl
@@ -374,10 +373,7 @@ def open_relion_job(
                 f"tomogram.star file {tomogram_star_path} does not exist. Make sure "
                 "the input job has an tomogram output."
             )
-        col = (
-            REC_TOMO_DENOISED_PATH if jobtype == "relion.denoisetomo" else REC_TOMO_PATH
-        )
-        tomostar = TomogramStar(tomogram_star_path, col)
+        tomostar = TomogramStar(tomogram_star_path)
         paths = list(tomostar.iter_tomo_paths(rln_project_path))
         scales = tomostar.scale_nm
         tilt_models = list(tomostar.iter_tilt_models(rln_project_path))
@@ -431,25 +427,27 @@ def _get_job_type(job_dir: Path) -> str:
 
 
 class TomogramStar:
-    def __init__(self, path: Path, col: str = REC_TOMO_PATH):
+    """Object to parse tomograms.star file."""
+
+    def __init__(self, path: Path):
         self.df = starfile.read(path)
         assert isinstance(self.df, pd.DataFrame)
-        self._col = col
 
     @property
     def tomo_names(self) -> pd.Series:
         return self.df[TOMO_NAME]
 
     def iter_tomo_paths(self, project_dir: Path) -> Iterator[Path]:
-        if self._col in self.df:
-            rel_paths = self.df[self._col]
-        elif REC_TOMO_HALF1_PATH in self.df:
-            rel_paths = self.df[REC_TOMO_HALF1_PATH]
+        candidates = [REC_TOMO_DENOISED_PATH, REC_TOMO_PATH, REC_TOMO_HALF1_PATH]
+        for col in candidates:
+            if col in self.df:
+                rel_paths = self.df[col]
+                break
         else:
             raise ValueError(
                 "No tomogram paths found in the tomograms.star file. Expected either "
-                f"{self._col!r} or 'rlnTomoReconstructedTomogramHalf1' "
-                "column."
+                f"{REC_TOMO_DENOISED_PATH!r}, {REC_TOMO_PATH!r} or "
+                f"{REC_TOMO_HALF1_PATH!r} column."
             )
         for p in rel_paths:
             yield project_dir / p
@@ -469,6 +467,12 @@ class TomogramStar:
             assert isinstance(tilt_star, pd.DataFrame)
             _range = tilt_star[TILT_ANGLE].min(), tilt_star[TILT_ANGLE].max()
             yield {"kind": "y", "range": _range}
+
+    def iter_tomo_shapes(self) -> Iterator[tuple[int, int, int]]:
+        nzs = self.df["rlnTomoSizeZ"]
+        nys = self.df["rlnTomoSizeY"]
+        nxs = self.df["rlnTomoSizeX"]
+        yield from zip(nzs, nys, nxs, strict=False)
 
 
 def _parse_optimisation_star(opt_star_path: Path, rln_project_path: Path):
@@ -508,6 +512,7 @@ def _iter_from_optimisation_star(
     tomo_names = tomostar.tomo_names
     scale_nm = tomostar.scale_nm
     tomo_paths = list(tomostar.iter_tomo_paths(rln_project_path))
+    tomo_shapes = list(tomostar.iter_tomo_shapes())
     tilt_models = list(tomostar.iter_tilt_models(rln_project_path))
     particles_df = starfile.read(rln_project_path / particles_path)
 
@@ -515,9 +520,9 @@ def _iter_from_optimisation_star(
         particles_df = particles_df["particles"]
     assert isinstance(particles_df, pd.DataFrame)
     name_to_center_map = {
-        tomo_name: _shape_to_center_zyx(ip.lazy.imread(tomo_path).shape, sc_nm)
-        for tomo_name, tomo_path, sc_nm in zip(
-            tomo_names, tomo_paths, scale_nm, strict=False
+        tomo_name: _shape_to_center_zyx(tomo_shape, sc_nm)
+        for tomo_name, tomo_shape, sc_nm in zip(
+            tomo_names, tomo_shapes, scale_nm, strict=False
         )
     }
     name_to_path_map = dict(zip(tomo_names, tomo_paths, strict=False))

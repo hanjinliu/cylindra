@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any, Generator, Iterable
 import polars as pl
 from pydantic import ConfigDict, Field
 
-from cylindra import _config
+from cylindra import _config, _io
 from cylindra.const import ImageFilter, cast_dataframe, get_versions
 from cylindra.const import PropertyNames as H
 from cylindra.project._base import BaseProject, MissingWedge, PathLike, resolve_path
@@ -92,9 +92,7 @@ class CylindraProject(BaseProject):
         if image is None:
             raise ValueError("image must not be None.")
         if scale is None:
-            import impy as ip
-
-            header = ip.read_header(image)
+            header = _io.read_header(image)
             scale = header.scale["x"]
         return CylindraProject(
             datetime=datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
