@@ -12,6 +12,7 @@ tests/**/*.pq
 tests/**/*.tar
 tests/**/*.zip
 tests/**/script.py
+tests/batch_example
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

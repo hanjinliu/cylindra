@@ -19,6 +19,7 @@ def test_help(run_cli):
         "preview",
         "run",
         "workflow",
+        "prep-defaults",
     ]:
         run_cli("cylindra", cmd, "--help")
 
@@ -50,6 +51,20 @@ def test_new_and_open(run_cli, tmpdir):
         "--molecules", PROJECT_DIR_14PF / "Mole-*",
     )  # fmt: skip
     run_cli("cylindra", "open", Path(tmpdir) / "test-project")
+
+    run_cli(
+        "cylindra", "new",
+        Path(tmpdir) / "test-project-2",
+        "--image", TEST_DIR / "14pf_MT.tif",
+        "--like", Path(tmpdir) / "test-project",
+    )  # fmt: skip
+    run_cli(
+        "cylindra", "new",
+        Path(tmpdir) / "test-project-3",
+        "--image", TEST_DIR / "14pf_MT.tif",
+        "--follow-defaults",
+    )  # fmt: skip
+    run_cli("cylindra", "open", TEST_DIR / "14pf_MT.tif")
 
 
 def test_config(run_cli, tmpdir):
@@ -127,3 +142,15 @@ def test_workflow(run_cli, tmpdir):
 def test_plugin(run_cli, tmpdir):
     run_cli("cylindra", "plugin", "list")
     run_cli("cylindra", "plugin", "new", tmpdir)
+
+def test_prep_and_open(run_cli, tmpdir):
+    dirpath = Path(tmpdir)
+    run_cli("cylindra", "prep", TEST_DIR / "*pf_MT.tif", dirpath / "batch0")
+    run_cli("cylindra", "open", dirpath / "batch0" / "project.json")
+    run_cli("cylindra", "prep", TEST_DIR / "test_project_*pf", dirpath / "batch1")
+    run_cli("cylindra", "open", dirpath / "batch1" / "project.json")
+
+def test_prep_defaults(run_cli, tmpdir):
+    dirpath = Path(tmpdir)
+    run_cli("cylindra", "prep-defaults", dirpath.as_posix())
+    run_cli("cylindra", "prep-defaults", dirpath.as_posix(), "--validate")

@@ -1,4 +1,3 @@
-import glob
 from pathlib import Path
 
 import impy as ip
@@ -19,7 +18,7 @@ from qtpy.QtCore import Qt
 from cylindra._previews import view_image
 from cylindra.components import CylTomogram
 from cylindra.const import FileFilter, ImageFilter
-from cylindra.project import CylindraProject
+from cylindra.project import CylindraProject, TomogramDefaults
 from cylindra.utils import ceilint, find_tilt_angles
 
 
@@ -111,11 +110,6 @@ class ImageLoader(MagicTemplate):
         or denoised tomogram that will help to visualize the tomogram in the viewer.
     reference_path : Path
         Path to the reference image. Must be a 3-D image.
-    autofill_pattern : str
-        Pattern to autofill the reference image path. The pattern should contain a
-        placeholder `{}` that will be replaced with the name of the tomogram file. For
-        example, if you want to autofill like "TS_01.mrc" -> "TS_01_bin4.mrc", you can
-        set the pattern to "{}_bin4.mrc", or "{}_*.mrc" for more flexibility.
     bin_size : int or list of int, default [1]
         Initial bin size of image. Binned image will be used for visualization in the
         viewer. You can use both binned and non-binned image for analysis.
@@ -123,6 +117,9 @@ class ImageLoader(MagicTemplate):
         Choose filter for the reference image (does not affect image data itself).
     invert : bool
         Invert intensity of the image. If tomogram is light-background, check this.
+    invert_reference : bool
+        Invert intensity of the reference image if the user-supplied reference image
+        is used.
     eager : bool
         Load the entire image into memory to avoid disk access.
     cache_image : bool
@@ -139,28 +136,17 @@ class ImageLoader(MagicTemplate):
     path = vfield(Path).with_options(filter=FileFilter.IMAGE)
     use_reference = vfield(False, label="Use user-supplied reference image")
     reference_path = vfield(Path).with_options(filter=FileFilter.IMAGE)
-    autofill_pattern = vfield("{}_*.mrc")
 
     @use_reference.connect
     def _on_use_reference_change(self, use_ref: bool):
         """Show or hide the reference path field based on the use_reference value."""
         self["reference_path"].visible = use_ref
-        self["autofill_pattern"].visible = use_ref
         self["fix_reference_scale"].visible = use_ref
         self["eager"].visible = not use_ref
+        self["invert_reference"].visible = use_ref
 
         self["open_image"].visible = not use_ref
         self["open_image_with_reference"].visible = use_ref
-
-    @path.connect
-    def _on_path_change(self, path: Path):
-        """Autofill the reference path if use_reference is True."""
-        path = Path(path)
-        if path.exists() and self.autofill_pattern:
-            ref_path_ptn = str(path.parent / self.autofill_pattern.format(path.stem))
-            ref_path = next(iter(list(glob.glob(ref_path_ptn))[::-1]), None)
-            if ref_path is not None:
-                self.reference_path = Path(ref_path)
 
     def __post_init__(self):
         self._on_use_reference_change(self.use_reference)
@@ -177,35 +163,65 @@ class ImageLoader(MagicTemplate):
 
         scale_label = vfield("scale (nm)", widget_type="Label")
         scale_value = vfield(1.0).with_options(min=1e-3, step=1e-4, max=10.0)
-        scan_header = abstractapi()
+        scan_header_or_defaults = abstractapi()
 
     tilt_model = field(TiltModelEdit)
     bin_size = vfield([1]).with_options(options={"min": 1, "max": 32})
     filter = vfield(ImageFilter | None).with_options(value=ImageFilter.Lowpass)
-    invert = vfield(False, label="Invert intensity")
+
+    @magicclass(layout="horizontal", labels=False)
+    class invert_section(MagicTemplate):
+        invert = abstractapi()
+        invert_reference = abstractapi()
+
+    invert = vfield(False, label="Invert intensity", location=invert_section)
+    invert_reference = vfield(
+        False, label="Invert reference intensity", location=invert_section
+    )
     eager = vfield(False, label="Load the entire image into memory")
-    cache_image = vfield(False, label="Cache image on SSD")
     fix_reference_scale = vfield(True)
+    cache_image = vfield(False, label="Cache image on SSD")
 
-    @set_design(text="Scan header", max_width=90, location=scale)
-    def scan_header(self):
-        """Scan scale from image header and set the optimal bin size."""
-
+    @set_design(text="Scan", max_width=60, location=scale)
+    def scan_header_or_defaults(self):
+        """Scan header or the default setting to update this GUI."""
         path = Path(self.path)
         if not path.exists() or not path.is_file():
             return
+        # try to read header
         header = ip.read_header(path)
         scale = header.scale["x"]
         self.scale.scale_value = f"{scale:.4f}"
+        bin_size_new = None
         if len(self.bin_size) < 2:
-            self.bin_size = [ceilint(0.96 / scale)]
+            bin_size_new = [ceilint(0.96 / scale)]
         # look for mdoc file
         if (tilt_angle := find_tilt_angles(path.parent)) is not None:
             tilt_min = round(tilt_angle.min(), 1)
             tilt_max = round(tilt_angle.max(), 1)
             self.tilt_model.xrange.value = tilt_min, tilt_max
             self.tilt_model.yrange.value = tilt_min, tilt_max
-        return None
+        if default_setting := TomogramDefaults.from_dir(path.parent):
+            # apply default settings
+            if (_scale := default_setting.scale) is not None:
+                self.scale.scale_value = f"{_scale:.4f}"
+            if (_inv := default_setting.invert) is not None:
+                self.invert = _inv
+            if (_bin_size := default_setting.bin_size) is not None:
+                bin_size_new = _bin_size
+            if (_mw := default_setting.missing_wedge) is not None:
+                self.tilt_model.value = _mw.as_param()
+            if (_filter := default_setting.filter) is not None:
+                self.filter = _filter
+            if _img_ref := default_setting.resolve_reference_path(path):
+                self.use_reference = True
+                self.reference_path = _img_ref
+                if (_inv_ref := default_setting.invert_reference) is not None:
+                    self.invert_reference = _inv_ref
+        if bin_size_new is not None:
+            # NOTE: Qt list widget cannot be updated twice; otherwise the child widgets
+            # float out.
+            self.bin_size = bin_size_new
 
     @set_design(text="Preview")
     def preview_image(self):
@@ -243,7 +259,7 @@ class GeneralInfo(MagicTemplate):
         fpath = tomo._orig_or_read_path() or "Unknown"
         scale = tomo.scale
         shape_px = ", ".join(f"{s} px" for s in img.shape)
-        shape_nm = ", ".join(f"{s*scale:.2f} nm" for s in img.shape)
+        shape_nm = ", ".join(f"{s * scale:.2f} nm" for s in img.shape)
         orig_nm = ", ".join(f"{o:.2f} nm" for o in tomo.origin)
         if isinstance(tomo.tilt_model, NoWedge):
             tilt_range = "No missing wedge"

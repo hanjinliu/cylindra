@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import macrokit as mk
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from cylindra._config import get_config
 from cylindra.const import MoleculesHeader as Mole
@@ -47,8 +47,8 @@ class ChildProjectInfo(BaseModel):
     """Model that describes the state of a child project."""
 
     path: Path
-    spline_selected: list[bool]
-    molecules_selected: list[bool]
+    spline_selected: list[bool] = Field(default_factory=list)
+    molecules_selected: list[bool] = Field(default_factory=list)
 
 
 class CylindraBatchProject(BaseProject):
@@ -78,8 +78,6 @@ class CylindraBatchProject(BaseProject):
         project_dir: Path,
         mole_ext: str = ".csv",
     ) -> "CylindraBatchProject":
-        from datetime import datetime
-
         _versions = get_versions()
 
         def as_relative(p: Path):
@@ -129,14 +127,40 @@ class CylindraBatchProject(BaseProject):
                 molecules_selected=mol_checked,
             )
             children.append(info)
+        return cls.from_children(
+            children=children, loaders=loaders, project_dir=project_dir
+        )
+
+    @classmethod
+    def from_children(
+        cls,
+        children: list[ChildProjectInfo],
+        loaders: list[LoaderInfoModel] = [],
+        project_dir: Path | None = None,
+    ) -> "CylindraBatchProject":
+        from datetime import datetime
+
+        _versions = get_versions()
         return cls(
             datetime=datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
             version=next(iter(_versions.values())),
             dependency_versions=_versions,
             children=children,
-            loaders=loaders,
+            loaders=list(loaders),
             project_path=project_dir,
         )
+
+    def save(self, project_dir: Path) -> None:
+        """Save the project to a directory."""
+        if not project_dir.exists():
+            project_dir.mkdir()
+
+        project_dir.joinpath("script.py").write_text(
+            as_main_function(mk.parse("", squeeze=False))
+        )
+
+        # save objects
+        self.to_json(project_dir / "project.json")
 
     @classmethod
     def save_gui(

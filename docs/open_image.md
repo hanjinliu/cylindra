@@ -67,32 +67,31 @@ filtered image for visualization.
     Most of the methods require dark-background images, while most of the raw images of
     electron microscopy are light-background. You have to manually prepare an inverted
     image file, or check the "Invert intensity" option in the open-image dialog. The
-    loaded image can also be inverted from the menu (see
-    [Invert Images](#invert-images)).
+    loaded image can also be inverted from the menu (see [Invert Images](#invert-images)).
 
 1. Click "Select file" to select the image file to open. tiff and mrc files are
    supported.
-2. Set the appropriate pixel scale. You can click "Scan header" to automatically detect
-   the pixel scale.
-3. Set the tilt range and the tilt axis used for calculating missing wedges.
-4. Set the bin sizes used during your analysis. For example, setting to `[2, 4]` will
+2. Set the appropriate pixel scale and the tilt range/axis used for calculating missing
+   wedges. You can click "Scan" to fill these field automatically. To make the "Scan"
+   button more clever, [prepare a `.cylindra-defaults.toml` file](#directory-specific-defaults).
+3. Set the bin sizes used during your analysis. For example, setting to `[2, 4]` will
    start calculation of 2&times; and 4&times; binned images, which will be loaded into
    the memory, and leave the original image in the memory-mapped state (ready to be read
    in the future). The 4&times; binned image will be shown in the viewer as a
    reference. In the later analysis, you can switch between the original, 2&times;
    binned and 4&times; binned images. See [Use Multi-scaled Images](#use-multi-scaled-images)
    for more details.
-5. Set the filter to apply to the image. The filter is applied to the reference image
+4. Set the filter to apply to the image. The filter is applied to the reference image
    shown in the viewer, not to the original image.
-6. If you want to invert the image, check "Invert intensity".
-7. If you want to load the original image into the memory, check "Load the entire image
+5. If you want to invert the image, check "Invert intensity".
+6. If you want to load the original image into the memory, check "Load the entire image
    into memory".
-8. If the tomogram is stored in HDD, check "Cache image on SSD". Tomogram will be copied
+7. If the tomogram is stored in HDD, check "Cache image on SSD". Tomogram will be copied
    to the cache directory in SSD and automatically deleted at exit. This option will
    improve the performance a lot during your analysis.
-9.  You can preview the selected image by clicking "Preview". A preview window will be
+8.  You can preview the selected image by clicking "Preview". A preview window will be
    shown, which only loads separate image slices to accelerate the image loading.
-10. Click "Open" to calculate the binning/filtering and show the reference image.
+9.  Click "Open" to calculate the binning/filtering and show the reference image.
 
 ![](images/viewer_00_open_image.png){ loading=lazy }
 
@@ -114,31 +113,6 @@ The `"Drawing Layer"` will be selected, with the "add points" mode activated by 
     `cylindra` will automatically change the viewer handedness to "left-handed" on
     startup, so you don't have to worry about it. However, if you find the 3D images
     flipped, you may want to [check the handedness](https://napari.org/stable/guides/handedness.html#d-data-3d-axis-orientation-and-handedness).
-
-??? tip "Use custom reference image"
-
-    In some cases, you may already have a reference image for each tomogram.
-
-    - Saving binned (and filtered) images does not take much storage space. For example,
-      a 4&times; binning increases the total storage size only by 1/64 = 1.6%. Directly
-      using this image as the reference image will save time.
-    - There are many softwares that implement powerful denoising methods, such as
-      [Topaz](https://github.com/tbepler/topaz),
-      [cryoCARE](https://github.com/juglab/cryoCARE_pip) and
-      [IsoNet](https://github.com/IsoNet-cryoET/IsoNet).
-      It is a good idea to use these denoised images as the reference image while using
-      the original image for the analysis. In this case, you can load any image as the
-      reference using `open_reference_image`.
-
-    To use a custom reference image check "Use user-supplied reference image" and
-    provide the reference path in the open-image dialog.
-
-    Alternatively, you can open a reference image after opening the tomogram using
-    following method.
-
-    :material-arrow-right-thin-circle-outline: API: [`open_reference_image`][cylindra.widgets.main.CylindraMainWidget.open_reference_image].
-
-    :material-arrow-right-thin-circle-outline: GUI: `File > Open reference image`
 
 ### Use Multi-scaled Images
 
@@ -185,6 +159,28 @@ scaled images, and the reference image) using this method.
 Note that [`open_image`](#open-an-image) can also run this method by specifying the
 `invert` argument.
 
+### Use a Custom Reference Image
+
+In some cases, you may already have a reference image for each tomogram.
+
+- Saving binned (and filtered) images does not take much storage space. For example,
+  a 4&times; binning increases the total storage size only by 1/64 = 1.6%. Directly
+  using this image as the reference image will save time.
+- There are many softwares that implement powerful denoising methods, such as
+  [Topaz](https://github.com/tbepler/topaz), [cryoCARE](https://github.com/juglab/cryoCARE_pip) and [IsoNet](https://github.com/IsoNet-cryoET/IsoNet).
+  It is a good idea to use these denoised images as the reference image while using
+  the original image for the Fourier analysis and subtomogram averaging.
+
+To use a custom reference image, check "Use user-supplied reference image" and provide
+the reference path in the open-image dialog.
+
+Alternatively, you can open a reference image after opening the tomogram using following
+method.
+
+:material-arrow-right-thin-circle-outline: API: [`open_reference_image`][cylindra.widgets.main.CylindraMainWidget.open_reference_image].
+
+:material-arrow-right-thin-circle-outline: GUI: `File > Open reference image`
+
 ### Process the Reference Image
 #### Filter the Reference Image
 
@@ -223,3 +219,21 @@ The implementation of this method is directly ported from [IsoNet](https://githu
 The processed reference image can be saved to a file. The save path will be recorded
 when the project is saved, and the reference image can directly be used when the project
 is loaded. See [Load & Save Projects](project_io.md) for more details.
+
+### Directory-specific defaults
+
+:sparkles: New in v1.0.3
+
+It takes time to set all the parameters in the open-image dialog every time you open a
+tomogram. Since v1.0.3, you can specify directory-specific default parameters using a
+`.cylindra-defaults.toml` file to make the "Scan" button more clever.
+
+You can make a template toml file by running
+
+```bash
+cylindra prep-defaults
+```
+
+and edit the generated file. When you click the "Scan" button in the open-image dialog,
+the parameters in the toml file located in the same directory or any parent directories
+of the selected tomogram will be loaded as the default parameters.

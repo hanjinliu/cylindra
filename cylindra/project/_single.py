@@ -56,12 +56,14 @@ class CylindraProject(BaseProject):
     """Path to the reference image."""
     invert: bool = False
     """Whether to invert the image when loaded."""
+    invert_reference: bool = False
+    """Whether to invert the reference image when loaded from `image_reference`."""
     multiscales: list[int]
     """List of bin factors for multiscale tomogram."""
     molecules_info: list[MoleculesInfo] = Field(default_factory=list)
     landscape_info: list[LandscapeInfo] = Field(default_factory=list)
     interaction_info: list[InteractionInfo] = Field(default_factory=list)
-    missing_wedge: MissingWedge = MissingWedge(params={}, kind="none")
+    missing_wedge: MissingWedge = Field(default_factory=MissingWedge.default)
     """Missing wedge model, used for masking subtomograms."""
     project_path: Path | None = None
     project_description: str = ""
@@ -83,6 +85,7 @@ class CylindraProject(BaseProject):
         missing_wedge: Any | None = None,
         invert: bool = False,
         project_path: Path | None = None,
+        invert_reference: bool = False,
     ):
         """Create a new project."""
         _versions = get_versions()
@@ -103,6 +106,7 @@ class CylindraProject(BaseProject):
             multiscales=list(multiscales),
             missing_wedge=MissingWedge.parse(missing_wedge),
             invert=invert,
+            invert_reference=invert_reference,
             project_path=project_path,
         )
 
@@ -190,6 +194,7 @@ class CylindraProject(BaseProject):
             scale=tomo.scale,
             image_reference=img_ref_path,
             invert=tomo.is_inverted,
+            invert_reference=gui._reserved_layers.ref_inverted,
             multiscales=[x[0] for x in tomo.multiscaled],
             molecules_info=mole_infos,
             landscape_info=landscape_infos,
@@ -281,13 +286,12 @@ class CylindraProject(BaseProject):
             and self.image_reference
             and Path(self.image_reference).exists()
         ):
-            path_ref = Path(self.image_reference)
+            path_ref = Path(self.image_reference)  # user-supplied reference image
         else:
             path_ref = None
         with self.open_project() as project_dir:
-            tomogram = self.load_tomogram(
-                project_dir, compute=read_image and path_ref is None
-            )
+            _need_compute = read_image and path_ref is None
+            tomogram = self.load_tomogram(project_dir, compute=_need_compute)
             macro_expr = extract(self._script_py_path(project_dir).read_text()).args
             cfg_path = project_dir / "default_spline_config.json"
             if cfg_path.exists() and update_config:
@@ -316,6 +320,12 @@ class CylindraProject(BaseProject):
                     )
                     yield cb
                     cb.await_call()
+                    # filter and invert are needed to be called on the newly opened
+                    # user-supplied reference image
+                    if filter is not None:
+                        yield from gui.filter_reference_image.arun(filter)
+                    if self.invert_reference:
+                        yield from gui.invert_image.arun(reference_only=True)
 
             @thread_worker.callback
             def _update_widget():

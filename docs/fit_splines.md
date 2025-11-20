@@ -7,7 +7,7 @@ All the analysis begin with the spline fitting.
     [GitHub repository](https://github.com/hanjinliu/cylindra/blob/main/tests/13pf_MT.tif), which have been used for testing the programs. You can download it to try
     following instructions.
 
-    *New in v1.0.2*: You can now fetch the demo data directly from `Plugins > Fetch > 13 PF microtubule`.
+    :sparkles: New in v1.0.2: You can now fetch the demo data directly from `Plugins > Fetch > 13 PF microtubule`.
 
 ## Draw Splines
 

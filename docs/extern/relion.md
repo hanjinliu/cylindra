@@ -4,7 +4,7 @@
 
 ## Utilities for Working with RELION
 
-### Opening RELION Jobs
+### Open RELION Jobs
 
 :material-arrow-right-thin-circle-outline: API: [`cylindra_builtins.relion.open_relion_job`][cylindra_builtins.relion.open_relion_job]
 

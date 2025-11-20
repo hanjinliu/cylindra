@@ -7,8 +7,7 @@ from cylindra.cli._base import ParserBase
 
 
 class ParserNew(ParserBase):
-    """
-    cylindra new [bold green]output[/bold green] [bold cyan]options[/bold cyan]
+    """cylindra new [bold green]output[/bold green] [bold cyan]options[/bold cyan]
 
     [u bold green]output[/u bold green]
         Path of the project file. It can be a directory or a zip/tar file.
@@ -45,6 +44,7 @@ class ParserNew(ParserBase):
         self.add_argument("--molecules", "-m", nargs="*", default=[])
         self.add_argument("--invert", action="store_true")
         self.add_argument("--like", type=str, default=None)
+        self.add_argument("--follow-defaults", "--follow", type=str, default=None)
 
     def run_action(
         self,
@@ -56,9 +56,10 @@ class ParserNew(ParserBase):
         molecules: list[str] = [],
         invert: bool = False,
         like: str | None = None,
+        follow_defaults: str | None = None,
         **kwargs,
     ):
-        from cylindra.project import CylindraProject
+        from cylindra.project import CylindraProject, TomogramDefaults
 
         if like:
             prj = CylindraProject.from_file(like)
@@ -72,6 +73,17 @@ class ParserNew(ParserBase):
                 missing_wedge = prj.missing_wedge.as_param()
         if image is None:
             raise ValueError("Image file is required.")
+        if follow_defaults:
+            defaults = TomogramDefaults.from_dir(image)
+            if defaults is None:
+                print("No .cylindra-defaults.toml found.")
+            else:
+                if scale is None:
+                    scale = defaults.scale
+                if multiscales is None:
+                    multiscales = defaults.bin_size
+                if missing_wedge is None:
+                    missing_wedge = defaults.missing_wedge.as_param()
         path = Path(output)
         prj = CylindraProject.new(
             image,
