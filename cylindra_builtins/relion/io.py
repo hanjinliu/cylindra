@@ -374,10 +374,7 @@ def open_relion_job(
                 f"tomogram.star file {tomogram_star_path} does not exist. Make sure "
                 "the input job has an tomogram output."
             )
-        col = (
-            REC_TOMO_DENOISED_PATH if jobtype == "relion.denoisetomo" else REC_TOMO_PATH
-        )
-        tomostar = TomogramStar(tomogram_star_path, col)
+        tomostar = TomogramStar(tomogram_star_path)
         paths = list(tomostar.iter_tomo_paths(rln_project_path))
         scales = tomostar.scale_nm
         tilt_models = list(tomostar.iter_tilt_models(rln_project_path))
@@ -431,25 +428,27 @@ def _get_job_type(job_dir: Path) -> str:
 
 
 class TomogramStar:
-    def __init__(self, path: Path, col: str = REC_TOMO_PATH):
+    """Object to parse tomograms.star file."""
+
+    def __init__(self, path: Path):
         self.df = starfile.read(path)
         assert isinstance(self.df, pd.DataFrame)
-        self._col = col
 
     @property
     def tomo_names(self) -> pd.Series:
         return self.df[TOMO_NAME]
 
     def iter_tomo_paths(self, project_dir: Path) -> Iterator[Path]:
-        if self._col in self.df:
-            rel_paths = self.df[self._col]
-        elif REC_TOMO_HALF1_PATH in self.df:
-            rel_paths = self.df[REC_TOMO_HALF1_PATH]
+        candidates = [REC_TOMO_DENOISED_PATH, REC_TOMO_PATH, REC_TOMO_HALF1_PATH]
+        for col in candidates:
+            if col in self.df:
+                rel_paths = self.df[col]
+                break
         else:
             raise ValueError(
                 "No tomogram paths found in the tomograms.star file. Expected either "
-                f"{self._col!r} or 'rlnTomoReconstructedTomogramHalf1' "
-                "column."
+                f"{REC_TOMO_DENOISED_PATH!r}, {REC_TOMO_PATH!r} or "
+                f"{REC_TOMO_HALF1_PATH!r} column."
             )
         for p in rel_paths:
             yield project_dir / p
