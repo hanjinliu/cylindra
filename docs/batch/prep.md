@@ -75,6 +75,16 @@ data/
       └─ script.py
 ```
 
+!!! tip "List of patterns"
+
+    You can pass multiple patterns separated by semicolons (`;`):
+
+    ``` bash
+    cylindra prep "project_001/TS_*/*_rec.mrc;project_002/TS_*/*_rec.mrc" myprojects
+    ```
+
+The created batch project can be opened by the following command:
+
 ```bash
 cylindra open myprojects
 # or

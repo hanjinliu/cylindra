@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import itertools
 from glob import glob
 from pathlib import Path
 
@@ -10,7 +11,8 @@ class ParserPrep(ParserBase):
     """cylindra prep [bold green]pattern[/bold green] [bold green]output[/bold green]
 
     [u bold green]pattern[/u bold green]
-        Path pattern to match tomograms or projects.
+        Path pattern to match tomograms or projects. Multiple patterns can be separated
+        by semicolons (;).
 
     [u bold green]output[/u bold green]
         Output directory to save the batch project and the individual projects.
@@ -42,7 +44,7 @@ class ParserPrep(ParserBase):
             output_dir.mkdir()
 
         children: list[ChildProjectInfo] = []
-        for each_path in glob(pattern):
+        for each_path in itertools(glob(p) for p in pattern.split(";")):
             each_path = Path(each_path).expanduser().resolve()
             if each_path.suffix in ["", ".json", ".tar", ".zip"]:
                 # incoming path is a project.

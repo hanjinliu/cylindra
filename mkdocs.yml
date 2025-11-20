@@ -43,7 +43,6 @@ nav:
     - inspect_results.md
     - project_io.md
     - workflows.md
-    - plugins.md
     - Spline:
       - Spline: spline/index.md
       - spline/clip.md
@@ -77,6 +76,7 @@ nav:
     - process_images.md
     - simulate.md
     - cli.md
+    - plugins.md
     - Case Studies:
       - Case Studies: case_studies/index.md
       - case_studies/rma.md

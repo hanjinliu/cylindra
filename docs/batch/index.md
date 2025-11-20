@@ -5,7 +5,7 @@
 Methods are in the `ui.batch` namespace. The "Batch Analysis" widget is in the menu
 `Analysis > Open batch analyzer` or ++ctrl+k++ &rarr; ++b++.
 
-![Batch constructor](../images/batch_constructor.png)
+![Batch constructor](../images/batch_constructor.png){ loading=lazy, width=300px }
 
 - [Prepare batch projects](prep.md)
 - [Construct batch loaders](construct.md)
