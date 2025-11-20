@@ -6,7 +6,9 @@ import numpy as np
 import pandas as pd
 import polars as pl
 from acryo import Molecules
+from magicclass import impl_preview
 from magicclass.types import Optional, Path
+from magicclass.widgets import ConsoleTextEdit
 
 try:
     import starfile
@@ -23,6 +25,7 @@ except ImportError:
 
 
 from cylindra.const import FileFilter, nm
+from cylindra.core import ACTIVE_WIDGETS
 from cylindra.plugin import register_function
 from cylindra.widget_utils import add_molecules
 from cylindra.widgets import CylindraMainWidget
@@ -357,6 +360,47 @@ def open_relion_job(
     bin_size : list[int], default [1]
         The multiscale binning size for the tomograms.
     """
+    paths, scales, moles, tilt_models = _parse_relion_job(path)
+
+    ui.batch._new_projects_from_table(
+        paths,
+        save_root=project_root,
+        scale=scales,
+        invert=[invert] * len(paths),
+        molecules=moles,
+        bin_size=[bin_size] * len(paths),
+        tilt_model=tilt_models,
+    )
+
+
+@impl_preview(open_relion_job)
+def _preview_open_relion_job(
+    ui: CylindraMainWidget,
+    path: Path,
+    project_root: Path | None = None,
+    bin_size: list[int] = [1],
+):
+    paths, scales, _, _ = _parse_relion_job(path, project_root)
+    lines: list[str] = []
+    for i, path, scale in zip(range(len(paths)), paths, scales, strict=False):
+        _num = f"{i}: "
+        _indent = " " * len(_num)
+        lines.append(f"{_num}{path.name}")
+        lines.append(f"{_indent}at: {path.as_posix()}")
+        binned_scales = ", ".join(f"{scale * b:.4f}" for b in bin_size)
+        lines.append(
+            f"{_indent}scale: {scale:.4f} nm/px -> {binned_scales} nm/px (binned)"
+        )
+
+    widget = ConsoleTextEdit(value="\n".join(lines))
+    widget.native.setParent(ui.native, widget.native.windowFlags())
+    widget.read_only = True
+    widget.show()
+    widget.native.setWindowTitle("Incoming tomograms")
+    ACTIVE_WIDGETS.add(widget)
+
+
+def _parse_relion_job(path, project_root):
     path = Path(path)
     if path.name != "job.star" or not path.is_file() or not path.exists():
         raise ValueError(f"Path must be an existing RELION job.star file, got {path}")
@@ -403,16 +447,7 @@ def open_relion_job(
         )
     else:
         raise ValueError(f"Job {job_dir_path.name} is not a supported RELION job.")
-
-    ui.batch._new_projects_from_table(
-        paths,
-        save_root=project_root,
-        scale=scales,
-        invert=[invert] * len(paths),
-        molecules=moles,
-        bin_size=[bin_size] * len(paths),
-        tilt_model=tilt_models,
-    )
+    return paths, scales, moles, tilt_models
 
 
 def _relion_project_path(path: Path) -> Path:
