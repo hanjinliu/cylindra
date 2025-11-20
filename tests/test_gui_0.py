@@ -693,21 +693,6 @@ def test_sub_widgets(ui: CylindraMainWidget, tmpdir):
         ui.spectra_inspector.peak_viewer.show_what = GLOBAL_CFT
         ui.spectra_inspector.parameters.export(Path(tmpdir) / "params.csv")
 
-        # file iterator
-        ui.FileMenu.open_file_iterator()
-        ui._file_iterator.set_pattern(f"{TEST_DIR.as_posix()}/*.tif")
-        ui._file_iterator.last_file()
-        ui._file_iterator.first_file()
-        ui._file_iterator.next_file()
-        ui._file_iterator.prev_file()
-        ui._file_iterator.open_image(ui._file_iterator.path)
-        ui._file_iterator.preview_all().close()
-        ui._file_iterator.set_pattern(f"{TEST_DIR.as_posix()}/*/project.json")
-        ui._file_iterator.view_local_props()
-        ui._file_iterator.send_to_batch_analyzer()
-        ui._file_iterator.load_project(ui._file_iterator.path)
-        ui._file_iterator.load_project_for_reanalysis(ui._file_iterator.path)
-
 
 @pytest.mark.parametrize("bin_size", [1, 2])
 def test_sta(ui: CylindraMainWidget, bin_size: int, tmpdir):

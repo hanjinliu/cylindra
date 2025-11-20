@@ -186,12 +186,6 @@ class FileMenu(ChildWidget):
 
     @set_design(text=capitalize)
     @do_not_record
-    def open_file_iterator(self):
-        """Open The file iterator widget for efficient file IO."""
-        return self._get_main()._file_iterator.show()
-
-    @set_design(text=capitalize)
-    @do_not_record
     def open_image_processor(self):
         """Open the image processor widget."""
         return self._get_main().image_processor.show()
