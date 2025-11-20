@@ -468,10 +468,11 @@ class TomogramStar:
             _range = tilt_star[TILT_ANGLE].min(), tilt_star[TILT_ANGLE].max()
             yield {"kind": "y", "range": _range}
 
-    def iter_tomo_shapes(self) -> Iterator[tuple[int, int, int]]:
-        nzs = self.df["rlnTomoSizeZ"]
-        nys = self.df["rlnTomoSizeY"]
-        nxs = self.df["rlnTomoSizeX"]
+    def iter_tomo_shapes(self) -> Iterator[tuple[float, float, float]]:
+        bin_size = self.df[BINNING]
+        nzs = self.df["rlnTomoSizeZ"] / bin_size
+        nys = self.df["rlnTomoSizeY"] / bin_size
+        nxs = self.df["rlnTomoSizeX"] / bin_size
         yield from zip(nzs, nys, nxs, strict=False)
 
 
