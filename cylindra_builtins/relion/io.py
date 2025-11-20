@@ -360,7 +360,7 @@ def open_relion_job(
     bin_size : list[int], default [1]
         The multiscale binning size for the tomograms.
     """
-    paths, scales, moles, tilt_models = _parse_relion_job(path)
+    paths, scales, moles, tilt_models = _parse_relion_job(path, project_root)
 
     ui.batch._new_projects_from_table(
         paths,
