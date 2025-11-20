@@ -55,30 +55,36 @@ TOML_TEMPLATE = """# Created by cylindra=v$(version)
 # settings will be read when opening tomograms. All the entries are optional; you can
 # delete the ones you don't need.
 
-# if given, override the image pixel size (nm/pixel)
-scale = 0.54
+### if given, override the image pixel size (nm/pixel)
 
-# whether to invert the tomogram contrast to make dark background
+# scale = 0.54
+
+### whether to invert the tomogram contrast to make dark background
+
 invert = true
 
-# if given, path to the reference image file (such as binned tomogram or denoised
-# tomomgram). Can use format string to include tomogram file stem, and wildcards to
-# match files. For example, for tomogram "TOMO.mrc", "{}_*.mrc" will match files such as
-# "TOMO_denoised.mrc" or "TOMO_bin4.mrc".
-image_reference = "{}_*.mrc"
+### if given, path to the reference image file (such as binned tomogram or denoised
+### tomomgram). Can use format string to include tomogram file stem, and wildcards to
+### match files. For example, for tomogram "TOMO.mrc", "{}_*.mrc" will match files such
+### as "TOMO_denoised.mrc" or "TOMO_bin4.mrc".
 
-# whether to invert the reference image contrast to make dark background
-invert_reference = true
+# image_reference = "{}_*.mrc"
 
-# bin sizes to make multiscale tomograms.
+### whether to invert the reference image contrast to make dark background
+
+# invert_reference = true
+
+### bin sizes to make multiscale tomograms.
+
 bin_size = [2, 4]
 
-# filter to apply to the reference image or binned tomograms.
-# Options are: "Lowpass", "Gaussian", "DoG" or "LoG".
+### filter to apply to the reference image or binned tomograms.
+### Options are: "Lowpass", "Gaussian", "DoG" or "LoG".
+
 filter = "Lowpass"
 
-# missing wedge specification
-[missing_wedge]
-kind = "y"
-range = [-57, 57]
+### missing wedge specification
+# [missing_wedge]
+# kind = "y"
+# range = [-57, 57]
 """

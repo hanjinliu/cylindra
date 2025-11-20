@@ -12,7 +12,7 @@ class ParserPrep(ParserBase):
     [u bold green]pattern[/u bold green]
         Path pattern to match tomograms or projects.
 
-    [u bold green]outpu[/u bold green]
+    [u bold green]output[/u bold green]
         Output directory to save the batch project and the individual projects.
     """
 

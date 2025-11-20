@@ -66,9 +66,10 @@ nav:
       - alignment/rma.md
     - Working with Many Projects:
       - Working with Many Projects: batch/index.md
-      - batch/collect_projects.md
+      - batch/prep.md
       - batch/construct.md
       - batch/average.md
+      - batch/post_processing.md
     - Working with External Softwares:
       - Working with External Softwares: extern/index.md
       - extern/imod.md
@@ -139,6 +140,9 @@ markdown_extensions:
 extra_javascript:
   - https://polyfill.io/v3/polyfill.min.js?features=es6
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+extra_css:
+  - extra_style.css
 
 watch:
   - cylindra

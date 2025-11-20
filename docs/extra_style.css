@@ -1,0 +1,14 @@
+h1, .md-typeset h1 {
+    color: var(--md-accent-fg-color);
+    font-weight: 700;
+}
+
+h2, .md-typeset h2 {
+    color: var(--md-accent-fg-color);
+    font-weight: 600;
+}
+
+h3, .md-typeset h3 {
+    color: var(--md-accent-fg-color);
+    font-weight: 600;
+}

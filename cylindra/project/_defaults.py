@@ -36,7 +36,7 @@ class TomogramDefaults(BaseModel):
         if not toml_path.exists():
             return None
         toml = tomllib.loads(toml_path.read_text())
-        if mw_dict := toml.pop("missing_wedge"):
+        if mw_dict := toml.pop("missing_wedge", None):
             mw = MissingWedge.parse(mw_dict)
             toml["missing_wedge"] = mw
         return cls.model_validate(toml)
