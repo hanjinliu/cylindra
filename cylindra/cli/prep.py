@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import itertools
 from glob import glob
 from pathlib import Path
 
@@ -44,7 +43,7 @@ class ParserPrep(ParserBase):
             output_dir.mkdir()
 
         children: list[ChildProjectInfo] = []
-        for each_path in itertools(glob(p) for p in pattern.split(";")):
+        for each_path in sum((list(glob(p)) for p in pattern.split(";")), start=[]):
             each_path = Path(each_path).expanduser().resolve()
             if each_path.suffix in ["", ".json", ".tar", ".zip"]:
                 # incoming path is a project.

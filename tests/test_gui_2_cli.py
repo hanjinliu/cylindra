@@ -64,6 +64,7 @@ def test_new_and_open(run_cli, tmpdir):
         "--image", TEST_DIR / "14pf_MT.tif",
         "--follow-defaults",
     )  # fmt: skip
+    run_cli("cylindra", "open", TEST_DIR / "14pf_MT.tif")
 
 
 def test_config(run_cli, tmpdir):
