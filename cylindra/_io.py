@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from typing import Any
+
 import impy as ip
 
 
-def lazy_imread(path, chunks) -> ip.LazyImgArray:
+def lazy_imread(path, chunks: Any = "auto") -> ip.LazyImgArray:
     return ip.lazy.imread(path, chunks=chunks)
 
 
