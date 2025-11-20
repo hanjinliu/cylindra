@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any, Generator, Iterable
 import polars as pl
 from pydantic import ConfigDict, Field
 
-from cylindra import _config, _io
+from cylindra import _config
 from cylindra.const import ImageFilter, cast_dataframe, get_versions
 from cylindra.const import PropertyNames as H
 from cylindra.project._base import BaseProject, MissingWedge, PathLike, resolve_path
@@ -88,6 +88,8 @@ class CylindraProject(BaseProject):
         invert_reference: bool = False,
     ):
         """Create a new project."""
+        from cylindra import _io
+
         _versions = get_versions()
         if image is None:
             raise ValueError("image must not be None.")

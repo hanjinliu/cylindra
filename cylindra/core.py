@@ -132,6 +132,11 @@ def start(
     def _focus_down(v: napari.Viewer):
         v.dims.set_current_step(0, v.dims.current_step[0] + 4)
 
+    @viewer.bind_key("D", overwrite=True)
+    def _draw(v: napari.Viewer):
+        v.layers.selection = {ui._reserved_layers.work}
+        ui._reserved_layers.work.mode = "add"
+
     ui.show(run=run)
     if add_main_widget:
         try:  # Just in case

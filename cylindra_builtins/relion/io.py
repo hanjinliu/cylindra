@@ -360,7 +360,9 @@ def open_relion_job(
     bin_size : list[int], default [1]
         The multiscale binning size for the tomograms.
     """
-    paths, scales, moles, tilt_models = _parse_relion_job(path, project_root)
+    project_root, paths, scales, moles, tilt_models = _parse_relion_job(
+        path, project_root
+    )
 
     ui.batch._new_projects_from_table(
         paths,
@@ -380,7 +382,7 @@ def _preview_open_relion_job(
     project_root: Path | None = None,
     bin_size: list[int] = [1],
 ):
-    paths, scales, _, _ = _parse_relion_job(path, project_root)
+    _, paths, scales, _, _ = _parse_relion_job(path, project_root)
     lines: list[str] = []
     for i, path, scale in zip(range(len(paths)), paths, scales, strict=False):
         _num = f"{i}: "
@@ -447,7 +449,7 @@ def _parse_relion_job(path, project_root):
         )
     else:
         raise ValueError(f"Job {job_dir_path.name} is not a supported RELION job.")
-    return paths, scales, moles, tilt_models
+    return project_root, paths, scales, moles, tilt_models
 
 
 def _relion_project_path(path: Path) -> Path:
