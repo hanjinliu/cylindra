@@ -1,7 +1,6 @@
 from fnmatch import fnmatch
 from typing import TYPE_CHECKING, Iterator
 
-import impy as ip
 import polars as pl
 from acryo import BatchLoader, Molecules, SubtomogramLoader
 from magicclass import (
@@ -24,6 +23,7 @@ from magicgui.types import Separator
 from magicgui.widgets import ComboBox, Container, Widget
 
 from cylindra._config import get_config
+from cylindra._io import lazy_imread
 from cylindra.const import FileFilter
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.core import ACTIVE_WIDGETS
@@ -219,7 +219,7 @@ class Project(MagicTemplate):
                 for mole in self.molecules
                 if mole.check
             ]
-        img = ip.lazy.imread(project.image, chunks=get_config().dask_chunk).value
+        img = lazy_imread(project.image, chunks=get_config().dask_chunk).value
         if project.invert:
             img = -img
         return SubtomogramLoader(

@@ -9,6 +9,7 @@ import polars as pl
 from acryo import BatchLoader, Molecules
 
 from cylindra._config import get_config
+from cylindra._io import lazy_imread
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import PropertyNames as H
 from cylindra.project import CylindraProject
@@ -83,7 +84,7 @@ class PathInfo:
 
     def lazy_imread(self) -> ip.LazyImgArray:
         """Get the lazy image array."""
-        img = ip.lazy.imread(self.image, chunks=get_config().dask_chunk)
+        img = lazy_imread(self.image, chunks=get_config().dask_chunk)
         if self.need_invert:
             img = -img
         return img.as_float()

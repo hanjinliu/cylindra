@@ -2,7 +2,6 @@ import warnings
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Annotated, Any, Iterator
 
-import impy as ip
 import numpy as np
 import pandas as pd
 import polars as pl
@@ -469,6 +468,12 @@ class TomogramStar:
             _range = tilt_star[TILT_ANGLE].min(), tilt_star[TILT_ANGLE].max()
             yield {"kind": "y", "range": _range}
 
+    def iter_tomo_shapes(self) -> Iterator[tuple[int, int, int]]:
+        nzs = self.df["rlnTomoSizeZ"]
+        nys = self.df["rlnTomoSizeY"]
+        nxs = self.df["rlnTomoSizeX"]
+        yield from zip(nzs, nys, nxs, strict=False)
+
 
 def _parse_optimisation_star(opt_star_path: Path, rln_project_path: Path):
     paths = []
@@ -507,6 +512,7 @@ def _iter_from_optimisation_star(
     tomo_names = tomostar.tomo_names
     scale_nm = tomostar.scale_nm
     tomo_paths = list(tomostar.iter_tomo_paths(rln_project_path))
+    tomo_shapes = list(tomostar.iter_tomo_shapes())
     tilt_models = list(tomostar.iter_tilt_models(rln_project_path))
     particles_df = starfile.read(rln_project_path / particles_path)
 
@@ -514,9 +520,9 @@ def _iter_from_optimisation_star(
         particles_df = particles_df["particles"]
     assert isinstance(particles_df, pd.DataFrame)
     name_to_center_map = {
-        tomo_name: _shape_to_center_zyx(ip.lazy.imread(tomo_path).shape, sc_nm)
-        for tomo_name, tomo_path, sc_nm in zip(
-            tomo_names, tomo_paths, scale_nm, strict=False
+        tomo_name: _shape_to_center_zyx(tomo_shape, sc_nm)
+        for tomo_name, tomo_shape, sc_nm in zip(
+            tomo_names, tomo_shapes, scale_nm, strict=False
         )
     }
     name_to_path_map = dict(zip(tomo_names, tomo_paths, strict=False))

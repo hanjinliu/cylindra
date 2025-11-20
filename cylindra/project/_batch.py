@@ -6,6 +6,7 @@ import macrokit as mk
 from pydantic import BaseModel, Field
 
 from cylindra._config import get_config
+from cylindra._io import lazy_imread
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import get_versions, nm
 from cylindra.project._base import BaseProject, PathLike, resolve_path
@@ -185,7 +186,6 @@ class CylindraBatchProject(BaseProject):
         self.to_json(project_dir / "project.json")
 
     def _to_gui(self, gui: "CylindraBatchWidget") -> None:
-        import impy as ip
         from acryo import BatchLoader, Molecules
 
         gui.constructor.clear_projects()
@@ -215,7 +215,7 @@ class CylindraBatchProject(BaseProject):
             mole_dict = dict(Molecules.from_file(lmodel.molecule).groupby(Mole.image))
             for imginfo in lmodel.images:
                 loader.add_tomogram(
-                    image=ip.lazy.imread(imginfo.image, chunks=get_config().dask_chunk)
+                    image=lazy_imread(imginfo.image, chunks=get_config().dask_chunk)
                     .set_scale(zyx=imginfo.scale)
                     .value,
                     molecules=mole_dict[imginfo.id],

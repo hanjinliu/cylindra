@@ -1,6 +1,5 @@
 from pathlib import Path
 
-import impy as ip
 from acryo.tilt import NoWedge, SingleAxis
 from magicclass import (
     MagicTemplate,
@@ -15,6 +14,7 @@ from magicgui.widgets import TextEdit
 from qtpy import QtGui
 from qtpy.QtCore import Qt
 
+from cylindra import _io
 from cylindra._previews import view_image
 from cylindra.components import CylTomogram
 from cylindra.const import FileFilter, ImageFilter
@@ -189,7 +189,7 @@ class ImageLoader(MagicTemplate):
         if not path.exists() or not path.is_file():
             return
         # try to read header
-        header = ip.read_header(path)
+        header = _io.read_header(path)
         scale = header.scale["x"]
         self.scale.scale_value = f"{scale:.4f}"
         bin_size_new = None

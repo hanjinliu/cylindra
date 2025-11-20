@@ -20,7 +20,7 @@ from magicgui.widgets import Widget
 from numpy.typing import NDArray
 from qtpy import QtWidgets as QtW
 
-from cylindra import _config
+from cylindra import _config, _io
 from cylindra.components import BaseComponent, CylTomogram
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import nm
@@ -520,7 +520,7 @@ def prep_tomogram(
     else:
         read_path = Path(path)
     # check scale and bin size
-    scale_dict = ip.read_header(read_path).scale
+    scale_dict = _io.read_header(read_path).scale
     if scale_dict is None or len(scale_dict) == 0:
         orig_scale = None
     else:
