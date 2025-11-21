@@ -461,6 +461,13 @@ class MoleculesMenu(ChildWidget):
     sep1 = Separator
     rename_molecules = abstractapi()
     delete_molecules = abstractapi()
+
+    @do_not_record
+    def to_draw_layer(self, layer: MoleculesLayer):
+        """Duplicate the molecule positions to the drawing layer."""
+        main = self._get_main()
+        main._reserved_layers.work.data = layer.molecules.pos
+
     sep2 = Separator
 
     @magicmenu(name="From/To spline")

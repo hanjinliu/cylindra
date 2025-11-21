@@ -193,7 +193,37 @@ def _work_layer() -> Points:
         blending="translucent",
     )
     work.mode = "add"
+    work.bind_key("Ctrl-C")(_work_layer_copy)
+    work.bind_key("Ctrl-X")(_work_layer_cut)
+    work.bind_key("Ctrl-V")(_work_layer_paste)
     return work
+
+
+_CLIPBOARD_KEY = "cylindra.clipboard"
+
+
+def _work_layer_copy(layer: Points):
+    """Copy the points to the internal clipboard."""
+    if sel := sorted(layer.selected_data):
+        layer.metadata[_CLIPBOARD_KEY] = layer.data[sel].copy()
+
+
+def _work_layer_cut(layer: Points):
+    """Cut the points to the internal clipboard."""
+    if sel := sorted(layer.selected_data):
+        layer.metadata[_CLIPBOARD_KEY] = layer.data[sel].copy()
+        layer.data = np.delete(layer.data, sel, axis=0)
+
+
+def _work_layer_paste(layer: Points):
+    """Paste the points from the internal clipboard."""
+    if _CLIPBOARD_KEY in layer.metadata:
+        clip_data = layer.metadata[_CLIPBOARD_KEY]
+        if not isinstance(clip_data, np.ndarray):
+            return
+        data_old = layer.data
+        data_new = layer.data = np.vstack([data_old, clip_data])
+        layer.selected_data = list(range(data_old.shape[0], data_new.shape[0]))
 
 
 def _calc_contrast_limits(arr: np.ndarray) -> tuple[float, float]:

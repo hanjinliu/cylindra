@@ -191,6 +191,11 @@ def test_io_with_different_data(ui: CylindraMainWidget, tmpdir):
 
 
 def test_picking_splines(ui: CylindraMainWidget, tmpdir):
+    from cylindra.widgets._reserved_layers import (
+        _work_layer_copy,
+        _work_layer_cut,
+        _work_layer_paste,
+    )
     path = TEST_DIR / "13pf_MT.tif"
     ui.open_image(
         path=path, scale=1.052, tilt_range=(-60, 60), bin_size=[1, 2], cache_image=True
@@ -202,6 +207,21 @@ def test_picking_splines(ui: CylindraMainWidget, tmpdir):
     assert len(ui.tomogram.splines) == 1
     ui.save_project(Path(tmpdir) / "temp.tar")
     ui.load_project(Path(tmpdir) / "temp.tar")
+    ui._reserved_layers.work.selected_data = [1]
+    assert ui._reserved_layers.work.data.shape[0] == 2
+    _work_layer_copy(ui._reserved_layers.work)
+    assert ui._reserved_layers.work.data.shape[0] == 2
+    _work_layer_cut(ui._reserved_layers.work)
+    assert ui._reserved_layers.work.data.shape[0] == 1
+    _work_layer_paste(ui._reserved_layers.work)
+    assert ui._reserved_layers.work.data.shape[0] == 2
+
+    mlayer = ui.add_molecules(
+        Molecules([[0, 0, 0], [1, 2, 2], [3, 4, 5]]),
+        name="mole"
+    )
+    ui.MoleculesMenu.to_draw_layer(mlayer)
+    assert ui._reserved_layers.work.data.shape[0] == 3
 
 
 def test_spline_deletion(ui: CylindraMainWidget):
