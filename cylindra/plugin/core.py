@@ -35,6 +35,9 @@ def register_function(func=None, *, record=True, name=None):
     The registered function will be added to the plugin menu when the module is
     installed as a plugin.
 
+    `magicclass` decorators, such as `setup_function_gui` and `impl_preview`,
+    are compatible with this function.
+
     Parameters
     ----------
     func : callable, optional
