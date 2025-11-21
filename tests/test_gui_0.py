@@ -205,8 +205,9 @@ def test_picking_splines(ui: CylindraMainWidget, tmpdir):
     ui.Toolbar.pick_next()
     ui.register_path()
     assert len(ui.tomogram.splines) == 1
-    ui.save_project(Path(tmpdir) / "temp.tar")
-    ui.load_project(Path(tmpdir) / "temp.tar")
+
+    ui._reserved_layers.work.add(coords_13pf[0])
+    ui._reserved_layers.work.add(coords_13pf[1])
     ui._reserved_layers.work.selected_data = [1]
     assert ui._reserved_layers.work.data.shape[0] == 2
     _work_layer_copy(ui._reserved_layers.work)
@@ -222,6 +223,8 @@ def test_picking_splines(ui: CylindraMainWidget, tmpdir):
     )
     ui.MoleculesMenu.to_draw_layer(mlayer)
     assert ui._reserved_layers.work.data.shape[0] == 3
+    ui.save_project(Path(tmpdir) / "temp.tar")
+    ui.load_project(Path(tmpdir) / "temp.tar")
 
 
 def test_spline_deletion(ui: CylindraMainWidget):
