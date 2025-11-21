@@ -1818,7 +1818,7 @@ def test_workflows_custom(ui: CylindraMainWidget, tmpdir):
         ui.workflow_edit.edit()
         ui.workflow_edit.save()
         ui.run_workflow(name)
-        ui.workflow_edit.run(name)
+        ui.workflow_edit.run()
         ui.OthersMenu.Workflows.import_workflow(
             Path(tmpdir) / f"{name}.py", name="imported"
         )
