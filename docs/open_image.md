@@ -62,6 +62,12 @@ filtered image for visualization.
     If tomograms are reconstructed using IMOD or RELION, the built-in plugins can
     directly read it. See [here](extern/index.md) for more details.
 
+??? info "If you have multiple tomograms to analyze"
+
+    If you have multiple tomograms to analyze, you can create a batch project and use
+    the batch analyzer to manage them. See [Prepare Batch Projects](batch/prep.md) for
+    more details.
+
 !!! danger "Important: Use dark background images"
 
     Most of the methods require dark-background images, while most of the raw images of
@@ -89,9 +95,9 @@ filtered image for visualization.
 7. If the tomogram is stored in HDD, check "Cache image on SSD". Tomogram will be copied
    to the cache directory in SSD and automatically deleted at exit. This option will
    improve the performance a lot during your analysis.
-8.  You can preview the selected image by clicking "Preview". A preview window will be
+8. You can preview the selected image by clicking "Preview". A preview window will be
    shown, which only loads separate image slices to accelerate the image loading.
-9.  Click "Open" to calculate the binning/filtering and show the reference image.
+9. Click "Open" to calculate the binning/filtering and show the reference image.
 
 ![](images/viewer_00_open_image.png){ loading=lazy }
 

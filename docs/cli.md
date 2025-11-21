@@ -8,22 +8,24 @@ cylindra -h
 ```
 
 ``` title="Output:"
-╭────────────────────────────────────────────────────╮
-│ cylindra options commands arguments                │
-╰────────────────────────────────────────────────────╯
+╭────────────────────────────────────────────────────────────────────────────────╮
+│ cylindra options commands arguments                                            │
+╰────────────────────────────────────────────────────────────────────────────────╯
 
-options
-    -v, --version   Show version.
-    -h, --help      Show this message and exit.
+    options
+         -v, --version   Show version.
+         -h, --help      Show this message and exit.
 
-commands
-    open     Open a project or an image.
-    preview  View a project, image etc.
-    find     Find cylindra projects.
-    run      Run a script.
-    config   Edit/view the configuration.
-    average  Average images.
-    new      Create a new project.
-    add      Add splines by coordinates.
-
+    commands
+        open          Open a project or an image.
+        preview       View a project, image etc.
+        plugin        List or manage plugins.
+        find          Find cylindra projects.
+        run           Run a script.
+        config        Edit/view the configuration.
+        average       Average images.
+        new           Create a new project.
+        add           Add splines by coordinates.
+        workflow      Show workflows.
+        prep-defaults Create or validate .cylindra-defaults.toml file.
 ```
