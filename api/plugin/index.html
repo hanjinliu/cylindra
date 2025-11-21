@@ -3101,6 +3101,8 @@
         <p>Register a function as a plugin function.</p>
 <p>The registered function will be added to the plugin menu when the module is
 installed as a plugin.</p>
+<p><code>magicclass</code> decorators, such as <code>setup_function_gui</code> and <code>impl_preview</code>,
+are compatible with this function.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -3195,11 +3197,17 @@ used.</p>
 <span class="normal">53</span>
 <span class="normal">54</span>
 <span class="normal">55</span>
-<span class="normal">56</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">register_function</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="normal">56</span>
+<span class="normal">57</span>
+<span class="normal">58</span>
+<span class="normal">59</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">register_function</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Register a function as a plugin function.</span>
 
 <span class="sd">    The registered function will be added to the plugin menu when the module is</span>
 <span class="sd">    installed as a plugin.</span>
+
+<span class="sd">    `magicclass` decorators, such as `setup_function_gui` and `impl_preview`,</span>
+<span class="sd">    are compatible with this function.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
