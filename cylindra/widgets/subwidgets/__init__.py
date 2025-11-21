@@ -24,6 +24,7 @@ from cylindra.widgets.subwidgets.spline_clipper import SplineClipper
 from cylindra.widgets.subwidgets.spline_control import SplineControl
 from cylindra.widgets.subwidgets.spline_fitter import SplineFitter
 from cylindra.widgets.subwidgets.toolbar import CylindraToolbar
+from cylindra.widgets.subwidgets.workflow_edit import WorkflowEdit
 
 __all__ = [
     "Volume",
@@ -49,4 +50,5 @@ __all__ = [
     "ImageLoader",
     "GeneralInfo",
     "ConfigEdit",
+    "WorkflowEdit",
 ]

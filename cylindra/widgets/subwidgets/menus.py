@@ -1,7 +1,5 @@
-import inspect
 import shutil
 from datetime import datetime
-from functools import partial
 from typing import TYPE_CHECKING, Annotated, Literal
 
 import matplotlib.pyplot as plt
@@ -15,18 +13,14 @@ from magicclass import (
     bind_key,
     confirm,
     do_not_record,
-    get_function_gui,
     magicmenu,
-    nogui,
     set_design,
-    set_options,
-    setup_function_gui,
 )
 from magicclass.ext.polars import DataFrameView
 from magicclass.logging import getLogger
 from magicclass.types import Color, Optional, Path
 from magicclass.utils import open_url, thread_worker
-from magicclass.widgets import CodeEdit, ConsoleTextEdit
+from magicclass.widgets import ConsoleTextEdit
 from magicgui.types import Separator
 from magicgui.widgets import ComboBox, Container
 
@@ -45,12 +39,10 @@ from cylindra.types import ColoredLayer
 from cylindra.utils import str_color
 from cylindra.widget_utils import capitalize, get_code_theme, show_widget
 from cylindra.widgets._annotated import assert_layer
-from cylindra.widgets._widget_ext import CheckBoxes
 from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 if TYPE_CHECKING:
     from magicclass._gui._macro import MacroEdit
-    from magicgui.widgets import FunctionGui
 
     from cylindra.widgets import CylindraMainWidget
 
@@ -462,6 +454,7 @@ class MoleculesMenu(ChildWidget):
     rename_molecules = abstractapi()
     delete_molecules = abstractapi()
 
+    @set_design(text=capitalize)
     @do_not_record
     def to_draw_layer(self, layer: MoleculesLayer):
         """Duplicate the molecule positions to the drawing layer."""
@@ -842,86 +835,10 @@ class OthersMenu(ChildWidget):
     class Workflows(ChildWidget):
         """Custom analysis workflow."""
 
-        def _get_workflow_names(self, *_) -> list[str]:
-            return [file.stem for file in _config.get_config().list_workflow_paths()]
-
-        def _make_method_name(self, path: Path) -> str:
-            abs_path = _config.workflow_path(path)
-            return f"Run_{hex(hash(abs_path))}"
-
         @set_design(text=capitalize)
-        @bind_key("Ctrl+K, Ctrl+Shift+R")
-        @set_options(labels=False)
-        def run_workflow(
-            self,
-            filename: Annotated[str, {"choices": _get_workflow_names}],
-        ):
-            """Run a workflow script."""
-            # close this magicgui before running whole workflow
-            get_function_gui(self.run_workflow).close()
-            fname = self._make_method_name(filename)
-            self[fname].changed()
-
-        @nogui
-        def append_workflow(self, path: Path):
-            """Append workflow as a widget to the menu."""
-            main = self._get_main()
-            main_func = _config.get_main_function(path)
-            partial_func = partial(main_func, main)
-            prms = list(inspect.signature(main_func).parameters.values())[1:]
-            partial_func.__signature__ = inspect.Signature(prms)
-
-            fn = set_design(text=f"Run `{path.stem}`")(do_not_record(partial_func))
-            fn.__name__ = self._make_method_name(path)
-            # Old menu should be removed
-            try:
-                del self[fn.__name__]
-            except (IndexError, KeyError):
-                pass
-            return self.append(fn)
-
-        @set_options(call_button="Save workflow")
-        @set_design(text=capitalize)
-        @bind_key("Ctrl+K, Ctrl+Shift+D")
-        def define_workflow(
-            self,
-            filename: str,
-            workflow: Annotated[str, {"widget_type": CodeEdit}],
-        ):
-            """Define a workflow script for the daily analysis."""
-            if filename == "":
-                raise ValueError("Filename must be specified.")
-            code = normalize_workflow(workflow, self._get_main())
-            path = _config.workflow_path(filename)
-            if path.exists():
-                old_text: str | None = path.read_text()
-            else:
-                old_text = None
-            path.write_text(code, encoding="utf-8")
-            try:
-                self.append_workflow(path)
-            except Exception as e:
-                if old_text:
-                    path.write_text(old_text, encoding="utf-8")
-                else:
-                    path.unlink(missing_ok=True)
-                raise e
-            _Logger.print("Workflow saved: " + path.as_posix())
-            self.reset_choices()
-            return None
-
-        @set_design(text="View/Edit workflow")
-        @set_options(call_button="Overwrite", labels=False)
-        @bind_key("Ctrl+K, Ctrl+Shift+E")
-        def edit_workflow(
-            self,
-            filename: Annotated[str, {"choices": _get_workflow_names}],
-            workflow: Annotated[str, {"widget_type": CodeEdit}],
-        ):
-            """View or edit a workflow script."""
-            return self.define_workflow(filename, workflow)
-
-        sep0 = Separator
+        def open_workflow_edit(self):
+            self._get_main().workflow_edit.show()
+            self._get_main().workflow_edit._init()
 
         @set_design(text=capitalize)
         def import_workflow(
@@ -938,33 +855,9 @@ class OthersMenu(ChildWidget):
             new_path = _config.workflow_path(name)
             if new_path.exists():
                 raise FileExistsError(f"Workflow file {new_path} already exists.")
-            return self.define_workflow(new_path, path.read_text())
-
-        @set_design(text=capitalize)
-        @set_options(call_button="Delete", labels=False)
-        def delete_workflow(
-            self,
-            filenames: Annotated[list[str], {"choices": _get_workflow_names, "widget_type": CheckBoxes}] = [],
-        ):  # fmt: skip
-            """Delete an existing workflow file."""
-            if len(filenames) == 0:
-                raise ValueError("No workflow file selected.")
-            for filename in filenames:
-                path = _config.workflow_path(filename)
-                if path.exists():
-                    assert path.suffix == ".py"
-                    path.unlink()
-                else:
-                    raise FileNotFoundError(
-                        f"Workflow file not found: {path.as_posix()}"
-                    )
-                name = self._make_method_name(path)
-                for i, action in enumerate(self):
-                    if action.name == name:
-                        del self[i]
-                        break
-            self.reset_choices()
-            return None
+            return self._get_main().workflow_edit.define_workflow(
+                new_path, path.read_text()
+            )
 
         @set_design(text="Copy workflow directory path")
         def copy_workflow_directory(self):
@@ -973,7 +866,7 @@ class OthersMenu(ChildWidget):
 
             return to_clipboard(str(_config.WORKFLOWS_DIR))
 
-        sep1 = Separator
+        sep0 = Separator
 
     sep0 = Separator
 
@@ -1051,7 +944,6 @@ class OthersMenu(ChildWidget):
         w.native.setParent(main.native, w.native.windowFlags())
         w.show()
         ACTIVE_WIDGETS.add(w)
-        return None
 
     def _get_list_of_cfg(self, *_):
         return [p.stem for p in _config.get_config().list_config_paths()]
@@ -1138,45 +1030,6 @@ def normalize_workflow(workflow: str, ui: "CylindraMainWidget") -> str:
     if not _main_function_found:
         raise ValueError("No main function found in workflow script.")
     return workflow
-
-
-@setup_function_gui(OthersMenu.Workflows.run_workflow)
-def _(self: OthersMenu.Workflows, gui: "FunctionGui"):
-    txt = CodeEdit()
-    txt.syntax_highlight("python", theme=get_code_theme(self))
-    txt.read_only = True
-    gui.insert(1, txt)
-    gui.min_width, gui.min_height = 600, 400
-
-    @gui.filename.changed.connect
-    def _on_name_change(filename: str | None):
-        if filename is None:
-            return
-        txt.value = _config.workflow_path(filename).read_text()
-
-    _on_name_change(gui.filename.value)
-
-
-@setup_function_gui(OthersMenu.Workflows.define_workflow)
-def _(self: OthersMenu.Workflows, gui: "FunctionGui"):
-    gui.workflow.syntax_highlight("python", theme=get_code_theme(self))
-    gui.workflow.value = _config.WORKFLOW_TEMPLATE.format("# Write your workflow here")
-    gui.called.connect(self.reset_choices)
-    gui.min_width, gui.min_height = 600, 400
-
-
-@setup_function_gui(OthersMenu.Workflows.edit_workflow)
-def _(self: OthersMenu.Workflows, gui: "FunctionGui"):
-    gui.workflow.syntax_highlight("python", theme=get_code_theme(self))
-
-    @gui.filename.changed.connect
-    def _on_name_change(filename: str | None):
-        if filename is None:
-            return
-        gui.workflow.value = _config.workflow_path(filename).read_text()
-
-    _on_name_change(gui.filename.value)
-    gui.min_width, gui.min_height = 600, 400
 
 
 def _command_palette_title_fmt(ui: ChildWidget, widget):
