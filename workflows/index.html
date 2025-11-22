@@ -638,15 +638,26 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#define-a-workflow" class="md-nav__link">
+  <a href="#open-the-workflow-editor" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Define a Workflow
+        Open the Workflow Editor
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Define a Workflow">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#write-your-workflows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Write Your Workflows
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Write Your Workflows">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -673,17 +684,6 @@
         
       </ul>
     </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#view-edit-workflows" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        View &amp; Edit Workflows
-      
-    </span>
-  </a>
   
 </li>
       
@@ -2481,6 +2481,8 @@
       
         
       
+        
+      
     
     
     
@@ -2522,6 +2524,34 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/builtins/fetch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    cylindra_builtins.fetch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -2621,15 +2651,26 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#define-a-workflow" class="md-nav__link">
+  <a href="#open-the-workflow-editor" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Define a Workflow
+        Open the Workflow Editor
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Define a Workflow">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#write-your-workflows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Write Your Workflows
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Write Your Workflows">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2656,17 +2697,6 @@
         
       </ul>
     </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#view-edit-workflows" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        View &amp; Edit Workflows
-      
-    </span>
-  </a>
   
 </li>
       
@@ -2707,12 +2737,16 @@ repetitively apply the same operations to many images. Of course, everything is 
 so you can copy &amp; paste the macro script to somewhere.</p>
 <p>In <code>cylindra</code>, we provide a more elegant way to do this. You can define your own
 workflows, browse and edit them in the GUI, and run them manually or programmatically.</p>
-<h2 id="define-a-workflow">Define a Workflow</h2>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Others &gt; Workflows &gt; Define workflow</code> or <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-k">K</kbd></span> &rarr; <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-d">D</kbd></span></p>
-<p><img alt="Define workflow" loading="lazy," src="../images/define_workflow.png" width="560px" /></p>
-<p>In this dialog, you can define a workflow by writing a Python script. The script will be
-saved in the user directory as a file of the given "file name". Since <code>cylindra</code> is
-aware of all the files in the user directory, you don't have to keep them by yourself.</p>
+<h2 id="open-the-workflow-editor">Open the Workflow Editor</h2>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Others &gt; Workflows &gt; Open workflow edit</code></p>
+<p><img alt="Workflow editor" loading="lazy," src="../images/workflow_editor.png" width="600px" /></p>
+<p><code>cylindra</code> has a dedicated workflow editor. You can create a new workflow, edit existing
+ones, run, and delete them in this editor.</p>
+<h2 id="write-your-workflows">Write Your Workflows</h2>
+<p>In the workflow editor, you can define a workflow by writing a Python script. The script
+will be saved in the user directory as a file of the given "file name". Since <code>cylindra</code>
+is aware of all the files in the user directory, you don't have to keep them by
+yourself.</p>
 <h3 id="a-simple-example">A simple example</h3>
 <p>The <code>main</code> function defined in the workflow will be called when the workflow is run.
 The first argument is always <code>ui</code>, the GUI object.</p>
@@ -2755,17 +2789,10 @@ shows how to define a workflow with input parameters.</p>
 <p>The <code>path</code> argument, which is annotated with <code>Path</code> type, will be converted into a file
 input box. The <code>tilt_range</code> argument, which is annotated with <code>tuple[float, float]</code>
 type, will be converted into two float input boxes.</p>
-<h2 id="view-edit-workflows">View &amp; Edit Workflows</h2>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Others &gt; Workflows &gt; View/Edit workflows</code> or <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-k">K</kbd></span> &rarr; <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-e">E</kbd></span></p>
-<p><img alt="Edit workflows" loading="lazy," src="../images/edit_workflow.png" width="560px" /></p>
-<p>Here you can see all the workflows defined in the user directory. You can also edit and
-overwrite them here. The workflows will be updated immediately, without restarting the
-application.</p>
 <h2 id="run-workflows">Run Workflows</h2>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="run_workflow(filename, *args, **kwargs)" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.run_workflow"><code>run_workflow</code></a></p>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Others &gt; Workflows &gt; Run workflow</code> or <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-k">K</kbd></span> &rarr; <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-r">R</kbd></span></p>
-<p>Defined workflows show up in the <code>Others &gt; Workflows</code> menu. You can also open the dialog
-at <code>Others &gt; Workflows &gt; Run workflow</code> and select the workflow to run. If the workflow
+<p>Defined workflows show up in the bottom of the <code>Others &gt; Workflows</code> menu. You can also
+open the workflow editor, choose a workflow and click the "Run" button. If the workflow
 does not have any input arguments, it will be run immediately. If it has, a new dialog
 will be opened to ask for the input arguments.</p>
 <div class="admonition note">

@@ -11,28 +11,28 @@
       
       
       
-        <link rel="prev" href="../average/">
+        <link rel="prev" href="../../widgets/batch/">
       
       
-        <link rel="next" href="../../extern/">
+        <link rel="next" href="../imod/">
       
       
         
       
       
-      <link rel="icon" href="../../assets/images/favicon.png">
+      <link rel="icon" href="../../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
     
     
       
-        <title>Post-processing - Cylindra</title>
+        <title>cylindra_builtins.fetch - Cylindra</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.618322db.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.618322db.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -51,11 +51,11 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
     
-      <link rel="stylesheet" href="../../extra_style.css">
+      <link rel="stylesheet" href="../../../extra_style.css">
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#post-processing" class="md-skip">
+        <a href="#cylindra_builtinsfetch" class="md-skip">
           Skip to content
         </a>
       
@@ -96,7 +96,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="Cylindra" class="md-header__button md-logo" aria-label="Cylindra" data-md-component="logo">
+    <a href="../../.." title="Cylindra" class="md-header__button md-logo" aria-label="Cylindra" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -116,7 +116,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Post-processing
+              cylindra_builtins.fetch
             
           </span>
         </div>
@@ -239,7 +239,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="Cylindra" class="md-nav__button md-logo" aria-label="Cylindra" data-md-component="logo">
+    <a href="../../.." title="Cylindra" class="md-nav__button md-logo" aria-label="Cylindra" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -269,7 +269,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
+      <a href="../../.." class="md-nav__link">
         
   
   
@@ -296,7 +296,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../installation/" class="md-nav__link">
+      <a href="../../../installation/" class="md-nav__link">
         
   
   
@@ -323,7 +323,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../basics/" class="md-nav__link">
+      <a href="../../../basics/" class="md-nav__link">
         
   
   
@@ -347,10 +347,8 @@
       
   
   
-    
   
   
-  
     
     
       
@@ -395,11 +393,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
         
           
           <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
@@ -420,7 +418,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -438,7 +436,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../open_image/" class="md-nav__link">
+      <a href="../../../open_image/" class="md-nav__link">
         
   
   
@@ -466,7 +464,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../fit_splines/" class="md-nav__link">
+      <a href="../../../fit_splines/" class="md-nav__link">
         
   
   
@@ -494,7 +492,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../lattice_params/" class="md-nav__link">
+      <a href="../../../lattice_params/" class="md-nav__link">
         
   
   
@@ -522,7 +520,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../inspect_results/" class="md-nav__link">
+      <a href="../../../inspect_results/" class="md-nav__link">
         
   
   
@@ -550,7 +548,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../project_io/" class="md-nav__link">
+      <a href="../../../project_io/" class="md-nav__link">
         
   
   
@@ -578,7 +576,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../workflows/" class="md-nav__link">
+      <a href="../../../workflows/" class="md-nav__link">
         
   
   
@@ -630,7 +628,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../spline/" class="md-nav__link ">
+            <a href="../../../spline/" class="md-nav__link ">
               
   
   
@@ -674,7 +672,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../spline/clip/" class="md-nav__link">
+      <a href="../../../spline/clip/" class="md-nav__link">
         
   
   
@@ -702,7 +700,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../spline/config/" class="md-nav__link">
+      <a href="../../../spline/config/" class="md-nav__link">
         
   
   
@@ -774,7 +772,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../molecules/" class="md-nav__link ">
+            <a href="../../../molecules/" class="md-nav__link ">
               
   
   
@@ -818,7 +816,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../molecules/pick_molecules/" class="md-nav__link">
+      <a href="../../../molecules/pick_molecules/" class="md-nav__link">
         
   
   
@@ -846,7 +844,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../molecules/spline_to_molecules/" class="md-nav__link">
+      <a href="../../../molecules/spline_to_molecules/" class="md-nav__link">
         
   
   
@@ -874,7 +872,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../molecules/features/" class="md-nav__link">
+      <a href="../../../molecules/features/" class="md-nav__link">
         
   
   
@@ -902,7 +900,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../molecules/expressions/" class="md-nav__link">
+      <a href="../../../molecules/expressions/" class="md-nav__link">
         
   
   
@@ -930,7 +928,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../molecules/split_and_combine/" class="md-nav__link">
+      <a href="../../../molecules/split_and_combine/" class="md-nav__link">
         
   
   
@@ -958,7 +956,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../molecules/filter_molecules/" class="md-nav__link">
+      <a href="../../../molecules/filter_molecules/" class="md-nav__link">
         
   
   
@@ -986,7 +984,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../molecules/transform/" class="md-nav__link">
+      <a href="../../../molecules/transform/" class="md-nav__link">
         
   
   
@@ -1014,7 +1012,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../molecules/headers/" class="md-nav__link">
+      <a href="../../../molecules/headers/" class="md-nav__link">
         
   
   
@@ -1078,7 +1076,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../alignment/" class="md-nav__link ">
+            <a href="../../../alignment/" class="md-nav__link ">
               
   
   
@@ -1122,7 +1120,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../alignment/conventional/" class="md-nav__link">
+      <a href="../../../alignment/conventional/" class="md-nav__link">
         
   
   
@@ -1150,7 +1148,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../alignment/landscape/" class="md-nav__link">
+      <a href="../../../alignment/landscape/" class="md-nav__link">
         
   
   
@@ -1178,7 +1176,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../alignment/viterbi/" class="md-nav__link">
+      <a href="../../../alignment/viterbi/" class="md-nav__link">
         
   
   
@@ -1206,7 +1204,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../alignment/rma/" class="md-nav__link">
+      <a href="../../../alignment/rma/" class="md-nav__link">
         
   
   
@@ -1239,8 +1237,6 @@
                 
   
   
-    
-  
   
   
     
@@ -1264,15 +1260,15 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_10" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_10" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../" class="md-nav__link ">
+            <a href="../../../batch/" class="md-nav__link ">
               
   
   
@@ -1296,7 +1292,7 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_10_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_10_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_4_10">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1316,7 +1312,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../prep/" class="md-nav__link">
+      <a href="../../../batch/prep/" class="md-nav__link">
         
   
   
@@ -1344,7 +1340,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../construct/" class="md-nav__link">
+      <a href="../../../batch/construct/" class="md-nav__link">
         
   
   
@@ -1372,7 +1368,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../average/" class="md-nav__link">
+      <a href="../../../batch/average/" class="md-nav__link">
         
   
   
@@ -1397,37 +1393,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Post-processing
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../../batch/post_processing/" class="md-nav__link">
         
   
   
@@ -1443,76 +1412,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#collect-spline-properties" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Collect Spline Properties
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Collect Spline Properties">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#collect_localprops" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        collect_localprops
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#collect_globalprops" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        collect_globalprops
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#collect_joinedprops" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        collect_joinedprops
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1557,7 +1456,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../extern/" class="md-nav__link ">
+            <a href="../../../extern/" class="md-nav__link ">
               
   
   
@@ -1601,7 +1500,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../extern/imod/" class="md-nav__link">
+      <a href="../../../extern/imod/" class="md-nav__link">
         
   
   
@@ -1629,7 +1528,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../extern/relion/" class="md-nav__link">
+      <a href="../../../extern/relion/" class="md-nav__link">
         
   
   
@@ -1665,7 +1564,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../process_images/" class="md-nav__link">
+      <a href="../../../process_images/" class="md-nav__link">
         
   
   
@@ -1693,7 +1592,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../simulate/" class="md-nav__link">
+      <a href="../../../simulate/" class="md-nav__link">
         
   
   
@@ -1721,7 +1620,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cli/" class="md-nav__link">
+      <a href="../../../cli/" class="md-nav__link">
         
   
   
@@ -1749,7 +1648,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../plugins/" class="md-nav__link">
+      <a href="../../../plugins/" class="md-nav__link">
         
   
   
@@ -1809,7 +1708,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../case_studies/" class="md-nav__link ">
+            <a href="../../../case_studies/" class="md-nav__link ">
               
   
   
@@ -1853,7 +1752,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../case_studies/rma/" class="md-nav__link">
+      <a href="../../../case_studies/rma/" class="md-nav__link">
         
   
   
@@ -1881,7 +1780,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../case_studies/seam_search/" class="md-nav__link">
+      <a href="../../../case_studies/seam_search/" class="md-nav__link">
         
   
   
@@ -1909,7 +1808,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../case_studies/ssta/" class="md-nav__link">
+      <a href="../../../case_studies/ssta/" class="md-nav__link">
         
   
   
@@ -1937,7 +1836,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../case_studies/custom_config/" class="md-nav__link">
+      <a href="../../../case_studies/custom_config/" class="md-nav__link">
         
   
   
@@ -1965,7 +1864,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../case_studies/learning_cft/" class="md-nav__link">
+      <a href="../../../case_studies/learning_cft/" class="md-nav__link">
         
   
   
@@ -1993,7 +1892,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../case_studies/make_figure/" class="md-nav__link">
+      <a href="../../../case_studies/make_figure/" class="md-nav__link">
         
   
   
@@ -2033,6 +1932,8 @@
       
   
   
+    
+  
   
   
     
@@ -2067,15 +1968,15 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../api/" class="md-nav__link ">
+            <a href="../../" class="md-nav__link ">
               
   
   
@@ -2099,7 +2000,7 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
@@ -2119,7 +2020,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/components/" class="md-nav__link">
+      <a href="../../components/" class="md-nav__link">
         
   
   
@@ -2147,7 +2048,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/core/" class="md-nav__link">
+      <a href="../../core/" class="md-nav__link">
         
   
   
@@ -2175,7 +2076,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/project/" class="md-nav__link">
+      <a href="../../project/" class="md-nav__link">
         
   
   
@@ -2203,7 +2104,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/cylmeasure/" class="md-nav__link">
+      <a href="../../cylmeasure/" class="md-nav__link">
         
   
   
@@ -2231,7 +2132,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/cylfilters/" class="md-nav__link">
+      <a href="../../cylfilters/" class="md-nav__link">
         
   
   
@@ -2259,7 +2160,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/plugin/" class="md-nav__link">
+      <a href="../../plugin/" class="md-nav__link">
         
   
   
@@ -2346,7 +2247,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/widgets/main/" class="md-nav__link">
+      <a href="../../widgets/main/" class="md-nav__link">
         
   
   
@@ -2374,7 +2275,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/widgets/sta/" class="md-nav__link">
+      <a href="../../widgets/sta/" class="md-nav__link">
         
   
   
@@ -2402,7 +2303,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/widgets/subwidgets/" class="md-nav__link">
+      <a href="../../widgets/subwidgets/" class="md-nav__link">
         
   
   
@@ -2430,7 +2331,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/widgets/batch/" class="md-nav__link">
+      <a href="../../widgets/batch/" class="md-nav__link">
         
   
   
@@ -2463,8 +2364,10 @@
                 
   
   
+    
   
   
+  
     
     
       
@@ -2480,11 +2383,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_9" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_9" checked>
         
           
           <label class="md-nav__link" for="__nav_5_9" id="__nav_5_9_label" tabindex="0">
@@ -2505,7 +2408,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_9_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_9_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_5_9">
             <span class="md-nav__icon md-icon"></span>
             
@@ -2520,10 +2423,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../api/builtins/fetch/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    cylindra_builtins.fetch
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -2539,6 +2469,37 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#cylindra_builtins.fetch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fetch
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -2551,7 +2512,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/builtins/imod/" class="md-nav__link">
+      <a href="../imod/" class="md-nav__link">
         
   
   
@@ -2579,7 +2540,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/builtins/relion/" class="md-nav__link">
+      <a href="../relion/" class="md-nav__link">
         
   
   
@@ -2642,52 +2603,13 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#collect-spline-properties" class="md-nav__link">
+  <a href="#cylindra_builtins.fetch" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Collect Spline Properties
+        fetch
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Collect Spline Properties">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#collect_localprops" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        collect_localprops
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#collect_globalprops" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        collect_globalprops
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#collect_joinedprops" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        collect_joinedprops
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -2711,65 +2633,44 @@
   
 
 
-<h1 id="post-processing">Post-processing</h1>
-<p>The <code>collect_projects</code> method collects projects into a <code>ProjectSequence</code> object, a
-<code>list</code>-like container with <code>CylindraProject</code> objects.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">cylindra</span><span class="w"> </span><span class="kn">import</span> <span class="n">collect_projects</span>
+<h1 id="cylindra_builtinsfetch">cylindra_builtins.fetch</h1>
+<p>This built-in plugin submodule provides functions to fetch tomograms from online.</p>
 
-<span class="n">col</span> <span class="o">=</span> <span class="n">collect_projects</span><span class="p">(</span><span class="s2">&quot;path/to/root/*.tar&quot;</span><span class="p">)</span>
-<span class="n">col</span>
-</code></pre></div>
-<div class="highlight"><span class="filename">Output:</span><pre><span></span><code>ProjectSequence with 20 projects such as CylindraProject(...)
-</code></pre></div>
-<p>This object is useful for the post-processing with Python accross multiple projects.</p>
-<h2 id="collect-spline-properties">Collect Spline Properties</h2>
-<p>To analyze all the splines properties in the projects, it is useful to collect them
-into a single <code>polars.DataFrame</code> object. <code>ProjectSequence</code> has methods to do this.
-These methods not only collect the properties, but add columns indicating which project
-or spline the properties belong to.</p>
-<ul>
-<li>"spline-id": the index of the spline in the project</li>
-<li>"image-id": the index of the image in the project</li>
-</ul>
-<h3 id="collect_localprops"><code>collect_localprops</code></h3>
-<p>This method collects all the local properties of the splines in the projects.
-For example, following code plots the distribution of the "twist" parameters.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
 
-<span class="n">df</span> <span class="o">=</span> <span class="n">col</span><span class="o">.</span><span class="n">collect_localprops</span><span class="p">()</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s2">&quot;twist&quot;</span><span class="p">])</span>
-</code></pre></div>
-<p>Asides from the local properties, it also adds the following columns:</p>
-<ul>
-<li>"spl_pos": the spline coordinate (between 0 and 1) of the corresponding point in the
-  spline. For example, if the local property is for the start point of the spline, this
-  value is 0.0.</li>
-<li>"spl_dist": the distance (nm) of the corresponding point from the start of the spline.</li>
-</ul>
-<h3 id="collect_globalprops"><code>collect_globalprops</code></h3>
-<p>This method collects all the global properties of the splines in the projects.
-For example, following code returns the number of splines with each orientation.</p>
-<div class="highlight"><pre><span></span><code><span class="n">df</span> <span class="o">=</span> <span class="n">col</span><span class="o">.</span><span class="n">collect_globalprops</span><span class="p">()</span>
-<span class="n">df</span><span class="p">[</span><span class="s2">&quot;orientation&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">value_counts</span><span class="p">()</span>
-</code></pre></div>
-<div class="highlight"><span class="filename">Output:</span><pre><span></span><code>shape: (2, 2)
-┌─────────────┬───────┐
-│ orientation ┆ count │
-│ ---         ┆ ---   │
-│ str         ┆ u32   │
-╞═════════════╪═══════╡
-│ MinusToPlus ┆ 12    │
-│ PlusToMinus ┆ 18    │
-└─────────────┴───────┘
-</code></pre></div>
-<h3 id="collect_joinedprops"><code>collect_joinedprops</code></h3>
-<p>This method collects all the local and global properties. The column names of the global
-properties will be suffixed with "_glob". The returned dataframe will have a lot of
-duplicate values, but it is very useful for rich analysis. For example, following code
-plots the distribution of the local "twist" parameters of 13-protofilament microtubules.</p>
-<div class="highlight"><pre><span></span><code><span class="n">df</span> <span class="o">=</span> <span class="n">col</span><span class="o">.</span><span class="n">collect_joinedprops</span><span class="p">()</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;npf_glob&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">13</span><span class="p">)[</span><span class="s2">&quot;twist&quot;</span><span class="p">])</span>
-</code></pre></div>
+<div class="doc doc-object doc-module">
+
+
+
+<a id="cylindra_builtins.fetch"></a>
+    <div class="doc doc-contents first">
+
+
+
+
+
+
+
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
 
 
 
@@ -2799,7 +2700,7 @@ plots the distribution of the local "twist" parameters of 13-protofilament micro
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../average/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Average Across Projects">
+          <a href="../../widgets/batch/" class="md-footer__link md-footer__link--prev" aria-label="Previous: cylindra.widgets.batch">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2809,20 +2710,20 @@ plots the distribution of the local "twist" parameters of 13-protofilament micro
                 Previous
               </span>
               <div class="md-ellipsis">
-                Average Across Projects
+                cylindra.widgets.batch
               </div>
             </div>
           </a>
         
         
           
-          <a href="../../extern/" class="md-footer__link md-footer__link--next" aria-label="Next: Working with External Softwares">
+          <a href="../imod/" class="md-footer__link md-footer__link--next" aria-label="Next: cylindra_builtins.imod">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Working with External Softwares
+                cylindra_builtins.imod
               </div>
             </div>
             <div class="md-footer__button md-icon">
@@ -2863,10 +2764,10 @@ plots the distribution of the local "twist" parameters of 13-protofilament micro
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.annotate", "content.code.copy", "navigation.sections", "navigation.indexes", "navigation.footer", "toc.follow", "search.suggest", "search.share"], "search": "../../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["content.code.annotate", "content.code.copy", "navigation.sections", "navigation.indexes", "navigation.footer", "toc.follow", "search.suggest", "search.share"], "search": "../../../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.e71a0d61.min.js"></script>
       
         <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
       
