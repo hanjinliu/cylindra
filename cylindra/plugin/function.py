@@ -72,6 +72,7 @@ class CylindraPluginFunction(Generic[_P, _R]):
                 self._func._set_recorder(self._record_macro)
             else:
                 self._func._set_silencer()
+            self._func._is_running = self._is_running  # patch method
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}<{self._name}>"
@@ -123,10 +124,6 @@ class CylindraPluginFunction(Generic[_P, _R]):
         first_arg, *args = bound.args
         assert first_arg is ui
         if isinstance(self._func, thread_worker):
-            if action := self._action_ref():
-                self._func._force_async = action.running
-            else:
-                self._func._force_async = False
             out = self._func.__get__(ui)(*args, **bound.kwargs)
         else:
             with ui.macro.blocked():
@@ -159,3 +156,8 @@ class CylindraPluginFunction(Generic[_P, _R]):
         else:
             ui.macro.clear_undo_stack()
         return out
+
+    def _is_running(self, gui: CylindraMainWidget) -> bool:
+        if action := self._action_ref():
+            return action.running
+        return False
