@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import warnings
+import weakref
 from importlib.metadata import distributions
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Iterator, NamedTuple
@@ -124,5 +125,6 @@ def _update_menu_gui(mod: ModuleType, ui: CylindraMainWidget, menu: MenuGui):
     for obj in _dir_or_all(mod):
         if isinstance(obj, CylindraPluginFunction):
             menu.append(obj.update_module(mod).as_method(ui))
+            obj._action_ref = weakref.ref(menu[obj._name])
         elif obj is Separator:
             menu.native.addSeparator()
