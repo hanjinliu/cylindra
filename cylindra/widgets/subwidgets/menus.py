@@ -856,7 +856,7 @@ class OthersMenu(ChildWidget):
             if new_path.exists():
                 raise FileExistsError(f"Workflow file {new_path} already exists.")
             return self._get_main().workflow_edit.define_workflow(
-                new_path, path.read_text()
+                new_path.stem, path.read_text()
             )
 
         @set_design(text="Copy workflow directory path")
