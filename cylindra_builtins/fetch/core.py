@@ -2,6 +2,8 @@ import tempfile
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Literal
 
+from magicclass.utils import thread_worker
+
 from cylindra.const import ImageFilter
 from cylindra.plugin import register_function
 
@@ -28,31 +30,29 @@ COORDS_14_FIT = [
 
 
 @register_function(name="13-PF microtubule")
+@thread_worker
 def mt_13pf(
     ui: "CylindraMainWidget",
     filter: ImageFilter = ImageFilter.Lowpass,
     with_spline: Literal["none", "roughly fitted", "fitted"] = "none",
 ):
+    """Fetch and open a 13-protofilament microtubule test image."""
     with _fetch_image(f"{URL_ROOT}/tests/13pf_MT.tif") as path:
-        ui.open_image(path, tilt_range=(-60, 60), eager=True, filter=filter)
-        if with_spline == "roughly fitted":
-            ui.register_path(COORDS_13)
-        elif with_spline == "fitted":
-            ui.register_path(COORDS_13_FIT)
+        yield from _open(ui, path, filter)
+        _register_path(ui, with_spline, COORDS_13, COORDS_13_FIT)
 
 
 @register_function(name="14-PF microtubule")
+@thread_worker
 def mt_14pf(
     ui: "CylindraMainWidget",
     filter: ImageFilter = ImageFilter.Lowpass,
     with_spline: Literal["none", "roughly fitted", "fitted"] = "none",
 ):
+    """Fetch and open a 14-protofilament microtubule test image."""
     with _fetch_image(f"{URL_ROOT}/tests/14pf_MT.tif") as path:
-        ui.open_image(path, tilt_range=(-60, 60), eager=True, filter=filter)
-        if with_spline == "roughly fitted":
-            ui.register_path(COORDS_14)
-        elif with_spline == "fitted":
-            ui.register_path(COORDS_14_FIT)
+        yield from _open(ui, path, filter)
+        _register_path(ui, with_spline, COORDS_14, COORDS_14_FIT)
 
 
 @contextmanager
@@ -67,3 +67,14 @@ def _fetch_image(url: str):
         with open(tmp_file, "wb") as f:
             f.write(response.content)
         yield tmp_file
+
+
+def _open(ui: "CylindraMainWidget", path, filter):
+    yield from ui.open_image.arun(path, tilt_range=(-60, 60), eager=True, filter=filter)
+
+
+def _register_path(ui: "CylindraMainWidget", with_spline, roughly_fitted, fitted):
+    if with_spline == "roughly fitted":
+        ui.register_path(roughly_fitted)
+    elif with_spline == "fitted":
+        ui.register_path(fitted)
