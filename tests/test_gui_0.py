@@ -1813,26 +1813,27 @@ def test_workflows_custom(ui: CylindraMainWidget, tmpdir):
     name = "Test"
     code = "import numpy as np\ndef main(ui):\n    print(ui.default_config)\n"
     with _config.patch_workflow_path(tmpdir):
-        ui.OthersMenu.Workflows.define_workflow(name, code)
-        ui.OthersMenu.Workflows.edit_workflow(name, code)
-        ui.OthersMenu.Workflows.edit_workflow(name, code)  # test overwriting
+        ui.workflow_edit.new()
+        ui.workflow_edit.define_workflow(name, code)
+        ui.workflow_edit.edit()
+        ui.workflow_edit.save()
         ui.run_workflow(name)
-        ui.OthersMenu.Workflows.run_workflow(name)
+        ui.workflow_edit.run()
         ui.OthersMenu.Workflows.import_workflow(
             Path(tmpdir) / f"{name}.py", name="imported"
         )
-        ui.OthersMenu.Workflows.delete_workflow([name])
+        ui.workflow_edit.delete(name)
         ui.OthersMenu.Workflows.copy_workflow_directory()
 
         # test invalid code
         with pytest.raises(Exception):  # noqa: B017
             # attribute error
-            ui.OthersMenu.Workflows.define_workflow(
+            ui.workflow_edit.define_workflow(
                 "Test-2", "def main(ui):\n    ui.bad_method_name()\n"
             )
         with pytest.raises(Exception):  # noqa: B017
             # not enough arguments
-            ui.OthersMenu.Workflows.define_workflow(
+            ui.workflow_edit.define_workflow(
                 "Test-2", "def main(ui):\n    ui.open_image()\n"
             )
 

@@ -99,6 +99,7 @@ nav:
       - api/widgets/subwidgets.md
       - api/widgets/batch.md
     - Builtin Plugins:
+      - api/builtins/fetch.md
       - api/builtins/imod.md
       - api/builtins/relion.md
 

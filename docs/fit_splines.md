@@ -20,6 +20,14 @@ the points with a spline.
 
 ![draw_splines](images/draw_splines.gif){ loading=lazy, width=400px }
 
+??? tip "Userfule keyboard shortcuts"
+
+    ++d++: Select the draw layer and enter add-point mode.
+
+    ++j++: Move z-slider to the left by 5 steps.
+
+    ++k++: Move z-slider to the right by 5 steps.
+
 To delete the last spline, click ![](images/toolbutton_clear_current.png){ width=28px }.
 
 !!! note

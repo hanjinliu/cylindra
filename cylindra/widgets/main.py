@@ -224,6 +224,8 @@ class CylindraMainWidget(MagicTemplate):
     simulator = field(_sw.Simulator, name="_Simulator")
     # Widget for spline config
     config_edit = field(_sw.ConfigEdit, name="_Config editor")
+    # Widget for editing workflows
+    workflow_edit = field(_sw.WorkflowEdit, name="_Workflow editor")
     # Widget for measuring FFT parameters from a 2D power spectra
     spectra_inspector = field(_sw.SpectraInspector, name="_SpectraInspector")
     # Widget for subtomogram analysis
@@ -288,7 +290,7 @@ class CylindraMainWidget(MagicTemplate):
         cfg = _config.get_config()
         for file in cfg.list_workflow_paths():
             try:
-                self.OthersMenu.Workflows.append_workflow(file)
+                self.workflow_edit.append_workflow(file)
             except Exception as e:
                 _Logger.exception(f"Failed to load workflow {file.stem}: {e}")
 

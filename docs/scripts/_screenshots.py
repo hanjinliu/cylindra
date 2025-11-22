@@ -1,4 +1,5 @@
 import gc
+import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -9,7 +10,7 @@ from magicclass import get_button, get_function_gui, logging
 from magicgui import magicgui
 from qtpy import QtWidgets as QtW
 
-from cylindra import instance
+from cylindra import _config, instance
 from cylindra.widget_utils import find_dock_widget
 from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets.subwidgets.measure import LOCAL_CFT, LOCAL_CFT_UP
@@ -103,6 +104,21 @@ def main():
     _imsave(ui.config_edit.native, "config_editor")
     ui.config_edit.close()
 
+    # Workflow editor
+    with (
+        tempfile.TemporaryDirectory() as tmpdir,
+        _config.patch_workflow_path(tmpdir),
+    ):
+        code = _config.WORKFLOW_TEMPLATE.format(
+            "ui.logger.print('test workflow')"
+        )
+        ui.workflow_edit.define_workflow("my-workflow", code)
+        ui.OthersMenu.Workflows.open_workflow_edit()
+        ui.workflow_edit.reset_choices()
+
+        _imsave(ui.workflow_edit.native, "workflow_editor")
+        ui.workflow_edit.close()
+
     ui._runner.run(interval=12, n_refine=0, map_monomers=True)
 
     ### inspect local CFT ###
@@ -166,16 +182,6 @@ def main():
         get_button(meth).changed.emit()
         gui = get_function_gui(meth)
         _imsave(gui.native, meth.__name__)
-        gui.close()
-
-    for method in [
-        "define_workflow",
-        "edit_workflow",
-    ]:
-        meth = getattr(ui.OthersMenu.Workflows, method)
-        get_button(meth).changed.emit()
-        gui = get_function_gui(meth)
-        _imsave(gui.native, method)
         gui.close()
 
     ### canvas with monomers ###
@@ -280,6 +286,5 @@ def main():
     for _ in range(10):
         QtW.QApplication.processEvents()
     gc.collect()
-
 
 main()
