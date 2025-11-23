@@ -2311,6 +2311,7 @@ class CylindraMainWidget(MagicTemplate):
         offsets: _OffsetType = None,
         radius: Optional[nm] = None,
         extensions: Annotated[tuple[int, int], {"options": {"min": -100}}] = (0, 0),
+        prop_to_use: Literal["local", "global"] = "global",
         prefix: str = "Mole",
     ):  # fmt: skip
         """Map monomers as a regular cylindric grid assembly.
@@ -2325,6 +2326,12 @@ class CylindraMainWidget(MagicTemplate):
         extensions : (int, int), default (0, 0)
             Number of molecules to extend. Should be a tuple of (prepend, append).
             Negative values will remove molecules.
+        prop_to_use : str, default "global"
+            Which spline properties to use for mapping. If "global", use the global
+            properties to map monomers in a regular grid; if "local", use the local
+            properties to map monomers in a heterogeneous manner. If the lattice
+            parameters are accurately estimated, using "local" usually gives better
+            initial resolution.
         {prefix}
         """
         tomo = self.tomogram
@@ -2346,6 +2353,7 @@ class CylindraMainWidget(MagicTemplate):
                 offsets=normalize_offsets(offsets, spl),
                 radius=normalize_radius(radius, spl),
                 extensions=extensions,
+                prop_to_use=prop_to_use,
             )
 
             cb = _add_molecules.with_args(mol, f"{prefix}-{i}", spl)

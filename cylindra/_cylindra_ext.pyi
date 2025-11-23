@@ -168,6 +168,12 @@ def oblique_coordinates(
     intervals: tuple[float, float],
     offsets: tuple[float, float],
 ) -> NDArray[np.float32]: ...
+def displacement_array(
+    mesh_shape: tuple[int, int],
+    dilate: NDArray[np.float32],
+    expand: NDArray[np.float32],
+    twist: NDArray[np.float32],
+) -> NDArray[np.float32]: ...
 def cylinder_faces(
     ny: int,
     npf: int,

@@ -1132,6 +1132,7 @@ class CylTomogram(Tomogram):
         offsets: tuple[nm, float] | None = None,
         orientation: Ori | str | None = None,
         extensions: tuple[int, int] = (0, 0),
+        prop_to_use: Literal["global", "local"] = "global",
         **kwargs,
     ) -> Molecules:
         """Map monomers in a regular cylinder shape.
@@ -1144,6 +1145,10 @@ class CylTomogram(Tomogram):
             The offset of origin of oblique coordinate system to map monomers.
         orientation : Ori or str, optional
             Orientation of the y-axis of each molecule.
+        extensions : tuple of int, default (0, 0)
+            Number of extra monomers to be added before and after the cylinder.
+        prop_to_use : str, default 'global'
+            Which property to use for determining cylinder parameters.
 
         Returns
         -------
@@ -1159,7 +1164,8 @@ class CylTomogram(Tomogram):
         yy -= ext0
         coords = np.stack([yy.ravel(), aa.ravel()], axis=1)
         spl = self.splines[i]
-        mole = model.locate_molecules(spl, coords)
+        local = prop_to_use == "local"
+        mole = model.locate_molecules(spl, coords, local_displace=local)
         if spl._need_rotation(orientation):
             mole = mole.rotate_by_rotvec_internal([np.pi, 0, 0])
         return mole

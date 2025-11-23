@@ -8,8 +8,9 @@ from acryo import Molecules
 from numpy.typing import ArrayLike, NDArray
 
 from cylindra import utils
-from cylindra._cylindra_ext import cylinder_faces
+from cylindra._cylindra_ext import cylinder_faces, displacement_array
 from cylindra.const import MoleculesHeader as Mole
+from cylindra.const import PropertyNames as H
 
 if TYPE_CHECKING:
     from cylindra.components import Spline
@@ -52,8 +53,7 @@ _Slicer = slice | tuple[slice, slice] | CylindricSlice
 
 
 class CylinderModel:
-    """
-    A model class that describes a heterogenic cylindrical structure.
+    """A model class that describes a heterogenic cylindrical structure.
 
     Parameters
     ----------
@@ -161,8 +161,7 @@ class CylinderModel:
 
     @property
     def nrise(self) -> int:
-        """
-        Rise number of the model.
+        """Rise number of the model.
 
         Molecule at (Y, self.shape[1]) is same as (Y - nrise, 0).
         """
@@ -198,9 +197,10 @@ class CylinderModel:
         """Generate molecules from the coordinates and given spline.
 
         Generated molecules will have following features.
-        - "molecules-pf" ... The index of the molecule in the angular direction
+        - "nth" ... The index of the molecule in the axial direction
+        - "pf-id" ... The index of the molecule in the angular direction
           (Protofilament number).
-        - "molecules-position" ... The position of the molecule in the axial direction.
+        - "position-nm" ... The position of the molecule in the axial direction.
           in nm. If the spline starts from the tip, position=0 is the tip.
         """
         shifted = self._get_shifted()
@@ -218,9 +218,16 @@ class CylinderModel:
             mole.features = mole.features.with_columns(features)
         return mole
 
-    def locate_molecules(self, spl: Spline, coords: NDArray[np.int32]) -> Molecules:
+    def locate_molecules(
+        self,
+        spl: Spline,
+        coords: NDArray[np.int32],
+        local_displace: bool = False,
+    ) -> Molecules:
         """Locate molecules at given integer coordinates around the spline."""
         mesh = self._get_mesh(coords)
+        if local_displace:
+            mesh = mesh + self.local_displace(spl, coords).reshape(-1, 3)
         mole = spl.cylindrical_to_molecules(mesh)
         pos = pl.Series(mesh[:, 1])
         nth = coords[:, 0]
@@ -235,8 +242,7 @@ class CylinderModel:
         value_by: str | None = None,
         order: int = 0,
     ) -> tuple[NDArray[np.float32], NDArray[np.int32], NDArray[np.float32]]:
-        """
-        Create a mesh data for cylinder visualization.
+        """Create a mesh data for cylinder visualization.
 
         Returned mesh is a tuple of (nodes, vertices). Nodes is a (N, 3) array.
         """
@@ -273,30 +279,63 @@ class CylinderModel:
         return self.add_shift(shift3d)
 
     def expand(self, by: float, sl: _Slicer) -> Self:
-        """
-        Locally add uniform displacement to the axial (y-axis) direction.
+        """Locally add uniform displacement to the axial (y-axis) direction.
 
-                              o o
-            o o o o         o o o o
-            o o o o         o     o
-            o o o o  ---->  o o o o
-            o o o o         o     o
-            o o o o         o o o o
-                              o o
+                          o o
+        o o o o         o o o o
+        o o o o         o     o
+        o o o o  ---->  o o o o
+        o o o o         o     o
+        o o o o         o o o o
+                          o o
         """
         return self._in_plane_displace(by, sl, axis=1)
 
     def twist(self, by: float, sl: _Slicer) -> Self:
-        """
-        Locally add uniform displacement to the skew (a-axis) direction.
+        """Locally add uniform displacement to the skew (a-axis) direction.
 
-            o o o o         o  o oo
-            o o o o         o  o oo
-            o o o o  ---->  o o o o
-            o o o o         oo o  o
-            o o o o         oo o  o
+        o o o o         o  o oo
+        o o o o         o  o oo
+        o o o o  ---->  o o o o
+        o o o o         oo o  o
+        o o o o         oo o  o
         """
         return self._in_plane_displace(by, sl, axis=2)
+
+    def local_displace(
+        self,
+        spl: Spline,
+        coords: NDArray[np.int32],
+        interpolation: int = 1,
+    ) -> NDArray[np.float32]:
+        """Calculate local displacements based on the spline local properties."""
+        shifted = self._get_mesh(coords)
+        shifted_2d = shifted.reshape(-1, 3)
+        shape = (shifted_2d.shape[0] // self.shape[1], self.shape[1])
+        u_sample = spl.y_to_position(shifted_2d[:, 1])
+        df_loc = spl.props.loc
+        for col in [H.radius, H.spacing, H.twist]:
+            if col not in df_loc.columns:
+                df_loc = df_loc.with_columns(pl.lit(0.0).alias(col))
+        anc = spl.anchors
+        values = df_loc.select(H.radius, H.spacing, H.twist).to_numpy()
+        values = values - values.mean(axis=0)[np.newaxis, :]
+        interp = utils.interp(
+            anc,
+            values,
+            order=interpolation,
+            axis=0,
+        )
+        values_sample = interp(u_sample.clip(anc.min(), anc.max())).astype(np.float32)
+        dilate = values_sample[:, 0]
+        expand = values_sample[:, 1]
+        twist = np.deg2rad(values_sample[:, 2])
+        if not dilate.size == expand.size == twist.size == shape[0] * shape[1]:
+            raise RuntimeError(
+                f"Size mismatch: {dilate.size=}, {expand.size=}, {twist.size=}, {shape=}"
+            )
+        displace = displacement_array(shape, dilate, expand, twist)
+        return displace
 
     def _in_plane_displace(self, by: float, sl: _Slicer, axis: int):
         sl = indexer.norm(sl)
@@ -321,8 +360,7 @@ class CylinderModel:
         return self.replace(displace=displace)
 
     def alleviate(self, label: ArrayLike) -> Self:
-        """
-        Alleviate displacements by iterative local-averaging algorithm.
+        """Alleviate displacements by iterative local-averaging algorithm.
 
         This method should be called after e.g. `add_axial_shift`. Molecules adjacent to
         the shifted molecules will be shifted to match the center of the surrounding
@@ -333,8 +371,8 @@ class CylinderModel:
         label : array-like
             Label that specify the molecules to be fixed. Shape of this argument can be
             eigher (N, 2) or same as the shape of the model. In the former case, it is
-            interpreted as N indices. In the latter case, True indices will be considered
-            as the indices.
+            interpreted as N indices. In the latter case, True indices will be
+            considered as the indices.
 
         Returns
         -------
