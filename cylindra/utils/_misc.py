@@ -413,7 +413,7 @@ def unwrap_wildcard(path: str | Path | Iterable[str | Path]) -> list[Path]:
     if isinstance(path, (str, Path)):
         path = [str(path)]
     for p in path:
-        p = str(p)
+        p = str(Path(p).expanduser())
         if "*" in p or "?" in p:
             all_paths.extend(glob.glob(p))
         else:
@@ -422,8 +422,7 @@ def unwrap_wildcard(path: str | Path | Iterable[str | Path]) -> list[Path]:
 
 
 class Projections:
-    """
-    Class that stores projections of a 3D image, calculated lazily.
+    """Class that stores projections of a 3D image, calculated lazily.
 
     Note
     ----
