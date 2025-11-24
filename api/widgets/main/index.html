@@ -8277,7 +8277,16 @@
 <span class="normal">3667</span>
 <span class="normal">3668</span>
 <span class="normal">3669</span>
-<span class="normal">3670</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span>
+<span class="normal">3670</span>
+<span class="normal">3671</span>
+<span class="normal">3672</span>
+<span class="normal">3673</span>
+<span class="normal">3674</span>
+<span class="normal">3675</span>
+<span class="normal">3676</span>
+<span class="normal">3677</span>
+<span class="normal">3678</span>
+<span class="normal">3679</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span>
     <span class="n">widget_type</span><span class="o">=</span><span class="s2">&quot;scrollable&quot;</span><span class="p">,</span>
     <span class="n">stylesheet</span><span class="o">=</span><span class="n">_STYLE</span><span class="p">,</span>
     <span class="n">name</span><span class="o">=</span><span class="s2">&quot;cylindra&quot;</span><span class="p">,</span>
@@ -10388,11 +10397,13 @@
         <span class="n">offsets</span><span class="p">:</span> <span class="n">_OffsetType</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">radius</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">nm</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">extensions</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span> <span class="p">{</span><span class="s2">&quot;options&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">100</span><span class="p">}}]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">prop_to_use</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;local&quot;</span><span class="p">,</span> <span class="s2">&quot;global&quot;</span><span class="p">,</span> <span class="s2">&quot;both&quot;</span><span class="p">],</span> <span class="p">{</span><span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;properties to use&quot;</span><span class="p">}]</span> <span class="o">=</span> <span class="s2">&quot;global&quot;</span><span class="p">,</span>
         <span class="n">prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;Mole&quot;</span><span class="p">,</span>
     <span class="p">):</span>  <span class="c1"># fmt: skip</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Map monomers as a regular cylindric grid assembly.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Map monomers as a regular cylindrical grid assembly.</span>
 
-<span class="sd">        This method uses the spline global properties.</span>
+<span class="sd">        This method uses the spline global properties and/or local properties to locate</span>
+<span class="sd">        molecules along the cylinder surface.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -10402,6 +10413,12 @@
 <span class="sd">        extensions : (int, int), default (0, 0)</span>
 <span class="sd">            Number of molecules to extend. Should be a tuple of (prepend, append).</span>
 <span class="sd">            Negative values will remove molecules.</span>
+<span class="sd">        prop_to_use : str, default &quot;global&quot;</span>
+<span class="sd">            Which spline properties to use for mapping. If &quot;global&quot;, use the global</span>
+<span class="sd">            properties to map monomers in a regular grid; if &quot;local&quot;, use the local</span>
+<span class="sd">            properties to map monomers in a heterogeneous manner. If the lattice</span>
+<span class="sd">            parameters are accurately estimated, using &quot;local&quot; usually gives better</span>
+<span class="sd">            initial resolution.</span>
 <span class="sd">        {prefix}</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">tomo</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tomogram</span>
@@ -10423,6 +10440,7 @@
                 <span class="n">offsets</span><span class="o">=</span><span class="n">normalize_offsets</span><span class="p">(</span><span class="n">offsets</span><span class="p">,</span> <span class="n">spl</span><span class="p">),</span>
                 <span class="n">radius</span><span class="o">=</span><span class="n">normalize_radius</span><span class="p">(</span><span class="n">radius</span><span class="p">,</span> <span class="n">spl</span><span class="p">),</span>
                 <span class="n">extensions</span><span class="o">=</span><span class="n">extensions</span><span class="p">,</span>
+                <span class="n">prop_to_use</span><span class="o">=</span><span class="n">prop_to_use</span><span class="p">,</span>
             <span class="p">)</span>
 
             <span class="n">cb</span> <span class="o">=</span> <span class="n">_add_molecules</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">spl</span><span class="p">)</span>
@@ -12242,16 +12260,7 @@ all the existing local properties.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3315</span>
-<span class="normal">3316</span>
-<span class="normal">3317</span>
-<span class="normal">3318</span>
-<span class="normal">3319</span>
-<span class="normal">3320</span>
-<span class="normal">3321</span>
-<span class="normal">3322</span>
-<span class="normal">3323</span>
-<span class="normal">3324</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3324</span>
 <span class="normal">3325</span>
 <span class="normal">3326</span>
 <span class="normal">3327</span>
@@ -12262,7 +12271,16 @@ all the existing local properties.</p>
 <span class="normal">3332</span>
 <span class="normal">3333</span>
 <span class="normal">3334</span>
-<span class="normal">3335</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+<span class="normal">3335</span>
+<span class="normal">3336</span>
+<span class="normal">3337</span>
+<span class="normal">3338</span>
+<span class="normal">3339</span>
+<span class="normal">3340</span>
+<span class="normal">3341</span>
+<span class="normal">3342</span>
+<span class="normal">3343</span>
+<span class="normal">3344</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">add_molecules</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -12590,16 +12608,7 @@ all the existing local properties.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3136</span>
-<span class="normal">3137</span>
-<span class="normal">3138</span>
-<span class="normal">3139</span>
-<span class="normal">3140</span>
-<span class="normal">3141</span>
-<span class="normal">3142</span>
-<span class="normal">3143</span>
-<span class="normal">3144</span>
-<span class="normal">3145</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3145</span>
 <span class="normal">3146</span>
 <span class="normal">3147</span>
 <span class="normal">3148</span>
@@ -12627,7 +12636,16 @@ all the existing local properties.</p>
 <span class="normal">3170</span>
 <span class="normal">3171</span>
 <span class="normal">3172</span>
-<span class="normal">3173</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Features</span><span class="p">)</span>
+<span class="normal">3173</span>
+<span class="normal">3174</span>
+<span class="normal">3175</span>
+<span class="normal">3176</span>
+<span class="normal">3177</span>
+<span class="normal">3178</span>
+<span class="normal">3179</span>
+<span class="normal">3180</span>
+<span class="normal">3181</span>
+<span class="normal">3182</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Features</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">binarize_feature</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
@@ -12734,16 +12752,7 @@ all the existing local properties.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2976</span>
-<span class="normal">2977</span>
-<span class="normal">2978</span>
-<span class="normal">2979</span>
-<span class="normal">2980</span>
-<span class="normal">2981</span>
-<span class="normal">2982</span>
-<span class="normal">2983</span>
-<span class="normal">2984</span>
-<span class="normal">2985</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2985</span>
 <span class="normal">2986</span>
 <span class="normal">2987</span>
 <span class="normal">2988</span>
@@ -12762,7 +12771,16 @@ all the existing local properties.</p>
 <span class="normal">3001</span>
 <span class="normal">3002</span>
 <span class="normal">3003</span>
-<span class="normal">3004</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Features</span><span class="p">)</span>
+<span class="normal">3004</span>
+<span class="normal">3005</span>
+<span class="normal">3006</span>
+<span class="normal">3007</span>
+<span class="normal">3008</span>
+<span class="normal">3009</span>
+<span class="normal">3010</span>
+<span class="normal">3011</span>
+<span class="normal">3012</span>
+<span class="normal">3013</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Features</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">calculate_lattice_structure</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
@@ -12883,16 +12901,7 @@ is equivalent to
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2904</span>
-<span class="normal">2905</span>
-<span class="normal">2906</span>
-<span class="normal">2907</span>
-<span class="normal">2908</span>
-<span class="normal">2909</span>
-<span class="normal">2910</span>
-<span class="normal">2911</span>
-<span class="normal">2912</span>
-<span class="normal">2913</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2913</span>
 <span class="normal">2914</span>
 <span class="normal">2915</span>
 <span class="normal">2916</span>
@@ -12916,7 +12925,16 @@ is equivalent to
 <span class="normal">2934</span>
 <span class="normal">2935</span>
 <span class="normal">2936</span>
-<span class="normal">2937</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Features</span><span class="p">)</span>
+<span class="normal">2937</span>
+<span class="normal">2938</span>
+<span class="normal">2939</span>
+<span class="normal">2940</span>
+<span class="normal">2941</span>
+<span class="normal">2942</span>
+<span class="normal">2943</span>
+<span class="normal">2944</span>
+<span class="normal">2945</span>
+<span class="normal">2946</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Features</span><span class="p">)</span>
 <span class="nd">@confirm</span><span class="p">(</span>
     <span class="n">text</span><span class="o">=</span><span class="s2">&quot;Column already exists. Overwrite?&quot;</span><span class="p">,</span>
     <span class="n">condition</span><span class="o">=</span><span class="s2">&quot;column_name in layer.molecules.features.columns&quot;</span><span class="p">,</span>
@@ -13239,16 +13257,7 @@ is equivalent to
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2518</span>
-<span class="normal">2519</span>
-<span class="normal">2520</span>
-<span class="normal">2521</span>
-<span class="normal">2522</span>
-<span class="normal">2523</span>
-<span class="normal">2524</span>
-<span class="normal">2525</span>
-<span class="normal">2526</span>
-<span class="normal">2527</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2527</span>
 <span class="normal">2528</span>
 <span class="normal">2529</span>
 <span class="normal">2530</span>
@@ -13266,7 +13275,16 @@ is equivalent to
 <span class="normal">2542</span>
 <span class="normal">2543</span>
 <span class="normal">2544</span>
-<span class="normal">2545</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Combine</span><span class="p">)</span>
+<span class="normal">2545</span>
+<span class="normal">2546</span>
+<span class="normal">2547</span>
+<span class="normal">2548</span>
+<span class="normal">2549</span>
+<span class="normal">2550</span>
+<span class="normal">2551</span>
+<span class="normal">2552</span>
+<span class="normal">2553</span>
+<span class="normal">2554</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Combine</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">concatenate_molecules</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layers</span><span class="p">:</span> <span class="n">MoleculesLayersType</span><span class="p">,</span>
@@ -13662,16 +13680,7 @@ regions.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3006</span>
-<span class="normal">3007</span>
-<span class="normal">3008</span>
-<span class="normal">3009</span>
-<span class="normal">3010</span>
-<span class="normal">3011</span>
-<span class="normal">3012</span>
-<span class="normal">3013</span>
-<span class="normal">3014</span>
-<span class="normal">3015</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3015</span>
 <span class="normal">3016</span>
 <span class="normal">3017</span>
 <span class="normal">3018</span>
@@ -13701,7 +13710,16 @@ regions.</p>
 <span class="normal">3042</span>
 <span class="normal">3043</span>
 <span class="normal">3044</span>
-<span class="normal">3045</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Features</span><span class="p">)</span>
+<span class="normal">3045</span>
+<span class="normal">3046</span>
+<span class="normal">3047</span>
+<span class="normal">3048</span>
+<span class="normal">3049</span>
+<span class="normal">3050</span>
+<span class="normal">3051</span>
+<span class="normal">3052</span>
+<span class="normal">3053</span>
+<span class="normal">3054</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Features</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">convolve_feature</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
@@ -13844,16 +13862,7 @@ shared by multiple molecules layers that were aligned in a different parameters.
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2577</span>
-<span class="normal">2578</span>
-<span class="normal">2579</span>
-<span class="normal">2580</span>
-<span class="normal">2581</span>
-<span class="normal">2582</span>
-<span class="normal">2583</span>
-<span class="normal">2584</span>
-<span class="normal">2585</span>
-<span class="normal">2586</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2586</span>
 <span class="normal">2587</span>
 <span class="normal">2588</span>
 <span class="normal">2589</span>
@@ -13876,7 +13885,16 @@ shared by multiple molecules layers that were aligned in a different parameters.
 <span class="normal">2606</span>
 <span class="normal">2607</span>
 <span class="normal">2608</span>
-<span class="normal">2609</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Combine</span><span class="p">)</span>
+<span class="normal">2609</span>
+<span class="normal">2610</span>
+<span class="normal">2611</span>
+<span class="normal">2612</span>
+<span class="normal">2613</span>
+<span class="normal">2614</span>
+<span class="normal">2615</span>
+<span class="normal">2616</span>
+<span class="normal">2617</span>
+<span class="normal">2618</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Combine</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">copy_molecules_features</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">source</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
@@ -14031,16 +14049,7 @@ shared by multiple molecules layers that were aligned in a different parameters.
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3047</span>
-<span class="normal">3048</span>
-<span class="normal">3049</span>
-<span class="normal">3050</span>
-<span class="normal">3051</span>
-<span class="normal">3052</span>
-<span class="normal">3053</span>
-<span class="normal">3054</span>
-<span class="normal">3055</span>
-<span class="normal">3056</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3056</span>
 <span class="normal">3057</span>
 <span class="normal">3058</span>
 <span class="normal">3059</span>
@@ -14054,7 +14063,16 @@ shared by multiple molecules layers that were aligned in a different parameters.
 <span class="normal">3067</span>
 <span class="normal">3068</span>
 <span class="normal">3069</span>
-<span class="normal">3070</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Features</span><span class="p">)</span>
+<span class="normal">3070</span>
+<span class="normal">3071</span>
+<span class="normal">3072</span>
+<span class="normal">3073</span>
+<span class="normal">3074</span>
+<span class="normal">3075</span>
+<span class="normal">3076</span>
+<span class="normal">3077</span>
+<span class="normal">3078</span>
+<span class="normal">3079</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Features</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">count_neighbors</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
@@ -14391,16 +14409,7 @@ smoothing.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2786</span>
-<span class="normal">2787</span>
-<span class="normal">2788</span>
-<span class="normal">2789</span>
-<span class="normal">2790</span>
-<span class="normal">2791</span>
-<span class="normal">2792</span>
-<span class="normal">2793</span>
-<span class="normal">2794</span>
-<span class="normal">2795</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2795</span>
 <span class="normal">2796</span>
 <span class="normal">2797</span>
 <span class="normal">2798</span>
@@ -14410,7 +14419,16 @@ smoothing.</p>
 <span class="normal">2802</span>
 <span class="normal">2803</span>
 <span class="normal">2804</span>
-<span class="normal">2805</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Delete molecule layers&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="p">)</span>
+<span class="normal">2805</span>
+<span class="normal">2806</span>
+<span class="normal">2807</span>
+<span class="normal">2808</span>
+<span class="normal">2809</span>
+<span class="normal">2810</span>
+<span class="normal">2811</span>
+<span class="normal">2812</span>
+<span class="normal">2813</span>
+<span class="normal">2814</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Delete molecule layers&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="p">)</span>
 <span class="nd">@do_not_record</span><span class="p">(</span><span class="n">recursive</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">delete_molecules</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -14580,16 +14598,7 @@ smoothing.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3111</span>
-<span class="normal">3112</span>
-<span class="normal">3113</span>
-<span class="normal">3114</span>
-<span class="normal">3115</span>
-<span class="normal">3116</span>
-<span class="normal">3117</span>
-<span class="normal">3118</span>
-<span class="normal">3119</span>
-<span class="normal">3120</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3120</span>
 <span class="normal">3121</span>
 <span class="normal">3122</span>
 <span class="normal">3123</span>
@@ -14603,7 +14612,16 @@ smoothing.</p>
 <span class="normal">3131</span>
 <span class="normal">3132</span>
 <span class="normal">3133</span>
-<span class="normal">3134</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Features</span><span class="p">)</span>
+<span class="normal">3134</span>
+<span class="normal">3135</span>
+<span class="normal">3136</span>
+<span class="normal">3137</span>
+<span class="normal">3138</span>
+<span class="normal">3139</span>
+<span class="normal">3140</span>
+<span class="normal">3141</span>
+<span class="normal">3142</span>
+<span class="normal">3143</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Features</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">distance_from_closest_molecule</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
@@ -14745,16 +14763,7 @@ memory usage and computation time.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3072</span>
-<span class="normal">3073</span>
-<span class="normal">3074</span>
-<span class="normal">3075</span>
-<span class="normal">3076</span>
-<span class="normal">3077</span>
-<span class="normal">3078</span>
-<span class="normal">3079</span>
-<span class="normal">3080</span>
-<span class="normal">3081</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3081</span>
 <span class="normal">3082</span>
 <span class="normal">3083</span>
 <span class="normal">3084</span>
@@ -14782,7 +14791,16 @@ memory usage and computation time.</p>
 <span class="normal">3106</span>
 <span class="normal">3107</span>
 <span class="normal">3108</span>
-<span class="normal">3109</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Features</span><span class="p">)</span>
+<span class="normal">3109</span>
+<span class="normal">3110</span>
+<span class="normal">3111</span>
+<span class="normal">3112</span>
+<span class="normal">3113</span>
+<span class="normal">3114</span>
+<span class="normal">3115</span>
+<span class="normal">3116</span>
+<span class="normal">3117</span>
+<span class="normal">3118</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Features</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">distance_from_spline</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
@@ -14911,16 +14929,7 @@ string of comma-separated integers/slices (e.g. <code>3, N - 3</code>,
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2832</span>
-<span class="normal">2833</span>
-<span class="normal">2834</span>
-<span class="normal">2835</span>
-<span class="normal">2836</span>
-<span class="normal">2837</span>
-<span class="normal">2838</span>
-<span class="normal">2839</span>
-<span class="normal">2840</span>
-<span class="normal">2841</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2841</span>
 <span class="normal">2842</span>
 <span class="normal">2843</span>
 <span class="normal">2844</span>
@@ -14954,7 +14963,16 @@ string of comma-separated integers/slices (e.g. <code>3, N - 3</code>,
 <span class="normal">2872</span>
 <span class="normal">2873</span>
 <span class="normal">2874</span>
-<span class="normal">2875</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="p">)</span>
+<span class="normal">2875</span>
+<span class="normal">2876</span>
+<span class="normal">2877</span>
+<span class="normal">2878</span>
+<span class="normal">2879</span>
+<span class="normal">2880</span>
+<span class="normal">2881</span>
+<span class="normal">2882</span>
+<span class="normal">2883</span>
+<span class="normal">2884</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">drop_molecules</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
@@ -15293,16 +15311,7 @@ string of comma-separated integers/slices (e.g. <code>3, N - 3</code>,
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2807</span>
-<span class="normal">2808</span>
-<span class="normal">2809</span>
-<span class="normal">2810</span>
-<span class="normal">2811</span>
-<span class="normal">2812</span>
-<span class="normal">2813</span>
-<span class="normal">2814</span>
-<span class="normal">2815</span>
-<span class="normal">2816</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2816</span>
 <span class="normal">2817</span>
 <span class="normal">2818</span>
 <span class="normal">2819</span>
@@ -15316,7 +15325,16 @@ string of comma-separated integers/slices (e.g. <code>3, N - 3</code>,
 <span class="normal">2827</span>
 <span class="normal">2828</span>
 <span class="normal">2829</span>
-<span class="normal">2830</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="p">)</span>
+<span class="normal">2830</span>
+<span class="normal">2831</span>
+<span class="normal">2832</span>
+<span class="normal">2833</span>
+<span class="normal">2834</span>
+<span class="normal">2835</span>
+<span class="normal">2836</span>
+<span class="normal">2837</span>
+<span class="normal">2838</span>
+<span class="normal">2839</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">filter_molecules</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
@@ -15927,16 +15945,7 @@ must be "almost" fitted in dense mode.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3337</span>
-<span class="normal">3338</span>
-<span class="normal">3339</span>
-<span class="normal">3340</span>
-<span class="normal">3341</span>
-<span class="normal">3342</span>
-<span class="normal">3343</span>
-<span class="normal">3344</span>
-<span class="normal">3345</span>
-<span class="normal">3346</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3346</span>
 <span class="normal">3347</span>
 <span class="normal">3348</span>
 <span class="normal">3349</span>
@@ -15945,7 +15954,16 @@ must be "almost" fitted in dense mode.</p>
 <span class="normal">3352</span>
 <span class="normal">3353</span>
 <span class="normal">3354</span>
-<span class="normal">3355</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+<span class="normal">3355</span>
+<span class="normal">3356</span>
+<span class="normal">3357</span>
+<span class="normal">3358</span>
+<span class="normal">3359</span>
+<span class="normal">3360</span>
+<span class="normal">3361</span>
+<span class="normal">3362</span>
+<span class="normal">3363</span>
+<span class="normal">3364</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">get_loader</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -16498,16 +16516,7 @@ polarity of the spline.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2939</span>
-<span class="normal">2940</span>
-<span class="normal">2941</span>
-<span class="normal">2942</span>
-<span class="normal">2943</span>
-<span class="normal">2944</span>
-<span class="normal">2945</span>
-<span class="normal">2946</span>
-<span class="normal">2947</span>
-<span class="normal">2948</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2948</span>
 <span class="normal">2949</span>
 <span class="normal">2950</span>
 <span class="normal">2951</span>
@@ -16533,7 +16542,16 @@ polarity of the spline.</p>
 <span class="normal">2971</span>
 <span class="normal">2972</span>
 <span class="normal">2973</span>
-<span class="normal">2974</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Features</span><span class="p">)</span>
+<span class="normal">2974</span>
+<span class="normal">2975</span>
+<span class="normal">2976</span>
+<span class="normal">2977</span>
+<span class="normal">2978</span>
+<span class="normal">2979</span>
+<span class="normal">2980</span>
+<span class="normal">2981</span>
+<span class="normal">2982</span>
+<span class="normal">2983</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Features</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">interpolate_spline_properties</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
@@ -16839,16 +16857,7 @@ polarity of the spline.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3175</span>
-<span class="normal">3176</span>
-<span class="normal">3177</span>
-<span class="normal">3178</span>
-<span class="normal">3179</span>
-<span class="normal">3180</span>
-<span class="normal">3181</span>
-<span class="normal">3182</span>
-<span class="normal">3183</span>
-<span class="normal">3184</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3184</span>
 <span class="normal">3185</span>
 <span class="normal">3186</span>
 <span class="normal">3187</span>
@@ -16873,7 +16882,16 @@ polarity of the spline.</p>
 <span class="normal">3206</span>
 <span class="normal">3207</span>
 <span class="normal">3208</span>
-<span class="normal">3209</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Features</span><span class="p">)</span>
+<span class="normal">3209</span>
+<span class="normal">3210</span>
+<span class="normal">3211</span>
+<span class="normal">3212</span>
+<span class="normal">3213</span>
+<span class="normal">3214</span>
+<span class="normal">3215</span>
+<span class="normal">3216</span>
+<span class="normal">3217</span>
+<span class="normal">3218</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Features</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">label_feature_clusters</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
@@ -17940,16 +17958,7 @@ current spline orientation as is.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2466</span>
-<span class="normal">2467</span>
-<span class="normal">2468</span>
-<span class="normal">2469</span>
-<span class="normal">2470</span>
-<span class="normal">2471</span>
-<span class="normal">2472</span>
-<span class="normal">2473</span>
-<span class="normal">2474</span>
-<span class="normal">2475</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2475</span>
 <span class="normal">2476</span>
 <span class="normal">2477</span>
 <span class="normal">2478</span>
@@ -17968,7 +17977,16 @@ current spline orientation as is.</p>
 <span class="normal">2491</span>
 <span class="normal">2492</span>
 <span class="normal">2493</span>
-<span class="normal">2494</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Map alogn PF&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">FromToSpline</span><span class="p">)</span>
+<span class="normal">2494</span>
+<span class="normal">2495</span>
+<span class="normal">2496</span>
+<span class="normal">2497</span>
+<span class="normal">2498</span>
+<span class="normal">2499</span>
+<span class="normal">2500</span>
+<span class="normal">2501</span>
+<span class="normal">2502</span>
+<span class="normal">2503</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Map alogn PF&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">FromToSpline</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">map_along_pf</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">spline</span><span class="p">:</span> <span class="n">SplineType</span><span class="p">,</span>
@@ -18117,16 +18135,7 @@ current spline orientation as is.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2395</span>
-<span class="normal">2396</span>
-<span class="normal">2397</span>
-<span class="normal">2398</span>
-<span class="normal">2399</span>
-<span class="normal">2400</span>
-<span class="normal">2401</span>
-<span class="normal">2402</span>
-<span class="normal">2403</span>
-<span class="normal">2404</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2404</span>
 <span class="normal">2405</span>
 <span class="normal">2406</span>
 <span class="normal">2407</span>
@@ -18153,7 +18162,16 @@ current spline orientation as is.</p>
 <span class="normal">2428</span>
 <span class="normal">2429</span>
 <span class="normal">2430</span>
-<span class="normal">2431</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">FromToSpline</span><span class="p">)</span>
+<span class="normal">2431</span>
+<span class="normal">2432</span>
+<span class="normal">2433</span>
+<span class="normal">2434</span>
+<span class="normal">2435</span>
+<span class="normal">2436</span>
+<span class="normal">2437</span>
+<span class="normal">2438</span>
+<span class="normal">2439</span>
+<span class="normal">2440</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">FromToSpline</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">map_along_spline</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">splines</span><span class="p">:</span> <span class="n">SplinesType</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -18279,16 +18297,7 @@ current spline orientation as is.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2433</span>
-<span class="normal">2434</span>
-<span class="normal">2435</span>
-<span class="normal">2436</span>
-<span class="normal">2437</span>
-<span class="normal">2438</span>
-<span class="normal">2439</span>
-<span class="normal">2440</span>
-<span class="normal">2441</span>
-<span class="normal">2442</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2442</span>
 <span class="normal">2443</span>
 <span class="normal">2444</span>
 <span class="normal">2445</span>
@@ -18310,7 +18319,16 @@ current spline orientation as is.</p>
 <span class="normal">2461</span>
 <span class="normal">2462</span>
 <span class="normal">2463</span>
-<span class="normal">2464</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span>
+<span class="normal">2464</span>
+<span class="normal">2465</span>
+<span class="normal">2466</span>
+<span class="normal">2467</span>
+<span class="normal">2468</span>
+<span class="normal">2469</span>
+<span class="normal">2470</span>
+<span class="normal">2471</span>
+<span class="normal">2472</span>
+<span class="normal">2473</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span>
     <span class="n">text</span><span class="o">=</span><span class="s2">&quot;Map along spline (helical symmetry)&quot;</span><span class="p">,</span>
     <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">FromToSpline</span><span class="p">,</span>
 <span class="p">)</span>
@@ -18352,15 +18370,16 @@ current spline orientation as is.</p>
 
 
 <h3 id="cylindra.widgets.main.CylindraMainWidget.map_monomers" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">map_monomers</span><span class="p">(</span><span class="n">splines</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">orientation</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">extensions</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">prefix</span><span class="o">=</span><span class="s1">&#39;Mole&#39;</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">map_monomers</span><span class="p">(</span><span class="n">splines</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">orientation</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">extensions</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">prop_to_use</span><span class="o">=</span><span class="s1">&#39;global&#39;</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s1">&#39;Mole&#39;</span><span class="p">)</span></code>
 
 </h3>
 
 
     <div class="doc doc-contents ">
 
-        <p>Map monomers as a regular cylindric grid assembly.</p>
-<p>This method uses the spline global properties.</p>
+        <p>Map monomers as a regular cylindrical grid assembly.</p>
+<p>This method uses the spline global properties and/or local properties to locate
+molecules along the cylinder surface.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -18458,6 +18477,26 @@ Negative values will remove molecules.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
+                <code>prop_to_use</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Which spline properties to use for mapping. If "global", use the global
+properties to map monomers in a regular grid; if "local", use the local
+properties to map monomers in a heterogeneous manner. If the lattice
+parameters are accurately estimated, using "local" usually gives better
+initial resolution.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#34;global&#34;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
                 <code>prefix</code>
             </td>
             <td>
@@ -18529,7 +18568,16 @@ Negative values will remove molecules.</p>
 <span class="normal">2352</span>
 <span class="normal">2353</span>
 <span class="normal">2354</span>
-<span class="normal">2355</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">FromToSpline</span><span class="p">)</span>
+<span class="normal">2355</span>
+<span class="normal">2356</span>
+<span class="normal">2357</span>
+<span class="normal">2358</span>
+<span class="normal">2359</span>
+<span class="normal">2360</span>
+<span class="normal">2361</span>
+<span class="normal">2362</span>
+<span class="normal">2363</span>
+<span class="normal">2364</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">FromToSpline</span><span class="p">)</span>
 <span class="nd">@bind_key</span><span class="p">(</span><span class="s2">&quot;M&quot;</span><span class="p">)</span>
 <span class="nd">@thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Mapping monomers&quot;</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="n">_NSPLINES</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">map_monomers</span><span class="p">(</span>
@@ -18539,11 +18587,13 @@ Negative values will remove molecules.</p>
     <span class="n">offsets</span><span class="p">:</span> <span class="n">_OffsetType</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">radius</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">nm</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">extensions</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span> <span class="p">{</span><span class="s2">&quot;options&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">100</span><span class="p">}}]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+    <span class="n">prop_to_use</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;local&quot;</span><span class="p">,</span> <span class="s2">&quot;global&quot;</span><span class="p">,</span> <span class="s2">&quot;both&quot;</span><span class="p">],</span> <span class="p">{</span><span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;properties to use&quot;</span><span class="p">}]</span> <span class="o">=</span> <span class="s2">&quot;global&quot;</span><span class="p">,</span>
     <span class="n">prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;Mole&quot;</span><span class="p">,</span>
 <span class="p">):</span>  <span class="c1"># fmt: skip</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Map monomers as a regular cylindric grid assembly.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Map monomers as a regular cylindrical grid assembly.</span>
 
-<span class="sd">    This method uses the spline global properties.</span>
+<span class="sd">    This method uses the spline global properties and/or local properties to locate</span>
+<span class="sd">    molecules along the cylinder surface.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -18553,6 +18603,12 @@ Negative values will remove molecules.</p>
 <span class="sd">    extensions : (int, int), default (0, 0)</span>
 <span class="sd">        Number of molecules to extend. Should be a tuple of (prepend, append).</span>
 <span class="sd">        Negative values will remove molecules.</span>
+<span class="sd">    prop_to_use : str, default &quot;global&quot;</span>
+<span class="sd">        Which spline properties to use for mapping. If &quot;global&quot;, use the global</span>
+<span class="sd">        properties to map monomers in a regular grid; if &quot;local&quot;, use the local</span>
+<span class="sd">        properties to map monomers in a heterogeneous manner. If the lattice</span>
+<span class="sd">        parameters are accurately estimated, using &quot;local&quot; usually gives better</span>
+<span class="sd">        initial resolution.</span>
 <span class="sd">    {prefix}</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">tomo</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tomogram</span>
@@ -18574,6 +18630,7 @@ Negative values will remove molecules.</p>
             <span class="n">offsets</span><span class="o">=</span><span class="n">normalize_offsets</span><span class="p">(</span><span class="n">offsets</span><span class="p">,</span> <span class="n">spl</span><span class="p">),</span>
             <span class="n">radius</span><span class="o">=</span><span class="n">normalize_radius</span><span class="p">(</span><span class="n">radius</span><span class="p">,</span> <span class="n">spl</span><span class="p">),</span>
             <span class="n">extensions</span><span class="o">=</span><span class="n">extensions</span><span class="p">,</span>
+            <span class="n">prop_to_use</span><span class="o">=</span><span class="n">prop_to_use</span><span class="p">,</span>
         <span class="p">)</span>
 
         <span class="n">cb</span> <span class="o">=</span> <span class="n">_add_molecules</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">spl</span><span class="p">)</span>
@@ -18717,16 +18774,7 @@ current spline orientation as is.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2357</span>
-<span class="normal">2358</span>
-<span class="normal">2359</span>
-<span class="normal">2360</span>
-<span class="normal">2361</span>
-<span class="normal">2362</span>
-<span class="normal">2363</span>
-<span class="normal">2364</span>
-<span class="normal">2365</span>
-<span class="normal">2366</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2366</span>
 <span class="normal">2367</span>
 <span class="normal">2368</span>
 <span class="normal">2369</span>
@@ -18753,7 +18801,16 @@ current spline orientation as is.</p>
 <span class="normal">2390</span>
 <span class="normal">2391</span>
 <span class="normal">2392</span>
-<span class="normal">2393</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">FromToSpline</span><span class="p">)</span>
+<span class="normal">2393</span>
+<span class="normal">2394</span>
+<span class="normal">2395</span>
+<span class="normal">2396</span>
+<span class="normal">2397</span>
+<span class="normal">2398</span>
+<span class="normal">2399</span>
+<span class="normal">2400</span>
+<span class="normal">2401</span>
+<span class="normal">2402</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">FromToSpline</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">map_monomers_with_extensions</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">spline</span><span class="p">:</span> <span class="n">SplineType</span><span class="p">,</span>
@@ -19475,16 +19532,7 @@ all the existing local properties.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2547</span>
-<span class="normal">2548</span>
-<span class="normal">2549</span>
-<span class="normal">2550</span>
-<span class="normal">2551</span>
-<span class="normal">2552</span>
-<span class="normal">2553</span>
-<span class="normal">2554</span>
-<span class="normal">2555</span>
-<span class="normal">2556</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2556</span>
 <span class="normal">2557</span>
 <span class="normal">2558</span>
 <span class="normal">2559</span>
@@ -19503,7 +19551,16 @@ all the existing local properties.</p>
 <span class="normal">2572</span>
 <span class="normal">2573</span>
 <span class="normal">2574</span>
-<span class="normal">2575</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Combine</span><span class="p">)</span>
+<span class="normal">2575</span>
+<span class="normal">2576</span>
+<span class="normal">2577</span>
+<span class="normal">2578</span>
+<span class="normal">2579</span>
+<span class="normal">2580</span>
+<span class="normal">2581</span>
+<span class="normal">2582</span>
+<span class="normal">2583</span>
+<span class="normal">2584</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Combine</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">merge_molecule_info</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">pos</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
@@ -20944,16 +21001,7 @@ background.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2877</span>
-<span class="normal">2878</span>
-<span class="normal">2879</span>
-<span class="normal">2880</span>
-<span class="normal">2881</span>
-<span class="normal">2882</span>
-<span class="normal">2883</span>
-<span class="normal">2884</span>
-<span class="normal">2885</span>
-<span class="normal">2886</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2886</span>
 <span class="normal">2887</span>
 <span class="normal">2888</span>
 <span class="normal">2889</span>
@@ -20969,7 +21017,16 @@ background.</p>
 <span class="normal">2899</span>
 <span class="normal">2900</span>
 <span class="normal">2901</span>
-<span class="normal">2902</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">View</span><span class="p">)</span>
+<span class="normal">2902</span>
+<span class="normal">2903</span>
+<span class="normal">2904</span>
+<span class="normal">2905</span>
+<span class="normal">2906</span>
+<span class="normal">2907</span>
+<span class="normal">2908</span>
+<span class="normal">2909</span>
+<span class="normal">2910</span>
+<span class="normal">2911</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">View</span><span class="p">)</span>
 <span class="nd">@bind_key</span><span class="p">(</span><span class="s2">&quot;Ctrl+K, C&quot;</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">paint_molecules</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -21564,16 +21621,7 @@ the the property "mean" will be [1.5, 3.5]. For some properties such as "length"
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3211</span>
-<span class="normal">3212</span>
-<span class="normal">3213</span>
-<span class="normal">3214</span>
-<span class="normal">3215</span>
-<span class="normal">3216</span>
-<span class="normal">3217</span>
-<span class="normal">3218</span>
-<span class="normal">3219</span>
-<span class="normal">3220</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3220</span>
 <span class="normal">3221</span>
 <span class="normal">3222</span>
 <span class="normal">3223</span>
@@ -21598,7 +21646,16 @@ the the property "mean" will be [1.5, 3.5]. For some properties such as "length"
 <span class="normal">3242</span>
 <span class="normal">3243</span>
 <span class="normal">3244</span>
-<span class="normal">3245</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Analyze region properties&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Features</span><span class="p">)</span>
+<span class="normal">3245</span>
+<span class="normal">3246</span>
+<span class="normal">3247</span>
+<span class="normal">3248</span>
+<span class="normal">3249</span>
+<span class="normal">3250</span>
+<span class="normal">3251</span>
+<span class="normal">3252</span>
+<span class="normal">3253</span>
+<span class="normal">3254</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Analyze region properties&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Features</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">regionprops_features</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
@@ -21655,18 +21712,18 @@ the the property "mean" will be [1.5, 3.5]. For some properties such as "length"
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2635</span>
-<span class="normal">2636</span>
-<span class="normal">2637</span>
-<span class="normal">2638</span>
-<span class="normal">2639</span>
-<span class="normal">2640</span>
-<span class="normal">2641</span>
-<span class="normal">2642</span>
-<span class="normal">2643</span>
-<span class="normal">2644</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2644</span>
 <span class="normal">2645</span>
-<span class="normal">2646</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="p">)</span>
+<span class="normal">2646</span>
+<span class="normal">2647</span>
+<span class="normal">2648</span>
+<span class="normal">2649</span>
+<span class="normal">2650</span>
+<span class="normal">2651</span>
+<span class="normal">2652</span>
+<span class="normal">2653</span>
+<span class="normal">2654</span>
+<span class="normal">2655</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">register_molecules</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">coords</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;validator&quot;</span><span class="p">:</span> <span class="n">_get_spline_coordinates</span><span class="p">}]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -21848,16 +21905,7 @@ the the property "mean" will be [1.5, 3.5]. For some properties such as "length"
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2753</span>
-<span class="normal">2754</span>
-<span class="normal">2755</span>
-<span class="normal">2756</span>
-<span class="normal">2757</span>
-<span class="normal">2758</span>
-<span class="normal">2759</span>
-<span class="normal">2760</span>
-<span class="normal">2761</span>
-<span class="normal">2762</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2762</span>
 <span class="normal">2763</span>
 <span class="normal">2764</span>
 <span class="normal">2765</span>
@@ -21879,7 +21927,16 @@ the the property "mean" will be [1.5, 3.5]. For some properties such as "length"
 <span class="normal">2781</span>
 <span class="normal">2782</span>
 <span class="normal">2783</span>
-<span class="normal">2784</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Rename molecule layers&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="p">)</span>
+<span class="normal">2784</span>
+<span class="normal">2785</span>
+<span class="normal">2786</span>
+<span class="normal">2787</span>
+<span class="normal">2788</span>
+<span class="normal">2789</span>
+<span class="normal">2790</span>
+<span class="normal">2791</span>
+<span class="normal">2792</span>
+<span class="normal">2793</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Rename molecule layers&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="p">)</span>
 <span class="nd">@do_not_record</span><span class="p">(</span><span class="n">recursive</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">rename_molecules</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -22015,16 +22072,7 @@ current spline orientation as is.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2727</span>
-<span class="normal">2728</span>
-<span class="normal">2729</span>
-<span class="normal">2730</span>
-<span class="normal">2731</span>
-<span class="normal">2732</span>
-<span class="normal">2733</span>
-<span class="normal">2734</span>
-<span class="normal">2735</span>
-<span class="normal">2736</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2736</span>
 <span class="normal">2737</span>
 <span class="normal">2738</span>
 <span class="normal">2739</span>
@@ -22039,7 +22087,16 @@ current spline orientation as is.</p>
 <span class="normal">2748</span>
 <span class="normal">2749</span>
 <span class="normal">2750</span>
-<span class="normal">2751</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="p">)</span>
+<span class="normal">2751</span>
+<span class="normal">2752</span>
+<span class="normal">2753</span>
+<span class="normal">2754</span>
+<span class="normal">2755</span>
+<span class="normal">2756</span>
+<span class="normal">2757</span>
+<span class="normal">2758</span>
+<span class="normal">2759</span>
+<span class="normal">2760</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">rotate_molecule_toward_spline</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
@@ -22152,16 +22209,7 @@ around the Y axis.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2693</span>
-<span class="normal">2694</span>
-<span class="normal">2695</span>
-<span class="normal">2696</span>
-<span class="normal">2697</span>
-<span class="normal">2698</span>
-<span class="normal">2699</span>
-<span class="normal">2700</span>
-<span class="normal">2701</span>
-<span class="normal">2702</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2702</span>
 <span class="normal">2703</span>
 <span class="normal">2704</span>
 <span class="normal">2705</span>
@@ -22184,7 +22232,16 @@ around the Y axis.</p>
 <span class="normal">2722</span>
 <span class="normal">2723</span>
 <span class="normal">2724</span>
-<span class="normal">2725</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="p">)</span>
+<span class="normal">2725</span>
+<span class="normal">2726</span>
+<span class="normal">2727</span>
+<span class="normal">2728</span>
+<span class="normal">2729</span>
+<span class="normal">2730</span>
+<span class="normal">2731</span>
+<span class="normal">2732</span>
+<span class="normal">2733</span>
+<span class="normal">2734</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">rotate_molecules</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layers</span><span class="p">:</span> <span class="n">MoleculesLayersType</span><span class="p">,</span>
@@ -22992,16 +23049,7 @@ with the global properties of the spline as the context.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2496</span>
-<span class="normal">2497</span>
-<span class="normal">2498</span>
-<span class="normal">2499</span>
-<span class="normal">2500</span>
-<span class="normal">2501</span>
-<span class="normal">2502</span>
-<span class="normal">2503</span>
-<span class="normal">2504</span>
-<span class="normal">2505</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2505</span>
 <span class="normal">2506</span>
 <span class="normal">2507</span>
 <span class="normal">2508</span>
@@ -23012,7 +23060,16 @@ with the global properties of the spline as the context.</p>
 <span class="normal">2513</span>
 <span class="normal">2514</span>
 <span class="normal">2515</span>
-<span class="normal">2516</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">FromToSpline</span><span class="p">)</span>
+<span class="normal">2516</span>
+<span class="normal">2517</span>
+<span class="normal">2518</span>
+<span class="normal">2519</span>
+<span class="normal">2520</span>
+<span class="normal">2521</span>
+<span class="normal">2522</span>
+<span class="normal">2523</span>
+<span class="normal">2524</span>
+<span class="normal">2525</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">FromToSpline</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">set_source_spline</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
@@ -23428,16 +23485,7 @@ properties) for masking.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2611</span>
-<span class="normal">2612</span>
-<span class="normal">2613</span>
-<span class="normal">2614</span>
-<span class="normal">2615</span>
-<span class="normal">2616</span>
-<span class="normal">2617</span>
-<span class="normal">2618</span>
-<span class="normal">2619</span>
-<span class="normal">2620</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2620</span>
 <span class="normal">2621</span>
 <span class="normal">2622</span>
 <span class="normal">2623</span>
@@ -23450,7 +23498,16 @@ properties) for masking.</p>
 <span class="normal">2630</span>
 <span class="normal">2631</span>
 <span class="normal">2632</span>
-<span class="normal">2633</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Split molecules by feature&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="p">)</span>
+<span class="normal">2633</span>
+<span class="normal">2634</span>
+<span class="normal">2635</span>
+<span class="normal">2636</span>
+<span class="normal">2637</span>
+<span class="normal">2638</span>
+<span class="normal">2639</span>
+<span class="normal">2640</span>
+<span class="normal">2641</span>
+<span class="normal">2642</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Split molecules by feature&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">split_molecules</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
@@ -23966,16 +24023,7 @@ molecules with different rotations are translated differently.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2648</span>
-<span class="normal">2649</span>
-<span class="normal">2650</span>
-<span class="normal">2651</span>
-<span class="normal">2652</span>
-<span class="normal">2653</span>
-<span class="normal">2654</span>
-<span class="normal">2655</span>
-<span class="normal">2656</span>
-<span class="normal">2657</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2657</span>
 <span class="normal">2658</span>
 <span class="normal">2659</span>
 <span class="normal">2660</span>
@@ -24009,7 +24057,16 @@ molecules with different rotations are translated differently.</p>
 <span class="normal">2688</span>
 <span class="normal">2689</span>
 <span class="normal">2690</span>
-<span class="normal">2691</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="p">)</span>
+<span class="normal">2691</span>
+<span class="normal">2692</span>
+<span class="normal">2693</span>
+<span class="normal">2694</span>
+<span class="normal">2695</span>
+<span class="normal">2696</span>
+<span class="normal">2697</span>
+<span class="normal">2698</span>
+<span class="normal">2699</span>
+<span class="normal">2700</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">translate_molecules</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layers</span><span class="p">:</span> <span class="n">MoleculesLayersType</span><span class="p">,</span>
@@ -24123,16 +24180,7 @@ affected by this operation will be dropped.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3247</span>
-<span class="normal">3248</span>
-<span class="normal">3249</span>
-<span class="normal">3250</span>
-<span class="normal">3251</span>
-<span class="normal">3252</span>
-<span class="normal">3253</span>
-<span class="normal">3254</span>
-<span class="normal">3255</span>
-<span class="normal">3256</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3256</span>
 <span class="normal">3257</span>
 <span class="normal">3258</span>
 <span class="normal">3259</span>
@@ -24185,7 +24233,16 @@ affected by this operation will be dropped.</p>
 <span class="normal">3306</span>
 <span class="normal">3307</span>
 <span class="normal">3308</span>
-<span class="normal">3309</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Update pixel scale&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">ImageMenu</span><span class="p">)</span>
+<span class="normal">3309</span>
+<span class="normal">3310</span>
+<span class="normal">3311</span>
+<span class="normal">3312</span>
+<span class="normal">3313</span>
+<span class="normal">3314</span>
+<span class="normal">3315</span>
+<span class="normal">3316</span>
+<span class="normal">3317</span>
+<span class="normal">3318</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Update pixel scale&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">ImageMenu</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">update_scale</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">new_scale</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">nm</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s2">&quot;step&quot;</span><span class="p">:</span> <span class="mf">0.0001</span><span class="p">}]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
