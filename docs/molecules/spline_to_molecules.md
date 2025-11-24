@@ -49,7 +49,15 @@ will be used to determine the coodinates of monomers, such as:
        `"offset_radial"`, it will be added to the radius.
     5. "extensions" is the number of molecules to be prepended and appended. The spline
        will be linearly extrapolated to calculate the positions of these molecules.
-    6. You can use any molecules-layer name prefix you like by providing the `"prefix"`
+    6. "properties to use" defines which properties to be used for placing molecules.
+       - `"global"`: only the global properties will be used. This is the behavior of
+         previous versions of `cylindra`.
+       - `"local"`: local properties will be used to reflect the heterogeneity along the
+         spline.
+       - `"both"`: both global and local properties will be used. The global properties
+         will be used as the mean values, and the variations of local properties will be
+         applied on top of them.
+    7. You can use any molecules-layer name prefix you like by providing the `"prefix"`
        parameter.
 
 Following image shows an example of the result of this operation.

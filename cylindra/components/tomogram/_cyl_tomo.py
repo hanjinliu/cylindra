@@ -1106,6 +1106,7 @@ class CylTomogram(Tomogram):
         self,
         i: int,
         offsets: tuple[float, float] = (0.0, 0.0),
+        use_local: bool = False,
         **kwargs,
     ) -> CylinderModel:  # fmt: skip
         """Return the cylinder model at the given spline ID.
@@ -1122,7 +1123,17 @@ class CylTomogram(Tomogram):
         CylinderModel
             The cylinder model.
         """
-        return self.splines[i].cylinder_model(offsets=offsets, **kwargs)
+        spl = self.splines[i]
+        if use_local:
+            df_loc = spl.props.loc
+            glob = df_loc.select(pl.selectors.numeric()).mean()
+            if H.npf in df_loc.columns:
+                glob = glob.with_columns(df_loc[H.npf].mode().first())
+            if H.start in df_loc.columns:
+                glob = glob.with_columns(df_loc[H.start].mode().first())
+            for c, val in glob.to_dict().items():
+                kwargs[c] = val[0]
+        return spl.cylinder_model(offsets=offsets, **kwargs)
 
     @_misc.batch_process
     def map_monomers(
@@ -1132,7 +1143,7 @@ class CylTomogram(Tomogram):
         offsets: tuple[nm, float] | None = None,
         orientation: Ori | str | None = None,
         extensions: tuple[int, int] = (0, 0),
-        prop_to_use: Literal["global", "local"] = "global",
+        prop_to_use: Literal["local", "global", "both"] = "global",
         **kwargs,
     ) -> Molecules:
         """Map monomers in a regular cylinder shape.
@@ -1155,7 +1166,12 @@ class CylTomogram(Tomogram):
         Molecules
             Object that represents monomer positions and angles.
         """
-        model = self.get_cylinder_model(i, offsets=offsets, **kwargs)
+        if prop_to_use not in ("local", "global", "both"):
+            raise ValueError("`prop_to_use` must be 'local', 'global' or 'both'")
+        use_local = prop_to_use == "local"
+        model = self.get_cylinder_model(
+            i, offsets=offsets, use_local=use_local, **kwargs
+        )
         ny, na = model.shape
         ext0, ext1 = extensions
         if ny + ext0 + ext1 < 0:
@@ -1164,7 +1180,7 @@ class CylTomogram(Tomogram):
         yy -= ext0
         coords = np.stack([yy.ravel(), aa.ravel()], axis=1)
         spl = self.splines[i]
-        local = prop_to_use == "local"
+        local = prop_to_use in ("local", "both")
         mole = model.locate_molecules(spl, coords, local_displace=local)
         if spl._need_rotation(orientation):
             mole = mole.rotate_by_rotvec_internal([np.pi, 0, 0])

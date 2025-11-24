@@ -281,6 +281,7 @@ class CylinderModel:
     def expand(self, by: float, sl: _Slicer) -> Self:
         """Locally add uniform displacement to the axial (y-axis) direction.
 
+        ```
                           o o
         o o o o         o o o o
         o o o o         o     o
@@ -288,17 +289,20 @@ class CylinderModel:
         o o o o         o     o
         o o o o         o o o o
                           o o
+        ```
         """
         return self._in_plane_displace(by, sl, axis=1)
 
     def twist(self, by: float, sl: _Slicer) -> Self:
         """Locally add uniform displacement to the skew (a-axis) direction.
 
+        ```
         o o o o         o  o oo
         o o o o         o  o oo
         o o o o  ---->  o o o o
         o o o o         oo o  o
         o o o o         oo o  o
+        ```
         """
         return self._in_plane_displace(by, sl, axis=2)
 
@@ -314,9 +318,9 @@ class CylinderModel:
         shape = (shifted_2d.shape[0] // self.shape[1], self.shape[1])
         u_sample = spl.y_to_position(shifted_2d[:, 1])
         df_loc = spl.props.loc
-        for col in [H.radius, H.spacing, H.twist]:
-            if col not in df_loc.columns:
-                df_loc = df_loc.with_columns(pl.lit(0.0).alias(col))
+        if H.radius not in df_loc.columns:
+            # local radius may not be measured yet.
+            df_loc = df_loc.with_columns(pl.lit(0.0).alias(H.radius))
         anc = spl.anchors
         values = df_loc.select(H.radius, H.spacing, H.twist).to_numpy()
         values = values - values.mean(axis=0)[np.newaxis, :]

@@ -2311,12 +2311,13 @@ class CylindraMainWidget(MagicTemplate):
         offsets: _OffsetType = None,
         radius: Optional[nm] = None,
         extensions: Annotated[tuple[int, int], {"options": {"min": -100}}] = (0, 0),
-        prop_to_use: Literal["local", "global"] = "global",
+        prop_to_use: Annotated[Literal["local", "global", "both"], {"label": "properties to use"}] = "global",
         prefix: str = "Mole",
     ):  # fmt: skip
-        """Map monomers as a regular cylindric grid assembly.
+        """Map monomers as a regular cylindrical grid assembly.
 
-        This method uses the spline global properties.
+        This method uses the spline global properties and/or local properties to locate
+        molecules along the cylinder surface.
 
         Parameters
         ----------
