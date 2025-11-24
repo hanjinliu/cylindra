@@ -28,8 +28,9 @@ from cylindra.const import FileFilter
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.project import CylindraProject, get_project_file
+from cylindra.utils import unwrap_wildcard
 from cylindra.widget_utils import POLARS_NAMESPACE, capitalize
-from cylindra.widgets.batch._utils import PathInfo, TempFeatures, unwrap_wildcard
+from cylindra.widgets.batch._utils import PathInfo, TempFeatures
 
 
 @magicclass(

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import glob
 import math
 import re
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable, Sequence, TypeVar
+from typing import Any, Callable, Iterable, Sequence, TypeVar
 
 import impy as ip
 import numpy as np
@@ -404,6 +405,20 @@ def nd_take(
     is_valid = np.all(is_valid, axis=1)
     ids[is_valid] = np.take(arr, flat_indices[is_valid])
     return ids
+
+
+def unwrap_wildcard(path: str | Path | Iterable[str | Path]) -> list[Path]:
+    """Unwrap a wildcard path to a string."""
+    all_paths = []
+    if isinstance(path, (str, Path)):
+        path = [str(path)]
+    for p in path:
+        p = str(p)
+        if "*" in p or "?" in p:
+            all_paths.extend(glob.glob(p))
+        else:
+            all_paths.append(p)
+    return [Path(p) for p in all_paths]
 
 
 class Projections:
