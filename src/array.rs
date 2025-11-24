@@ -1,7 +1,7 @@
 use pyo3::{prelude::*, Python};
 use numpy::{
-    ndarray::{Array2, s}, IntoPyArray, PyArray2, PyReadonlyArray1, PyReadonlyArray2,
-    PyUntypedArrayMethods,
+    IntoPyArray, PyArray2, PyArray3, PyReadonlyArray1, PyReadonlyArray2,
+    PyUntypedArrayMethods, ndarray::{Array2, Array3, s}
 };
 use crate::value_error;
 
@@ -16,7 +16,7 @@ pub fn oblique_coordinates<'py>(
     offsets: (f32, f32),
 ) -> PyResult<Py<PyArray2<f32>>> {
     if coords.shape()[1] != 2 {
-        return value_error!("ints must be N x 2");
+        return value_error!("`coords` must be N x 2");
     }
     let coords = coords.as_array();
     let (tan0, tan1) = tilts;
@@ -31,7 +31,40 @@ pub fn oblique_coordinates<'py>(
         out[[i, 1]] = (nth * tan0 + npf) * d1 + c1;
     }
     Ok(out.into_pyarray(py).into())
+}
 
+
+#[pyfunction]
+pub fn displacement_array<'py>(
+    py: Python<'py>,
+    mesh_shape: (usize, usize),  // (ny, npf)
+    dilate: PyReadonlyArray1<f32>,  // N
+    expand: PyReadonlyArray1<f32>,  // N
+    twist: PyReadonlyArray1<f32>,  // N
+) -> PyResult<Py<PyArray3<f32>>> {
+    let (ny, npf) = mesh_shape;
+    let dilate = reshape(&dilate, (ny, npf));
+    let expand = reshape(&expand, (ny, npf));
+    let twist = reshape(&twist, (ny, npf));
+
+    let mut out = Array3::<f32>::zeros((ny, npf, 3));
+    for iy in 0..ny {
+        for ipf in 0..npf {
+            out[[iy, ipf, 0]] += dilate[[iy, ipf]];
+            let exp0 = expand[[iy, ipf]];
+            let twist0 = twist[[iy, ipf]];
+            for jy in iy..ny {
+                out[[jy, ipf, 1]] += exp0;
+                out[[jy, ipf, 2]] += twist0;
+            }
+        }
+    }
+    Ok(out.into_pyarray(py).into())
+}
+
+fn reshape(arr: &PyReadonlyArray1<f32>, shape: (usize, usize)) -> Array2<f32> {
+    let arr = arr.as_array();
+    arr.as_standard_layout().into_shape(shape).unwrap().to_owned()
 }
 
 #[pyfunction]

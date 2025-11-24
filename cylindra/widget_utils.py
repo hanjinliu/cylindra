@@ -193,7 +193,7 @@ class timer:
 
     def toc(self):
         dt = default_timer() - self.start
-        _Logger.print(f"`{self.name}` (took {dt:.1f} sec)")
+        _Logger.print_html(f"<code>{self.name}</code> (took {dt:.1f} sec)")
 
 
 class CmapDict(TypedDict):
