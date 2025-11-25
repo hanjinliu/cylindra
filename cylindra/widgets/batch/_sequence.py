@@ -287,7 +287,6 @@ class ProjectPaths(MagicTemplate):
     def _set_checked(self, checked: bool):
         for wdt in self:
             wdt.check = checked
-        return None
 
 
 @magicclass(name="Projects", record=False, use_native_menubar=False)
@@ -352,7 +351,6 @@ class ProjectSequenceEdit(MagicTemplate):
         """Select projects by pattern matching."""
         for prj in self.projects:
             prj.check = fnmatch(prj.path, pattern)
-        return None
 
     @set_design(text="Select molecules by pattern", location=Select)
     @do_not_record
@@ -361,7 +359,6 @@ class ProjectSequenceEdit(MagicTemplate):
         for prj in self.projects:
             for mole in prj.molecules:
                 mole.check = fnmatch(mole.line.value, pattern)
-        return None
 
     @set_design(text="Deselect all projects", location=Select)
     @do_not_record
@@ -441,7 +438,6 @@ class ProjectSequenceEdit(MagicTemplate):
         ACTIVE_WIDGETS.add(cont)
         cont.show()
         cbox.changed.emit(cbox.value)
-        return None
 
     @set_design(text="View selected components in 3D", location=View)
     def view_selected_components(self):
@@ -476,7 +472,6 @@ class ProjectSequenceEdit(MagicTemplate):
         ACTIVE_WIDGETS.add(table)
         _set_parent(table, self)
         table.show()
-        return None
 
     @set_design(text="View filtered molecules in table", location=View)
     @do_not_record
@@ -490,7 +485,6 @@ class ProjectSequenceEdit(MagicTemplate):
         ACTIVE_WIDGETS.add(table)
         _set_parent(table, self)
         table.show()
-        return None
 
     def _get_expression(self, _=None) -> str:
         wdt: EvalLineEdit = self.filter_expression

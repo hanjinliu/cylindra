@@ -34,8 +34,14 @@ class WorkflowEdit(ChildWidget):
     def _get_workflow_names(self, *_) -> list[str]:
         return [file.stem for file in _config.get_config().list_workflow_paths()]
 
-    filename = field(str).with_choices(_get_workflow_names)
-    filename_new = field(str, label="filename")
+    @magicclass(layout="horizontal")
+    class Header(ChildWidget):
+        filename = abstractapi()
+        filename_new = abstractapi()
+        run = abstractapi()
+
+    filename = field(str, location=Header).with_choices(_get_workflow_names)
+    filename_new = field(str, label="filename", location=Header)
     code = field(CodeEdit)
 
     @magicclass(layout="horizontal", widget_type="frame")
@@ -45,7 +51,7 @@ class WorkflowEdit(ChildWidget):
         save = abstractapi()
         define_workflow = abstractapi()
         cancel_edit = abstractapi()
-        run = abstractapi()
+        delete = abstractapi()
 
     def __post_init__(self):
         self.code.syntax_highlight("python", theme=get_code_theme(self))
@@ -54,6 +60,9 @@ class WorkflowEdit(ChildWidget):
         self.filename_new.native.setPlaceholderText("Enter new workflow filename here")
         self._set_edit_state(False)
         self._set_new_state(False)
+        run_btn = get_button(self.run)
+        run_btn.min_width = 80
+        run_btn.max_width = 80
 
     def _init(self):
         self._on_name_change(self.filename.value)
@@ -71,7 +80,7 @@ class WorkflowEdit(ChildWidget):
             return
         self.code.value = _config.workflow_path(filename).read_text()
 
-    @set_design(text=capitalize, location=Buttons)
+    @set_design(text=capitalize, location=Header)
     def run(self):
         filename = self.filename.value
         fname = self._make_method_name(filename)
