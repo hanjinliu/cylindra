@@ -20,12 +20,12 @@ from cylindra.components import CylSpline
 from cylindra.const import FileFilter
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.project import CylindraBatchProject, CylindraProject
-from cylindra.utils import parse_tilt_model
+from cylindra.utils import parse_tilt_model, unwrap_wildcard
 from cylindra.widget_utils import POLARS_NAMESPACE, capitalize
 from cylindra.widgets._accessors import BatchLoaderAccessor
 from cylindra.widgets.batch._loaderlist import LoaderList
 from cylindra.widgets.batch._sequence import PathInfo, ProjectSequenceEdit
-from cylindra.widgets.batch._utils import LoaderInfo, TempFeatures, unwrap_wildcard
+from cylindra.widgets.batch._utils import LoaderInfo, TempFeatures
 from cylindra.widgets.batch.sta import BatchSubtomogramAveraging
 from cylindra.widgets.subwidgets.misc import TiltModelEdit
 

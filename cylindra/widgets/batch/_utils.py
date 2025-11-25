@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import glob
 from pathlib import Path
 from typing import TYPE_CHECKING, Iterator, Literal, NamedTuple, overload
 
@@ -145,17 +144,3 @@ def _find_source(
                 return None
             return project.load_spline(source, dir=dir)
     return None
-
-
-def unwrap_wildcard(path: str | Path | list[str | Path]) -> list[Path]:
-    """Unwrap a wildcard path to a string."""
-    all_paths = []
-    if isinstance(path, (str, Path)):
-        path = [str(path)]
-    for p in path:
-        p = str(p)
-        if "*" in p or "?" in p:
-            all_paths.extend(glob.glob(p))
-        else:
-            all_paths.append(p)
-    return [Path(p) for p in all_paths]

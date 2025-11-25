@@ -7,17 +7,15 @@ from typing import overload
 from acryo import BatchLoader
 from psygnal.containers import EventedList
 
-from ._utils import LoaderInfo
+from cylindra.widgets.batch._utils import LoaderInfo
 
 
 class LoaderList(EventedList[LoaderInfo]):
     @overload
-    def __getitem__(self, index: int | str) -> LoaderInfo:
-        ...
+    def __getitem__(self, index: int | str) -> LoaderInfo: ...
 
     @overload
-    def __getitem__(self, index: slice) -> list[LoaderInfo]:
-        ...
+    def __getitem__(self, index: slice) -> list[LoaderInfo]: ...
 
     def __getitem__(self, index) -> LoaderInfo:
         if isinstance(index, str):
@@ -66,7 +64,7 @@ class LoaderList(EventedList[LoaderInfo]):
     ) -> LoaderInfo:
         """Add a new loader to the list."""
         if invert is None:
-            invert = {k: False for k in image_paths.keys()}
+            invert = dict.fromkeys(image_paths.keys(), False)
         info = LoaderInfo(loader, name, image_paths, invert)
         self.append(info)
         return info

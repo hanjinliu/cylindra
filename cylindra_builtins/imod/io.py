@@ -256,7 +256,7 @@ def import_imod_projects(
     bin_size : list of int, default [1]
         Bin sizes to load the tomograms.
     """
-    from cylindra.widgets.batch._utils import unwrap_wildcard
+    from cylindra.utils import unwrap_wildcard
 
     tomo_paths: list[Path] = []
     tilt_models: list[dict | None] = []

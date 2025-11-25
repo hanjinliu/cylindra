@@ -28,8 +28,9 @@ from cylindra.const import FileFilter
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.project import CylindraProject, get_project_file
+from cylindra.utils import unwrap_wildcard
 from cylindra.widget_utils import POLARS_NAMESPACE, capitalize
-from cylindra.widgets.batch._utils import PathInfo, TempFeatures, unwrap_wildcard
+from cylindra.widgets.batch._utils import PathInfo, TempFeatures
 
 
 @magicclass(
@@ -203,10 +204,17 @@ class Project(MagicTemplate):
         for info in self._project.molecules_info:
             self.molecules._add_path(info.name)
 
-        # collapse empty lists
-        self.splines.collapsed = len(self.splines) == 0
-        self.molecules.collapsed = len(self.molecules) == 0
-        self.Components.collapsed = self.splines.collapsed and self.molecules.collapsed
+        # Ccollapse empty lists. After updating the contents, we need to first collapse
+        # the collapsible container widget to adjust their height.
+        no_spline = len(self.splines) == 0
+        no_mole = len(self.molecules) == 0
+        self.splines.collapsed = True
+        self.molecules.collapsed = True
+        self.splines.collapsed = no_spline
+        self.molecules.collapsed = no_mole
+
+        self.Components.collapsed = True
+        self.Components.collapsed = no_spline and no_mole
 
     @nogui
     @do_not_record

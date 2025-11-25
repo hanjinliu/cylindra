@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import glob
 from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Iterable, Literal, Sequence, overload
@@ -280,25 +279,9 @@ def collect_projects(
         Project file paths or glob pattern(s).
     """
     from cylindra.project import ProjectSequence
+    from cylindra.utils import unwrap_wildcard
 
-    if isinstance(files, (str, Path)):
-        if "*" in str(files):
-            _files = glob.glob(str(files))
-        else:
-            if not Path(files).exists():
-                raise FileNotFoundError(f"File not found: {files}")
-            _files = [files]
-    elif hasattr(files, "__iter__"):
-        _files = []
-        for f in files:
-            f = str(f)
-            if "*" not in f:
-                _files.append(f)
-            else:
-                _files.extend(list(glob.glob(f)))
-    else:
-        raise TypeError(f"files must be path or iterable of paths, got {type(files)}")
+    _files = unwrap_wildcard(files)
     if len(_files) == 0:
         raise FileNotFoundError(f"No project files found from the input {files!r}.")
-    seq = ProjectSequence.from_paths(_files, check_scale=False, skip_exc=skip_exc)
-    return seq
+    return ProjectSequence.from_paths(_files, check_scale=False, skip_exc=skip_exc)
