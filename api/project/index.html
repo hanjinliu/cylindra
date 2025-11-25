@@ -5428,10 +5428,10 @@
                 <span class="k">for</span> <span class="n">info</span> <span class="ow">in</span> <span class="p">(</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">molecules_info</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">landscape_info</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">interaction_info</span>
                 <span class="p">):</span>
-                    <span class="n">layer</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">to_layer</span><span class="p">(</span><span class="n">gui</span><span class="p">,</span> <span class="n">project_dir</span><span class="p">)</span>
-                    <span class="n">cb</span> <span class="o">=</span> <span class="n">_add_layer</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="n">layer</span><span class="p">)</span>
-                    <span class="k">yield</span> <span class="n">cb</span>
-                    <span class="n">cb</span><span class="o">.</span><span class="n">await_call</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">layer</span> <span class="o">:=</span> <span class="n">info</span><span class="o">.</span><span class="n">to_layer</span><span class="p">(</span><span class="n">gui</span><span class="p">,</span> <span class="n">project_dir</span><span class="p">):</span>
+                        <span class="n">cb</span> <span class="o">=</span> <span class="n">_add_layer</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="n">layer</span><span class="p">)</span>
+                        <span class="k">yield</span> <span class="n">cb</span>
+                        <span class="n">cb</span><span class="o">.</span><span class="n">await_call</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
 
             <span class="n">gui</span><span class="o">.</span><span class="n">_project_metadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span>
 
