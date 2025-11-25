@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 _Logger = getLogger("cylindra")
 
 
-@magicclass(labels=False)
+@magicclass(labels=False, record=False)
 class WorkflowEdit(ChildWidget):
     def _get_workflow_names(self, *_) -> list[str]:
         return [file.stem for file in _config.get_config().list_workflow_paths()]

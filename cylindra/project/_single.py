@@ -351,10 +351,10 @@ class CylindraProject(BaseProject):
                 for info in (
                     self.molecules_info + self.landscape_info + self.interaction_info
                 ):
-                    layer = info.to_layer(gui, project_dir)
-                    cb = _add_layer.with_args(layer)
-                    yield cb
-                    cb.await_call(timeout=10)
+                    if layer := info.to_layer(gui, project_dir):
+                        cb = _add_layer.with_args(layer)
+                        yield cb
+                        cb.await_call(timeout=10)
 
             gui._project_metadata = self.metadata
 
