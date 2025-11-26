@@ -198,6 +198,18 @@ def _choice_getter(method_name: str, dtype_kind: str = ""):
     return _get_choice
 
 
+def _spline_choice_getter(method_name: str):
+    def _get_spline_choice(self: "CylindraMainWidget", w=None) -> list[tuple[str, int]]:
+        gui = self[method_name].mgui
+        if gui is None or not isinstance(i := gui[0].value, int):
+            return []
+        spl = self.splines[i]
+        return [(str(seg), k) for k, seg in enumerate(spl.segments)]
+
+    _get_spline_choice.__qualname__ = "CylindraMainWidget._get_spline_choice"
+    return _get_spline_choice
+
+
 ############################################################################################
 #   The Main Widget of cylindra
 ############################################################################################
@@ -1617,7 +1629,7 @@ class CylindraMainWidget(MagicTemplate):
         value : Any, default "Unnamed"
             Value of the new segment. Must be JSON serializable.
         """
-        spl = self.tomogram.splines[spline]
+        spl = self.splines[spline]
         length = spl.length()
         start = float(max(start_position / length, 0.0))
         end = float(min(end_position / length, 1.0))
@@ -1637,7 +1649,13 @@ class CylindraMainWidget(MagicTemplate):
     def delete_segments(
         self,
         spline: SplineType,
-        indices: list[int],
+        indices: Annotated[
+            list[int],
+            {
+                "widget_type": CheckBoxes,
+                "choices": _spline_choice_getter("delete_segments"),
+            },
+        ],
     ):
         """Delete a spline segment from the current spline.
 
@@ -1647,17 +1665,86 @@ class CylindraMainWidget(MagicTemplate):
         indices : int
             Indices of the segment to be deleted.
         """
-        spl = self.tomogram.splines[spline]
+        spl = self.splines[spline]
         old_segments = spl.segments.copy()
         spl.segments._remove(indices)
         self._update_splines_in_images()
 
         @undo_callback
         def out():
-            spl._segments = old_segments
+            spl._segments = old_segments.copy()
             self._update_splines_in_images()
 
         return out
+
+    @set_design(text="Segments to local properties", location=_sw.SplinesMenu.Segments)
+    def segments_to_localprops(
+        self,
+        splines: SplinesType = None,
+        column_name: str = "segment_value",
+        use_dict_key: str = "",
+        default: Annotated[Any, {"widget_type": JsonValueEdit}] = None,
+    ):  # fmt: skip
+        """Assign segment values to spline local properties.
+
+        Parameters
+        ----------
+        {splines}
+        column_name : str, default "segment_value"
+            Name of the new column that stores the segment values.
+        use_dict_key : str, optional
+            If given, segment values are assumed to be dictionaries and the value
+            corresponding to this key will be used. Non-dictionary values and those
+            without this key will be ignored. For example, if a segment value is
+            `dict(a=3, b="val")` format and `use_dict_key="a"` is given, `3` will be
+            assigned to the molecules within this segment.
+        default : Any, optional
+            Default value for molecules that do not belong to any segment.
+        """
+        splines = self._norm_splines(splines)
+        _to_be_updated: list[tuple[CylSpline, pl.Series]] = []
+        for i in splines:
+            spl = self.splines[i]
+            u = spl.anchors
+            ser = _segment_to_series(spl, u, column_name, use_dict_key, default)
+            _to_be_updated.append((spl, ser))
+        for spl, ser in _to_be_updated:
+            spl.props.update_loc(ser, window_size=0.0)
+
+    @set_design(text=capitalize, location=_sw.SplinesMenu.Segments)
+    def segments_to_feature(
+        self,
+        layers: MoleculesLayersType,
+        column_name: str = "segment_value",
+        use_dict_key: str = "",
+        default: Annotated[Any, {"widget_type": JsonValueEdit}] = None,
+    ):
+        """Assign segment values to molecules as a new feature column.
+
+        Parameters
+        ----------
+        {layers}
+        column_name : str, default "segment_value"
+            Name of the new column that stores the segment values.
+        use_dict_key : str, optional
+            If given, segment values are assumed to be dictionaries and the value
+            corresponding to this key will be used. Non-dictionary values and those
+            without this key will be ignored. For example, if a segment value is
+            `dict(a=3, b="val")` format and `use_dict_key="a"` is given, `3` will be
+            assigned to the molecules within this segment.
+        default : Any, optional
+            Default value for molecules that do not belong to any segment.
+        """
+        layers = assert_list_of_layers(layers, self.parent_viewer)
+        _to_be_updated: list[tuple[MoleculesLayer, pl.Series]] = []
+        for layer in layers:
+            spl = _assert_source_spline_exists(layer)
+            u = layer.molecules.features[Mole.position].to_numpy() / spl.length()
+            ser = _segment_to_series(spl, u, column_name, use_dict_key, default)
+            _to_be_updated.append((layer, ser))
+        for layer, ser in _to_be_updated:
+            layer.molecules = layer.molecules.with_features(ser)
+        self.reset_choices()  # choices regarding of features need update
 
     @set_design(text=capitalize, location=_sw.SplinesMenu.Fitting)
     @thread_worker.with_progress(desc="Refining splines", total=_NSPLINES)
@@ -1684,12 +1771,9 @@ class CylindraMainWidget(MagicTemplate):
         with SplineTracker(widget=self, indices=splines) as tracker:
             for i in splines:
                 tomo.refine(
-                    i,
-                    max_interval=max_interval,
-                    corr_allowed=corr_allowed,
-                    err_max=err_max,
-                    binsize=bin_size,
-                )
+                    i, max_interval=max_interval, corr_allowed=corr_allowed,
+                    err_max=err_max, binsize=bin_size,
+                )  # fmt: skip
                 yield thread_worker.callback(self._update_splines_in_images)
 
             @thread_worker.callback
@@ -1860,7 +1944,6 @@ class CylindraMainWidget(MagicTemplate):
             )
         self.reset_choices()
         self._update_splines_in_images()
-        return None
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu.FromToSpline)
     def filament_to_spline(
@@ -2069,28 +2152,7 @@ class CylindraMainWidget(MagicTemplate):
         splines = self._norm_splines(splines)
 
         # first check radius
-        match radius:
-            case "global":
-                for i in splines:
-                    if tomo.splines[i].radius is None:
-                        raise ValueError(
-                            f"Global Radius of {i}-th spline is not measured yet. Please "
-                            "measure the radius first from `Analysis > Radius`."
-                        )
-            case "local":
-                for i in splines:
-                    if not tomo.splines[i].props.has_loc(H.radius):
-                        raise ValueError(
-                            f"Local Radius of {i}-th spline is not measured yet. Please "
-                            "measure the radius first from `Analysis > Radius`."
-                        )
-                if interval is not None:
-                    raise ValueError(
-                        "With `interval`, local radius values will be dropped. Please "
-                        "set `radius='global'` or `interval=None`."
-                    )
-            case _:
-                raise ValueError(f"radius must be 'local' or 'global', got {radius!r}.")
+        _check_params_local_cft(radius, splines, tomo, interval)
 
         @thread_worker.callback
         def _local_cft_analysis_on_yield(i: int):
@@ -2103,12 +2165,9 @@ class CylindraMainWidget(MagicTemplate):
                 if interval is not None:
                     tomo.make_anchors(i=i, interval=interval)
                 tomo.local_cft_params(
-                    i=i,
-                    depth=depth,
-                    binsize=bin_size,
-                    radius=radius,
+                    i=i, depth=depth, binsize=bin_size, radius=radius,
                     update_glob=update_glob,
-                )
+                )  # fmt: skip
                 yield _local_cft_analysis_on_yield.with_args(i)
             return tracker.as_undo_callback()
 
@@ -3083,67 +3142,6 @@ class CylindraMainWidget(MagicTemplate):
         return undo_callback(layer.feature_setter(feat))
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
-    def segments_to_feature(
-        self,
-        layers: MoleculesLayersType,
-        column_name: str = "segment_value",
-        use_dict_key: str = "",
-        default: Annotated[Any, {"widget_type": JsonValueEdit}] = None,
-    ):
-        """Assign segment values to molecules as a new feature column.
-
-        Parameters
-        ----------
-        {layers}
-        column_name : str, default "segment_id"
-            Name of the new column that stores the segment values.
-        use_dict_key : str, optional
-            If given, segment values are assumed to be dictionaries and the value
-            corresponding to this key will be used. Non-dictionary values and those
-            without this key will be ignored. For example, if a segment value is
-            `dict(a=3, b="val")` format and `use_dict_key="a"` is given, `3` will be
-            assigned to the molecules within this segment.
-        default : Any, optional
-            Default value for molecules that do not belong to any segment.
-        """
-        layers = assert_list_of_layers(layers, self.parent_viewer)
-        new_features = []
-        for layer in layers:
-            spl = _assert_source_spline_exists(layer)
-            u = layer.molecules.features[Mole.position] / spl.length()
-            feat = np.full(layer.molecules.count(), default, dtype=object)
-            is_all_numeric = True
-            is_all_integer = True
-            for seg in spl.segments:
-                if use_dict_key:
-                    if isinstance(seg.value, dict) and use_dict_key in seg.value:
-                        val = seg.value[use_dict_key]
-                    else:
-                        continue
-                else:
-                    val = seg.value
-                if is_all_integer and not isinstance(
-                    val, (int, np.integer, type(None))
-                ):
-                    is_all_integer = False
-                if is_all_numeric and not isinstance(
-                    val, (int, np.integer, float, np.floating, type(None))
-                ):
-                    is_all_numeric = False
-                feat[(seg.start <= u) & (u <= seg.end)] = val
-            if is_all_integer:
-                ser = pl.Series(column_name, feat.tolist(), dtype=pl.Int32)
-            elif is_all_numeric:
-                ser = pl.Series(column_name, feat.tolist(), dtype=pl.Float32)
-            else:
-                ser = pl.Series(column_name, feat.tolist(), dtype=pl.String)
-            new_features.append(ser)
-        for layer, ser in zip(layers, new_features, strict=False):
-            if ser is not None:
-                layer.molecules = layer.molecules.with_features(ser)
-        self.reset_choices()  # choices regarding of features need update
-
-    @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
     def convolve_feature(
         self,
         layer: MoleculesLayerType,
@@ -3866,6 +3864,36 @@ def _assert_source_spline_exists(layer: MoleculesLayer) -> "CylSpline":
     return spl
 
 
+def _check_params_local_cft(
+    radius: str,
+    splines: list[int],
+    tomo: CylTomogram,
+    interval: nm | None,
+):
+    match radius:
+        case "global":
+            for i in splines:
+                if tomo.splines[i].radius is None:
+                    raise ValueError(
+                        f"Global Radius of {i}-th spline is not measured yet. Please "
+                        "measure the radius first from `Analysis > Radius`."
+                    )
+        case "local":
+            for i in splines:
+                if not tomo.splines[i].props.has_loc(H.radius):
+                    raise ValueError(
+                        f"Local Radius of {i}-th spline is not measured yet. Please "
+                        "measure the radius first from `Analysis > Radius`."
+                    )
+            if interval is not None:
+                raise ValueError(
+                    "With `interval`, local radius values will be dropped. Please "
+                    "set `radius='global'` or `interval=None`."
+                )
+        case _:
+            raise ValueError(f"radius must be 'local' or 'global', got {radius!r}.")
+
+
 def _is_dummy_tomogram(ui: "CylindraMainWidget") -> bool:
     if ui.tomogram.is_dummy:
         _Logger.print("No tomogram is loaded. Skip this operation.")
@@ -3875,3 +3903,37 @@ def _is_dummy_tomogram(ui: "CylindraMainWidget") -> bool:
 
 def _mole_to_mask(mole: Molecules, size: float, shape: tuple[int, int, int]):
     return MoleculesLayer(mole, size=size).to_mask(shape=shape)
+
+
+def _segment_to_series(
+    spl: CylSpline,
+    u: np.ndarray,
+    column_name: str,
+    use_dict_key: str | None = None,
+    default: Any | None = None,
+):
+    feat = np.full(u.size, default, dtype=object)
+    is_all_numeric = True
+    is_all_integer = True
+    for seg in spl.segments:
+        if use_dict_key:
+            if isinstance(seg.value, dict) and use_dict_key in seg.value:
+                val = seg.value[use_dict_key]
+            else:
+                continue
+        else:
+            val = seg.value
+        if is_all_integer and not isinstance(val, (int, np.integer, type(None))):
+            is_all_integer = False
+        if is_all_numeric and not isinstance(
+            val, (int, np.integer, float, np.floating, type(None))
+        ):
+            is_all_numeric = False
+        feat[(seg.start <= u) & (u <= seg.end)] = val
+    if is_all_integer:
+        ser = pl.Series(column_name, feat.tolist(), dtype=pl.Int32)
+    elif is_all_numeric:
+        ser = pl.Series(column_name, feat.tolist(), dtype=pl.Float32)
+    else:
+        ser = pl.Series(column_name, feat.tolist(), dtype=pl.String)
+    return ser

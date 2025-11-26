@@ -934,6 +934,24 @@ def test_radius_methods(ui: CylindraMainWidget):
     with pytest.raises(ValueError):
         ui.set_radius([0], "pl.col('npf').cast(pl.Float32) * -1")
 
+    # test segment methods
+    ui.local_cft_analysis("all", interval=8)
+    spl = ui.splines[0]
+    d = spl.distances()
+    ui.add_segment(0, d[1] - 2, d[3] + 2, value=10)
+    ui.add_segment(0, d[4] - 2, d[4] + 4, value=70)
+    ui.delete_segments(0, [1, 0])
+    ui.macro.undo()
+    ui.macro.undo()
+    ui.macro.redo()
+    ui.macro.redo()
+    ui.macro.undo()
+    ui.segments_to_localprops(0, column_name="NAME", default=-1)
+    assert "NAME" in spl.props.loc.columns
+    print(spl.props.loc["NAME"])
+    assert (spl.props.loc["NAME"][:6] == [-1, 10, 10, 10, 70, -1]).all()
+    ui.segments_to_feature("Mole-0", column_name="NAME", default=-1)
+
 
 def test_simulator(ui: CylindraMainWidget):
     ui.ImageMenu.open_simulator()

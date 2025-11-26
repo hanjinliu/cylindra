@@ -1,7 +1,7 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
 import numpy as np
-from magicclass import magicclass, vfield
+from magicclass import abstractapi, magicclass, set_design, vfield
 
 from cylindra.components import CylSpline
 from cylindra.widgets._widget_ext import JsonValueEdit
@@ -16,7 +16,13 @@ class SplineSegmentEdit(ChildWidget):
     segment_value = vfield(JsonValueEdit)
     activate_3d_pick = vfield(False, label="Activate 3D pick")
     pick_max_distance = vfield(20.0, label="Max pick distance (nm)")
-    interval = vfield(1.0, label="Sampling interval (nm)")
+    interval = vfield(1.0, label="Precision (nm)").with_options(step=0.1, min=0.2)
+
+    @magicclass(layout="horizontal")
+    class MovePanel(ChildWidget):
+        label0 = vfield("Move:", widget_type="Label")
+        move_backward = abstractapi()
+        move_forward = abstractapi()
 
     def __post_init__(self):
         self._default_size = 8.0
@@ -43,7 +49,7 @@ class SplineSegmentEdit(ChildWidget):
     def _draw_callback(self, layer: "Points", event):
         # See https://melissawm.github.io/napari-docs/gallery/cursor_ray.html
         # to know how to get 3D ray from 2D mouse event.
-        if (i := self.spline) is None:
+        if (i := self.spline) is None or event.modifiers:
             return
         mouse_pos_start = np.asarray(event.position)
         yield
@@ -75,13 +81,15 @@ class SplineSegmentEdit(ChildWidget):
         p_spl = dist.spl_points[min_idx[0]]
         layer.add(p_spl)
 
-    def move_forward(self):
+    @set_design(text="Forward", location=MovePanel)
+    def move_forward(self, interval: Annotated[float, {"bind": interval}]):
         """Move the selected point forward along the spline."""
-        self._move_point(self.interval)
+        self._move_point(interval)
 
-    def move_backward(self):
+    @set_design(text="Backward", location=MovePanel)
+    def move_backward(self, interval: Annotated[float, {"bind": interval}]):
         """Move the selected point backward along the spline."""
-        self._move_point(-self.interval)
+        self._move_point(-interval)
 
     def _move_point(self, diff: float):
         if self.spline is None:
@@ -104,6 +112,7 @@ class SplineSegmentEdit(ChildWidget):
         layer.data = data_old
         layer.selected_data = [data_index]
 
+    @set_design(text="Add segment")
     def add_segment(self):
         main = self._get_main()
         if self.spline is None:
@@ -118,6 +127,6 @@ class SplineSegmentEdit(ChildWidget):
         u1 = dist.spl_coords[min_idx[1]]
         if u0 > u1:
             u0, u1 = u1, u0
-        y0, y1 = spl.distances([u0, u1])
+        y0, y1 = spl.distances([u0, u1]).round(3)
         main.add_segment(self.spline, y0, y1, self.segment_value)
         layer.data = []  # clear points

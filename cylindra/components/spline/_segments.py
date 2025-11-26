@@ -22,6 +22,9 @@ class SplineSegment:
     end: float
     value: Any | None = None  # must be JSON serializable
 
+    def __repr__(self) -> str:
+        return f"SplineSegment(start={self.start:.4f}, end={self.end:.4f}, value={self.value!r})"
+
     def with_borders(self, start: float, end: float) -> SplineSegment:
         return type(self)(start, end, copy(self.value))
 

@@ -720,7 +720,10 @@ class Spline(BaseComponent):
         )
         return np.sqrt(a) / (dx**2 + dy**2 + dz**2) ** 1.5
 
-    def curvature_radii(self, positions: Sequence[float] = None) -> NDArray[np.float32]:
+    def curvature_radii(
+        self,
+        positions: Sequence[float] | None = None,
+    ) -> NDArray[np.float32]:
         """Inverse of curvature."""
         return 1.0 / self.curvature(positions)
 

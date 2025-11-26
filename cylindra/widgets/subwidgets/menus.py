@@ -401,6 +401,9 @@ class SplinesMenu(ChildWidget):
 
         add_segment = abstractapi()
         delete_segments = abstractapi()
+        sep0 = Separator
+        segments_to_localprops = abstractapi()
+        segments_to_feature = abstractapi()
 
     @magicmenu
     class Fitting(ChildWidget):
@@ -507,7 +510,6 @@ class MoleculesMenu(ChildWidget):
         calculate_molecule_features = abstractapi()
         interpolate_spline_properties = abstractapi()
         calculate_lattice_structure = abstractapi()
-        segments_to_feature = abstractapi()
         sep0 = Separator
         distance_from_spline = abstractapi()
         distance_from_closest_molecule = abstractapi()
