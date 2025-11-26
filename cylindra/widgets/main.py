@@ -81,6 +81,7 @@ from cylindra.widgets._reserved_layers import ReservedLayers
 from cylindra.widgets._widget_ext import (
     CheckBoxes,
     IndexEdit,
+    JsonValueEdit,
     KernelEdit,
     OffsetEdit,
     ProtofilamentEdit,
@@ -181,6 +182,8 @@ _NSPLINES = (
 
 
 def _choice_getter(method_name: str, dtype_kind: str = ""):
+    """Make a choice getter function from molecules feature using the first widget."""
+
     def _get_choice(self: "CylindraMainWidget", w=None) -> list[str]:
         # don't use get_function_gui. It causes RecursionError.
         gui = self[method_name].mgui
@@ -226,6 +229,8 @@ class CylindraMainWidget(MagicTemplate):
     config_edit = field(_sw.ConfigEdit, name="_Config editor")
     # Widget for editing workflows
     workflow_edit = field(_sw.WorkflowEdit, name="_Workflow editor")
+    # Widget for segment edit
+    segment_edit = field(_sw.SplineSegmentEdit, name="_Spline Segment Editor")
     # Widget for measuring FFT parameters from a 2D power spectra
     spectra_inspector = field(_sw.SpectraInspector, name="_SpectraInspector")
     # Widget for subtomogram analysis
@@ -443,11 +448,14 @@ class CylindraMainWidget(MagicTemplate):
     _image_loader = _sw.ImageLoader
 
     def _confirm_delete(self):
+        if self._reserved_layers.work.data.size > 0:
+            return False
         i = self.SplineControl.num
         if i is None:
             # If user is writing the first spline, there's no spline registered.
             return False
-        return self.tomogram.splines[i].has_props()
+        spl = self.tomogram.splines[i]
+        return len(spl.props.loc) > 0 or len(spl.props.glob) > 0
 
     @set_design(icon="solar:eraser-bold", location=Toolbar)
     @confirm(text="Spline has properties. Are you sure to delete it?", condition=_confirm_delete)  # fmt: skip
@@ -1588,6 +1596,68 @@ class CylindraMainWidget(MagicTemplate):
 
             self._update_splines_in_images()
             return tracker.as_undo_callback()
+
+    @set_design(text=capitalize, location=_sw.SplinesMenu.Segments)
+    def add_segment(
+        self,
+        spline: SplineType,
+        start_position: Annotated[nm, {"label": "start position (nm)"}] = 0.0,
+        end_position: Annotated[nm, {"label": "end position (nm)", "max": 1e6}] = 100.0,
+        value: Annotated[Any, {"widget_type": JsonValueEdit}] = "Unnamed",
+    ):
+        """Add a spline segment to the selected spline.
+
+        Parameters
+        ----------
+        {spline}
+        start_position : float, default 0.0
+            Start position of the new segment in nm.
+        end_position : float, default 100.0
+            End position of the new segment in nm.
+        value : Any, default "Unnamed"
+            Value of the new segment. Must be JSON serializable.
+        """
+        spl = self.tomogram.splines[spline]
+        length = spl.length()
+        start = float(max(start_position / length, 0.0))
+        end = float(min(end_position / length, 1.0))
+        if start >= end:
+            raise ValueError("start_position must be smaller than end_position.")
+        spl.segments._append(start, end, value)
+        self._update_splines_in_images()
+
+        @undo_callback
+        def out():
+            spl.segments._segments.pop()
+            self._update_splines_in_images()
+
+        return out
+
+    @set_design(text=capitalize, location=_sw.SplinesMenu.Segments)
+    def delete_segments(
+        self,
+        spline: SplineType,
+        indices: list[int],
+    ):
+        """Delete a spline segment from the current spline.
+
+        Parameters
+        ----------
+        {spline}
+        indices : int
+            Indices of the segment to be deleted.
+        """
+        spl = self.tomogram.splines[spline]
+        old_segments = spl.segments.copy()
+        spl.segments._remove(indices)
+        self._update_splines_in_images()
+
+        @undo_callback
+        def out():
+            spl._segments = old_segments
+            self._update_splines_in_images()
+
+        return out
 
     @set_design(text=capitalize, location=_sw.SplinesMenu.Fitting)
     @thread_worker.with_progress(desc="Refining splines", total=_NSPLINES)
@@ -3013,6 +3083,67 @@ class CylindraMainWidget(MagicTemplate):
         return undo_callback(layer.feature_setter(feat))
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
+    def segments_to_feature(
+        self,
+        layers: MoleculesLayersType,
+        column_name: str = "segment_value",
+        use_dict_key: str = "",
+        default: Annotated[Any, {"widget_type": JsonValueEdit}] = None,
+    ):
+        """Assign segment values to molecules as a new feature column.
+
+        Parameters
+        ----------
+        {layers}
+        column_name : str, default "segment_id"
+            Name of the new column that stores the segment values.
+        use_dict_key : str, optional
+            If given, segment values are assumed to be dictionaries and the value
+            corresponding to this key will be used. Non-dictionary values and those
+            without this key will be ignored. For example, if a segment value is
+            `dict(a=3, b="val")` format and `use_dict_key="a"` is given, `3` will be
+            assigned to the molecules within this segment.
+        default : Any, optional
+            Default value for molecules that do not belong to any segment.
+        """
+        layers = assert_list_of_layers(layers, self.parent_viewer)
+        new_features = []
+        for layer in layers:
+            spl = _assert_source_spline_exists(layer)
+            u = layer.molecules.features[Mole.position] / spl.length()
+            feat = np.full(layer.molecules.count(), default, dtype=object)
+            is_all_numeric = True
+            is_all_integer = True
+            for seg in spl.segments:
+                if use_dict_key:
+                    if isinstance(seg.value, dict) and use_dict_key in seg.value:
+                        val = seg.value[use_dict_key]
+                    else:
+                        continue
+                else:
+                    val = seg.value
+                if is_all_integer and not isinstance(
+                    val, (int, np.integer, type(None))
+                ):
+                    is_all_integer = False
+                if is_all_numeric and not isinstance(
+                    val, (int, np.integer, float, np.floating, type(None))
+                ):
+                    is_all_numeric = False
+                feat[(seg.start <= u) & (u <= seg.end)] = val
+            if is_all_integer:
+                ser = pl.Series(column_name, feat.tolist(), dtype=pl.Int32)
+            elif is_all_numeric:
+                ser = pl.Series(column_name, feat.tolist(), dtype=pl.Float32)
+            else:
+                ser = pl.Series(column_name, feat.tolist(), dtype=pl.String)
+            new_features.append(ser)
+        for layer, ser in zip(layers, new_features, strict=False):
+            if ser is not None:
+                layer.molecules = layer.molecules.with_features(ser)
+        self.reset_choices()  # choices regarding of features need update
+
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
     def convolve_feature(
         self,
         layer: MoleculesLayerType,
@@ -3102,17 +3233,9 @@ class CylindraMainWidget(MagicTemplate):
         """
         spl = self.tomogram.splines[spline]
         layer = assert_layer(layer, self.parent_viewer)
-        ext_0, ext_1 = extrapolation
-        if interval <= 0:
-            raise ValueError("`interval` must be positive.")
         feat, cmap_info = layer.molecules.features, layer.colormap_info
-        length = spl.length()
-        npartitions = utils.ceilint((length + ext_0 + ext_1) / interval)
-        sample_points = spl.map(
-            np.linspace(-ext_0 / length, 1 + ext_1 / length, npartitions)
-        )
-        dist = utils.distance_matrix(layer.molecules.pos, sample_points)
-        dist_min = pl.Series(column_name, np.min(dist, axis=1))
+        dist = spl.distance_matrix(layer.molecules.pos, interval, extrapolation)
+        dist_min = pl.Series(column_name, np.min(dist.matrix, axis=1))
         layer.molecules = layer.molecules.with_features(dist_min)
         self.reset_choices()  # choices regarding of features need update
         return undo_callback(layer.feature_setter(feat, cmap_info))

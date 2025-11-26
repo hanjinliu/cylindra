@@ -161,6 +161,8 @@ class CylindraProject(BaseProject):
 
         _versions = get_versions()
         tomo = gui.tomogram
+        if tomo.is_dummy:
+            raise ValueError("Cannot create project without a loaded tomogram.")
 
         # Save path of molecules
         mole_infos = list[MoleculesInfo]()

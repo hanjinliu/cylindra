@@ -18,6 +18,7 @@ from cylindra.widgets.subwidgets.properties import (
     LocalPropertiesWidget,
 )
 from cylindra.widgets.subwidgets.runner import Runner
+from cylindra.widgets.subwidgets.segment_edit import SplineSegmentEdit
 from cylindra.widgets.subwidgets.simulator import Simulator
 from cylindra.widgets.subwidgets.slicer import SplineSlicer
 from cylindra.widgets.subwidgets.spline_clipper import SplineClipper
@@ -51,4 +52,5 @@ __all__ = [
     "GeneralInfo",
     "ConfigEdit",
     "WorkflowEdit",
+    "SplineSegmentEdit",
 ]

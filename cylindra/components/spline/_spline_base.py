@@ -22,11 +22,12 @@ from scipy.spatial.transform import Rotation
 from cylindra.components._base import BaseComponent
 from cylindra.components.spline._config import SplineConfig
 from cylindra.components.spline._props import SplineProps
+from cylindra.components.spline._segments import SplineSegments
 from cylindra.components.spline._types import SplineFitResult, SplineInfo, TCKType
 from cylindra.const import ExtrapolationMode, nm
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.cyltransform import polar_coords_2d
-from cylindra.utils import ceilint, interval_divmod, roundint
+from cylindra.utils import ceilint, distance_matrix, interval_divmod, roundint
 
 if TYPE_CHECKING:
     from numpy.typing import ArrayLike, NDArray
@@ -62,6 +63,7 @@ class Spline(BaseComponent):
 
         self._lims = lims
         self._props = SplineProps()
+        self._segments = SplineSegments()
         if isinstance(config, SplineConfig):
             self._config = config
         else:
@@ -77,11 +79,17 @@ class Spline(BaseComponent):
         """Return the spline configuration"""
         return self._config
 
-    def has_props(self) -> bool:
-        """True if there are any properties."""
-        return len(self.props.loc) > 0 or len(self.props.glob) > 0
+    @property
+    def segments(self) -> SplineSegments:
+        """Return the spline segments"""
+        return self._segments
 
-    def copy(self, copy_props: bool = True, copy_config: bool = True) -> Self:
+    def copy(
+        self,
+        copy_props: bool = True,
+        copy_config: bool = True,
+        copy_segments: bool = True,
+    ) -> Self:
         """Copy Spline object.
 
         Parameters
@@ -105,6 +113,8 @@ class Spline(BaseComponent):
             new._props = self.props.copy()
         if copy_config:
             new._config = self.config.copy()
+        if copy_segments:
+            new._segments = self.segments.copy()
         return new
 
     __copy__ = copy
@@ -324,12 +334,22 @@ class Spline(BaseComponent):
         """
         u0 = _linear_conversion(start, *self._lims)
         u1 = _linear_conversion(stop, *self._lims)
-        return self.__class__(
+        segs = []
+        for seg in self._segments:
+            s0 = max(_linear_conversion(seg.start, *self._lims), 0.0)
+            s1 = min(_linear_conversion(seg.end, *self._lims), 1.0)
+            if s0 >= s1:
+                continue
+            segs.append(seg.with_borders(s0, s1))
+
+        out = self.__class__(
             order=self.order,
             lims=(u0, u1),
             extrapolate=self.extrapolate,
             config=self.config,
         )._set_params(self._tck, self._u)
+        out._segments = SplineSegments(segs)
+        return out
 
     def restore(self) -> Self:
         """Restore the original, not-clipped spline.
@@ -704,10 +724,31 @@ class Spline(BaseComponent):
         """Inverse of curvature."""
         return 1.0 / self.curvature(positions)
 
+    def distance_matrix(
+        self,
+        points: ArrayLike,
+        interval: nm = 1.0,
+        extrapolation: tuple[nm, nm] = (0.0, 0.0),
+    ) -> DistanceMatrix:
+        ext_0, ext_1 = extrapolation
+        if interval <= 0:
+            raise ValueError("`interval` must be positive.")
+        points = np.atleast_2d(np.asarray(points, dtype=np.float32))
+        length = self.length()
+        npartitions = ceilint((length + ext_0 + ext_1) / interval)
+        u = np.linspace(-ext_0 / length, 1 + ext_1 / length, npartitions)
+        sample_points = self.map(u)
+        return DistanceMatrix(
+            distance_matrix(sample_points, points),
+            spl_coords=u,
+            spl_points=sample_points,
+            points=points,
+        )
+
     def to_dict(self) -> SplineInfo:
         """Convert spline info into a dict."""
         t, c, k = self._tck
-        u = self._u
+        u = self.params
         return {
             "t": t.tolist(),
             "c": {"z": c[0].tolist(), "y": c[1].tolist(), "x": c[2].tolist()},
@@ -719,6 +760,7 @@ class Spline(BaseComponent):
             "binsize_glob": dict(self.props.binsize_glob),
             "extrapolate": self._extrapolate.name,
             "config": self.config.asdict(),
+            "segments": [seg.to_dict() for seg in self.segments],
         }
 
     @classmethod
@@ -750,6 +792,8 @@ class Spline(BaseComponent):
         self.props._binsize_glob = d.get("binsize_glob", {})
         if cfg := d.get("config", None):
             self._config = SplineConfig.from_dict(cfg)
+        if segs := d.get("segments", None):
+            self._segments = SplineSegments.from_list(segs)
         return self
 
     def get_rotator(
@@ -1149,3 +1193,38 @@ def _stack_coords(coords: NDArray[_T]) -> NDArray[_T]:  # V, H, D
         axis=2,
     )  # V, S, H, D
     return stacked
+
+
+class DistanceMatrix:
+    def __init__(
+        self,
+        matrix: NDArray[np.float32],
+        spl_coords: NDArray[np.float32],
+        spl_points: NDArray[np.float32],
+        points: NDArray[np.float32],
+    ):
+        self.matrix = matrix
+        self.spl_coords = spl_coords
+        self.spl_points = spl_points
+        self.points = points
+
+    def __array__(self, dtype=None) -> NDArray[np.float32]:
+        if dtype is not None:
+            return np.asarray(self.matrix, dtype=dtype)
+        return self.matrix
+
+    @overload
+    def __getitem__(self, key: tuple[int | np.intp, int | np.intp]) -> np.float32: ...
+    @overload
+    def __getitem__(self, key) -> NDArray[np.float32]: ...
+
+    def __getitem__(self, key):
+        return self.matrix[key]
+
+    @property
+    def shape(self) -> tuple[int, int]:
+        return self.matrix.shape
+
+    def argmin(self) -> tuple[np.intp, np.intp]:
+        min_idx = np.unravel_index(np.argmin(self.matrix), self.shape)
+        return min_idx
