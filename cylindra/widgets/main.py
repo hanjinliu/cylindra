@@ -1692,12 +1692,7 @@ class CylindraMainWidget(MagicTemplate):
         {splines}
         column_name : str, default "segment_value"
             Name of the new column that stores the segment values.
-        use_dict_key : str, optional
-            If given, segment values are assumed to be dictionaries and the value
-            corresponding to this key will be used. Non-dictionary values and those
-            without this key will be ignored. For example, if a segment value is
-            `dict(a=3, b="val")` format and `use_dict_key="a"` is given, `3` will be
-            assigned to the molecules within this segment.
+        {use_dict_key}
         default : Any, optional
             Default value for molecules that do not belong to any segment.
         """
@@ -1726,12 +1721,7 @@ class CylindraMainWidget(MagicTemplate):
         {layers}
         column_name : str, default "segment_value"
             Name of the new column that stores the segment values.
-        use_dict_key : str, optional
-            If given, segment values are assumed to be dictionaries and the value
-            corresponding to this key will be used. Non-dictionary values and those
-            without this key will be ignored. For example, if a segment value is
-            `dict(a=3, b="val")` format and `use_dict_key="a"` is given, `3` will be
-            assigned to the molecules within this segment.
+        {use_dict_key}
         default : Any, optional
             Default value for molecules that do not belong to any segment.
         """
