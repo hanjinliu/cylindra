@@ -68,7 +68,8 @@ _PARAMETERS = [
     Parameter(name="min_radius", type="nm", desc="Minimum possible radius in nm."),
     Parameter(name="max_radius", type="nm", desc="Maximum possible radius in nm."),
     Parameter(name="prefix", type="str", desc="Prefix of the new molecules layer(s)."),
-    Parameter(name="use_dict_key", type="str", desc="If given, segment values are assumed to be dictionaries and the value corresponding to this key will be used. Non-dictionary values and those without this key will be ignored. For example, if a segment value is `{'a': 3, 'b': 'val'}` and `use_dict_key='a'` is given, `3` will be assigned to the molecules within this segment.")
+    Parameter(name="filter_expr", type="str", desc="Expression to filter segments. Variable `value` refers to the segment value.\nSegments with `filter_expr` evaluating to True will be assigned to molecules.\nIf empty, all segments are used."),
+    Parameter(name="eval_expr", type="str", desc="Expression to evaluate segment values. Variable `value` refers to the segment value.\nThe result of `eval_expr` will be assigned to molecules.\nIf empty, the original segment value is used."),
 ]
 # fmt: on
 

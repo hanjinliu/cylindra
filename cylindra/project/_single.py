@@ -161,8 +161,6 @@ class CylindraProject(BaseProject):
 
         _versions = get_versions()
         tomo = gui.tomogram
-        if gui._reserved_layers.image not in gui.parent_viewer.layers:
-            raise ValueError("Cannot create project without a loaded tomogram.")
 
         # Save path of molecules
         mole_infos = list[MoleculesInfo]()

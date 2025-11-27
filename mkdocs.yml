@@ -47,6 +47,7 @@ nav:
       - Spline: spline/index.md
       - spline/clip.md
       - spline/config.md
+      - spline/segments.md
     - Molecules:
       - Molecules: molecules/index.md
       - molecules/pick_molecules.md

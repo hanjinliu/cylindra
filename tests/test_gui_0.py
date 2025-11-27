@@ -948,8 +948,10 @@ def test_radius_methods(ui: CylindraMainWidget):
     ui.macro.undo()
     ui.segments_to_localprops(0, column_name="NAME", default=-1)
     assert "NAME" in spl.props.loc.columns
-    print(spl.props.loc["NAME"])
     assert (spl.props.loc["NAME"][:6] == [-1, 10, 10, 10, 70, -1]).all()
+    ui.segments_to_localprops(0, column_name="NAME2", eval_expr="value > 8", default=False)
+    assert "NAME2" in spl.props.loc.columns
+    assert (spl.props.loc["NAME2"][:6] == [False, True, True, True, True, False]).all()
     ui.segments_to_feature("Mole-0", column_name="NAME", default=-1)
 
 

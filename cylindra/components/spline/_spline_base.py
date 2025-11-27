@@ -733,6 +733,17 @@ class Spline(BaseComponent):
         interval: nm = 1.0,
         extrapolation: tuple[nm, nm] = (0.0, 0.0),
     ) -> DistanceMatrix:
+        """Calculate distance matrix between spline and given points.
+
+        Parameters
+        ----------
+        points : (N, 3) array-like
+            Points to calculate distance to this spline.
+        interval : nm, default 1.0
+            Interval between sampled points on the spline.
+        extrapolation : (nm, nm), default (0.0, 0.0)
+            Extrapolation distance before and after the spline.
+        """
         ext_0, ext_1 = extrapolation
         if interval <= 0:
             raise ValueError("`interval` must be positive.")
@@ -750,13 +761,12 @@ class Spline(BaseComponent):
 
     def to_dict(self) -> SplineInfo:
         """Convert spline info into a dict."""
-        t, c, k = self._tck
-        u = self.params
+        z, y, x = self.coeff
         return {
-            "t": t.tolist(),
-            "c": {"z": c[0].tolist(), "y": c[1].tolist(), "x": c[2].tolist()},
-            "k": k,
-            "u": u.tolist(),
+            "t": self.knots.tolist(),
+            "c": {"z": z.tolist(), "y": y.tolist(), "x": x.tolist()},
+            "k": self.order,
+            "u": self.params.tolist(),
             "lims": self._lims,
             "localprops_window_size": dict(self.props.window_size),
             "binsize_loc": dict(self.props.binsize_loc),

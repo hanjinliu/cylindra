@@ -50,6 +50,7 @@ from cylindra.types import get_available_binsize
 from cylindra.widget_utils import (
     PolarsExprStr,
     PolarsExprStrOrScalar,
+    ValueExprStr,
     add_molecules,
     capitalize,
     change_viewer_focus,
@@ -420,7 +421,7 @@ class CylindraMainWidget(MagicTemplate):
             if splines == "all":
                 return indices
             else:
-                expr = widget_utils.norm_expr(splines)
+                expr = widget_utils.norm_polars_expr(splines)
                 df_glob = self.splines.collect_globalprops(indices)
                 cname = ".index"
                 return (
@@ -1649,14 +1650,8 @@ class CylindraMainWidget(MagicTemplate):
     def delete_segments(
         self,
         spline: SplineType,
-        indices: Annotated[
-            list[int],
-            {
-                "widget_type": CheckBoxes,
-                "choices": _spline_choice_getter("delete_segments"),
-            },
-        ],
-    ):
+        indices: Annotated[list[int], {"widget_type": CheckBoxes, "choices": _spline_choice_getter("delete_segments")}],
+    ):  # fmt: skip
         """Delete a spline segment from the current spline.
 
         Parameters
@@ -1682,7 +1677,8 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: SplinesType = None,
         column_name: str = "segment_value",
-        use_dict_key: str = "",
+        filter_expr: ValueExprStr = "",
+        eval_expr: ValueExprStr = "",
         default: Annotated[Any, {"widget_type": JsonValueEdit}] = None,
     ):  # fmt: skip
         """Assign segment values to spline local properties.
@@ -1692,16 +1688,23 @@ class CylindraMainWidget(MagicTemplate):
         {splines}
         column_name : str, default "segment_value"
             Name of the new column that stores the segment values.
-        {use_dict_key}
+        {filter_expr}{eval_expr}
         default : Any, optional
-            Default value for molecules that do not belong to any segment.
+            Default value for positions that do not belong to any segment. Default value
+            will NOT be evaluated by `eval_expr`; it will be directly assigned.
         """
         splines = self._norm_splines(splines)
         _to_be_updated: list[tuple[CylSpline, pl.Series]] = []
         for i in splines:
             spl = self.splines[i]
-            u = spl.anchors
-            ser = _segment_to_series(spl, u, column_name, use_dict_key, default)
+            ser = _segment_to_series(
+                spl,
+                spl.anchors,
+                column_name,
+                default,
+                filter_expr,
+                eval_expr,
+            )
             _to_be_updated.append((spl, ser))
         for spl, ser in _to_be_updated:
             spl.props.update_loc(ser, window_size=0.0)
@@ -1711,7 +1714,8 @@ class CylindraMainWidget(MagicTemplate):
         self,
         layers: MoleculesLayersType,
         column_name: str = "segment_value",
-        use_dict_key: str = "",
+        filter_expr: ValueExprStr = "",
+        eval_expr: ValueExprStr = "",
         default: Annotated[Any, {"widget_type": JsonValueEdit}] = None,
     ):
         """Assign segment values to molecules as a new feature column.
@@ -1721,16 +1725,19 @@ class CylindraMainWidget(MagicTemplate):
         {layers}
         column_name : str, default "segment_value"
             Name of the new column that stores the segment values.
-        {use_dict_key}
+        {filter_expr}{eval_expr}
         default : Any, optional
-            Default value for molecules that do not belong to any segment.
+            Default value for molecules that do not belong to any segment. Default value
+            will NOT be evaluated by `eval_expr`; it will be directly assigned.
         """
         layers = assert_list_of_layers(layers, self.parent_viewer)
         _to_be_updated: list[tuple[MoleculesLayer, pl.Series]] = []
         for layer in layers:
             spl = _assert_source_spline_exists(layer)
             u = layer.molecules.features[Mole.position].to_numpy() / spl.length()
-            ser = _segment_to_series(spl, u, column_name, use_dict_key, default)
+            ser = _segment_to_series(
+                spl, u, column_name, default, filter_expr, eval_expr
+            )
             _to_be_updated.append((layer, ser))
         for layer, ser in _to_be_updated:
             layer.molecules = layer.molecules.with_features(ser)
@@ -2337,7 +2344,7 @@ class CylindraMainWidget(MagicTemplate):
             A polars-style filter predicate, such as `col("projection-origin-x") > 0`.
         """
         layer = assert_interaction_vectors(interaction, self.parent_viewer)
-        out_net = layer.net.filter(widget_utils.norm_expr(predicate))
+        out_net = layer.net.filter(widget_utils.norm_polars_expr(predicate))
         new_layer = InteractionVector(out_net, name=f"{layer.name}-Filt")
         _Logger.print(f"{out_net.count()} interactions left after filtering.")
         _Logger.print_html(f"{layer.name} &#8594; {new_layer.name}")
@@ -2950,7 +2957,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         layer = assert_layer(layer, self.parent_viewer)
         mole = layer.molecules
-        out = mole.filter(widget_utils.norm_expr(predicate))
+        out = mole.filter(widget_utils.norm_polars_expr(predicate))
         _Logger.print(f"Filter molecules resulted in {out.count()} molecules.")
         source = layer.source_component if inherit_source else None
         new = self.add_molecules(out, name=f"{layer.name}-Filt", source=source)
@@ -3058,7 +3065,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         layer = assert_layer(layer, self.parent_viewer)
         feat = layer.molecules.features
-        expr = widget_utils.norm_expr(expression)
+        expr = widget_utils.norm_polars_expr(expression)
         new_feat = feat.with_columns(expr.alias(column_name))
         layer.features = new_feat
         self.reset_choices()  # choices regarding to features need update
@@ -3203,9 +3210,9 @@ class CylindraMainWidget(MagicTemplate):
         layer: MoleculesLayerType,
         spline: SplineType,
         column_name: str = "distance",
-        interval: nm = 1.0,
-        extrapolation: tuple[nm, nm] = (0.0, 0.0),
-    ):
+        interval: Annotated[nm, {"label": "interval (nm)"}] = 1.0,
+        extrapolation: Annotated[tuple[nm, nm], {"label": "extrapolation (nm)"}] = (0.0, 0.0),
+    ):  # fmt: skip
         """Add a new column that stores the shortest distance from the given spline.
 
         Parameters
@@ -3223,7 +3230,7 @@ class CylindraMainWidget(MagicTemplate):
         layer = assert_layer(layer, self.parent_viewer)
         feat, cmap_info = layer.molecules.features, layer.colormap_info
         dist = spl.distance_matrix(layer.molecules.pos, interval, extrapolation)
-        dist_min = pl.Series(column_name, np.min(dist.matrix, axis=1))
+        dist_min = pl.Series(column_name, np.min(dist.matrix, axis=0))
         layer.molecules = layer.molecules.with_features(dist_min)
         self.reset_choices()  # choices regarding of features need update
         return undo_callback(layer.feature_setter(feat, cmap_info))
@@ -3240,6 +3247,9 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {layer}
+        other_layers : MoleculesLayersType
+            Layers to search for the closest molecules. Closest distance between `layer`
+            and all `other_layers` will be added as a column to `layer`.
         column_name : str, default "distance"
             Name of the new column.
         """
@@ -3899,28 +3909,35 @@ def _segment_to_series(
     spl: CylSpline,
     u: np.ndarray,
     column_name: str,
-    use_dict_key: str | None = None,
     default: Any | None = None,
+    filter_expr: str | None = None,
+    eval_expr: str | None = None,
 ):
     feat = np.full(u.size, default, dtype=object)
-    is_all_numeric = True
-    is_all_integer = True
+    is_all_numeric = isinstance(
+        default, (int, np.integer, float, np.floating, type(None))
+    )
+    is_all_integer = isinstance(default, (int, np.integer, type(None)))
+    is_all_boolean = isinstance(default, (bool, np.bool_, type(None)))
+    if filter_expr is None or filter_expr.strip() == "":
+        filter_expr = "True"
+    if eval_expr is None or eval_expr.strip() == "":
+        eval_expr = "value"
     for seg in spl.segments:
-        if use_dict_key:
-            if isinstance(seg.value, dict) and use_dict_key in seg.value:
-                val = seg.value[use_dict_key]
-            else:
-                continue
-        else:
-            val = seg.value
-        if is_all_integer and not isinstance(val, (int, np.integer, type(None))):
+        ns = {**widget_utils.SAFE_NAMESPACE, "value": seg.value}
+        if not eval(filter_expr, ns):
+            continue
+        val = eval(eval_expr, ns)
+        if not isinstance(val, (bool, np.bool_, type(None))):
+            is_all_boolean = False
+        if not isinstance(val, (int, np.integer, type(None))):
             is_all_integer = False
-        if is_all_numeric and not isinstance(
-            val, (int, np.integer, float, np.floating, type(None))
-        ):
+        if not isinstance(val, (int, np.integer, float, np.floating, type(None))):
             is_all_numeric = False
         feat[(seg.start <= u) & (u <= seg.end)] = val
-    if is_all_integer:
+    if is_all_boolean:
+        ser = pl.Series(column_name, feat.tolist(), dtype=pl.Boolean)
+    elif is_all_integer:
         ser = pl.Series(column_name, feat.tolist(), dtype=pl.Int32)
     elif is_all_numeric:
         ser = pl.Series(column_name, feat.tolist(), dtype=pl.Float32)
