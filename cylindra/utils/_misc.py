@@ -397,7 +397,7 @@ def nd_take(
     arr: NDArray[np.int_],
     indices: NDArray[np.int_],
     default: int = -1,
-) -> NDArray[np.int_]:
+) -> NDArray[np.int32]:
     nz, ny, nx = arr.shape
     flat_indices = ny * nx * indices[:, 0] + nx * indices[:, 1] + indices[:, 2]
     ids = np.full(indices.shape[0], default, dtype=np.int32)

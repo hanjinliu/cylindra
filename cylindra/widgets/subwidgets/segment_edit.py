@@ -49,7 +49,7 @@ class SplineSegmentEdit(ChildWidget):
     def _draw_callback(self, layer: "Points", event):
         # See https://melissawm.github.io/napari-docs/gallery/cursor_ray.html
         # to know how to get 3D ray from 2D mouse event.
-        if (i := self.spline) is None or event.modifiers:
+        if self.spline is None or event.modifiers:
             return
         mouse_pos_start = np.asarray(event.position)
         yield
@@ -64,6 +64,15 @@ class SplineSegmentEdit(ChildWidget):
         near_point, far_point = main._reserved_layers.image.get_ray_intersections(
             mouse_pos_end, np.asarray(event.view_direction), event.dims_displayed
         )
+        self._add_point_on_spline(near_point, far_point)
+
+    def _add_point_on_spline(
+        self,
+        near_point: np.ndarray | None,
+        far_point: np.ndarray | None,
+    ):
+        assert self.spline is not None
+        main = self._get_main()
         scale = main._reserved_layers.image.scale
         if near_point is None or far_point is None:
             return  # not intersecting the layer
@@ -71,7 +80,7 @@ class SplineSegmentEdit(ChildWidget):
         ray = CylSpline.line(near_point * scale, far_point * scale)
 
         # find the closest point on the spline
-        spl = main.splines[i]
+        spl = main.splines[self.spline]
         u = np.linspace(0, 1, 256)
         ray_samples = ray.map(u)
         dist = spl.distance_matrix(ray_samples, interval=self.interval)
@@ -79,7 +88,7 @@ class SplineSegmentEdit(ChildWidget):
         if dist[min_idx] > self.pick_max_distance:
             return  # too far
         p_spl = dist.spl_points[min_idx[0]]
-        layer.add(p_spl)
+        main._reserved_layers.work.add(p_spl)
 
     @set_design(text="Forward", location=MovePanel)
     def move_forward(self, interval: Annotated[float, {"bind": interval}]):

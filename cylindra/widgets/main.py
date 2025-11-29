@@ -30,6 +30,7 @@ from napari.layers import Labels, Layer
 from napari.utils.notifications import show_info as _napari_show_info
 
 from cylindra import _config, _shared_doc, cylfilters, cylmeasure, utils, widget_utils
+from cylindra._cylindra_ext import labels_to_segments
 from cylindra._napari import InteractionVector, LandscapeSurface, MoleculesLayer
 from cylindra.components import CylSpline, CylTomogram, SplineConfig
 from cylindra.components.interaction import InterMoleculeNet, align_molecules_to_spline
@@ -1118,6 +1119,56 @@ class CylindraMainWidget(MagicTemplate):
             ids = pl.Series(column_name, utils.nd_take(labels_val, pos_int))
             layer.features = layer.molecules.features.with_columns(ids)
         self.reset_choices()  # choices regarding to features need update
+
+    @set_design(text=capitalize, location=_sw.ImageMenu.LabelsMenu)
+    def add_spline_segments_from_labels_layer(
+        self,
+        splines: SplinesType,
+        labels_layer: Labels,
+        interval: Annotated[nm, {"label": "sampling interval (nm)"}] = 1.0,
+        background_label: Annotated[int, {"label": "background label ID"}] = 0,
+        min_length: Annotated[nm, {"label": "min segment length (nm)"}] = 5.0,
+    ):
+        """Add segments to splines based on a napari Labels layer.
+
+        This method will add segments to the specified splines by sampling points along
+        the splines at regular intervals, checking the corresponding label IDs in the
+        provided Labels layer, and creating segments for continuous regions with the
+        same label ID (excluding the background label).
+
+        Parameters
+        ----------
+        {splines}
+        labels_layer : Labels
+            The napari Labels layer to get the label IDs.
+        interval : nm, default 1.0
+            Sampling interval along the spline in nanometers.
+        background_label : int, default 0
+            Label ID to be considered as background and ignored when adding segments.
+        min_length : nm, default 5.0
+            Minimum length of segments to be added in nanometers.
+        """
+        splines = self._norm_splines(splines)
+        labels_val = labels_layer.data
+        for i in splines:
+            spl = self.splines[i]
+            num = utils.roundint(spl.length() / interval)
+            pos = spl.map(np.linspace(0, 1, num)) / labels_layer.scale
+            pos_int = pos.astype(np.int32)
+            ids = utils.nd_take(labels_val, pos_int, default=background_label)
+            num_segments = 0
+            for start, end, label_id in labels_to_segments(
+                ids, background_label, int(min_length / interval)
+            ):
+                if label_id == background_label:
+                    continue
+                t_start = start / (pos_int.shape[0] - 1)
+                t_end = end / (pos_int.shape[0] - 1)
+                spl.segments._append(t_start, t_end, int(label_id))
+                num_segments += 1
+            _Logger.print(f"Added {num_segments} segments to spline {i}")
+        self._update_splines_in_images()
+        self.reset_choices()
 
     @set_design(text="Add multi-scale", location=_sw.ImageMenu)
     @dask_thread_worker.with_progress(desc=lambda bin_size: f"Adding multiscale (bin = {bin_size})")  # fmt: skip
