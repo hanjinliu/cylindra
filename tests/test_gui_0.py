@@ -957,6 +957,10 @@ def test_radius_methods(ui: CylindraMainWidget):
         ui.set_radius([0], "pl.col('npf').cast(pl.Float32) * -1")
 
     # test segment methods
+    # first clear existing segments
+    for i, spl in ui.splines.enumerate():
+        if spl.segments:
+            ui.delete_segments(i, list(range(len(spl.segments))))
     ui.local_cft_analysis("all", interval=8)
     spl = ui.splines[0]
     d = spl.distances()
