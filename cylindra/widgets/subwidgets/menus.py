@@ -389,6 +389,23 @@ class SplinesMenu(ChildWidget):
         infer_polarity = abstractapi()
 
     @magicmenu
+    class Segments(ChildWidget):
+        """Operations on spline segments."""
+
+        @set_design(text=capitalize)
+        @do_not_record
+        def open_spline_segment_editor(self):
+            """Open the spline segment editor widget."""
+            main = self._get_main()
+            main.segment_edit.show()
+
+        add_segment = abstractapi()
+        delete_segments = abstractapi()
+        sep0 = Separator
+        segments_to_localprops = abstractapi()
+        segments_to_feature = abstractapi()
+
+    @magicmenu
     class Fitting(ChildWidget):
         """Methods for spline fitting."""
 

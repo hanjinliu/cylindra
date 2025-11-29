@@ -549,6 +549,8 @@ class SplineLayer(Points):
         super().__init__(*args, **kwargs)
         self.editable = False
         self._show_polarity = True
+        self._size_polarity_marker = 10.0
+        self._size_spline = 8.0
         self.events.add(show_polarity=Event)
 
     @property

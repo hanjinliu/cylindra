@@ -793,7 +793,7 @@ class SubtomogramAveraging(ChildWidget):
         loader = tomo.get_subtomogram_loader(
             _concat_molecules(layers), shape, binsize=bin_size, order=interpolation
         )
-        expr = widget_utils.norm_expr(by)
+        expr = widget_utils.norm_polars_expr(by)
         groups = loader.groupby(expr)
         avg_dict = groups.average()
         avgs = np.stack([avg_dict[k] for k in sorted(avg_dict.keys())], axis=0)
@@ -836,7 +836,7 @@ class SubtomogramAveraging(ChildWidget):
         shape = self._get_shape_in_nm(size)
         loader = tomo.get_subtomogram_loader(
             _concat_molecules(layers), shape, binsize=bin_size, order=interpolation
-        ).filter(widget_utils.norm_expr(predicate))
+        ).filter(widget_utils.norm_polars_expr(predicate))
         avg = loader.average()
         img = ip.asarray(avg, axes="zyx")
         img.set_scale(zyx=loader.scale, unit="nm")

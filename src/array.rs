@@ -136,3 +136,46 @@ pub fn find_changing_point(
     }
     idx
 }
+
+#[pyfunction]
+/// Convert label array to segments.
+/// Returns an array of shape (M, 3), where each row is (start_index, end_index, value).
+pub fn labels_to_segments(
+    py: Python,
+    labels: PyReadonlyArray1<i32>,
+    background_label: i32,
+    min_length: usize,
+) -> PyResult<Py<PyArray2<i32>>> {
+    let labels = labels.as_array();
+    let n = labels.len();
+    let mut segments: Vec<(i32, i32, i32)> = Vec::new();
+    if n == 0 {
+        return Ok(Array2::<i32>::zeros((0, 3)).into_pyarray(py).into());
+    }
+    let mut start = 0;
+    let mut current_label = labels[0];
+    for i in 1..n {
+        let this_label = labels[i];
+        if this_label != current_label {
+            if current_label != background_label && (i - start) >= min_length {
+                segments.push((start as i32, i as i32, current_label));
+            }
+            start = i;
+            current_label = this_label;
+        }
+    }
+    if current_label != background_label && (n - start) >= min_length {
+        segments.push((start as i32, n as i32, current_label));
+    }
+    segments.push((start as i32, n as i32, current_label));
+
+    // Vec to ndarray
+    let mut out_segments = Array2::<i32>::zeros((segments.len(), 3));
+    for (i, seg) in segments.iter().enumerate() {
+        out_segments[[i, 0]] = seg.0;
+        out_segments[[i, 1]] = seg.1;
+        out_segments[[i, 2]] = seg.2;
+    }
+
+    Ok(out_segments.into_pyarray(py).into())
+}

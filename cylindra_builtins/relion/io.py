@@ -271,14 +271,19 @@ def _iter_dataframe_from_path_sets(
         )
         moles = list(path_info.iter_molecules(_temp_feat, prj.scale))
         if len(moles) > 0:
-            df = _mole_to_star_df(
-                moles,
-                tomo,
-                tomo_name,
-                save_features,
-                shift_by_origin,
-                centered=centered,
-            )
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message=".*Gimbal.*",
+                )
+                df = _mole_to_star_df(
+                    moles,
+                    tomo,
+                    tomo_name,
+                    save_features,
+                    shift_by_origin,
+                    centered=centered,
+                )
             yield tomo_name, df
 
 

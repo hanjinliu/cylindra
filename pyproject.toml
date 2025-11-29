@@ -188,7 +188,7 @@ lint.ignore = [
   "B027", "B904", "B006",
   "E501", "E741",
   # Ignore complexity
-  "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915", "PLC0415",
+  "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915", "PLC0415", "PLW1641",
   "RUF001", "PLC1901", "N814", "UP035",
   "T201", "PLW0603", "PLW2901",
 ]

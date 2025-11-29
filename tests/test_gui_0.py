@@ -100,6 +100,7 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     assert ui._confirm_delete()
     ui.measure_local_radius(splines=[0, 1])
     ui.project_metadata["my_meta"] = 1
+    ui.add_segment(0, 10, 50, value="A")
 
     # Save project
     old_splines = ui.tomogram.splines.copy()
@@ -117,6 +118,8 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     for mol0, mol1 in zip(old_molecules, new_molecules, strict=True):
         assert_molecule_equal(mol0, mol1)
     assert ui.tomogram.tilt["range"] == (-60, 60)
+    assert len(ui.splines[0].segments) == 1
+    assert len(ui.splines[1].segments) == 0
 
     # try .tar file
     ui.save_project(save_path / "test_tar.tar")
@@ -694,6 +697,8 @@ def test_sub_widgets(ui: CylindraMainWidget, tmpdir):
         assert ui.splines[0].length() == pytest.approx(len_old - 2.4, abs=0.02)
 
         # spectra inspector
+        with pytest.raises(ValueError):
+            ui.local_cft_analysis(radius="local", interval=25)
         ui.local_cft_analysis(interval=25)
         ui.AnalysisMenu.open_spectra_inspector()
         ui.spectra_inspector.log_scale = True
@@ -718,6 +723,23 @@ def test_sub_widgets(ui: CylindraMainWidget, tmpdir):
         ui.spectra_inspector.peak_viewer.show_what = GLOBAL_CFT
         ui.spectra_inspector.parameters.export(Path(tmpdir) / "params.csv")
 
+        # segment edit
+        ui.segment_edit.activate_3d_pick = True
+        ui.segment_edit.activate_3d_pick = False
+        ui.segment_edit.activate_3d_pick = True
+        ui.segment_edit._add_point_on_spline(
+            np.array([0.25, 65.65, 21.26]),
+            np.array([16.9, 69.1, 20.32])
+        )
+        assert ui._reserved_layers.work.data.shape[0] == 1
+        ui.segment_edit.move_backward(1)
+        ui.segment_edit.move_forward(20)
+        ui.segment_edit._add_point_on_spline(
+            np.array([0.25, 65.65, 21.26]),
+            np.array([16.9, 69.1, 20.32])
+        )
+        assert ui._reserved_layers.work.data.shape[0] == 2
+        ui.segment_edit.add_segment()
 
 @pytest.mark.parametrize("bin_size", [1, 2])
 def test_sta(ui: CylindraMainWidget, bin_size: int, tmpdir):
@@ -934,6 +956,30 @@ def test_radius_methods(ui: CylindraMainWidget):
     with pytest.raises(ValueError):
         ui.set_radius([0], "pl.col('npf').cast(pl.Float32) * -1")
 
+    # test segment methods
+    # first clear existing segments
+    for i, spl in ui.splines.enumerate():
+        if spl.segments:
+            ui.delete_segments(i, list(range(len(spl.segments))))
+    ui.local_cft_analysis("all", interval=8)
+    spl = ui.splines[0]
+    d = spl.distances()
+    ui.add_segment(0, d[1] - 2, d[3] + 2, value=10)
+    ui.add_segment(0, d[4] - 2, d[4] + 4, value=70)
+    ui.delete_segments(0, [1, 0])
+    ui.macro.undo()
+    ui.macro.undo()
+    ui.macro.redo()
+    ui.macro.redo()
+    ui.macro.undo()
+    ui.segments_to_localprops(0, column_name="NAME", default=-1)
+    assert "NAME" in spl.props.loc.columns
+    assert (spl.props.loc["NAME"][:6] == [-1, 10, 10, 10, 70, -1]).all()
+    ui.segments_to_localprops(0, column_name="NAME2", eval_expr="value > 8", default=False)
+    assert "NAME2" in spl.props.loc.columns
+    assert (spl.props.loc["NAME2"][:6] == [False, True, True, True, True, False]).all()
+    ui.segments_to_feature("Mole-0", column_name="NAME", default=-1)
+    ui.splines[0].copy()
 
 def test_simulator(ui: CylindraMainWidget):
     ui.ImageMenu.open_simulator()
@@ -1910,4 +1956,6 @@ def test_labels_methods(ui: CylindraMainWidget):
     labels_layer = ui.parent_viewer.layers["Labels-0"]
     ui.splines_to_labels(splines=[0], target_layer=labels_layer)
     ui.molecules_to_labels(layers=["Mole-0"], target_layer=labels_layer, label_id=2)
+    labels_layer.data["y=:N//2"] = 3
     ui.add_molecule_feature_from_labels_layer("Mole-0", labels_layer=labels_layer)
+    ui.add_spline_segments_from_labels_layer(0, labels_layer=labels_layer)

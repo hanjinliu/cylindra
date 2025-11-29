@@ -32,6 +32,7 @@ from cylindra.project._single import CylindraProject
 if TYPE_CHECKING:
     import numpy as np
     from acryo import BatchLoader, Molecules
+    from IPython.lib.pretty import RepresentationPrinter
     from numpy.typing import NDArray
 
     from cylindra.components import CylSpline
@@ -619,7 +620,7 @@ class MoleculesItem(NamedTuple):
             f"spline={self.spline!r})"
         )
 
-    def _repr_pretty_(self, p, cycle):
+    def _repr_pretty_(self, p: RepresentationPrinter, cycle: bool):
         p.text(
             f"MoleculesItem(\n\tkey={self.key!r},\n\tmolecules={self.molecules!r},"
             f"\n\tspline={self.spline!r}\n)"

@@ -133,7 +133,7 @@ class SplineProps:
             )
         else:
             ws = _pos_float(window_size)
-            self._window_size.update({c: ws for c in df.columns})
+            self._window_size.update(dict.fromkeys(df.columns, ws))
         if isinstance(bin_size, int | np.integer):
             for key in df.columns:
                 self._binsize_loc[key] = bin_size
@@ -275,5 +275,5 @@ class SplineProps:
 def _pos_float(x: Any) -> float:
     out = float(x)
     if out < 0:
-        raise ValueError("Value must be positive.")
+        raise ValueError("Value must be non negative.")
     return out
