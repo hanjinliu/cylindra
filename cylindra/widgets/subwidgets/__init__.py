@@ -1,6 +1,7 @@
 from cylindra.widgets.subwidgets.config_edit import ConfigEdit
 from cylindra.widgets.subwidgets.function_menu import Volume
 from cylindra.widgets.subwidgets.image_processor import ImageProcessor
+from cylindra.widgets.subwidgets.interactor import Spline3DInteractor
 from cylindra.widgets.subwidgets.manual_picker import ManualPicker
 from cylindra.widgets.subwidgets.measure import SpectraInspector
 from cylindra.widgets.subwidgets.menus import (
@@ -18,7 +19,6 @@ from cylindra.widgets.subwidgets.properties import (
     LocalPropertiesWidget,
 )
 from cylindra.widgets.subwidgets.runner import Runner
-from cylindra.widgets.subwidgets.segment_edit import Spline3DInteractor
 from cylindra.widgets.subwidgets.simulator import Simulator
 from cylindra.widgets.subwidgets.slicer import SplineSlicer
 from cylindra.widgets.subwidgets.spline_clipper import SplineClipper

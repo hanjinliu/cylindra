@@ -133,6 +133,7 @@ class Spline3DInteractor(ChildWidget):
                 size = main._reserved_layers.work.size
                 size[-1] = 12.0
                 main._reserved_layers.work.size = size
+                return
 
     @set_design(text="Forward", location=MovePanel)
     def move_forward(self, interval: Annotated[float, {"bind": interval}]):
