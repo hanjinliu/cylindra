@@ -211,6 +211,7 @@ class ImageMenu(ChildWidget):
         splines_to_labels = abstractapi()
         molecules_to_labels = abstractapi()
         add_molecule_feature_from_labels_layer = abstractapi()
+        add_spline_segments_from_labels_layer = abstractapi()
 
     sep0 = Separator
 
