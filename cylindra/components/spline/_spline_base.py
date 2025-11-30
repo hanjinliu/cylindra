@@ -336,8 +336,8 @@ class Spline(BaseComponent):
         u1 = _linear_conversion(stop, *self._lims)
         segs = []
         for seg in self._segments:
-            s0 = max(_linear_conversion(seg.start, *self._lims), 0.0)
-            s1 = min(_linear_conversion(seg.end, *self._lims), 1.0)
+            s0 = min(max((seg.start - start) / (stop - start), 0.0), 1.0)
+            s1 = min(max((seg.end - start) / (stop - start), 0.0), 1.0)
             if s0 >= s1:
                 continue
             segs.append(seg.with_borders(s0, s1))

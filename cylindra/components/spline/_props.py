@@ -112,8 +112,7 @@ class SplineProps:
         window_size: nm | Mapping[str, nm],
         bin_size: int | Mapping[str, int] | None = None,
     ) -> Self:
-        """
-        Set local properties of given window size.
+        """Set local properties of given window size.
 
         Parameters
         ----------
@@ -212,8 +211,7 @@ class SplineProps:
         return self
 
     def get_loc(self, key: str, default=_void) -> pl.Series:
-        """
-        Get a local property of the spline, similar to ``dict.get`` method.
+        """Get a local property of the spline, similar to ``dict.get`` method.
 
         Parameters
         ----------
@@ -236,8 +234,7 @@ class SplineProps:
             raise TypeError("Key must be either str or polars.Expr.")
 
     def get_glob(self, key: str | pl.Expr, default=_void) -> Any:
-        """
-        Get a global property of the spline, similar to ``dict.get`` method.
+        """Get a global property of the spline, similar to ``dict.get`` method.
 
         Parameters
         ----------

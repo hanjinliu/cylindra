@@ -232,6 +232,9 @@ def main():
     # Spectra inspector
     ui.AnalysisMenu.open_spectra_inspector()
     _imsave(ui.spectra_inspector.native, "spectra_inspector")
+    # Spline 3D interactor
+    ui.SplinesMenu.open_spline_3d_interactor()
+    _imsave(ui.spline_3d_interactor.native, "spline_3d_interactor")
 
     ### manual picker ###
     ui.ImageMenu.open_manual_picker()

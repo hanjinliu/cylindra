@@ -88,6 +88,9 @@ class SplineSegments(Sequence[SplineSegment]):
     def __iter__(self):
         return iter(self._segments)
 
+    def enumerate(self) -> Iterable[tuple[int, SplineSegment]]:
+        return enumerate(self._segments)
+
     def copy(self) -> SplineSegments:
         return SplineSegments(self._segments)
 

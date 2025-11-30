@@ -59,8 +59,7 @@ class CylSpline(Spline):
         return None
 
     def invert(self) -> CylSpline:
-        """
-        Invert the direction of spline. Also invert orientation if exists.
+        """Invert the direction of spline. Also invert orientation if exists.
 
         Returns
         -------
@@ -74,8 +73,7 @@ class CylSpline(Spline):
         return new
 
     def clip(self, start: float, stop: float) -> CylSpline:
-        """
-        Clip spline and generate a new one.
+        """Clip spline and generate a new one.
 
         This method does not convert spline bases. ``_lims`` is updated instead.
         For instance, if you want to clip spline at 20% to 80% position, call
@@ -155,8 +153,7 @@ class CylSpline(Spline):
         offsets: tuple[float, float] = (0.0, 0.0),
         **kwargs,
     ) -> CylinderModel:
-        """
-        Return the cylinder model of the spline.
+        """Return the cylinder model of the spline.
 
         Parameters
         ----------

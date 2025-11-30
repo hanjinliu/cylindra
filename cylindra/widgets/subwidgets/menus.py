@@ -393,13 +393,6 @@ class SplinesMenu(ChildWidget):
     class Segments(ChildWidget):
         """Operations on spline segments."""
 
-        @set_design(text=capitalize)
-        @do_not_record
-        def open_spline_segment_editor(self):
-            """Open the spline segment editor widget."""
-            main = self._get_main()
-            main.segment_edit.show()
-
         add_segment = abstractapi()
         delete_segments = abstractapi()
         sep0 = Separator
@@ -443,6 +436,15 @@ class SplinesMenu(ChildWidget):
         main.spline_clipper.show()
         if len(main.tomogram.splines) > 0:
             main.spline_clipper.load_spline(main.SplineControl.num)
+
+    @set_design(text="Open spline 3D interactor")
+    @do_not_record
+    @bind_key("Ctrl+K, 3")
+    def open_spline_3d_interactor(self):
+        """Open the spline 3D interactor widget."""
+        main = self._get_main()
+        main.spline_3d_interactor._init()
+        main.spline_3d_interactor.show()
 
     delete_spline = abstractapi()
     copy_spline = abstractapi()

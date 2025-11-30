@@ -243,8 +243,8 @@ class CylindraMainWidget(MagicTemplate):
     config_edit = field(_sw.ConfigEdit, name="_Config editor")
     # Widget for editing workflows
     workflow_edit = field(_sw.WorkflowEdit, name="_Workflow editor")
-    # Widget for segment edit
-    segment_edit = field(_sw.SplineSegmentEdit, name="_Spline Segment Editor")
+    # Widget for spline 3D interaction
+    spline_3d_interactor = field(_sw.Spline3DInteractor, name="_Spline 3D Interactor")
     # Widget for measuring FFT parameters from a 2D power spectra
     spectra_inspector = field(_sw.SpectraInspector, name="_SpectraInspector")
     # Widget for subtomogram analysis
@@ -1406,7 +1406,7 @@ class CylindraMainWidget(MagicTemplate):
 
         @undo_callback
         def _out():
-            del self.splines[-2:]
+            del self.splines[spline : spline + len(spls)]
             self.splines.insert(spline, spl)
             self._update_splines_in_images()
             self.reset_choices()

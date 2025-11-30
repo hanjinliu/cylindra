@@ -724,22 +724,32 @@ def test_sub_widgets(ui: CylindraMainWidget, tmpdir):
         ui.spectra_inspector.parameters.export(Path(tmpdir) / "params.csv")
 
         # segment edit
-        ui.segment_edit.activate_3d_pick = True
-        ui.segment_edit.activate_3d_pick = False
-        ui.segment_edit.activate_3d_pick = True
-        ui.segment_edit._add_point_on_spline(
-            np.array([0.25, 65.65, 21.26]),
-            np.array([16.9, 69.1, 20.32])
+        from cylindra.widgets.subwidgets import segment_edit as s3
+        ui.spline_3d_interactor.pick_mode_left = s3.DISABLED
+        ui.spline_3d_interactor.pick_mode_left = s3.ADD_POINT_ON_SPLINE
+        ui.spline_3d_interactor.pick_mode_left = s3.SELECT_SPLINE
+        ui.spline_3d_interactor.pick_mode_right = s3.DISABLED
+        ui.spline_3d_interactor.pick_mode_right = s3.SELECT_SPLINE
+        ui.spline_3d_interactor.pick_mode_right = s3.ADD_POINT_ON_SPLINE
+        n0 = np.array([0.25, 65.65, 21.26])
+        n1 = np.array([16.9, 69.1, 20.32])
+        ui.spline_3d_interactor._select_spline(n0, n1)
+        ui.spline_3d_interactor._select_spline(
+            np.array([0.0, 0.0, 0.0]), np.array([20.0, 0.0, 0.0])
         )
+        ui.spline_3d_interactor._add_point_on_spline(n0, n1)
         assert ui._reserved_layers.work.data.shape[0] == 1
-        ui.segment_edit.move_backward(1)
-        ui.segment_edit.move_forward(20)
-        ui.segment_edit._add_point_on_spline(
-            np.array([0.25, 65.65, 21.26]),
-            np.array([16.9, 69.1, 20.32])
-        )
+        ui.spline_3d_interactor.move_backward(1)
+        ui.spline_3d_interactor.move_forward(20)
+        ui.spline_3d_interactor._add_point_on_spline(n0, n1)
         assert ui._reserved_layers.work.data.shape[0] == 2
-        ui.segment_edit.add_segment()
+        ui.spline_3d_interactor.move_backward(10)
+        ui.spline_3d_interactor.add_segment()
+        ui.spline_3d_interactor._add_point_on_spline(n0, n1)
+        ui.spline_3d_interactor.delete_segments()
+        ui.spline_3d_interactor._add_point_on_spline(n0, n1)
+        ui.spline_3d_interactor.split_spline(1.0)
+
 
 @pytest.mark.parametrize("bin_size", [1, 2])
 def test_sta(ui: CylindraMainWidget, bin_size: int, tmpdir):

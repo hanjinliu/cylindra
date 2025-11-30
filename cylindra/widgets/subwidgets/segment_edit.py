@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Annotated
+from collections import defaultdict
+from typing import Annotated, Iterator
 
 import numpy as np
 from magicclass import abstractapi, magicclass, set_design, vfield
@@ -7,15 +8,22 @@ from cylindra.components import CylSpline
 from cylindra.widgets._widget_ext import JsonValueEdit
 from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
-if TYPE_CHECKING:
-    from napari.layers import Points
+DISABLED = "Disabled"
+SELECT_SPLINE = "Select spline"
+ADD_POINT_ON_SPLINE = "Add point on spline"
+
+_PICK_MODES = [
+    DISABLED,
+    SELECT_SPLINE,
+    ADD_POINT_ON_SPLINE,
+]
 
 
 @magicclass(record=False)
-class SplineSegmentEdit(ChildWidget):
-    segment_value = vfield(JsonValueEdit)
-    activate_3d_pick = vfield(False, label="Activate 3D pick")
-    pick_max_distance = vfield(20.0, label="Max pick distance (nm)")
+class Spline3DInteractor(ChildWidget):
+    pick_mode_left = vfield(DISABLED).with_choices(_PICK_MODES)
+    pick_mode_right = vfield(DISABLED).with_choices(_PICK_MODES)
+    pick_max_distance = vfield(10.0, label="Max pick distance (nm)")
     interval = vfield(1.0, label="Precision (nm)").with_options(step=0.1, min=0.2)
 
     @magicclass(layout="horizontal")
@@ -24,32 +32,45 @@ class SplineSegmentEdit(ChildWidget):
         move_backward = abstractapi()
         move_forward = abstractapi()
 
-    def __post_init__(self):
-        self._default_size = 8.0
+    def __init__(self):
+        self._pick_func_left = self._no_action
+        self._pick_func_right = self._no_action
 
-    @property
-    def spline(self) -> int | None:
+    def _init(self):
         main = self._get_main()
-        return main.SplineControl.num
+        main._reserved_layers.work.mouse_drag_callbacks.append(self._draw_callback)
+        self.pick_mode_left = SELECT_SPLINE
+        self.pick_mode_right = ADD_POINT_ON_SPLINE
 
-    @activate_3d_pick.connect
-    def _on_activate_3d_pick_changed(self, activated: bool):
+    def _iter_splines(self) -> Iterator[tuple[int, CylSpline]]:
         main = self._get_main()
-        layer = main._reserved_layers.work
-        if activated:
-            self._default_size = float(layer.current_size)
-            layer.current_size = 12.0
-            layer.mouse_drag_callbacks.append(self._draw_callback)
-            layer.mode = "pan_zoom"
+        out = list(main.splines.enumerate())
+        if i := main.SplineControl.num is not None:
+            out = [(i, main.splines[i])] + [a for a in out if a[0] != i]
+        yield from out
+
+    @pick_mode_left.connect
+    def _on_pick_mode_changed(self, mode: str):
+        if mode == ADD_POINT_ON_SPLINE:
+            self._pick_func_left = self._add_point_on_spline
+        elif mode == SELECT_SPLINE:
+            self._pick_func_left = self._select_spline
         else:
-            layer.mouse_drag_callbacks.remove(self._draw_callback)
-            layer.mode = "add"
-            layer.current_size = self._default_size
+            self._pick_func_left = self._no_action
 
-    def _draw_callback(self, layer: "Points", event):
+    @pick_mode_right.connect
+    def _on_pick_mode_right_changed(self, mode: str):
+        if mode == ADD_POINT_ON_SPLINE:
+            self._pick_func_right = self._add_point_on_spline
+        elif mode == SELECT_SPLINE:
+            self._pick_func_right = self._select_spline
+        else:
+            self._pick_func_right = self._no_action
+
+    def _draw_callback(self, layer, event):
         # See https://melissawm.github.io/napari-docs/gallery/cursor_ray.html
         # to know how to get 3D ray from 2D mouse event.
-        if self.spline is None or event.modifiers:
+        if event.modifiers or len(event.dims_displayed) == 2:
             return
         mouse_pos_start = np.asarray(event.position)
         yield
@@ -64,31 +85,54 @@ class SplineSegmentEdit(ChildWidget):
         near_point, far_point = main._reserved_layers.image.get_ray_intersections(
             mouse_pos_end, np.asarray(event.view_direction), event.dims_displayed
         )
-        self._add_point_on_spline(near_point, far_point)
-
-    def _add_point_on_spline(
-        self,
-        near_point: np.ndarray | None,
-        far_point: np.ndarray | None,
-    ):
-        assert self.spline is not None
-        main = self._get_main()
-        scale = main._reserved_layers.image.scale
         if near_point is None or far_point is None:
             return  # not intersecting the layer
+        # button 1: left, 2: right
+        if event.button == 1:
+            self._pick_func_left(near_point, far_point)
+        elif event.button == 2:
+            self._pick_func_right(near_point, far_point)
 
-        ray = CylSpline.line(near_point * scale, far_point * scale)
+    def _no_action(self, near_point: np.ndarray, far_point: np.ndarray):
+        pass
 
-        # find the closest point on the spline
-        spl = main.splines[self.spline]
-        u = np.linspace(0, 1, 256)
-        ray_samples = ray.map(u)
-        dist = spl.distance_matrix(ray_samples, interval=self.interval)
-        min_idx = dist.argmin()
-        if dist[min_idx] > self.pick_max_distance:
-            return  # too far
-        p_spl = dist.spl_points[min_idx[0]]
-        main._reserved_layers.work.add(p_spl)
+    def _select_spline(self, near_point: np.ndarray, far_point: np.ndarray):
+        main = self._get_main()
+        scale = main._reserved_layers.image.scale
+
+        for idx, spl in main.splines.enumerate():
+            p_spl, d0 = _closest_points(
+                spl,
+                near_point * scale,
+                far_point * scale,
+                interval=self.interval,
+            )
+            if d0 <= self.pick_max_distance:
+                main.SplineControl.num = idx
+                if spl.has_anchors:
+                    # move slider to the closest anchor
+                    dists = np.linalg.norm(
+                        spl.map(spl.anchors) - p_spl.reshape(1, 3), axis=1
+                    )
+                    main.SplineControl.pos = np.argmin(dists)
+                return
+
+    def _add_point_on_spline(self, near_point: np.ndarray, far_point: np.ndarray):
+        main = self._get_main()
+        scale = main._reserved_layers.image.scale
+
+        for _, spl in self._iter_splines():
+            p_spl, d0 = _closest_points(
+                spl,
+                near_point * scale,
+                far_point * scale,
+                interval=self.interval,
+            )
+            if d0 <= self.pick_max_distance:
+                main._reserved_layers.work.add(p_spl)
+                size = main._reserved_layers.work.size
+                size[-1] = 12.0
+                main._reserved_layers.work.size = size
 
     @set_design(text="Forward", location=MovePanel)
     def move_forward(self, interval: Annotated[float, {"bind": interval}]):
@@ -101,20 +145,24 @@ class SplineSegmentEdit(ChildWidget):
         self._move_point(-interval)
 
     def _move_point(self, diff: float):
-        if self.spline is None:
-            return
         main = self._get_main()
-        spl = main.splines[self.spline]
         layer = main._reserved_layers.work
-        if len(sels := layer.selected_data) != 1:
+        if len(sels := layer.selected_data) > 1:
             raise ValueError("Please select exactly one point to move.")
+        elif len(sels) == 0:
+            if layer.data.size == 0:
+                return
+            sels = {0}
         data_old = layer.data
         data_index = list(sels)[0]
         point = data_old[data_index]
-        dist = spl.distance_matrix(point, interval=self.interval)
-        min_idx = np.argmin(dist.matrix, axis=0)
-        if dist.matrix[min_idx[0], 0] > self.pick_max_distance:
-            raise ValueError("The selected point is too far from the spline.")
+        for _, spl in self._iter_splines():
+            dist = spl.distance_matrix(point, interval=self.interval)
+            min_idx = np.argmin(dist.matrix, axis=0)
+            if dist.matrix[min_idx[0], 0] <= self.pick_max_distance:
+                break
+        else:
+            raise ValueError("No nearest spline found.")
         u0 = dist.spl_coords[min_idx[0]]
         u1 = max(min(u0 + diff / spl.length(), 1.0), 0.0)
         data_old[data_index] = spl.map(u1)
@@ -123,19 +171,97 @@ class SplineSegmentEdit(ChildWidget):
 
     @set_design(text="Add segment")
     def add_segment(self):
+        """Add a segment between two points."""
         main = self._get_main()
-        if self.spline is None:
-            return
-        spl = main.splines[self.spline]
+        idx, (y0, y1) = self._determine_spline_and_points()
+        main.add_segment(idx, y0, y1, self.segment_value)
+        main._reserved_layers.work.data = []  # clear points
+
+    segment_value = vfield(JsonValueEdit)
+
+    @set_design(text="Delete segments")
+    def delete_segments(self):
+        """Delete all the segments near the added points."""
+        main = self._get_main()
         layer = main._reserved_layers.work
-        if layer.data.shape[0] != 2:
-            raise ValueError("Please add exactly two points to define the segment.")
-        dist = spl.distance_matrix(layer.data, interval=self.interval)
-        min_idx = np.argmin(dist.matrix, axis=0)
-        u0 = dist.spl_coords[min_idx[0]]
-        u1 = dist.spl_coords[min_idx[1]]
-        if u0 > u1:
-            u0, u1 = u1, u0
-        y0, y1 = spl.distances([u0, u1]).round(3)
-        main.add_segment(self.spline, y0, y1, self.segment_value)
+        points = layer.data
+        arg_map = defaultdict[int, list[int]](list)
+        for idx, spl in self._iter_splines():
+            for i_seg, seg in spl.segments.enumerate():
+                spl_seg = spl.clip(seg.start, seg.end)
+                dist = spl_seg.distance_matrix(points, interval=self.interval)
+                if np.min(dist.matrix) <= self.pick_max_distance:
+                    arg_map[idx].append(i_seg)
+        for spl_idx, seg_indices in arg_map.items():
+            main.delete_segments(spl_idx, seg_indices)
         layer.data = []  # clear points
+
+    @set_design(text="Clip spline")
+    def clip_spline(self):
+        """Clip spline between the added two points."""
+        main = self._get_main()
+        idx, (y0, y1) = self._determine_spline_and_points()
+        main.clip_spline(idx, (y0, main.splines[idx].length() - y1))
+        main._reserved_layers.work.data = []  # clear points
+
+    @set_design(text="Split spline")
+    def split_spline(self):
+        """Split spline at the added point."""
+        main = self._get_main()
+        idx, (y0,) = self._determine_spline_and_points(num=1)
+        main.split_spline(idx, y0, trim=self.trim)
+        main._reserved_layers.work.data = []  # clear points
+
+    trim = vfield(0.0, label="Trim when splitting (nm)").with_options(
+        step=0.1, min=0.0, max=100.0
+    )
+
+    def _determine_spline_and_points(self, num: int = 2) -> tuple[int, list[float]]:
+        main = self._get_main()
+        layer = main._reserved_layers.work
+        points = layer.data
+        if points.shape[0] != num:
+            raise ValueError(f"Please add exactly {num} points.")
+
+        for _idx, spl in self._iter_splines():
+            dist = spl.distance_matrix(points, interval=self.interval)
+            min_idx = np.argmin(dist.matrix, axis=0)
+            if np.all(
+                dist.matrix[min_idx, np.arange(num, dtype=np.int32)]
+                <= self.pick_max_distance
+            ):
+                break
+        else:
+            raise ValueError("No nearest spline found.")
+        us = np.sort(dist.spl_coords[min_idx])
+        return _idx, [float(y) for y in spl.distances(us).round(3)]
+
+
+def _closest_points(
+    spl: CylSpline,
+    near_point_nm: np.ndarray,
+    far_point_nm: np.ndarray,
+    interval: float,
+) -> tuple[np.ndarray, float]:
+    # Use point-to-line distance formula
+    # For a line through points A and B, distance from point P is:
+    # d = ||(P - A) × (B - A)|| / ||B - A||
+
+    line_vec = far_point_nm - near_point_nm
+    line_length = np.linalg.norm(line_vec)
+    line_vec_normalized = line_vec / line_length
+
+    # Sample points along the spline
+    u = spl.prep_anchor_positions(max_interval=interval)
+    spl_points = spl.map(u)
+
+    # Calculate distances from each spline point to the line
+    vecs = spl_points - near_point_nm
+    cross_products = np.cross(vecs, line_vec_normalized)
+    distances = np.linalg.norm(cross_products, axis=1)
+
+    min_idx = np.argmin(distances)
+    d0 = distances[min_idx]
+    p_spl = spl_points[min_idx]
+
+    return p_spl, d0
