@@ -1000,6 +1000,7 @@ def test_radius_methods(ui: CylindraMainWidget):
     assert (spl.props.loc["NAME2"][:6] == [False, True, True, True, True, False]).all()
     ui.segments_to_feature("Mole-0", column_name="NAME", default=-1)
     ui.splines[0].copy()
+    assert ui.splines.collect_localprops()["NAME"].dtype == pl.Int32
 
 def test_simulator(ui: CylindraMainWidget):
     ui.ImageMenu.open_simulator()
