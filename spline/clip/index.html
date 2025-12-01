@@ -618,6 +618,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -768,6 +772,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#split-spline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Split Spline
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -792,6 +807,62 @@
     
   
     Spline Configurations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../segments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Annotate Segments on Splines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../3d_interaction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spline 3D interactivity
   
 
     
@@ -2657,6 +2728,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#split-spline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Split Spline
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2705,6 +2787,11 @@ the clipping lengths and the projections of the spline edges. "Clip here" will c
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Splines &gt; Orientation &gt; Invert spline</code></p>
 <p>This method inverts the selected spline. This operation does not discard the local
 properties. They will be inverted as well.</p>
+<h2 id="split-spline">Split Spline</h2>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="split_spline(spline, at=100.0, from_start=True, trim=0.0)" href="../../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.split_spline"><code>split_spline</code></a>
+<span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Splines &gt; Split spline</code></p>
+<p>This method splits the selected spline into two at the given position along the spline.
+Technically, this is done by creating two clipped splines.</p>
 
 
 

@@ -614,6 +614,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -708,6 +712,62 @@
     
   
     Spline Configurations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../spline/segments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Annotate Segments on Splines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../spline/3d_interaction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spline 3D interactivity
   
 
     
@@ -5614,7 +5674,7 @@ imported from file outputs of a long-running job from other softwares.</p>
         <span class="n">loaderlist</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_parent</span><span class="p">()</span><span class="o">.</span><span class="n">_loaders</span>
         <span class="n">info</span> <span class="o">=</span> <span class="n">loaderlist</span><span class="p">[</span><span class="n">loader_name</span><span class="p">]</span>
         <span class="n">loader</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">loader</span>
-        <span class="n">new</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">norm_expr</span><span class="p">(</span><span class="n">expression</span><span class="p">))</span>
+        <span class="n">new</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">norm_polars_expr</span><span class="p">(</span><span class="n">expression</span><span class="p">))</span>
         <span class="n">existing_id</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">new</span><span class="o">.</span><span class="n">features</span><span class="p">[</span><span class="n">Mole</span><span class="o">.</span><span class="n">image</span><span class="p">])</span>
         <span class="n">loaderlist</span><span class="o">.</span><span class="n">add_loader</span><span class="p">(</span>
             <span class="n">new</span><span class="p">,</span>
@@ -5687,7 +5747,7 @@ imported from file outputs of a long-running job from other softwares.</p>
         <span class="n">img</span> <span class="o">=</span> <span class="n">ip</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span>
             <span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">output_shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">)</span>
             <span class="o">.</span><span class="n">binning</span><span class="p">(</span><span class="n">bin_size</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-            <span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">norm_expr</span><span class="p">(</span><span class="n">by</span><span class="p">))</span>
+            <span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">norm_polars_expr</span><span class="p">(</span><span class="n">by</span><span class="p">))</span>
             <span class="o">.</span><span class="n">average</span><span class="p">()</span>
             <span class="o">.</span><span class="n">value_stack</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
             <span class="n">axes</span><span class="o">=</span><span class="s2">&quot;pzyx&quot;</span><span class="p">,</span>
@@ -7016,7 +7076,7 @@ segmented subtomogram averaging.</p>
     <span class="n">img</span> <span class="o">=</span> <span class="n">ip</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span>
         <span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">output_shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">)</span>
         <span class="o">.</span><span class="n">binning</span><span class="p">(</span><span class="n">bin_size</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-        <span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">norm_expr</span><span class="p">(</span><span class="n">by</span><span class="p">))</span>
+        <span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">norm_polars_expr</span><span class="p">(</span><span class="n">by</span><span class="p">))</span>
         <span class="o">.</span><span class="n">average</span><span class="p">()</span>
         <span class="o">.</span><span class="n">value_stack</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
         <span class="n">axes</span><span class="o">=</span><span class="s2">&quot;pzyx&quot;</span><span class="p">,</span>
@@ -7834,7 +7894,7 @@ If a path is given, image must in the same shape as the template.</p>
     <span class="n">loaderlist</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_parent</span><span class="p">()</span><span class="o">.</span><span class="n">_loaders</span>
     <span class="n">info</span> <span class="o">=</span> <span class="n">loaderlist</span><span class="p">[</span><span class="n">loader_name</span><span class="p">]</span>
     <span class="n">loader</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">loader</span>
-    <span class="n">new</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">norm_expr</span><span class="p">(</span><span class="n">expression</span><span class="p">))</span>
+    <span class="n">new</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">norm_polars_expr</span><span class="p">(</span><span class="n">expression</span><span class="p">))</span>
     <span class="n">existing_id</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">new</span><span class="o">.</span><span class="n">features</span><span class="p">[</span><span class="n">Mole</span><span class="o">.</span><span class="n">image</span><span class="p">])</span>
     <span class="n">loaderlist</span><span class="o">.</span><span class="n">add_loader</span><span class="p">(</span>
         <span class="n">new</span><span class="p">,</span>
