@@ -30,6 +30,7 @@ from napari.layers import Labels, Layer
 from napari.utils.notifications import show_info as _napari_show_info
 
 from cylindra import _config, _shared_doc, cylfilters, cylmeasure, utils, widget_utils
+from cylindra._cylindra_ext import labels_to_segments
 from cylindra._napari import InteractionVector, LandscapeSurface, MoleculesLayer
 from cylindra.components import CylSpline, CylTomogram, SplineConfig
 from cylindra.components.interaction import InterMoleculeNet, align_molecules_to_spline
@@ -50,6 +51,7 @@ from cylindra.types import get_available_binsize
 from cylindra.widget_utils import (
     PolarsExprStr,
     PolarsExprStrOrScalar,
+    ValueExprStr,
     add_molecules,
     capitalize,
     change_viewer_focus,
@@ -81,6 +83,7 @@ from cylindra.widgets._reserved_layers import ReservedLayers
 from cylindra.widgets._widget_ext import (
     CheckBoxes,
     IndexEdit,
+    JsonValueEdit,
     KernelEdit,
     OffsetEdit,
     ProtofilamentEdit,
@@ -181,6 +184,8 @@ _NSPLINES = (
 
 
 def _choice_getter(method_name: str, dtype_kind: str = ""):
+    """Make a choice getter function from molecules feature using the first widget."""
+
     def _get_choice(self: "CylindraMainWidget", w=None) -> list[str]:
         # don't use get_function_gui. It causes RecursionError.
         gui = self[method_name].mgui
@@ -193,6 +198,18 @@ def _choice_getter(method_name: str, dtype_kind: str = ""):
 
     _get_choice.__qualname__ = "CylindraMainWidget._get_choice"
     return _get_choice
+
+
+def _spline_choice_getter(method_name: str):
+    def _get_spline_choice(self: "CylindraMainWidget", w=None) -> list[tuple[str, int]]:
+        gui = self[method_name].mgui
+        if gui is None or not isinstance(i := gui[0].value, int):
+            return []
+        spl = self.splines[i]
+        return [(str(seg), k) for k, seg in enumerate(spl.segments)]
+
+    _get_spline_choice.__qualname__ = "CylindraMainWidget._get_spline_choice"
+    return _get_spline_choice
 
 
 ############################################################################################
@@ -226,6 +243,8 @@ class CylindraMainWidget(MagicTemplate):
     config_edit = field(_sw.ConfigEdit, name="_Config editor")
     # Widget for editing workflows
     workflow_edit = field(_sw.WorkflowEdit, name="_Workflow editor")
+    # Widget for spline 3D interaction
+    spline_3d_interactor = field(_sw.Spline3DInteractor, name="_Spline 3D Interactor")
     # Widget for measuring FFT parameters from a 2D power spectra
     spectra_inspector = field(_sw.SpectraInspector, name="_SpectraInspector")
     # Widget for subtomogram analysis
@@ -403,7 +422,7 @@ class CylindraMainWidget(MagicTemplate):
             if splines == "all":
                 return indices
             else:
-                expr = widget_utils.norm_expr(splines)
+                expr = widget_utils.norm_polars_expr(splines)
                 df_glob = self.splines.collect_globalprops(indices)
                 cname = ".index"
                 return (
@@ -443,11 +462,14 @@ class CylindraMainWidget(MagicTemplate):
     _image_loader = _sw.ImageLoader
 
     def _confirm_delete(self):
+        if self._reserved_layers.work.data.size > 0:
+            return False
         i = self.SplineControl.num
         if i is None:
             # If user is writing the first spline, there's no spline registered.
             return False
-        return self.tomogram.splines[i].has_props()
+        spl = self.tomogram.splines[i]
+        return len(spl.props.loc) > 0 or len(spl.props.glob) > 0
 
     @set_design(icon="solar:eraser-bold", location=Toolbar)
     @confirm(text="Spline has properties. Are you sure to delete it?", condition=_confirm_delete)  # fmt: skip
@@ -1098,6 +1120,56 @@ class CylindraMainWidget(MagicTemplate):
             layer.features = layer.molecules.features.with_columns(ids)
         self.reset_choices()  # choices regarding to features need update
 
+    @set_design(text=capitalize, location=_sw.ImageMenu.LabelsMenu)
+    def add_spline_segments_from_labels_layer(
+        self,
+        splines: SplinesType,
+        labels_layer: Labels,
+        interval: Annotated[nm, {"label": "sampling interval (nm)"}] = 1.0,
+        background_label: Annotated[int, {"label": "background label ID"}] = 0,
+        min_length: Annotated[nm, {"label": "min segment length (nm)"}] = 5.0,
+    ):
+        """Add segments to splines based on a napari Labels layer.
+
+        This method will add segments to the specified splines by sampling points along
+        the splines at regular intervals, checking the corresponding label IDs in the
+        provided Labels layer, and creating segments for continuous regions with the
+        same label ID (excluding the background label).
+
+        Parameters
+        ----------
+        {splines}
+        labels_layer : Labels
+            The napari Labels layer to get the label IDs.
+        interval : nm, default 1.0
+            Sampling interval along the spline in nanometers.
+        background_label : int, default 0
+            Label ID to be considered as background and ignored when adding segments.
+        min_length : nm, default 5.0
+            Minimum length of segments to be added in nanometers.
+        """
+        splines = self._norm_splines(splines)
+        labels_val = labels_layer.data
+        for i in splines:
+            spl = self.splines[i]
+            num = utils.roundint(spl.length() / interval)
+            pos = spl.map(np.linspace(0, 1, num)) / labels_layer.scale
+            pos_int = pos.astype(np.int32)
+            ids = utils.nd_take(labels_val, pos_int, default=background_label)
+            num_segments = 0
+            for start, end, label_id in labels_to_segments(
+                ids, background_label, int(min_length / interval)
+            ):
+                if label_id == background_label:
+                    continue
+                t_start = start / (pos_int.shape[0] - 1)
+                t_end = end / (pos_int.shape[0] - 1)
+                spl.segments._append(t_start, t_end, int(label_id))
+                num_segments += 1
+            _Logger.print(f"Added {num_segments} segments to spline {i}")
+        self._update_splines_in_images()
+        self.reset_choices()
+
     @set_design(text="Add multi-scale", location=_sw.ImageMenu)
     @dask_thread_worker.with_progress(desc=lambda bin_size: f"Adding multiscale (bin = {bin_size})")  # fmt: skip
     def add_multiscale(
@@ -1334,7 +1406,7 @@ class CylindraMainWidget(MagicTemplate):
 
         @undo_callback
         def _out():
-            del self.splines[-2:]
+            del self.splines[spline : spline + len(spls)]
             self.splines.insert(spline, spl)
             self._update_splines_in_images()
             self.reset_choices()
@@ -1589,6 +1661,141 @@ class CylindraMainWidget(MagicTemplate):
             self._update_splines_in_images()
             return tracker.as_undo_callback()
 
+    @set_design(text=capitalize, location=_sw.SplinesMenu.Segments)
+    def add_segment(
+        self,
+        spline: SplineType,
+        start_position: Annotated[nm, {"label": "start position (nm)"}] = 0.0,
+        end_position: Annotated[nm, {"label": "end position (nm)", "max": 1e6}] = 100.0,
+        value: Annotated[Any, {"widget_type": JsonValueEdit}] = "Unnamed",
+    ):
+        """Add a spline segment to the selected spline.
+
+        Parameters
+        ----------
+        {spline}
+        start_position : float, default 0.0
+            Start position of the new segment in nm.
+        end_position : float, default 100.0
+            End position of the new segment in nm.
+        value : Any, default "Unnamed"
+            Value of the new segment. Must be JSON serializable.
+        """
+        spl = self.splines[spline]
+        length = spl.length()
+        start = float(max(start_position / length, 0.0))
+        end = float(min(end_position / length, 1.0))
+        if start >= end:
+            raise ValueError("start_position must be smaller than end_position.")
+        spl.segments._append(start, end, value)
+        self._update_splines_in_images()
+
+        @undo_callback
+        def out():
+            spl.segments._segments.pop()
+            self._update_splines_in_images()
+
+        return out
+
+    @set_design(text=capitalize, location=_sw.SplinesMenu.Segments)
+    def delete_segments(
+        self,
+        spline: SplineType,
+        indices: Annotated[list[int], {"widget_type": CheckBoxes, "choices": _spline_choice_getter("delete_segments")}],
+    ):  # fmt: skip
+        """Delete a spline segment from the current spline.
+
+        Parameters
+        ----------
+        {spline}
+        indices : int
+            Indices of the segment to be deleted.
+        """
+        spl = self.splines[spline]
+        old_segments = spl.segments.copy()
+        spl.segments._remove(indices)
+        self._update_splines_in_images()
+
+        @undo_callback
+        def out():
+            spl._segments = old_segments.copy()
+            self._update_splines_in_images()
+
+        return out
+
+    @set_design(text="Segments to local properties", location=_sw.SplinesMenu.Segments)
+    def segments_to_localprops(
+        self,
+        splines: SplinesType = None,
+        column_name: str = "segment_value",
+        filter_expr: ValueExprStr = "",
+        eval_expr: ValueExprStr = "",
+        default: Annotated[Any, {"widget_type": JsonValueEdit}] = None,
+    ):  # fmt: skip
+        """Assign segment values to spline local properties.
+
+        Parameters
+        ----------
+        {splines}
+        column_name : str, default "segment_value"
+            Name of the new column that stores the segment values.
+        {filter_expr}{eval_expr}
+        default : Any, optional
+            Default value for positions that do not belong to any segment. Default value
+            will NOT be evaluated by `eval_expr`; it will be directly assigned.
+        """
+        splines = self._norm_splines(splines)
+        _to_be_updated: list[tuple[CylSpline, pl.Series]] = []
+        for i in splines:
+            spl = self.splines[i]
+            ser = spl._segments_to_series(
+                spl.anchors,
+                column_name=column_name,
+                default=default,
+                filter_expr=filter_expr,
+                eval_expr=eval_expr,
+            )
+            _to_be_updated.append((spl, ser))
+        for spl, ser in _to_be_updated:
+            spl.props.update_loc(ser, window_size=0.0)
+
+    @set_design(text=capitalize, location=_sw.SplinesMenu.Segments)
+    def segments_to_feature(
+        self,
+        layers: MoleculesLayersType,
+        column_name: str = "segment_value",
+        filter_expr: ValueExprStr = "",
+        eval_expr: ValueExprStr = "",
+        default: Annotated[Any, {"widget_type": JsonValueEdit}] = None,
+    ):
+        """Assign segment values to molecules as a new feature column.
+
+        Parameters
+        ----------
+        {layers}
+        column_name : str, default "segment_value"
+            Name of the new column that stores the segment values.
+        {filter_expr}{eval_expr}
+        default : Any, optional
+            Default value for molecules that do not belong to any segment. Default value
+            will NOT be evaluated by `eval_expr`; it will be directly assigned.
+        """
+        layers = assert_list_of_layers(layers, self.parent_viewer)
+        _to_be_updated: list[tuple[MoleculesLayer, pl.Series]] = []
+        for layer in layers:
+            spl = _assert_source_spline_exists(layer)
+            ser = spl._segments_to_series(
+                layer.molecules.features[Mole.position].to_numpy() / spl.length(),
+                column_name=column_name,
+                default=default,
+                filter_expr=filter_expr,
+                eval_expr=eval_expr,
+            )
+            _to_be_updated.append((layer, ser))
+        for layer, ser in _to_be_updated:
+            layer.molecules = layer.molecules.with_features(ser)
+        self.reset_choices()  # choices regarding of features need update
+
     @set_design(text=capitalize, location=_sw.SplinesMenu.Fitting)
     @thread_worker.with_progress(desc="Refining splines", total=_NSPLINES)
     def refine_splines(
@@ -1614,12 +1821,9 @@ class CylindraMainWidget(MagicTemplate):
         with SplineTracker(widget=self, indices=splines) as tracker:
             for i in splines:
                 tomo.refine(
-                    i,
-                    max_interval=max_interval,
-                    corr_allowed=corr_allowed,
-                    err_max=err_max,
-                    binsize=bin_size,
-                )
+                    i, max_interval=max_interval, corr_allowed=corr_allowed,
+                    err_max=err_max, binsize=bin_size,
+                )  # fmt: skip
                 yield thread_worker.callback(self._update_splines_in_images)
 
             @thread_worker.callback
@@ -1790,7 +1994,6 @@ class CylindraMainWidget(MagicTemplate):
             )
         self.reset_choices()
         self._update_splines_in_images()
-        return None
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu.FromToSpline)
     def filament_to_spline(
@@ -1999,28 +2202,7 @@ class CylindraMainWidget(MagicTemplate):
         splines = self._norm_splines(splines)
 
         # first check radius
-        match radius:
-            case "global":
-                for i in splines:
-                    if tomo.splines[i].radius is None:
-                        raise ValueError(
-                            f"Global Radius of {i}-th spline is not measured yet. Please "
-                            "measure the radius first from `Analysis > Radius`."
-                        )
-            case "local":
-                for i in splines:
-                    if not tomo.splines[i].props.has_loc(H.radius):
-                        raise ValueError(
-                            f"Local Radius of {i}-th spline is not measured yet. Please "
-                            "measure the radius first from `Analysis > Radius`."
-                        )
-                if interval is not None:
-                    raise ValueError(
-                        "With `interval`, local radius values will be dropped. Please "
-                        "set `radius='global'` or `interval=None`."
-                    )
-            case _:
-                raise ValueError(f"radius must be 'local' or 'global', got {radius!r}.")
+        _check_params_local_cft(radius, splines, tomo, interval)
 
         @thread_worker.callback
         def _local_cft_analysis_on_yield(i: int):
@@ -2033,12 +2215,9 @@ class CylindraMainWidget(MagicTemplate):
                 if interval is not None:
                     tomo.make_anchors(i=i, interval=interval)
                 tomo.local_cft_params(
-                    i=i,
-                    depth=depth,
-                    binsize=bin_size,
-                    radius=radius,
+                    i=i, depth=depth, binsize=bin_size, radius=radius,
                     update_glob=update_glob,
-                )
+                )  # fmt: skip
                 yield _local_cft_analysis_on_yield.with_args(i)
             return tracker.as_undo_callback()
 
@@ -2218,7 +2397,7 @@ class CylindraMainWidget(MagicTemplate):
             A polars-style filter predicate, such as `col("projection-origin-x") > 0`.
         """
         layer = assert_interaction_vectors(interaction, self.parent_viewer)
-        out_net = layer.net.filter(widget_utils.norm_expr(predicate))
+        out_net = layer.net.filter(widget_utils.norm_polars_expr(predicate))
         new_layer = InteractionVector(out_net, name=f"{layer.name}-Filt")
         _Logger.print(f"{out_net.count()} interactions left after filtering.")
         _Logger.print_html(f"{layer.name} &#8594; {new_layer.name}")
@@ -2831,7 +3010,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         layer = assert_layer(layer, self.parent_viewer)
         mole = layer.molecules
-        out = mole.filter(widget_utils.norm_expr(predicate))
+        out = mole.filter(widget_utils.norm_polars_expr(predicate))
         _Logger.print(f"Filter molecules resulted in {out.count()} molecules.")
         source = layer.source_component if inherit_source else None
         new = self.add_molecules(out, name=f"{layer.name}-Filt", source=source)
@@ -2939,7 +3118,7 @@ class CylindraMainWidget(MagicTemplate):
         """
         layer = assert_layer(layer, self.parent_viewer)
         feat = layer.molecules.features
-        expr = widget_utils.norm_expr(expression)
+        expr = widget_utils.norm_polars_expr(expression)
         new_feat = feat.with_columns(expr.alias(column_name))
         layer.features = new_feat
         self.reset_choices()  # choices regarding to features need update
@@ -3084,9 +3263,9 @@ class CylindraMainWidget(MagicTemplate):
         layer: MoleculesLayerType,
         spline: SplineType,
         column_name: str = "distance",
-        interval: nm = 1.0,
-        extrapolation: tuple[nm, nm] = (0.0, 0.0),
-    ):
+        interval: Annotated[nm, {"label": "interval (nm)"}] = 1.0,
+        extrapolation: Annotated[tuple[nm, nm], {"label": "extrapolation (nm)"}] = (0.0, 0.0),
+    ):  # fmt: skip
         """Add a new column that stores the shortest distance from the given spline.
 
         Parameters
@@ -3102,17 +3281,9 @@ class CylindraMainWidget(MagicTemplate):
         """
         spl = self.tomogram.splines[spline]
         layer = assert_layer(layer, self.parent_viewer)
-        ext_0, ext_1 = extrapolation
-        if interval <= 0:
-            raise ValueError("`interval` must be positive.")
         feat, cmap_info = layer.molecules.features, layer.colormap_info
-        length = spl.length()
-        npartitions = utils.ceilint((length + ext_0 + ext_1) / interval)
-        sample_points = spl.map(
-            np.linspace(-ext_0 / length, 1 + ext_1 / length, npartitions)
-        )
-        dist = utils.distance_matrix(layer.molecules.pos, sample_points)
-        dist_min = pl.Series(column_name, np.min(dist, axis=1))
+        dist = spl.distance_matrix(layer.molecules.pos, interval, extrapolation)
+        dist_min = pl.Series(column_name, np.min(dist.matrix, axis=0))
         layer.molecules = layer.molecules.with_features(dist_min)
         self.reset_choices()  # choices regarding of features need update
         return undo_callback(layer.feature_setter(feat, cmap_info))
@@ -3129,6 +3300,9 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {layer}
+        other_layers : MoleculesLayersType
+            Layers to search for the closest molecules. Closest distance between `layer`
+            and all `other_layers` will be added as a column to `layer`.
         column_name : str, default "distance"
             Name of the new column.
         """
@@ -3741,6 +3915,36 @@ def _assert_source_spline_exists(layer: MoleculesLayer) -> "CylSpline":
     if (spl := layer.source_spline) is None:
         raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
     return spl
+
+
+def _check_params_local_cft(
+    radius: str,
+    splines: list[int],
+    tomo: CylTomogram,
+    interval: nm | None,
+):
+    match radius:
+        case "global":
+            for i in splines:
+                if tomo.splines[i].radius is None:
+                    raise ValueError(
+                        f"Global Radius of {i}-th spline is not measured yet. Please "
+                        "measure the radius first from `Analysis > Radius`."
+                    )
+        case "local":
+            for i in splines:
+                if not tomo.splines[i].props.has_loc(H.radius):
+                    raise ValueError(
+                        f"Local Radius of {i}-th spline is not measured yet. Please "
+                        "measure the radius first from `Analysis > Radius`."
+                    )
+            if interval is not None:
+                raise ValueError(
+                    "With `interval`, local radius values will be dropped. Please "
+                    "set `radius='global'` or `interval=None`."
+                )
+        case _:
+            raise ValueError(f"radius must be 'local' or 'global', got {radius!r}.")
 
 
 def _is_dummy_tomogram(ui: "CylindraMainWidget") -> bool:

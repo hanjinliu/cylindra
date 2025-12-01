@@ -211,6 +211,7 @@ class ImageMenu(ChildWidget):
         splines_to_labels = abstractapi()
         molecules_to_labels = abstractapi()
         add_molecule_feature_from_labels_layer = abstractapi()
+        add_spline_segments_from_labels_layer = abstractapi()
 
     sep0 = Separator
 
@@ -389,6 +390,16 @@ class SplinesMenu(ChildWidget):
         infer_polarity = abstractapi()
 
     @magicmenu
+    class Segments(ChildWidget):
+        """Operations on spline segments."""
+
+        add_segment = abstractapi()
+        delete_segments = abstractapi()
+        sep0 = Separator
+        segments_to_localprops = abstractapi()
+        segments_to_feature = abstractapi()
+
+    @magicmenu
     class Fitting(ChildWidget):
         """Methods for spline fitting."""
 
@@ -425,6 +436,15 @@ class SplinesMenu(ChildWidget):
         main.spline_clipper.show()
         if len(main.tomogram.splines) > 0:
             main.spline_clipper.load_spline(main.SplineControl.num)
+
+    @set_design(text="Open spline 3D interactor")
+    @do_not_record
+    @bind_key("Ctrl+K, 3")
+    def open_spline_3d_interactor(self):
+        """Open the spline 3D interactor widget."""
+        main = self._get_main()
+        main.spline_3d_interactor._init()
+        main.spline_3d_interactor.show()
 
     delete_spline = abstractapi()
     copy_spline = abstractapi()

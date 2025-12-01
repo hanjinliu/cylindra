@@ -14,6 +14,7 @@ from acryo.tilt import NoWedge, TiltSeriesModel, dual_axis, single_axis
 from dask import array as da
 from numpy.typing import NDArray
 from scipy import ndimage as ndi
+from scipy import spatial
 
 from cylindra._dask import Delayed, compute, delayed
 from cylindra.const import Mode
@@ -47,12 +48,11 @@ def distance_matrix(
     a: NDArray[np.floating],
     b: NDArray[np.floating],
 ) -> NDArray[np.floating]:
-    """
-    Return the distance matrix between two arrays.
+    """Return the distance matrix between two arrays.
 
     distance_matrix(a, b) will return a matrix of shape (a.shape[0], b.shape[0])
     """
-    return np.linalg.norm(a[:, np.newaxis] - b[np.newaxis], axis=-1)
+    return spatial.distance_matrix(a, b)
 
 
 def interp(
@@ -397,7 +397,7 @@ def nd_take(
     arr: NDArray[np.int_],
     indices: NDArray[np.int_],
     default: int = -1,
-) -> NDArray[np.int_]:
+) -> NDArray[np.int32]:
     nz, ny, nx = arr.shape
     flat_indices = ny * nx * indices[:, 0] + nx * indices[:, 1] + indices[:, 2]
     ids = np.full(indices.shape[0], default, dtype=np.int32)

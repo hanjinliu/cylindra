@@ -22,6 +22,7 @@ from qtpy import QtWidgets as QtW
 
 from cylindra import _config, _io
 from cylindra.components import BaseComponent, CylTomogram
+from cylindra.components.spline._cyl_spline import SAFE_NAMESPACE
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import nm
 from cylindra.types import MoleculesLayer
@@ -39,6 +40,7 @@ POLARS_NAMESPACE = {
     "col": pl.col,
     "when": pl.when,
     "format": pl.format,
+    "bool": bool,
     "int": int,
     "float": float,
     "str": str,
@@ -169,8 +171,17 @@ DistExprStr = Annotated[
     },
 ]
 
+ValueExprStr = Annotated[
+    str,
+    {
+        "widget_type": EvalLineEdit,
+        "namespace": SAFE_NAMESPACE | {"value": None},
+        "tooltip": "Expression with `value`",
+    },
+]
 
-def norm_expr(expr) -> pl.Expr:
+
+def norm_polars_expr(expr) -> pl.Expr:
     if isinstance(expr, str):
         val = ExprStr(expr, POLARS_NAMESPACE).eval()
     if isinstance(val, pl.Expr):

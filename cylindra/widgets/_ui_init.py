@@ -552,6 +552,11 @@ def _setup_delete_molecules(self: CylindraMainWidget, gui: FunctionGui):
     label.reset_choices = _on_change  # hack
 
 
+@setup_function_gui(CylindraMainWidget.delete_segments)
+def _setup_delete_segments(self: CylindraMainWidget, gui: FunctionGui):
+    gui.spline.changed.connect(lambda: gui.indices.reset_choices())
+
+
 @contextmanager
 def _temp_layer_colors(layer: MoleculesLayer):
     """Temporarily change the colors of a layer and restore them afterwards."""

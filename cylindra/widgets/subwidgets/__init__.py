@@ -1,6 +1,7 @@
 from cylindra.widgets.subwidgets.config_edit import ConfigEdit
 from cylindra.widgets.subwidgets.function_menu import Volume
 from cylindra.widgets.subwidgets.image_processor import ImageProcessor
+from cylindra.widgets.subwidgets.interactor import Spline3DInteractor
 from cylindra.widgets.subwidgets.manual_picker import ManualPicker
 from cylindra.widgets.subwidgets.measure import SpectraInspector
 from cylindra.widgets.subwidgets.menus import (
@@ -51,4 +52,5 @@ __all__ = [
     "GeneralInfo",
     "ConfigEdit",
     "WorkflowEdit",
+    "Spline3DInteractor",
 ]

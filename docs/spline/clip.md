@@ -45,3 +45,11 @@ the clipping lengths and the projections of the spline edges. "Clip here" will c
 
 This method inverts the selected spline. This operation does not discard the local
 properties. They will be inverted as well.
+
+## Split Spline
+
+:material-arrow-right-thin-circle-outline: API: [`split_spline`][cylindra.widgets.main.CylindraMainWidget.split_spline]
+:material-arrow-right-thin-circle-outline: GUI: `Splines > Split spline`
+
+This method splits the selected spline into two at the given position along the spline.
+Technically, this is done by creating two clipped splines.

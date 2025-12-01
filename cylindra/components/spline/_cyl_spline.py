@@ -59,8 +59,7 @@ class CylSpline(Spline):
         return None
 
     def invert(self) -> CylSpline:
-        """
-        Invert the direction of spline. Also invert orientation if exists.
+        """Invert the direction of spline. Also invert orientation if exists.
 
         Returns
         -------
@@ -74,8 +73,7 @@ class CylSpline(Spline):
         return new
 
     def clip(self, start: float, stop: float) -> CylSpline:
-        """
-        Clip spline and generate a new one.
+        """Clip spline and generate a new one.
 
         This method does not convert spline bases. ``_lims`` is updated instead.
         For instance, if you want to clip spline at 20% to 80% position, call
@@ -155,8 +153,7 @@ class CylSpline(Spline):
         offsets: tuple[float, float] = (0.0, 0.0),
         **kwargs,
     ) -> CylinderModel:
-        """
-        Return the cylinder model of the spline.
+        """Return the cylinder model of the spline.
 
         Parameters
         ----------
@@ -273,8 +270,68 @@ class CylSpline(Spline):
                 return True
         return False
 
+    def _segments_to_series(
+        self,
+        u: np.ndarray,
+        column_name: str,
+        default: Any | None = None,
+        filter_expr: str | None = None,
+        eval_expr: str | None = None,
+    ):
+        feat = np.full(u.size, default, dtype=object)
+        is_all_numeric = isinstance(
+            default, (int, np.integer, float, np.floating, type(None))
+        )
+        is_all_integer = isinstance(default, (int, np.integer, type(None)))
+        is_all_boolean = isinstance(default, (bool, np.bool_, type(None)))
+        if filter_expr is None or filter_expr.strip() == "":
+            filter_expr = "True"
+        if eval_expr is None or eval_expr.strip() == "":
+            eval_expr = "value"
+        for seg in self.segments:
+            ns = {**SAFE_NAMESPACE, "value": seg.value}
+            if not eval(filter_expr, ns):
+                continue
+            val = eval(eval_expr, ns)
+            if not isinstance(val, (bool, np.bool_, type(None))):
+                is_all_boolean = False
+            if not isinstance(val, (int, np.integer, type(None))):
+                is_all_integer = False
+            if not isinstance(val, (int, np.integer, float, np.floating, type(None))):
+                is_all_numeric = False
+            feat[(seg.start <= u) & (u <= seg.end)] = val
+        if is_all_boolean:
+            ser = pl.Series(column_name, feat.tolist(), dtype=pl.Boolean)
+        elif is_all_integer:
+            ser = pl.Series(column_name, feat.tolist(), dtype=pl.Int32)
+        elif is_all_numeric:
+            ser = pl.Series(column_name, feat.tolist(), dtype=pl.Float32)
+        else:
+            ser = pl.Series(column_name, feat.tolist(), dtype=pl.String, strict=False)
+        return ser
+
 
 def _get_globalprops(spl: CylSpline, kwargs: dict[str, Any], name: str):
     if name in kwargs:
         return kwargs[name]
     return spl.props.get_glob(name, None)
+
+
+SAFE_NAMESPACE = {
+    "bool": bool,
+    "int": int,
+    "float": float,
+    "str": str,
+    "list": list,
+    "dict": dict,
+    "set": set,
+    "tuple": tuple,
+    "isinstance": isinstance,
+    "len": len,
+    "sum": sum,
+    "min": min,
+    "max": max,
+    "abs": abs,
+    "round": round,
+    "__builtins__": {},
+}

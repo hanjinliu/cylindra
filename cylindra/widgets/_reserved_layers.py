@@ -8,6 +8,7 @@ import numpy as np
 from napari.layers import Image, Layer, Points, Shapes
 
 from cylindra.const import (
+    IS_SEGMENT,
     SELECTION_LAYER_NAME,
     SPLINE_ID,
     WORKING_LAYER_NAME,
@@ -18,7 +19,7 @@ from cylindra.widgets._main_utils import fast_percentile
 
 if TYPE_CHECKING:
     from cylindra._napari._layers import SplineLayer
-    from cylindra.components import CylSpline
+    from cylindra.components import CylSpline, SplineSegment
 
 
 class ReservedLayers:
@@ -73,14 +74,22 @@ class ReservedLayers:
 
     def highlight_spline(self, i: int):
         """Highlight the current spline."""
-        spec = self.prof.features[SPLINE_ID] == i
-        self.prof.face_color = SplineColor.DEFAULT
-        self.prof.face_color[spec] = SplineColor.SELECTED
-        self.prof.refresh()
+        layer = self.prof
+        is_this_spl = layer.features[SPLINE_ID] == i
+        is_segment = layer.features[IS_SEGMENT]
+        # update face color
+        layer.face_color = SplineColor.DEFAULT
+        layer.face_color[is_this_spl & (~is_segment)] = SplineColor.SELECTED
+        layer.face_color[is_segment] = SplineColor.SEGMENT
+        # update size
+        size = layer.size.astype(np.float32)
+        size[is_segment] = self.prof._size_spline * 1.8
+        layer.size = size
+        layer.refresh()
 
     def add_spline(self, i: int, spl: CylSpline):
         """Add spline sample data to the layer."""
-        interval = 8.0
+        interval = self.prof._size_spline
         length = spl.length()
         num = max(int(length / interval) + 1, 2)
         offset = interval * 1.8 / length
@@ -88,11 +97,27 @@ class ReservedLayers:
         pos = np.concatenate([[-offset], spl_pos, [1 + offset]])
         fit = spl.map(pos)
         self.prof.feature_defaults[SPLINE_ID] = i
+        self.prof.feature_defaults[IS_SEGMENT] = False
+        self.prof.current_size = self.prof._size_spline
         self.prof.add(fit)
         sizes = self.prof.size.astype(np.float32)
         sizes[-num - 2] = sizes[-1] = 0.01
         self.prof.size = sizes
+        for seg in spl.segments:
+            self.add_spline_segment(i, spl, seg)
         return spl.map(spl_pos)
+
+    def add_spline_segment(self, i: int, spl: CylSpline, segment: SplineSegment):
+        interval = self.prof._size_spline / 2
+        length = segment.length(spl)
+        num = int(length / interval)
+        fit = segment.sample(spl, num)
+        self.prof.feature_defaults[SPLINE_ID] = i
+        self.prof.feature_defaults[IS_SEGMENT] = True
+        self.prof.current_symbol = "ring"
+        self.prof.current_face_color = SplineColor.SEGMENT
+        self.prof.current_size = self.prof._size_spline
+        self.prof.add(fit)
 
     def rescale_layers(self, factor: float):
         """Update the scale of the reserved layers."""
@@ -122,6 +147,7 @@ class ReservedLayers:
         new_features[SPLINE_ID] = spline_id
         self.prof.features = new_features
         self.prof.feature_defaults[SPLINE_ID] = default
+        self.prof.feature_defaults[IS_SEGMENT] = False
 
     def init_layers(self):
         self.prof = _prof_layer()
@@ -130,24 +156,24 @@ class ReservedLayers:
     def set_orientation(self, idx: int, orientation: Ori):
         """Set the orientation marker."""
         layer = self.prof
-        spline_id = layer.features[SPLINE_ID]
-        spec = spline_id == idx
+        spec = (layer.features[SPLINE_ID] == idx) & (~layer.features[IS_SEGMENT])
         symbol_arr = layer.symbol.copy()
         size_arr = layer.size.astype(np.float32)
 
         symbol_of_interest = symbol_arr[spec]
         size_of_interest = size_arr[spec]
 
+        _size_pol = layer._size_polarity_marker
         match orientation:
             case Ori.none:
                 symbol_a, symbol_b = "x", "x"
                 size_edge = 0.01
             case Ori.MinusToPlus:
                 symbol_a, symbol_b = "-", "+"
-                size_edge = 10 if layer.show_polarity else 0.01
+                size_edge = _size_pol if layer.show_polarity else 0.01
             case Ori.PlusToMinus:
                 symbol_a, symbol_b = "+", "-"
-                size_edge = 10 if layer.show_polarity else 0.01
+                size_edge = _size_pol if layer.show_polarity else 0.01
             case ori:  # pragma: no cover
                 raise RuntimeError(ori)
 
@@ -171,15 +197,19 @@ def _prof_layer() -> SplineLayer:
     prof = SplineLayer(
         ndim=3,
         out_of_slice_display=True,
-        size=8,
+        size=8.0,
         name=SELECTION_LAYER_NAME,
-        features={SPLINE_ID: []},
+        features={
+            SPLINE_ID: np.zeros(0, dtype=np.uint32),
+            IS_SEGMENT: np.zeros(0, dtype=bool),
+        },
         opacity=0.4,
         border_color="black",
         face_color=SplineColor.DEFAULT,
         text={"color": "yellow"},
     )
     prof.feature_defaults[SPLINE_ID] = 0
+    prof.feature_defaults[IS_SEGMENT] = False
     return prof
 
 
