@@ -723,8 +723,9 @@ def test_sub_widgets(ui: CylindraMainWidget, tmpdir):
         ui.spectra_inspector.peak_viewer.show_what = GLOBAL_CFT
         ui.spectra_inspector.parameters.export(Path(tmpdir) / "params.csv")
 
-        # segment edit
+        # spline 3D interactor
         from cylindra.widgets.subwidgets import interactor as s3
+        ui.spline_3d_interactor._init()
         ui.spline_3d_interactor.pick_mode_left = s3.DISABLED
         ui.spline_3d_interactor.pick_mode_left = s3.ADD_POINT_ON_SPLINE
         ui.spline_3d_interactor.pick_mode_left = s3.SELECT_SPLINE
@@ -749,6 +750,15 @@ def test_sub_widgets(ui: CylindraMainWidget, tmpdir):
         ui.spline_3d_interactor._add_point_on_spline(n0, n1)
         ui.spline_3d_interactor.trim = 1.0
         ui.spline_3d_interactor.split_spline()
+        ui.macro.undo()
+        ui.spline_3d_interactor._add_point_on_spline(n0, n1)
+        assert ui._reserved_layers.work.data.shape[0] == 1
+        ui.spline_3d_interactor.move_backward(1)
+        ui.spline_3d_interactor.move_forward(20)
+        ui.spline_3d_interactor._add_point_on_spline(n0, n1)
+        assert ui._reserved_layers.work.data.shape[0] == 2
+        ui.spline_3d_interactor.move_backward(10)
+        ui.spline_3d_interactor.clip_spline()
 
 
 @pytest.mark.parametrize("bin_size", [1, 2])

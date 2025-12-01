@@ -1748,13 +1748,12 @@ class CylindraMainWidget(MagicTemplate):
         _to_be_updated: list[tuple[CylSpline, pl.Series]] = []
         for i in splines:
             spl = self.splines[i]
-            ser = _segment_to_series(
-                spl,
+            ser = spl._segments_to_series(
                 spl.anchors,
-                column_name,
-                default,
-                filter_expr,
-                eval_expr,
+                column_name=column_name,
+                default=default,
+                filter_expr=filter_expr,
+                eval_expr=eval_expr,
             )
             _to_be_updated.append((spl, ser))
         for spl, ser in _to_be_updated:
@@ -1785,9 +1784,12 @@ class CylindraMainWidget(MagicTemplate):
         _to_be_updated: list[tuple[MoleculesLayer, pl.Series]] = []
         for layer in layers:
             spl = _assert_source_spline_exists(layer)
-            u = layer.molecules.features[Mole.position].to_numpy() / spl.length()
-            ser = _segment_to_series(
-                spl, u, column_name, default, filter_expr, eval_expr
+            ser = spl._segments_to_series(
+                layer.molecules.features[Mole.position].to_numpy() / spl.length(),
+                column_name=column_name,
+                default=default,
+                filter_expr=filter_expr,
+                eval_expr=eval_expr,
             )
             _to_be_updated.append((layer, ser))
         for layer, ser in _to_be_updated:
@@ -3954,44 +3956,3 @@ def _is_dummy_tomogram(ui: "CylindraMainWidget") -> bool:
 
 def _mole_to_mask(mole: Molecules, size: float, shape: tuple[int, int, int]):
     return MoleculesLayer(mole, size=size).to_mask(shape=shape)
-
-
-def _segment_to_series(
-    spl: CylSpline,
-    u: np.ndarray,
-    column_name: str,
-    default: Any | None = None,
-    filter_expr: str | None = None,
-    eval_expr: str | None = None,
-):
-    feat = np.full(u.size, default, dtype=object)
-    is_all_numeric = isinstance(
-        default, (int, np.integer, float, np.floating, type(None))
-    )
-    is_all_integer = isinstance(default, (int, np.integer, type(None)))
-    is_all_boolean = isinstance(default, (bool, np.bool_, type(None)))
-    if filter_expr is None or filter_expr.strip() == "":
-        filter_expr = "True"
-    if eval_expr is None or eval_expr.strip() == "":
-        eval_expr = "value"
-    for seg in spl.segments:
-        ns = {**widget_utils.SAFE_NAMESPACE, "value": seg.value}
-        if not eval(filter_expr, ns):
-            continue
-        val = eval(eval_expr, ns)
-        if not isinstance(val, (bool, np.bool_, type(None))):
-            is_all_boolean = False
-        if not isinstance(val, (int, np.integer, type(None))):
-            is_all_integer = False
-        if not isinstance(val, (int, np.integer, float, np.floating, type(None))):
-            is_all_numeric = False
-        feat[(seg.start <= u) & (u <= seg.end)] = val
-    if is_all_boolean:
-        ser = pl.Series(column_name, feat.tolist(), dtype=pl.Boolean)
-    elif is_all_integer:
-        ser = pl.Series(column_name, feat.tolist(), dtype=pl.Int32)
-    elif is_all_numeric:
-        ser = pl.Series(column_name, feat.tolist(), dtype=pl.Float32)
-    else:
-        ser = pl.Series(column_name, feat.tolist(), dtype=pl.String)
-    return ser

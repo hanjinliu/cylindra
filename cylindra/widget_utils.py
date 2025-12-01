@@ -21,7 +21,8 @@ from numpy.typing import NDArray
 from qtpy import QtWidgets as QtW
 
 from cylindra import _config, _io
-from cylindra.components import BaseComponent, CylSpline, CylTomogram
+from cylindra.components import BaseComponent, CylTomogram
+from cylindra.components.spline._cyl_spline import SAFE_NAMESPACE
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import nm
 from cylindra.types import MoleculesLayer
@@ -44,21 +45,6 @@ POLARS_NAMESPACE = {
     "float": float,
     "str": str,
     "np": np,
-    "__builtins__": {},
-}
-
-SAFE_NAMESPACE = {
-    "bool": bool,
-    "int": int,
-    "float": float,
-    "str": str,
-    "isinstance": isinstance,
-    "len": len,
-    "sum": sum,
-    "min": min,
-    "max": max,
-    "abs": abs,
-    "round": round,
     "__builtins__": {},
 }
 

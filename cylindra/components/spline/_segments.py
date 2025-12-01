@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class SplineSegment:
-    """A class representing a segment of a spline."""
+    """A class representing a (inclusive) segment of a spline."""
 
     start: float
     end: float
