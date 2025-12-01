@@ -277,7 +277,9 @@ class CylSpline(Spline):
         default: Any | None = None,
         filter_expr: str | None = None,
         eval_expr: str | None = None,
-    ):
+    ) -> pl.Series | None:
+        if len(self.segments) == 0:
+            return None
         feat = np.full(u.size, default, dtype=object)
         is_all_numeric = isinstance(
             default, (int, np.integer, float, np.floating, type(None))

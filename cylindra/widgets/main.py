@@ -1745,7 +1745,7 @@ class CylindraMainWidget(MagicTemplate):
             will NOT be evaluated by `eval_expr`; it will be directly assigned.
         """
         splines = self._norm_splines(splines)
-        _to_be_updated: list[tuple[CylSpline, pl.Series]] = []
+        _to_be_updated: list[tuple[CylSpline, pl.Series | None]] = []
         for i in splines:
             spl = self.splines[i]
             ser = spl._segments_to_series(
@@ -1756,7 +1756,10 @@ class CylindraMainWidget(MagicTemplate):
                 eval_expr=eval_expr,
             )
             _to_be_updated.append((spl, ser))
+        dtype = _unique_dtype(_to_be_updated)
         for spl, ser in _to_be_updated:
+            if ser is None:
+                ser = pl.Series(column_name, [default] * spl.anchors.size, dtype=dtype)
             spl.props.update_loc(ser, window_size=0.0)
 
     @set_design(text=capitalize, location=_sw.SplinesMenu.Segments)
@@ -1781,7 +1784,7 @@ class CylindraMainWidget(MagicTemplate):
             will NOT be evaluated by `eval_expr`; it will be directly assigned.
         """
         layers = assert_list_of_layers(layers, self.parent_viewer)
-        _to_be_updated: list[tuple[MoleculesLayer, pl.Series]] = []
+        _to_be_updated: list[tuple[MoleculesLayer, pl.Series | None]] = []
         for layer in layers:
             spl = _assert_source_spline_exists(layer)
             ser = spl._segments_to_series(
@@ -1792,7 +1795,12 @@ class CylindraMainWidget(MagicTemplate):
                 eval_expr=eval_expr,
             )
             _to_be_updated.append((layer, ser))
+        dtype = _unique_dtype(_to_be_updated)
         for layer, ser in _to_be_updated:
+            if ser is None:
+                ser = pl.Series(
+                    column_name, [default] * layer.molecules.count(), dtype=dtype
+                )
             layer.molecules = layer.molecules.with_features(ser)
         self.reset_choices()  # choices regarding of features need update
 
@@ -3956,3 +3964,12 @@ def _is_dummy_tomogram(ui: "CylindraMainWidget") -> bool:
 
 def _mole_to_mask(mole: Molecules, size: float, shape: tuple[int, int, int]):
     return MoleculesLayer(mole, size=size).to_mask(shape=shape)
+
+
+def _unique_dtype(to_be_updated: list[tuple[CylSpline, pl.Series | None]]):
+    dtypes = {ser.dtype for _, ser in to_be_updated if ser is not None}
+    if len(dtypes) > 1:
+        raise ValueError(f"Segment values have different data types: {dtypes!r}")
+    elif len(dtypes) == 0:
+        raise ValueError("No valid segment data to be updated.")
+    return dtypes.pop()
