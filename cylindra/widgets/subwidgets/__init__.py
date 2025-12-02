@@ -1,7 +1,7 @@
 from cylindra.widgets.subwidgets.config_edit import ConfigEdit
-from cylindra.widgets.subwidgets.file_iter import FileIterator
 from cylindra.widgets.subwidgets.function_menu import Volume
 from cylindra.widgets.subwidgets.image_processor import ImageProcessor
+from cylindra.widgets.subwidgets.interactor import Spline3DInteractor
 from cylindra.widgets.subwidgets.manual_picker import ManualPicker
 from cylindra.widgets.subwidgets.measure import SpectraInspector
 from cylindra.widgets.subwidgets.menus import (
@@ -25,6 +25,7 @@ from cylindra.widgets.subwidgets.spline_clipper import SplineClipper
 from cylindra.widgets.subwidgets.spline_control import SplineControl
 from cylindra.widgets.subwidgets.spline_fitter import SplineFitter
 from cylindra.widgets.subwidgets.toolbar import CylindraToolbar
+from cylindra.widgets.subwidgets.workflow_edit import WorkflowEdit
 
 __all__ = [
     "Volume",
@@ -39,7 +40,6 @@ __all__ = [
     "SplineControl",
     "SplineFitter",
     "FileMenu",
-    "FileIterator",
     "ImageMenu",
     "SplinesMenu",
     "MoleculesMenu",
@@ -51,4 +51,6 @@ __all__ = [
     "ImageLoader",
     "GeneralInfo",
     "ConfigEdit",
+    "WorkflowEdit",
+    "Spline3DInteractor",
 ]

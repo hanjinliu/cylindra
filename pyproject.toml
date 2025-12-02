@@ -1,5 +1,5 @@
 [build-system]
-requires = ["maturin>=1.8.3,<2.0.0"]
+requires = ["maturin>=1.9.6,<2.0.0"]
 build-backend = "maturin"
 
 [project]
@@ -26,7 +26,7 @@ dependencies = [
     "acryo>=0.5.1",
     "macro-kit>=0.4.6",
     "magicgui>=0.8.1",
-    "magic-class>=0.7.16",
+    "magic-class>=0.7.20",
     "psygnal>=0.9.1",
     "superqt[iconify]>=0.6.1",
     "pydantic>=2.8.2",
@@ -46,7 +46,7 @@ dependencies = [
     "platformdirs>=4.3.6",
 ]
 authors = [
-    { email = "liuha@med.kobe-u.ac.jp" },
+    { email = "liuhanjin.sc@gmail.com" },
     { name = "Hanjin Liu" }
 ]
 
@@ -62,7 +62,7 @@ testing = [
     "starfile>=0.5.11",
     "imodmodel>=0.1.0",
     "cookiecutter",
-    "maturin>=1.8.3,<2.0.0",
+    "maturin>=1.9.6,<2.0.0",
 ]
 all = [
     "pyqt6",
@@ -81,9 +81,10 @@ docs = [
     "mkdocs-gen-files>=0.5.0",
     "mkdocs-material>=9.6.15",
     "mkdocs-material-extensions>=1.3.1",
-    "mkdocstrings>=0.29.1",
+    "mkdocstrings>=0.29.1,<1.0.0",
     "mkdocstrings-python>=1.16.12",
     "maturin>=1.5.0,<2.0.0",
+    "click<8.3.0",
 ]
 
 [project.scripts]
@@ -93,6 +94,7 @@ cylindra = "cylindra.__main__:main"
 cylindra = "cylindra:napari.yaml"
 
 [project.entry-points."cylindra.plugin"]
+Fetch = "cylindra_builtins.fetch"
 IMOD = "cylindra_builtins.imod"
 RELION = "cylindra_builtins.relion"
 
@@ -187,7 +189,7 @@ lint.ignore = [
   "B027", "B904", "B006",
   "E501", "E741",
   # Ignore complexity
-  "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915", "PLC0415",
+  "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915", "PLC0415", "PLW1641",
   "RUF001", "PLC1901", "N814", "UP035",
   "T201", "PLW0603", "PLW2901",
 ]

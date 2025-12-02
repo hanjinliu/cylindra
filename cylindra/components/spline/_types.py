@@ -25,6 +25,7 @@ class SplineInfo(TypedDict, total=False):
     localprops_window_size: dict[str, float]
     extrapolate: str
     config: dict[str, Any]
+    segments: list[dict[str, Any]]
 
 
 TCKType = tuple["NDArray[np.float32] | None", "NDArray[np.float32] | None", int]

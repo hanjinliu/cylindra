@@ -16,10 +16,13 @@ from acryo import Molecules, SubtomogramLoader
 from magicclass.logging import getLogger
 from magicclass.types import ExprStr
 from magicclass.widgets import EvalLineEdit
+from magicgui.widgets import Widget
 from numpy.typing import NDArray
+from qtpy import QtWidgets as QtW
 
-from cylindra import _config
+from cylindra import _config, _io
 from cylindra.components import BaseComponent, CylTomogram
+from cylindra.components.spline._cyl_spline import SAFE_NAMESPACE
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import nm
 from cylindra.types import MoleculesLayer
@@ -37,6 +40,7 @@ POLARS_NAMESPACE = {
     "col": pl.col,
     "when": pl.when,
     "format": pl.format,
+    "bool": bool,
     "int": int,
     "float": float,
     "str": str,
@@ -167,8 +171,17 @@ DistExprStr = Annotated[
     },
 ]
 
+ValueExprStr = Annotated[
+    str,
+    {
+        "widget_type": EvalLineEdit,
+        "namespace": SAFE_NAMESPACE | {"value": None},
+        "tooltip": "Expression with `value`",
+    },
+]
 
-def norm_expr(expr) -> pl.Expr:
+
+def norm_polars_expr(expr) -> pl.Expr:
     if isinstance(expr, str):
         val = ExprStr(expr, POLARS_NAMESPACE).eval()
     if isinstance(val, pl.Expr):
@@ -191,7 +204,7 @@ class timer:
 
     def toc(self):
         dt = default_timer() - self.start
-        _Logger.print(f"`{self.name}` (took {dt:.1f} sec)")
+        _Logger.print_html(f"<code>{self.name}</code> (took {dt:.1f} sec)")
 
 
 class CmapDict(TypedDict):
@@ -247,7 +260,6 @@ def change_viewer_focus(
     viewer.camera.events.zoom()
     viewer.camera.zoom = zoom
     viewer.dims.set_current_step(axis=0, value=center[0] / v_scale[0] * scale)
-    return None
 
 
 def plot_seam_search_result(score: np.ndarray, npf: int):
@@ -271,7 +283,7 @@ def plot_projections(merge: np.ndarray):
     """Projection of the result of `align_averaged`."""
     import matplotlib.pyplot as plt
 
-    _, axes = plt.subplots(nrows=1, ncols=2, figsize=(8, 3.5))
+    _, axes = plt.subplots(nrows=1, ncols=2, figsize=(5.8, 2.5))
     axes: Sequence[plt.Axes]
     # normalize
     if merge.dtype.kind == "f":
@@ -288,7 +300,6 @@ def plot_projections(merge: np.ndarray):
     axes[1].set_ylabel("Z")
     plt.tight_layout()
     plt.show()
-    return None
 
 
 @dataclass
@@ -520,7 +531,7 @@ def prep_tomogram(
     else:
         read_path = Path(path)
     # check scale and bin size
-    scale_dict = ip.read_header(read_path).scale
+    scale_dict = _io.read_header(read_path).scale
     if scale_dict is None or len(scale_dict) == 0:
         orig_scale = None
     else:
@@ -549,3 +560,30 @@ def prep_tomogram(
     if orig_scale is not None:
         tomo.metadata["orig_scale"] = orig_scale
     return tomo
+
+
+def find_dock_widget(widget: QtW.QWidget | Widget) -> QtW.QDockWidget | None:
+    """Find the parent dock widget of a given widget."""
+    if isinstance(widget, Widget):
+        qwidget: QtW.QWidget = widget.native
+    else:
+        qwidget = widget
+    parent = qwidget.parent()
+    if isinstance(parent, QtW.QDockWidget):
+        return parent
+
+
+def show_widget(widget: Widget, title: str, parent: Widget | QtW.QWidget):
+    from cylindra.core import ACTIVE_WIDGETS
+
+    if isinstance(parent, Widget):
+        parent = parent.native
+    widget.native.setParent(parent, widget.native.windowFlags())
+    widget.native.setWindowTitle(title)
+    widget.show()
+    ACTIVE_WIDGETS.add(widget)
+
+
+def process_events():
+    """Process Qt events to update the UI."""
+    QtW.QApplication.processEvents()

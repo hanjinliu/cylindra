@@ -20,6 +20,7 @@ from magicclass.utils import thread_worker
 from magicclass.widgets import TabbedContainer
 from magicgui.widgets import Slider
 
+from cylindra._io import lazy_imread
 from cylindra.core import ACTIVE_WIDGETS
 
 
@@ -34,9 +35,9 @@ class ImagePreview(MagicTemplate):
     def _get_image_choices(self, w=None) -> list[tuple[str, ip.LazyImgArray]]:
         lst: list[tuple[str, ip.LazyImgArray]] = []
         for path in self._path_choices:
-            img = ip.lazy.imread(path, chunks=(4, "auto", "auto"))
+            img = lazy_imread(path, chunks=(4, "auto", "auto"))
             if img.ndim != 3:
-                raise ValueError("Cannot only preview 3D image.")
+                raise ValueError("Can only preview 3D image.")
             lst.append((Path(path).as_posix(), img))
         return lst
 
@@ -152,7 +153,7 @@ def view_tables(
         container = DataFrameView(value=df, name=Path(paths).name)
     else:
         container = TabbedContainer(labels=False)
-        for _i, path in enumerate(paths):
+        for path in paths:
             df = pl.read_csv(path, **kwargs)
             view = DataFrameView(value=df, name=Path(path).name)
             container.append(view)

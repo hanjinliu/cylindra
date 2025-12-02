@@ -1,6 +1,6 @@
 [package]
 name = "cylindra_ext"
-version = "1.0.0-beta.8"
+version = "1.0.4"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -9,8 +9,8 @@ name = "_cylindra_ext"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = "0.25.0"
-numpy = "0.25.0"
+pyo3 = "0.27.1"
+numpy = "0.27.0"
 rand = "0.8.3"
 mt19937 = "2.0.1"
 num = { version = "0.4.3", features = ["std"] }

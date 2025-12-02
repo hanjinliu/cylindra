@@ -28,7 +28,9 @@ class CylindraToolbar(ChildWidget):
     @do_not_record
     def open_runner(self):
         """Run cylindrical fitting algorithm with various settings."""
-        return self._get_main()._runner.show(run=False)
+        runner = self._get_main()._runner
+        runner.show(run=False)
+        runner._auto_adjust_binsize()
 
     sep0 = Separator
 
@@ -47,7 +49,6 @@ class CylindraToolbar(ChildWidget):
         next_point = picker.iter_pick(imgb, points[-1], points[-2]).next()
         main._reserved_layers.work.add(next_point)
         change_viewer_focus(main.parent_viewer, next_point / scale, scale)
-        return None
 
     @magicmenu(icon="carbon:settings-adjust", record=False)
     class Adjust(ChildWidget):

@@ -1,7 +1,5 @@
-import inspect
 import shutil
 from datetime import datetime
-from functools import partial
 from typing import TYPE_CHECKING, Annotated, Literal
 
 import matplotlib.pyplot as plt
@@ -15,18 +13,14 @@ from magicclass import (
     bind_key,
     confirm,
     do_not_record,
-    get_function_gui,
     magicmenu,
-    nogui,
     set_design,
-    set_options,
-    setup_function_gui,
 )
 from magicclass.ext.polars import DataFrameView
 from magicclass.logging import getLogger
 from magicclass.types import Color, Optional, Path
 from magicclass.utils import open_url, thread_worker
-from magicclass.widgets import CodeEdit, ConsoleTextEdit
+from magicclass.widgets import ConsoleTextEdit
 from magicgui.types import Separator
 from magicgui.widgets import ComboBox, Container
 
@@ -43,14 +37,12 @@ from cylindra.core import ACTIVE_WIDGETS
 from cylindra.project import CylindraProject, extract
 from cylindra.types import ColoredLayer
 from cylindra.utils import str_color
-from cylindra.widget_utils import capitalize, get_code_theme
+from cylindra.widget_utils import capitalize, get_code_theme, show_widget
 from cylindra.widgets._annotated import assert_layer
-from cylindra.widgets._widget_ext import CheckBoxes
 from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 if TYPE_CHECKING:
     from magicclass._gui._macro import MacroEdit
-    from magicgui.widgets import FunctionGui
 
     from cylindra.widgets import CylindraMainWidget
 
@@ -186,12 +178,6 @@ class FileMenu(ChildWidget):
 
     @set_design(text=capitalize)
     @do_not_record
-    def open_file_iterator(self):
-        """Open The file iterator widget for efficient file IO."""
-        return self._get_main()._file_iterator.show()
-
-    @set_design(text=capitalize)
-    @do_not_record
     def open_image_processor(self):
         """Open the image processor widget."""
         return self._get_main().image_processor.show()
@@ -218,6 +204,15 @@ class ImageMenu(ChildWidget):
     add_multiscale = abstractapi()
     set_multiscale = abstractapi()
     update_scale = abstractapi()
+
+    @magicmenu(name="Labels")
+    class LabelsMenu(ChildWidget):
+        new_labels = abstractapi()
+        splines_to_labels = abstractapi()
+        molecules_to_labels = abstractapi()
+        add_molecule_feature_from_labels_layer = abstractapi()
+        add_spline_segments_from_labels_layer = abstractapi()
+
     sep0 = Separator
 
     @do_not_record
@@ -236,8 +231,7 @@ class ImageMenu(ChildWidget):
         """Open manual picker widget"""
         main = self._get_main()
         main.manual_picker.show()
-        if dock := main.manual_picker.native.parentWidget():
-            dock.resize(640, 640)
+        main.manual_picker.native.resize(640, 640)
         return main.manual_picker.refresh_widget_state()
 
     @set_design(text="Simulate cylindric structure")
@@ -373,11 +367,8 @@ class SplinesMenu(ChildWidget):
                     table.value = spl.props.loc
 
             container = Container(widgets=[cbox, table], labels=False)
-            self.parent_viewer.window.add_dock_widget(
-                container, area="left", name="Spline Local Properties"
-            ).setFloating(True)
+            show_widget(container, "Spline Local Properties", main)
             cbox.changed.emit(cbox.value)
-            return None
 
         @set_design(text="Show global properties in table")
         def show_globalprops(self):
@@ -385,10 +376,7 @@ class SplinesMenu(ChildWidget):
             main = self._get_main()
             df = main.splines.collect_globalprops()
             table = DataFrameView(value=df)
-            self.parent_viewer.window.add_dock_widget(
-                table, area="left", name="Spline Global Properties"
-            ).setFloating(True)
-            return None
+            show_widget(table, "Spline Global Properties", main)
 
     add_anchors = abstractapi()
     sep0 = Separator
@@ -400,6 +388,16 @@ class SplinesMenu(ChildWidget):
         invert_spline = abstractapi()
         align_to_polarity = abstractapi()
         infer_polarity = abstractapi()
+
+    @magicmenu
+    class Segments(ChildWidget):
+        """Operations on spline segments."""
+
+        add_segment = abstractapi()
+        delete_segments = abstractapi()
+        sep0 = Separator
+        segments_to_localprops = abstractapi()
+        segments_to_feature = abstractapi()
 
     @magicmenu
     class Fitting(ChildWidget):
@@ -416,8 +414,7 @@ class SplinesMenu(ChildWidget):
             main = self._get_main()
             main.spline_fitter.resample_volumes()
             main.spline_fitter.show()
-            if parent := main.spline_fitter.native.parent():
-                parent.resize(380, 220)
+            main.spline_fitter.native.resize(380, 220)
 
         refine_splines = abstractapi()
 
@@ -439,6 +436,15 @@ class SplinesMenu(ChildWidget):
         main.spline_clipper.show()
         if len(main.tomogram.splines) > 0:
             main.spline_clipper.load_spline(main.SplineControl.num)
+
+    @set_design(text="Open spline 3D interactor")
+    @do_not_record
+    @bind_key("Ctrl+K, 3")
+    def open_spline_3d_interactor(self):
+        """Open the spline 3D interactor widget."""
+        main = self._get_main()
+        main.spline_3d_interactor._init()
+        main.spline_3d_interactor.show()
 
     delete_spline = abstractapi()
     copy_spline = abstractapi()
@@ -467,6 +473,14 @@ class MoleculesMenu(ChildWidget):
     sep1 = Separator
     rename_molecules = abstractapi()
     delete_molecules = abstractapi()
+
+    @set_design(text=capitalize)
+    @do_not_record
+    def to_draw_layer(self, layer: MoleculesLayer):
+        """Duplicate the molecule positions to the drawing layer."""
+        main = self._get_main()
+        main._reserved_layers.work.data = layer.molecules.pos
+
     sep2 = Separator
 
     @magicmenu(name="From/To spline")
@@ -729,7 +743,7 @@ class AnalysisMenu(ChildWidget):
     @do_not_record
     @bind_key("Ctrl+K, S")
     def open_sta_widget(self):
-        """Open the subtomogram analyzer dock widget."""
+        """Open the subtomogram analyzer widget."""
         return self._get_main().sta.show()
 
     @set_design(text="Open batch analyzer")
@@ -763,11 +777,12 @@ class PluginsMenu(ChildWidget):
     @set_design(text=capitalize)
     @do_not_record
     def reload_plugins(self):
+        """Reload all plugins."""
         from cylindra.plugin._find import iter_plugin_info
 
         for plugin_info in iter_plugin_info():
             plugin_info.reload(self._get_main())
-        return None
+            _Logger.print(f"Plugin reloaded: {plugin_info.name}")
 
     sep0 = Separator
 
@@ -840,86 +855,10 @@ class OthersMenu(ChildWidget):
     class Workflows(ChildWidget):
         """Custom analysis workflow."""
 
-        def _get_workflow_names(self, *_) -> list[str]:
-            return [file.stem for file in _config.get_config().list_workflow_paths()]
-
-        def _make_method_name(self, path: Path) -> str:
-            abs_path = _config.workflow_path(path)
-            return f"Run_{hex(hash(abs_path))}"
-
         @set_design(text=capitalize)
-        @bind_key("Ctrl+K, Ctrl+Shift+R")
-        @set_options(labels=False)
-        def run_workflow(
-            self,
-            filename: Annotated[str, {"choices": _get_workflow_names}],
-        ):
-            """Run a workflow script."""
-            # close this magicgui before running whole workflow
-            get_function_gui(self.run_workflow).close()
-            fname = self._make_method_name(filename)
-            self[fname].changed()
-
-        @nogui
-        def append_workflow(self, path: Path):
-            """Append workflow as a widget to the menu."""
-            main = self._get_main()
-            main_func = _config.get_main_function(path)
-            partial_func = partial(main_func, main)
-            prms = list(inspect.signature(main_func).parameters.values())[1:]
-            partial_func.__signature__ = inspect.Signature(prms)
-
-            fn = set_design(text=f"Run `{path.stem}`")(do_not_record(partial_func))
-            fn.__name__ = self._make_method_name(path)
-            # Old menu should be removed
-            try:
-                del self[fn.__name__]
-            except (IndexError, KeyError):
-                pass
-            return self.append(fn)
-
-        @set_options(call_button="Save workflow")
-        @set_design(text=capitalize)
-        @bind_key("Ctrl+K, Ctrl+Shift+D")
-        def define_workflow(
-            self,
-            filename: str,
-            workflow: Annotated[str, {"widget_type": CodeEdit}],
-        ):
-            """Define a workflow script for the daily analysis."""
-            if filename == "":
-                raise ValueError("Filename must be specified.")
-            code = normalize_workflow(workflow, self._get_main())
-            path = _config.workflow_path(filename)
-            if path.exists():
-                old_text: str | None = path.read_text()
-            else:
-                old_text = None
-            path.write_text(code, encoding="utf-8")
-            try:
-                self.append_workflow(path)
-            except Exception as e:
-                if old_text:
-                    path.write_text(old_text, encoding="utf-8")
-                else:
-                    path.unlink(missing_ok=True)
-                raise e
-            _Logger.print("Workflow saved: " + path.as_posix())
-            self.reset_choices()
-            return None
-
-        @set_design(text="View/Edit workflow")
-        @set_options(call_button="Overwrite", labels=False)
-        @bind_key("Ctrl+K, Ctrl+Shift+E")
-        def edit_workflow(
-            self,
-            filename: Annotated[str, {"choices": _get_workflow_names}],
-            workflow: Annotated[str, {"widget_type": CodeEdit}],
-        ):
-            """View or edit a workflow script."""
-            return self.define_workflow(filename, workflow)
-
-        sep0 = Separator
+        def open_workflow_edit(self):
+            self._get_main().workflow_edit.show()
+            self._get_main().workflow_edit._init()
 
         @set_design(text=capitalize)
         def import_workflow(
@@ -936,33 +875,9 @@ class OthersMenu(ChildWidget):
             new_path = _config.workflow_path(name)
             if new_path.exists():
                 raise FileExistsError(f"Workflow file {new_path} already exists.")
-            return self.define_workflow(new_path, path.read_text())
-
-        @set_design(text=capitalize)
-        @set_options(call_button="Delete", labels=False)
-        def delete_workflow(
-            self,
-            filenames: Annotated[list[str], {"choices": _get_workflow_names, "widget_type": CheckBoxes}] = [],
-        ):  # fmt: skip
-            """Delete an existing workflow file."""
-            if len(filenames) == 0:
-                raise ValueError("No workflow file selected.")
-            for filename in filenames:
-                path = _config.workflow_path(filename)
-                if path.exists():
-                    assert path.suffix == ".py"
-                    path.unlink()
-                else:
-                    raise FileNotFoundError(
-                        f"Workflow file not found: {path.as_posix()}"
-                    )
-                name = self._make_method_name(path)
-                for i, action in enumerate(self):
-                    if action.name == name:
-                        del self[i]
-                        break
-            self.reset_choices()
-            return None
+            return self._get_main().workflow_edit.define_workflow(
+                new_path.stem, path.read_text()
+            )
 
         @set_design(text="Copy workflow directory path")
         def copy_workflow_directory(self):
@@ -971,7 +886,7 @@ class OthersMenu(ChildWidget):
 
             return to_clipboard(str(_config.WORKFLOWS_DIR))
 
-        sep1 = Separator
+        sep0 = Separator
 
     sep0 = Separator
 
@@ -1049,7 +964,6 @@ class OthersMenu(ChildWidget):
         w.native.setParent(main.native, w.native.windowFlags())
         w.show()
         ACTIVE_WIDGETS.add(w)
-        return None
 
     def _get_list_of_cfg(self, *_):
         return [p.stem for p in _config.get_config().list_config_paths()]
@@ -1136,45 +1050,6 @@ def normalize_workflow(workflow: str, ui: "CylindraMainWidget") -> str:
     if not _main_function_found:
         raise ValueError("No main function found in workflow script.")
     return workflow
-
-
-@setup_function_gui(OthersMenu.Workflows.run_workflow)
-def _(self: OthersMenu.Workflows, gui: "FunctionGui"):
-    txt = CodeEdit()
-    txt.syntax_highlight("python", theme=get_code_theme(self))
-    txt.read_only = True
-    gui.insert(1, txt)
-    gui.min_width, gui.min_height = 600, 400
-
-    @gui.filename.changed.connect
-    def _on_name_change(filename: str | None):
-        if filename is None:
-            return
-        txt.value = _config.workflow_path(filename).read_text()
-
-    _on_name_change(gui.filename.value)
-
-
-@setup_function_gui(OthersMenu.Workflows.define_workflow)
-def _(self: OthersMenu.Workflows, gui: "FunctionGui"):
-    gui.workflow.syntax_highlight("python", theme=get_code_theme(self))
-    gui.workflow.value = _config.WORKFLOW_TEMPLATE.format("# Write your workflow here")
-    gui.called.connect(self.reset_choices)
-    gui.min_width, gui.min_height = 600, 400
-
-
-@setup_function_gui(OthersMenu.Workflows.edit_workflow)
-def _(self: OthersMenu.Workflows, gui: "FunctionGui"):
-    gui.workflow.syntax_highlight("python", theme=get_code_theme(self))
-
-    @gui.filename.changed.connect
-    def _on_name_change(filename: str | None):
-        if filename is None:
-            return
-        gui.workflow.value = _config.workflow_path(filename).read_text()
-
-    _on_name_change(gui.filename.value)
-    gui.min_width, gui.min_height = 600, 400
 
 
 def _command_palette_title_fmt(ui: ChildWidget, widget):

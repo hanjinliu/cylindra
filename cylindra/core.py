@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import glob
 from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Iterable, Literal, Sequence, overload
@@ -12,7 +11,7 @@ if TYPE_CHECKING:
     from magicgui.widgets import Widget
 
     from cylindra.components import CylSpline
-    from cylindra.project import CylindraProject, ProjectSequence
+    from cylindra.project import CylindraBatchProject, CylindraProject, ProjectSequence
     from cylindra.widgets import CylindraMainWidget
 
     PathLike = str | Path
@@ -131,6 +130,11 @@ def start(
     def _focus_down(v: napari.Viewer):
         v.dims.set_current_step(0, v.dims.current_step[0] + 4)
 
+    @viewer.bind_key("D", overwrite=True)
+    def _draw(v: napari.Viewer):
+        v.layers.selection = {ui._reserved_layers.work}
+        ui._reserved_layers.work.mode = "add"
+
     ui.show(run=run)
     if add_main_widget:
         try:  # Just in case
@@ -157,9 +161,7 @@ def start_as_plugin(run: bool = True):
         add_main_widget=False,
         run=run,
     )
-    # float logger widget
     logger = logging.getLogger("cylindra")
-    logger.widget.native.parentWidget().setFloating(True)
     logger.widget.height = 160
     return ui
 
@@ -180,6 +182,12 @@ def instance(create=False):
     return ins
 
 
+def _delete_instance():
+    """Delete the current CylindraMainWidget instance."""
+    global _CURRENT_INSTANCE
+    _CURRENT_INSTANCE = None
+
+
 def view_project(project_file: PathLike, show: bool = True):
     """View the Cylindra project file."""
     from cylindra.project import CylindraProject
@@ -196,6 +204,13 @@ def read_project(file: PathLike) -> CylindraProject:
     from cylindra.project import CylindraProject
 
     return CylindraProject.from_file(file)
+
+
+def read_batch_project(file: PathLike) -> CylindraBatchProject:
+    """Read the Cylindra batch project file."""
+    from cylindra.project import CylindraBatchProject
+
+    return CylindraBatchProject.from_file(file)
 
 
 def read_molecules(
@@ -263,25 +278,9 @@ def collect_projects(
         Project file paths or glob pattern(s).
     """
     from cylindra.project import ProjectSequence
+    from cylindra.utils import unwrap_wildcard
 
-    if isinstance(files, (str, Path)):
-        if "*" in str(files):
-            _files = glob.glob(str(files))
-        else:
-            if not Path(files).exists():
-                raise FileNotFoundError(f"File not found: {files}")
-            _files = [files]
-    elif hasattr(files, "__iter__"):
-        _files = []
-        for f in files:
-            f = str(f)
-            if "*" not in f:
-                _files.append(f)
-            else:
-                _files.extend(list(glob.glob(f)))
-    else:
-        raise TypeError(f"files must be path or iterable of paths, got {type(files)}")
+    _files = unwrap_wildcard(files)
     if len(_files) == 0:
         raise FileNotFoundError(f"No project files found from the input {files!r}.")
-    seq = ProjectSequence.from_paths(_files, check_scale=False, skip_exc=skip_exc)
-    return seq
+    return ProjectSequence.from_paths(_files, check_scale=False, skip_exc=skip_exc)

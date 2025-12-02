@@ -1,4 +1,5 @@
 import gc
+import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -9,7 +10,8 @@ from magicclass import get_button, get_function_gui, logging
 from magicgui import magicgui
 from qtpy import QtWidgets as QtW
 
-from cylindra import instance
+from cylindra import _config, instance
+from cylindra.widget_utils import find_dock_widget
 from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets.subwidgets.measure import LOCAL_CFT, LOCAL_CFT_UP
 
@@ -89,7 +91,7 @@ def main():
         )
         dock_inner = _qdock.inner_widget()
 
-    dock = dock_inner.native.parentWidget()
+    dock = find_dock_widget(dock_inner)
     assert isinstance(dock, QtW.QDockWidget)
     dock.setFloating(True)
     _imsave(dock.widget(), "workflow_with_args")
@@ -101,6 +103,21 @@ def main():
     ui.config_edit.show()
     _imsave(ui.config_edit.native, "config_editor")
     ui.config_edit.close()
+
+    # Workflow editor
+    with (
+        tempfile.TemporaryDirectory() as tmpdir,
+        _config.patch_workflow_path(tmpdir),
+    ):
+        code = _config.WORKFLOW_TEMPLATE.format(
+            "ui.logger.print('test workflow')"
+        )
+        ui.workflow_edit.define_workflow("my-workflow", code)
+        ui.OthersMenu.Workflows.open_workflow_edit()
+        ui.workflow_edit.reset_choices()
+
+        _imsave(ui.workflow_edit.native, "workflow_editor")
+        ui.workflow_edit.close()
 
     ui._runner.run(interval=12, n_refine=0, map_monomers=True)
 
@@ -167,16 +184,6 @@ def main():
         _imsave(gui.native, meth.__name__)
         gui.close()
 
-    for method in [
-        "define_workflow",
-        "edit_workflow",
-    ]:
-        meth = getattr(ui.OthersMenu.Workflows, method)
-        get_button(meth).changed.emit()
-        gui = get_function_gui(meth)
-        _imsave(gui.native, method)
-        gui.close()
-
     ### canvas with monomers ###
     ui.parent_viewer.dims.ndisplay = 3
     _viewer_screenshot(ui, "viewer_01_monomer_mapped", canvas_only=True)
@@ -225,6 +232,9 @@ def main():
     # Spectra inspector
     ui.AnalysisMenu.open_spectra_inspector()
     _imsave(ui.spectra_inspector.native, "spectra_inspector")
+    # Spline 3D interactor
+    ui.SplinesMenu.open_spline_3d_interactor()
+    _imsave(ui.spline_3d_interactor.native, "spline_3d_interactor")
 
     ### manual picker ###
     ui.ImageMenu.open_manual_picker()
@@ -279,6 +289,5 @@ def main():
     for _ in range(10):
         QtW.QApplication.processEvents()
     gc.collect()
-
 
 main()

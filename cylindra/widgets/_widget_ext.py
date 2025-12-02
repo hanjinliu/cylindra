@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+from ast import literal_eval
 from contextlib import contextmanager
 from pathlib import Path
 from types import MappingProxyType
@@ -870,3 +871,24 @@ class CheckBoxes(CategoricalWidget):
                 f"{value!r} is not a valid choice. must be in {self.choices}"
             )
         return ValueWidget.value.fset(self, value)  # type: ignore
+
+
+class JsonValueEdit(LineEdit):
+    """Widget for editing JSON-serializable values."""
+
+    def get_value(self) -> Any | None:
+        text = super().get_value()
+        try:
+            val = literal_eval(text)
+        except Exception:
+            val = text
+        if text.strip() == "":
+            return None
+        return val
+
+    def set_value(self, value: Any) -> None:
+        if value is None or value == Undefined:
+            text = ""
+        else:
+            text = str(value)
+        super().set_value(text)

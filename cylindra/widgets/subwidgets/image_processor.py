@@ -3,15 +3,11 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 import impy as ip
-from magicclass import (
-    confirm,
-    magicclass,
-    set_design,
-    vfield,
-)
+from magicclass import confirm, magicclass, set_design, vfield
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.types import Optional
 
+from cylindra._io import lazy_imread
 from cylindra._previews import view_image
 from cylindra.const import FileFilter
 from cylindra.core import ACTIVE_WIDGETS
@@ -34,8 +30,7 @@ _TOTAL = "self._file_count(input)"
 
 @magicclass(record=False)
 class ImageProcessor(ChildWidget):
-    """
-    Process image files.
+    """Process image files.
 
     Attributes
     ----------
@@ -159,51 +154,69 @@ class ImageProcessor(ChildWidget):
         for a in axes:
             img = img[ip.slicer(a)[::-1]]
         yield from self._imsave(img, output)
-        return None
 
     @set_design(text="Preview input image")
     def preview(self, input: _InputPath):
         """Open a preview of the input image."""
-        if "*" in str(input):
-            input = glob(str(input), recursive=True)
-        prev = view_image(input, self)
+        _input = str(input)
+        if _is_wildcard(_input):
+            input_normed = glob(_input, recursive=True)
+        else:
+            input_normed = _input
+        prev = view_image(input_normed, self)
         ACTIVE_WIDGETS.add(prev)
 
     def _imread(self, path) -> "ip.LazyImgArray | ip.DataList[ip.LazyImgArray]":
         path = str(path)
         self._current_suffix = self.suffix
-        if "*" in path:
+        if _is_wildcard(path):
             if self.suffix is None:
                 raise ValueError("Cannot read multiple images without `suffix`.")
-            imgs = []
+            imgs: list[ip.LazyImgArray] = []
             for fp in glob(path, recursive=True):
-                imgs.append(ip.lazy.imread(fp, chunks=(4, -1, -1)))
+                imgs.append(lazy_imread(fp, chunks=(4, -1, -1)))
             out = ip.DataList(imgs)
         else:
-            out = ip.lazy.imread(path, chunks=(4, -1, -1))
+            out = lazy_imread(path, chunks=(4, -1, -1))
         return out
 
     def _file_count(self, path) -> int:
+        # NOTE: this is used in _TOTAL for progress bar
         path = str(path)
-        if "*" in path:
+        if _is_wildcard(path):
             if self.suffix is None:
                 return 0
             return len(glob(path, recursive=True))
         else:
             return 1
 
-    def _imsave(
-        self, img: "ip.LazyImgArray | ip.DataList[ip.LazyImgArray]", path: Path
-    ):
+    def _imsave(self, img: "ip.LazyImgArray | ip.DataList[ip.LazyImgArray]", path):
         if isinstance(img, ip.DataList):
             for each in img:
                 save_path = _autofill(each.source, self._current_suffix)
-                if each.size < 5e7:
-                    each = each.compute()
-                each.imsave(save_path)
-                yield
+                yield _imsave_impl(each, save_path)
         else:
-            if img.size < 5e7:
-                img = img.compute()
-            img.imsave(path)
-            yield
+            yield _imsave_impl(img, path)
+
+
+def _imsave_impl(img: "ip.LazyImgArray", save_path: Path, thresh: int = 5e7):
+    if img.size < thresh:
+        img = img.compute()
+    is_overwrite = save_path.exists()
+    if is_overwrite:
+        save_path_temp = save_path.with_stem(save_path.stem + "-tmp")
+        i = 0
+        while save_path_temp.exists():
+            save_path.with_stem(save_path.stem + f"-tmp{i}")
+        bak_path = save_path.with_name(save_path.name + "~")
+        if bak_path.exists():
+            bak_path.unlink()
+        img.imsave(save_path_temp)  # data -> save_path_temp
+        save_path.rename(bak_path)  # save_path -> bak_path
+        save_path_temp.rename(save_path)  # save_path_temp -> save_path
+    else:
+        img.imsave(save_path)
+
+
+def _is_wildcard(path_str: str) -> bool:
+    return "*" in path_str or "?" in path_str

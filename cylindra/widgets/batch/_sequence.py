@@ -1,7 +1,6 @@
 from fnmatch import fnmatch
 from typing import TYPE_CHECKING, Iterator
 
-import impy as ip
 import polars as pl
 from acryo import BatchLoader, Molecules, SubtomogramLoader
 from magicclass import (
@@ -24,12 +23,14 @@ from magicgui.types import Separator
 from magicgui.widgets import ComboBox, Container, Widget
 
 from cylindra._config import get_config
+from cylindra._io import lazy_imread
 from cylindra.const import FileFilter
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.project import CylindraProject, get_project_file
+from cylindra.utils import unwrap_wildcard
 from cylindra.widget_utils import POLARS_NAMESPACE, capitalize
-from cylindra.widgets.batch._utils import PathInfo, TempFeatures, unwrap_wildcard
+from cylindra.widgets.batch._utils import PathInfo, TempFeatures
 
 
 @magicclass(
@@ -45,7 +46,6 @@ class MoleculeWidget(MagicTemplate):
 
 @magicclass(widget_type="collapsible", record=False, name="Molecules")
 class MoleculeList(MagicTemplate):
-
     def _add_path(self, path: str):
         wdt = MoleculeWidget()
         wdt.line.value = path
@@ -204,10 +204,17 @@ class Project(MagicTemplate):
         for info in self._project.molecules_info:
             self.molecules._add_path(info.name)
 
-        # collapse empty lists
-        self.splines.collapsed = len(self.splines) == 0
-        self.molecules.collapsed = len(self.molecules) == 0
-        self.Components.collapsed = self.splines.collapsed and self.molecules.collapsed
+        # Ccollapse empty lists. After updating the contents, we need to first collapse
+        # the collapsible container widget to adjust their height.
+        no_spline = len(self.splines) == 0
+        no_mole = len(self.molecules) == 0
+        self.splines.collapsed = True
+        self.molecules.collapsed = True
+        self.splines.collapsed = no_spline
+        self.molecules.collapsed = no_mole
+
+        self.Components.collapsed = True
+        self.Components.collapsed = no_spline and no_mole
 
     @nogui
     @do_not_record
@@ -220,7 +227,7 @@ class Project(MagicTemplate):
                 for mole in self.molecules
                 if mole.check
             ]
-        img = ip.lazy.imread(project.image, chunks=get_config().dask_chunk).value
+        img = lazy_imread(project.image, chunks=get_config().dask_chunk).value
         if project.invert:
             img = -img
         return SubtomogramLoader(
@@ -280,7 +287,6 @@ class ProjectPaths(MagicTemplate):
     def _set_checked(self, checked: bool):
         for wdt in self:
             wdt.check = checked
-        return None
 
 
 @magicclass(name="Projects", record=False, use_native_menubar=False)
@@ -345,7 +351,6 @@ class ProjectSequenceEdit(MagicTemplate):
         """Select projects by pattern matching."""
         for prj in self.projects:
             prj.check = fnmatch(prj.path, pattern)
-        return None
 
     @set_design(text="Select molecules by pattern", location=Select)
     @do_not_record
@@ -354,7 +359,6 @@ class ProjectSequenceEdit(MagicTemplate):
         for prj in self.projects:
             for mole in prj.molecules:
                 mole.check = fnmatch(mole.line.value, pattern)
-        return None
 
     @set_design(text="Deselect all projects", location=Select)
     @do_not_record
@@ -434,7 +438,6 @@ class ProjectSequenceEdit(MagicTemplate):
         ACTIVE_WIDGETS.add(cont)
         cont.show()
         cbox.changed.emit(cbox.value)
-        return None
 
     @set_design(text="View selected components in 3D", location=View)
     def view_selected_components(self):
@@ -469,7 +472,6 @@ class ProjectSequenceEdit(MagicTemplate):
         ACTIVE_WIDGETS.add(table)
         _set_parent(table, self)
         table.show()
-        return None
 
     @set_design(text="View filtered molecules in table", location=View)
     @do_not_record
@@ -483,7 +485,6 @@ class ProjectSequenceEdit(MagicTemplate):
         ACTIVE_WIDGETS.add(table)
         _set_parent(table, self)
         table.show()
-        return None
 
     def _get_expression(self, _=None) -> str:
         wdt: EvalLineEdit = self.filter_expression
@@ -507,14 +508,10 @@ class ProjectSequenceEdit(MagicTemplate):
         clear : bool, default True
             Whether to clear the existing projects added to the list.
         """
-
-        if isinstance(paths, (str, Path)):
-            input_paths = [str(paths)]
-        else:
-            input_paths = [str(p) for p in paths]
+        _paths = unwrap_wildcard(paths)
         if clear:
             self.projects.clear()
-        for path in unwrap_wildcard(input_paths):
+        for path in _paths:
             wdt = self.projects._add(get_project_file(path))
             self.scale.value = wdt.project.scale
         self.reset_choices()

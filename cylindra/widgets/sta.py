@@ -1,5 +1,4 @@
 import re
-import warnings
 import weakref
 from contextlib import suppress
 from enum import Enum
@@ -65,9 +64,12 @@ from cylindra.widget_utils import (
 from cylindra.widgets import _annealing
 from cylindra.widgets import _progress_desc as _pdesc
 from cylindra.widgets._annotated import (
+    BinSizeType,
     FSCFreq,
+    LandscapeLayerType,
     MoleculesLayersType,
     MoleculesLayerType,
+    SplineType,
     assert_layer,
     assert_list_of_layers,
 )
@@ -102,24 +104,6 @@ def _get_template_shape(
     else:
         _size = max(self._get_shape_in_nm(size))
     return _size
-
-
-def _validate_landscape_layer(self: "SubtomogramAveraging", layer) -> str:
-    if isinstance(layer, LandscapeSurface):
-        return layer.name
-    elif isinstance(layer, str):
-        if layer not in self.parent_viewer.layers:
-            raise ValueError(f"{layer!r} does not exist in the viewer.")
-        return layer
-    else:
-        raise TypeError(f"{layer!r} is not a valid landscape.")
-
-
-def _get_landscape_layers(self: "SubtomogramAveraging", *_) -> list[LandscapeSurface]:
-    viewer = self.parent_viewer
-    if viewer is None:
-        return []
-    return [l for l in viewer.layers if isinstance(l, LandscapeSurface)]
 
 
 _PathOrNone = str | Path | None
@@ -157,13 +141,6 @@ _DistRangeLat = Annotated[
 ]
 _AngleMaxLon = Annotated[
     float, {"max": 90.0, "step": 0.5, "label": "maximum angle (deg)"}
-]
-_LandscapeLayer = Annotated[
-    LandscapeSurface,
-    {
-        "choices": _get_landscape_layers,
-        "validator": _validate_landscape_layer,
-    },
 ]
 _RandomSeeds = Annotated[list[int], {"widget_type": RandomSeedEdit}]
 
@@ -678,7 +655,7 @@ class SubtomogramAveraging(ChildWidget):
         layers: MoleculesLayersType,
         size: _SubVolumeSize = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         compute: bool = False,
     ):
         """Extract subtomograms around molecules in the selected layer(s).
@@ -715,7 +692,7 @@ class SubtomogramAveraging(ChildWidget):
         layers: MoleculesLayersType,
         size: _SubVolumeSize = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
     ):
         """Subtomogram averaging using all the molecules in the selected layer(s).
 
@@ -750,7 +727,7 @@ class SubtomogramAveraging(ChildWidget):
         size: _SubVolumeSize = None,
         method: Literal["steps", "first", "last", "random"] = "steps",
         number: int = 64,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
     ):
         """Subtomogram averaging using a subset of subvolumes.
 
@@ -793,7 +770,7 @@ class SubtomogramAveraging(ChildWidget):
         size: _SubVolumeSize = None,
         by: PolarsExprStr = "col('pf-id')",
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
     ):
         """Group-wise subtomogram averaging.
 
@@ -816,7 +793,7 @@ class SubtomogramAveraging(ChildWidget):
         loader = tomo.get_subtomogram_loader(
             _concat_molecules(layers), shape, binsize=bin_size, order=interpolation
         )
-        expr = widget_utils.norm_expr(by)
+        expr = widget_utils.norm_polars_expr(by)
         groups = loader.groupby(expr)
         avg_dict = groups.average()
         avgs = np.stack([avg_dict[k] for k in sorted(avg_dict.keys())], axis=0)
@@ -838,7 +815,7 @@ class SubtomogramAveraging(ChildWidget):
         size: _SubVolumeSize = None,
         predicate: PolarsExprStr = "col('pf-id') == 0",
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
     ):
         """Subtomogram averaging using molecules filtered by the given expression.
 
@@ -859,7 +836,7 @@ class SubtomogramAveraging(ChildWidget):
         shape = self._get_shape_in_nm(size)
         loader = tomo.get_subtomogram_loader(
             _concat_molecules(layers), shape, binsize=bin_size, order=interpolation
-        ).filter(widget_utils.norm_expr(predicate))
+        ).filter(widget_utils.norm_polars_expr(predicate))
         avg = loader.average()
         img = ip.asarray(avg, axes="zyx")
         img.set_scale(zyx=loader.scale, unit="nm")
@@ -878,13 +855,16 @@ class SubtomogramAveraging(ChildWidget):
         mask_params: Annotated[Any, {"bind": _get_mask_params}],
         max_shifts: Optional[_MaxShifts] = None,
         rotations: _Rotations = ((0.0, 0.0), (15.0, 1.0), (3.0, 1.0)),
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
     ):  # fmt: skip
-        """Align the averaged image at current monomers to the template image.
+        """Align the averaged image at current molecules to the template image.
 
-        This function creates a new layer with transformed monomers, which should
-        align well with template image.
+        This function creates a new layer with transformed molecules, which should
+        align well with the template image. Users usually run this function after using
+        `map_monomers` on microtubules etc, because the initial coordinates have
+        correct periodicity but the centers may not align well with the actual
+        structure.
 
         Parameters
         ----------
@@ -896,9 +876,7 @@ class SubtomogramAveraging(ChildWidget):
 
         new_layers = list[MoleculesLayer]()
         total = 2 * len(layers) + 1
-        yield thread_worker.description(
-            f"(0/{total}) Preparing template images for alignment"
-        )
+        yield thread_worker.description(_pdesc.align_averaged_0(total))
 
         @thread_worker.callback
         def _on_yield(mole_trans: Molecules, layer: MoleculesLayer):
@@ -938,13 +916,9 @@ class SubtomogramAveraging(ChildWidget):
         for i, layer in enumerate(layers):
             mole = layer.molecules
             loader = self._get_loader(bin_size, mole, order=1)
-            yield thread_worker.description(
-                f"({i * 2 + 1}/{total}) Subtomogram averaging of {layer.name!r}"
-            )
+            yield thread_worker.description(_pdesc.align_averaged_1(i, total, layer))
             avg = loader.average(template.shape)
-            yield thread_worker.description(
-                f"({i * 2 + 2}/{total}) Aligning template to the average image of {layer.name!r}"
-            )
+            yield thread_worker.description(_pdesc.align_averaged_2(i, total, layer))
             _img_trans, result = model.fit(
                 avg,
                 max_shifts=[_s / _scale for _s in max_shifts],
@@ -1026,7 +1000,7 @@ class SubtomogramAveraging(ChildWidget):
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
     ):  # fmt: skip
         """Align the input template image to all the molecules.
 
@@ -1073,7 +1047,7 @@ class SubtomogramAveraging(ChildWidget):
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
         tolerance: float = 0.01,
     ):  # fmt: skip
@@ -1107,9 +1081,7 @@ class SubtomogramAveraging(ChildWidget):
         _alignment_state = widget_utils.TemplateFreeAlignmentState(rng=rng)
         _Logger.print(f"Start alignment ({molecules.count()} molecules) ...")
         while True:
-            yield thread_worker.description(
-                f"Calculating FSC for iteration {_alignment_state.niter}"
-            )
+            yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
             fsc_result, avg = _alignment_state.eval_fsc(
                 aligned_loader,
                 mask,
@@ -1117,7 +1089,7 @@ class SubtomogramAveraging(ChildWidget):
             )
             yield _plot_current_fsc.with_args(
                 fsc_result, _alignment_state.niter, avg
-            ).with_desc(f"Alignment for iteration {_alignment_state.niter}")
+            ).with_desc(_pdesc.align_tf_1(_alignment_state))
             if _alignment_state.converged:
                 _Logger.print("FSC converged.")
                 yield self._show_rec.with_args(avg, f"[Aligned]{_avg_name(layers)}")
@@ -1148,7 +1120,7 @@ class SubtomogramAveraging(ChildWidget):
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         range_long: _DistRangeLon = (4.0, 4.28),
         angle_max: _AngleMaxLon = 5.0,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
     ):  # fmt: skip
         """Subtomogram alignment using 1D Viterbi alignment.
@@ -1187,15 +1159,6 @@ class SubtomogramAveraging(ChildWidget):
         t0.toc()
         return self._align_all_on_return.with_args([mole], [layer])
 
-    @property
-    def align_all_annealing(self):  # pragma: no cover
-        warnings.warn(
-            "align_all_annealing is deprecated. Use align_all_rma instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.align_all_rma
-
     @set_design(text="Simulated annealing (RMA)", location=Alignment)
     @dask_worker.with_progress(descs=_pdesc.align_annealing_fmt)
     def align_all_rma(
@@ -1210,7 +1173,7 @@ class SubtomogramAveraging(ChildWidget):
         range_long: _DistRangeLon = (4.0, 4.28),
         range_lat: _DistRangeLat = (5.1, 5.3),
         angle_max: _AngleMaxLon = 5.0,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
@@ -1288,7 +1251,7 @@ class SubtomogramAveraging(ChildWidget):
         range_long: _DistRangeLon = (4.0, 4.28),
         range_lat: _DistRangeLat = (5.1, 5.3),
         angle_max: _AngleMaxLon = 5.0,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 0.7,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
@@ -1338,15 +1301,13 @@ class SubtomogramAveraging(ChildWidget):
 
         next_layer_name = _coerce_aligned_name(layer.name, self.parent_viewer)
         while True:
-            yield thread_worker.description(
-                f"Calculating FSC (iteration {_alignment_state.niter})"
-            )
+            yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
             fsc_result, avg = _alignment_state.eval_fsc(
                 aligned_loader, mask, tolerance=tolerance
             )
             yield _plot_current_fsc.with_args(
                 fsc_result, _alignment_state.niter, avg
-            ).with_desc(f"Landscape construction (iteration {_alignment_state.niter})")
+            ).with_desc(_pdesc.align_tf_2(_alignment_state))
             if _alignment_state.converged:
                 _Logger.print("FSC converged.")
                 yield self._show_rec.with_args(avg, f"[Aligned]{next_layer_name}")
@@ -1364,9 +1325,7 @@ class SubtomogramAveraging(ChildWidget):
                     tilt=main.tomogram.tilt_model,
                 ),
             )
-            yield thread_worker.description(
-                f"Running RMA (iteration {_alignment_state.niter})"
-            )
+            yield thread_worker.description(_pdesc.align_tf_3(_alignment_state))
             mole, results = landscape.run_annealing_along_spline(
                 layer.source_spline,
                 range_long=range_long,
@@ -1414,7 +1373,7 @@ class SubtomogramAveraging(ChildWidget):
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         range_long: _DistRangeLon = (4.0, 4.28),
         angle_max: _AngleMaxLon = 5.0,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
@@ -1474,14 +1433,11 @@ class SubtomogramAveraging(ChildWidget):
 
         return _on_return
 
-    def _get_splines(self, *_) -> list[int]:
-        return self._get_main()._get_splines()
-
     @set_design(text="Fit spline by RFA", location=Alignment)
     @dask_worker.with_progress(descs=_pdesc.fit_spline_rfa_fmt)
     def fit_spline_rfa(
         self,
-        spline: Annotated[int, {"choices": _get_splines}],
+        spline: SplineType,
         template_path: Annotated[_PathOrPathsOrNone, {"bind": _template_params}],
         forward_is: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus",
         interval: PolarsExprStrOrScalar = "4.1",
@@ -1493,7 +1449,7 @@ class SubtomogramAveraging(ChildWidget):
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         range_long: _DistRangeLon = (4.0, 4.28),
         angle_max: _AngleMaxLon = 5.0,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 100.0}] = 10.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
@@ -1609,7 +1565,7 @@ class SubtomogramAveraging(ChildWidget):
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
         norm: bool = True,
@@ -1644,7 +1600,7 @@ class SubtomogramAveraging(ChildWidget):
 
     @set_design(text="Run alignment", location=LandscapeMenu)
     @dask_worker.with_progress(desc="Peak detection on landscape")
-    def run_align_on_landscape(self, landscape_layer: _LandscapeLayer):
+    def run_align_on_landscape(self, landscape_layer: LandscapeLayerType):
         """Find the optimal displacement for each molecule on the landscape."""
         landscape_layer = _assert_landscape_layer(landscape_layer, self.parent_viewer)
         landscape = landscape_layer.landscape
@@ -1658,7 +1614,7 @@ class SubtomogramAveraging(ChildWidget):
     @dask_worker.with_progress(desc="Running Viterbi alignment")
     def run_viterbi_on_landscape(
         self,
-        landscape_layer: _LandscapeLayer,
+        landscape_layer: LandscapeLayerType,
         range_long: _DistRangeLon = (4.0, 4.28),
         angle_max: _AngleMaxLon = 5.0,
     ):
@@ -1681,20 +1637,11 @@ class SubtomogramAveraging(ChildWidget):
             mole, landscape_layer.name, spl
         )
 
-    @property
-    def run_annealing_on_landscape(self):  # pragma: no cover
-        warnings.warn(
-            "run_annealing_on_landscape is deprecated. Use run_rma_on_landscape instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.run_rma_on_landscape
-
     @set_design(text="Run annealing (RMA)", location=LandscapeMenu)
     @dask_worker.with_progress(desc="Running simulated annealing")
     def run_rma_on_landscape(
         self,
-        landscape_layer: _LandscapeLayer,
+        landscape_layer: LandscapeLayerType,
         range_long: _DistRangeLon = (4.0, 4.28),
         range_lat: _DistRangeLat = (5.1, 5.3),
         angle_max: _AngleMaxLon = 5.0,
@@ -1740,7 +1687,7 @@ class SubtomogramAveraging(ChildWidget):
     @dask_worker.with_progress(desc="Running simulated annealing")
     def run_rfa_on_landscape(
         self,
-        landscape_layer: _LandscapeLayer,
+        landscape_layer: LandscapeLayerType,
         range_long: _DistRangeLon = (4.0, 4.28),
         angle_max: _AngleMaxLon = 5.0,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
@@ -1778,7 +1725,7 @@ class SubtomogramAveraging(ChildWidget):
     @set_design(text=capitalize, location=LandscapeMenu)
     def remove_landscape_outliers(
         self,
-        landscape_layer: _LandscapeLayer,
+        landscape_layer: LandscapeLayerType,
         lower: Annotated[Optional[float], {"text": "Do not process lower outliers"}] = None,
         upper: Annotated[Optional[float], {"text": "Do not process upper outliers"}] = None,
     ):  # fmt: skip
@@ -1803,7 +1750,7 @@ class SubtomogramAveraging(ChildWidget):
     @set_design(text=capitalize, location=LandscapeMenu)
     def normalize_landscape(
         self,
-        landscape_layer: _LandscapeLayer,
+        landscape_layer: LandscapeLayerType,
         norm_sd: bool = True,
     ):
         """Normalize the landscape.
@@ -1825,7 +1772,6 @@ class SubtomogramAveraging(ChildWidget):
         self.parent_viewer.add_layer(new)
         self._get_main()._reserved_layers.to_be_removed.add(new)
         old.visible = False
-        return None
 
     def _get_layers_with_annealing_result(self, *_) -> list[MoleculesLayer]:
         if self.parent_viewer is None:
@@ -1851,7 +1797,7 @@ class SubtomogramAveraging(ChildWidget):
             raise ValueError(
                 f"Layer {layer!r} does not have annealing result."
             ) from None
-        x = result.batch_size * np.arange(result.energies.size)
+        x = result.epoch_size * np.arange(result.energies.size)
         df = pl.DataFrame({"iteration": x, "score": -result.energies})
         return df.write_csv(path, include_header=False)
 
@@ -1864,7 +1810,7 @@ class SubtomogramAveraging(ChildWidget):
         mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         cutoff: _CutoffFreq = 0.5,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
         column_prefix: str = "score",
     ):
@@ -2014,7 +1960,7 @@ class SubtomogramAveraging(ChildWidget):
         size: _SubVolumeSize = None,
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
-        bin_size: Annotated[int, {"choices": _get_available_binsize}] = 1,
+        bin_size: BinSizeType = 1,
         n_components: Annotated[int, {"min": 2, "max": 20}] = 2,
         n_clusters: Annotated[int, {"min": 2, "max": 100}] = 2,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,

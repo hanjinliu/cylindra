@@ -21,6 +21,8 @@ from cylindra.const import MoleculesHeader as Mole
 from cylindra.utils import assert_column_exists, str_color
 
 if TYPE_CHECKING:
+    from napari.layers.points._points_constants import Symbol
+
     from cylindra.components import BaseComponent, CylSpline
 
 
@@ -313,28 +315,30 @@ class MoleculesLayer(_FeatureBoundLayer, Points, _SourceBoundLayer):
         if cmap is None:
             cmap = {0: "black", 1: "white"}
         _cmap = _normalize_colormap(cmap)
-        if column.dtype in POLARS_INTEGER_DTYPES:
-            cmin, cmax = limits
-            arr = (column.cast(pl.Float32).clip(cmin, cmax) - cmin) / (cmax - cmin)
-            colors = _cmap.map(arr)
-            self.face_color = colors
-        elif column.dtype in POLARS_FLOAT_DTYPES:
-            self.face_color = column.name
-            self.face_colormap = _cmap
-            self.face_contrast_limits = limits
-            if self._view_ndim == 3:
-                self.border_colormap = _cmap
-                self.border_contrast_limits = limits
-        elif column.dtype == pl.Boolean:  # NOTE: since polars>=0.20, `is` fails
-            cfalse, ctrue = _cmap.map([0, 1])
-            column2d = np.repeat(column.to_numpy()[:, np.newaxis], 4, axis=1)
-            col = np.where(column2d, ctrue, cfalse)
-            self.face_color = col
-        else:
-            raise ValueError(
-                f"Cannot paint by feature {column.name} of type {column.dtype}."
-            )
+        with self.events.face_color.blocker():
+            if column.dtype in POLARS_INTEGER_DTYPES:
+                cmin, cmax = limits
+                arr = (column.cast(pl.Float32).clip(cmin, cmax) - cmin) / (cmax - cmin)
+                colors = _cmap.map(arr)
+                self.face_color = colors
+            elif column.dtype in POLARS_FLOAT_DTYPES:
+                self.face_color = column.name
+                self.face_colormap = _cmap
+                self.face_contrast_limits = limits
+                if self._view_ndim == 3:
+                    self.border_colormap = _cmap
+                    self.border_contrast_limits = limits
+            elif column.dtype == pl.Boolean:  # NOTE: since polars>=0.20, `is` fails
+                cfalse, ctrue = _cmap.map([0, 1])
+                column2d = np.repeat(column.to_numpy()[:, np.newaxis], 4, axis=1)
+                col = np.where(column2d, ctrue, cfalse)
+                self.face_color = col
+            else:
+                raise ValueError(
+                    f"Cannot paint by feature {column.name} of type {column.dtype}."
+                )
         self._colormap_info = ColormapInfo(_cmap, limits, by)
+        self.events.face_color()
         self.refresh()
 
     def feature_setter(
@@ -356,7 +360,6 @@ class MoleculesLayer(_FeatureBoundLayer, Points, _SourceBoundLayer):
 
     def face_color_setter(self, color):
         self.face_color = color
-        self._colormap_info = str_color(color)
         self.refresh()
 
     @property
@@ -535,6 +538,39 @@ class InteractionVector(Vectors):
     def features(self, features):
         Vectors.features.fset(self, features)
         self._net.features = features
+
+
+class SplineLayer(Points):
+    """An extended version of napari Points layers for splines."""
+
+    _type_string = "points"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.editable = False
+        self._show_polarity = True
+        self._size_polarity_marker = 10.0
+        self._size_spline = 8.0
+        self.events.add(show_polarity=Event)
+
+    @property
+    def show_polarity(self) -> bool:
+        """Whether to show the polarity of the splines."""
+        return self._show_polarity
+
+    @show_polarity.setter
+    def show_polarity(self, show: bool):
+        show = bool(show)
+        self._show_polarity = show
+        self.events.show_polarity(value=show)
+        size = self.size.astype(np.float32)
+        if size.size > 0:
+            _symbol_type: type[Symbol] = type(self.symbol[0])
+            _is_plus = self.symbol == _symbol_type.CROSS
+            _is_minus = self.symbol == _symbol_type.HBAR
+            size[_is_plus | _is_minus] = 10 if show else 0.01
+            self.size = size
+            self.refresh()
 
 
 def _normalize_colormap(cmap) -> Colormap:

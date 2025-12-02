@@ -169,7 +169,6 @@ class SplineFitter(ChildWidget):
         self._cylinder_changed()
         if (cur_img := self.canvas.image) is not None:
             self.canvas.contrast_limits = cur_img.min(), cur_img.max()
-        return None
 
     @bind_key("F")
     @set_design(text=capitalize, location=LeftPanel)
@@ -241,7 +240,6 @@ class SplineFitter(ChildWidget):
             x, z = self._auto_center_at(i, j)
             yield _update.with_args(i, j, x, z)
             sleep(delay)
-        return None
 
     def _auto_center_at(self, i: int, j: int) -> tuple[float, float]:
         spl = self._get_main().tomogram.splines[i]
@@ -288,7 +286,6 @@ class SplineFitter(ChildWidget):
         self._circ_outer.ydata = r_outer * np.sin(theta) + z
 
         self.shifts[i][j, :] = z - lz / 2 + 0.5, x - lx / 2 + 0.5
-        return None
 
     @num.connect
     def _cylinder_changed(self):
@@ -333,8 +330,6 @@ class SplineFitter(ChildWidget):
         self.canvas.ylim = (0, self.canvas.image.shape[0])
         lz, lx = self.subtomograms.sizesof("zx")
         self._update_cross(lx / 2 - 0.5, lz / 2 - 0.5)
-
-        return None
 
     @pos.connect
     def _position_changed(self):

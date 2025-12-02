@@ -5,7 +5,6 @@ from enum import Enum
 from fnmatch import fnmatch
 from typing import TYPE_CHECKING
 
-import napari
 import numpy as np
 from magicclass.ext.polars import DataFrameView
 from napari._qt.layer_controls.widgets import QtWidgetControlsBase
@@ -16,14 +15,16 @@ from qtpy import QtWidgets as QtW
 from qtpy.QtCore import Qt
 from superqt import QEnumComboBox, QLabeledDoubleSlider
 
+from cylindra._napari._layers import (
+    InteractionVector,
+    LandscapeSurface,
+    MoleculesLayer,
+    SplineLayer,
+)
+from cylindra.utils import roundint
+
 if TYPE_CHECKING:
     import pandas as pd
-
-    from cylindra._napari._layers import (
-        InteractionVector,
-        LandscapeSurface,
-        MoleculesLayer,
-    )
 
 
 @contextmanager
@@ -70,7 +71,19 @@ class QtFaceControls(QtWidgetControlsBase):
             if isinstance(col := self._layer._colormap_info, str):
                 self.face_color_edit.setColor(col)
             else:
-                pass  # TODO: set to a gradient
+                nstops = 6
+                colors = col.cmap.map(np.linspace(0, 1, nstops))
+                # Build a horizontal gradient from the colormap colors
+                rgba_stops: list[str] = []
+                for i, c in enumerate(colors * 255):
+                    r, g, b, _ = c
+                    rgba = f"rgb({roundint(r)}, {roundint(g)}, {roundint(b)})"
+                    pos = i / max(len(colors) - 1, 1)
+                    rgba_stops.append(f"stop:{pos:.3f} {rgba}")
+                gradient = ", ".join(rgba_stops)
+                self.face_color_edit.color_swatch.setStyleSheet(
+                    f"#colorSwatch {{ background: qlineargradient(x1:0, y1:0, x2:1, y2:0, {gradient}); }}"
+                )
 
     def _on_face_color_edit_changed(self, color) -> None:
         self._layer.face_color = color
@@ -158,7 +171,7 @@ class QtPointStateControl(QtWidgetControlsBase):
         self.property_filter.editingFinished.connect(self._set_property_filter)
 
         self.point_size_label = QtWrappedLabel("point size:")
-        self.dim_label = QtWrappedLabel("view mode:")
+        self.dim_label = QtWrappedLabel("rendering:")
         self.property_filter_label = QtWrappedLabel("filter status:")
 
     def _on_point_size_change(self, event):
@@ -211,24 +224,21 @@ class QtHasFeaturesControls(QtWidgetControlsBase):
         self.feature_buttons_label = QtWrappedLabel("features:")
 
     def _show_features(self):
+        from cylindra.widget_utils import show_widget
+
         if isinstance(self._layer, MoleculesLayer):
             df = self._layer.molecules.features
         else:
             df = self._layer.net.features
         table = DataFrameView(value=df)
-
-        napari.current_viewer().window.add_dock_widget(
-            table, area="left", name=f"Features of {self._layer.name!r}"
-        ).setFloating(True)
+        show_widget(table, f"Features of {self._layer.name!r}", self.parent())
 
     def _copy_features(self):
         df: pd.DataFrame = self._layer.features
         df.to_clipboard(index=False)
 
     def get_widget_controls(self) -> list[tuple[QtWrappedLabel, QtW.QWidget]]:
-        return [
-            (self.feature_buttons_label, self.feature_btns),
-        ]
+        return [(self.feature_buttons_label, self.feature_btns)]
 
 
 class QtLandscapeSubControls(QtWidgetControlsBase):
@@ -307,6 +317,27 @@ class QtLandscapeSubControls(QtWidgetControlsBase):
 
     def _change_wire_width(self, value):
         self._layer.wireframe.width = value
+
+
+class QtSplineLayerSubControl(QtWidgetControlsBase):
+    _layer: SplineLayer
+
+    def __init__(self, parent: QtW.QWidget, layer: SplineLayer) -> None:
+        super().__init__(parent, layer)
+        self.checkbox = QtW.QCheckBox()
+        self.checkbox.setChecked(layer._show_polarity)
+        layer.events.show_polarity.connect(self._on_show_polarity_change)
+        self.checkbox.checkStateChanged.connect(self._change_show_polarity)
+
+    def get_widget_controls(self) -> list[tuple[QtWrappedLabel, QtW.QWidget]]:
+        return [(QtWrappedLabel("show orientation:"), self.checkbox)]
+
+    def _on_show_polarity_change(self, event):
+        with qt_signals_blocked(self.checkbox):
+            self.checkbox.setChecked(bool(event.value))
+
+    def _change_show_polarity(self, *_):
+        self._layer.show_polarity = self.checkbox.isChecked()
 
 
 def _first_or(arr: np.ndarray, default):

@@ -5,7 +5,13 @@ from cylindra.components.cylindric import (
     CylindricSliceConstructor,
     indexer,
 )
-from cylindra.components.spline import CylSpline, Spline, SplineConfig
+from cylindra.components.spline import (
+    CylSpline,
+    Spline,
+    SplineConfig,
+    SplineSegment,
+    SplineSegments,
+)
 from cylindra.components.tomogram import CylTomogram, Tomogram
 
 __all__ = [
@@ -13,6 +19,8 @@ __all__ = [
     "CylinderModel",
     "indexer",
     "Spline",
+    "SplineSegment",
+    "SplineSegments",
     "CylSpline",
     "SplineConfig",
     "Tomogram",

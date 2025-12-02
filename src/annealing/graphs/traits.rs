@@ -129,6 +129,21 @@ pub trait GraphTrait<N: Clone, E: Clone> {
     /// Set the energy landscape array to the graph.
     fn set_energy_landscape(&mut self, energy: ArcArray<f32, Ix4>) -> PyResult<&Self>;
 
+    /// Return the old and new binding energies.
+    /// Override this if a more efficient implementation is available.
+    fn binding_old_new(
+        &self,
+        state_old: &N,
+        state_new: &N,
+        other_state: &N,
+        typ: &E,
+    ) -> (f32, f32) {
+        (
+            self.binding(state_old, other_state, typ),
+            self.binding(state_new, other_state, typ),
+        )
+    }
+
     /// Energy difference by shifting a state of node at idx.
     fn energy_diff_by_shift(
         &self,
@@ -153,8 +168,8 @@ pub trait GraphTrait<N: Clone, E: Clone> {
     }
 
     /// Apply the shift result to the graph.
-    fn apply_shift(&mut self, result: &ShiftResult<N>) {
-        self.components_mut().set_node_state(result.index, result.state.clone());
+    fn apply_shift(&mut self, result: ShiftResult<N>) {
+        self.components_mut().set_node_state(result.index, result.state);
     }
 
 
@@ -170,6 +185,23 @@ pub trait GraphTrait<N: Clone, E: Clone> {
         let state_new = self.random_local_neighbor_state(&state_old, rng);
         let de = self.energy_diff_by_shift(idx, &state_old, &state_new);
         ShiftResult { index: idx, state: state_new, energy_diff: de }
+    }
+
+    fn try_random_shift_multi(
+        &self,
+        rng: &mut RandomNumberGenerator,
+        num: usize,
+    ) -> Vec<ShiftResult<N>> {
+        let graph = self.components();
+        let indices = rng.uniform_ints_no_overlap(graph.node_count(), num);
+        let mut results = Vec::with_capacity(num);
+        for idx in indices {
+            let state_old = graph.node_state(idx);
+            let state_new = self.random_local_neighbor_state(&state_old, rng);
+            let de = self.energy_diff_by_shift(idx, &state_old, &state_new);
+            results.push(ShiftResult { index: idx, state: state_new, energy_diff: de })
+        }
+        results
     }
 }
 

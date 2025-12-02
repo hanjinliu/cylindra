@@ -11,6 +11,7 @@ from cylindra.utils._test_utils import (
 )
 from cylindra.widgets import CylindraMainWidget
 from cylindra_builtins import relion
+from cylindra_builtins.relion.io import _preview_open_relion_job
 
 TEST_JOB_DIR = Path(__file__).parent / "test_jobs"
 JOB_TOMO_DIR = TEST_JOB_DIR / "Tomograms" / "job_tomo"
@@ -53,12 +54,14 @@ def test_opening_jobs(ui: CylindraMainWidget, tmpdir):
     ui.batch.constructor.projects[0].send_to_viewer()
     assert ui.tomogram.scale == pytest.approx(1.052)
     assert not ui.tomogram.is_dummy
+    assert ui.tomogram.tilt_model.tilt_range == pytest.approx((-60.1, 59.9))
 
     relion.open_relion_job(ui, JOB_PICK_DIR / "job.star")
     assert len(ui.batch.constructor.projects) == 2
     ui.batch.constructor.projects[0].send_to_viewer()
     assert ui.tomogram.scale == pytest.approx(1.052)
     assert not ui.tomogram.is_dummy
+    assert ui.tomogram.tilt_model.tilt_range == pytest.approx((-60.1, 59.9))
     relion.save_molecules_for_import(
         ui, tmpdir / "p.star", ui.batch._get_loader_paths()
     )
@@ -86,3 +89,4 @@ def test_opening_jobs(ui: CylindraMainWidget, tmpdir):
     )
 
     relion.open_relion_job(ui, JOB_REFINE_DIR / "job.star")
+    _preview_open_relion_job(ui, JOB_REFINE_DIR / "job.star")

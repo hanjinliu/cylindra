@@ -43,11 +43,12 @@ nav:
     - inspect_results.md
     - project_io.md
     - workflows.md
-    - plugins.md
     - Spline:
       - Spline: spline/index.md
       - spline/clip.md
       - spline/config.md
+      - spline/segments.md
+      - spline/3d_interaction.md
     - Molecules:
       - Molecules: molecules/index.md
       - molecules/pick_molecules.md
@@ -66,9 +67,10 @@ nav:
       - alignment/rma.md
     - Working with Many Projects:
       - Working with Many Projects: batch/index.md
-      - batch/collect_projects.md
+      - batch/prep.md
       - batch/construct.md
       - batch/average.md
+      - batch/post_processing.md
     - Working with External Softwares:
       - Working with External Softwares: extern/index.md
       - extern/imod.md
@@ -76,6 +78,7 @@ nav:
     - process_images.md
     - simulate.md
     - cli.md
+    - plugins.md
     - Case Studies:
       - Case Studies: case_studies/index.md
       - case_studies/rma.md
@@ -98,6 +101,7 @@ nav:
       - api/widgets/subwidgets.md
       - api/widgets/batch.md
     - Builtin Plugins:
+      - api/builtins/fetch.md
       - api/builtins/imod.md
       - api/builtins/relion.md
 
@@ -139,6 +143,9 @@ markdown_extensions:
 extra_javascript:
   - https://polyfill.io/v3/polyfill.min.js?features=es6
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+extra_css:
+  - extra_style.css
 
 watch:
   - cylindra

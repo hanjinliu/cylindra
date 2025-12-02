@@ -105,6 +105,7 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     assert ui._confirm_delete()
     ui.measure_local_radius(splines=[0, 1])
     ui.project_metadata["my_meta"] = 1
+    ui.add_segment(0, 10, 50, value="A")
 
     # Save project
     old_splines = ui.tomogram.splines.copy()
@@ -122,6 +123,8 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     for mol0, mol1 in zip(old_molecules, new_molecules, strict=True):
         assert_molecule_equal(mol0, mol1)
     assert ui.tomogram.tilt["range"] == (-60, 60)
+    assert len(ui.splines[0].segments) == 1
+    assert len(ui.splines[1].segments) == 0
 
     # try .tar file
     ui.save_project(save_path / "test_tar.tar")
@@ -196,6 +199,11 @@ def test_io_with_different_data(ui: CylindraMainWidget, tmpdir):
 
 
 def test_picking_splines(ui: CylindraMainWidget, tmpdir):
+    from cylindra.widgets._reserved_layers import (
+        _work_layer_copy,
+        _work_layer_cut,
+        _work_layer_paste,
+    )
     path = TEST_DIR / "13pf_MT.tif"
     ui.open_image(
         path=path, scale=1.052, tilt_range=(-60, 60), bin_size=[1, 2], cache_image=True
@@ -205,6 +213,24 @@ def test_picking_splines(ui: CylindraMainWidget, tmpdir):
     ui.Toolbar.pick_next()
     ui.register_path()
     assert len(ui.tomogram.splines) == 1
+
+    ui._reserved_layers.work.add(coords_13pf[0])
+    ui._reserved_layers.work.add(coords_13pf[1])
+    ui._reserved_layers.work.selected_data = [1]
+    assert ui._reserved_layers.work.data.shape[0] == 2
+    _work_layer_copy(ui._reserved_layers.work)
+    assert ui._reserved_layers.work.data.shape[0] == 2
+    _work_layer_cut(ui._reserved_layers.work)
+    assert ui._reserved_layers.work.data.shape[0] == 1
+    _work_layer_paste(ui._reserved_layers.work)
+    assert ui._reserved_layers.work.data.shape[0] == 2
+
+    mlayer = ui.add_molecules(
+        Molecules([[0, 0, 0], [1, 2, 2], [3, 4, 5]]),
+        name="mole"
+    )
+    ui.MoleculesMenu.to_draw_layer(mlayer)
+    assert ui._reserved_layers.work.data.shape[0] == 3
     ui.save_project(Path(tmpdir) / "temp.tar")
     ui.load_project(Path(tmpdir) / "temp.tar")
 
@@ -311,6 +337,10 @@ def test_reanalysis(ui: CylindraMainWidget):
 
 def test_map_molecules(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=None)
+    ui._reserved_layers.prof.show_polarity = False
+    assert ui._reserved_layers.prof.size[0] < 0.1
+    ui._reserved_layers.prof.show_polarity = True
+    assert ui._reserved_layers.prof.size[0] > 0.1
     assert ui.get_loader("Mole-0").molecules is ui.mole_layers["Mole-0"].molecules
     ui.map_monomers_with_extensions(0, {0: (1, 1), 1: (-1, -1)})
     ui.map_along_pf(0, molecule_interval=4.0)
@@ -333,6 +363,8 @@ def test_map_molecules(ui: CylindraMainWidget):
     )  # test mapping without any measurement.
     ui.map_along_spline_helical_symmetry(0)
 
+    ui.map_monomers(0, extensions=(1, 2), prop_to_use="local")
+    ui.map_monomers(0, extensions=(-1, 2), prop_to_use="both")
     ui.SplinesMenu.Show.show_splines()
     ui.SplinesMenu.Show.show_splines_as_meshes()
     ui.SplinesMenu.Show.show_splines_as_meshes(color_by="spacing")
@@ -670,6 +702,8 @@ def test_sub_widgets(ui: CylindraMainWidget, tmpdir):
         assert ui.splines[0].length() == pytest.approx(len_old - 2.4, abs=0.02)
 
         # spectra inspector
+        with pytest.raises(ValueError):
+            ui.local_cft_analysis(radius="local", interval=25)
         ui.local_cft_analysis(interval=25)
         ui.AnalysisMenu.open_spectra_inspector()
         ui.spectra_inspector.log_scale = True
@@ -694,20 +728,42 @@ def test_sub_widgets(ui: CylindraMainWidget, tmpdir):
         ui.spectra_inspector.peak_viewer.show_what = GLOBAL_CFT
         ui.spectra_inspector.parameters.export(Path(tmpdir) / "params.csv")
 
-        # file iterator
-        ui.FileMenu.open_file_iterator()
-        ui._file_iterator.set_pattern(f"{TEST_DIR.as_posix()}/*.tif")
-        ui._file_iterator.last_file()
-        ui._file_iterator.first_file()
-        ui._file_iterator.next_file()
-        ui._file_iterator.prev_file()
-        ui._file_iterator.open_image(ui._file_iterator.path)
-        ui._file_iterator.preview_all().close()
-        ui._file_iterator.set_pattern(f"{TEST_DIR.as_posix()}/*/project.json")
-        ui._file_iterator.view_local_props()
-        ui._file_iterator.send_to_batch_analyzer()
-        ui._file_iterator.load_project(ui._file_iterator.path)
-        ui._file_iterator.load_project_for_reanalysis(ui._file_iterator.path)
+        # spline 3D interactor
+        from cylindra.widgets.subwidgets import interactor as s3
+        ui.spline_3d_interactor._init()
+        ui.spline_3d_interactor.pick_mode_left = s3.DISABLED
+        ui.spline_3d_interactor.pick_mode_left = s3.ADD_POINT_ON_SPLINE
+        ui.spline_3d_interactor.pick_mode_left = s3.SELECT_SPLINE
+        ui.spline_3d_interactor.pick_mode_right = s3.DISABLED
+        ui.spline_3d_interactor.pick_mode_right = s3.SELECT_SPLINE
+        ui.spline_3d_interactor.pick_mode_right = s3.ADD_POINT_ON_SPLINE
+        n0 = np.array([0.25, 65.65, 21.26])
+        n1 = np.array([16.9, 69.1, 20.32])
+        ui.spline_3d_interactor._select_spline(n0, n1)
+        ui.spline_3d_interactor._select_spline(np.zeros(3), np.array([20.0, 0.0, 0.0]))
+        assert ui._reserved_layers.work.data.shape[0] == 0
+        ui.spline_3d_interactor._add_point_on_spline(n0, n1)
+        assert ui._reserved_layers.work.data.shape[0] == 1
+        ui.spline_3d_interactor.move_backward(1)
+        ui.spline_3d_interactor.move_forward(20)
+        ui.spline_3d_interactor._add_point_on_spline(n0, n1)
+        assert ui._reserved_layers.work.data.shape[0] == 2
+        ui.spline_3d_interactor.move_backward(10)
+        ui.spline_3d_interactor.add_segment()
+        ui.spline_3d_interactor._add_point_on_spline(n0, n1)
+        ui.spline_3d_interactor.delete_segments()
+        ui.spline_3d_interactor._add_point_on_spline(n0, n1)
+        ui.spline_3d_interactor.trim = 1.0
+        ui.spline_3d_interactor.split_spline()
+        ui.macro.undo()
+        ui.spline_3d_interactor._add_point_on_spline(n0, n1)
+        assert ui._reserved_layers.work.data.shape[0] == 1
+        ui.spline_3d_interactor.move_backward(1)
+        ui.spline_3d_interactor.move_forward(20)
+        ui.spline_3d_interactor._add_point_on_spline(n0, n1)
+        assert ui._reserved_layers.work.data.shape[0] == 2
+        ui.spline_3d_interactor.move_backward(10)
+        ui.spline_3d_interactor.clip_spline()
 
 
 @pytest.mark.parametrize("bin_size", [1, 2])
@@ -925,6 +981,31 @@ def test_radius_methods(ui: CylindraMainWidget):
     with pytest.raises(ValueError):
         ui.set_radius([0], "pl.col('npf').cast(pl.Float32) * -1")
 
+    # test segment methods
+    # first clear existing segments
+    for i, spl in ui.splines.enumerate():
+        if spl.segments:
+            ui.delete_segments(i, list(range(len(spl.segments))))
+    ui.local_cft_analysis("all", interval=8)
+    spl = ui.splines[0]
+    d = spl.distances()
+    ui.add_segment(0, d[1] - 2, d[3] + 2, value=10)
+    ui.add_segment(0, d[4] - 2, d[4] + 4, value=70)
+    ui.delete_segments(0, [1, 0])
+    ui.macro.undo()
+    ui.macro.undo()
+    ui.macro.redo()
+    ui.macro.redo()
+    ui.macro.undo()
+    ui.segments_to_localprops(0, column_name="NAME", default=-1)
+    assert "NAME" in spl.props.loc.columns
+    assert (spl.props.loc["NAME"][:6] == [-1, 10, 10, 10, 70, -1]).all()
+    ui.segments_to_localprops(0, column_name="NAME2", eval_expr="value > 8", default=False)
+    assert "NAME2" in spl.props.loc.columns
+    assert (spl.props.loc["NAME2"][:6] == [False, True, True, True, True, False]).all()
+    ui.segments_to_feature("Mole-0", column_name="NAME", default=-1)
+    ui.splines[0].copy()
+    assert ui.splines.collect_localprops()["NAME"].dtype == pl.Int32
 
 def test_simulator(ui: CylindraMainWidget):
     ui.ImageMenu.open_simulator()
@@ -1127,8 +1208,7 @@ def test_molecules_methods(ui: CylindraMainWidget):
     ui.rotate_molecule_toward_spline(ui.mole_layers.last(), 0)
     ui.distance_from_closest_molecule(ui.mole_layers.last(), ui.mole_layers[0])
 
-
-def test_transform_molecules(ui: CylindraMainWidget):
+    ## transform moleules
     ui.load_project(PROJECT_DIR_14PF, filter=None)
     layer = ui.mole_layers["Mole-0"]
     ui.translate_molecules("Mole-0", [3, -5, 2.2], internal=False)
@@ -1158,8 +1238,7 @@ def test_transform_molecules(ui: CylindraMainWidget):
     ui.macro.undo()
     ui.macro.redo()
 
-
-def test_merge_molecules(ui: CylindraMainWidget):
+    # merge molecules
     ui.load_project(PROJECT_DIR_14PF, filter=None)
     ui.merge_molecule_info(pos="Mole-0", rotation="Mole-1", features="Mole-0")
     assert_allclose(ui.mole_layers.last().data, ui.mole_layers["Mole-0"].data)
@@ -1637,7 +1716,7 @@ def test_landscape_and_interaction(ui: CylindraMainWidget, tmpdir):
     ui.sta.run_align_on_landscape(layer_land)
     ui.sta.run_viterbi_on_landscape(
         layer_land,
-        range_long=("-0.1", "+0.1"),
+        range_long=("d.mean()-0.1", "d.mean() + 0.1"),
         angle_max=10,
     )
     # click preview
@@ -1646,8 +1725,8 @@ def test_landscape_and_interaction(ui: CylindraMainWidget, tmpdir):
     tester.click_preview()
     ui.sta.run_rma_on_landscape(
         layer_land.name,
-        range_long=("-0.1", "+0.1"),
-        range_lat=("-0.1", "+0.1"),
+        range_long=("d.mean() -0.1", "d.mean()+ 0.1"),
+        range_lat=("d.mean()- 0.1", "d.mean()  + 0.1"),
         angle_max=20,
         random_seeds=[0, 1],
     )
@@ -1705,7 +1784,7 @@ def test_landscape_and_interaction(ui: CylindraMainWidget, tmpdir):
     assert isinstance(layer_land, LandscapeSurface)
     ui.sta.run_rfa_on_landscape(
         layer_land,
-        range_long=("-0.1", "+0.1"),
+        range_long=("d.mean()-0.1", "d.mean()+0.1"),
         angle_max=5,
     )
 
@@ -1764,7 +1843,7 @@ def test_showing_widgets(ui: CylindraMainWidget):
     ui.OthersMenu.open_logger()
     loader = ui.FileMenu.open_image_loader()
     loader.path = TEST_DIR / "13pf_MT.tif"
-    loader.scan_header()
+    loader.scan_header_or_defaults()
     assert loader.scale.scale_value == pytest.approx(1.052, abs=1e-5)
     assert loader.tilt_model.yrange.value == pytest.approx((-60, 60), abs=1e-3)
     loader.preview_image().close()
@@ -1808,26 +1887,27 @@ def test_workflows_custom(ui: CylindraMainWidget, tmpdir):
     name = "Test"
     code = "import numpy as np\ndef main(ui):\n    print(ui.default_config)\n"
     with _config.patch_workflow_path(tmpdir):
-        ui.OthersMenu.Workflows.define_workflow(name, code)
-        ui.OthersMenu.Workflows.edit_workflow(name, code)
-        ui.OthersMenu.Workflows.edit_workflow(name, code)  # test overwriting
+        ui.workflow_edit.new()
+        ui.workflow_edit.define_workflow(name, code)
+        ui.workflow_edit.edit()
+        ui.workflow_edit.save()
         ui.run_workflow(name)
-        ui.OthersMenu.Workflows.run_workflow(name)
+        ui.workflow_edit.run()
         ui.OthersMenu.Workflows.import_workflow(
             Path(tmpdir) / f"{name}.py", name="imported"
         )
-        ui.OthersMenu.Workflows.delete_workflow([name])
+        ui.workflow_edit.delete(name)
         ui.OthersMenu.Workflows.copy_workflow_directory()
 
         # test invalid code
         with pytest.raises(Exception):  # noqa: B017
             # attribute error
-            ui.OthersMenu.Workflows.define_workflow(
+            ui.workflow_edit.define_workflow(
                 "Test-2", "def main(ui):\n    ui.bad_method_name()\n"
             )
         with pytest.raises(Exception):  # noqa: B017
             # not enough arguments
-            ui.OthersMenu.Workflows.define_workflow(
+            ui.workflow_edit.define_workflow(
                 "Test-2", "def main(ui):\n    ui.open_image()\n"
             )
 
@@ -1895,3 +1975,13 @@ def test_split_splines(ui: CylindraMainWidget):
     ui.splines[0].props.update_loc(pl.Series(H.spacing, prop), window_size=50)
     ui.split_splines_at_changing_point(0, estimate_by=H.spacing, diff_cutoff=0.08)
     assert len(ui.splines) == 3
+
+def test_labels_methods(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_13PF, filter=None, read_image=False)
+    ui.new_labels(name="Labels-0")
+    labels_layer = ui.parent_viewer.layers["Labels-0"]
+    ui.splines_to_labels(splines=[0], target_layer=labels_layer)
+    ui.molecules_to_labels(layers=["Mole-0"], target_layer=labels_layer, label_id=2)
+    labels_layer.data["y=:N//2"] = 3
+    ui.add_molecule_feature_from_labels_layer("Mole-0", labels_layer=labels_layer)
+    ui.add_spline_segments_from_labels_layer(0, labels_layer=labels_layer)

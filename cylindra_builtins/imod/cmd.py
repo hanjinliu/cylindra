@@ -82,7 +82,6 @@ def save_angles(path: str, euler_angle: np.ndarray = None):
     header_text = ",".join(s.split("_")[0] for s in df.columns)
     with open(path, "w") as fh:
         fh.write(header_text + "\n" + text)
-    return None
 
 
 def read_edf(path: str) -> dict[str, Any]:

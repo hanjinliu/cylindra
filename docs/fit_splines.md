@@ -7,6 +7,8 @@ All the analysis begin with the spline fitting.
     [GitHub repository](https://github.com/hanjinliu/cylindra/blob/main/tests/13pf_MT.tif), which have been used for testing the programs. You can download it to try
     following instructions.
 
+    :sparkles: New in v1.0.2: You can now fetch the demo data directly from `Plugins > Fetch > 13 PF microtubule`.
+
 ## Draw Splines
 
 :material-arrow-right-thin-circle-outline: API: [`register_path`][cylindra.widgets.main.CylindraMainWidget.register_path]
@@ -17,6 +19,14 @@ You can use the built-in functionality of `napari` to place points first, and fi
 the points with a spline.
 
 ![draw_splines](images/draw_splines.gif){ loading=lazy, width=400px }
+
+??? tip "Userfule keyboard shortcuts"
+
+    ++d++: Select the draw layer and enter add-point mode.
+
+    ++j++: Move z-slider to the left by 5 steps.
+
+    ++k++: Move z-slider to the right by 5 steps.
 
 To delete the last spline, click ![](images/toolbutton_clear_current.png){ width=28px }.
 

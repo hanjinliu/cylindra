@@ -6,7 +6,12 @@ $$
 \boldsymbol{C}(u) \in \mathbb{R}^3 \quad (0\le u \le 1)
 $$
 
-In `cylindra`, several useful methods are provided to make the most of splines.
+Splines are used to represent filamentous structures in the tomograms. In `cylindra`,
+several useful methods are provided to make the most of splines.
 
 - [Clip and Invert Splines](clip.md)
 - [Spline Configurations](config.md)
+- [Annotate Segments on Splines](segments.md)
+- [Spline 3D interactivity](3d_interaction.md)
+
+How to fit splines to structures is described [here](../fit_splines.md).

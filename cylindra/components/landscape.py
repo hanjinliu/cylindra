@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import (
@@ -469,12 +468,12 @@ class Landscape:
             reject_limit=reject_limit,
         )
 
-        batch_size = _to_batch_size(annealing.time_constant())
+        epoch_size = _to_epoch_size(annealing.time_constant())
         temp0 = annealing.temperature()
         _Logger.info("Running annealing")
         _Logger.info(f"  shape: {self.energies.shape[1:]!r}")
         tasks = [
-            _run_annealing(annealing.with_seed(s), batch_size, temp0)
+            _run_annealing(annealing.with_seed(s), epoch_size, temp0)
             for s in random_seeds
         ]
         return compute(*tasks)
@@ -532,7 +531,7 @@ class Landscape:
             temperature_time_const=temperature_time_const,
         )
 
-        batch_size = _to_batch_size(annealing.time_constant())
+        batch_size = _to_epoch_size(annealing.time_constant())
         temp0 = annealing.temperature()
         _Logger.info("Running annealing")
         _Logger.info(f"  shape: {self.energies.shape[1:]!r}")
@@ -771,15 +770,6 @@ class Landscape:
 def _norm_distance(v: str | nm, arr) -> nm:
     if not isinstance(v, str):
         return v
-    if v.startswith(("*", "+", "-")):
-        warnings.warn(
-            f"Distance specification using relative values like {v!r} is deprecated. "
-            f"Please use the numpy array object `d` for the array of distance. For "
-            "example, `d.mean()` for the mean distance.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        v = f"d.mean(){v}"
     ns = {"__builtins__": {}, "d": arr, "np": np}
     out = eval(v, ns, {})
     out_float = float(out)
@@ -821,22 +811,23 @@ def _update_mole_pos(new: Molecules, old: Molecules, spl: CylSpline) -> Molecule
 @delayed
 def _run_annealing(
     model: CylindricAnnealingModel,
-    batch_size: int,
+    epoch_size: int,
     temp: float,
 ) -> AnnealingResult:
     model.init_shift_random()
     energies = [model.energy()]
+    _sim = model.simulate
     while (
         model.temperature() > temp * 1e-5
         and model.optimization_state() == "not_converged"
     ):
-        model.simulate(batch_size)
+        _sim(epoch_size)
         energies.append(model.energy())
     model.cool_completely()
     energies.append(model.energy())
     return AnnealingResult(
         energies=np.array(energies),
-        batch_size=batch_size,
+        epoch_size=epoch_size,
         time_const=model.time_constant(),
         indices=model.shifts(),
         niter=model.iteration(),
@@ -891,7 +882,7 @@ class AnnealingResult:
     ----------
     energies : np.ndarray
         History of energies of the annealing process.
-    batch_size : int
+    epoch_size : int
         Batch size used in the annealing process.
     time_const : float
         Time constant used for cooling.
@@ -904,14 +895,14 @@ class AnnealingResult:
     """
 
     energies: NDArray[np.float32]
-    batch_size: int
+    epoch_size: int
     time_const: float
     indices: NDArray[np.int32]
     niter: int
     state: str
 
 
-def _to_batch_size(time_const: float) -> int:
+def _to_epoch_size(time_const: float) -> int:
     return max(int(time_const / 20), 1)
 
 

@@ -194,8 +194,8 @@ impl CylindricGraph {
                 let coord_l = &self.coords[(pos_l.index.y, pos_l.index.a)];
                 let coord_r = &self.coords[(pos_r.index.y, pos_r.index.a)];
 
-                let dr_l = coord_c.at_vec(pos_c.state.into()) - coord_l.at_vec(pos_l.state.into());
-                let dr_r = coord_c.at_vec(pos_c.state.into()) - coord_r.at_vec(pos_r.state.into());
+                let dr_l = coord_c.at_vec(pos_c.state.into()) - coord_l.at_vec_fast(pos_l.state.into());
+                let dr_r = coord_c.at_vec(pos_c.state.into()) - coord_r.at_vec_fast(pos_r.state.into());
                 angles[i] = dr_l.angle(&dr_r);
             }
 
@@ -341,10 +341,34 @@ impl GraphTrait<Node2D<Shift>, EdgeType> for CylindricGraph {
         let vec2 = node_state1.state;
         let coord1 = &self.coords[(node_state0.index.y, node_state0.index.a)];
         let coord2 = &self.coords[(node_state1.index.y, node_state1.index.a)];
-        let dr = coord1.at_vec(vec1.into()) - coord2.at_vec(vec2.into());
+        let dr = coord1.at_vec_fast(vec1.into()) - coord2.at_vec_fast(vec2.into());
         // ey is required for the angle constraint.
         let ey = coord2.origin - coord1.origin;
         self.binding_potential.calculate(&dr, &ey, typ)
+    }
+
+    fn binding_old_new(
+        &self,
+        state_old: &Node2D<Shift>,
+        state_new: &Node2D<Shift>,
+        other_state: &Node2D<Shift>,
+        typ: &EdgeType,
+    ) -> (f32, f32) {
+        let vec_old = state_old.state;
+        let vec_new = state_new.state;
+        let vec_other = other_state.state;
+        let coord_old = &self.coords[(state_old.index.y, state_old.index.a)];
+        let coord_new = &self.coords[(state_new.index.y, state_new.index.a)];
+        let coord_other = &self.coords[(other_state.index.y, other_state.index.a)];
+        let point_other = coord_other.at_vec_fast(vec_other.into());
+        let dr_old = coord_old.at_vec_fast(vec_old.into()) - point_other;
+        let dr_new = coord_new.at_vec_fast(vec_new.into()) - point_other;
+        // ey_* is required for the angle constraint.
+        let ey_old = coord_other.origin - coord_old.origin;
+        let ey_new = coord_other.origin - coord_new.origin;
+        let e_old = self.binding_potential.calculate(&dr_old, &ey_old, typ);
+        let e_new = self.binding_potential.calculate(&dr_new, &ey_new, typ);
+        (e_old, e_new)
     }
 
     /// Return a random neighbor state of a given node state.
@@ -374,8 +398,9 @@ impl GraphTrait<Node2D<Shift>, EdgeType> for CylindricGraph {
             let ends = graph.edge_end(edge_id);
             let other_idx = if ends.0 == idx { ends.1 } else { ends.0 };
             let other_state = graph.node_state(other_idx);
-            e_old += self.binding(&state_old, &other_state, graph.edge_state(edge_id));
-            e_new += self.binding(&state_new, &other_state, graph.edge_state(edge_id));
+            let (e_old_diff, e_new_diff) = self.binding_old_new(&state_old, &state_new, &other_state, graph.edge_state(edge_id));
+            e_old += e_old_diff;
+            e_new += e_new_diff;
         }
         e_new - e_old
     }
@@ -407,6 +432,16 @@ impl GraphTrait<Node2D<Shift>, EdgeType> for CylindricGraph {
         }
 
         let (_nz, _ny, _nx) = (shape[1], shape[2], shape[3]);
+
+        // Initialize all the cache
+        let ny = self.outer_shape().0;
+        let na = self.outer_shape().1;
+        let mut new_coords = HashMap2D::from_shape(ny, na);
+        for (index, coord) in self.coords.iter() {
+            new_coords.insert(index, coord.with_cache(_nz, _ny, _nx));
+        }
+        self.coords = Arc::new(new_coords);
+
         self.local_shape = Vector3D::new(_nz, _ny, _nx).into();
         let center: Shift = Vector3D::new(_nz / 2, _ny / 2, _nx / 2).into();
         let (ny_out, na_out) = self.outer_shape();

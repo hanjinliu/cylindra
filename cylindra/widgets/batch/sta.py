@@ -33,7 +33,7 @@ from cylindra.widget_utils import (
     FscResult,
     PolarsExprStr,
     TemplateFreeAlignmentState,
-    norm_expr,
+    norm_polars_expr,
     timer,
 )
 from cylindra.widgets._annotated import FSCFreq
@@ -231,7 +231,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         loaderlist = self._get_parent()._loaders
         info = loaderlist[loader_name]
         loader = info.loader
-        new = loader.filter(norm_expr(expression))
+        new = loader.filter(norm_polars_expr(expression))
         existing_id = set(new.features[Mole.image])
         loaderlist.add_loader(
             new,
@@ -304,7 +304,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         img = ip.asarray(
             loader.replace(output_shape=shape, order=interpolation)
             .binning(bin_size, compute=False)
-            .groupby(norm_expr(by))
+            .groupby(norm_polars_expr(by))
             .average()
             .value_stack(axis=0),
             axes="pzyx",

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import glob
 import math
 import re
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable, Sequence, TypeVar
+from typing import Any, Callable, Iterable, Sequence, TypeVar
 
 import impy as ip
 import numpy as np
@@ -13,6 +14,7 @@ from acryo.tilt import NoWedge, TiltSeriesModel, dual_axis, single_axis
 from dask import array as da
 from numpy.typing import NDArray
 from scipy import ndimage as ndi
+from scipy import spatial
 
 from cylindra._dask import Delayed, compute, delayed
 from cylindra.const import Mode
@@ -46,12 +48,11 @@ def distance_matrix(
     a: NDArray[np.floating],
     b: NDArray[np.floating],
 ) -> NDArray[np.floating]:
-    """
-    Return the distance matrix between two arrays.
+    """Return the distance matrix between two arrays.
 
     distance_matrix(a, b) will return a matrix of shape (a.shape[0], b.shape[0])
     """
-    return np.linalg.norm(a[:, np.newaxis] - b[np.newaxis], axis=-1)
+    return spatial.distance_matrix(a, b)
 
 
 def interp(
@@ -392,9 +393,36 @@ def fit_to_shape(img: ip.ImgArray, shape: tuple[int, int, int]) -> ip.ImgArray:
     return img
 
 
+def nd_take(
+    arr: NDArray[np.int_],
+    indices: NDArray[np.int_],
+    default: int = -1,
+) -> NDArray[np.int32]:
+    nz, ny, nx = arr.shape
+    flat_indices = ny * nx * indices[:, 0] + nx * indices[:, 1] + indices[:, 2]
+    ids = np.full(indices.shape[0], default, dtype=np.int32)
+    is_valid = (indices >= 0) & (indices < np.array([[nz, ny, nx]]))
+    is_valid = np.all(is_valid, axis=1)
+    ids[is_valid] = np.take(arr, flat_indices[is_valid])
+    return ids
+
+
+def unwrap_wildcard(path: str | Path | Iterable[str | Path]) -> list[Path]:
+    """Unwrap a wildcard path to a string."""
+    all_paths = []
+    if isinstance(path, (str, Path)):
+        path = [str(path)]
+    for p in path:
+        p = str(Path(p).expanduser())
+        if "*" in p or "?" in p:
+            all_paths.extend(glob.glob(p))
+        else:
+            all_paths.append(p)
+    return [Path(p) for p in all_paths]
+
+
 class Projections:
-    """
-    Class that stores projections of a 3D image, calculated lazily.
+    """Class that stores projections of a 3D image, calculated lazily.
 
     Note
     ----
