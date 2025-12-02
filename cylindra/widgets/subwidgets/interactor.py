@@ -49,7 +49,7 @@ class Spline3DInteractor(ChildWidget):
     def _iter_splines(self) -> Iterator[tuple[int, CylSpline]]:
         main = self._get_main()
         out = list(main.splines.enumerate())
-        if i := main.SplineControl.num is not None:
+        if (i := main.SplineControl.num) is not None:
             out = [(i, main.splines[i])] + [a for a in out if a[0] != i]
         yield from out
 
