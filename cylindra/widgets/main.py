@@ -3746,7 +3746,6 @@ class CylindraMainWidget(MagicTemplate):
                 if layer in viewer.layers:
                     viewer.layers.remove(layer)
 
-            widget_utils.process_events()
             viewer.add_layer(self._reserved_layers.prof)
             viewer.add_layer(self._reserved_layers.work)
             if self.spline_3d_interactor.visible:

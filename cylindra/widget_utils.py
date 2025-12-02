@@ -582,8 +582,3 @@ def show_widget(widget: Widget, title: str, parent: Widget | QtW.QWidget):
     widget.native.setWindowTitle(title)
     widget.show()
     ACTIVE_WIDGETS.add(widget)
-
-
-def process_events():
-    """Process Qt events to update the UI."""
-    QtW.QApplication.processEvents()
