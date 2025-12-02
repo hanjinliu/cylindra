@@ -8621,7 +8621,11 @@
 <span class="normal">3858</span>
 <span class="normal">3859</span>
 <span class="normal">3860</span>
-<span class="normal">3861</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span>
+<span class="normal">3861</span>
+<span class="normal">3862</span>
+<span class="normal">3863</span>
+<span class="normal">3864</span>
+<span class="normal">3865</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span>
     <span class="n">widget_type</span><span class="o">=</span><span class="s2">&quot;scrollable&quot;</span><span class="p">,</span>
     <span class="n">stylesheet</span><span class="o">=</span><span class="n">_STYLE</span><span class="p">,</span>
     <span class="n">name</span><span class="o">=</span><span class="s2">&quot;cylindra&quot;</span><span class="p">,</span>
@@ -12149,8 +12153,12 @@
             <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reserved_layers</span><span class="o">.</span><span class="n">to_be_removed</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">layer</span> <span class="ow">in</span> <span class="n">viewer</span><span class="o">.</span><span class="n">layers</span><span class="p">:</span>
                     <span class="n">viewer</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">layer</span><span class="p">)</span>
+
+            <span class="n">widget_utils</span><span class="o">.</span><span class="n">process_events</span><span class="p">()</span>
             <span class="n">viewer</span><span class="o">.</span><span class="n">add_layer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_reserved_layers</span><span class="o">.</span><span class="n">prof</span><span class="p">)</span>
             <span class="n">viewer</span><span class="o">.</span><span class="n">add_layer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_reserved_layers</span><span class="o">.</span><span class="n">work</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">spline_3d_interactor</span><span class="o">.</span><span class="n">visible</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">spline_3d_interactor</span><span class="o">.</span><span class="n">_add_mouse_callback</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">GlobalProperties</span><span class="o">.</span><span class="n">_init_text</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">reset_choices</span><span class="p">()</span>
 
