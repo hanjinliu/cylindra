@@ -37,10 +37,14 @@ class Spline3DInteractor(ChildWidget):
         self._pick_func_right = self._no_action
 
     def _init(self):
-        main = self._get_main()
-        main._reserved_layers.work.mouse_drag_callbacks.append(self._draw_callback)
+        self._add_mouse_callback()
         self.pick_mode_left = SELECT_SPLINE
         self.pick_mode_right = ADD_POINT_ON_SPLINE
+
+    def _add_mouse_callback(self):
+        main = self._get_main()
+        if self._draw_callback not in main._reserved_layers.work.mouse_drag_callbacks:
+            main._reserved_layers.work.mouse_drag_callbacks.append(self._draw_callback)
 
     def _iter_splines(self) -> Iterator[tuple[int, CylSpline]]:
         main = self._get_main()

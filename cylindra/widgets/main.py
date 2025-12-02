@@ -3745,8 +3745,12 @@ class CylindraMainWidget(MagicTemplate):
             for layer in self._reserved_layers.to_be_removed:
                 if layer in viewer.layers:
                     viewer.layers.remove(layer)
+
+            widget_utils.process_events()
             viewer.add_layer(self._reserved_layers.prof)
             viewer.add_layer(self._reserved_layers.work)
+            if self.spline_3d_interactor.visible:
+                self.spline_3d_interactor._add_mouse_callback()
         self.GlobalProperties._init_text()
         self.reset_choices()
 

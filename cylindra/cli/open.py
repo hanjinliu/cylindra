@@ -79,7 +79,7 @@ class ParserOpen(ParserBase):
             except Exception:
                 read_batch_project(fp)  # check if it's a batch project
                 _is_batch = True
-            print(f"Opening project: {fp.as_posix()}")
+            print(f"Opening project: {fp.absolute().as_posix()}")
             if not (scale is None and missing_wedge is None):
                 warnings.warn(
                     "scale and tilt are ignored for project input.",
