@@ -14,6 +14,7 @@ from cylindra._dask import Delayed, compute
 from cylindra.components._ftprops import (
     LatticeAnalyzer,
     LatticeParams,
+    LatticeParamsCartesian,
     get_polar_image,
     is_clockwise,
 )
@@ -635,6 +636,44 @@ class CylTomogram(Tomogram):
 
         return lprops
 
+    @_misc.batch_process
+    def local_ft_params(
+        self,
+        *,
+        i: int = None,
+        depth: nm = 50.0,
+        binsize: int = 1,
+        radius: nm | Literal["local", "global"] = "global",
+        nsamples: int = 1,
+        update: bool = True,
+        update_glob: bool = False,
+    ) -> pl.DataFrame:
+        LOGGER.info(f"Running: {self.__class__.__name__}.local_ft_params, i={i}")
+        spl = self.splines[i]
+        radii = _misc.prepare_radii(spl, radius)
+        input_img = self._get_multiscale_or_original(binsize)
+        _scale = input_img.scale.x
+        tasks: list[Delayed[LatticeParamsCartesian]] = []
+        spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
+        _analyze_fn = LatticeAnalyzer(spl.config).estimate_lattice_params_task_cartesian
+        for anc, r0 in zip(spl_trans.anchors, radii, strict=True):
+            _, rmax = spl.radius_range(r0)
+            width = rmax * 2
+            coords = spl_trans.local_cartesian((width, width), depth, anc, scale=_scale)
+            tasks.append(_analyze_fn(input_img, coords, width, nsamples=nsamples))
+
+        lprops = pl.DataFrame(
+            compute(*tasks),
+            schema=LatticeParamsCartesian.polars_schema(),
+        )
+        if update:
+            spl.props.update_loc(lprops, depth, bin_size=binsize)
+        if update_glob:
+            gprops = lprops.select(pl.col(H.pitch).mean())
+            spl.props.update_glob(gprops, bin_size=binsize)
+
+        return lprops
+
     def iter_local_image(
         self,
         i: int,
@@ -866,6 +905,29 @@ class CylTomogram(Tomogram):
         rc = (rmin + rmax) / 2
         analyzer = LatticeAnalyzer(spl.config)
         lparams = analyzer.estimate_lattice_params_polar(img_st, rc, nsamples=nsamples)
+        out = lparams.to_polars()
+        if update:
+            spl.props.update_glob(spl.props.glob.with_columns(out), bin_size=binsize)
+        return out
+
+    @_misc.batch_process
+    def global_ft_params(
+        self,
+        *,
+        i: int = None,
+        binsize: int = 1,
+        nsamples: int = 1,
+        update: bool = True,
+    ) -> pl.DataFrame:
+        LOGGER.info(f"Running: {self.__class__.__name__}.global_ft_params, i={i}")
+        spl = self.splines[i]
+        rmin, rmax = spl.radius_range()
+        width = rmax * 2
+        img_st = self.straighten(i, size=(width, width), binsize=binsize)
+        analyzer = LatticeAnalyzer(spl.config)
+        lparams = analyzer.estimate_lattice_params_cartesian(
+            img_st, width, nsamples=nsamples
+        )
         out = lparams.to_polars()
         if update:
             spl.props.update_glob(spl.props.glob.with_columns(out), bin_size=binsize)

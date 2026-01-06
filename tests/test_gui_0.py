@@ -521,6 +521,9 @@ def test_spline_control(ui: CylindraMainWidget, tmpdir):
     )
     assert ui._reserved_layers.image_data.source == tmpdir / "ref.mrc"
 
+    ui.local_ft_analysis(splines=[0])
+    ui.global_ft_analysis(splines=[0])
+
 
 def test_preview(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None)

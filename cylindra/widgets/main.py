@@ -2273,6 +2273,100 @@ class CylindraMainWidget(MagicTemplate):
 
         return _global_cft_analysis_on_return
 
+    @set_design(text="Local FT analysis", location=_sw.AnalysisMenu)
+    @thread_worker.with_progress(desc="Local Fourier transform", total=_NSPLINES)
+    def local_ft_analysis(
+        self,
+        splines: SplinesType = None,
+        interval: _Interval = None,
+        depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 50.0,
+        bin_size: BinSizeType = 1,
+        radius: Literal["local", "global"] = "global",
+        update_glob: Annotated[bool, {"text": "Also update the global properties"}] = False,
+    ):  # fmt: skip
+        """Determine local lattice parameters by canonical local Fourier transformation.
+
+        Unlike the cylindrical Fourier transform, this method will only measure the
+        `pitch` parameter.
+
+        Parameters
+        ----------
+        {splines}{interval}{depth}{bin_size}
+        radius : str, default "global"
+            If "local", use the local radius for the analysis. If "global", use the
+            global radius.
+        {update_glob}
+        """
+        tomo = self.tomogram
+        splines = self._norm_splines(splines)
+
+        # first check radius
+        _check_params_local_cft(radius, splines, tomo, interval)
+
+        @thread_worker.callback
+        def _local_ft_analysis_on_yield(i: int):
+            self._update_splines_in_images()
+            if i == self.SplineControl.num:
+                self.sample_subtomograms()
+
+        with SplineTracker(widget=self, indices=splines, sample=True) as tracker:
+            for i in splines:
+                if interval is not None:
+                    tomo.make_anchors(i=i, interval=interval)
+                tomo.local_ft_params(
+                    i=i, depth=depth, binsize=bin_size, radius=radius,
+                    update_glob=update_glob,
+                )  # fmt: skip
+                yield _local_ft_analysis_on_yield.with_args(i)
+            return tracker.as_undo_callback()
+
+    @set_design(text="Global CFT analysis", location=_sw.AnalysisMenu)
+    @thread_worker.with_progress(desc="Global Fourier transform", total=_NSPLINES)
+    def global_ft_analysis(
+        self,
+        splines: SplinesType = None,
+        bin_size: BinSizeType = 1,
+    ):  # fmt: skip
+        """Determine global structural parameters by canonical Fourier transformation.
+
+        Unlike the cylindrical Fourier transform, this method will only measure the
+        `pitch` parameter.
+
+        Parameters
+        ----------
+        {splines}{bin_size}
+        """
+        tomo = self.tomogram
+        splines = self._norm_splines(splines)
+
+        with SplineTracker(widget=self, indices=splines, sample=True) as tracker:
+            for i in splines:
+                spl = tomo.splines[i]
+                if spl.radius is None:
+                    tomo.measure_radius(i=i)
+                tomo.global_ft_params(i=i, binsize=bin_size)
+                yield
+
+            # show all in a table
+            @thread_worker.callback
+            def _global_ft_analysis_on_return():
+                df = (
+                    pl.concat(
+                        [tomo.splines[i].props.glob for i in splines],
+                        how="vertical_relaxed",
+                    )
+                    .to_pandas()
+                    .transpose()
+                )
+                df.columns = [f"Spline-{i}" for i in range(len(df.columns))]
+                self.sample_subtomograms()
+                _Logger.print_table(df, precision=3)
+                self._update_global_properties_in_widget()
+
+                return tracker.as_undo_callback()
+
+        return _global_ft_analysis_on_return
+
     def _get_reanalysis_macro(self, path: Path):
         """Get the macro expression for reanalysis in the given project path."""
         _ui_sym = mk.symbol(self)
