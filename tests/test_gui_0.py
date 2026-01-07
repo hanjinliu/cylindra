@@ -520,8 +520,10 @@ def test_spline_control(ui: CylindraMainWidget, tmpdir):
         tmpdir / "test_spline_control.tar", read_image=False, read_reference=True
     )
     assert ui._reserved_layers.image_data.source == tmpdir / "ref.mrc"
-
-    ui.local_ft_analysis(splines=[0])
+    ui.register_path(coords=coords_13pf)
+    ui.fit_splines(splines=[0])
+    ui.set_radius(splines=[0], radius=11.0)
+    ui.local_ft_analysis(splines=[0], interval=50)
     ui.global_ft_analysis(splines=[0])
 
 
