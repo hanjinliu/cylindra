@@ -13,10 +13,10 @@ from cylindra._dask import Delayed, delayed
 from cylindra.components._cylinder_params import CylinderParameters
 from cylindra.components._peak import FTPeakInfo, PeakDetector
 from cylindra.components.spline import SplineConfig
+from cylindra.const import Mode, nm
 from cylindra.const import PropertyNames as H
-from cylindra.const import nm
 from cylindra.cyltransform import get_polar_image, get_polar_image_task
-from cylindra.utils import ceilint, floorint, roundint
+from cylindra.utils import ceilint, floorint, map_coordinates_task, roundint
 
 
 class LatticeParams(NamedTuple):
@@ -50,6 +50,21 @@ class LatticeParams(NamedTuple):
         ]
 
 
+class LatticeParamsCartesian(NamedTuple):
+    """Lattice parameters measured in Cartesian coordinates."""
+
+    pitch: nm
+
+    def to_polars(self) -> pl.DataFrame:
+        """Convert named tuple into a polars DataFrame."""
+        return pl.DataFrame([self], schema=self.polars_schema())
+
+    @staticmethod
+    def polars_schema() -> list[tuple[str, type[pl.DataType]]]:
+        """Return the schema of the polars DataFrame."""
+        return [(H.pitch, pl.Float32)]
+
+
 class LatticeAnalyzer:
     def __init__(self, config: SplineConfig):
         self._cfg = config
@@ -79,6 +94,18 @@ class LatticeAnalyzer:
         task = get_polar_image_task(img, coords, radius)
         return self.estimate_lattice_params_polar_delayed(task, radius, nsamples)
 
+    def estimate_lattice_params_task_cartesian(
+        self,
+        img: ip.ImgArray | ip.LazyImgArray,
+        coords: NDArray[np.float32],
+        width: nm,
+        nsamples: int = 1,
+    ) -> Delayed[LatticeParamsCartesian]:
+        task = map_coordinates_task(
+            img, coords, order=3, mode=Mode.constant, cval=np.mean
+        )
+        return self.estimate_lattice_params_cartesian_task(task, width, nsamples)
+
     def estimate_lattice_params_polar(
         self, img: ip.ImgArray, radius: nm, nsamples: int = 8
     ) -> LatticeParams:
@@ -101,6 +128,26 @@ class LatticeAnalyzer:
         )
 
     estimate_lattice_params_polar_delayed = delayed(estimate_lattice_params_polar)
+
+    def estimate_lattice_params_cartesian(
+        self,
+        img: ip.ImgArray,
+        width: nm,
+        nsamples: int = 1,
+    ) -> LatticeParamsCartesian:
+        img = img - float(img.mean())  # normalize.
+        x_center = (img.shape.x - 1) / 2
+        radius = width / img.scale.x / 2
+        x0 = int(x_center - radius)
+        x1 = ceilint(x_center + radius + 1)
+        img_in = img[:, :, x0:x1].mean(axis=2, keepdims=True)
+        img_in.axes = "rya"
+        img_in.set_scale(r=img.scale.z, y=img.scale.y, a=1.0)
+        peak_det = PeakDetector(img_in, nsamples=nsamples)
+        peakv = peak_det.get_peak(**self._params_v_cartesian(img_in))
+        return LatticeParamsCartesian(img.scale.y / peakv.yfreq)
+
+    estimate_lattice_params_cartesian_task = delayed(estimate_lattice_params_cartesian)
 
     # y-axis
     # ^           + <- peakv
@@ -162,6 +209,17 @@ class LatticeAnalyzer:
             ),
             "up_y": max(int(6000 / img.shape.y), 1),
             "up_a": 20,
+        }
+
+    def _params_v_cartesian(self, img: ip.ImgArray):
+        _y_min = img.shape.y * img.scale.y / self._cfg.spacing_range.max
+        _y_max = img.shape.y * img.scale.y / self._cfg.spacing_range.min
+        # image is projected along x-axis before peak detection, so a-axis range is [0, 1]
+        return {
+            "range_y": (_y_min, _y_max),
+            "range_a": (0, 1),
+            "up_y": max(int(6000 / img.shape.y), 1),
+            "up_a": 1,
         }
 
     def get_params(

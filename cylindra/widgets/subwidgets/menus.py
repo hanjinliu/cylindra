@@ -713,6 +713,9 @@ class AnalysisMenu(ChildWidget):
 
     local_cft_analysis = abstractapi()
     global_cft_analysis = abstractapi()
+    sep0 = Separator
+    local_ft_analysis = abstractapi()
+    global_ft_analysis = abstractapi()
     sep1 = Separator
     reanalyze_image = abstractapi()
     reanalyze_image_config_updated = abstractapi()
