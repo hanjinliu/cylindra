@@ -1062,15 +1062,14 @@ class SubtomogramAveraging(ChildWidget):
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
         bin_size: BinSizeType = 1,
+        max_num_iters: Annotated[int, {"min": 3, "max": 100}] = 20,
     ):  # fmt: skip
         """Iteratively align molecules and validate using FSC without template.
 
         Parameters
         ----------
-        {layers}{mask_params}{size}{max_shifts}{max_rotations}{interpolation}
-        {method}{bin_size}
-        seed : int, optional
-            Random seed for FSC calculation.
+        {layers}{mask_params}{size}{max_shifts}{max_rotations}{min_rotation_step}
+        {interpolation}{method}{bin_size}{max_num_iters}
         """
         t0 = timer()
         rng = np.random.default_rng(5926)
@@ -1094,7 +1093,7 @@ class SubtomogramAveraging(ChildWidget):
             alignment_model=_get_alignment(method),
             min_rotation_step=min_rotation_step,
         )
-        _Logger.print(f"Starting template-free alignment ({loader.molecules.count()} molecules) ...")  # fmt: skip
+        _Logger.print(f"Starting template-free alignment ({loader.molecules.count()} molecules in total) ...")  # fmt: skip
         yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
         result = _alignment_state.fsc_step_init(loader, max_shifts, max_rotations)
         yield _plot_current_fsc.with_args(
@@ -1102,10 +1101,10 @@ class SubtomogramAveraging(ChildWidget):
         ).with_desc(_pdesc.align_tf_1(_alignment_state))
         while True:
             _Logger.print(_alignment_state.next_params(loader.scale).format())
-            if _alignment_state.is_converged():
-                _Logger.print("FSC converged.")
-                yield self._show_rec.with_args(
-                    result.avg, f"[Aligned]{_avg_name(layers)}"
+            _exceeded = max_num_iters <= _alignment_state.num_iter
+            if _alignment_state.is_converged() or _exceeded:
+                _Logger.print(
+                    "Maximum iteration exceeded" if _exceeded else "FSC converged."
                 )
                 break
             loader = _alignment_state.align_step(loader)
@@ -1115,6 +1114,7 @@ class SubtomogramAveraging(ChildWidget):
                 result.fsc, _alignment_state.num_iter, result.avg
             ).with_desc(_pdesc.align_tf_1(_alignment_state))
 
+        yield self._show_rec.with_args(result.avg, f"[Aligned]{_avg_name(layers)}")
         molecules = combiner.split(loader.molecules, layers)
         t0.toc()
         return self._align_all_on_return.with_args(molecules, layers)
@@ -1896,12 +1896,12 @@ class SubtomogramAveraging(ChildWidget):
             cutoff=cutoff,
             n_components=n_components,
             n_clusters=n_clusters,
-            label_name="cluster",
+            label_name="class",
         )
 
-        avgs_dict = out.groupby("cluster").average()
+        avgs_dict = out.groupby("class").average()
         avgs = ip.asarray(
-            np.stack(list(avgs_dict.values()), axis=0), axes=["cluster", "z", "y", "x"]
+            np.stack(list(avgs_dict.values()), axis=0), axes=["cls", "z", "y", "x"]
         ).set_scale(zyx=loader.scale, unit="nm")
 
         transformed = pca.get_transform()

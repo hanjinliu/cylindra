@@ -252,7 +252,11 @@ class BaseAlignmentState(Generic[_R]):
 
 @dataclass
 class AlignmentState(BaseAlignmentState[AlignmentResult]):
-    """State of the template-free alignment."""
+    """State of the template-free alignment.
+
+    Template-free alignment proceeds in iterations consisting of FSC step and alignment
+    step.
+    """
 
     def fsc_step_init(
         self,
@@ -313,6 +317,8 @@ class AlignmentState(BaseAlignmentState[AlignmentResult]):
 
 @dataclass
 class RMAAlignmentState(BaseAlignmentState[RMAAlignmentResult]):
+    """State of the template-free RMA alignment."""
+
     def fsc_step_init(
         self,
         loader: SubtomogramLoader,

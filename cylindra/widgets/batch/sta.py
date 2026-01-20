@@ -401,15 +401,17 @@ class BatchSubtomogramAveraging(MagicTemplate):
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
         bin_size: _BINSIZE = 1,
+        max_num_iters: Annotated[int, {"min": 3, "max": 100}] = 20,
     ):  # fmt: skip
-        """Iteratively align molecules and validate using FSC without template.
+        """Create initial model by iteratively aligning molecules without template.
+
+        This method iteratively calculate average, evaluate using FSC, and align
+        molecules to the current average.
 
         Parameters
         ----------
-        {loader_name}{mask_params}{size}{max_shifts}{rotations}{interpolation}
-        {method}{bin_size}
-        seed : int, optional
-            Random seed for FSC calculation.
+        {loader_name}{mask_params}{size}{max_shifts}{max_rotations}{min_rotation_step}
+        {interpolation}{method}{bin_size}{max_num_iters}
         """
         t0 = timer()
         rng = np.random.default_rng(1428)
@@ -434,8 +436,9 @@ class BatchSubtomogramAveraging(MagicTemplate):
         ).with_desc(_pdesc.align_tf_1(_alignment_state))
         while True:
             _Logger.print(_alignment_state.next_params(loader.scale).format())
-            if _alignment_state.is_converged():
-                _Logger.print("FSC converged.")
+            _exceeded = max_num_iters <= _alignment_state.num_iter
+            if _alignment_state.is_converged() or _exceeded:
+                _Logger.print("Maximum iteration exceeded" if _exceeded else "FSC converged.")  # fmt: skip
                 break
             loader = _alignment_state.align_step(loader)
             yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
@@ -523,7 +526,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
             yield _plot_annealing_result.with_args(results)
             mole = mole.with_features(
                 pl.lit(inputs.image_id).alias(Mole.image),
-                pl.lit(inputs.molecule_ids).alias(Mole.id),
+                pl.lit(inputs.molecule_id).alias(Mole.id),
             )
             inputs.loader = inputs.loader.replace(molecules=mole)
 
@@ -565,7 +568,19 @@ class BatchSubtomogramAveraging(MagicTemplate):
         bin_size: _BINSIZE = 1,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
+        max_num_iters: Annotated[int, {"min": 3, "max": 100}] = 20,
     ):
+        """Create initial model by iteratively aligning molecules by RMA without template.
+
+        This method iteratively calculate average, evaluate using FSC, and align
+        molecules using RMA to the current average.
+
+        Parameters
+        ----------
+        {loader_name}{mask_params}{size}{max_shifts}{max_rotations}{min_rotation_step}
+        {interpolation}{method}{range_long}{range_lat}{angle_max}{bin_size}
+        {temperature_time_const}{upsample_factor}{max_num_iters}
+        """
         t0 = timer()
         rng = np.random.default_rng(9430)
         batch = self._get_parent()
@@ -596,8 +611,11 @@ class BatchSubtomogramAveraging(MagicTemplate):
                 result0.fsc, _alignment_state.num_iter, result0.avg
             ).with_desc(_pdesc.align_tf_1(_alignment_state))
             _Logger.print(_alignment_state.next_params(loader.scale).format())
-            if _alignment_state.is_converged():
-                _Logger.print("FSC converged.")
+            _exceeded = max_num_iters <= _alignment_state.num_iter
+            if _alignment_state.is_converged() or _exceeded:
+                _Logger.print(
+                    "Maximum iteration exceeded" if _exceeded else "FSC converged."
+                )
                 break
             _Logger.print(f"{num_splines} splines found for RMA alignment.")
             for ith, inputs in enumerate(sub_inputs):
@@ -775,13 +793,13 @@ class BatchSubtomogramAveraging(MagicTemplate):
                 cutoff=cutoff,
                 n_components=n_components,
                 n_clusters=n_clusters,
-                label_name="cluster",
+                label_name="class",
             )
         )
 
         avgs = ip.asarray(
-            out.groupby("cluster").average().value_stack(axis=0),
-            axes=["cluster", "z", "y", "x"],
+            out.groupby("class").average().value_stack(axis=0),
+            axes=["cls", "z", "y", "x"],
         ).set_scale(zyx=loader.scale, unit="nm")
 
         transformed = pca.get_transform()

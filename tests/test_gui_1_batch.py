@@ -164,7 +164,6 @@ def test_align(ui: CylindraMainWidget, binsize: int):
         "Loader",
         mask_params={"kind": "spherical", "radius": 2.3, "sigma": 0.7},
         bin_size=binsize,
-        tolerance=0.08,
     )
     assert len(ui.sta.sub_viewer.layers) == 2
     ui.batch.sta.split_loader("Loader", by="pf-id", delete_old=True)
