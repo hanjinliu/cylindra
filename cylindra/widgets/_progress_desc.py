@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from napari.layers import Layer
 
 from cylindra.const import ImageFilter
+
+if TYPE_CHECKING:
+    from cylindra.template_free import AlignmentState
 
 
 def _get_name(layer) -> str:
@@ -111,17 +116,9 @@ def align_averaged_2(i: int, total: int, layer: Layer):
     return f"({i * 2 + 2}/{total}) Aligning template to the average image of {layer.name!r}"
 
 
-def align_tf_0(alignment_state):
-    return f"Calculating FSC for iteration {alignment_state.niter}"
+def align_tf_0(alignment_state: AlignmentState):
+    return f"Calculating FSC for iteration {alignment_state.num_iter + 1}"
 
 
-def align_tf_1(alignment_state):
-    return f"Alignment for iteration {alignment_state.niter}"
-
-
-def align_tf_2(alignment_state):
-    return f"Landscape construction (iteration {alignment_state.niter})"
-
-
-def align_tf_3(alignment_state):
-    return f"Running RMA (iteration {alignment_state.niter})"
+def align_tf_1(alignment_state: AlignmentState):
+    return f"Alignment for iteration {alignment_state.num_iter + 1}"

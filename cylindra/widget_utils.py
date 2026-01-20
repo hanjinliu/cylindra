@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from timeit import default_timer
 from typing import TYPE_CHECKING, Annotated, Any, Iterable, Sequence, TypedDict
@@ -12,7 +12,7 @@ import macrokit as mk
 import napari
 import numpy as np
 import polars as pl
-from acryo import Molecules, SubtomogramLoader
+from acryo import Molecules
 from magicclass.logging import getLogger
 from magicclass.types import ExprStr
 from magicclass.widgets import EvalLineEdit
@@ -369,37 +369,6 @@ class FscResult:
         xticks = np.linspace(0, 0.7, 8)
         per_nm = [r"$\infty$"] + [f"{x:.2f}" for x in self.scale / xticks[1:]]
         plt.xticks(xticks, per_nm)
-
-
-@dataclass
-class TemplateFreeAlignmentState:
-    """State of the template-free alignment."""
-
-    niter: int = 0
-    fsc_arr: pl.Series | None = None
-    converged: bool = False
-    rng: np.random.Generator = field(default_factory=np.random.default_rng)
-
-    def eval_fsc(
-        self,
-        loader: SubtomogramLoader,
-        mask,
-        tolerance: float = 0.01,
-    ) -> tuple[FscResult, NDArray[np.float32]]:
-        """Evaluate the loader with the current state."""
-        fsc_result, avg = loader.fsc_with_average(
-            mask,
-            seed=self.rng.integers(0, 2**32),
-        )
-        if self.fsc_arr is None:
-            self.fsc_arr = fsc_result["FSC-0"].to_numpy()
-        else:
-            fsc_diff = fsc_result["FSC-0"].to_numpy() - self.fsc_arr
-            if np.mean(fsc_diff) < tolerance:
-                self.converged = True
-            self.fsc_arr = fsc_result["FSC-0"].to_numpy()
-        avg = ip.asarray(avg, axes="zyx").set_scale(zyx=loader.scale, unit="nm")
-        return FscResult.from_dataframe(fsc_result, loader.scale), avg
 
 
 class MoleculesCombiner:

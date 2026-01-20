@@ -1,10 +1,12 @@
 import re
-from typing import TYPE_CHECKING, Annotated, Any
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Annotated, Any, Iterator
 
 import impy as ip
 import matplotlib.pyplot as plt
 import numpy as np
-from acryo import BatchLoader
+import polars as pl
+from acryo import BatchLoader, SubtomogramLoader
 from magicclass import (
     MagicTemplate,
     abstractapi,
@@ -25,19 +27,23 @@ from magicclass.utils import thread_worker
 from magicclass.widgets import ConsoleTextEdit
 from magicgui.widgets import Container, FunctionGui
 
-from cylindra import _shared_doc
+from cylindra import _shared_doc, template_free
+from cylindra.components.landscape import Landscape
+from cylindra.components.spline import CylSpline
 from cylindra.const import ALN_SUFFIX, nm
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.utils import roundint
 from cylindra.widget_utils import (
+    DistExprStr,
     FscResult,
     PolarsExprStr,
-    TemplateFreeAlignmentState,
     norm_polars_expr,
     timer,
 )
+from cylindra.widgets import _annealing
+from cylindra.widgets import _progress_desc as _pdesc
 from cylindra.widgets._annotated import FSCFreq
-from cylindra.widgets._widget_ext import RotationsEdit
+from cylindra.widgets._widget_ext import RandomSeedEdit, RotationsEdit
 from cylindra.widgets.batch._loaderlist import LoaderList
 from cylindra.widgets.batch.menus import (
     BatchLoaderMenu,
@@ -75,6 +81,13 @@ _MaxShifts = Annotated[
     tuple[nm, nm, nm],
     {"options": {"max": 10.0, "step": 0.1}, "label": "Max shifts (nm)"},
 ]
+_MaxRotations = Annotated[
+    tuple[float, float, float],
+    {
+        "options": {"max": 20.0, "step": 0.1},
+        "label": "max rotations (ZYX deg)",
+    },
+]
 _SubVolumeSize = Annotated[
     Optional[nm],
     {
@@ -85,6 +98,18 @@ _SubVolumeSize = Annotated[
 ]
 _BINSIZE = Annotated[int, {"choices": [1, 2, 3, 4, 5, 6, 7, 8]}]
 
+_DistRangeLon = Annotated[
+    tuple[DistExprStr, DistExprStr],
+    {"label": "longitudinal range (nm)"},
+]
+_DistRangeLat = Annotated[
+    tuple[DistExprStr, DistExprStr],
+    {"label": "lateral range (nm)"},
+]
+_AngleMaxLon = Annotated[
+    float, {"max": 90.0, "step": 0.5, "label": "maximum angle (deg)"}
+]
+_RandomSeeds = Annotated[list[int], {"widget_type": RandomSeedEdit}]
 _Logger = getLogger("cylindra")
 
 
@@ -362,22 +387,20 @@ class BatchSubtomogramAveraging(MagicTemplate):
             invert=info.invert,
         )
         t0.toc()
-        return None
 
     @set_design(text="Align all (template-free)", location=BatchRefinement)
-    @dask_thread_worker.with_progress()
+    @dask_thread_worker.with_progress(desc="Align all started")
     def align_all_template_free(
         self,
         loader_name: Annotated[str, {"bind": _get_current_loader_name}],
         mask_params: Annotated[Any, {"bind": _get_mask_params}],
         size: _SubVolumeSize = 12.0,
-        max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
-        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
+        max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
+        max_rotations: _MaxRotations = (3.0, 3.0, 3.0),
+        min_rotation_step: Annotated[float, {"min": 0.1, "step": 0.1}] = 0.4,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
         bin_size: _BINSIZE = 1,
-        seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
-        tolerance: float = 0.01,
     ):  # fmt: skip
         """Iteratively align molecules and validate using FSC without template.
 
@@ -387,53 +410,233 @@ class BatchSubtomogramAveraging(MagicTemplate):
         {method}{bin_size}
         seed : int, optional
             Random seed for FSC calculation.
-        tolerance : float, default 0.01
-            Tolerance for convergence of the FSC calculation.
         """
         t0 = timer()
-        rng = np.random.default_rng(seed)
+        rng = np.random.default_rng(1428)
         loaderlist = self._get_parent()._loaders
         info = loaderlist[loader_name]
-        loader = info.loader
         mask = self.params._get_mask(params=mask_params)
-        shape = self._get_shape_in_px(size, loader)
-        aligned_loader = current_loader = loader.replace(
-            output_shape=shape, order=interpolation
-        ).binning(bin_size, compute=False)
+        shape = self._get_shape_in_px(size, info.loader)
+        loader = info.loader.replace(output_shape=shape, order=interpolation).binning(
+            bin_size, compute=False
+        )
         _Logger.print(f"Aligning {loader.molecules.count()} molecules ...")
-        _alignment_state = TemplateFreeAlignmentState(rng=rng)
-
+        _alignment_state = template_free.AlignmentState(
+            rng=rng,
+            mask=mask,
+            alignment_model=_get_alignment(method),
+            min_rotation_step=min_rotation_step,
+        )
+        yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
+        result0 = _alignment_state.fsc_step_init(loader, max_shifts, max_rotations)
+        yield _plot_current_fsc.with_args(
+            result0.fsc, _alignment_state.num_iter, result0.avg
+        ).with_desc(_pdesc.align_tf_1(_alignment_state))
         while True:
-            yield thread_worker.description(
-                f"Calculating FSC for iteration {_alignment_state.niter}"
-            )
-            fsc_result, avg = _alignment_state.eval_fsc(
-                aligned_loader,
-                mask,
-                tolerance=tolerance,
-            )
-            yield _plot_current_fsc.with_args(
-                fsc_result, _alignment_state.niter, avg
-            ).with_desc(f"Alignment for iteration {_alignment_state.niter}")
-            if _alignment_state.converged:
+            _Logger.print(_alignment_state.next_params(loader.scale).format())
+            if _alignment_state.is_converged():
                 _Logger.print("FSC converged.")
-                yield self._show_rec.with_args(avg, f"[Aligned]{info.name}")
                 break
-            _alignment_state.niter += 1
-            aligned_loader = current_loader.align(
-                avg, mask=mask, max_shifts=max_shifts, rotations=rotations,
-                cutoff=current_loader.scale / fsc_result.get_resolution(0.143),
-                alignment_model=_get_alignment(method),
-            )  # fmt: skip
+            loader = _alignment_state.align_step(loader)
+            yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
+            result = _alignment_state.fsc_step(loader)
+            yield _plot_current_fsc.with_args(
+                result.fsc, _alignment_state.num_iter, result.avg
+            ).with_desc(_pdesc.align_tf_1(_alignment_state))
 
         loaderlist.add_loader(
-            aligned_loader,
+            loader,
             name=_coerce_aligned_name(info.name, loaderlist),
             image_paths=info.image_paths,
             invert=info.invert,
         )
         t0.toc()
-        return None
+        return self._show_rec.with_args(
+            _alignment_state.results[-1].avg, f"[AVG]{loader_name}"
+        )
+
+    @set_design(text="RMA alignment", location=BatchRefinement)
+    @dask_thread_worker.with_progress(desc="Simulated annealing (RMA)")
+    def align_all_rma(
+        self,
+        loader_name: Annotated[str, {"bind": _get_current_loader_name}],
+        template_path: Annotated[str | Path, {"bind": _get_template_path}],
+        mask_params: Annotated[Any, {"bind": _get_mask_params}],
+        max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
+        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
+        cutoff: _CutoffFreq = 0.5,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
+        range_long: _DistRangeLon = (4.0, 4.28),
+        range_lat: _DistRangeLat = ("d.mean() - 0.1", "d.mean() + 0.1"),
+        angle_max: _AngleMaxLon = 5.0,
+        bin_size: _BINSIZE = 1,
+        temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
+        upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
+        random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
+    ):
+        t0 = timer()
+        batch = self._get_parent()
+        loaderlist = batch._loaders
+        info = loaderlist[loader_name]
+        loader = info.loader
+        template, mask = loader.normalize_input(
+            template=self.params._norm_template_param(template_path),
+            mask=self.params._get_mask(params=mask_params),
+        )
+        aln = _get_alignment(method)
+        sub_inputs = list(self._group_loader_by_spline(loader_name))
+        num_splines = len(sub_inputs)
+        _Logger.print(f"{num_splines} splines found for RMA alignment.")
+
+        @thread_worker.callback
+        def _plot_annealing_result(results):
+            with _Logger.set_plt():
+                _annealing.plot_annealing_result(results)
+
+        for ith, inputs in enumerate(sub_inputs):
+            _p_ind = f"({ith + 1}/{num_splines})"
+            yield thread_worker.description(f"Landscape construction {_p_ind}")
+            landscape = Landscape.from_loader(
+                loader=inputs.loader.replace(
+                    order=interpolation, output_shape=template.shape
+                ).binning(bin_size, compute=False),
+                template=template,
+                mask=mask,
+                max_shifts=max_shifts,
+                upsample_factor=upsample_factor,
+                alignment_model=aln.with_params(
+                    rotations=rotations,
+                    cutoff=cutoff,
+                    tilt=inputs.loader.tilt_model,
+                ),
+            ).normed()
+            yield thread_worker.description(f"RMA alignment {_p_ind}")
+            mole, results = landscape.run_annealing_along_spline(
+                inputs.spline,
+                range_long,
+                range_lat,
+                angle_max=angle_max,
+                temperature_time_const=temperature_time_const,
+                random_seeds=random_seeds,
+            )
+            yield _plot_annealing_result.with_args(results)
+            mole = mole.with_features(
+                pl.lit(inputs.image_id).alias(Mole.image),
+                pl.lit(inputs.molecule_ids).alias(Mole.id),
+            )
+            inputs.loader = inputs.loader.replace(molecules=mole)
+
+        loader_batch = BatchLoader(
+            order=loader.order,
+            scale=loader.scale,
+            output_shape=loader.output_shape,
+        )
+        for inputs in sub_inputs:
+            loader_batch.add_tomogram(
+                loader.images[inputs.image_id],
+                inputs.loader.molecules,
+                inputs.image_id,
+                loader._tilt_models[inputs.image_id],
+            )
+        loaderlist.add_loader(
+            loader_batch,
+            name=_coerce_aligned_name(info.name, loaderlist),
+            image_paths=info.image_paths,
+            invert=info.invert,
+        )
+        t0.toc()
+
+    @set_design(text="RMA alignment (template-free)", location=BatchRefinement)
+    @dask_thread_worker.with_progress(desc="RMA alignment started")
+    def align_all_rma_template_free(
+        self,
+        loader_name: Annotated[str, {"bind": _get_current_loader_name}],
+        mask_params: Annotated[Any, {"bind": _get_mask_params}],
+        size: _SubVolumeSize = 12.0,
+        max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
+        max_rotations: _MaxRotations = (0.0, 0.0, 0.0),
+        min_rotation_step: Annotated[float, {"min": 0.1, "step": 0.1}] = 0.4,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
+        range_long: _DistRangeLon = (4.0, 4.28),
+        range_lat: _DistRangeLat = ("d.mean() - 0.1", "d.mean() + 0.1"),
+        angle_max: _AngleMaxLon = 5.0,
+        bin_size: _BINSIZE = 1,
+        temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
+        upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
+    ):
+        t0 = timer()
+        rng = np.random.default_rng(9430)
+        batch = self._get_parent()
+        loaderlist = batch._loaders
+        info = loaderlist[loader_name]
+        loader = info.loader
+        mask = self.params._get_mask(params=mask_params)
+        shape = self._get_shape_in_px(size, loader)
+        loader = loader.replace(output_shape=shape, order=interpolation).binning(
+            bin_size, compute=False
+        )
+
+        _alignment_state = template_free.RMAAlignmentState(
+            rng=rng,
+            mask=mask,
+            alignment_model=_get_alignment(method),
+            min_rotation_step=min_rotation_step,
+        )
+        yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
+        result0 = _alignment_state.fsc_step_init(
+            loader, max_shifts, max_rotations, upsample_factor, temperature_time_const
+        )
+
+        sub_inputs = list(self._group_loader_by_spline(loader_name))
+        num_splines = len(sub_inputs)
+        while True:
+            yield _plot_current_fsc.with_args(
+                result0.fsc, _alignment_state.num_iter, result0.avg
+            ).with_desc(_pdesc.align_tf_1(_alignment_state))
+            _Logger.print(_alignment_state.next_params(loader.scale).format())
+            if _alignment_state.is_converged():
+                _Logger.print("FSC converged.")
+                break
+            _Logger.print(f"{num_splines} splines found for RMA alignment.")
+            for ith, inputs in enumerate(sub_inputs):
+                _p_ind = f"({ith + 1}/{num_splines})"
+                yield thread_worker.description(
+                    f"Landscape construction {_p_ind} of iteration {_alignment_state.num_iter + 1}"
+                )
+                landscape = _alignment_state.built_landscape_step(inputs.loader)
+                yield thread_worker.description(
+                    f"RMA step {_p_ind} of iteration {_alignment_state.num_iter + 1}"
+                )
+                inputs.loader = _alignment_state.rma_step(
+                    landscape,
+                    inputs.loader,
+                    inputs.spline,
+                    range_long,
+                    range_lat,
+                    angle_max,
+                )
+                inputs.loader = inputs.loader.replace(
+                    molecules=inputs.loader.molecules.with_features(
+                        pl.lit(inputs.image_id).alias(Mole.image),
+                        pl.lit(inputs.molecule_id).alias(Mole.id),
+                    )
+                )
+            loader_batch = join_loaders(loader, sub_inputs)
+            result0 = _alignment_state.fsc_step(loader_batch)
+            yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
+
+        loaderlist.add_loader(
+            loader_batch,
+            name=_coerce_aligned_name(info.name, loaderlist),
+            image_paths=info.image_paths,
+            invert=info.invert,
+        )
+        t0.toc()
+        return self._show_rec.with_args(
+            _alignment_state.results[-1].avg, f"[AVG]{loader_name}"
+        )
 
     @set_design(text="Calculate FSC", location=BatchSubtomogramAnalysis)
     @dask_thread_worker.with_progress(desc="Calculating FSC")
@@ -449,8 +652,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         show_average: bool = True,
         dfreq: FSCFreq = None,
     ):  # fmt: skip
-        """
-        Calculate Fourier Shell Correlation using the selected loader.
+        """Calculate Fourier Shell Correlation using the selected loader.
 
         Parameters
         ----------
@@ -536,8 +738,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         n_clusters: Annotated[int, {"min": 2, "max": 100}] = 2,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
     ):  # fmt: skip
-        """
-        Classify molecules in the loader using PCA and K-means clustering.
+        """Classify molecules in the loader using PCA and K-means clustering.
 
         Parameters
         ----------
@@ -668,6 +869,39 @@ class BatchSubtomogramAveraging(MagicTemplate):
             template = ip.asarray(template, axes="zyx")
         return template.set_scale(zyx=scale, unit="nm")
 
+    def _group_loader_by_spline(self, loader_name: str) -> Iterator["LoaderOnSpline"]:
+        batch = self._get_parent()
+        info = batch.loader_infos[loader_name]
+        loader = info.loader
+        img_project_map = {Path(prj.image): prj for prj in batch.iter_projects()}
+        for (mole_id, img_id), each in loader.group_by(["molecules-id", "image-id"]):
+            img_path = info.image_paths[img_id]
+            prj = img_project_map[img_path]
+            for mole_info in prj.molecules_info:
+                if mole_info.name.split(".")[0] == mole_id:
+                    if (spl_id := mole_info.source) is None:
+                        raise ValueError(
+                            f"Molecule {mole_id} does not have source spline."
+                        )
+                    spl = prj.load_spline(spl_id)
+                    break
+            else:
+                raise ValueError(f"Spline for molecule {mole_id} not found.")
+            loader_single = SubtomogramLoader(
+                image=loader.images[img_id],
+                molecules=each.molecules.with_features(
+                    pl.lit(img_id).alias(Mole.image),
+                    pl.lit(mole_id).alias(Mole.id),
+                ),
+                order=loader.order,
+                scale=loader.scale,
+                output_shape=loader.output_shape,
+                tilt_model=loader._tilt_models[img_id],
+            )
+            yield LoaderOnSpline(
+                loader=loader_single, image_id=img_id, molecule_id=mole_id, spline=spl
+            )
+
 
 @setup_function_gui(BatchSubtomogramAveraging.split_loader)
 def _setup_split_loader(self: BatchSubtomogramAveraging, gui: FunctionGui):
@@ -687,3 +921,27 @@ def _coerce_aligned_name(name: str, loaders: LoaderList):
     while name + f"-{ALN_SUFFIX}{num}" in existing_names:
         num += 1
     return name + f"-{ALN_SUFFIX}{num}"
+
+
+@dataclass
+class LoaderOnSpline:
+    loader: SubtomogramLoader
+    image_id: int
+    molecule_id: str
+    spline: CylSpline
+
+
+def join_loaders(loader: BatchLoader, sub_inputs: list[LoaderOnSpline]) -> BatchLoader:
+    loader_batch = BatchLoader(
+        order=loader.order,
+        scale=loader.scale,
+        output_shape=loader.output_shape,
+    )
+    for inputs in sub_inputs:
+        loader_batch.add_tomogram(
+            loader.images[inputs.image_id],
+            inputs.loader.molecules,
+            inputs.image_id,
+            loader._tilt_models[inputs.image_id],
+        )
+    return loader_batch

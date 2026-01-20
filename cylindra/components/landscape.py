@@ -159,8 +159,6 @@ class Landscape:
             raise TypeError(f"Invalid type of template: {type(template)}")
 
         _Logger.print(f"Using {num_templates} template(s) for landscape construction.")
-        _Logger.print(f"Landscape resolution: {loader.scale / upsample_factor:.3f} nm")
-
         score_dsk = loader.construct_landscape(
             template,
             mask=mask,
@@ -170,6 +168,11 @@ class Landscape:
         )
         score, argmax = _calc_landscape(
             alignment_model, score_dsk, multi_templates=num_templates > 1
+        )
+        _Logger.print(
+            f"{loader.molecules.count()} cross-correlation landscapes with precision "
+            f"{loader.scale / upsample_factor:.3f} nm and local shape {score.shape[1:]} "
+            "were constructed."
         )
         mole = loader.molecules
         to_drop = set(mole.features.columns) - {Mole.nth, Mole.pf, Mole.position}
@@ -466,6 +469,17 @@ class Landscape:
             temperature=temperature,
             cooling_rate=cooling_rate,
             reject_limit=reject_limit,
+        )
+        dist_arr_lon = annealing.longitudinal_distances()
+        dist_arr_lat = annealing.lateral_distances()
+
+        def _fmt(x: np.ndarray):
+            return f"mean={x.mean():.3f} nm, min={x.min():.3f} nm, max={x.max():.3f} nm"
+
+        _Logger.print(
+            f"Built cylindrical annealing model with:\n"
+            f"longitudinal disntances: {_fmt(dist_arr_lon)}\n"
+            f"lateral disntances: {_fmt(dist_arr_lat)}"
         )
 
         epoch_size = _to_epoch_size(annealing.time_constant())

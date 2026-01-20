@@ -32,7 +32,14 @@ from magicclass.widgets import HistoryFileEdit
 from magicgui.types import Separator
 from scipy.spatial.transform import Rotation
 
-from cylindra import _config, _shared_doc, cylmeasure, utils, widget_utils
+from cylindra import (
+    _config,
+    _shared_doc,
+    cylmeasure,
+    template_free,
+    utils,
+    widget_utils,
+)
 from cylindra._napari import LandscapeSurface
 from cylindra.components import CylSpline
 from cylindra.components.landscape import Landscape
@@ -120,6 +127,13 @@ _MaxShifts = Annotated[
     {
         "options": {"max": 10.0, "step": 0.1},
         "label": "max shifts (nm)",
+    },
+]
+_MaxRotations = Annotated[
+    tuple[float, float, float],
+    {
+        "options": {"max": 20.0, "step": 0.1},
+        "label": "max rotations (ZYX deg)",
     },
 ]
 _SubVolumeSize = Annotated[
@@ -311,7 +325,6 @@ class Alignment(MagicTemplate):
     sep0 = Separator
     align_all_viterbi = abstractapi()
     align_all_rma = abstractapi()
-    align_all_rma_template_free = abstractapi()
     align_all_rfa = abstractapi()
     save_annealing_scores = abstractapi()
     sep1 = Separator
@@ -1043,27 +1056,24 @@ class SubtomogramAveraging(ChildWidget):
         layers: MoleculesLayersType,
         mask_params: Annotated[Any, {"bind": _get_mask_params}],
         size: _SubVolumeSize = 12.0,
-        max_shifts: _MaxShifts = (1.0, 1.0, 1.0),
-        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
+        max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
+        max_rotations: _MaxRotations = (3.0, 3.0, 3.0),
+        min_rotation_step: Annotated[float, {"min": 0.1, "step": 0.1}] = 0.4,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
         bin_size: BinSizeType = 1,
-        seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
-        tolerance: float = 0.01,
     ):  # fmt: skip
         """Iteratively align molecules and validate using FSC without template.
 
         Parameters
         ----------
-        {layers}{mask_params}{size}{max_shifts}{rotations}{interpolation}
+        {layers}{mask_params}{size}{max_shifts}{max_rotations}{interpolation}
         {method}{bin_size}
         seed : int, optional
             Random seed for FSC calculation.
-        tolerance : float, default 0.01
-            Tolerance for convergence of the FSC calculation.
         """
         t0 = timer()
-        rng = np.random.default_rng(seed)
+        rng = np.random.default_rng(5926)
         layers = assert_list_of_layers(layers, self.parent_viewer)
         main = self._get_main()
         combiner = widget_utils.MoleculesCombiner()
@@ -1075,33 +1085,37 @@ class SubtomogramAveraging(ChildWidget):
             shape = tuple(
                 main.tomogram.nm2pixel(self._get_shape_in_nm(size), binsize=bin_size)
             )
-        aligned_loader = current_loader = self._get_loader(
+        loader = self._get_loader(
             binsize=bin_size, molecules=molecules, order=interpolation
         ).reshape(shape=shape)
-        _alignment_state = widget_utils.TemplateFreeAlignmentState(rng=rng)
-        _Logger.print(f"Start alignment ({molecules.count()} molecules) ...")
+        _alignment_state = template_free.AlignmentState(
+            rng=rng,
+            mask=mask,
+            alignment_model=_get_alignment(method),
+            min_rotation_step=min_rotation_step,
+        )
+        _Logger.print(f"Starting template-free alignment ({loader.molecules.count()} molecules) ...")  # fmt: skip
+        yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
+        result = _alignment_state.fsc_step_init(loader, max_shifts, max_rotations)
+        yield _plot_current_fsc.with_args(
+            result.fsc, _alignment_state.num_iter, result.avg
+        ).with_desc(_pdesc.align_tf_1(_alignment_state))
         while True:
-            yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
-            fsc_result, avg = _alignment_state.eval_fsc(
-                aligned_loader,
-                mask,
-                tolerance=tolerance,
-            )
-            yield _plot_current_fsc.with_args(
-                fsc_result, _alignment_state.niter, avg
-            ).with_desc(_pdesc.align_tf_1(_alignment_state))
-            if _alignment_state.converged:
+            _Logger.print(_alignment_state.next_params(loader.scale).format())
+            if _alignment_state.is_converged():
                 _Logger.print("FSC converged.")
-                yield self._show_rec.with_args(avg, f"[Aligned]{_avg_name(layers)}")
+                yield self._show_rec.with_args(
+                    result.avg, f"[Aligned]{_avg_name(layers)}"
+                )
                 break
-            _alignment_state.niter += 1
-            aligned_loader = current_loader.align(
-                avg, mask=mask, max_shifts=max_shifts, rotations=rotations,
-                cutoff=current_loader.scale / fsc_result.get_resolution(0.143),
-                alignment_model=_get_alignment(method),
-            )  # fmt: skip
+            loader = _alignment_state.align_step(loader)
+            yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
+            result = _alignment_state.fsc_step(loader)
+            yield _plot_current_fsc.with_args(
+                result.fsc, _alignment_state.num_iter, result.avg
+            ).with_desc(_pdesc.align_tf_1(_alignment_state))
 
-        molecules = combiner.split(aligned_loader.molecules, layers)
+        molecules = combiner.split(loader.molecules, layers)
         t0.toc()
         return self._align_all_on_return.with_args(molecules, layers)
 
@@ -1159,7 +1173,7 @@ class SubtomogramAveraging(ChildWidget):
         t0.toc()
         return self._align_all_on_return.with_args([mole], [layer])
 
-    @set_design(text="Simulated annealing (RMA)", location=Alignment)
+    @set_design(text="RMA alignment", location=Alignment)
     @dask_worker.with_progress(descs=_pdesc.align_annealing_fmt)
     def align_all_rma(
         self,
@@ -1178,7 +1192,7 @@ class SubtomogramAveraging(ChildWidget):
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
     ):  # fmt: skip
-        """2D-constrained subtomogram alignment using simulated annealing.
+        """2D-constrained subtomogram alignment using Restricted Mesh Annealing.
 
         This alignment method considers the distance between every adjacent monomers.
         Two-dimensionally connected optimization can be approximated by the simulated
@@ -1237,130 +1251,7 @@ class SubtomogramAveraging(ChildWidget):
 
         return _on_return
 
-    @set_design(text="Simulated annealing (RMA, template free)", location=Alignment)
-    @dask_worker.with_progress()
-    def align_all_rma_template_free(
-        self,
-        layer: MoleculesLayerType,
-        mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
-        size: _SubVolumeSize = 12.0,
-        max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
-        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
-        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
-        method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
-        range_long: _DistRangeLon = (4.0, 4.28),
-        range_lat: _DistRangeLat = (5.1, 5.3),
-        angle_max: _AngleMaxLon = 5.0,
-        bin_size: BinSizeType = 1,
-        temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 0.7,
-        upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
-        seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
-        tolerance: float = 0.01,
-    ):  # fmt: skip
-        """2D-constrained subtomogram alignment using simulated annealing.
-
-        This alignment method considers the distance between every adjacent monomers.
-        Two-dimensionally connected optimization can be approximated by the simulated
-        annealing algorithm.
-
-        Parameters
-        ----------
-        {layer}{mask_params}{max_shifts}{rotations}{interpolation}{range_long}
-        {range_lat}{angle_max}{bin_size}
-        {temperature_time_const}{upsample_factor}
-        seed : int, optional
-            Random seed for FSC calculation.
-        tolerance : float, default 0.01
-            Tolerance for convergence of the FSC calculation.
-        """
-        t0 = timer()
-        layer = assert_layer(layer, self.parent_viewer)
-        if layer.source_spline is None:
-            raise ValueError(
-                "RMA requires a spline but the input layer is not connected to any splines."
-            )
-        main = self._get_main()
-        if size is None:
-            raise NotImplementedError("'size' must be given.")
-        else:
-            shape = tuple(
-                main.tomogram.nm2pixel(self._get_shape_in_nm(size), binsize=bin_size)
-            )
-        rng = np.random.default_rng(seed)
-        mask = self.params._get_mask(params=mask_params)
-
-        aligned_loader = current_loader = self._get_loader(
-            binsize=bin_size, molecules=layer.molecules, order=interpolation
-        ).reshape(shape=shape)
-        _alignment_state = widget_utils.TemplateFreeAlignmentState(rng=rng)
-
-        @thread_worker.callback
-        def _plot_annealing_result(results):
-            with _Logger.set_plt():
-                _annealing.plot_annealing_result(results)
-
-        next_layer_name = _coerce_aligned_name(layer.name, self.parent_viewer)
-        while True:
-            yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
-            fsc_result, avg = _alignment_state.eval_fsc(
-                aligned_loader, mask, tolerance=tolerance
-            )
-            yield _plot_current_fsc.with_args(
-                fsc_result, _alignment_state.niter, avg
-            ).with_desc(_pdesc.align_tf_2(_alignment_state))
-            if _alignment_state.converged:
-                _Logger.print("FSC converged.")
-                yield self._show_rec.with_args(avg, f"[Aligned]{next_layer_name}")
-                break
-            _alignment_state.niter += 1
-            landscape = Landscape.from_loader(
-                loader=current_loader,
-                template=avg,
-                mask=self.params._get_mask(params=mask_params),
-                max_shifts=max_shifts,
-                upsample_factor=upsample_factor,
-                alignment_model=_get_alignment(method).with_params(
-                    rotations=rotations,
-                    cutoff=current_loader.scale / fsc_result.get_resolution(0.143),
-                    tilt=main.tomogram.tilt_model,
-                ),
-            )
-            yield thread_worker.description(_pdesc.align_tf_3(_alignment_state))
-            mole, results = landscape.run_annealing_along_spline(
-                layer.source_spline,
-                range_long=range_long,
-                range_lat=range_lat,
-                angle_max=angle_max,
-                temperature_time_const=temperature_time_const,
-                random_seeds=rng.integers(0, 2**32, size=3).tolist(),
-            )
-            aligned_loader = SubtomogramLoader(
-                current_loader.image,
-                mole,
-                order=current_loader.order,
-                scale=current_loader.scale,
-                output_shape=current_loader.output_shape,
-            )
-            yield _plot_annealing_result.with_args(results)
-
-        t0.toc()
-
-        @thread_worker.callback
-        def _on_return():
-            points = main.add_molecules(
-                aligned_loader.molecules,
-                name=next_layer_name,
-                source=layer.source_component,
-                metadata={ANNEALING_RESULT: results[0]},
-            )
-            layer.visible = False
-            with _Logger.set_plt():
-                _annealing.plot_annealing_result(results)
-            return self._undo_for_new_layer([layer.name], [points])
-
-        return _on_return
-
-    @set_design(text="Simulated annealing (RFA)", location=Alignment)
+    @set_design(text="RFA alignment", location=Alignment)
     @dask_worker.with_progress(descs=_pdesc.align_annealing_fmt)
     def align_all_rfa(
         self,
@@ -1378,7 +1269,7 @@ class SubtomogramAveraging(ChildWidget):
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
     ):
-        """1D-constrained subtomogram alignment on a filament using simulated annealing.
+        """1D-constrained subtomogram alignment using Restricted Filament Annealing.
 
         This alignment method considers the distance between every adjacent monomers on
         the filament.

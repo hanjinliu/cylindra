@@ -1,4 +1,4 @@
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Iterator, Literal
 
 import polars as pl
 from acryo import BatchLoader, Molecules
@@ -10,6 +10,7 @@ from magicclass import (
     field,
     get_button,
     magicclass,
+    nogui,
     set_design,
 )
 from magicclass.types import Optional, Path
@@ -360,6 +361,12 @@ class CylindraBatchWidget(MagicTemplate):
             Extension of the molecule files.
         """
         return CylindraBatchProject.save_gui(self, Path(save_path), molecules_ext)
+
+    @nogui
+    def iter_projects(self) -> Iterator[CylindraProject]:
+        """Iterate over all projects in the batch project."""
+        for prj_widget in self.constructor.projects:
+            yield prj_widget.project
 
 
 def _or_default_list(value, default, length: int):
