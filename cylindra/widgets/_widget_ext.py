@@ -786,6 +786,7 @@ class BaseSelect(backend_qtw.QBaseValueWidget, protocols.CategoricalWidgetProtoc
             item = QtW.QListWidgetItem(choice_name)
             item.setCheckState(Qt.CheckState.Checked)
             item.setData(Qt.ItemDataRole.UserRole, data)
+            item.setSizeHint(QtCore.QSize(item.sizeHint().width(), 24))
             self._qwidget.addItem(item)
         # otherwise update its data
         else:

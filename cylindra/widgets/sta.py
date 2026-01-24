@@ -1,4 +1,5 @@
 import re
+import tempfile
 import weakref
 from contextlib import suppress
 from enum import Enum
@@ -85,6 +86,7 @@ from cylindra.widgets._widget_ext import MultiFileEdit, RandomSeedEdit, Rotation
 from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 if TYPE_CHECKING:
+    from acryo.loader import ExtractedSubvolumeLoader
     from dask.array.core import Array
     from napari.layers import Image
     from numpy.typing import NDArray
@@ -98,7 +100,7 @@ def _get_template_shape(
     if size is not None:
         return size
     if "template_path" in others:
-        # for `calculate_fsc` and `classify_pca`
+        # for `calculate_fsc`
         main = self._get_main()
         loader = main.tomogram.get_subtomogram_loader(Molecules.empty())
         template, mask = loader.normalize_input(
@@ -157,6 +159,14 @@ _AngleMaxLon = Annotated[
     float, {"max": 90.0, "step": 0.5, "label": "maximum angle (deg)"}
 ]
 _RandomSeeds = Annotated[list[int], {"widget_type": RandomSeedEdit}]
+_MinNumMoleculesPerClass = Annotated[
+    Optional[int],
+    {
+        "options": {"min": 1, "max": 1000000, "value": 500},
+        "text": "Use all molecules",
+        "label": "Min molecules/class",
+    },
+]
 
 # choices
 METHOD_CHOICES = (
@@ -302,7 +312,8 @@ class STAnalysis(MagicTemplate):
 
     calculate_correlation = abstractapi()
     calculate_fsc = abstractapi()
-    classify_pca = abstractapi()
+    classify_em = abstractapi()
+    classify_em_template_free = abstractapi()
     sep0 = Separator
 
     @magicmenu(name="Seam search")
@@ -1185,7 +1196,7 @@ class SubtomogramAveraging(ChildWidget):
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         range_long: _DistRangeLon = (4.0, 4.28),
-        range_lat: _DistRangeLat = (5.1, 5.3),
+        range_lat: _DistRangeLat = ("d.mean() - 0.1", "d.mean() + 0.1"),
         angle_max: _AngleMaxLon = 5.0,
         bin_size: BinSizeType = 1,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
@@ -1534,7 +1545,7 @@ class SubtomogramAveraging(ChildWidget):
         self,
         landscape_layer: LandscapeLayerType,
         range_long: _DistRangeLon = (4.0, 4.28),
-        range_lat: _DistRangeLat = (5.1, 5.3),
+        range_lat: _DistRangeLat = ("d.mean() - 0.1", "d.mean() + 0.1"),
         angle_max: _AngleMaxLon = 5.0,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
         random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
@@ -1841,78 +1852,177 @@ class SubtomogramAveraging(ChildWidget):
 
         return _calculate_fsc_on_return
 
-    @set_design(text="PCA/K-means classification", location=STAnalysis)
-    @dask_worker.with_progress(descs=_pdesc.classify_pca_fmt)
-    def classify_pca(
+    @set_design(text="3D classification", location=STAnalysis)
+    @dask_worker.with_progress(desc="3D Classification")
+    def classify_em(
         self,
-        layer: MoleculesLayerType,
-        template_path: Annotated[_PathOrNone, {"bind": _template_param}] = None,
+        layers: MoleculesLayersType,
+        templates: Annotated[list[Path], {"filter": FileFilter.IMAGE}],
+        max_num_iters: Annotated[int, {"min": 1, "max": 100}] = 10,
+        min_num_molecules_per_class: _MinNumMoleculesPerClass = None,
         mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
-        size: _SubVolumeSize = None,
+        inverse_temperature: Annotated[float, {"min": 1, "max": 10000}] = 80,
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         bin_size: BinSizeType = 1,
-        n_components: Annotated[int, {"min": 2, "max": 20}] = 2,
-        n_clusters: Annotated[int, {"min": 2, "max": 100}] = 2,
         seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
     ):  # fmt: skip
-        """Classify molecules in a layer using PCA and K-means clustering.
+        """Classify molecules to the user given templates using EM algorithm.
 
         Parameters
         ----------
-        {layer}
-        template_path : template input type
-            Used only when soft-Otsu mask parameters are given.
-        {mask_params}{size}{cutoff}{interpolation}{bin_size}
-        n_components : int, default 2
-            The number of PCA dimensions.
-        n_clusters : int, default
-            The number of clusters.
-        seed : int, default 0
-            Random seed.
+        {layers}{max_num_iters}{mask_params}{cutoff}{interpolation}
+        {bin_size}
+        templates : list of Path
+            Paths to the template images used for classification. Must be a list of
+            3D images or a 4D image containing multiple 3D images.
+        num_classes : int, default 2
+            The number of classes to classify subtomograms into.
+        inverse_temperature : float, default 100
+            Temperature parameter for the softmax function used in the expectation step.
+            Higher value (lower temperature) makes the classification harder, while
+            lower value (higher temperature) makes it "softer" (i.e., more uncertain).
         """
-        from cylindra.components.visualize import plot_pca_classification
-
         t0 = timer()
-        layer = assert_layer(layer, self.parent_viewer)
+        layers = assert_list_of_layers(layers, self.parent_viewer)
         tomo = self._get_main().tomogram
+        if isinstance(templates, (Path, str)):
+            templates = [Path(templates)]
+        template_images: list[np.ndarray] = []
+        for _path in templates:
+            arr = ip.imread(_path)
+            ratio = arr.scale.x / (tomo.scale * bin_size)
+            if abs(ratio - 1) > 0.01:
+                arr = arr.zoom(ratio, order=3, mode="reflect")
+            if arr.ndim == 3:
+                template_images.append(arr.value)
+            elif arr.ndim == 4:
+                template_images.extend(list(arr.value))
+            else:
+                raise ValueError(
+                    f"Template image {_path!r} must be a 3D or 4D image, "
+                    f"but got {arr.ndim}D image."
+                )
+
+        combiner = widget_utils.MoleculesCombiner()
+        all_moles = combiner.concat(layer.molecules for layer in layers)
+
+        shape = template_images[0].shape
         loader = self._get_loader(
-            binsize=bin_size, molecules=layer.molecules, order=interpolation
+            binsize=bin_size,
+            molecules=all_moles,
+            order=interpolation,
+        ).replace(output_shape=shape)
+        _Logger.print(
+            f"Starting EM classification into user supplied {len(template_images)} templates."
+            f"\n{loader.molecules.count()} subtomograms with size {loader.output_shape}"
         )
-        template, mask = loader.normalize_input(
-            template=self.params._norm_template_param(template_path, allow_none=True),
-            mask=self.params._get_mask(params=mask_params),
+        if min_num_molecules_per_class is None:
+            min_num_molecules_per_class = all_moles.count()
+        picker = ClassfySubsetPicker(
+            max_num_iters,
+            min_num_molecules_per_class * len(template_images),
+            np.random.default_rng(seed),
         )
-        shape = None
-        if size is not None and mask is None:
-            shape = (tomo.nm2pixel(size, binsize=bin_size),) * 3
-        out, pca = loader.reshape(
-            template=template if mask is None and shape is None else None,
-            mask=mask,
-            shape=shape,
-        ).classify(
-            mask=mask,
-            seed=seed,
-            cutoff=cutoff,
-            n_components=n_components,
-            n_clusters=n_clusters,
-            label_name="class",
-        )
+        yield thread_worker.description("Extracting subtomograms")
 
-        avgs_dict = out.groupby("class").average()
-        avgs = ip.asarray(
-            np.stack(list(avgs_dict.values()), axis=0), axes=["cls", "z", "y", "x"]
-        ).set_scale(zyx=loader.scale, unit="nm")
-
-        transformed = pca.get_transform()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / f"subtomograms_{id(t0)}"
+            temp_loader = loader.extract_subtomograms(path)
+            mask = self.params._get_mask(params=mask_params)
+            result = yield from _classify_em_impl(
+                template_images, mask, temp_loader, max_num_iters=max_num_iters,
+                inverse_temperature=inverse_temperature, cutoff=cutoff, picker=picker,
+            )  # fmt: skip
         t0.toc()
+        yield thread_worker.description("Classification finished")
+        avgs, all_moles = _post_classify_em(result, loader, all_moles)
+        moles = combiner.split(all_moles, layers)
 
         @thread_worker.callback
         def _on_return():
-            layer.molecules = out.molecules  # update features
-            with _Logger.set_plt():
-                plot_pca_classification(pca, transformed)
-            self._show_rec(avgs, name=f"[PCA]{layer.name}", store=False)
+            for layer, each_mole in zip(layers, moles, strict=True):
+                layer.set_molecules_with_new_features(each_mole)
+            self._show_rec(avgs, name="Classification results", store=False)
+
+        return _on_return
+
+    @set_design(text="3D classification (template-free)", location=STAnalysis)
+    @dask_worker.with_progress(desc="3D Classification (template-free)")
+    def classify_em_template_free(
+        self,
+        layers: MoleculesLayersType,
+        size: Annotated[float, {"value": 12.0, "max": 100.0, "label": "size (nm)"}] = None,
+        num_classes: Annotated[int, {"min": 1, "max": 100}] = 2,
+        min_num_molecules_per_class: _MinNumMoleculesPerClass = None,
+        max_num_iters: Annotated[int, {"min": 1, "max": 100}] = 10,
+        mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
+        inverse_temperature: Annotated[float, {"min": 1, "max": 10000}] = 80,
+        cutoff: _CutoffFreq = 0.5,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        bin_size: BinSizeType = 1,
+        seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
+    ):  # fmt: skip
+        """Classify molecules using EM algorithm.
+
+        Random split averages will be used as initial templates.
+
+        Parameters
+        ----------
+        {layers}{size}{max_num_iters}{mask_params}{cutoff}{interpolation}{bin_size}
+        num_classes : int, default 2
+            The number of classes to classify subtomograms into.
+        inverse_temperature : float, default 100
+            Temperature parameter for the softmax function used in the expectation step.
+            Higher value (lower temperature) makes the classification harder, while
+            lower value (higher temperature) makes it "softer" (i.e., more uncertain).
+        seed : int, optional
+            Random seed.
+        """
+        t0 = timer()
+        layers = assert_list_of_layers(layers, self.parent_viewer)
+        combiner = widget_utils.MoleculesCombiner()
+        all_moles = combiner.concat(layer.molecules for layer in layers)
+
+        shape = (size,) * 3
+        loader = self._get_loader(
+            binsize=bin_size, molecules=all_moles, order=interpolation, shape=shape
+        )
+        _Logger.print(
+            f"Starting EM classification into {num_classes} classes.\n"
+            f"{loader.molecules.count()} subtomograms with size {loader.output_shape}"
+        )
+        rng = np.random.default_rng(seed)
+        if min_num_molecules_per_class is None:
+            min_num_molecules_per_class = all_moles.count()
+        picker = ClassfySubsetPicker(
+            max_num_iters,
+            min_num_molecules_per_class * num_classes,
+            rng,
+        )
+        yield thread_worker.description("Extracting subtomograms")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / f"subtomograms_{id(t0)}"
+            temp_loader = loader.extract_subtomograms(path)
+            yield thread_worker.description("Creating initial class templates")
+            templates = temp_loader.average_split(n_split=num_classes, seed=rng)
+            mask = self.params._get_mask(params=mask_params)
+            result = yield from _classify_em_impl(
+                templates, mask, temp_loader, max_num_iters=max_num_iters,
+                inverse_temperature=inverse_temperature, cutoff=cutoff, picker=picker,
+            )  # fmt: skip
+
+        t0.toc()
+        yield thread_worker.description("Classification finished")
+        avgs, all_moles = _post_classify_em(result, loader, all_moles)
+        moles = combiner.split(all_moles, layers)
+
+        @thread_worker.callback
+        def _on_return():
+            for layer, each_mole in zip(layers, moles, strict=True):
+                layer.set_molecules_with_new_features(each_mole)
+            self._show_rec(avgs, name="Classification results", store=False)
 
         return _on_return
 
@@ -2364,6 +2474,132 @@ def _plot_current_fsc(result: widget_utils.FscResult, num: int, avg: ip.ImgArray
     for _c in criteria:
         _r = result.get_resolution(_c)
         _Logger.print_html(f"Resolution at FSC={_c:.3f} ... <b>{_r:.3f} nm</b>")
+
+
+@thread_worker.callback
+def _plot_shannon_entropy_classification(shannon_entropy: "NDArray[np.floating]"):
+    bins = max(min(int(np.sqrt(shannon_entropy.size)), 96), 12)
+    with _Logger.set_plt():
+        plt.figure(figsize=(6, 2))
+        plt.hist(shannon_entropy, bins=bins, color="#B771E6", edgecolor="gray")
+        plt.title("Distribution of Shannon Entropy")
+        plt.tight_layout()
+        plt.show()
+
+
+@thread_worker.callback
+def _plot_classify_templates(templates: "list[NDArray[np.floating]]"):
+    with _Logger.set_plt():
+        num_classes = len(templates)
+        ncols = min(num_classes, 5)
+        nrows = (num_classes + ncols - 1) // ncols
+        _, axes = plt.subplots(figsize=(2 * ncols, 2 * nrows), nrows=nrows, ncols=ncols)
+        if len(templates) > 1:
+            axes: list[plt.Axes] = axes.ravel()
+        else:
+            axes = [axes]
+        for i, (tmpl, ax) in enumerate(zip(templates, axes, strict=False)):
+            ax.imshow(np.max(tmpl, axis=0), cmap="gray")
+            ax.set_title(f"Class {i}")
+            ax.axis("off")
+        for ax in axes[num_classes:]:
+            ax.axis("off")
+        plt.tight_layout()
+        plt.show()
+
+
+class ClassfySubsetPicker:
+    def __init__(
+        self,
+        max_niter: int,
+        min_num_molecules: int,
+        rng: np.random.Generator,
+    ):
+        self.max_niter = max_niter
+        self.min_num = min_num_molecules
+        self.rng = rng
+        self.last_mask = None
+
+    def __call__(self, ith: int, num_vols: int):
+        if num_vols <= self.min_num or self.max_niter < 3:
+            return None  # use all subtomograms
+
+        all_indices = np.arange(num_vols, dtype=np.uint32)
+        diff = num_vols - self.min_num
+        num = min(
+            int(diff * np.sqrt(ith / (self.max_niter - 2))) + self.min_num, num_vols
+        )
+        if self.last_mask is None or (num_vols - self.last_mask.size < num):
+            sl_all = all_indices
+        else:
+            sl_all = np.setdiff1d(all_indices, self.last_mask)
+        self.rng.shuffle(sl_all)
+        self.last_mask = np.sort(sl_all[:num])
+        _Logger.print(
+            f"Using {self.last_mask.size} / {num_vols} subtomograms for iteration {ith + 1}."
+        )
+        return self.last_mask
+
+
+def _classify_em_impl(
+    templates,
+    mask,
+    temp_loader: "ExtractedSubvolumeLoader",
+    max_num_iters: int,
+    inverse_temperature: float,
+    cutoff: float,
+    picker: ClassfySubsetPicker,
+):
+    yield _plot_classify_templates.with_args(list(templates))
+    _Logger.print("Classification started.")
+    yield thread_worker.description("Classification iteration 1")
+
+    for result in temp_loader.iter_classify_em(
+        list(templates),
+        mask=mask,
+        inverse_temperature=inverse_temperature,
+        max_niter=max_num_iters,
+        cutoff=cutoff,
+        subset_picker=picker,
+    ):
+        _Logger.print(f"Iteration {result.num_iter}")
+
+        # Calculate Shannon entropy for each molecule. Higher entropy means more
+        # uncertain classification
+        yield _plot_classify_templates.with_args(result.class_templates)
+        shannon_entropy = -np.sum(result.probs * np.log2(result.probs + 1e-10), axis=1)
+        yield _plot_shannon_entropy_classification.with_args(shannon_entropy)
+        # Total number of molecules contributed to each class, but weighted by the
+        # probabilities
+        contrib = np.sum(result.probs, axis=0)
+        contrib_sum = contrib.sum()
+        _Logger.print_table(
+            {
+                "Class ID": list(range(len(result.class_templates))),
+                "Sub-volumes (weighted)": [
+                    f"{c:.1f} ({c / contrib_sum:.1%})" for c in contrib
+                ],
+            }
+        )
+        yield thread_worker.description(
+            f"Classification iteration {result.num_iter + 1}"
+        )
+
+    return result
+
+
+def _post_classify_em(result, loader: SubtomogramLoader, all_moles: Molecules):
+    avgs = ip.asarray(
+        np.stack(result.class_templates, axis=0), axes=["cls", "z", "y", "x"]
+    ).set_scale(zyx=loader.scale, unit="nm")
+
+    best_class_id = np.argmax(result.probs, axis=1)
+    new_features = [pl.Series("class", best_class_id, dtype=pl.Int32)]
+    for i in range(len(result.class_templates)):
+        probs_i = result.probs[:, i]
+        new_features.append(pl.Series(f"class_{i:03}_prob", probs_i, dtype=pl.Float32))
+    all_moles_updated = all_moles.with_features(new_features)
+    return avgs, all_moles_updated
 
 
 impl_preview(SubtomogramAveraging.align_all_rma, text="Preview molecule network")(

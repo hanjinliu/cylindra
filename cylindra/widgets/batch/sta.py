@@ -62,15 +62,6 @@ if TYPE_CHECKING:
     from napari.layers import Image
 
 
-def _classify_pca_fmt():
-    yield "(0/5) Caching all the subtomograms"
-    yield "(1/5) Creating template image for PCA clustering"
-    yield "(2/5) Fitting PCA model"
-    yield "(3/5) Transforming all the images"
-    yield "(4/5) Creating average images for each cluster"
-    yield "(5/5) Finishing"
-
-
 # annotated types
 _CutoffFreq = Annotated[float, {"min": 0.0, "max": 1.0, "step": 0.05}]
 _Rotations = Annotated[
@@ -740,79 +731,6 @@ class BatchSubtomogramAveraging(MagicTemplate):
                 _imlayer.metadata["fsc_mask"] = _as_imgarray(img_mask)
 
         return _calculate_fsc_on_return
-
-    @set_design(text="PCA/K-means classification", location=BatchSubtomogramAnalysis)
-    @dask_thread_worker.with_progress(descs=_classify_pca_fmt)
-    def classify_pca(
-        self,
-        loader_name: Annotated[str, {"bind": _get_current_loader_name}],
-        template_path: Annotated[str | Path | None, {"bind": _get_template_path}] = None,
-        mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
-        size: Annotated[Optional[nm], {"text": "Use mask shape", "options": {"value": 12.0, "max": 100.0}, "label": "size (nm)"}] = None,
-        cutoff: _CutoffFreq = 0.5,
-        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
-        bin_size: _BINSIZE = 1,
-        n_components: Annotated[int, {"min": 2, "max": 20}] = 2,
-        n_clusters: Annotated[int, {"min": 2, "max": 100}] = 2,
-        seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
-    ):  # fmt: skip
-        """Classify molecules in the loader using PCA and K-means clustering.
-
-        Parameters
-        ----------
-        {loader_name}{template_path}{mask_params}{size}{cutoff}{interpolation}{bin_size}
-        n_components : int, default 2
-            The number of PCA dimensions.
-        n_clusters : int, default 2
-            The number of clusters.
-        seed : int, default
-            Random seed.
-        """
-        from cylindra.components.visualize import plot_pca_classification
-
-        t0 = timer()
-        loader = self._get_parent().loader_infos[loader_name].loader
-        template, mask = loader.normalize_input(
-            template=self.params._norm_template_param(template_path, allow_none=True),
-            mask=self.params._get_mask(params=mask_params),
-        )
-        shape = None
-        if mask is None:
-            shape = self._get_shape_in_px(size, loader)
-        out, pca = (
-            loader.reshape(
-                template=template if mask is None and shape is None else None,
-                mask=mask,
-                shape=shape,
-            )
-            .replace(order=interpolation)
-            .binning(binsize=bin_size, compute=False)
-            .classify(
-                mask=mask,
-                seed=seed,
-                cutoff=cutoff,
-                n_components=n_components,
-                n_clusters=n_clusters,
-                label_name="class",
-            )
-        )
-
-        avgs = ip.asarray(
-            out.groupby("class").average().value_stack(axis=0),
-            axes=["cls", "z", "y", "x"],
-        ).set_scale(zyx=loader.scale, unit="nm")
-
-        transformed = pca.get_transform()
-        t0.toc()
-
-        @thread_worker.callback
-        def _on_return():
-            loader.molecules.features = out.molecules.features
-            with _Logger.set_plt():
-                plot_pca_classification(pca, transformed)
-            self._show_rec(avgs, name=f"[PCA]{loader_name}", store=False)
-
-        return _on_return
 
     @magictoolbar
     class STATools(MagicTemplate):

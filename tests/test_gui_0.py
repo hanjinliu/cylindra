@@ -915,25 +915,6 @@ def test_seam_search(ui: CylindraMainWidget, tmpdir):
         ui.sta.seam_search_manually(image_layer_name, 3)
 
 
-def test_classify_pca(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=None)
-    ui.filter_molecules(
-        ui.parent_viewer.layers["Mole-0"], predicate="pl.col('nth') < 3"
-    )
-    layer = ui.mole_layers.last()
-    exc_group = ExceptionGroup()
-    for binsize in [1, 2]:
-        with exc_group.merging():
-            ui.sta.classify_pca(
-                layer,
-                mask_params=None,
-                size=12.0,
-                interpolation=1,
-                bin_size=binsize,
-            )
-    exc_group.raise_exceptions()
-
-
 def test_clip_spline(ui: CylindraMainWidget):
     path = TEST_DIR / "13pf_MT.tif"
     ui.open_image(path=path, scale=1.052, tilt_range=(-60, 60), bin_size=2)

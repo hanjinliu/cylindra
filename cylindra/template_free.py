@@ -133,7 +133,7 @@ class RMAAlignmentParams(AlignmentParams):
             max_rotations_initial=max_rotations,
             upsample_factor=2,
             upsample_factor_final=upsample_factor_final,
-            temperature_time_const=temperature_time_const_final / 2.5,
+            temperature_time_const=temperature_time_const_final,
             temperature_time_const_final=temperature_time_const_final,
             num_trials=2,
         )
@@ -161,7 +161,7 @@ class RMAAlignmentParams(AlignmentParams):
             num_iter,
         )
         temperature_time_const = adjust_up(
-            result.params.temperature_time_const_final / 1.6,
+            result.params.temperature_time_const,
             result.params.temperature_time_const_final,
             num_iter,
         )
