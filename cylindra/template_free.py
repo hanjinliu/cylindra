@@ -6,7 +6,7 @@ from typing import Generic, TypeVar
 import impy as ip
 import numpy as np
 from acryo import SubtomogramLoader, alignment, pipe
-from acryo.loader import BatchLoader
+from acryo.loader import LoaderBase
 from numpy.typing import NDArray
 
 from cylindra.components.landscape import Landscape
@@ -30,7 +30,7 @@ def adjust_up(a: float, a_max: float, num_iter: int, num_iter_offset: int = 3) -
     return a_max - diff / (num_iter - num_iter_offset + 2)
 
 
-_L = TypeVar("_L", bound=BatchLoader)
+_L = TypeVar("_L", bound=LoaderBase)
 
 
 @dataclass

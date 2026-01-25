@@ -167,6 +167,14 @@ _MinNumMoleculesPerClass = Annotated[
         "label": "Min molecules/class",
     },
 ]
+_SeedType = Annotated[
+    int,
+    {
+        "min": 0,
+        "max": 1_000_000,
+        "step": 1,
+    },
+]
 
 # choices
 METHOD_CHOICES = (
@@ -735,7 +743,7 @@ class SubtomogramAveraging(ChildWidget):
         loader = tomo.get_subtomogram_loader(
             _concat_molecules(layers), shape, binsize=bin_size, order=interpolation
         )
-        img = ip.asarray(loader.average(), axes="zyx")
+        img = ip.asarray(loader.order_optimize().average(), axes="zyx")
         img.set_scale(zyx=loader.scale, unit="nm")
         t0.toc()
         _Logger.print_html(
@@ -781,7 +789,7 @@ class SubtomogramAveraging(ChildWidget):
         mole = molecules.subset(sl)
         loader = parent.tomogram.get_subtomogram_loader(
             mole, shape, binsize=bin_size, order=1
-        )
+        ).order_optimize()
         img = ip.asarray(loader.average(), axes="zyx").set_scale(zyx=loader.scale)
         t0.toc()
         return self._show_rec.with_args(img, f"[AVG(n={number})]{_avg_name(layers)}")
@@ -818,7 +826,7 @@ class SubtomogramAveraging(ChildWidget):
             _concat_molecules(layers), shape, binsize=bin_size, order=interpolation
         )
         expr = widget_utils.norm_polars_expr(by)
-        groups = loader.groupby(expr)
+        groups = loader.order_optimize().groupby(expr)
         avg_dict = groups.average()
         avgs = np.stack([avg_dict[k] for k in sorted(avg_dict.keys())], axis=0)
         img = ip.asarray(avgs, axes="pzyx")
@@ -861,7 +869,7 @@ class SubtomogramAveraging(ChildWidget):
         loader = tomo.get_subtomogram_loader(
             _concat_molecules(layers), shape, binsize=bin_size, order=interpolation
         ).filter(widget_utils.norm_polars_expr(predicate))
-        avg = loader.average()
+        avg = loader.order_optimize().average()
         img = ip.asarray(avg, axes="zyx")
         img.set_scale(zyx=loader.scale, unit="nm")
         t0.toc()
@@ -1045,16 +1053,20 @@ class SubtomogramAveraging(ChildWidget):
             order=interpolation,
         )
         _Logger.print(f"Aligning {loader.molecules.count()} molecules ...")
-        aligned_loader = loader.align(
-            template=self.params._norm_template_param(
-                template_path, allow_multiple=True
-            ),
-            mask=self.params._get_mask(params=mask_params),
-            max_shifts=max_shifts,
-            rotations=rotations,
-            cutoff=cutoff,
-            alignment_model=_get_alignment(method),
-            tilt=main.tomogram.tilt_model,
+        aligned_loader = (
+            loader.order_optimize()
+            .align(
+                template=self.params._norm_template_param(
+                    template_path, allow_multiple=True
+                ),
+                mask=self.params._get_mask(params=mask_params),
+                max_shifts=max_shifts,
+                rotations=rotations,
+                cutoff=cutoff,
+                alignment_model=_get_alignment(method),
+                tilt=main.tomogram.tilt_model,
+            )
+            .order_restore()
         )
         molecules = combiner.split(aligned_loader.molecules, layers)
         t0.toc()
@@ -1095,9 +1107,11 @@ class SubtomogramAveraging(ChildWidget):
             shape = tuple(
                 main.tomogram.nm2pixel(self._get_shape_in_nm(size), binsize=bin_size)
             )
-        loader = self._get_loader(
-            binsize=bin_size, molecules=molecules, order=interpolation
-        ).reshape(shape=shape)
+        loader = (
+            self._get_loader(binsize=bin_size, molecules=molecules, order=interpolation)
+            .reshape(shape=shape)
+            .order_optimize()
+        )
         _alignment_state = template_free.AlignmentState(
             rng=rng,
             mask=mask,
@@ -1126,6 +1140,7 @@ class SubtomogramAveraging(ChildWidget):
             ).with_desc(_pdesc.align_tf_1(_alignment_state))
 
         yield self._show_rec.with_args(result.avg, f"[Aligned]{_avg_name(layers)}")
+        loader = loader.order_restore()
         molecules = combiner.split(loader.molecules, layers)
         t0.toc()
         return self._align_all_on_return.with_args(molecules, layers)
@@ -1773,7 +1788,7 @@ class SubtomogramAveraging(ChildWidget):
         template_path: Annotated[_PathOrNone, {"bind": _template_param}] = None,
         mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         size: _SubVolumeSize = None,
-        seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
+        seed: _SeedType = 0,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
         n_pairs: Annotated[int, {"min": 1, "label": "number of image pairs"}] = 1,
         show_average: bool = True,
@@ -1808,11 +1823,17 @@ class SubtomogramAveraging(ChildWidget):
             template=self.params._norm_template_param(template_path, allow_none=True),
             mask=self.params._get_mask(params=mask_params),
         )
-        fsc, (img_0, img_1), img_mask = loader.reshape(
-            template=template if size is None else None,
-            mask=mask,
-            shape=None if size is None else (main.tomogram.nm2pixel(size),) * 3,
-        ).fsc_with_halfmaps(mask, seed=seed, n_set=n_pairs, dfreq=dfreq, squeeze=False)
+        fsc, (img_0, img_1), img_mask = (
+            loader.reshape(
+                template=template if size is None else None,
+                mask=mask,
+                shape=None if size is None else (main.tomogram.nm2pixel(size),) * 3,
+            )
+            .order_optimize()
+            .fsc_with_halfmaps(
+                mask, seed=seed, n_set=n_pairs, dfreq=dfreq, squeeze=False
+            )
+        )
 
         def _as_imgarray(im, axes: str = "zyx") -> ip.ImgArray | None:
             if np.isscalar(im):
@@ -1858,14 +1879,14 @@ class SubtomogramAveraging(ChildWidget):
         self,
         layers: MoleculesLayersType,
         templates: Annotated[list[Path], {"filter": FileFilter.IMAGE}],
-        max_num_iters: Annotated[int, {"min": 1, "max": 100}] = 10,
+        max_num_iters: Annotated[int, {"min": 1, "max": 100, "label": "iterations"}] = 10,
         min_num_molecules_per_class: _MinNumMoleculesPerClass = None,
         mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         inverse_temperature: Annotated[float, {"min": 1, "max": 10000}] = 80,
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         bin_size: BinSizeType = 1,
-        seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
+        seed: _SeedType = 0,
     ):  # fmt: skip
         """Classify molecules to the user given templates using EM algorithm.
 
@@ -1885,6 +1906,7 @@ class SubtomogramAveraging(ChildWidget):
         """
         t0 = timer()
         layers = assert_list_of_layers(layers, self.parent_viewer)
+        mask = self.params._get_mask(params=mask_params)
         tomo = self._get_main().tomogram
         if isinstance(templates, (Path, str)):
             templates = [Path(templates)]
@@ -1908,11 +1930,15 @@ class SubtomogramAveraging(ChildWidget):
         all_moles = combiner.concat(layer.molecules for layer in layers)
 
         shape = template_images[0].shape
-        loader = self._get_loader(
-            binsize=bin_size,
-            molecules=all_moles,
-            order=interpolation,
-        ).replace(output_shape=shape)
+        loader = (
+            self._get_loader(
+                binsize=bin_size,
+                molecules=all_moles,
+                order=interpolation,
+            )
+            .replace(output_shape=shape)
+            .order_optimize()
+        )
         _Logger.print(
             f"Starting EM classification into user supplied {len(template_images)} templates."
             f"\n{loader.molecules.count()} subtomograms with size {loader.output_shape}"
@@ -1929,7 +1955,6 @@ class SubtomogramAveraging(ChildWidget):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / f"subtomograms_{id(t0)}"
             temp_loader = loader.extract_subtomograms(path)
-            mask = self.params._get_mask(params=mask_params)
             result = yield from _classify_em_impl(
                 template_images, mask, temp_loader, max_num_iters=max_num_iters,
                 inverse_temperature=inverse_temperature, cutoff=cutoff, picker=picker,
@@ -1955,13 +1980,13 @@ class SubtomogramAveraging(ChildWidget):
         size: Annotated[float, {"value": 12.0, "max": 100.0, "label": "size (nm)"}] = None,
         num_classes: Annotated[int, {"min": 1, "max": 100}] = 2,
         min_num_molecules_per_class: _MinNumMoleculesPerClass = None,
-        max_num_iters: Annotated[int, {"min": 1, "max": 100}] = 10,
+        max_num_iters: Annotated[int, {"min": 1, "max": 100, "label": "iterations"}] = 10,
         mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
         inverse_temperature: Annotated[float, {"min": 1, "max": 10000}] = 80,
         cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         bin_size: BinSizeType = 1,
-        seed: Annotated[Optional[int], {"text": "Do not use random seed."}] = 0,
+        seed: _SeedType = 0,
     ):  # fmt: skip
         """Classify molecules using EM algorithm.
 
@@ -1982,12 +2007,13 @@ class SubtomogramAveraging(ChildWidget):
         t0 = timer()
         layers = assert_list_of_layers(layers, self.parent_viewer)
         combiner = widget_utils.MoleculesCombiner()
+        mask = self.params._get_mask(params=mask_params)
         all_moles = combiner.concat(layer.molecules for layer in layers)
 
         shape = (size,) * 3
         loader = self._get_loader(
             binsize=bin_size, molecules=all_moles, order=interpolation, shape=shape
-        )
+        ).order_optimize()
         _Logger.print(
             f"Starting EM classification into {num_classes} classes.\n"
             f"{loader.molecules.count()} subtomograms with size {loader.output_shape}"
@@ -2007,7 +2033,6 @@ class SubtomogramAveraging(ChildWidget):
             temp_loader = loader.extract_subtomograms(path)
             yield thread_worker.description("Creating initial class templates")
             templates = temp_loader.average_split(n_split=num_classes, seed=rng)
-            mask = self.params._get_mask(params=mask_params)
             result = yield from _classify_em_impl(
                 templates, mask, temp_loader, max_num_iters=max_num_iters,
                 inverse_temperature=inverse_temperature, cutoff=cutoff, picker=picker,
@@ -2593,10 +2618,12 @@ def _post_classify_em(result, loader: SubtomogramLoader, all_moles: Molecules):
         np.stack(result.class_templates, axis=0), axes=["cls", "z", "y", "x"]
     ).set_scale(zyx=loader.scale, unit="nm")
 
-    best_class_id = np.argmax(result.probs, axis=1)
+    order = loader.order_argsort()
+    probs = result.probs[order]
+    best_class_id = np.argmax(probs, axis=1)
     new_features = [pl.Series("class", best_class_id, dtype=pl.Int32)]
     for i in range(len(result.class_templates)):
-        probs_i = result.probs[:, i]
+        probs_i = probs[:, i]
         new_features.append(pl.Series(f"class_{i:03}_prob", probs_i, dtype=pl.Float32))
     all_moles_updated = all_moles.with_features(new_features)
     return avgs, all_moles_updated

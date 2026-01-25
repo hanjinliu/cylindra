@@ -62,8 +62,6 @@ install from [PyPI](https://pypi.org), you'll need [`git`](https://git-scm.com) 
 
     - `pyqt6` ... This is the default GUI backend. You can also use `pyqt5` or
       `pyside6`.
-    - `scikit-learn` ... Conventional machine learning library. Princilple component
-      analysis (PCA) and k-means clustering need this library.
     - `mrcfile` ... A library for reading and writing MRC files. This is needed if you
       want to use MRC files.
     - `tifffile` ... A library for reading and writing TIFF files. This is needed if you

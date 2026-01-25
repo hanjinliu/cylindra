@@ -52,7 +52,7 @@ class CylindraToolbar(ChildWidget):
 
     @magicmenu(icon="carbon:settings-adjust", record=False)
     class Adjust(ChildWidget):
-        """Adjust auto picker parameters.
+        """Adjust the spline fitting and auto picker parameters.
 
         Attributes
         ----------
@@ -66,6 +66,7 @@ class CylindraToolbar(ChildWidget):
             Maximum shift (nm) to search in auto picking.
         """
 
+        err_max = vfield(0.5).with_options(min=0.0, max=4.0, step=0.1)
         interval = vfield(80.0, widget_type="FloatSlider").with_options(min=10, max=200)  # fmt: skip
         max_angle = vfield(12.0, widget_type="FloatSlider").with_options(min=1.0, max=40.0, step=0.5)  # fmt: skip
         angle_step = vfield(1.0, widget_type="FloatSlider").with_options(min=0.5, max=5.0, step=0.1)  # fmt: skip

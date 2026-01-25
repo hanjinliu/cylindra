@@ -285,6 +285,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         img = ip.asarray(
             loader.replace(output_shape=shape, order=interpolation)
             .binning(bin_size, compute=False)
+            .order_optimize()
             .average(),
             axes="zyx",
         ).set_scale(zyx=loader.scale * bin_size, unit="nm")
@@ -320,6 +321,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         img = ip.asarray(
             loader.replace(output_shape=shape, order=interpolation)
             .binning(bin_size, compute=False)
+            .order_optimize()
             .groupby(norm_polars_expr(by))
             .average()
             .value_stack(axis=0),
@@ -362,6 +364,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         aligned = (
             loader.replace(output_shape=template.shape, order=interpolation)
             .binning(bin_size, compute=False)
+            .order_optimize()
             .align(
                 template=template,
                 mask=mask,
@@ -370,6 +373,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
                 cutoff=cutoff,
                 alignment_model=_get_alignment(method),
             )
+            .order_restore()
         )
         loaderlist.add_loader(
             aligned,
@@ -410,8 +414,10 @@ class BatchSubtomogramAveraging(MagicTemplate):
         info = loaderlist[loader_name]
         mask = self.params._get_mask(params=mask_params)
         shape = self._get_shape_in_px(size, info.loader)
-        loader = info.loader.replace(output_shape=shape, order=interpolation).binning(
-            bin_size, compute=False
+        loader = (
+            info.loader.replace(output_shape=shape, order=interpolation)
+            .binning(bin_size, compute=False)
+            .order_optimize()
         )
         _Logger.print(f"Aligning {loader.molecules.count()} molecules ...")
         _alignment_state = template_free.AlignmentState(
@@ -439,7 +445,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
             ).with_desc(_pdesc.align_tf_1(_alignment_state))
 
         loaderlist.add_loader(
-            loader,
+            loader.order_restore(),
             name=_coerce_aligned_name(info.name, loaderlist),
             image_paths=info.image_paths,
             invert=info.invert,
@@ -689,11 +695,17 @@ class BatchSubtomogramAveraging(MagicTemplate):
             mask=self.params._get_mask(params=mask_params),
         )
 
-        fsc, (img_0, img_1), img_mask = loader.reshape(
-            template=template if size is None else None,
-            mask=mask,
-            shape=None if size is None else self._get_shape_in_px(size, loader),
-        ).fsc_with_halfmaps(mask, seed=seed, n_set=n_pairs, dfreq=dfreq, squeeze=False)
+        fsc, (img_0, img_1), img_mask = (
+            loader.reshape(
+                template=template if size is None else None,
+                mask=mask,
+                shape=None if size is None else self._get_shape_in_px(size, loader),
+            )
+            .order_optimize()
+            .fsc_with_halfmaps(
+                mask, seed=seed, n_set=n_pairs, dfreq=dfreq, squeeze=False
+            )
+        )
 
         def _as_imgarray(im, axes: str = "zyx") -> ip.ImgArray | None:
             if np.isscalar(im):

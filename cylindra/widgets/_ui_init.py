@@ -10,6 +10,7 @@ import numpy as np
 import polars as pl
 from acryo import Molecules
 from magicclass import impl_preview, setup_function_gui
+from magicclass._gui._function_gui import FunctionGuiPlus
 from magicclass.widgets import ConsoleTextEdit
 from magicgui.widgets import FunctionGui, Label, PushButton
 from napari.utils.colormaps import label_colormap
@@ -555,6 +556,15 @@ def _setup_delete_molecules(self: CylindraMainWidget, gui: FunctionGui):
 @setup_function_gui(CylindraMainWidget.delete_segments)
 def _setup_delete_segments(self: CylindraMainWidget, gui: FunctionGui):
     gui.spline.changed.connect(lambda: gui.indices.reset_choices())
+
+
+@setup_function_gui(SubtomogramAveraging.calculate_fsc)
+@setup_function_gui(SubtomogramAveraging.classify_em)
+@setup_function_gui(SubtomogramAveraging.classify_em_template_free)
+def _init_seed(self: SubtomogramAveraging, gui: FunctionGuiPlus):
+    @gui.activated.connect
+    def _set_random_seed():
+        gui.seed.value = np.random.randint(0, 1_000_000)
 
 
 @contextmanager

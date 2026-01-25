@@ -140,8 +140,8 @@ def start(
     if add_main_widget:
         try:  # Just in case
             # avoid accidentally closing/hiding the dock widget
-            dock.title.close_button.disconnect()
-            dock.title.hide_button.disconnect()
+            dock.title.close_button.clicked.disconnect()
+            dock.title.hide_button.clicked.disconnect()
         except Exception:  # pragma: no cover
             print("Failed to disconnect the close/hide button of the dock widget.")
 
