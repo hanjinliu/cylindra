@@ -156,7 +156,7 @@ each class.
 - Depending on the target structure you want to classify, you can use binning to speed
   up the classification and reduce overfitting. For example, to classify ~6000 tubulins
   into kinesin-bound and non-bound classes, ~0.5 nm/pixel is sufficient.
-  ![Classified tubulins](../images/classify_tubulins.png){ loading=lazy, width=300px }
+  ![Classified tubulins](../images/classification-kin.png){ loading=lazy, width=300px }
 - The target structure is better but not necessarily centered, given that you provided a
   proper mask. Nevertheless, you can substantially reduce the subtomogram volume size by
   centering the structure. You may use [`translate_molecules`](../molecules/transform.md#translation-of-molecules) to interactively translate the molecules to the center of

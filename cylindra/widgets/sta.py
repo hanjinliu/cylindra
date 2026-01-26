@@ -2617,12 +2617,14 @@ def _post_classify_em(result, loader: SubtomogramLoader, all_moles: Molecules):
     ).set_scale(zyx=loader.scale, unit="nm")
 
     order = loader.order_argsort()
+    if order is None:
+        order = slice(None)
     probs = result.probs[order]
     best_class_id = np.argmax(probs, axis=1)
-    new_features = [pl.Series("class", best_class_id, dtype=pl.Int32)]
+    new_features = [pl.Series("class", best_class_id.astype(np.int32))]
     for i in range(len(result.class_templates)):
         probs_i = probs[:, i]
-        new_features.append(pl.Series(f"class_{i:03}_prob", probs_i, dtype=pl.Float32))
+        new_features.append(pl.Series(f"class_{i:03}_prob", probs_i))
     all_moles_updated = all_moles.with_features(new_features)
     return avgs, all_moles_updated
 
