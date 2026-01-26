@@ -3736,8 +3736,8 @@
     <span class="k">if</span> <span class="n">add_main_widget</span><span class="p">:</span>
         <span class="k">try</span><span class="p">:</span>  <span class="c1"># Just in case</span>
             <span class="c1"># avoid accidentally closing/hiding the dock widget</span>
-            <span class="n">dock</span><span class="o">.</span><span class="n">title</span><span class="o">.</span><span class="n">close_button</span><span class="o">.</span><span class="n">disconnect</span><span class="p">()</span>
-            <span class="n">dock</span><span class="o">.</span><span class="n">title</span><span class="o">.</span><span class="n">hide_button</span><span class="o">.</span><span class="n">disconnect</span><span class="p">()</span>
+            <span class="n">dock</span><span class="o">.</span><span class="n">title</span><span class="o">.</span><span class="n">close_button</span><span class="o">.</span><span class="n">clicked</span><span class="o">.</span><span class="n">disconnect</span><span class="p">()</span>
+            <span class="n">dock</span><span class="o">.</span><span class="n">title</span><span class="o">.</span><span class="n">hide_button</span><span class="o">.</span><span class="n">clicked</span><span class="o">.</span><span class="n">disconnect</span><span class="p">()</span>
         <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
             <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Failed to disconnect the close/hide button of the dock widget.&quot;</span><span class="p">)</span>
 

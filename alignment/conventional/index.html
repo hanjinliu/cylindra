@@ -1277,17 +1277,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#template-free-alignment" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Template-free Alignment
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#fourier-shell-correlation-fsc" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1299,13 +1288,52 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#pcak-means-classification" class="md-nav__link">
+  <a href="#template-free-alignment-create-an-initial-model" class="md-nav__link">
     <span class="md-ellipsis">
       
-        PCA/K-means Classification
+        Template-free Alignment (Create an Initial Model)
       
     </span>
   </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#classification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Classification
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Classification">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#user-supplied-templates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        User-supplied templates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#template-free-classification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Template-free classification
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -2751,17 +2779,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#template-free-alignment" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Template-free Alignment
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#fourier-shell-correlation-fsc" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2773,13 +2790,52 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#pcak-means-classification" class="md-nav__link">
+  <a href="#template-free-alignment-create-an-initial-model" class="md-nav__link">
     <span class="md-ellipsis">
       
-        PCA/K-means Classification
+        Template-free Alignment (Create an Initial Model)
       
     </span>
   </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#classification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Classification
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Classification">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#user-supplied-templates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        User-supplied templates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#template-free-classification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Template-free classification
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -2894,12 +2950,6 @@ should be <em>almost</em> well fitted to the template image.</p>
 <li>"method" is the method used to calculate cross correlation.</li>
 </ol>
 </details>
-<h2 id="template-free-alignment">Template-free Alignment</h2>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="align_all_template_free(layers, mask_params, size=12.0, max_shifts=(1.0, 1.0, 1.0), rotations=((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)), interpolation=3, method='zncc', bin_size=1, seed=0, tolerance=0.01)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.align_all_template_free"><code>align_all_template_free</code></a></p>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>STA widget &gt; Alignment &gt; Align all molecules (template-free)</code></p>
-<p>This method iteratively align molecules to the current average image, and validate the
-alignment by <a href="#fourier-shell-correlation-fsc">FSC</a>.</p>
-<p><img alt="Align all template-free" loading="lazy," src="../../images/align_all_template_free.png" width="480px" /></p>
 <h2 id="fourier-shell-correlation-fsc">Fourier Shell Correlation (FSC)</h2>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="calculate_fsc(layers, template_path=None, mask_params=None, size=None, seed=0, interpolation=1, n_pairs=1, show_average=True, dfreq=None)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.calculate_fsc"><code>calculate_fsc</code></a></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>STA widget &gt; Analysis &gt; Calculate FSC</code></p>
@@ -2932,14 +2982,46 @@ for the average image.</p>
 </details>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Half maps can be found in <code>"fsc_halfmaps"</code> attribute of the average image layer.</p>
-<div class="highlight"><pre><span></span><code>    <span class="n">ui</span><span class="o">.</span><span class="n">sub_viewer</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="s2">&quot;layer-name&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;fsc_halfmaps&quot;</span><span class="p">]</span>
+<p>Half maps are stored in <code>"fsc_halfmaps"</code> attribute of the average image layer.</p>
+<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="o">.</span><span class="n">sub_viewer</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="s2">&quot;layer-name&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;fsc_halfmaps&quot;</span><span class="p">]</span>
 </code></pre></div>
 </div>
-<h2 id="pcak-means-classification">PCA/K-means Classification</h2>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="classify_pca(layer, template_path=None, mask_params=None, size=None, cutoff=0.5, interpolation=3, bin_size=1, n_components=2, n_clusters=2, seed=0)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.classify_pca"><code>classify_pca</code></a></p>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>STA widget &gt; Analysis &gt; PCA/K-means classification</code></p>
-<p><img alt="PCA/K-means classification" loading="lazy," src="../../images/classify_pca.png" width="400px" /></p>
+<h2 id="template-free-alignment-create-an-initial-model">Template-free Alignment (Create an Initial Model)</h2>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="align_all_template_free(layers, mask_params, size=12.0, max_shifts=(0.8, 0.8, 0.8), max_rotations=(3.0, 3.0, 3.0), min_rotation_step=0.4, interpolation=3, method='zncc', bin_size=1, max_num_iters=20)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.align_all_template_free"><code>align_all_template_free</code></a></p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>STA widget &gt; Alignment &gt; Align all molecules (template-free)</code></p>
+<p>This method iteratively align molecules to the current average image, and validate the
+alignment by <a href="#fourier-shell-correlation-fsc">FSC</a>. The low-pass cutoff frequency is
+updated according to the resolution determined by FSC to avoid overfitting.</p>
+<p><img alt="Align all template-free" loading="lazy," src="../../images/align_all_template_free.png" width="480px" /></p>
+<h2 id="classification">Classification</h2>
+<p><img alt="✨" class="twemoji" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@16.0.1/assets/svg/2728.svg" title=":sparkles:" /> New in v1.1.0</p>
+<p>Classification uses expectation-maximization (EM) algorithm to iteratively calculate the
+correlation score of each subtomogram to template images, and calculate new averages for
+each class.</p>
+<ul>
+<li>Depending on the target structure you want to classify, you can use binning to speed
+  up the classification and reduce overfitting. For example, to classify ~6000 tubulins
+  into kinesin-bound and non-bound classes, ~0.5 nm/pixel is sufficient.
+  <img alt="Classified tubulins" loading="lazy," src="../../images/classification-kin.png" width="300px" /></li>
+<li>The target structure is better but not necessarily centered, given that you provided a
+  proper mask. Nevertheless, you can substantially reduce the subtomogram volume size by
+  centering the structure. You may use <a href="../../molecules/transform/#translation-of-molecules"><code>translate_molecules</code></a> to interactively translate the molecules to the center of
+  the target structure.</li>
+</ul>
+<h3 id="user-supplied-templates">User-supplied templates</h3>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="classify_em(layers, templates, max_num_iters=10, min_num_molecules_per_class=None, mask_params=None, inverse_temperature=80, cutoff=0.5, interpolation=3, bin_size=1, seed=0)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.classify_em"><code>classify_em</code></a></p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>STA widget &gt; Analysis &gt; 3D classification</code></p>
+<p><img alt="&quot;EM classification&quot;" loading="lazy," src="../../images/classification-kin.png" width="400px" /></p>
+<p>This method classifies the subtomograms into user-supplied template images. You can
+classify all the molecules with a single iteration, but it is recommended to run
+multiple iterations to get unbiased results.</p>
+<h3 id="template-free-classification">Template-free classification</h3>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="classify_em_template_free(layers, size=None, num_classes=2, min_num_molecules_per_class=None, max_num_iters=10, mask_params=None, inverse_temperature=80, cutoff=0.5, interpolation=3, bin_size=1, seed=0)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.classify_em_template_free"><code>classify_em_template_free</code></a></p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>STA widget &gt; Analysis &gt; 3D classification (template-free)</code></p>
+<p><img alt="&quot;EM classification template free&quot;" loading="lazy," src="../../images/classify_em_template_free.png" width="400px" /></p>
+<p>This method randomly splits the molecules into the specified number of classes to create
+initial templates, then iteratively updates the them by the EM algorithm. 10 or more
+iterations are usually needed to get well-classified results.</p>
 
 
 

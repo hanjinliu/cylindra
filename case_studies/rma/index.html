@@ -2769,7 +2769,7 @@ accurate RMA analysis.</p>
 </li>
 </ol>
 <h2 id="step-2-refine-the-molecule-positions-by-rma">Step 2. Refine the molecule positions by RMA</h2>
-<p>RMA can be performed by the <a class="autorefs autorefs-internal" title="align_all_rma(layer, template_path, mask_params=None, max_shifts=(0.8, 0.8, 0.8), rotations=((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)), cutoff=0.5, interpolation=3, range_long=(4.0, 4.28), range_lat=(5.1, 5.3), angle_max=5.0, bin_size=1, temperature_time_const=1.0, upsample_factor=5, random_seeds=(0, 1, 2, 3, 4))" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.align_all_rma">align_all_rma</a> method, but there are several tips to get better results.</p>
+<p>RMA can be performed by the <a class="autorefs autorefs-internal" title="align_all_rma(layer, template_path, mask_params=None, max_shifts=(0.8, 0.8, 0.8), rotations=((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)), cutoff=0.5, interpolation=3, range_long=(4.0, 4.28), range_lat=('d.mean() - 0.1', 'd.mean() + 0.1'), angle_max=5.0, bin_size=1, temperature_time_const=1.0, upsample_factor=5, random_seeds=(0, 1, 2, 3, 4))" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.align_all_rma">align_all_rma</a> method, but there are several tips to get better results.</p>
 <p>RMA is a constrained alignment algorithm that refines the positions of the molecules
 considering the constraint between longitudinal and lateral tubulin distances. If you
 set the constraints too strictly or out of the range of the actual structure, results
