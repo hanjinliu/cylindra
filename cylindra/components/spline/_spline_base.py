@@ -743,6 +743,11 @@ class Spline(BaseComponent):
             Interval between sampled points on the spline.
         extrapolation : (nm, nm), default (0.0, 0.0)
             Extrapolation distance before and after the spline.
+
+        Returns
+        -------
+        DistanceMatrix
+            Distance matrix between sampled spline points and input points.
         """
         ext_0, ext_1 = extrapolation
         if interval <= 0:
@@ -1248,8 +1253,8 @@ class DistanceMatrix:
         points: NDArray[np.float32],
     ):
         self.matrix = matrix
-        self.spl_coords = spl_coords
-        self.spl_points = spl_points
+        self.spl_coords = spl_coords  # the `u` coordinates on spline
+        self.spl_points = spl_points  # points on spline
         self.points = points
 
     def __array__(self, dtype=None) -> NDArray[np.float32]:

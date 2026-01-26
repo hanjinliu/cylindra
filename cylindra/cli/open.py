@@ -110,7 +110,7 @@ class ParserOpen(ParserBase):
 
             ui = start(viewer=self.viewer)
             img_meta = _io.read_header(path)
-            scale = scale or img_meta.scale.x
+            scale = scale or img_meta.scale["x"]
             bin_size = bin_size or [int(math.ceil(0.96 / scale))]
             if ref_image:
                 ui.open_image_with_reference(

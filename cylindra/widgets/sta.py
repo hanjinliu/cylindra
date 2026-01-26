@@ -1897,8 +1897,6 @@ class SubtomogramAveraging(ChildWidget):
         templates : list of Path
             Paths to the template images used for classification. Must be a list of
             3D images or a 4D image containing multiple 3D images.
-        num_classes : int, default 2
-            The number of classes to classify subtomograms into.
         inverse_temperature : float, default 100
             Temperature parameter for the softmax function used in the expectation step.
             Higher value (lower temperature) makes the classification harder, while
