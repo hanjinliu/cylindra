@@ -38,7 +38,9 @@ class MoleculesInfo(LayerInfo):
     """Info of molecules layer."""
 
     name: str = "#unknown"  # including extension
+    """Name of the molecules file (including extension)."""
     source: int | None = None
+    """ID of the source spline in the tomogram's splines list."""
     visible: bool = True
     color: MoleculeColormap | str = "lime"
     point_size: float = 4.2

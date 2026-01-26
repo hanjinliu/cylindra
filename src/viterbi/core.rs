@@ -67,7 +67,7 @@ impl ViterbiGrid {
             let _ez = Vector3D::new(zvec[[t, 0]], zvec[[t, 1]], zvec[[t, 2]]);
             let _ey = Vector3D::new(yvec[[t, 0]], yvec[[t, 1]], yvec[[t, 2]]);
             let _ex = Vector3D::new(xvec[[t, 0]], xvec[[t, 1]], xvec[[t, 2]]);
-            coords.push(CoordinateSystem::new(_ori, _ez, _ey, _ex));
+            coords.push(CoordinateSystem::new(_ori, _ez, _ey, _ex).with_cache(nz, ny, nx));
         }
 
         Ok(ViterbiGrid { score: score.to_shared(), coords, nmole, nz, ny, nx })
@@ -104,7 +104,7 @@ impl ViterbiGrid {
             );
         }
 
-        let pos = self.coords[n].at(z as f32, y as f32, x as f32);
+        let pos = self.coords[n].at_fast(z, y, x);
         let mut out = Array::zeros((3,));
         out[0] = pos.z;
         out[1] = pos.y;
@@ -195,14 +195,14 @@ impl ViterbiGrid {
                 for y1 in 0..self.ny {
                     for x1 in 0..self.nx {
                         let mut max = f32::NEG_INFINITY;
-                        let end_point = coord.at(z1 as f32, y1 as f32, x1 as f32);
+                        let end_point = coord.at_fast(z1, y1, x1);
                         for y0 in 0..self.ny {
                             if constraint.fast_check_longitudinal(coord_prev, &end_point, y0 as f32) != CheckResult::OK {
                                 continue;
                             }
                             for z0 in 0..self.nz {
                                 for x0 in 0..self.nx {
-                                    if constraint.check_constraint(&coord_prev.at(z0 as f32, y0 as f32, x0 as f32), &end_point) {
+                                    if constraint.check_constraint(&coord_prev.at_fast(z0, y0, x0), &end_point) {
                                         continue;
                                     }
                                     max = f32::max(max, viterbi_lattice[[t - 1, z0, y0, x0]]);
@@ -225,14 +225,14 @@ impl ViterbiGrid {
         let mut prev = argmax.clone();
 
         for t in (0..self.nmole - 1).rev() {
-            let point_prev = self.coords[t + 1].at(prev.z as f32, prev.y as f32, prev.x as f32);
+            let point_prev = self.coords[t + 1].at_fast(prev.z as usize, prev.y as usize, prev.x as usize);
             let coord = &self.coords[t];
             let mut max = f32::NEG_INFINITY;
             let mut argmax: Vector3D<isize> = Vector3D::new(-1, -1, -1);
             for z0 in 0..self.nz {
                 for y0 in 0..self.ny {
                     for x0 in 0..self.nx {
-                        if constraint.check_constraint(&coord.at(z0 as f32, y0 as f32, x0 as f32), &point_prev) {
+                        if constraint.check_constraint(&coord.at_fast(z0, y0, x0), &point_prev) {
                             continue;
                         }
                         let value = viterbi_lattice[[t, z0, y0, x0]];
@@ -297,7 +297,7 @@ impl ViterbiGrid {
                 for x in 0..self.nx {
                     if constraint.check_constraint(
                         &fixed_point,
-                        &coords_first.at(z as f32, y as f32, x as f32),
+                        &coords_first.at_fast(z, y, x),
                         &origin_vector,
                         origin_dist2,
                     ) {
@@ -368,7 +368,7 @@ impl ViterbiGrid {
                 for y1 in 0..self.ny {
                     for x1 in 0..self.nx {
                         let mut max = f32::NEG_INFINITY;
-                        let end_point = coord.at(z1 as f32, y1 as f32, x1 as f32);
+                        let end_point = coord.at_fast(z1, y1, x1);
                         for y0 in 0..self.ny {
                             if constraint.fast_check_longitudinal(&coord_prev, &end_point, y0 as f32) != CheckResult::OK {
                                 continue;
@@ -376,7 +376,7 @@ impl ViterbiGrid {
                             for z0 in 0..self.nz {
                                 for x0 in 0..self.nx {
                                     if constraint.check_constraint(
-                                        &coord_prev.at(z0 as f32, y0 as f32, x0 as f32),
+                                        &coord_prev.at_fast(z0 , y0 , x0 ),
                                         &end_point,
                                         &origin_vector,
                                         origin_dist2,
@@ -407,14 +407,14 @@ impl ViterbiGrid {
             let coord = &self.coords[t];
             let origin_vector = coord.origin - coord_prev.origin;
             let origin_dist2 = origin_vector.length2();
-            let point_prev = coord_prev.at(prev.z as f32, prev.y as f32, prev.x as f32);
+            let point_prev = coord_prev.at_fast(prev.z as usize, prev.y as usize, prev.x as usize);
             let mut max = f32::NEG_INFINITY;
             let mut argmax: Vector3D<isize> = Vector3D::new(-1, -1, -1);
             for z0 in 0..self.nz {
                 for y0 in 0..self.ny {
                     for x0 in 0..self.nx {
                         if constraint.check_constraint(
-                            &coord.at(z0 as f32, y0 as f32, x0 as f32),
+                            &coord.at_fast(z0, y0, x0),
                             &point_prev,
                             &origin_vector,
                             origin_dist2,

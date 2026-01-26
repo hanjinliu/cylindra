@@ -432,13 +432,16 @@ class CylindraMainWidget(MagicTemplate):
                 )
         return splines
 
+    def _get_register_path_err_max(self, *_) -> float:
+        return self.Toolbar.Adjust.err_max
+
     @set_design(icon="iconoir:curve-array", location=Toolbar)
     @bind_key("F1")
     def register_path(
         self,
         coords: Annotated[np.ndarray, {"validator": _get_spline_coordinates}] = None,
         config: Annotated[dict[str, Any] | SplineConfig, {"validator": _get_default_config}] = None,
-        err_max: Annotated[nm, {"bind": 0.5}] = 0.5,
+        err_max: Annotated[nm, {"bind": _get_register_path_err_max}] = 0.5,
     ):  # fmt: skip
         """Register points as a spline path."""
         if coords is None or coords.size == 0:
@@ -2930,7 +2933,9 @@ class CylindraMainWidget(MagicTemplate):
         """Register manually added points as molecules."""
         if coords is None or coords.size == 0:
             raise ValueError("No points are given.")
-        mole = Molecules(coords)
+        mole = Molecules(
+            coords, features={Mole.nth: np.arange(len(coords), dtype=np.int32)}
+        )
         layer = self.add_molecules(mole, name="Mole-manual")
         self._reserved_layers.work.data = []
         return self._undo_callback_for_layer(layer)

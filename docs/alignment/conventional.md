@@ -93,17 +93,6 @@ should be *almost* well fitted to the template image.
     5. "bin size" is the binning factor for resampling.
     6. "method" is the method used to calculate cross correlation.
 
-## Template-free Alignment
-
-:material-arrow-right-thin-circle-outline: API: [`align_all_template_free`][cylindra.widgets.sta.SubtomogramAveraging.align_all_template_free]
-
-:material-arrow-right-thin-circle-outline: GUI: `STA widget > Alignment > Align all molecules (template-free)`
-
-This method iteratively align molecules to the current average image, and validate the
-alignment by [FSC](#fourier-shell-correlation-fsc).
-
-![Align all template-free](../images/align_all_template_free.png){ loading=lazy, width=480px }
-
 ## Fourier Shell Correlation (FSC)
 
 :material-arrow-right-thin-circle-outline: API: [`calculate_fsc`][cylindra.widgets.sta.SubtomogramAveraging.calculate_fsc]
@@ -138,16 +127,62 @@ for the average image.
 
 !!! note
 
-    Half maps can be found in `"fsc_halfmaps"` attribute of the average image layer.
+    Half maps are stored in `"fsc_halfmaps"` attribute of the average image layer.
 
     ```python
-        ui.sub_viewer.layers["layer-name"].metadata["fsc_halfmaps"]
+    ui.sub_viewer.layers["layer-name"].metadata["fsc_halfmaps"]
     ```
 
-## PCA/K-means Classification
+## Template-free Alignment (Create an Initial Model)
 
-:material-arrow-right-thin-circle-outline: API: [`classify_pca`][cylindra.widgets.sta.SubtomogramAveraging.classify_pca]
+:material-arrow-right-thin-circle-outline: API: [`align_all_template_free`][cylindra.widgets.sta.SubtomogramAveraging.align_all_template_free]
 
-:material-arrow-right-thin-circle-outline: GUI: `STA widget > Analysis > PCA/K-means classification`
+:material-arrow-right-thin-circle-outline: GUI: `STA widget > Alignment > Align all molecules (template-free)`
 
-![PCA/K-means classification](../images/classify_pca.png){ loading=lazy, width=400px }
+This method iteratively align molecules to the current average image, and validate the
+alignment by [FSC](#fourier-shell-correlation-fsc). The low-pass cutoff frequency is
+updated according to the resolution determined by FSC to avoid overfitting.
+
+![Align all template-free](../images/align_all_template_free.png){ loading=lazy, width=480px }
+
+## Classification
+
+:sparkles: New in v1.1.0
+
+Classification uses expectation-maximization (EM) algorithm to iteratively calculate the
+correlation score of each subtomogram to template images, and calculate new averages for
+each class.
+
+- Depending on the target structure you want to classify, you can use binning to speed
+  up the classification and reduce overfitting. For example, to classify ~6000 tubulins
+  into kinesin-bound and non-bound classes, ~0.5 nm/pixel is sufficient.
+  ![Classified tubulins](../images/classification-kin.png){ loading=lazy, width=300px }
+- The target structure is better but not necessarily centered, given that you provided a
+  proper mask. Nevertheless, you can substantially reduce the subtomogram volume size by
+  centering the structure. You may use [`translate_molecules`](../molecules/transform.md#translation-of-molecules) to interactively translate the molecules to the center of
+  the target structure.
+
+
+### User-supplied templates
+
+:material-arrow-right-thin-circle-outline: API: [`classify_em`][cylindra.widgets.sta.SubtomogramAveraging.classify_em]
+
+:material-arrow-right-thin-circle-outline: GUI: `STA widget > Analysis > 3D classification`
+
+!["EM classification"](../images/classification-kin.png){ loading=lazy, width=400px }
+
+This method classifies the subtomograms into user-supplied template images. You can
+classify all the molecules with a single iteration, but it is recommended to run
+multiple iterations to get unbiased results.
+
+### Template-free classification
+
+:material-arrow-right-thin-circle-outline: API: [`classify_em_template_free`][cylindra.widgets.sta.SubtomogramAveraging.classify_em_template_free]
+
+:material-arrow-right-thin-circle-outline: GUI: `STA widget > Analysis > 3D classification (template-free)`
+
+!["EM classification template free"](../images/classify_em_template_free.png){ loading=lazy, width=400px }
+
+This method randomly splits the molecules into the specified number of classes to create
+initial templates, then iteratively updates the them by the EM algorithm. 10 or more
+iterations are usually needed to get well-classified results.

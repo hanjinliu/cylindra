@@ -36,6 +36,8 @@ _PARAMETERS = [
     Parameter(name="tilt_range", type="(float, float), optional", desc="Tilt range of tomogram tilt series in degree."),
     Parameter(name="max_shifts", type="int or tuple of int", desc="Maximum shift between subtomograms and template in nm. ZYX order."),
     Parameter(name="rotations", type="((float, float), (float, float), (float, float))", desc="Rotation in external degree around each axis."),
+    Parameter(name="max_rotations", type="(float, float, float)", desc="Maximum rotation in degree around Z, Y, X axis."),
+    Parameter(name="min_rotation_step", type="float", desc="Minimum rotation search precision in degree."),
     Parameter(name="cutoff", type="float", desc="Cutoff frequency of low-pass filter applied in each subtomogram."),
     Parameter(name="interpolation", type="int", desc="Interpolation order."),
     Parameter(name="size", type="nm", desc="Size of the template in nm. Use the size of template image by default."),
@@ -70,6 +72,7 @@ _PARAMETERS = [
     Parameter(name="prefix", type="str", desc="Prefix of the new molecules layer(s)."),
     Parameter(name="filter_expr", type="str", desc="Expression to filter segments. Variable `value` refers to the segment value.\nSegments with `filter_expr` evaluating to True will be assigned to molecules.\nIf empty, all segments are used."),
     Parameter(name="eval_expr", type="str", desc="Expression to evaluate segment values. Variable `value` refers to the segment value.\nThe result of `eval_expr` will be assigned to molecules.\nIf empty, the original segment value is used."),
+    Parameter(name="max_num_iters", type="int", desc="Maximum number of iterations to perform."),
 ]
 # fmt: on
 

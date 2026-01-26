@@ -847,7 +847,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int, tmpdir):
         mask_params={"kind": "spherical", "radius": 2.3, "sigma": 0.7},
         size=12.0,
         bin_size=bin_size,
-        tolerance=0.08,
+        max_num_iters=2,
     )
     ui.sta.align_all(
         layers=["Mole-0"],
@@ -877,6 +877,22 @@ def test_sta(ui: CylindraMainWidget, bin_size: int, tmpdir):
         mask_params=(1, 1),
         bin_size=bin_size,
         method="ncc",
+    )
+
+    ui.sta.classify_em_template_free(
+        layers=["Mole-0-ALN1"],
+        mask_params={"kind": "spherical", "radius": 2.3, "sigma": 0.9},
+        size=9.0,
+        bin_size=bin_size,
+        num_classes=3,
+        max_num_iters=2,
+    )
+    ui.sta.classify_em(
+        layers=["Mole-0-ALN1"],
+        templates=[template_path, template_path],
+        mask_params={"kind": "spherical", "radius": 2.3, "sigma": 0.9},
+        bin_size=bin_size,
+        max_num_iters=2,
     )
 
 
@@ -913,25 +929,6 @@ def test_seam_search(ui: CylindraMainWidget, tmpdir):
     image_layer_name = ui.parent_viewer.layers[0].name
     with pytest.raises(TypeError):
         ui.sta.seam_search_manually(image_layer_name, 3)
-
-
-def test_classify_pca(ui: CylindraMainWidget):
-    ui.load_project(PROJECT_DIR_13PF, filter=None)
-    ui.filter_molecules(
-        ui.parent_viewer.layers["Mole-0"], predicate="pl.col('nth') < 3"
-    )
-    layer = ui.mole_layers.last()
-    exc_group = ExceptionGroup()
-    for binsize in [1, 2]:
-        with exc_group.merging():
-            ui.sta.classify_pca(
-                layer,
-                mask_params=None,
-                size=12.0,
-                interpolation=1,
-                bin_size=binsize,
-            )
-    exc_group.raise_exceptions()
 
 
 def test_clip_spline(ui: CylindraMainWidget):
@@ -1655,15 +1652,6 @@ def test_annealing(ui: CylindraMainWidget):
     )
     ui.macro.undo()
     ui.macro.redo()
-    ui.sta.align_all_rma_template_free(
-        layer_filt,
-        mask_params={"kind": "spherical", "radius": 2.3, "sigma": 0.7},
-        max_shifts=(1.2, 1.2, 1.2),
-        range_long=(dist_lon - 0.1, dist_lon + 0.1),
-        range_lat=(dist_lat - 0.1, dist_lat + 0.1),
-        angle_max=20,
-        tolerance=0.08,
-    )
     ui.filter_molecules(layer, "pl.col('pf-id') == 4")
     layer_filament = ui.mole_layers.last()
     ui.sta.align_all_rfa(

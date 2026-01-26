@@ -136,13 +136,14 @@ class ReservedLayers:
         return self.image.scale[-1]
 
     def select_spline(self, i: int, default: int):
+        """Set the i-th spline the current selected spline."""
         features = self.prof.features
         spline_id = features[SPLINE_ID]
         spec = spline_id != i
         old_data = self.prof.data
         self.prof.data = old_data[spec]
         new_features = features[spec].copy()
-        spline_id = np.asarray(new_features[SPLINE_ID])
+        spline_id = new_features[SPLINE_ID].to_numpy(copy=True)
         spline_id[spline_id >= i] -= 1
         new_features[SPLINE_ID] = spline_id
         self.prof.features = new_features

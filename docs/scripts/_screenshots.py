@@ -194,7 +194,8 @@ def main():
         ui.sta.average_all,
         ui.sta.calculate_fsc,
         ui.sta.align_averaged,
-        ui.sta.classify_pca,
+        ui.sta.classify_em,
+        ui.sta.classify_em_template_free,
         # align
         ui.sta.align_all,
         ui.sta.align_all_template_free,

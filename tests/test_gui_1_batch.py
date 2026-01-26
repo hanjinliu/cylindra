@@ -164,22 +164,10 @@ def test_align(ui: CylindraMainWidget, binsize: int):
         "Loader",
         mask_params={"kind": "spherical", "radius": 2.3, "sigma": 0.7},
         bin_size=binsize,
-        tolerance=0.08,
     )
     assert len(ui.sta.sub_viewer.layers) == 2
     ui.batch.sta.split_loader("Loader", by="pf-id", delete_old=True)
     ui.batch.sta.show_loader_info()
-
-
-@pytest_group("batch.classify")
-@pytest.mark.parametrize("binsize", [1, 2])
-def test_classify_pca(ui: CylindraMainWidget, binsize: int):
-    _load(ui)
-    ui.batch.sta.classify_pca(
-        "Loader", mask_params=None, size=6.0, interpolation=1, bin_size=binsize
-    )
-    assert len(ui.sta.sub_viewer.layers) == 1
-
 
 def test_filter(ui: CylindraMainWidget):
     _load(ui)

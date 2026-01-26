@@ -743,6 +743,11 @@ class Spline(BaseComponent):
             Interval between sampled points on the spline.
         extrapolation : (nm, nm), default (0.0, 0.0)
             Extrapolation distance before and after the spline.
+
+        Returns
+        -------
+        DistanceMatrix
+            Distance matrix between sampled spline points and input points.
         """
         ext_0, ext_1 = extrapolation
         if interval <= 0:
@@ -1066,13 +1071,15 @@ class Spline(BaseComponent):
         """Convert coordinates of anchors to `Molecules` instance.
 
         Coordinates of anchors must be in range from 0 to 1. The y-direction of
-        `Molecules` always points at the direction of spline and the z- direction always
+        `Molecules` always points at the direction of spline and the z-direction always
         in the plane orthogonal to YX-plane.
 
         Parameters
         ----------
         positions : iterable of float, optional
             Positions. Between 0 and 1. If not given, anchors are used instead.
+        rotation : iterable of float, optional
+            Rotation around the spline tangent (y-axis) in radian.
 
         Returns
         -------
@@ -1125,6 +1132,35 @@ class Spline(BaseComponent):
         new = self.copy()
         new._tck = (_t, _c, _k)
         return new
+
+    def continuous_move(
+        self,
+        u_from: float,
+        u_to: float,
+        rotator_from: Rotation,
+        *,
+        max_interval: nm = 1.0,
+    ) -> Rotation:
+        if not (0.0 <= u_to <= 1.0):
+            raise ValueError("u_to must be between 0 and 1.")
+        d_from, d_to = self.distances([u_from, u_to])
+        length = abs(d_to - d_from)
+        num_points = ceilint(length / max_interval) + 1
+        u = np.linspace(u_from, u_to, num_points)
+        ey = self.map(u, der=1)
+        # For each set of neighbors, calculate the rotation vector that rotates ey[i] to
+        # ey[i+1].
+        ey_normed = ey / np.linalg.norm(ey, axis=1, keepdims=True)
+        vec = np.cross(ey_normed[:-1], ey_normed[1:])
+        angle_between = np.arccos(
+            np.clip(np.einsum("ij,ij->i", ey_normed[:-1], ey_normed[1:]), -1.0, 1.0)
+        )
+        rotvec = vec * angle_between[:, np.newaxis]
+        rotator_out = rotator_from
+        for rv in rotvec:
+            rot_step = Rotation.from_rotvec(rv)
+            rotator_out = rot_step * rotator_out
+        return rotator_out
 
     def _get_coords(
         self,
@@ -1217,8 +1253,8 @@ class DistanceMatrix:
         points: NDArray[np.float32],
     ):
         self.matrix = matrix
-        self.spl_coords = spl_coords
-        self.spl_points = spl_points
+        self.spl_coords = spl_coords  # the `u` coordinates on spline
+        self.spl_points = spl_points  # points on spline
         self.points = points
 
     def __array__(self, dtype=None) -> NDArray[np.float32]:
