@@ -1,7 +1,6 @@
 use pyo3::{prelude::*, Python};
 use numpy::{
-    ndarray::{s, ArcArray, Array, Array2, Ix4},
-    IntoPyArray, Ix3, PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray4
+    ndarray::{s, ArcArray, Array, Array2, Ix4}, IntoPyArray, Ix3, PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray4
 };
 use crate::{
     coordinates::{Vector3D, CoordinateSystem},
@@ -68,7 +67,7 @@ impl ViterbiGrid {
             let _ez = Vector3D::new(zvec[[t, 0]], zvec[[t, 1]], zvec[[t, 2]]);
             let _ey = Vector3D::new(yvec[[t, 0]], yvec[[t, 1]], yvec[[t, 2]]);
             let _ex = Vector3D::new(xvec[[t, 0]], xvec[[t, 1]], xvec[[t, 2]]);
-            coords.push(CoordinateSystem::new(_ori, _ez, _ey, _ex));
+            coords.push(CoordinateSystem::new(_ori, _ez, _ey, _ex).with_cache(nz, ny, nx));
         }
 
         Ok(ViterbiGrid { score: score.to_shared(), coords, nmole, nz, ny, nx })
