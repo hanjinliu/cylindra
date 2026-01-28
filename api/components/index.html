@@ -2488,6 +2488,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#cylindra.components.spline.Spline.continuous_move" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        continuous_move
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.copy" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4623,6 +4634,17 @@
     <span class="md-ellipsis">
       
         close_to
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cylindra.components.spline.Spline.continuous_move" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        continuous_move
       
     </span>
   </a>
@@ -8613,7 +8635,15 @@ properties can be dynamically changed.</p>
 <span class="normal">1191</span>
 <span class="normal">1192</span>
 <span class="normal">1193</span>
-<span class="normal">1194</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Spline</span><span class="p">(</span><span class="n">BaseComponent</span><span class="p">):</span>
+<span class="normal">1194</span>
+<span class="normal">1195</span>
+<span class="normal">1196</span>
+<span class="normal">1197</span>
+<span class="normal">1198</span>
+<span class="normal">1199</span>
+<span class="normal">1200</span>
+<span class="normal">1201</span>
+<span class="normal">1202</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Spline</span><span class="p">(</span><span class="n">BaseComponent</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;3D spline curve model with coordinate system.</span>
 
 <span class="sd">    Anchor points can be set via `anchor` property. A spline object is semi-immutable.</span>
@@ -9325,7 +9355,8 @@ properties can be dynamically changed.</p>
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        DistanceMatrix</span>
-<span class="sd">            Distance matrix between sampled spline points and input points.</span>
+<span class="sd">            Distance matrix where D[i, j] is the distance between i-th sampled point on</span>
+<span class="sd">            the spline and j-th given point.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">ext_0</span><span class="p">,</span> <span class="n">ext_1</span> <span class="o">=</span> <span class="n">extrapolation</span>
         <span class="k">if</span> <span class="n">interval</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
@@ -9719,6 +9750,12 @@ properties can be dynamically changed.</p>
         <span class="o">*</span><span class="p">,</span>
         <span class="n">max_interval</span><span class="p">:</span> <span class="n">nm</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Rotation</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Continuously move along the spline.</span>
+
+<span class="sd">        This method will continuously rotate the given rotator according to the spline</span>
+<span class="sd">        direction change from u_from to u_to. This gives a least twisted rotation, which</span>
+<span class="sd">        should be the most natural way to move along the spline.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="mf">0.0</span> <span class="o">&lt;=</span> <span class="n">u_to</span> <span class="o">&lt;=</span> <span class="mf">1.0</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;u_to must be between 0 and 1.&quot;</span><span class="p">)</span>
         <span class="n">d_from</span><span class="p">,</span> <span class="n">d_to</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">distances</span><span class="p">([</span><span class="n">u_from</span><span class="p">,</span> <span class="n">u_to</span><span class="p">])</span>
@@ -9730,10 +9767,11 @@ properties can be dynamically changed.</p>
         <span class="c1"># ey[i+1].</span>
         <span class="n">ey_normed</span> <span class="o">=</span> <span class="n">ey</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">ey</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">vec</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">ey_normed</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">ey_normed</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+        <span class="n">vec_normed</span> <span class="o">=</span> <span class="n">vec</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">vec</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">angle_between</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arccos</span><span class="p">(</span>
             <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">&quot;ij,ij-&gt;i&quot;</span><span class="p">,</span> <span class="n">ey_normed</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">ey_normed</span><span class="p">[</span><span class="mi">1</span><span class="p">:]),</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
         <span class="p">)</span>
-        <span class="n">rotvec</span> <span class="o">=</span> <span class="n">vec</span> <span class="o">*</span> <span class="n">angle_between</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+        <span class="n">rotvec</span> <span class="o">=</span> <span class="n">vec_normed</span> <span class="o">*</span> <span class="n">angle_between</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
         <span class="n">rotator_out</span> <span class="o">=</span> <span class="n">rotator_from</span>
         <span class="k">for</span> <span class="n">rv</span> <span class="ow">in</span> <span class="n">rotvec</span><span class="p">:</span>
             <span class="n">rot_step</span> <span class="o">=</span> <span class="n">Rotation</span><span class="o">.</span><span class="n">from_rotvec</span><span class="p">(</span><span class="n">rv</span><span class="p">)</span>
@@ -10152,8 +10190,7 @@ in the plane orthogonal to YX-plane.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/spline/_spline_base.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1066</span>
-<span class="normal">1067</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1067</span>
 <span class="normal">1068</span>
 <span class="normal">1069</span>
 <span class="normal">1070</span>
@@ -10186,7 +10223,8 @@ in the plane orthogonal to YX-plane.</p>
 <span class="normal">1097</span>
 <span class="normal">1098</span>
 <span class="normal">1099</span>
-<span class="normal">1100</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">anchors_to_molecules</span><span class="p">(</span>
+<span class="normal">1100</span>
+<span class="normal">1101</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">anchors_to_molecules</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">positions</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">rotation</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -10335,8 +10373,7 @@ and dimensional axis.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/spline/_spline_base.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">929</span>
-<span class="normal">930</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">930</span>
 <span class="normal">931</span>
 <span class="normal">932</span>
 <span class="normal">933</span>
@@ -10366,7 +10403,8 @@ and dimensional axis.</p>
 <span class="normal">957</span>
 <span class="normal">958</span>
 <span class="normal">959</span>
-<span class="normal">960</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cartesian</span><span class="p">(</span>
+<span class="normal">960</span>
+<span class="normal">961</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cartesian</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">nm</span><span class="p">,</span> <span class="n">nm</span><span class="p">],</span>
     <span class="n">s_range</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
@@ -10474,8 +10512,7 @@ and dimensional axis.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/spline/_spline_base.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1016</span>
-<span class="normal">1017</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1017</span>
 <span class="normal">1018</span>
 <span class="normal">1019</span>
 <span class="normal">1020</span>
@@ -10500,7 +10537,8 @@ and dimensional axis.</p>
 <span class="normal">1039</span>
 <span class="normal">1040</span>
 <span class="normal">1041</span>
-<span class="normal">1042</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cartesian_to_world</span><span class="p">(</span>
+<span class="normal">1042</span>
+<span class="normal">1043</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cartesian_to_world</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">coords</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">],</span>
     <span class="n">nknots</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">512</span><span class="p">,</span>
@@ -10736,6 +10774,100 @@ and dimensional axis.</p>
         <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_u</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">_u</span><span class="p">)</span>
         <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lims</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">_lims</span><span class="p">)</span>
     <span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="cylindra.components.spline.Spline.continuous_move" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">continuous_move</span><span class="p">(</span><span class="n">u_from</span><span class="p">,</span> <span class="n">u_to</span><span class="p">,</span> <span class="n">rotator_from</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">max_interval</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span></code>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Continuously move along the spline.</p>
+<p>This method will continuously rotate the given rotator according to the spline
+direction change from u_from to u_to. This gives a least twisted rotation, which
+should be the most natural way to move along the spline.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>cylindra/components/spline/_spline_base.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1137</span>
+<span class="normal">1138</span>
+<span class="normal">1139</span>
+<span class="normal">1140</span>
+<span class="normal">1141</span>
+<span class="normal">1142</span>
+<span class="normal">1143</span>
+<span class="normal">1144</span>
+<span class="normal">1145</span>
+<span class="normal">1146</span>
+<span class="normal">1147</span>
+<span class="normal">1148</span>
+<span class="normal">1149</span>
+<span class="normal">1150</span>
+<span class="normal">1151</span>
+<span class="normal">1152</span>
+<span class="normal">1153</span>
+<span class="normal">1154</span>
+<span class="normal">1155</span>
+<span class="normal">1156</span>
+<span class="normal">1157</span>
+<span class="normal">1158</span>
+<span class="normal">1159</span>
+<span class="normal">1160</span>
+<span class="normal">1161</span>
+<span class="normal">1162</span>
+<span class="normal">1163</span>
+<span class="normal">1164</span>
+<span class="normal">1165</span>
+<span class="normal">1166</span>
+<span class="normal">1167</span>
+<span class="normal">1168</span>
+<span class="normal">1169</span>
+<span class="normal">1170</span>
+<span class="normal">1171</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">continuous_move</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">u_from</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="n">u_to</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="n">rotator_from</span><span class="p">:</span> <span class="n">Rotation</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">max_interval</span><span class="p">:</span> <span class="n">nm</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Rotation</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Continuously move along the spline.</span>
+
+<span class="sd">    This method will continuously rotate the given rotator according to the spline</span>
+<span class="sd">    direction change from u_from to u_to. This gives a least twisted rotation, which</span>
+<span class="sd">    should be the most natural way to move along the spline.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="mf">0.0</span> <span class="o">&lt;=</span> <span class="n">u_to</span> <span class="o">&lt;=</span> <span class="mf">1.0</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;u_to must be between 0 and 1.&quot;</span><span class="p">)</span>
+    <span class="n">d_from</span><span class="p">,</span> <span class="n">d_to</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">distances</span><span class="p">([</span><span class="n">u_from</span><span class="p">,</span> <span class="n">u_to</span><span class="p">])</span>
+    <span class="n">length</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">d_to</span> <span class="o">-</span> <span class="n">d_from</span><span class="p">)</span>
+    <span class="n">num_points</span> <span class="o">=</span> <span class="n">ceilint</span><span class="p">(</span><span class="n">length</span> <span class="o">/</span> <span class="n">max_interval</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="n">u</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">u_from</span><span class="p">,</span> <span class="n">u_to</span><span class="p">,</span> <span class="n">num_points</span><span class="p">)</span>
+    <span class="n">ey</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">u</span><span class="p">,</span> <span class="n">der</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="c1"># For each set of neighbors, calculate the rotation vector that rotates ey[i] to</span>
+    <span class="c1"># ey[i+1].</span>
+    <span class="n">ey_normed</span> <span class="o">=</span> <span class="n">ey</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">ey</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">vec</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">ey_normed</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">ey_normed</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+    <span class="n">vec_normed</span> <span class="o">=</span> <span class="n">vec</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">vec</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">angle_between</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arccos</span><span class="p">(</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">&quot;ij,ij-&gt;i&quot;</span><span class="p">,</span> <span class="n">ey_normed</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">ey_normed</span><span class="p">[</span><span class="mi">1</span><span class="p">:]),</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="n">rotvec</span> <span class="o">=</span> <span class="n">vec_normed</span> <span class="o">*</span> <span class="n">angle_between</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+    <span class="n">rotator_out</span> <span class="o">=</span> <span class="n">rotator_from</span>
+    <span class="k">for</span> <span class="n">rv</span> <span class="ow">in</span> <span class="n">rotvec</span><span class="p">:</span>
+        <span class="n">rot_step</span> <span class="o">=</span> <span class="n">Rotation</span><span class="o">.</span><span class="n">from_rotvec</span><span class="p">(</span><span class="n">rv</span><span class="p">)</span>
+        <span class="n">rotator_out</span> <span class="o">=</span> <span class="n">rot_step</span> <span class="o">*</span> <span class="n">rotator_out</span>
+    <span class="k">return</span> <span class="n">rotator_out</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -11168,8 +11300,7 @@ dimensional axis.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/spline/_spline_base.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">962</span>
-<span class="normal">963</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">963</span>
 <span class="normal">964</span>
 <span class="normal">965</span>
 <span class="normal">966</span>
@@ -11199,7 +11330,8 @@ dimensional axis.</p>
 <span class="normal">990</span>
 <span class="normal">991</span>
 <span class="normal">992</span>
-<span class="normal">993</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cylindrical</span><span class="p">(</span>
+<span class="normal">993</span>
+<span class="normal">994</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cylindrical</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">r_range</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">nm</span><span class="p">,</span> <span class="n">nm</span><span class="p">],</span>
     <span class="n">s_range</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
@@ -11308,8 +11440,7 @@ dimensional axis.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/spline/_spline_base.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1102</span>
-<span class="normal">1103</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1103</span>
 <span class="normal">1104</span>
 <span class="normal">1105</span>
 <span class="normal">1106</span>
@@ -11333,7 +11464,8 @@ dimensional axis.</p>
 <span class="normal">1124</span>
 <span class="normal">1125</span>
 <span class="normal">1126</span>
-<span class="normal">1127</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cylindrical_to_molecules</span><span class="p">(</span>
+<span class="normal">1127</span>
+<span class="normal">1128</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cylindrical_to_molecules</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">coords</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">],</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Molecules</span><span class="p">:</span>
@@ -11436,8 +11568,7 @@ must be in radian.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/spline/_spline_base.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1044</span>
-<span class="normal">1045</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1045</span>
 <span class="normal">1046</span>
 <span class="normal">1047</span>
 <span class="normal">1048</span>
@@ -11456,7 +11587,8 @@ must be in radian.</p>
 <span class="normal">1061</span>
 <span class="normal">1062</span>
 <span class="normal">1063</span>
-<span class="normal">1064</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cylindrical_to_world</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coords</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">]:</span>
+<span class="normal">1064</span>
+<span class="normal">1065</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cylindrical_to_world</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coords</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Inverse cylindrical coordinate mapping, (r, y, angle) to world coordinate.</span>
 
 <span class="sd">    Parameters</span>
@@ -11575,7 +11707,8 @@ must be in radian.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Distance matrix between sampled spline points and input points.</p>
+                <p>Distance matrix where D[i, j] is the distance between i-th sampled point on
+the spline and j-th given point.</p>
               </div>
             </td>
           </tr>
@@ -11620,7 +11753,8 @@ must be in radian.</p>
 <span class="normal">762</span>
 <span class="normal">763</span>
 <span class="normal">764</span>
-<span class="normal">765</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">distance_matrix</span><span class="p">(</span>
+<span class="normal">765</span>
+<span class="normal">766</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">distance_matrix</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">points</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span>
     <span class="n">interval</span><span class="p">:</span> <span class="n">nm</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
@@ -11640,7 +11774,8 @@ must be in radian.</p>
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
 <span class="sd">    DistanceMatrix</span>
-<span class="sd">        Distance matrix between sampled spline points and input points.</span>
+<span class="sd">        Distance matrix where D[i, j] is the distance between i-th sampled point on</span>
+<span class="sd">        the spline and j-th given point.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">ext_0</span><span class="p">,</span> <span class="n">ext_1</span> <span class="o">=</span> <span class="n">extrapolation</span>
     <span class="k">if</span> <span class="n">interval</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
@@ -12118,8 +12253,7 @@ the maximum curvature will be chosen.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/spline/_spline_base.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">784</span>
-<span class="normal">785</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">785</span>
 <span class="normal">786</span>
 <span class="normal">787</span>
 <span class="normal">788</span>
@@ -12149,7 +12283,8 @@ the maximum curvature will be chosen.</p>
 <span class="normal">812</span>
 <span class="normal">813</span>
 <span class="normal">814</span>
-<span class="normal">815</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">815</span>
+<span class="normal">816</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">from_dict</span><span class="p">(</span><span class="bp">cls</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">Self</span><span class="p">],</span> <span class="n">d</span><span class="p">:</span> <span class="n">SplineInfo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Construct a spline model from a dictionary.</span>
 
@@ -12274,8 +12409,7 @@ the maximum curvature will be chosen.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/spline/_spline_base.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">817</span>
-<span class="normal">818</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">818</span>
 <span class="normal">819</span>
 <span class="normal">820</span>
 <span class="normal">821</span>
@@ -12303,7 +12437,8 @@ the maximum curvature will be chosen.</p>
 <span class="normal">843</span>
 <span class="normal">844</span>
 <span class="normal">845</span>
-<span class="normal">846</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_rotator</span><span class="p">(</span>
+<span class="normal">846</span>
+<span class="normal">847</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_rotator</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">positions</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">inverse</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
@@ -12766,8 +12901,7 @@ and horizontal axis, which is ready to be used in <code>ndi.map_coordinates</cod
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/spline/_spline_base.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">848</span>
-<span class="normal">849</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">849</span>
 <span class="normal">850</span>
 <span class="normal">851</span>
 <span class="normal">852</span>
@@ -12801,7 +12935,8 @@ and horizontal axis, which is ready to be used in <code>ndi.map_coordinates</cod
 <span class="normal">880</span>
 <span class="normal">881</span>
 <span class="normal">882</span>
-<span class="normal">883</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">local_cartesian</span><span class="p">(</span>
+<span class="normal">883</span>
+<span class="normal">884</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">local_cartesian</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">nm</span><span class="p">,</span> <span class="n">nm</span><span class="p">],</span>
     <span class="n">depth</span><span class="p">:</span> <span class="n">nm</span><span class="p">,</span>
@@ -12964,8 +13099,7 @@ and angle axis, which is ready to be used in <code>ndi.map_coordinates</code>.</
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/spline/_spline_base.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">885</span>
-<span class="normal">886</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">886</span>
 <span class="normal">887</span>
 <span class="normal">888</span>
 <span class="normal">889</span>
@@ -13006,7 +13140,8 @@ and angle axis, which is ready to be used in <code>ndi.map_coordinates</code>.</
 <span class="normal">924</span>
 <span class="normal">925</span>
 <span class="normal">926</span>
-<span class="normal">927</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">local_cylindrical</span><span class="p">(</span>
+<span class="normal">927</span>
+<span class="normal">928</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">local_cylindrical</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">r_range</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">nm</span><span class="p">,</span> <span class="n">nm</span><span class="p">],</span>
     <span class="n">depth</span><span class="p">:</span> <span class="n">nm</span><span class="p">,</span>
@@ -13970,8 +14105,7 @@ guaranteed to be larger than spline order.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/spline/_spline_base.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">767</span>
-<span class="normal">768</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">768</span>
 <span class="normal">769</span>
 <span class="normal">770</span>
 <span class="normal">771</span>
@@ -13985,7 +14119,8 @@ guaranteed to be larger than spline order.</p>
 <span class="normal">779</span>
 <span class="normal">780</span>
 <span class="normal">781</span>
-<span class="normal">782</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SplineInfo</span><span class="p">:</span>
+<span class="normal">782</span>
+<span class="normal">783</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SplineInfo</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert spline info into a dict.&quot;&quot;&quot;</span>
     <span class="n">z</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">coeff</span>
     <span class="k">return</span> <span class="p">{</span>
@@ -14177,8 +14312,7 @@ guaranteed to be larger than spline order.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/spline/_spline_base.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 995</span>
-<span class="normal"> 996</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 996</span>
 <span class="normal"> 997</span>
 <span class="normal"> 998</span>
 <span class="normal"> 999</span>
@@ -14196,7 +14330,8 @@ guaranteed to be larger than spline order.</p>
 <span class="normal">1011</span>
 <span class="normal">1012</span>
 <span class="normal">1013</span>
-<span class="normal">1014</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">y_to_position</span><span class="p">(</span>
+<span class="normal">1014</span>
+<span class="normal">1015</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">y_to_position</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">],</span> <span class="n">nknots</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">512</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert y-coordinate to spline position parameter.</span>
