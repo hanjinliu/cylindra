@@ -747,7 +747,8 @@ class Spline(BaseComponent):
         Returns
         -------
         DistanceMatrix
-            Distance matrix between sampled spline points and input points.
+            Distance matrix where D[i, j] is the distance between i-th sampled point on
+            the spline and j-th given point.
         """
         ext_0, ext_1 = extrapolation
         if interval <= 0:
@@ -1141,6 +1142,12 @@ class Spline(BaseComponent):
         *,
         max_interval: nm = 1.0,
     ) -> Rotation:
+        """Continuously move along the spline.
+
+        This method will continuously rotate the given rotator according to the spline
+        direction change from u_from to u_to. This gives a least twisted rotation, which
+        should be the most natural way to move along the spline.
+        """
         if not (0.0 <= u_to <= 1.0):
             raise ValueError("u_to must be between 0 and 1.")
         d_from, d_to = self.distances([u_from, u_to])
@@ -1152,10 +1159,11 @@ class Spline(BaseComponent):
         # ey[i+1].
         ey_normed = ey / np.linalg.norm(ey, axis=1, keepdims=True)
         vec = np.cross(ey_normed[:-1], ey_normed[1:])
+        vec_normed = vec / np.linalg.norm(vec, axis=1, keepdims=True)
         angle_between = np.arccos(
             np.clip(np.einsum("ij,ij->i", ey_normed[:-1], ey_normed[1:]), -1.0, 1.0)
         )
-        rotvec = vec * angle_between[:, np.newaxis]
+        rotvec = vec_normed * angle_between[:, np.newaxis]
         rotator_out = rotator_from
         for rv in rotvec:
             rot_step = Rotation.from_rotvec(rv)

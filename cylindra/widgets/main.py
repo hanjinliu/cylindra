@@ -89,6 +89,7 @@ from cylindra.widgets._widget_ext import (
     ProtofilamentEdit,
     SingleRotationEdit,
 )
+from cylindra.widgets.events import MainWidgetEvents
 from cylindra.widgets.sta import SubtomogramAveraging
 
 if TYPE_CHECKING:
@@ -293,6 +294,7 @@ class CylindraMainWidget(MagicTemplate):
         self._project_dir: Path | None = None
         self._current_binsize: int = 1
         self._project_metadata = dict[str, Any]()
+        self._events = MainWidgetEvents()
         self.objectName()  # load napari types
 
     def __post_init__(self):
@@ -342,6 +344,11 @@ class CylindraMainWidget(MagicTemplate):
 
         # load plugins
         load_plugin(self)
+
+    @property
+    def events(self) -> MainWidgetEvents:
+        """The event signals for the main widget."""
+        return self._events
 
     @property
     def tomogram(self) -> CylTomogram:
@@ -628,10 +635,15 @@ class CylindraMainWidget(MagicTemplate):
         yield cb
         cb.await_call()
         self._project_dir = None
-        if filter is not None:
-            yield from self.filter_reference_image.arun(filter)
-        if invert_reference:
-            yield from self.invert_image.arun(reference_only=True)
+
+        @thread_worker.callback
+        def _on_return():
+            if filter is not None:
+                self.filter_reference_image(filter)
+            if invert_reference:
+                self.invert_image(reference_only=True)
+
+        return _on_return
 
     @open_image.started.connect
     @open_image_with_reference.started.connect
@@ -1010,9 +1022,10 @@ class CylindraMainWidget(MagicTemplate):
                 self._reserved_layers.ref_inverted = (
                     not self._reserved_layers.ref_inverted
                 )
-                clow, chigh = self.Overview.contrast_limits
-                self.Overview.image = -self.Overview.image
-                self.Overview.contrast_limits = -chigh, -clow
+                if self.Overview.image is not None:
+                    clow, chigh = self.Overview.contrast_limits
+                    self.Overview.image = -self.Overview.image
+                    self.Overview.contrast_limits = -chigh, -clow
                 return undo_callback(self.invert_image)
 
         t0.toc()
@@ -3746,6 +3759,7 @@ class CylindraMainWidget(MagicTemplate):
         self.GeneralInfo.project_desc.value = ""  # clear the project description
         self._need_save = False
         self._macro_image_load_offset = len(self.macro)
+        self.events.tomogram_initialized.emit()
 
     def _update_reference_image(
         self,
