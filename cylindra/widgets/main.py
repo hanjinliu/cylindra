@@ -256,7 +256,7 @@ class CylindraMainWidget(MagicTemplate):
     @property
     def batch(self) -> "CylindraBatchWidget":
         """Return the batch analyzer."""
-        return self.AnalysisMenu.open_project_batch_analyzer()
+        return self.AnalysisMenu.open_project_batch_analyzer(show=False)
 
     # Menu bar
     FileMenu = field(_sw.FileMenu, name="File")

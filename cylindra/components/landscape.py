@@ -806,8 +806,7 @@ def _check_viterbi_shift(shift: NDArray[np.int32], offset: NDArray[np.int32], i)
 
 
 def _update_mole_pos(new: Molecules, old: Molecules, spl: CylSpline) -> Molecules:
-    """
-    Update the "position-nm" feature of molecules.
+    """Update the "position-nm" feature of molecules.
 
     Feature "position-nm" is the coordinate of molecules along the source spline.
     After alignment, this feature should be updated accordingly. This fucntion

@@ -752,7 +752,7 @@ class AnalysisMenu(ChildWidget):
     @set_design(text="Open batch analyzer")
     @do_not_record
     @bind_key("Ctrl+K, B")
-    def open_project_batch_analyzer(self):
+    def open_project_batch_analyzer(self, show: Annotated[bool, {"bind": True}] = True):
         """Open the batch analyzer widget."""
         from cylindra.widgets.batch import CylindraBatchWidget
 
@@ -762,7 +762,8 @@ class AnalysisMenu(ChildWidget):
             uibatch.native.setParent(main.native, uibatch.native.windowFlags())
             main._batch = uibatch
             ACTIVE_WIDGETS.add(uibatch)
-        main._batch.show()
+        if show:
+            main._batch.show()
         return main._batch
 
     sep2 = Separator
