@@ -32,7 +32,7 @@ from cylindra.components.landscape import Landscape
 from cylindra.components.spline import CylSpline
 from cylindra.const import ALN_SUFFIX, nm
 from cylindra.const import MoleculesHeader as Mole
-from cylindra.utils import roundint
+from cylindra.utils import create_random_seeds, roundint
 from cylindra.widget_utils import (
     DistExprStr,
     FscResult,
@@ -43,7 +43,7 @@ from cylindra.widget_utils import (
 from cylindra.widgets import _annealing
 from cylindra.widgets import _progress_desc as _pdesc
 from cylindra.widgets._annotated import FSCFreq
-from cylindra.widgets._widget_ext import RandomSeedEdit, RotationsEdit
+from cylindra.widgets._widget_ext import RotationsEdit
 from cylindra.widgets.batch._loaderlist import LoaderList
 from cylindra.widgets.batch.menus import (
     BatchLoaderMenu,
@@ -59,6 +59,7 @@ from cylindra.widgets.sta import (
 )
 
 if TYPE_CHECKING:
+    from magicclass._gui._function_gui import FunctionGuiPlus
     from napari.layers import Image
 
 
@@ -100,7 +101,14 @@ _DistRangeLat = Annotated[
 _AngleMaxLon = Annotated[
     float, {"max": 90.0, "step": 0.5, "label": "maximum angle (deg)"}
 ]
-_RandomSeeds = Annotated[list[int], {"widget_type": RandomSeedEdit}]
+_SeedType = Annotated[
+    int,
+    {
+        "min": 0,
+        "max": 1_000_000,
+        "step": 1,
+    },
+]
 _Logger = getLogger("cylindra")
 
 
@@ -473,8 +481,17 @@ class BatchSubtomogramAveraging(MagicTemplate):
         bin_size: _BINSIZE = 1,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
-        random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
+        num_trials: Annotated[int, {"min": 1, "max": 100}] = 5,
+        seed: _SeedType = 0,
     ):
+        """Run RMA alignment on all molecules in the selected loader.
+
+        Parameters
+        ----------
+        {loader_name}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}
+        {interpolation}{method}{range_long}{range_lat}{angle_max}{bin_size}
+        {temperature_time_const}{upsample_factor}{num_trials}{seed}
+        """
         t0 = timer()
         batch = self._get_parent()
         loaderlist = batch._loaders
@@ -518,7 +535,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
                 range_lat,
                 angle_max=angle_max,
                 temperature_time_const=temperature_time_const,
-                random_seeds=random_seeds,
+                random_seeds=create_random_seeds(num_trials, seed),
             )
             yield _plot_annealing_result.with_args(results)
             mole = mole.with_features(
@@ -566,6 +583,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         max_num_iters: Annotated[int, {"min": 3, "max": 100}] = 20,
+        seed: _SeedType = 0,
     ):
         """Create initial model by iteratively aligning molecules by RMA without template.
 
@@ -576,10 +594,10 @@ class BatchSubtomogramAveraging(MagicTemplate):
         ----------
         {loader_name}{mask_params}{size}{max_shifts}{max_rotations}{min_rotation_step}
         {interpolation}{method}{range_long}{range_lat}{angle_max}{bin_size}
-        {temperature_time_const}{upsample_factor}{max_num_iters}
+        {temperature_time_const}{upsample_factor}{max_num_iters}{seed}
         """
         t0 = timer()
-        rng = np.random.default_rng(9430)
+        rng = np.random.default_rng(seed)
         batch = self._get_parent()
         loaderlist = batch._loaders
         info = loaderlist[loader_name]
@@ -854,6 +872,14 @@ class BatchSubtomogramAveraging(MagicTemplate):
 @setup_function_gui(BatchSubtomogramAveraging.split_loader)
 def _setup_split_loader(self: BatchSubtomogramAveraging, gui: FunctionGui):
     gui[0].changed.connect(gui[1].reset_choices)
+
+
+@setup_function_gui(BatchSubtomogramAveraging.align_all_rma)
+@setup_function_gui(BatchSubtomogramAveraging.align_all_rma_template_free)
+def _init_seed(self: BatchSubtomogramAveraging, gui: "FunctionGuiPlus"):
+    @gui.activated.connect
+    def _set_random_seed():
+        gui.seed.value = np.random.randint(0, 1_000_000)
 
 
 def _coerce_aligned_name(name: str, loaders: LoaderList):

@@ -391,7 +391,7 @@ class RMAAlignmentState(BaseAlignmentState[RMAAlignmentResult]):
             angle_max=angle_max,
             temperature_time_const=result.params.temperature_time_const,
             random_seeds=self.rng.integers(
-                0, 2**32, size=result.params.num_trials
+                0, 2**31 - 1, size=result.params.num_trials
             ).tolist(),
         )
         return SubtomogramLoader(

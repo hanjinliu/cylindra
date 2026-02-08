@@ -10,7 +10,6 @@ import numpy as np
 import polars as pl
 from acryo import Molecules
 from magicclass import impl_preview, setup_function_gui
-from magicclass._gui._function_gui import FunctionGuiPlus
 from magicclass.widgets import ConsoleTextEdit
 from magicgui.widgets import FunctionGui, Label, PushButton
 from napari.utils.colormaps import label_colormap
@@ -36,6 +35,7 @@ from cylindra.widgets.main import CylindraMainWidget
 from cylindra.widgets.sta import SubtomogramAveraging
 
 if TYPE_CHECKING:
+    from magicclass._gui._function_gui import FunctionGuiPlus
     from magicgui.widgets import FloatSpinBox
     from napari.layers import Layer
 
@@ -561,6 +561,11 @@ def _setup_delete_segments(self: CylindraMainWidget, gui: FunctionGui):
 @setup_function_gui(SubtomogramAveraging.calculate_fsc)
 @setup_function_gui(SubtomogramAveraging.classify_em)
 @setup_function_gui(SubtomogramAveraging.classify_em_template_free)
+@setup_function_gui(SubtomogramAveraging.align_all_rfa)
+@setup_function_gui(SubtomogramAveraging.align_all_rma)
+@setup_function_gui(SubtomogramAveraging.run_rfa_on_landscape)
+@setup_function_gui(SubtomogramAveraging.run_rma_on_landscape)
+@setup_function_gui(SubtomogramAveraging.fit_spline_rfa)
 def _init_seed(self: SubtomogramAveraging, gui: FunctionGuiPlus):
     @gui.activated.connect
     def _set_random_seed():
