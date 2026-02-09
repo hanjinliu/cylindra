@@ -36,6 +36,7 @@ from cylindra.components import CylSpline, CylTomogram, SplineConfig
 from cylindra.components.interaction import InterMoleculeNet, align_molecules_to_spline
 from cylindra.components.landscape import Landscape
 from cylindra.const import (
+    POLARS_INTEGER_DTYPES,
     PREVIEW_LAYER_NAME,
     FileFilter,
     ImageFilter,
@@ -184,18 +185,24 @@ _NSPLINES = (
 )
 
 
-def _choice_getter(method_name: str, dtype_kind: str = ""):
+def _choice_getter(method_name: str, dtype_kind: str = "", nullable: bool = False):
     """Make a choice getter function from molecules feature using the first widget."""
 
     def _get_choice(self: "CylindraMainWidget", w=None) -> list[str]:
         # don't use get_function_gui. It causes RecursionError.
         gui = self[method_name].mgui
         if gui is None or gui[0].value is None:
-            return []
+            return [""] if nullable else []
         features = gui[0].value.features
         if dtype_kind == "":
-            return features.columns
-        return [c for c in features.columns if features[c].dtype.kind in dtype_kind]
+            choices = features.columns
+        else:
+            choices = [
+                c for c in features.columns if features[c].dtype.kind in dtype_kind
+            ]
+        if nullable:
+            choices = [""] + choices
+        return choices
 
     _get_choice.__qualname__ = "CylindraMainWidget._get_choice"
     return _get_choice
@@ -3036,24 +3043,60 @@ class CylindraMainWidget(MagicTemplate):
     def rotate_molecule_toward_spline(
         self,
         layer: MoleculesLayerType,
-        spline: SplineType,
+        spline_id_column: Annotated[str, {"choices": _choice_getter( "rotate_molecule_toward_spline", "iu", nullable=True)}] = "",
         inherit_source: Annotated[bool, {"label": "Inherit source spline"}] = True,
         orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
-    ):
+    ):  # fmt: skip
         """Rotate molecules to align its orientation to the spline.
 
         This method is useful to rotate picked binding proteins so that they faces to
-        the cylinder. Output molecules layer will be named as "<original name>-Rot".
+        the cylinder center. Output molecules layer will be named as
+        "<original name>-Rot".
 
         Parameters
         ----------
-        {layer}{spline}{inherit_source}{orientation}
+        {layer}{inherit_source}{orientation}
+        spline_id_column : str, optional
+            If given, the column name of the molecule feature that indicates the spline
+            ID to which each molecule will be aligned. If not given, the spline ID will
+            be automatically determined by the closest distance between the molecule and
+            the splines.
         """
         layer = assert_layer(layer, self.parent_viewer)
-        spl = self.tomogram.splines[spline]
-        mole_rot = align_molecules_to_spline(layer.molecules, spl)
-        if spl._need_rotation(orientation):
-            mole_rot = mole_rot.rotate_by_rotvec_internal([np.pi, 0, 0])
+        mole = layer.molecules
+        if spline_id_column == "":
+            dist_stack = []
+            for spl in self.splines:
+                dist = spl.distance_matrix(mole.pos).matrix.max(axis=0)
+                dist_stack.append(dist)
+            spline_id = np.stack(dist_stack, axis=0).argmin(axis=0)
+            spline_id_column = ".spline_id"
+            mole = mole.with_features(
+                pl.Series(spline_id_column, spline_id, dtype=pl.Int32)
+            )
+        else:
+            if (
+                _dtype := mole.features[spline_id_column].dtype
+            ) not in POLARS_INTEGER_DTYPES:
+                raise ValueError(
+                    f"Column {spline_id_column!r} must be of integer type, got {_dtype}."
+                )
+        _temp_col = ".temp_rotate_molecule_toward_spline"
+        mole = mole.with_features(pl.arange(pl.len()).alias(_temp_col))
+        mole_rot_list: list[Molecules] = []
+        for spl_id, sub_mole in mole.group_by(spline_id_column):
+            assert isinstance(spl_id, int)
+            spl = self.splines[spl_id]
+            _mole_rot = align_molecules_to_spline(sub_mole, spl)
+            if spl._need_rotation(orientation):
+                _mole_rot = _mole_rot.rotate_by_rotvec_internal([np.pi, 0, 0])
+            mole_rot_list.append(_mole_rot)
+        mole_rot = Molecules.concat(mole_rot_list).sort(_temp_col)
+        if ".spline_id" in mole_rot.features.columns:
+            _to_drop = [".spline_id", _temp_col]
+        else:
+            _to_drop = [_temp_col]
+        mole_rot = mole_rot.drop_features(_to_drop)
         source = layer.source_component if inherit_source else None
         new = self.add_molecules(mole_rot, name=f"{layer.name}-Rot", source=source)
         return self._undo_callback_for_layer(new)
@@ -3081,7 +3124,8 @@ class CylindraMainWidget(MagicTemplate):
         exclude : str, optional
             Delete layers whose names do not contain this string.
         pattern : str, optional
-            String pattern to match the layer names. Use `*` as wildcard.
+            String pattern to match the layer names. Use `*`, `?`, `[seq]` or `[!seq]`
+            for linux shell-style wildcard.
         """
         if old == "":
             raise ValueError("`old` is not given.")
@@ -3108,7 +3152,8 @@ class CylindraMainWidget(MagicTemplate):
         exclude : str, optional
             Delete layers whose names do not contain this string.
         pattern : str, optional
-            String pattern to match the layer names. Use `*` as wildcard.
+            String pattern to match the layer names. Use `*`, `?`, `[seq]` or `[!seq]`
+            for linux shell-style wildcard.
         """
         self.mole_layers.delete(include=include, exclude=exclude, pattern=pattern)
 
