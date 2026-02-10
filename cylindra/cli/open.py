@@ -88,6 +88,7 @@ class ParserOpen(ParserBase):
                 )
             ui = start(viewer=self.viewer)
             if _is_batch:
+                ui.AnalysisMenu.open_project_batch_analyzer()
                 ui.batch.load_batch_project(fp)
             else:
                 ui.load_project(fp, read_image=not no_reference)

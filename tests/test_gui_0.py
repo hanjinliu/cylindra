@@ -1148,7 +1148,7 @@ def test_molecules_methods(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=None)
     layer0 = ui.mole_layers["Mole-0"]
     layer1 = ui.mole_layers["Mole-1"]
-    ui.MoleculesMenu.View.show_orientation(layer0)
+    ui.MoleculesMenu.View.show_orientation([layer0, layer1])
     ui.concatenate_molecules([layer0, layer1])
     last_layer = ui.mole_layers.last()
     assert last_layer.data.shape[0] == layer0.data.shape[0] + layer1.data.shape[0]

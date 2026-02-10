@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Annotated, Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
-from acryo import pipe
+from acryo import Molecules, pipe
 from macrokit import Head, Symbol, parse
 from macrokit.utils import check_attributes, check_call_args
 from magicclass import (
@@ -38,7 +38,11 @@ from cylindra.project import CylindraProject, extract
 from cylindra.types import ColoredLayer
 from cylindra.utils import str_color
 from cylindra.widget_utils import capitalize, get_code_theme, show_widget
-from cylindra.widgets._annotated import assert_layer
+from cylindra.widgets._annotated import (
+    MoleculesLayersType,
+    assert_layer,
+    assert_list_of_layers,
+)
 from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 if TYPE_CHECKING:
@@ -531,7 +535,7 @@ class MoleculesMenu(ChildWidget):
         @do_not_record
         def show_orientation(
             self,
-            layer: MoleculesLayer,
+            layers: MoleculesLayersType,
             x_color: Color = "orange",
             y_color: Color = "cyan",
             z_color: Color = "crimson",
@@ -540,8 +544,8 @@ class MoleculesMenu(ChildWidget):
 
             Parameters
             ----------
-            layer : MolecularLayer
-                The layer to show the orientation of.
+            layer : molecules layers
+                The layer(s) to show the orientation of.
             x_color : Color, defaultrimson"
                 Vector color of the x direction.
             y_color : Color, default "cyan"
@@ -550,16 +554,20 @@ class MoleculesMenu(ChildWidget):
                 Vector color of the z direction.
             """
             main = self._get_main()
-            mol = layer.molecules
+            layers = assert_list_of_layers(layers, main.parent_viewer)
+            mol = Molecules.concat(
+                [layer.molecules for layer in layers], concat_features=False
+            )
             nmol = len(mol)
-            name = f"Axes of {layer.name}"
-
             zvec = np.stack([mol.pos, mol.z], axis=1, dtype=np.float32)
             yvec = np.stack([mol.pos, mol.y], axis=1, dtype=np.float32)
             xvec = np.stack([mol.pos, mol.x], axis=1, dtype=np.float32)
 
             vector_data = np.concatenate([zvec, yvec, xvec], axis=0)
 
+            name = f"Axes of {layers[0].name}"
+            if len(layers) > 1:
+                name += " etc."
             layer = main.parent_viewer.add_vectors(
                 vector_data,
                 edge_width=0.3,
