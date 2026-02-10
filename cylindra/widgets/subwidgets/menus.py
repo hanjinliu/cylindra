@@ -544,7 +544,7 @@ class MoleculesMenu(ChildWidget):
 
             Parameters
             ----------
-            layer : molecules layers
+            layers : molecules layers
                 The layer(s) to show the orientation of.
             x_color : Color, defaultrimson"
                 Vector color of the x direction.
