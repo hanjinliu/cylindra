@@ -3037,6 +3037,7 @@ class CylindraMainWidget(MagicTemplate):
             new = self.add_molecules(mole, name=f"{layer.name}-Rot", source=source)
             new_layers.append(new)
             _Logger.print_html(f"{layer.name!r} &#8594; {new.name!r}")
+            layer.visible = False
         return self._undo_callback_for_layer(new_layers)
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu)
@@ -3067,7 +3068,8 @@ class CylindraMainWidget(MagicTemplate):
         if spline_id_column == "":
             dist_stack = []
             for spl in self.splines:
-                dist = spl.distance_matrix(mole.pos).matrix.max(axis=0)
+                # dist[i] is the distance from the i-th molecule to the spline
+                dist = spl.distance_matrix(mole.pos).matrix.min(axis=0)
                 dist_stack.append(dist)
             spline_id = np.stack(dist_stack, axis=0).argmin(axis=0)
             spline_id_column = ".spline_id"
@@ -3099,6 +3101,7 @@ class CylindraMainWidget(MagicTemplate):
         mole_rot = mole_rot.drop_features(_to_drop)
         source = layer.source_component if inherit_source else None
         new = self.add_molecules(mole_rot, name=f"{layer.name}-Rot", source=source)
+        layer.visible = False
         return self._undo_callback_for_layer(new)
 
     @set_design(text="Rename molecule layers", location=_sw.MoleculesMenu)
