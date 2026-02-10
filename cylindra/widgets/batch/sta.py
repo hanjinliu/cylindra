@@ -839,6 +839,8 @@ class BatchSubtomogramAveraging(MagicTemplate):
         batch = self._get_parent()
         info = batch.loader_infos[loader_name]
         loader = info.loader
+        # TODO: batch.iter_projects() does not properly work if no batch project is
+        # loaded beforehand.
         img_project_map = {Path(prj.image): prj for prj in batch.iter_projects()}
         for (mole_id, img_id), each in loader.group_by(["molecules-id", "image-id"]):
             img_path = info.image_paths[img_id]

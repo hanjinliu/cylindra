@@ -3127,10 +3127,8 @@ class CylindraMainWidget(MagicTemplate):
             String pattern to match the layer names. Use `*`, `?`, `[seq]` or `[!seq]`
             for linux shell-style wildcard.
         """
-        if old == "":
-            raise ValueError("`old` is not given.")
-        if new == "":
-            raise ValueError("`new` is not given.")
+        _check_arg_given(old, "old")
+        _check_arg_given(new, "new")
         return self.mole_layers.rename(
             old, new, include=include, exclude=exclude, pattern=pattern
         )
@@ -3673,14 +3671,9 @@ class CylindraMainWidget(MagicTemplate):
     ) -> MoleculesLayer:
         """Add molecules as a points layer to the viewer."""
         return add_molecules(
-            self.parent_viewer,
-            molecules,
-            name,
-            source=source,
-            metadata=metadata,
-            cmap=cmap,
-            **kwargs,
-        )
+            self.parent_viewer, molecules, name, source=source, metadata=metadata,
+            cmap=cmap, **kwargs,
+        )  # fmt: skip
 
     @nogui
     @do_not_record
@@ -4134,3 +4127,8 @@ def _unique_dtype(to_be_updated: list[tuple[CylSpline, pl.Series | None]]):
     elif len(dtypes) == 0:
         raise ValueError("No valid segment data to be updated.")
     return dtypes.pop()
+
+
+def _check_arg_given(a: str, name: str):
+    if a == "":
+        raise ValueError(f"Argument {name!r} must be given.")

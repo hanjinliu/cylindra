@@ -164,10 +164,33 @@ def test_align(ui: CylindraMainWidget, binsize: int):
         "Loader",
         mask_params={"kind": "spherical", "radius": 2.3, "sigma": 0.7},
         bin_size=binsize,
+        max_num_iters=3,
     )
     assert len(ui.sta.sub_viewer.layers) == 2
     ui.batch.sta.split_loader("Loader", by="pf-id", delete_old=True)
     ui.batch.sta.show_loader_info()
+
+# TODO: not working yet
+# def test_batch_rma(ui: CylindraMainWidget, tmpdir):
+#     _load(ui)
+#     ui.batch.sta.align_all_rma(
+#         "Loader",
+#         template_path=TEST_DIR / "beta-tubulin.mrc",
+#         mask_params=(2.0, 2.0),
+#         upsample_factor=2,
+#         num_trials=2,
+#         temperature_time_const=0.2,
+#     )
+
+#     ui.batch.sta.align_all_rma_template_free(
+#         "Loader",
+#         mask_params=(2.0, 2.0),
+#         size=8.0,
+#         upsample_factor=2,
+#         num_trials=2,
+#         temperature_time_const=0.2,
+#         max_num_iters=3,
+#     )
 
 def test_filter(ui: CylindraMainWidget):
     _load(ui)
