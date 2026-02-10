@@ -1202,7 +1202,7 @@ def test_molecules_methods(ui: CylindraMainWidget):
     tester.update_parameters(include="-0")
 
     ui.register_molecules([[10, 10, 10], [10, 20, 20]])
-    ui.rotate_molecule_toward_spline(ui.mole_layers.last(), 0)
+    ui.rotate_molecule_toward_spline(ui.mole_layers.last(), orientation="MinusToPlus")
     ui.distance_from_closest_molecule(ui.mole_layers.last(), ui.mole_layers[0])
 
     ## transform moleules
@@ -1630,7 +1630,7 @@ def test_annealing(ui: CylindraMainWidget):
             range_long=(dist_lon - 0.1, dist_lon + 0.1),
             range_lat=(dist_lat - 0.1, dist_lat + 0.1),
             angle_max=20,
-            random_seeds=[0, 1],
+            num_trials=2,
         )
         trajectories.append(ui.mole_layers.last().metadata["annealing-result"].energies)
     assert trajectories[0] is not trajectories[1]
@@ -1645,7 +1645,7 @@ def test_annealing(ui: CylindraMainWidget):
         range_long=(dist_lon - 0.1, dist_lon + 0.1),
         range_lat=(dist_lat - 0.1, dist_lat + 0.1),
         angle_max=20,
-        random_seeds=[0, 1],
+        num_trials=2,
     )
     ui.sta.save_annealing_scores(
         ui.mole_layers.last(), PROJECT_DIR_13PF / "annealing.csv"
@@ -1662,7 +1662,7 @@ def test_annealing(ui: CylindraMainWidget):
         rotations=((0, 0), (5, 5), (0, 0)),
         range_long=(dist_lon - 0.1, dist_lon + 0.1),
         angle_max=20,
-        random_seeds=[0, 1],
+        num_trials=2,
     )
     ui.splines.clear()
     ui.filament_to_spline(layer_filament)
@@ -1716,7 +1716,7 @@ def test_landscape_and_interaction(ui: CylindraMainWidget, tmpdir):
         range_long=("d.mean() -0.1", "d.mean()+ 0.1"),
         range_lat=("d.mean()- 0.1", "d.mean()  + 0.1"),
         angle_max=20,
-        random_seeds=[0, 1],
+        num_trials=2,
     )
 
     # check interactions

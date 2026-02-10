@@ -82,7 +82,7 @@ from cylindra.widgets._annotated import (
     assert_list_of_layers,
 )
 from cylindra.widgets._process_template import TemplateImage
-from cylindra.widgets._widget_ext import MultiFileEdit, RandomSeedEdit, RotationsEdit
+from cylindra.widgets._widget_ext import MultiFileEdit, RotationsEdit
 from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 if TYPE_CHECKING:
@@ -158,7 +158,6 @@ _DistRangeLat = Annotated[
 _AngleMaxLon = Annotated[
     float, {"max": 90.0, "step": 0.5, "label": "maximum angle (deg)"}
 ]
-_RandomSeeds = Annotated[list[int], {"widget_type": RandomSeedEdit}]
 _MinNumMoleculesPerClass = Annotated[
     Optional[int],
     {
@@ -1216,7 +1215,8 @@ class SubtomogramAveraging(ChildWidget):
         bin_size: BinSizeType = 1,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
-        random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
+        num_trials: Annotated[int, {"min": 1, "max": 100}] = 5,
+        seed: _SeedType = 0,
     ):  # fmt: skip
         """2D-constrained subtomogram alignment using Restricted Mesh Annealing.
 
@@ -1228,7 +1228,7 @@ class SubtomogramAveraging(ChildWidget):
         ----------
         {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}
         {interpolation}{range_long}{range_lat}{angle_max}{bin_size}
-        {temperature_time_const}{upsample_factor}{random_seeds}
+        {temperature_time_const}{upsample_factor}{num_trials}{seed}
         """
         t0 = timer()
         layer = assert_layer(layer, self.parent_viewer)
@@ -1258,7 +1258,7 @@ class SubtomogramAveraging(ChildWidget):
             range_lat=range_lat,
             angle_max=angle_max,
             temperature_time_const=temperature_time_const,
-            random_seeds=random_seeds,
+            random_seeds=utils.create_random_seeds(num_trials, seed),
         )
         t0.toc()
 
@@ -1293,7 +1293,8 @@ class SubtomogramAveraging(ChildWidget):
         bin_size: BinSizeType = 1,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
-        random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
+        num_trials: Annotated[int, {"min": 1, "max": 100}] = 5,
+        seed: _SeedType = 0,
     ):
         """1D-constrained subtomogram alignment using Restricted Filament Annealing.
 
@@ -1304,7 +1305,7 @@ class SubtomogramAveraging(ChildWidget):
         ----------
         {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}
         {interpolation}{range_long}{angle_max}{bin_size}{temperature_time_const}
-        {upsample_factor}{random_seeds}
+        {upsample_factor}{num_trials}{seed}
         """
         t0 = timer()
         layer = assert_layer(layer, self.parent_viewer)
@@ -1330,7 +1331,7 @@ class SubtomogramAveraging(ChildWidget):
             range=range_long,
             angle_max=angle_max,
             temperature_time_const=temperature_time_const,
-            random_seeds=random_seeds,
+            random_seeds=utils.create_random_seeds(num_trials, seed),
         )
         t0.toc()
 
@@ -1369,7 +1370,8 @@ class SubtomogramAveraging(ChildWidget):
         bin_size: BinSizeType = 1,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 100.0}] = 10.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
-        random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
+        num_trials: Annotated[int, {"min": 1, "max": 100}] = 5,
+        seed: _SeedType = 0,
     ):
         """Fit spline by RFA.
 
@@ -1387,7 +1389,7 @@ class SubtomogramAveraging(ChildWidget):
         interval : float or str expression, default 4.1
             Interval of the sampling points along the spline.
         {err_max}{mask_params}{max_shifts}{rotations}{cutoff}{interpolation}{range_long}
-        {angle_max}{bin_size}{temperature_time_const}{upsample_factor}{random_seeds}
+        {angle_max}{bin_size}{temperature_time_const}{upsample_factor}{num_trials}{seed}
         """
         t0 = timer()
         main = self._get_main()
@@ -1417,7 +1419,7 @@ class SubtomogramAveraging(ChildWidget):
                 range=range_long,
                 angle_max=angle_max,
                 temperature_time_const=temperature_time_const,
-                random_seeds=random_seeds,
+                random_seeds=utils.create_random_seeds(num_trials, seed),
             )
             yield _on_yield.with_args(results)
             return mole, results
@@ -1563,14 +1565,15 @@ class SubtomogramAveraging(ChildWidget):
         range_lat: _DistRangeLat = ("d.mean() - 0.1", "d.mean() + 0.1"),
         angle_max: _AngleMaxLon = 5.0,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
-        random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
+        num_trials: Annotated[int, {"min": 1, "max": 100}] = 5,
+        seed: _SeedType = 0,
     ):
         """Run simulated annealing on the landscape, supposing a cylindric structure.
 
         Parameters
         ----------
         {landscape_layer}{range_long}{range_lat}{angle_max}{temperature_time_const}
-        {random_seeds}
+        {num_trials}{seed}
         """
         t0 = timer()
         landscape_layer = _assert_landscape_layer(landscape_layer, self.parent_viewer)
@@ -1583,7 +1586,7 @@ class SubtomogramAveraging(ChildWidget):
             range_lat=range_lat,
             angle_max=angle_max,
             temperature_time_const=temperature_time_const,
-            random_seeds=random_seeds,
+            random_seeds=utils.create_random_seeds(num_trials, seed),
         )
         t0.toc()
 
@@ -1608,13 +1611,15 @@ class SubtomogramAveraging(ChildWidget):
         range_long: _DistRangeLon = (4.0, 4.28),
         angle_max: _AngleMaxLon = 5.0,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
-        random_seeds: _RandomSeeds = (0, 1, 2, 3, 4),
+        num_trials: Annotated[int, {"min": 1, "max": 100}] = 5,
+        seed: _SeedType = 0,
     ):
         """Run simulated annealing on the landscape, supposing a filamentous structure.
 
         Parameters
         ----------
-        {landscape_layer}{range_long}{angle_max}{temperature_time_const}{random_seeds}
+        {landscape_layer}{range_long}{angle_max}{temperature_time_const}{num_trials}
+        {seed}
         """
         t0 = timer()
         landscape_layer = _assert_landscape_layer(landscape_layer, self.parent_viewer)
@@ -1622,7 +1627,7 @@ class SubtomogramAveraging(ChildWidget):
             range=range_long,
             angle_max=angle_max,
             temperature_time_const=temperature_time_const,
-            random_seeds=random_seeds,
+            random_seeds=utils.create_random_seeds(num_trials, seed),
         )
         t0.toc()
 

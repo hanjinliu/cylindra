@@ -262,11 +262,11 @@ def align_molecules_to_spline(mole: Molecules, spl: Spline) -> Molecules:
     """Align molecule rotation to the spline.
 
     The y-axis of the molecule is aligned to the tangent of the spline, while z-axis
-    will be aligned to the normal of the spline.
+    will be aligned to the normal of the spline (pointing outward).
     """
     u_opt = closest_positions(mole, spl)
     tangent = spl.map(u_opt, der=1)
-    normal = spl.map(u_opt) - mole.pos
+    normal = mole.pos - spl.map(u_opt)
     rotator = axes_to_rotator(_vec_normed(normal), _vec_normed(tangent))
     return Molecules(mole.pos, rotator, features=mole.features)
 

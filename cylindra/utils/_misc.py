@@ -421,6 +421,11 @@ def unwrap_wildcard(path: str | Path | Iterable[str | Path]) -> list[Path]:
     return [Path(p) for p in all_paths]
 
 
+def create_random_seeds(num_trials: int, seed: int):
+    rng = np.random.default_rng(seed)
+    return list(rng.integers(0, 2**31 - 1, size=num_trials))
+
+
 class Projections:
     """Class that stores projections of a 3D image, calculated lazily.
 

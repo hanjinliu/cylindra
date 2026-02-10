@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import random
 from ast import literal_eval
 from contextlib import contextmanager
 from pathlib import Path
@@ -323,76 +322,6 @@ class SingleRotationEdit(ParametrizedEnumEdit):
         return ComboBox(
             value="z", choices=["z", "y", "x"], tooltip="Rotation axis", name="axis"
         )
-
-
-class RandomSeedEdit(Container):
-    """Widget for editing random seed values."""
-
-    def __init__(self, value=Undefined, *, nullable=False, **kwargs: Any) -> None:
-        self._seeds = LineEdit(
-            value="0, 1, 2, 3, 4",
-            tooltip=(
-                "Random seed values. You can use any Python literals in this box.\n"
-                "e.g.) `0, 1, 2, 3, 4`, `range(3)`"
-            ),
-        )
-        self._btn = PushButton(
-            label="Add", tooltip="Add a new random seed value to the list."
-        )
-        self._btn.max_width = 32
-        super().__init__(
-            widgets=[self._seeds, self._btn],
-            layout="horizontal",
-            labels=False,
-            **kwargs,
-        )
-        self.margins = (0, 0, 0, 0)
-        self.changed.disconnect()
-        # NOTE: don't relay value-change event of the line edit to the parents. Evaluation usually
-        # fails and it is potentially dangerous or time consuming.
-        self._btn.clicked.connect(self._generate_new_seed)
-        self.value = value
-
-    def _on_value_change(self):
-        self.changed.emit(self.value)
-
-    def _generate_new_seed(self):
-        try:
-            val = self.value
-        except Exception:
-            val = []
-        count = 0
-        while (newval := random.randint(0, 99999999)) in val:
-            # sample an identical value.
-            count += 1
-            if count > 1000:  # just in case!
-                raise RecursionError("Failed to generate a new random seed value.")
-        val.append(newval)
-        self.value = val
-
-    @property
-    def value(self) -> list[int]:
-        _str = self._seeds.value
-        if _str == "":
-            return []
-        out = eval(_str, {"__builtins__": {"range": range}}, {})
-        if isinstance(out, int):
-            return [out]
-        for i, x in enumerate(out):
-            if not isinstance(x, int):
-                raise TypeError(f"Invalid type at {i}-th component: {type(x)}")
-        return list(out)
-
-    @value.setter
-    def value(self, val: Any):
-        if val == Undefined:
-            val = "0"
-        if not isinstance(val, str):
-            if hasattr(val, "__iter__"):
-                val = ", ".join(str(int(v)) for v in val)
-            else:
-                raise TypeError(f"Invalid type for value: {type(val)}")
-        self._seeds.value = val
 
 
 class MultiFileEdit(Container):
