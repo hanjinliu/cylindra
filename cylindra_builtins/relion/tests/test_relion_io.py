@@ -16,6 +16,7 @@ from cylindra_builtins.relion.io import _preview_open_relion_job
 TEST_JOB_DIR = Path(__file__).parent / "test_jobs"
 JOB_TOMO_DIR = TEST_JOB_DIR / "Tomograms" / "job_tomo"
 JOB_PICK_DIR = TEST_JOB_DIR / "Picks" / "job_picks"
+JOB_CLASS3D_DIR = TEST_JOB_DIR / "Class3D" / "job_class3d"
 JOB_REFINE_DIR = TEST_JOB_DIR / "Refine3D" / "job_refine"
 
 
@@ -80,6 +81,16 @@ def test_opening_jobs(ui: CylindraMainWidget, tmpdir):
         ui.batch._get_loader_paths(),
     )
 
+    # Class3D
+    relion.open_relion_job(ui, JOB_CLASS3D_DIR / "job.star")
+
+    relion.save_molecules_for_extract(
+        ui,
+        tmpdir / "p.star",
+        ui.batch._get_loader_paths(),
+    )
+
+    # Refine3D
     relion.open_relion_job(ui, JOB_REFINE_DIR / "job.star")
 
     relion.save_molecules_for_extract(
@@ -88,5 +99,6 @@ def test_opening_jobs(ui: CylindraMainWidget, tmpdir):
         ui.batch._get_loader_paths(),
     )
 
+    # test preview
     relion.open_relion_job(ui, JOB_REFINE_DIR / "job.star")
     _preview_open_relion_job(ui, JOB_REFINE_DIR / "job.star")

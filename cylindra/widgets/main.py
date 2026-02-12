@@ -3064,6 +3064,8 @@ class CylindraMainWidget(MagicTemplate):
             the splines.
         """
         layer = assert_layer(layer, self.parent_viewer)
+        if self.splines.count() == 0:
+            raise ValueError("No spline exists in the tomogram.")
         mole = layer.molecules
         if spline_id_column == "":
             dist_stack = []
