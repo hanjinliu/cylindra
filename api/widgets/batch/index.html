@@ -3647,7 +3647,8 @@
 <span class="normal">366</span>
 <span class="normal">367</span>
 <span class="normal">368</span>
-<span class="normal">369</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span>
+<span class="normal">369</span>
+<span class="normal">370</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span>
     <span class="n">widget_type</span><span class="o">=</span><span class="s2">&quot;split&quot;</span><span class="p">,</span>
     <span class="n">layout</span><span class="o">=</span><span class="s2">&quot;horizontal&quot;</span><span class="p">,</span>
     <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Batch Analysis&quot;</span><span class="p">,</span>
@@ -3805,6 +3806,7 @@
                 <span class="n">prj</span><span class="o">.</span><span class="n">project_path</span> <span class="o">=</span> <span class="n">save_path</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">constructor</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">_add</span><span class="p">(</span><span class="n">prj</span><span class="o">.</span><span class="n">project_path</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">save_batch_project</span><span class="p">(</span><span class="n">save_path</span><span class="o">=</span><span class="n">save_root</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 
     <span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">constructor</span><span class="p">)</span>
     <span class="nd">@thread_worker</span>
@@ -4079,8 +4081,7 @@ project path is optional.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">193</span>
-<span class="normal">194</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">194</span>
 <span class="normal">195</span>
 <span class="normal">196</span>
 <span class="normal">197</span>
@@ -4145,7 +4146,8 @@ project path is optional.</p>
 <span class="normal">256</span>
 <span class="normal">257</span>
 <span class="normal">258</span>
-<span class="normal">259</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">constructor</span><span class="p">)</span>
+<span class="normal">259</span>
+<span class="normal">260</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">constructor</span><span class="p">)</span>
 <span class="nd">@thread_worker</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">construct_loader</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -4315,8 +4317,7 @@ collect the molecule file names ends with "-ALN1.csv".</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">271</span>
-<span class="normal">272</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">272</span>
 <span class="normal">273</span>
 <span class="normal">274</span>
 <span class="normal">275</span>
@@ -4340,7 +4341,8 @@ collect the molecule file names ends with "-ALN1.csv".</p>
 <span class="normal">293</span>
 <span class="normal">294</span>
 <span class="normal">295</span>
-<span class="normal">296</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">ProjectSequenceEdit</span><span class="o">.</span><span class="n">File</span><span class="p">)</span>
+<span class="normal">296</span>
+<span class="normal">297</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">ProjectSequenceEdit</span><span class="o">.</span><span class="n">File</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">construct_loader_by_list</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">project_paths</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Multiple</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">PROJECT</span><span class="p">],</span>
@@ -4388,11 +4390,11 @@ collect the molecule file names ends with "-ALN1.csv".</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">365</span>
-<span class="normal">366</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">366</span>
 <span class="normal">367</span>
 <span class="normal">368</span>
-<span class="normal">369</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+<span class="normal">369</span>
+<span class="normal">370</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">iter_projects</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">CylindraProject</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Iterate over all projects in the batch project.&quot;&quot;&quot;</span>
     <span class="k">for</span> <span class="n">prj_widget</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">constructor</span><span class="o">.</span><span class="n">projects</span><span class="p">:</span>
@@ -4450,8 +4452,7 @@ collect the molecule file names ends with "-ALN1.csv".</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">330</span>
-<span class="normal">331</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">331</span>
 <span class="normal">332</span>
 <span class="normal">333</span>
 <span class="normal">334</span>
@@ -4463,7 +4464,8 @@ collect the molecule file names ends with "-ALN1.csv".</p>
 <span class="normal">340</span>
 <span class="normal">341</span>
 <span class="normal">342</span>
-<span class="normal">343</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Load batch analysis project&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">ProjectSequenceEdit</span><span class="o">.</span><span class="n">File</span><span class="p">)</span>
+<span class="normal">343</span>
+<span class="normal">344</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Load batch analysis project&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">ProjectSequenceEdit</span><span class="o">.</span><span class="n">File</span><span class="p">)</span>
 <span class="nd">@confirm</span><span class="p">(</span>
     <span class="n">text</span><span class="o">=</span><span class="s2">&quot;Are you sure to clear all loaders?&quot;</span><span class="p">,</span> <span class="n">condition</span><span class="o">=</span><span class="s2">&quot;len(self._loaders) &gt; 0&quot;</span>
 <span class="p">)</span>
@@ -4895,8 +4897,7 @@ imported from file outputs of a long-running job from other softwares.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">345</span>
-<span class="normal">346</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">346</span>
 <span class="normal">347</span>
 <span class="normal">348</span>
 <span class="normal">349</span>
@@ -4913,7 +4914,8 @@ imported from file outputs of a long-running job from other softwares.</p>
 <span class="normal">360</span>
 <span class="normal">361</span>
 <span class="normal">362</span>
-<span class="normal">363</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span>
+<span class="normal">363</span>
+<span class="normal">364</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span>
     <span class="n">text</span><span class="o">=</span><span class="s2">&quot;Save as batch analysis project&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">ProjectSequenceEdit</span><span class="o">.</span><span class="n">File</span>
 <span class="p">)</span>
 <span class="nd">@do_not_record</span>
@@ -4954,8 +4956,7 @@ imported from file outputs of a long-running job from other softwares.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">312</span>
-<span class="normal">313</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">313</span>
 <span class="normal">314</span>
 <span class="normal">315</span>
 <span class="normal">316</span>
@@ -4963,7 +4964,8 @@ imported from file outputs of a long-running job from other softwares.</p>
 <span class="normal">318</span>
 <span class="normal">319</span>
 <span class="normal">320</span>
-<span class="normal">321</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">ProjectSequenceEdit</span><span class="o">.</span><span class="n">MacroMenu</span><span class="p">)</span>
+<span class="normal">321</span>
+<span class="normal">322</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">ProjectSequenceEdit</span><span class="o">.</span><span class="n">MacroMenu</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">show_macro</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Show the macro widget of the batch analyzer.&quot;&quot;&quot;</span>
@@ -4995,12 +4997,12 @@ imported from file outputs of a long-running job from other softwares.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">323</span>
-<span class="normal">324</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">324</span>
 <span class="normal">325</span>
 <span class="normal">326</span>
 <span class="normal">327</span>
-<span class="normal">328</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">ProjectSequenceEdit</span><span class="o">.</span><span class="n">MacroMenu</span><span class="p">)</span>
+<span class="normal">328</span>
+<span class="normal">329</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">ProjectSequenceEdit</span><span class="o">.</span><span class="n">MacroMenu</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">show_native_macro</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Show the native macro widget of the batch analyzer.&quot;&quot;&quot;</span>
