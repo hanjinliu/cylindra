@@ -189,6 +189,7 @@ class CylindraBatchWidget(MagicTemplate):
                 prj.project_path = save_path
             self.constructor.projects._add(prj.project_path)
         self.save_batch_project(save_path=save_root)
+        self.show()
 
     @set_design(text=capitalize, location=constructor)
     @thread_worker
