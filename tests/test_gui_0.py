@@ -84,6 +84,11 @@ def test_start_as_napari_plugin(make_napari_viewer):
     start_as_plugin(run=False)
 
 
+def test_temp_00(ui: CylindraMainWidget):
+    path = TEST_DIR / "13pf_MT.tif"
+    ui.open_image(path=path, scale=1.052, tilt_range=(-60, 60), bin_size=[1])
+
+
 @pytest.mark.parametrize(
     "save_path,npf", [(PROJECT_DIR_13PF, 13), (PROJECT_DIR_14PF, 14)]
 )
