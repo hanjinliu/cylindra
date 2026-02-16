@@ -96,6 +96,7 @@ class PropertyNames(SimpleNamespace):
     offset_axial = "offset_axial"  # global only
     offset_angular = "offset_angular"  # global only
     start = "start"
+    moire_period = "moire_period"
 
 
 class FileFilter(SimpleNamespace):

@@ -138,6 +138,7 @@ class CylSpline(Spline):
         return CylinderParameters.solve(
             spacing=_get_globalprops(self, kwargs, H.spacing),
             pitch=_get_globalprops(self, kwargs, H.pitch),
+            moire_period=_get_globalprops(self, kwargs, H.moire_period),
             twist=_get_globalprops(self, kwargs, H.twist),
             skew=_get_globalprops(self, kwargs, H.skew),
             rise_angle=_get_globalprops(self, kwargs, H.rise),
