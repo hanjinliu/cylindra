@@ -260,7 +260,7 @@ ui.splines[0].props.get_glob("rise_angle")
 10.027519226074219
 ```
 
-## Properties of the Splines
+## Properties of the splines
 
 After running CFT, splines will have the following properties:
 
@@ -277,7 +277,7 @@ After running CFT, splines will have the following properties:
 
 ![Definition of lattice parameters](images/lattice_params.png){ loading=lazy, width=320px }
 
-## Sweep along the Splines
+## Sweep along the splines
 
 After running local-CFT, you'll find the GUI being updated.
 

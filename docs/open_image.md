@@ -228,7 +228,7 @@ is loaded. See [Load & Save Projects](project_io.md) for more details.
 
 ### Directory-specific defaults
 
-:sparkles: New in v1.0.3
+:sparkles: *New in v1.0.3*
 
 It takes time to set all the parameters in the open-image dialog every time you open a
 tomogram. Since v1.0.3, you can specify directory-specific default parameters using a
