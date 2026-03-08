@@ -427,11 +427,11 @@ class ManualPicker(ChildWidget):
             self.controller.pos.value - self.Toolbar.dist_step.value,
         )
 
-    @bind_key("J")
+    @bind_key("K")
     def _move_focus_up(self):
         self.Rot.focus = min(_FOCUS_MAX, self.Rot.focus + self.Toolbar.dist_step.value)
 
-    @bind_key("K")
+    @bind_key("J")
     def _move_focus_down(self):
         self.Rot.focus = max(_FOCUS_MIN, self.Rot.focus - self.Toolbar.dist_step.value)
 

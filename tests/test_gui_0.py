@@ -1906,7 +1906,6 @@ def test_stash(ui: CylindraMainWidget, tmpdir):
         ui.FileMenu.Stash.stash_project()
         name0 = _config.get_stash_list()[0]
         ui.FileMenu.Stash.load_stash_project(name0, filter=None)
-        ui.FileMenu.Stash.pop_stash_project(name0, filter=None)
         ui.FileMenu.Stash.stash_project()
         name1 = _config.get_stash_list()[0]
         ui.FileMenu.Stash.delete_stash_project(name1)
