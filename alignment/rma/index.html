@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.4">
     
     
       
@@ -2720,6 +2720,10 @@
 that was introduced in our work. It imposes longitudinal and lateral constraints
 between molecules and optimize the alignment score using simulated annealing.</p>
 <p>As an example of using RMA, see the <a href="../../case_studies/rma/">case study</a>.</p>
+<p>For the longitudinal and lateral distance ranges, you can use the variable <code>d</code> to
+specify the distances. <code>d</code> is a <code>numpy.ndarray</code> of shape <code>(N,)</code>, where <code>N</code> is the number
+of molecules. For example, <code>d.mean()</code> is the mean distance between laterally neighboring
+molecules if <code>d</code> is used in the lateral constraint.</p>
 <h2 id="run-rma-on-a-landscape">Run RMA on a Landscape</h2>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="run_rma_on_landscape(landscape_layer, range_long=(4.0, 4.28), range_lat=('d.mean() - 0.1', 'd.mean() + 0.1'), angle_max=5.0, temperature_time_const=1.0, num_trials=5, seed=0)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.run_rma_on_landscape"><code>run_rma_on_landscape</code></a></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Subtomogram Averaging &gt; Landscape &gt; Run annealing (RMA)</code></p>

@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.4">
     
     
       
@@ -2994,7 +2994,7 @@ alignment by <a href="#fourier-shell-correlation-fsc">FSC</a>. The low-pass cuto
 updated according to the resolution determined by FSC to avoid overfitting.</p>
 <p><img alt="Align all template-free" loading="lazy," src="../../images/align_all_template_free.png" width="480px" /></p>
 <h2 id="classification">Classification</h2>
-<p><img alt="✨" class="twemoji" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@16.0.1/assets/svg/2728.svg" title=":sparkles:" /> New in v1.1.0</p>
+<p><img alt="✨" class="twemoji" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@16.0.1/assets/svg/2728.svg" title=":sparkles:" /> <em>New in v1.1.0</em></p>
 <p>Classification uses expectation-maximization (EM) algorithm to iteratively calculate the
 correlation score of each subtomogram to template images, and calculate new averages for
 each class.</p>
@@ -3002,7 +3002,7 @@ each class.</p>
 <li>Depending on the target structure you want to classify, you can use binning to speed
   up the classification and reduce overfitting. For example, to classify ~6000 tubulins
   into kinesin-bound and non-bound classes, ~0.5 nm/pixel is sufficient.
-  <img alt="Classified tubulins" loading="lazy," src="../../images/classification-kin.png" width="300px" /></li>
+  <img alt="Classified tubulins" loading="lazy," src="../../images/classification-kin.png" width="500px" /></li>
 <li>The target structure is better but not necessarily centered, given that you provided a
   proper mask. Nevertheless, you can substantially reduce the subtomogram volume size by
   centering the structure. You may use <a href="../../molecules/transform/#translation-of-molecules"><code>translate_molecules</code></a> to interactively translate the molecules to the center of
@@ -3011,10 +3011,12 @@ each class.</p>
 <h3 id="user-supplied-templates">User-supplied templates</h3>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="classify_em(layers, templates, max_num_iters=10, min_num_molecules_per_class=None, mask_params=None, inverse_temperature=80, cutoff=0.5, interpolation=3, bin_size=1, seed=0)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.classify_em"><code>classify_em</code></a></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>STA widget &gt; Analysis &gt; 3D classification</code></p>
-<p><img alt="&quot;EM classification&quot;" loading="lazy," src="../../images/classification-kin.png" width="400px" /></p>
+<p><img alt="&quot;EM classification&quot;" loading="lazy," src="../../images/classify_em.png" width="400px" /></p>
 <p>This method classifies the subtomograms into user-supplied template images. You can
 classify all the molecules with a single iteration, but it is recommended to run
 multiple iterations to get unbiased results.</p>
+<p>The "inverse temperature" hyper-parameter controls the "softness" of the classification.
+Higher value (lower temperature) means the classification is more "hard", i.e. each subtomogram is more likely to be classified into a single class.</p>
 <h3 id="template-free-classification">Template-free classification</h3>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="classify_em_template_free(layers, size=None, num_classes=2, min_num_molecules_per_class=None, max_num_iters=10, mask_params=None, inverse_temperature=80, cutoff=0.5, interpolation=3, bin_size=1, seed=0)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.classify_em_template_free"><code>classify_em_template_free</code></a></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>STA widget &gt; Analysis &gt; 3D classification (template-free)</code></p>
