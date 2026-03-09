@@ -147,7 +147,7 @@ updated according to the resolution determined by FSC to avoid overfitting.
 
 ## Classification
 
-:sparkles: New in v1.1.0
+:sparkles: *New in v1.1.0*
 
 Classification uses expectation-maximization (EM) algorithm to iteratively calculate the
 correlation score of each subtomogram to template images, and calculate new averages for
@@ -156,7 +156,7 @@ each class.
 - Depending on the target structure you want to classify, you can use binning to speed
   up the classification and reduce overfitting. For example, to classify ~6000 tubulins
   into kinesin-bound and non-bound classes, ~0.5 nm/pixel is sufficient.
-  ![Classified tubulins](../images/classification-kin.png){ loading=lazy, width=300px }
+  ![Classified tubulins](../images/classification-kin.png){ loading=lazy, width=500px }
 - The target structure is better but not necessarily centered, given that you provided a
   proper mask. Nevertheless, you can substantially reduce the subtomogram volume size by
   centering the structure. You may use [`translate_molecules`](../molecules/transform.md#translation-of-molecules) to interactively translate the molecules to the center of
@@ -169,11 +169,14 @@ each class.
 
 :material-arrow-right-thin-circle-outline: GUI: `STA widget > Analysis > 3D classification`
 
-!["EM classification"](../images/classification-kin.png){ loading=lazy, width=400px }
+!["EM classification"](../images/classify_em.png){ loading=lazy, width=400px }
 
 This method classifies the subtomograms into user-supplied template images. You can
 classify all the molecules with a single iteration, but it is recommended to run
 multiple iterations to get unbiased results.
+
+The "inverse temperature" hyper-parameter controls the "softness" of the classification.
+Higher value (lower temperature) means the classification is more "hard", i.e. each subtomogram is more likely to be classified into a single class.
 
 ### Template-free classification
 

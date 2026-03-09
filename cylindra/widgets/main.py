@@ -348,6 +348,9 @@ class CylindraMainWidget(MagicTemplate):
         self.config_edit.config_new.set_config(
             self.config_edit.config_current.get_config()
         )
+        self.events.tomogram_initialized.connect(
+            self.manual_picker.refresh_widget_state
+        )
 
         # load plugins
         load_plugin(self)

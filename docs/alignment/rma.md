@@ -6,6 +6,11 @@ between molecules and optimize the alignment score using simulated annealing.
 
 As an example of using RMA, see the [case study](../case_studies/rma.md).
 
+For the longitudinal and lateral distance ranges, you can use the variable `d` to
+specify the distances. `d` is a `numpy.ndarray` of shape `(N,)`, where `N` is the number
+of molecules. For example, `d.mean()` is the mean distance between laterally neighboring
+molecules if `d` is used in the lateral constraint.
+
 ## Run RMA on a Landscape
 
 :material-arrow-right-thin-circle-outline: API: [`run_rma_on_landscape`][cylindra.widgets.sta.SubtomogramAveraging.run_rma_on_landscape]

@@ -2,7 +2,7 @@
 
 ## Prepare a batch project from tomograms
 
-:sparkles: New in v1.0.3
+:sparkles: *New in v1.0.3*
 
 If you are going to analyze many tomograms, it is convenient to prepare a batch project
 first. It is simply easier to manage your data with a batch project; you can open each
