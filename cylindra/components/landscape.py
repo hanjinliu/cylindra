@@ -975,13 +975,26 @@ def _calc_landscape(
     # - no rotation, Nt templates: (P, Nt, Z, Y, X)
     # - Nr rotations, Nt templates: (P, Nr*Nt, Z, Y, X)
     if not model.has_rotation and not multi_templates:
-        score = score_dsk.compute()
+        score = _retry_on_keyerror(score_dsk.compute)
         argmax = None
     else:
         score = da.max(score_dsk, axis=1)
         argmax = da.argmax(score_dsk, axis=1)
-        score, argmax = da.compute(score, argmax)
+        score, argmax = _retry_on_keyerror(da.compute, score, argmax)
     return score, argmax
+
+
+def _retry_on_keyerror(func, *args, **kwargs):
+    exc = None
+    for _ in range(3):
+        try:
+            out = func(*args, **kwargs)
+            break
+        except KeyError as e:
+            exc = e
+    else:
+        raise exc
+    return out
 
 
 def _as_n_series(fmt: str, arr: NDArray[np.floating]) -> list[pl.Series]:
