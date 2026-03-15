@@ -184,7 +184,7 @@ class CylinderParameters:
             if given(moire_period):
                 moire_period_ = moire_period
             else:
-                moire_period_ = perimeter / npf / m.tan(m.radians(skew))
+                moire_period_ = _skew_to_moire_period(perimeter, npf, skew)
 
         elif given(spacing):
             if given(twist):
@@ -222,7 +222,7 @@ class CylinderParameters:
             if given(moire_period):
                 moire_period_ = moire_period
             else:
-                moire_period_ = perimeter / npf / m.tan(m.radians(skew))
+                moire_period_ = _skew_to_moire_period(perimeter, npf, skew)
         else:
             raise ValueError("Not enough information to solve.")
 
@@ -253,3 +253,9 @@ def _rise_to_start(rise_angle, skew_rad, spacing, perimeter):
     return roundint(
         perimeter / spacing / (m.cos(skew_rad) / tan_rise + m.sin(skew_rad))
     )
+
+
+def _skew_to_moire_period(perimeter, npf, skew):
+    if skew == 0:
+        return float("inf")
+    return perimeter / npf / m.tan(m.radians(skew))
