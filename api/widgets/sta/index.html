@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.4">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
     
     
       
@@ -5354,7 +5354,13 @@
 <span class="normal">2400</span>
 <span class="normal">2401</span>
 <span class="normal">2402</span>
-<span class="normal">2403</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">widget_type</span><span class="o">=</span><span class="s2">&quot;scrollable&quot;</span><span class="p">,</span> <span class="n">use_native_menubar</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="normal">2403</span>
+<span class="normal">2404</span>
+<span class="normal">2405</span>
+<span class="normal">2406</span>
+<span class="normal">2407</span>
+<span class="normal">2408</span>
+<span class="normal">2409</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">widget_type</span><span class="o">=</span><span class="s2">&quot;scrollable&quot;</span><span class="p">,</span> <span class="n">use_native_menubar</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="nd">@_shared_doc</span><span class="o">.</span><span class="n">update_cls</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">SubtomogramAveraging</span><span class="p">(</span><span class="n">ChildWidget</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Widget for subtomogram averaging.&quot;&quot;&quot;</span>
@@ -6013,6 +6019,7 @@
         <span class="n">angle_max</span><span class="p">:</span> <span class="n">_AngleMaxLon</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span>
         <span class="n">bin_size</span><span class="p">:</span> <span class="n">BinSizeType</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
         <span class="n">temperature_time_const</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mf">10.0</span><span class="p">}]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">lj_const</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mf">0.00</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mf">1000.0</span><span class="p">,</span> <span class="s2">&quot;step&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;LJ const&quot;</span><span class="p">}]</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
         <span class="n">upsample_factor</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
         <span class="n">num_trials</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mi">100</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
         <span class="n">seed</span><span class="p">:</span> <span class="n">_SeedType</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
@@ -6027,7 +6034,7 @@
 <span class="sd">        ----------</span>
 <span class="sd">        {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}</span>
 <span class="sd">        {interpolation}{range_long}{range_lat}{angle_max}{bin_size}</span>
-<span class="sd">        {temperature_time_const}{upsample_factor}{num_trials}{seed}</span>
+<span class="sd">        {temperature_time_const}{lj_const}{upsample_factor}{num_trials}{seed}</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">t0</span> <span class="o">=</span> <span class="n">timer</span><span class="p">()</span>
         <span class="n">layer</span> <span class="o">=</span> <span class="n">assert_layer</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
@@ -6057,6 +6064,7 @@
             <span class="n">range_lat</span><span class="o">=</span><span class="n">range_lat</span><span class="p">,</span>
             <span class="n">angle_max</span><span class="o">=</span><span class="n">angle_max</span><span class="p">,</span>
             <span class="n">temperature_time_const</span><span class="o">=</span><span class="n">temperature_time_const</span><span class="p">,</span>
+            <span class="n">lj_nstd</span><span class="o">=</span><span class="kc">None</span> <span class="k">if</span> <span class="n">lj_const</span> <span class="o">&lt;</span> <span class="mf">1e-3</span> <span class="k">else</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">lj_const</span><span class="p">,</span>
             <span class="n">random_seeds</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">create_random_seeds</span><span class="p">(</span><span class="n">num_trials</span><span class="p">,</span> <span class="n">seed</span><span class="p">),</span>
         <span class="p">)</span>
         <span class="n">t0</span><span class="o">.</span><span class="n">toc</span><span class="p">()</span>
@@ -6364,6 +6372,9 @@
         <span class="n">range_lat</span><span class="p">:</span> <span class="n">_DistRangeLat</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;d.mean() - 0.1&quot;</span><span class="p">,</span> <span class="s2">&quot;d.mean() + 0.1&quot;</span><span class="p">),</span>
         <span class="n">angle_max</span><span class="p">:</span> <span class="n">_AngleMaxLon</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span>
         <span class="n">temperature_time_const</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mf">10.0</span><span class="p">}]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">lj_const</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="nb">float</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mf">0.00</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mf">1000.0</span><span class="p">,</span> <span class="s2">&quot;step&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;LJ const&quot;</span><span class="p">}</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
         <span class="n">num_trials</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mi">100</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
         <span class="n">seed</span><span class="p">:</span> <span class="n">_SeedType</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
     <span class="p">):</span>
@@ -6372,7 +6383,7 @@
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        {landscape_layer}{range_long}{range_lat}{angle_max}{temperature_time_const}</span>
-<span class="sd">        {num_trials}{seed}</span>
+<span class="sd">        {lj_const}{num_trials}{seed}</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">t0</span> <span class="o">=</span> <span class="n">timer</span><span class="p">()</span>
         <span class="n">landscape_layer</span> <span class="o">=</span> <span class="n">_assert_landscape_layer</span><span class="p">(</span><span class="n">landscape_layer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
@@ -6385,6 +6396,7 @@
             <span class="n">range_lat</span><span class="o">=</span><span class="n">range_lat</span><span class="p">,</span>
             <span class="n">angle_max</span><span class="o">=</span><span class="n">angle_max</span><span class="p">,</span>
             <span class="n">temperature_time_const</span><span class="o">=</span><span class="n">temperature_time_const</span><span class="p">,</span>
+            <span class="n">lj_nstd</span><span class="o">=</span><span class="kc">None</span> <span class="k">if</span> <span class="n">lj_const</span> <span class="o">&lt;</span> <span class="mf">1e-3</span> <span class="k">else</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">lj_const</span><span class="p">,</span>
             <span class="n">random_seeds</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">create_random_seeds</span><span class="p">(</span><span class="n">num_trials</span><span class="p">,</span> <span class="n">seed</span><span class="p">),</span>
         <span class="p">)</span>
         <span class="n">t0</span><span class="o">.</span><span class="n">toc</span><span class="p">()</span>
@@ -7802,9 +7814,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1280</span>
-<span class="normal">1281</span>
-<span class="normal">1282</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1282</span>
 <span class="normal">1283</span>
 <span class="normal">1284</span>
 <span class="normal">1285</span>
@@ -7874,7 +7884,9 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">1349</span>
 <span class="normal">1350</span>
 <span class="normal">1351</span>
-<span class="normal">1352</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;RFA alignment&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
+<span class="normal">1352</span>
+<span class="normal">1353</span>
+<span class="normal">1354</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;RFA alignment&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">descs</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_annealing_fmt</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">align_all_rfa</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -7957,7 +7969,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
 
 <h3 id="cylindra.widgets.sta.SubtomogramAveraging.align_all_rma" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">align_all_rma</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">template_path</span><span class="p">,</span> <span class="n">mask_params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_shifts</span><span class="o">=</span><span class="p">(</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">),</span> <span class="n">rotations</span><span class="o">=</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)),</span> <span class="n">cutoff</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">range_long</span><span class="o">=</span><span class="p">(</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">4.28</span><span class="p">),</span> <span class="n">range_lat</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;d.mean() - 0.1&#39;</span><span class="p">,</span> <span class="s1">&#39;d.mean() + 0.1&#39;</span><span class="p">),</span> <span class="n">angle_max</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">temperature_time_const</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">upsample_factor</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">num_trials</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">align_all_rma</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">template_path</span><span class="p">,</span> <span class="n">mask_params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_shifts</span><span class="o">=</span><span class="p">(</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">),</span> <span class="n">rotations</span><span class="o">=</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)),</span> <span class="n">cutoff</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">range_long</span><span class="o">=</span><span class="p">(</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">4.28</span><span class="p">),</span> <span class="n">range_lat</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;d.mean() - 0.1&#39;</span><span class="p">,</span> <span class="s1">&#39;d.mean() + 0.1&#39;</span><span class="p">),</span> <span class="n">angle_max</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">temperature_time_const</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">lj_const</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">upsample_factor</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">num_trials</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></code>
 
 </h3>
 
@@ -8176,6 +8188,23 @@ If a path is given, image must in the same shape as the template.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
+                <code>lj_const</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If greater than 0, the annealing will use a Lennard-Jones-like potential to allow molecules to separate further apart than the cutoff distance.
+Larger value will prefer longer distances between molecules. 0.25 - 0.5 is usually a good choice.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
                 <code>upsample_factor</code>
             </td>
             <td>
@@ -8306,7 +8335,9 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">1275</span>
 <span class="normal">1276</span>
 <span class="normal">1277</span>
-<span class="normal">1278</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;RMA alignment&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
+<span class="normal">1278</span>
+<span class="normal">1279</span>
+<span class="normal">1280</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;RMA alignment&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">descs</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_annealing_fmt</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">align_all_rma</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -8322,6 +8353,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
     <span class="n">angle_max</span><span class="p">:</span> <span class="n">_AngleMaxLon</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span>
     <span class="n">bin_size</span><span class="p">:</span> <span class="n">BinSizeType</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
     <span class="n">temperature_time_const</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mf">10.0</span><span class="p">}]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="n">lj_const</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mf">0.00</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mf">1000.0</span><span class="p">,</span> <span class="s2">&quot;step&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;LJ const&quot;</span><span class="p">}]</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
     <span class="n">upsample_factor</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
     <span class="n">num_trials</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mi">100</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
     <span class="n">seed</span><span class="p">:</span> <span class="n">_SeedType</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
@@ -8336,7 +8368,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="sd">    ----------</span>
 <span class="sd">    {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}</span>
 <span class="sd">    {interpolation}{range_long}{range_lat}{angle_max}{bin_size}</span>
-<span class="sd">    {temperature_time_const}{upsample_factor}{num_trials}{seed}</span>
+<span class="sd">    {temperature_time_const}{lj_const}{upsample_factor}{num_trials}{seed}</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">t0</span> <span class="o">=</span> <span class="n">timer</span><span class="p">()</span>
     <span class="n">layer</span> <span class="o">=</span> <span class="n">assert_layer</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
@@ -8366,6 +8398,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
         <span class="n">range_lat</span><span class="o">=</span><span class="n">range_lat</span><span class="p">,</span>
         <span class="n">angle_max</span><span class="o">=</span><span class="n">angle_max</span><span class="p">,</span>
         <span class="n">temperature_time_const</span><span class="o">=</span><span class="n">temperature_time_const</span><span class="p">,</span>
+        <span class="n">lj_nstd</span><span class="o">=</span><span class="kc">None</span> <span class="k">if</span> <span class="n">lj_const</span> <span class="o">&lt;</span> <span class="mf">1e-3</span> <span class="k">else</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">lj_const</span><span class="p">,</span>
         <span class="n">random_seeds</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">create_random_seeds</span><span class="p">(</span><span class="n">num_trials</span><span class="p">,</span> <span class="n">seed</span><span class="p">),</span>
     <span class="p">)</span>
     <span class="n">t0</span><span class="o">.</span><span class="n">toc</span><span class="p">()</span>
@@ -10422,13 +10455,7 @@ If a path is given, image must in the same shape as the template.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1726</span>
-<span class="normal">1727</span>
-<span class="normal">1728</span>
-<span class="normal">1729</span>
-<span class="normal">1730</span>
-<span class="normal">1731</span>
-<span class="normal">1732</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1732</span>
 <span class="normal">1733</span>
 <span class="normal">1734</span>
 <span class="normal">1735</span>
@@ -10482,7 +10509,13 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="normal">1783</span>
 <span class="normal">1784</span>
 <span class="normal">1785</span>
-<span class="normal">1786</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
+<span class="normal">1786</span>
+<span class="normal">1787</span>
+<span class="normal">1788</span>
+<span class="normal">1789</span>
+<span class="normal">1790</span>
+<span class="normal">1791</span>
+<span class="normal">1792</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">fmt_layers</span><span class="p">(</span><span class="s2">&quot;Calculating correlations of </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="p">))</span>  <span class="c1"># fmt: skip</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">calculate_correlation</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -10726,13 +10759,7 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1788</span>
-<span class="normal">1789</span>
-<span class="normal">1790</span>
-<span class="normal">1791</span>
-<span class="normal">1792</span>
-<span class="normal">1793</span>
-<span class="normal">1794</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1794</span>
 <span class="normal">1795</span>
 <span class="normal">1796</span>
 <span class="normal">1797</span>
@@ -10817,7 +10844,13 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 <span class="normal">1876</span>
 <span class="normal">1877</span>
 <span class="normal">1878</span>
-<span class="normal">1879</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Calculate FSC&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
+<span class="normal">1879</span>
+<span class="normal">1880</span>
+<span class="normal">1881</span>
+<span class="normal">1882</span>
+<span class="normal">1883</span>
+<span class="normal">1884</span>
+<span class="normal">1885</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Calculate FSC&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">fmt_layers</span><span class="p">(</span><span class="s2">&quot;Calculating FSC of </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="p">))</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">calculate_fsc</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -11078,13 +11111,7 @@ lower value (higher temperature) makes it "softer" (i.e., more uncertain).</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1881</span>
-<span class="normal">1882</span>
-<span class="normal">1883</span>
-<span class="normal">1884</span>
-<span class="normal">1885</span>
-<span class="normal">1886</span>
-<span class="normal">1887</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1887</span>
 <span class="normal">1888</span>
 <span class="normal">1889</span>
 <span class="normal">1890</span>
@@ -11173,7 +11200,13 @@ lower value (higher temperature) makes it "softer" (i.e., more uncertain).</p>
 <span class="normal">1973</span>
 <span class="normal">1974</span>
 <span class="normal">1975</span>
-<span class="normal">1976</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;3D classification&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
+<span class="normal">1976</span>
+<span class="normal">1977</span>
+<span class="normal">1978</span>
+<span class="normal">1979</span>
+<span class="normal">1980</span>
+<span class="normal">1981</span>
+<span class="normal">1982</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;3D classification&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;3D Classification&quot;</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">classify_em</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -11470,13 +11503,7 @@ lower value (higher temperature) makes it "softer" (i.e., more uncertain).</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1978</span>
-<span class="normal">1979</span>
-<span class="normal">1980</span>
-<span class="normal">1981</span>
-<span class="normal">1982</span>
-<span class="normal">1983</span>
-<span class="normal">1984</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1984</span>
 <span class="normal">1985</span>
 <span class="normal">1986</span>
 <span class="normal">1987</span>
@@ -11547,7 +11574,13 @@ lower value (higher temperature) makes it "softer" (i.e., more uncertain).</p>
 <span class="normal">2052</span>
 <span class="normal">2053</span>
 <span class="normal">2054</span>
-<span class="normal">2055</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;3D classification (template-free)&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
+<span class="normal">2055</span>
+<span class="normal">2056</span>
+<span class="normal">2057</span>
+<span class="normal">2058</span>
+<span class="normal">2059</span>
+<span class="normal">2060</span>
+<span class="normal">2061</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;3D classification (template-free)&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;3D Classification (template-free)&quot;</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">classify_em_template_free</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -11841,9 +11874,7 @@ deviation.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1476</span>
-<span class="normal">1477</span>
-<span class="normal">1478</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1478</span>
 <span class="normal">1479</span>
 <span class="normal">1480</span>
 <span class="normal">1481</span>
@@ -11883,7 +11914,9 @@ deviation.</p>
 <span class="normal">1515</span>
 <span class="normal">1516</span>
 <span class="normal">1517</span>
-<span class="normal">1518</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
+<span class="normal">1518</span>
+<span class="normal">1519</span>
+<span class="normal">1520</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">descs</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">construct_landscape_fmt</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">construct_landscape</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -12434,9 +12467,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1354</span>
-<span class="normal">1355</span>
-<span class="normal">1356</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1356</span>
 <span class="normal">1357</span>
 <span class="normal">1358</span>
 <span class="normal">1359</span>
@@ -12554,7 +12585,9 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">1471</span>
 <span class="normal">1472</span>
 <span class="normal">1473</span>
-<span class="normal">1474</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Fit spline by RFA&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
+<span class="normal">1474</span>
+<span class="normal">1475</span>
+<span class="normal">1476</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Fit spline by RFA&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">descs</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">fit_spline_rfa_fmt</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">fit_spline_rfa</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -12697,13 +12730,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2298</span>
-<span class="normal">2299</span>
-<span class="normal">2300</span>
-<span class="normal">2301</span>
-<span class="normal">2302</span>
-<span class="normal">2303</span>
-<span class="normal">2304</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2304</span>
 <span class="normal">2305</span>
 <span class="normal">2306</span>
 <span class="normal">2307</span>
@@ -12720,7 +12747,13 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">2318</span>
 <span class="normal">2319</span>
 <span class="normal">2320</span>
-<span class="normal">2321</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+<span class="normal">2321</span>
+<span class="normal">2322</span>
+<span class="normal">2323</span>
+<span class="normal">2324</span>
+<span class="normal">2325</span>
+<span class="normal">2326</span>
+<span class="normal">2327</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">get_mask</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -12868,13 +12901,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2323</span>
-<span class="normal">2324</span>
-<span class="normal">2325</span>
-<span class="normal">2326</span>
-<span class="normal">2327</span>
-<span class="normal">2328</span>
-<span class="normal">2329</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2329</span>
 <span class="normal">2330</span>
 <span class="normal">2331</span>
 <span class="normal">2332</span>
@@ -12901,7 +12928,13 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">2353</span>
 <span class="normal">2354</span>
 <span class="normal">2355</span>
-<span class="normal">2356</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+<span class="normal">2356</span>
+<span class="normal">2357</span>
+<span class="normal">2358</span>
+<span class="normal">2359</span>
+<span class="normal">2360</span>
+<span class="normal">2361</span>
+<span class="normal">2362</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">get_subtomograms</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -12957,16 +12990,16 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2287</span>
-<span class="normal">2288</span>
-<span class="normal">2289</span>
-<span class="normal">2290</span>
-<span class="normal">2291</span>
-<span class="normal">2292</span>
-<span class="normal">2293</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2293</span>
 <span class="normal">2294</span>
 <span class="normal">2295</span>
-<span class="normal">2296</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+<span class="normal">2296</span>
+<span class="normal">2297</span>
+<span class="normal">2298</span>
+<span class="normal">2299</span>
+<span class="normal">2300</span>
+<span class="normal">2301</span>
+<span class="normal">2302</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">get_template</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">template_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">,</span> <span class="n">scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
@@ -13045,13 +13078,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1672</span>
-<span class="normal">1673</span>
-<span class="normal">1674</span>
-<span class="normal">1675</span>
-<span class="normal">1676</span>
-<span class="normal">1677</span>
-<span class="normal">1678</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1678</span>
 <span class="normal">1679</span>
 <span class="normal">1680</span>
 <span class="normal">1681</span>
@@ -13062,7 +13089,13 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">1686</span>
 <span class="normal">1687</span>
 <span class="normal">1688</span>
-<span class="normal">1689</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
+<span class="normal">1689</span>
+<span class="normal">1690</span>
+<span class="normal">1691</span>
+<span class="normal">1692</span>
+<span class="normal">1693</span>
+<span class="normal">1694</span>
+<span class="normal">1695</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">normalize_landscape</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">landscape_layer</span><span class="p">:</span> <span class="n">LandscapeLayerType</span><span class="p">,</span>
@@ -13167,13 +13200,7 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1647</span>
-<span class="normal">1648</span>
-<span class="normal">1649</span>
-<span class="normal">1650</span>
-<span class="normal">1651</span>
-<span class="normal">1652</span>
-<span class="normal">1653</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1653</span>
 <span class="normal">1654</span>
 <span class="normal">1655</span>
 <span class="normal">1656</span>
@@ -13190,7 +13217,13 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
 <span class="normal">1667</span>
 <span class="normal">1668</span>
 <span class="normal">1669</span>
-<span class="normal">1670</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
+<span class="normal">1670</span>
+<span class="normal">1671</span>
+<span class="normal">1672</span>
+<span class="normal">1673</span>
+<span class="normal">1674</span>
+<span class="normal">1675</span>
+<span class="normal">1676</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">remove_landscape_outliers</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">landscape_layer</span><span class="p">:</span> <span class="n">LandscapeLayerType</span><span class="p">,</span>
@@ -13236,9 +13269,7 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1520</span>
-<span class="normal">1521</span>
-<span class="normal">1522</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1522</span>
 <span class="normal">1523</span>
 <span class="normal">1524</span>
 <span class="normal">1525</span>
@@ -13246,7 +13277,9 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
 <span class="normal">1527</span>
 <span class="normal">1528</span>
 <span class="normal">1529</span>
-<span class="normal">1530</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Run alignment&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
+<span class="normal">1530</span>
+<span class="normal">1531</span>
+<span class="normal">1532</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Run alignment&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Peak detection on landscape&quot;</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">run_align_on_landscape</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">landscape_layer</span><span class="p">:</span> <span class="n">LandscapeLayerType</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Find the optimal displacement for each molecule on the landscape.&quot;&quot;&quot;</span>
@@ -13390,13 +13423,7 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1606</span>
-<span class="normal">1607</span>
-<span class="normal">1608</span>
-<span class="normal">1609</span>
-<span class="normal">1610</span>
-<span class="normal">1611</span>
-<span class="normal">1612</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1612</span>
 <span class="normal">1613</span>
 <span class="normal">1614</span>
 <span class="normal">1615</span>
@@ -13429,7 +13456,13 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
 <span class="normal">1642</span>
 <span class="normal">1643</span>
 <span class="normal">1644</span>
-<span class="normal">1645</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Run annealing (RFA)&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
+<span class="normal">1645</span>
+<span class="normal">1646</span>
+<span class="normal">1647</span>
+<span class="normal">1648</span>
+<span class="normal">1649</span>
+<span class="normal">1650</span>
+<span class="normal">1651</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Run annealing (RFA)&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Running simulated annealing&quot;</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">run_rfa_on_landscape</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -13479,7 +13512,7 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
 
 
 <h3 id="cylindra.widgets.sta.SubtomogramAveraging.run_rma_on_landscape" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">run_rma_on_landscape</span><span class="p">(</span><span class="n">landscape_layer</span><span class="p">,</span> <span class="n">range_long</span><span class="o">=</span><span class="p">(</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">4.28</span><span class="p">),</span> <span class="n">range_lat</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;d.mean() - 0.1&#39;</span><span class="p">,</span> <span class="s1">&#39;d.mean() + 0.1&#39;</span><span class="p">),</span> <span class="n">angle_max</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">temperature_time_const</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">num_trials</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">run_rma_on_landscape</span><span class="p">(</span><span class="n">landscape_layer</span><span class="p">,</span> <span class="n">range_long</span><span class="o">=</span><span class="p">(</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">4.28</span><span class="p">),</span> <span class="n">range_lat</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;d.mean() - 0.1&#39;</span><span class="p">,</span> <span class="s1">&#39;d.mean() + 0.1&#39;</span><span class="p">),</span> <span class="n">angle_max</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">temperature_time_const</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">lj_const</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">num_trials</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></code>
 
 </h3>
 
@@ -13582,6 +13615,23 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
+                <code>lj_const</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If greater than 0, the annealing will use a Lennard-Jones-like potential to allow molecules to separate further apart than the cutoff distance.
+Larger value will prefer longer distances between molecules. 0.25 - 0.5 is usually a good choice.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.0</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
                 <code>num_trials</code>
             </td>
             <td>
@@ -13618,9 +13668,7 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1559</span>
-<span class="normal">1560</span>
-<span class="normal">1561</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1561</span>
 <span class="normal">1562</span>
 <span class="normal">1563</span>
 <span class="normal">1564</span>
@@ -13663,7 +13711,13 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
 <span class="normal">1601</span>
 <span class="normal">1602</span>
 <span class="normal">1603</span>
-<span class="normal">1604</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Run annealing (RMA)&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
+<span class="normal">1604</span>
+<span class="normal">1605</span>
+<span class="normal">1606</span>
+<span class="normal">1607</span>
+<span class="normal">1608</span>
+<span class="normal">1609</span>
+<span class="normal">1610</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Run annealing (RMA)&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Running simulated annealing&quot;</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">run_rma_on_landscape</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -13672,6 +13726,9 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
     <span class="n">range_lat</span><span class="p">:</span> <span class="n">_DistRangeLat</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;d.mean() - 0.1&quot;</span><span class="p">,</span> <span class="s2">&quot;d.mean() + 0.1&quot;</span><span class="p">),</span>
     <span class="n">angle_max</span><span class="p">:</span> <span class="n">_AngleMaxLon</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span>
     <span class="n">temperature_time_const</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mf">10.0</span><span class="p">}]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="n">lj_const</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+        <span class="nb">float</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mf">0.00</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mf">1000.0</span><span class="p">,</span> <span class="s2">&quot;step&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;LJ const&quot;</span><span class="p">}</span>
+    <span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
     <span class="n">num_trials</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mi">100</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
     <span class="n">seed</span><span class="p">:</span> <span class="n">_SeedType</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
 <span class="p">):</span>
@@ -13680,7 +13737,7 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    {landscape_layer}{range_long}{range_lat}{angle_max}{temperature_time_const}</span>
-<span class="sd">    {num_trials}{seed}</span>
+<span class="sd">    {lj_const}{num_trials}{seed}</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">t0</span> <span class="o">=</span> <span class="n">timer</span><span class="p">()</span>
     <span class="n">landscape_layer</span> <span class="o">=</span> <span class="n">_assert_landscape_layer</span><span class="p">(</span><span class="n">landscape_layer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
@@ -13693,6 +13750,7 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
         <span class="n">range_lat</span><span class="o">=</span><span class="n">range_lat</span><span class="p">,</span>
         <span class="n">angle_max</span><span class="o">=</span><span class="n">angle_max</span><span class="p">,</span>
         <span class="n">temperature_time_const</span><span class="o">=</span><span class="n">temperature_time_const</span><span class="p">,</span>
+        <span class="n">lj_nstd</span><span class="o">=</span><span class="kc">None</span> <span class="k">if</span> <span class="n">lj_const</span> <span class="o">&lt;</span> <span class="mf">1e-3</span> <span class="k">else</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">lj_const</span><span class="p">,</span>
         <span class="n">random_seeds</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">create_random_seeds</span><span class="p">(</span><span class="n">num_trials</span><span class="p">,</span> <span class="n">seed</span><span class="p">),</span>
     <span class="p">)</span>
     <span class="n">t0</span><span class="o">.</span><span class="n">toc</span><span class="p">()</span>
@@ -13794,9 +13852,7 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1532</span>
-<span class="normal">1533</span>
-<span class="normal">1534</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1534</span>
 <span class="normal">1535</span>
 <span class="normal">1536</span>
 <span class="normal">1537</span>
@@ -13819,7 +13875,9 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
 <span class="normal">1554</span>
 <span class="normal">1555</span>
 <span class="normal">1556</span>
-<span class="normal">1557</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Run Viterbi alignment&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
+<span class="normal">1557</span>
+<span class="normal">1558</span>
+<span class="normal">1559</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Run Viterbi alignment&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">LandscapeMenu</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Running Viterbi alignment&quot;</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">run_viterbi_on_landscape</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -13867,13 +13925,7 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1707</span>
-<span class="normal">1708</span>
-<span class="normal">1709</span>
-<span class="normal">1710</span>
-<span class="normal">1711</span>
-<span class="normal">1712</span>
-<span class="normal">1713</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1713</span>
 <span class="normal">1714</span>
 <span class="normal">1715</span>
 <span class="normal">1716</span>
@@ -13884,7 +13936,13 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
 <span class="normal">1721</span>
 <span class="normal">1722</span>
 <span class="normal">1723</span>
-<span class="normal">1724</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
+<span class="normal">1724</span>
+<span class="normal">1725</span>
+<span class="normal">1726</span>
+<span class="normal">1727</span>
+<span class="normal">1728</span>
+<span class="normal">1729</span>
+<span class="normal">1730</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Alignment</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">save_annealing_scores</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -13924,16 +13982,16 @@ This method is useful for lattice with such as defects or strong artifacts.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2206</span>
-<span class="normal">2207</span>
-<span class="normal">2208</span>
-<span class="normal">2209</span>
-<span class="normal">2210</span>
-<span class="normal">2211</span>
-<span class="normal">2212</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2212</span>
 <span class="normal">2213</span>
 <span class="normal">2214</span>
-<span class="normal">2215</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Save last average&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
+<span class="normal">2215</span>
+<span class="normal">2216</span>
+<span class="normal">2217</span>
+<span class="normal">2218</span>
+<span class="normal">2219</span>
+<span class="normal">2220</span>
+<span class="normal">2221</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Save last average&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">save_last_average</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Save</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">IMAGE</span><span class="p">]):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Save the lastly generated average image.&quot;&quot;&quot;</span>
     <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
@@ -14113,13 +14171,7 @@ corresponding spline will be used.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2057</span>
-<span class="normal">2058</span>
-<span class="normal">2059</span>
-<span class="normal">2060</span>
-<span class="normal">2061</span>
-<span class="normal">2062</span>
-<span class="normal">2063</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2063</span>
 <span class="normal">2064</span>
 <span class="normal">2065</span>
 <span class="normal">2066</span>
@@ -14196,7 +14248,13 @@ corresponding spline will be used.</p>
 <span class="normal">2137</span>
 <span class="normal">2138</span>
 <span class="normal">2139</span>
-<span class="normal">2140</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Seam search by correlation&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
+<span class="normal">2140</span>
+<span class="normal">2141</span>
+<span class="normal">2142</span>
+<span class="normal">2143</span>
+<span class="normal">2144</span>
+<span class="normal">2145</span>
+<span class="normal">2146</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Seam search by correlation&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
 <span class="nd">@dask_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">fmt_layer</span><span class="p">(</span><span class="s2">&quot;Seam search of </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="p">))</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">seam_search</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -14349,13 +14407,7 @@ corresponding spline will be used.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2142</span>
-<span class="normal">2143</span>
-<span class="normal">2144</span>
-<span class="normal">2145</span>
-<span class="normal">2146</span>
-<span class="normal">2147</span>
-<span class="normal">2148</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2148</span>
 <span class="normal">2149</span>
 <span class="normal">2150</span>
 <span class="normal">2151</span>
@@ -14374,7 +14426,13 @@ corresponding spline will be used.</p>
 <span class="normal">2164</span>
 <span class="normal">2165</span>
 <span class="normal">2166</span>
-<span class="normal">2167</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
+<span class="normal">2167</span>
+<span class="normal">2168</span>
+<span class="normal">2169</span>
+<span class="normal">2170</span>
+<span class="normal">2171</span>
+<span class="normal">2172</span>
+<span class="normal">2173</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">seam_search_by_feature</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
@@ -14470,13 +14528,7 @@ corresponding spline will be used.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2169</span>
-<span class="normal">2170</span>
-<span class="normal">2171</span>
-<span class="normal">2172</span>
-<span class="normal">2173</span>
-<span class="normal">2174</span>
-<span class="normal">2175</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2175</span>
 <span class="normal">2176</span>
 <span class="normal">2177</span>
 <span class="normal">2178</span>
@@ -14495,7 +14547,13 @@ corresponding spline will be used.</p>
 <span class="normal">2191</span>
 <span class="normal">2192</span>
 <span class="normal">2193</span>
-<span class="normal">2194</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
+<span class="normal">2194</span>
+<span class="normal">2195</span>
+<span class="normal">2196</span>
+<span class="normal">2197</span>
+<span class="normal">2198</span>
+<span class="normal">2199</span>
+<span class="normal">2200</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STAnalysis</span><span class="o">.</span><span class="n">SeamSearch</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">seam_search_manually</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>

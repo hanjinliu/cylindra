@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.4">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
     
     
       
@@ -1343,6 +1343,17 @@
     <span class="md-ellipsis">
       
         Run RMA without Constructing a Landscape
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#energy-potential-in-rma" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Energy Potential in RMA
       
     </span>
   </a>
@@ -2695,6 +2706,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#energy-potential-in-rma" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Energy Potential in RMA
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2725,7 +2747,7 @@ specify the distances. <code>d</code> is a <code>numpy.ndarray</code> of shape <
 of molecules. For example, <code>d.mean()</code> is the mean distance between laterally neighboring
 molecules if <code>d</code> is used in the lateral constraint.</p>
 <h2 id="run-rma-on-a-landscape">Run RMA on a Landscape</h2>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="run_rma_on_landscape(landscape_layer, range_long=(4.0, 4.28), range_lat=('d.mean() - 0.1', 'd.mean() + 0.1'), angle_max=5.0, temperature_time_const=1.0, num_trials=5, seed=0)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.run_rma_on_landscape"><code>run_rma_on_landscape</code></a></p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="run_rma_on_landscape(landscape_layer, range_long=(4.0, 4.28), range_lat=('d.mean() - 0.1', 'd.mean() + 0.1'), angle_max=5.0, temperature_time_const=1.0, lj_const=0.0, num_trials=5, seed=0)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.run_rma_on_landscape"><code>run_rma_on_landscape</code></a></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Subtomogram Averaging &gt; Landscape &gt; Run annealing (RMA)</code></p>
 <p><img alt="Run RMA on a Landscape" loading="lazy," src="../../images/run_rma_on_landscape.png" width="400px" /></p>
 <details class="info">
@@ -2740,16 +2762,41 @@ molecules if <code>d</code> is used in the lateral constraint.</p>
    angle between the spline tangent and the vector connecting the two molecules.</li>
 <li>"temperature time const" is the time constant of the simulated annealing. Larger
    value means slower annealing. <code>1.0</code> is usually a good value.</li>
-<li>"random seeds" is the seed values for the random number generator. The "Add"
-   button will randomly add a new seed value.</li>
+<li>"LJ const" is the constant of the Lennard-Jones-like potential. If greater than
+   0, the annealing will use a Lennard-Jones-like potential to allow molecules to
+   separate further apart than the cutoff distance.</li>
+<li>"num trials" and "seed" are the parameters for random initialization. RMA will be
+   run multiple times with different random initializations, and the result with the
+   best score will be selected. You can increase the number of trials to get better
+   results at the cost of longer computation time.</li>
 <li>You can preview the distribution of the longitudinal/lateral distances by
    clicking the "Preview molecule network" button.</li>
 </ol>
 </details>
 <h2 id="run-rma-without-constructing-a-landscape">Run RMA without Constructing a Landscape</h2>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="align_all_rma(layer, template_path, mask_params=None, max_shifts=(0.8, 0.8, 0.8), rotations=((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)), cutoff=0.5, interpolation=3, range_long=(4.0, 4.28), range_lat=('d.mean() - 0.1', 'd.mean() + 0.1'), angle_max=5.0, bin_size=1, temperature_time_const=1.0, upsample_factor=5, num_trials=5, seed=0)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.align_all_rma"><code>align_all_rma</code></a></p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="align_all_rma(layer, template_path, mask_params=None, max_shifts=(0.8, 0.8, 0.8), rotations=((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)), cutoff=0.5, interpolation=3, range_long=(4.0, 4.28), range_lat=('d.mean() - 0.1', 'd.mean() + 0.1'), angle_max=5.0, bin_size=1, temperature_time_const=1.0, lj_const=0.0, upsample_factor=5, num_trials=5, seed=0)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.align_all_rma"><code>align_all_rma</code></a></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Subtomogram Averaging &gt; Alignment &gt; Simulated Annealing</code></p>
 <p><img alt="Run RMA" loading="lazy," src="../../images/align_all_rma.png" width="480px" /></p>
+<h2 id="energy-potential-in-rma">Energy Potential in RMA</h2>
+<p>In RMA, negative cross-correlation scores are interpreted as the internal energy of the
+system, and the neighboring molecules are constrained by the "binding energy".
+Minimization of the total energy is the goal of the simulated annealing.</p>
+<p>Modeling the binding energy is not simple. To avoid complicating the outcome, RMA does
+not model the physical binding energy, but instead uses step-wise potentials:
+trapozoidal potential and Lennard-Jones-like potential.</p>
+<p><img alt="" src="../../images/rma_potential.png" /></p>
+<p>The <strong>trapozoidal potential</strong> can be interpreted as a hard constraint, with which the
+inter-molecular distances are not allowed to exceed the minimum and maximum cutoff
+distances. For example, if a microtubule is a complete cylinder, this potential gives
+good alignment results.</p>
+<p>The <strong>Lennard-Jones-like potential</strong> allows the inter-molecular distances to
+exceed the maximum cutoff distance, but with an energy penalty <span class="arithmatex">\(E_{\infty}\)</span>. Therefore,
+molecules will be put close to each other as much as possible, but separating them
+further apart does not make the entire system unstable. This potential is useful when
+the microtubule is broken or flared.</p>
+<p>Energy potentials change over time so that the binding energy outside the allowed
+distance range is differentiable. This is important for the optimization process,
+although simulated annealing does not strictly require the energy to be differentiable.</p>
 
 
 
