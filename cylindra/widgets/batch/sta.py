@@ -480,6 +480,9 @@ class BatchSubtomogramAveraging(MagicTemplate):
         angle_max: _AngleMaxLon = 5.0,
         bin_size: _BINSIZE = 1,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
+        lj_const: Annotated[
+            float, {"min": 0.00, "max": 1000.0, "step": 0.1, "label": "LJ const"}
+        ] = 0.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         num_trials: Annotated[int, {"min": 1, "max": 100}] = 5,
         seed: _SeedType = 0,
@@ -490,7 +493,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         ----------
         {loader_name}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}
         {interpolation}{method}{range_long}{range_lat}{angle_max}{bin_size}
-        {temperature_time_const}{upsample_factor}{num_trials}{seed}
+        {temperature_time_const}{lj_const}{upsample_factor}{num_trials}{seed}
         """
         t0 = timer()
         batch = self._get_parent()
@@ -535,6 +538,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
                 range_lat,
                 angle_max=angle_max,
                 temperature_time_const=temperature_time_const,
+                lj_nstd=None if lj_const < 1e-3 else 1 / lj_const,
                 random_seeds=create_random_seeds(num_trials, seed),
             )
             yield _plot_annealing_result.with_args(results)

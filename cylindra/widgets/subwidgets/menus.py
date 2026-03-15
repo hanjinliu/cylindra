@@ -269,7 +269,7 @@ class ImageMenu(ChildWidget):
 class SplinesMenu(ChildWidget):
     """Operations on splines"""
 
-    @magicmenu(name="Show", record=False)
+    @magicmenu(name="Visualize", record=False)
     class Show(ChildWidget):
         @set_design(text="Show splines as curves")
         def show_splines(self):
@@ -505,7 +505,7 @@ class MoleculesMenu(ChildWidget):
         label_feature_clusters = abstractapi()
         regionprops_features = abstractapi()
 
-    @magicmenu(name="View")
+    @magicmenu(name="Visualize")
     class View(ChildWidget):
         """Visualize molecule features."""
 

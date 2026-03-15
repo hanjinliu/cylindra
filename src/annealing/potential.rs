@@ -7,7 +7,7 @@ pub trait BindingPotential {
     }
 
 }
-pub trait BindingPotential2D {
+pub trait BindingPotential2D : BindingPotential {
     fn longitudinal(&self, dr: &Vector3D<f32>, vec: &Vector3D<f32>) -> f32;
     fn lateral(&self, dr: &Vector3D<f32>, vec: &Vector3D<f32>) -> f32;
 
@@ -58,7 +58,7 @@ impl TrapezoidalBoundary {
     pub fn unbounded() -> Self {
         Self {
             dist_min: 0.0,
-            dist_max: std::f32::INFINITY,
+            dist_max: f32::INFINITY,
             slope: 0.0,
         }
     }
@@ -96,7 +96,7 @@ impl TrapezoidalCosineBoundary {
     }
 
     pub fn unbounded() -> Self {
-        Self { ang_max: std::f32::INFINITY, slope: 0.0, }
+        Self { ang_max: f32::INFINITY, slope: 0.0, }
     }
 
     ///           o         Cosine is calculated as the angle between the
@@ -273,5 +273,144 @@ impl BindingPotential for StiffFilamentPotential {
         let slope = self.cooling_rate * n as f32;
         self.lon.slope = slope;
         self.angle.slope = slope;
+    }
+}
+
+#[derive(Clone)]
+struct LennardJonesLikeBoundary {
+    dist_min: f32,
+    dist_max: f32,
+    slope: f32,
+    energy_inf: f32,  // The energy when the distance is infinity.
+}
+
+impl LennardJonesLikeBoundary {
+    pub fn new(dist_min: f32, dist_max: f32, slope: f32, energy_inf: f32) -> PyResult<Self> {
+        if dist_min < 0.0 || dist_max < 0.0 {
+            return value_error!("All distances must be positive");
+        } else if dist_min >= dist_max {
+            return value_error!("Minimum distance must be smaller than maximum distance");
+        } else if energy_inf < 0.0 {
+            return value_error!("Energy at infinity must be non-negative");
+        }
+        Ok(Self { dist_min, dist_max, slope, energy_inf })
+    }
+
+    /// An unbounded version of the model.
+    pub fn unbounded() -> Self {
+        Self {
+            dist_min: 0.0,
+            dist_max: f32::INFINITY,
+            slope: 0.0,
+            energy_inf: 0.0,
+        }
+    }
+
+    /// Calculated energy of given square of distance.
+    pub fn energy(&self, dr: &Vector3D<f32>) -> f32 {
+        let dist = dr.length();
+        if dist < self.dist_min {
+            self.slope * (self.dist_min - dist)
+        } else if self.dist_max < dist {
+            self.energy_inf * (1.0 - (-self.slope * (dist - self.dist_max)).exp())
+        } else {
+            0.0
+        }
+    }
+}
+
+
+#[derive(Clone)]
+pub struct LennardJonesLikePotential2D {
+    lon: LennardJonesLikeBoundary,
+    lat: LennardJonesLikeBoundary,
+    angle: TrapezoidalCosineBoundary,
+    cooling_rate: f32,
+}
+
+impl LennardJonesLikePotential2D {
+    pub fn new(
+        lon_dist_min: f32,
+        lon_dist_max: f32,
+        lat_dist_min: f32,
+        lat_dist_max: f32,
+        lon_ang_max: f32,
+        cooling_rate: f32,
+    ) -> PyResult<Self> {
+        if cooling_rate < 0.0 {
+            return value_error!("Cooling rate must be non-negative");
+        }
+
+        Ok(
+            Self {
+                lon: LennardJonesLikeBoundary::new(lon_dist_min, lon_dist_max, 0.0, 0.0)?,
+                lat: LennardJonesLikeBoundary::new(lat_dist_min, lat_dist_max, 0.0, 0.0)?,
+                angle: TrapezoidalCosineBoundary::new(lon_ang_max, 0.0)?,
+                cooling_rate,
+            }
+        )
+    }
+
+    pub fn unbounded() -> Self {
+        Self {
+            lon: LennardJonesLikeBoundary::unbounded(),
+            lat: LennardJonesLikeBoundary::unbounded(),
+            angle: TrapezoidalCosineBoundary::unbounded(),
+            cooling_rate: 0.0,
+        }
+    }
+
+    pub fn with_lon_dist(&self, min: f32, max: f32) -> PyResult<Self> {
+        let mut new = self.clone();
+        new.lon = LennardJonesLikeBoundary::new(min, max, self.lon.slope, self.lon.energy_inf)?;
+        Ok(new)
+    }
+
+    pub fn with_lat_dist(&self, min: f32, max: f32) -> PyResult<Self> {
+        let mut new = self.clone();
+        new.lat = LennardJonesLikeBoundary::new(min, max, self.lat.slope, self.lat.energy_inf)?;
+        Ok(new)
+    }
+
+    pub fn with_lon_ang(&self, max: f32) -> PyResult<Self> {
+        let mut new = self.clone();
+        new.angle = TrapezoidalCosineBoundary::new(max, self.angle.slope)?;
+        Ok(new)
+    }
+
+    pub fn with_cooling_rate(&self, cooling_rate: f32) -> Self {
+        let mut new = self.clone();
+        new.cooling_rate = cooling_rate;
+        new
+    }
+
+    pub fn with_energy_inf(&self, lon_energy_inf: f32, lat_energy_inf: f32) -> PyResult<Self> {
+        let mut new = self.clone();
+        new.lon = LennardJonesLikeBoundary::new(new.lon.dist_min, new.lon.dist_max, new.lon.slope, lon_energy_inf)?;
+        new.lat = LennardJonesLikeBoundary::new(new.lat.dist_min, new.lat.dist_max, new.lat.slope, lat_energy_inf)?;
+        Ok(new)
+    }
+}
+
+impl BindingPotential for LennardJonesLikePotential2D {
+    /// Cool the potential by increasing the slope of the trapezoid.
+    fn cool(&mut self, n: usize) {
+        let slope = self.cooling_rate * n as f32;
+        self.lon.slope = slope;
+        self.lat.slope = slope;
+        self.angle.slope = slope;
+    }
+}
+
+impl BindingPotential2D for LennardJonesLikePotential2D {
+    fn longitudinal(&self, dr: &Vector3D<f32>, vec: &Vector3D<f32>) -> f32 {
+        // Energy coming from longitudinal distance
+        let eng_dist = self.lon.energy(dr);
+        let eng_ang = self.angle.energy(dr, vec);
+        eng_dist + eng_ang
+    }
+
+    fn lateral(&self, dr: &Vector3D<f32>, _vec: &Vector3D<f32>) -> f32 {
+        self.lat.energy(&dr)
     }
 }

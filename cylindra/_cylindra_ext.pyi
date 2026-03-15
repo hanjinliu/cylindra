@@ -93,6 +93,10 @@ class BaseCylindricAnnealingModel(AnnealingModel):
 class CylindricAnnealingModel(BaseCylindricAnnealingModel):
     pass
 
+class CylindricAnnealingModelLJ(BaseCylindricAnnealingModel):
+    """Annealing model with Lennard-Jones-like potential."""
+    def set_energy_inf(self, lon_energy_inf: float, lat_energy_inf: float) -> Self: ...
+
 class DefectiveCylindricAnnealingModel(BaseCylindricAnnealingModel):
     def with_null_energy(self, interanl: float, binding: float) -> Self: ...
 

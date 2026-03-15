@@ -433,15 +433,25 @@ class Landscape:
         temperature: float | None = None,
         cooling_rate: float | None = None,
         reject_limit: int | None = None,
+        lj_nstd: float | None = None,
     ) -> CylindricAnnealingModel:
         """Get an annealing model using the landscape."""
-        from cylindra._cylindra_ext import CylindricAnnealingModel
+        from cylindra import _cylindra_ext
 
-        return self._prep_annealing_model(
-            CylindricAnnealingModel,
+        if lj_nstd is None:
+            return self._prep_annealing_model(
+                _cylindra_ext.CylindricAnnealingModel,
+                spl, distance_range_long, distance_range_lat, angle_max,
+                temperature_time_const, temperature, cooling_rate, reject_limit,
+            )  # fmt: skip
+        model = self._prep_annealing_model(
+            _cylindra_ext.CylindricAnnealingModelLJ,
             spl, distance_range_long, distance_range_lat, angle_max,
             temperature_time_const, temperature, cooling_rate, reject_limit,
         )  # fmt: skip
+        energy_std = self.energies.std()
+        model.set_energy_inf(lj_nstd * energy_std, lj_nstd * energy_std)
+        return model
 
     def run_annealing(
         self,
@@ -453,6 +463,7 @@ class Landscape:
         temperature: float | None = None,
         cooling_rate: float | None = None,
         reject_limit: int | None = None,
+        lj_nstd: float | None = None,
         random_seeds: list[int] = [0],
     ) -> list[AnnealingResult]:
         """Run simulated mesh annealing."""
@@ -469,6 +480,7 @@ class Landscape:
             temperature=temperature,
             cooling_rate=cooling_rate,
             reject_limit=reject_limit,
+            lj_nstd=lj_nstd,
         )
         dist_arr_lon = annealing.longitudinal_distances()
         dist_arr_lat = annealing.lateral_distances()
@@ -499,6 +511,7 @@ class Landscape:
         range_lat: tuple[_DistLike, _DistLike],
         angle_max: float,
         temperature_time_const: float = 1.0,
+        lj_nstd: float | None = None,
         random_seeds: Sequence[int] = (0, 1, 2, 3, 4),
     ):
         results = self.run_annealing(
@@ -507,6 +520,7 @@ class Landscape:
             range_lat,
             angle_max,
             temperature_time_const=temperature_time_const,
+            lj_nstd=lj_nstd,
             random_seeds=random_seeds,
         )
         if all(result.state == "failed" for result in results):

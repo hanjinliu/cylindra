@@ -74,6 +74,7 @@ _PARAMETERS = [
     Parameter(name="filter_expr", type="str", desc="Expression to filter segments. Variable `value` refers to the segment value.\nSegments with `filter_expr` evaluating to True will be assigned to molecules.\nIf empty, all segments are used."),
     Parameter(name="eval_expr", type="str", desc="Expression to evaluate segment values. Variable `value` refers to the segment value.\nThe result of `eval_expr` will be assigned to molecules.\nIf empty, the original segment value is used."),
     Parameter(name="max_num_iters", type="int", desc="Maximum number of iterations to perform."),
+    Parameter(name="lj_const", type="float", desc="If greater than 0, the annealing will use a Lennard-Jones-like potential to allow molecules to separate further apart than the cutoff distance.\nLarger value will prefer longer distances between molecules. 0.25 - 0.5 is usually a good choice."),
 ]
 # fmt: on
 
