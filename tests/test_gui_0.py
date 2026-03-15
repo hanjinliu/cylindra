@@ -1672,7 +1672,18 @@ def test_annealing(ui: CylindraMainWidget):
         range_long=(dist_lon - 0.1, dist_lon + 0.1),
         angle_max=20,
     )
-
+    # Test Lenard-Jones potential
+    ui.sta.align_all_rma(
+        layer_filt,
+        template_path=TEST_DIR / "beta-tubulin.mrc",
+        mask_params=(0.3, 0.8),
+        max_shifts=(1.2, 1.2, 1.2),
+        range_long=(dist_lon - 0.1, dist_lon + 0.1),
+        range_lat=(dist_lat - 0.1, dist_lat + 0.1),
+        angle_max=20,
+        num_trials=2,
+        lj_const=0.5,
+    )
 
 def test_landscape_and_interaction(ui: CylindraMainWidget, tmpdir):
     from cylindra._napari import InteractionVector, LandscapeSurface
@@ -1906,7 +1917,6 @@ def test_stash(ui: CylindraMainWidget, tmpdir):
         ui.FileMenu.Stash.stash_project()
         name0 = _config.get_stash_list()[0]
         ui.FileMenu.Stash.load_stash_project(name0, filter=None)
-        ui.FileMenu.Stash.pop_stash_project(name0, filter=None)
         ui.FileMenu.Stash.stash_project()
         name1 = _config.get_stash_list()[0]
         ui.FileMenu.Stash.delete_stash_project(name1)

@@ -13,7 +13,12 @@ use crate::{
     cylindric::Index,
     hash::HashMap2D,
     annealing::{
-        potential::{TrapezoidalPotential2D, BindingPotential, BindingPotential2D, EdgeType},
+        potential::{
+            TrapezoidalPotential2D,
+            LennardJonesLikePotential2D,
+            BindingPotential2D,
+            EdgeType,
+    },
         random::RandomNumberGenerator,
     }
 };
@@ -21,26 +26,15 @@ use crate::{
 type Shift = Vector3D<isize>;
 
 #[derive(Clone)]
-pub struct CylindricGraph {
+pub struct CylindricalGraph<T: BindingPotential2D> {
     components: GraphComponents<Node2D<Shift>, EdgeType>,
     coords: Arc<HashMap2D<CoordinateSystem<f32>>>,
     energy: Arc<HashMap2D<Array<f32, Ix3>>>,
-    pub binding_potential: TrapezoidalPotential2D,
+    pub binding_potential: T,
     pub local_shape: Shift,
 }
 
-impl CylindricGraph {
-    /// Create a graph with no nodes or edges.
-    pub fn empty() -> Self {
-        Self {
-            components: GraphComponents::empty(),
-            coords: Arc::new(HashMap2D::new()),
-            energy: Arc::new(HashMap2D::new()),
-            binding_potential: TrapezoidalPotential2D::unbounded(),
-            local_shape: Vector3D::new(0, 0, 0),
-        }
-    }
-
+impl<T> CylindricalGraph<T> where T: BindingPotential2D {
     /// Construct a graph from a cylindric parameters.
     pub fn construct(
         &mut self,
@@ -204,7 +198,7 @@ impl CylindricGraph {
     }
 
     /// Set a box potential model to the graph.
-    pub fn set_potential_model(&mut self, model: TrapezoidalPotential2D) -> &Self {
+    pub fn set_potential_model(&mut self, model: T) -> &Self {
         self.binding_potential = model;
         self
     }
@@ -258,7 +252,6 @@ impl CylindricGraph {
         Ok(())
     }
 
-
     /// Return the current shifts of the graph.
     pub fn get_shifts(&self) -> Array2<isize> {
         let graph = self.components();
@@ -307,7 +300,34 @@ impl CylindricGraph {
 
 }
 
-impl GraphTrait<Node2D<Shift>, EdgeType> for CylindricGraph {
+impl CylindricalGraph<TrapezoidalPotential2D> {
+    /// Create a graph with no nodes or edges.
+    pub fn empty() -> Self {
+        Self {
+            components: GraphComponents::empty(),
+            coords: Arc::new(HashMap2D::new()),
+            energy: Arc::new(HashMap2D::new()),
+            binding_potential: TrapezoidalPotential2D::unbounded(),
+            local_shape: Vector3D::new(0, 0, 0),
+        }
+    }
+}
+
+
+impl CylindricalGraph<LennardJonesLikePotential2D> {
+    /// Create a graph with no nodes or edges.
+    pub fn empty() -> Self {
+        Self {
+            components: GraphComponents::empty(),
+            coords: Arc::new(HashMap2D::new()),
+            energy: Arc::new(HashMap2D::new()),
+            binding_potential: LennardJonesLikePotential2D::unbounded(),
+            local_shape: Vector3D::new(0, 0, 0),
+        }
+    }
+}
+
+impl<T> GraphTrait<Node2D<Shift>, EdgeType> for CylindricalGraph<T> where T: BindingPotential2D {
     /// Get the graph components.
     fn components(&self) -> &GraphComponents<Node2D<Shift>, EdgeType> {
         &self.components
@@ -457,7 +477,7 @@ impl GraphTrait<Node2D<Shift>, EdgeType> for CylindricGraph {
     }
 }
 
-impl CylindricGraphTrait<Shift, EdgeType> for CylindricGraph {
+impl<T> CylindricGraphTrait<Shift, EdgeType> for CylindricalGraph<T> where T: BindingPotential2D {
     fn binding_energies(&self) -> (Array1<f32>, Array1<f32>) {
         let graph = self.components();
         let mut eng_lon = Array1::zeros(graph.node_count());

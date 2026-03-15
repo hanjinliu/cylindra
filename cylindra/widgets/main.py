@@ -348,6 +348,9 @@ class CylindraMainWidget(MagicTemplate):
         self.config_edit.config_new.set_config(
             self.config_edit.config_current.get_config()
         )
+        self.events.tomogram_initialized.connect(
+            self.manual_picker.refresh_widget_state
+        )
 
         # load plugins
         load_plugin(self)
@@ -3064,6 +3067,8 @@ class CylindraMainWidget(MagicTemplate):
             the splines.
         """
         layer = assert_layer(layer, self.parent_viewer)
+        if self.splines.count() == 0:
+            raise ValueError("No spline exists in the tomogram.")
         mole = layer.molecules
         if spline_id_column == "":
             dist_stack = []

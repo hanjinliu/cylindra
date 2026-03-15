@@ -138,25 +138,6 @@ class FileMenu(ChildWidget):
                 _config.get_stash_dir() / name, filter=filter
             )
 
-        @set_design(text="Pop stashed project")
-        @confirm(text="You may have unsaved data. Open a new project?", condition=_need_save)  # fmt: skip
-        def pop_stash_project(
-            self,
-            name: Annotated[str, {"choices": _get_stashed_names}],
-            filter: ImageFilter | None = ImageFilter.Lowpass,
-        ):
-            """Load a stashed project and delete it from the stash list.
-
-            Parameters
-            ----------
-            name : str
-                Name of the stashed project.
-            filter : ImageFilter, default ImageFilter.Lowpass
-                Image filter to apply to the loaded images.
-            """
-            self.load_stash_project(name, filter=filter)
-            return self.delete_stash_project(name)
-
         @set_design(text="Delete stashed project")
         def delete_stash_project(
             self, name: Annotated[str, {"choices": _get_stashed_names}]
@@ -171,14 +152,12 @@ class FileMenu(ChildWidget):
             path = _config.get_stash_dir() / name
             path.unlink()
             self.reset_choices()
-            return None
 
         @set_design(text="Clear stashed projects")
         def clear_stash_projects(self):
             """Clear all the stashed projects."""
             for name in self._get_stashed_names():
                 self.delete_stash_project(name)
-            return None
 
     @set_design(text=capitalize)
     @do_not_record
@@ -284,14 +263,13 @@ class ImageMenu(ChildWidget):
                 plt.yticks([], [])
             plt.tight_layout()
             plt.show()
-        return None
 
 
 @magicmenu
 class SplinesMenu(ChildWidget):
     """Operations on splines"""
 
-    @magicmenu(name="Show", record=False)
+    @magicmenu(name="Visualize", record=False)
     class Show(ChildWidget):
         @set_design(text="Show splines as curves")
         def show_splines(self):
@@ -527,7 +505,7 @@ class MoleculesMenu(ChildWidget):
         label_feature_clusters = abstractapi()
         regionprops_features = abstractapi()
 
-    @magicmenu(name="View")
+    @magicmenu(name="Visualize")
     class View(ChildWidget):
         """Visualize molecule features."""
 
@@ -632,7 +610,6 @@ class MoleculesMenu(ChildWidget):
                 ax.set_title(layer.name)
             if not show_axis:
                 ax.axis("off")
-            return
 
         @set_design(text=capitalize)
         @do_not_record
@@ -703,7 +680,6 @@ class MoleculesMenu(ChildWidget):
                 shading="smooth",
                 name=f"Rendered {layer.name}",
             )
-            return None
 
 
 @magicmenu
@@ -848,7 +824,6 @@ class OthersMenu(ChildWidget):
             main = self._get_main()
             main.macro.widget.show()
             ACTIVE_WIDGETS.add(main.macro.widget)
-            return None
 
         sep0 = Separator
 
@@ -861,7 +836,6 @@ class OthersMenu(ChildWidget):
             edit = main.macro.widget.new_window(path.name)
             edit.textedit.value = str(extract(Path(path).read_text()))
             ACTIVE_WIDGETS.add(edit)
-            return None
 
     @magicmenu(record=False)
     class Workflows(ChildWidget):
@@ -940,7 +914,6 @@ class OthersMenu(ChildWidget):
         cache_dir = Path(_config.get_config().tomogram_cache_dir)
         if cache_dir.exists():
             shutil.rmtree(cache_dir)
-        return None
 
     @do_not_record
     @set_design(text=capitalize)

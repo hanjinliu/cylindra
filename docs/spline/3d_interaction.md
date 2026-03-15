@@ -1,6 +1,6 @@
 # Spline 3D interactivity
 
-*New in version 1.0.4*
+:sparkles: *New in v1.0.4*
 
 Many spline operations require precise point selection along the spline in the context
 of the tomogram and molecules. The spline 3D interactor widget injects mouse callback

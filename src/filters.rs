@@ -51,7 +51,7 @@ impl<_D> core::ops::Index<[isize; 2]> for Kernel<_D> {
     }
 }
 
-#[pyclass]
+#[pyclass(skip_from_py_object)]
 #[derive(Clone)]
 pub struct CylindricArray {
     array: Array2<f32>,
