@@ -480,13 +480,11 @@ class BatchSubtomogramAveraging(MagicTemplate):
         angle_max: _AngleMaxLon = 5.0,
         bin_size: _BINSIZE = 1,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
-        lj_const: Annotated[
-            float, {"min": 0.00, "max": 1000.0, "step": 0.1, "label": "LJ const"}
-        ] = 0.0,
+        lj_const: Annotated[float, {"min": 0.00, "max": 1000.0, "step": 0.1, "label": "LJ const"}] = 0.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         num_trials: Annotated[int, {"min": 1, "max": 100}] = 5,
         seed: _SeedType = 0,
-    ):
+    ):  # fmt: skip
         """Run RMA alignment on all molecules in the selected loader.
 
         Parameters
