@@ -544,7 +544,7 @@ class StaParameters(MagicTemplate):
                 show=show,
             )
             Volume(viewer)
-            viewer.window.resize(10, 10)
+            viewer.window.resize(720, 600)
             viewer.window.activate()
             with suppress(Exception):  # napari>=0.6.0
                 viewer.camera.orientation = ("away", "down", "right")
@@ -950,10 +950,8 @@ class SubtomogramAveraging(ChildWidget):
             yield thread_worker.description(_pdesc.align_averaged_1(i, total, layer))
             avg = loader.average(template.shape)
             yield thread_worker.description(_pdesc.align_averaged_2(i, total, layer))
-            _img_trans, result = model.fit(
-                avg,
-                max_shifts=[_s / _scale for _s in max_shifts],
-            )
+            max_shifts_px = [_s / _scale for _s in max_shifts]
+            _img_trans, result = model.fit(avg, max_shifts=max_shifts_px)
 
             rotator = Rotation.from_quat(result.quat)
             svec = result.shift * _scale
@@ -983,14 +981,8 @@ class SubtomogramAveraging(ChildWidget):
                 widget_utils.plot_projections(merge)
 
             # logging
-            rvec = rotator.as_rotvec()
-            _fmt = "  {:.2f}  ".format
             _Logger.print_table(
-                [
-                    ["", "X", "Y", "Z"],
-                    ["Shift (nm)", _fmt(svec[2]), _fmt(svec[1]), _fmt(svec[0])],
-                    ["Rot vector", _fmt(rvec[2]), _fmt(rvec[1]), _fmt(rvec[0])],
-                ],
+                _align_averages_table(svec, rotator.as_rotvec()),
                 header=False,
                 index=False,
             )
@@ -1214,7 +1206,7 @@ class SubtomogramAveraging(ChildWidget):
         angle_max: _AngleMaxLon = 5.0,
         bin_size: BinSizeType = 1,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
-        lj_const: Annotated[float, {"min": 0.00, "max": 1000.0, "step": 0.1, "label": "LJ const"}] = 0.0,
+        lj_const: Annotated[float, {"min": 0.0, "max": 1000.0, "step": 0.1, "label": "LJ const"}] = 0.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         num_trials: Annotated[int, {"min": 1, "max": 100}] = 5,
         seed: _SeedType = 0,
@@ -1242,16 +1234,11 @@ class SubtomogramAveraging(ChildWidget):
             f"Constructing correlation landscape on {layer.name} ({layer.molecules.count()} molecules) for RMA ..."
         )
         landscape, _ = self._construct_landscape(
-            molecules=layer.molecules,
-            template_path=template_path,
-            mask_params=mask_params,
-            max_shifts=max_shifts,
-            rotations=rotations,
-            cutoff=cutoff,
-            order=interpolation,
-            bin_size=bin_size,
+            molecules=layer.molecules, template_path=template_path,
+            mask_params=mask_params, max_shifts=max_shifts, rotations=rotations,
+            cutoff=cutoff, order=interpolation, bin_size=bin_size,
             upsample_factor=upsample_factor,
-        )
+        )  # fmt: skip
         yield
         mole, results = landscape.run_annealing_along_spline(
             layer.source_spline,
@@ -1318,16 +1305,11 @@ class SubtomogramAveraging(ChildWidget):
             f"Constructing correlation landscape on {layer.name} ({layer.molecules.count()} molecules) for RFA ..."
         )
         landscape, _ = self._construct_landscape(
-            molecules=layer.molecules,
-            template_path=template_path,
-            mask_params=mask_params,
-            max_shifts=max_shifts,
-            rotations=rotations,
-            cutoff=cutoff,
-            order=interpolation,
-            bin_size=bin_size,
+            molecules=layer.molecules, template_path=template_path,
+            mask_params=mask_params, max_shifts=max_shifts, rotations=rotations,
+            cutoff=cutoff, order=interpolation, bin_size=bin_size,
             upsample_factor=upsample_factor,
-        )
+        )  # fmt: skip
         yield
         mole, results = landscape.run_filamentous_annealing(
             range=range_long,
@@ -1567,12 +1549,10 @@ class SubtomogramAveraging(ChildWidget):
         range_lat: _DistRangeLat = ("d.mean() - 0.1", "d.mean() + 0.1"),
         angle_max: _AngleMaxLon = 5.0,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
-        lj_const: Annotated[
-            float, {"min": 0.00, "max": 1000.0, "step": 0.1, "label": "LJ const"}
-        ] = 0.0,
+        lj_const: Annotated[float, {"min": 0.00, "max": 1000.0, "step": 0.1, "label": "LJ const"}] = 0.0,
         num_trials: Annotated[int, {"min": 1, "max": 100}] = 5,
         seed: _SeedType = 0,
-    ):
+    ):  # fmt: skip
         """Run simulated annealing on the landscape, supposing a cylindric structure.
 
         Parameters
@@ -2638,6 +2618,15 @@ def _post_classify_em(result, loader: SubtomogramLoader, all_moles: Molecules):
         new_features.append(pl.Series(f"class_{i:03}_prob", probs_i))
     all_moles_updated = all_moles.with_features(new_features)
     return avgs, all_moles_updated
+
+
+def _align_averages_table(svec, rvec):
+    _fmt = "  {:.2f}  ".format
+    return [
+        ["", "X", "Y", "Z"],
+        ["Shift (nm)", _fmt(svec[2]), _fmt(svec[1]), _fmt(svec[0])],
+        ["Rot vector", _fmt(rvec[2]), _fmt(rvec[1]), _fmt(rvec[0])],
+    ]
 
 
 impl_preview(SubtomogramAveraging.align_all_rma, text="Preview molecule network")(

@@ -22,14 +22,15 @@ from cylindra.utils import ceilint, floorint, map_coordinates_task, roundint
 class LatticeParams(NamedTuple):
     """Lattice parameters."""
 
-    rise_angle: float
-    rise_length: nm
-    pitch: nm
+    npf: int
+    start: int
     spacing: nm
     skew: float
     twist: float
-    npf: int
-    start: int
+    pitch: nm
+    moire_period: nm
+    rise_angle: float
+    rise_length: nm
 
     def to_polars(self) -> pl.DataFrame:
         """Convert named tuple into a polars DataFrame."""
@@ -39,14 +40,15 @@ class LatticeParams(NamedTuple):
     def polars_schema() -> list[tuple[str, type[pl.DataType]]]:
         """Return the schema of the polars DataFrame."""
         return [
-            (H.rise, pl.Float32),
-            (H.rise_length, pl.Float32),
-            (H.pitch, pl.Float32),
+            (H.npf, pl.UInt8),
+            (H.start, pl.Int8),
             (H.spacing, pl.Float32),
             (H.skew, pl.Float32),
             (H.twist, pl.Float32),
-            (H.npf, pl.UInt8),
-            (H.start, pl.Int8),
+            (H.pitch, pl.Float32),
+            (H.moire_period, pl.Float32),
+            (H.rise, pl.Float32),
+            (H.rise_length, pl.Float32),
         ]
 
 
@@ -125,6 +127,7 @@ class LatticeAnalyzer:
             twist=cparams.twist,
             npf=cparams.npf,
             start=cparams.start,
+            moire_period=cparams.moire_period,
         )
 
     estimate_lattice_params_polar_delayed = delayed(estimate_lattice_params_polar)
@@ -231,19 +234,20 @@ class LatticeAnalyzer:
     ) -> CylinderParameters:
         npf_f = peakh.a
         npf = roundint(npf_f)
-        ya_scale_ratio = img.scale.y / img.scale.a
+        start_f = peakv.a
+        start = roundint(start_f)
 
-        tan_rise = peakv.afreq / peakv.yfreq * ya_scale_ratio
-        tan_skew = peakh.yfreq / peakh.afreq / ya_scale_ratio
+        pitch = _safe_div(img.scale.y, peakv.yfreq)
+        moire_period = _safe_div(img.scale.y, peakh.yfreq)
 
         # NOTE: Values dependent on peak{x}.afreq are not stable against radius change.
         # peak{x}.afreq * radius is stable. r-dependent ones are marked as "f(r)" here.
         return CylinderParameters(
-            skew=math.degrees(math.atan(tan_skew)),  # f(r)
-            rise_angle_raw=math.degrees(math.atan(tan_rise)),  # f(r)
-            pitch=img.scale.y / peakv.yfreq,
             radius=radius,
+            pitch=pitch,
+            moire_period=moire_period,
             npf=npf,
+            start_raw=start,
             rise_sign=self._cfg.rise_sign,
         )
 
@@ -326,3 +330,9 @@ def is_clockwise(
         _ave, _std = np.mean(pw_non_peak), np.std(pw_non_peak, ddof=1)
         logger.info(f" >> clockwise = {out} (peak intensity={_val:.2g} compared to {_ave:.2g} ± {_std:.2g})")  # fmt: skip
     return out
+
+
+def _safe_div(a, b):
+    if b == 0:
+        return -float("inf") if a < 0 else float("inf")
+    return a / b
