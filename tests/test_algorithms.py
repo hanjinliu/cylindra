@@ -269,6 +269,29 @@ def test_cylinder_params():
 
     p = CylinderParameters.solve(
         pitch=4.0,
+        skew=-0.4,
+        rise_length=0.87,
+        radius=10.5,
+        npf=14,
+    )
+    assert p.pitch == pytest.approx(4.0, abs=1e-6)
+    assert p.skew == pytest.approx(-0.4, abs=1e-6)
+    assert p.start == 3
+
+    p = CylinderParameters.solve(
+        pitch=4.0,
+        twist=-0.27,
+        rise_length=0.87,
+        radius=10.5,
+        npf=14,
+    )
+    assert p.pitch == pytest.approx(4.0, abs=1e-6)
+    assert p.twist == pytest.approx(-0.27, abs=1e-6)
+    assert p.skew < 0
+    assert p.start == 3
+
+    p = CylinderParameters.solve(
+        pitch=4.0,
         skew=0.1,
         start=0,
         radius=6.6,

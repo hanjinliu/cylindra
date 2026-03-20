@@ -72,7 +72,7 @@ class CylinderParameters:
     @property
     def tan_rise_raw(self) -> float:
         """Tangent of the rise angle."""
-        return self.pitch * self.start_raw / self.perimeter
+        return _pitch_to_tan_rise(self.pitch, self.start_raw, self.perimeter)
 
     @property
     def dx(self) -> float:
@@ -159,34 +159,36 @@ class CylinderParameters:
         # and the output.
         if given(pitch):
             if given(rise_angle):
-                start_ = roundint(
-                    perimeter * m.tan(m.radians(rise_angle * rise_sign)) / pitch
-                )
+                tan_rise = m.tan(m.radians(rise_angle * rise_sign))
+                start_ = roundint(perimeter * tan_rise / pitch)
             elif given(start):
                 start_ = rise_sign * start
                 if _rise_is_known and not allow_duplicate:
                     raise ValueError("Cannot specify both start and rise.")
             elif given(rise_length):
-                start_ = roundint(rise_length * npf / pitch)
+                start_ = roundint(rise_length * npf / pitch) * rise_sign
             else:
                 raise ValueError("Not enough information to solve.")
+            tan_rise = _pitch_to_tan_rise(pitch, start_, perimeter)
+            rise_rad = m.atan(tan_rise)
             if given(moire_period):
                 moire_period_ = moire_period
             else:
-                if given(twist):
-                    tan_rise = pitch * start_ / perimeter
-                    if start_ != 0:
-                        skew = _twist_to_skew(start_, tan_rise, twist)
-                    else:
-                        skew = _twist_to_skew_no_rise(pitch, radius_, twist)
+                if not given(skew):
+                    # twist == spacing * sin(skew) / R
+                    # => L := 2 * R * twist / pitch - tan(rise)
+                    #     == sin(2 * skew) - tan(rise) * cos(2 * skew)
+                    # => L * cos(rise) == sin(2 * skew - rise)
+                    left = 2 * radius_ * m.radians(twist) / pitch - tan_rise
+                    skew_rad = (m.asin(left * m.cos(rise_rad)) + rise_rad) / 2
+                    skew = m.degrees(skew_rad)
                 moire_period_ = _skew_to_moire_period(perimeter, npf, skew)
 
         elif given(spacing):
-            if given(twist):
-                skew_rad = m.asin(m.radians(twist) * radius_ / spacing)
-                skew = m.degrees(skew_rad)
-            elif given(skew):
+            if given(skew):
                 skew_rad = m.radians(skew)
+            elif given(twist):
+                skew_rad = m.asin(m.radians(twist) * radius_ / spacing)
             else:
                 raise ValueError("Not enough information to solve.")
             if given(rise_angle):
@@ -207,16 +209,14 @@ class CylinderParameters:
             else:
                 raise ValueError("Not enough information to solve.")
             tan_rise = _skew_start_to_tan_rise(skew_rad, start_, spacing, perimeter)
-            rise_angle = m.degrees(m.atan(tan_rise))
-            pitch = (
-                spacing
-                * m.cos(m.radians(rise_angle))
-                / m.cos(m.radians(rise_angle - skew))
-            )
+            rise_rad = m.atan(tan_rise)
+            pitch = spacing * m.cos(rise_rad) / m.cos(rise_rad - skew_rad)
             if given(moire_period):
                 moire_period_ = moire_period
             else:
-                moire_period_ = _skew_to_moire_period(perimeter, npf, skew)
+                moire_period_ = _skew_to_moire_period(
+                    perimeter, npf, m.degrees(skew_rad)
+                )
         else:
             raise ValueError("Not enough information to solve.")
 
@@ -227,19 +227,8 @@ def given(s) -> TypeGuard[float]:
     return s is not None
 
 
-def _twist_to_skew(start: int, tan_rise: float, twist: float) -> float:
-    _s_sk = start * m.radians(twist)
-    tan_skew = _s_sk / tan_rise / (2 * m.pi + _s_sk)
-    return m.degrees(m.atan(tan_skew))
-
-
-def _twist_to_skew_no_rise(pitch: float, radius: float, twist: float) -> float:
-    #    o   o -+- pitch
-    #           |
-    # twist \|  |
-    #        o -+
-    rad = m.tan(m.radians(twist)) * pitch / radius
-    return m.degrees(rad)
+def _pitch_to_tan_rise(pitch, start, perimeter):
+    return pitch * start / perimeter
 
 
 def _rise_to_start(rise_angle, skew_rad, spacing, perimeter):
@@ -261,7 +250,6 @@ def _skew_start_to_tan_rise(
     spacing: float,
     perimeter: float,
 ) -> float:
-    # return m.cos(skew_rad) * start / (perimeter / spacing - m.sin(skew_rad) * start)
     if skew_rad == 0:
         return start * spacing / perimeter
     b = 1 / m.tan(skew_rad)
