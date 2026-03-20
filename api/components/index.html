@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -6309,7 +6309,8 @@
 <span class="normal">310</span>
 <span class="normal">311</span>
 <span class="normal">312</span>
-<span class="normal">313</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylSpline</span><span class="p">(</span><span class="n">Spline</span><span class="p">):</span>
+<span class="normal">313</span>
+<span class="normal">314</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylSpline</span><span class="p">(</span><span class="n">Spline</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A spline object with cylindrical structure.&quot;&quot;&quot;</span>
 
     <span class="nd">@property</span>
@@ -6434,6 +6435,7 @@
         <span class="k">return</span> <span class="n">CylinderParameters</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span>
             <span class="n">spacing</span><span class="o">=</span><span class="n">_get_globalprops</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">H</span><span class="o">.</span><span class="n">spacing</span><span class="p">),</span>
             <span class="n">pitch</span><span class="o">=</span><span class="n">_get_globalprops</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">H</span><span class="o">.</span><span class="n">pitch</span><span class="p">),</span>
+            <span class="n">moire_period</span><span class="o">=</span><span class="n">_get_globalprops</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">H</span><span class="o">.</span><span class="n">moire_period</span><span class="p">),</span>
             <span class="n">twist</span><span class="o">=</span><span class="n">_get_globalprops</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">H</span><span class="o">.</span><span class="n">twist</span><span class="p">),</span>
             <span class="n">skew</span><span class="o">=</span><span class="n">_get_globalprops</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">H</span><span class="o">.</span><span class="n">skew</span><span class="p">),</span>
             <span class="n">rise_angle</span><span class="o">=</span><span class="n">_get_globalprops</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">H</span><span class="o">.</span><span class="n">rise</span><span class="p">),</span>
@@ -6892,8 +6894,7 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/spline/_cyl_spline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">151</span>
-<span class="normal">152</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">152</span>
 <span class="normal">153</span>
 <span class="normal">154</span>
 <span class="normal">155</span>
@@ -6928,7 +6929,8 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 <span class="normal">184</span>
 <span class="normal">185</span>
 <span class="normal">186</span>
-<span class="normal">187</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cylinder_model</span><span class="p">(</span>
+<span class="normal">187</span>
+<span class="normal">188</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cylinder_model</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">offsets</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
     <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
@@ -7004,7 +7006,8 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 <span class="normal">146</span>
 <span class="normal">147</span>
 <span class="normal">148</span>
-<span class="normal">149</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cylinder_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CylinderParameters</span><span class="p">:</span>
+<span class="normal">149</span>
+<span class="normal">150</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cylinder_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CylinderParameters</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Get the cylinder parameters of the spline.&quot;&quot;&quot;</span>
     <span class="n">radius</span> <span class="o">=</span> <span class="n">_get_globalprops</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">H</span><span class="o">.</span><span class="n">radius</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">radius</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -7013,6 +7016,7 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
     <span class="k">return</span> <span class="n">CylinderParameters</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span>
         <span class="n">spacing</span><span class="o">=</span><span class="n">_get_globalprops</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">H</span><span class="o">.</span><span class="n">spacing</span><span class="p">),</span>
         <span class="n">pitch</span><span class="o">=</span><span class="n">_get_globalprops</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">H</span><span class="o">.</span><span class="n">pitch</span><span class="p">),</span>
+        <span class="n">moire_period</span><span class="o">=</span><span class="n">_get_globalprops</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">H</span><span class="o">.</span><span class="n">moire_period</span><span class="p">),</span>
         <span class="n">twist</span><span class="o">=</span><span class="n">_get_globalprops</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">H</span><span class="o">.</span><span class="n">twist</span><span class="p">),</span>
         <span class="n">skew</span><span class="o">=</span><span class="n">_get_globalprops</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">H</span><span class="o">.</span><span class="n">skew</span><span class="p">),</span>
         <span class="n">rise_angle</span><span class="o">=</span><span class="n">_get_globalprops</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">H</span><span class="o">.</span><span class="n">rise</span><span class="p">),</span>
@@ -7266,8 +7270,7 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/spline/_cyl_spline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">245</span>
-<span class="normal">246</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">246</span>
 <span class="normal">247</span>
 <span class="normal">248</span>
 <span class="normal">249</span>
@@ -7280,7 +7283,8 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 <span class="normal">256</span>
 <span class="normal">257</span>
 <span class="normal">258</span>
-<span class="normal">259</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">update_glob_by_cylinder_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cparams</span><span class="p">:</span> <span class="n">CylinderParameters</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CylSpline</span><span class="p">:</span>
+<span class="normal">259</span>
+<span class="normal">260</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">update_glob_by_cylinder_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cparams</span><span class="p">:</span> <span class="n">CylinderParameters</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CylSpline</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Update the global properties using a CylinderParameters object.&quot;&quot;&quot;</span>
     <span class="n">props</span> <span class="o">=</span> <span class="p">{</span>
         <span class="n">H</span><span class="o">.</span><span class="n">rise</span><span class="p">:</span> <span class="n">cparams</span><span class="o">.</span><span class="n">rise_angle</span><span class="p">,</span>
@@ -7317,8 +7321,7 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/spline/_cyl_spline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">189</span>
-<span class="normal">190</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">190</span>
 <span class="normal">191</span>
 <span class="normal">192</span>
 <span class="normal">193</span>
@@ -7371,7 +7374,8 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 <span class="normal">240</span>
 <span class="normal">241</span>
 <span class="normal">242</span>
-<span class="normal">243</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">update_props</span><span class="p">(</span>
+<span class="normal">243</span>
+<span class="normal">244</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">update_props</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">npf</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>

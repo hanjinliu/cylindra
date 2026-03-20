@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -5800,9 +5800,7 @@ imported from file outputs of a long-running job from other softwares.</p>
 <span class="normal">870</span>
 <span class="normal">871</span>
 <span class="normal">872</span>
-<span class="normal">873</span>
-<span class="normal">874</span>
-<span class="normal">875</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Batch Subtomogram Analysis&quot;</span><span class="p">)</span>
+<span class="normal">873</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Batch Subtomogram Analysis&quot;</span><span class="p">)</span>
 <span class="nd">@_shared_doc</span><span class="o">.</span><span class="n">update_cls</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">BatchSubtomogramAveraging</span><span class="p">(</span><span class="n">MagicTemplate</span><span class="p">):</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_get_parent</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -6170,13 +6168,11 @@ imported from file outputs of a long-running job from other softwares.</p>
         <span class="n">angle_max</span><span class="p">:</span> <span class="n">_AngleMaxLon</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span>
         <span class="n">bin_size</span><span class="p">:</span> <span class="n">_BINSIZE</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
         <span class="n">temperature_time_const</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mf">10.0</span><span class="p">}]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
-        <span class="n">lj_const</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
-            <span class="nb">float</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mf">0.00</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mf">1000.0</span><span class="p">,</span> <span class="s2">&quot;step&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;LJ const&quot;</span><span class="p">}</span>
-        <span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">lj_const</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mf">0.00</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mf">1000.0</span><span class="p">,</span> <span class="s2">&quot;step&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;LJ const&quot;</span><span class="p">}]</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
         <span class="n">upsample_factor</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
         <span class="n">num_trials</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mi">100</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
         <span class="n">seed</span><span class="p">:</span> <span class="n">_SeedType</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
-    <span class="p">):</span>
+    <span class="p">):</span>  <span class="c1"># fmt: skip</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Run RMA alignment on all molecules in the selected loader.</span>
 
 <span class="sd">        Parameters</span>
@@ -7271,9 +7267,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">564</span>
 <span class="normal">565</span>
 <span class="normal">566</span>
-<span class="normal">567</span>
-<span class="normal">568</span>
-<span class="normal">569</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;RMA alignment&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
+<span class="normal">567</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;RMA alignment&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Simulated annealing (RMA)&quot;</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">align_all_rma</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -7290,13 +7284,11 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
     <span class="n">angle_max</span><span class="p">:</span> <span class="n">_AngleMaxLon</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span>
     <span class="n">bin_size</span><span class="p">:</span> <span class="n">_BINSIZE</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
     <span class="n">temperature_time_const</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mf">10.0</span><span class="p">}]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
-    <span class="n">lj_const</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
-        <span class="nb">float</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mf">0.00</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mf">1000.0</span><span class="p">,</span> <span class="s2">&quot;step&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;LJ const&quot;</span><span class="p">}</span>
-    <span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+    <span class="n">lj_const</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mf">0.00</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mf">1000.0</span><span class="p">,</span> <span class="s2">&quot;step&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;LJ const&quot;</span><span class="p">}]</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
     <span class="n">upsample_factor</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
     <span class="n">num_trials</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mi">100</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
     <span class="n">seed</span><span class="p">:</span> <span class="n">_SeedType</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
-<span class="p">):</span>
+<span class="p">):</span>  <span class="c1"># fmt: skip</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Run RMA alignment on all molecules in the selected loader.</span>
 
 <span class="sd">    Parameters</span>
@@ -7674,7 +7666,9 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">571</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">569</span>
+<span class="normal">570</span>
+<span class="normal">571</span>
 <span class="normal">572</span>
 <span class="normal">573</span>
 <span class="normal">574</span>
@@ -7777,9 +7771,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">671</span>
 <span class="normal">672</span>
 <span class="normal">673</span>
-<span class="normal">674</span>
-<span class="normal">675</span>
-<span class="normal">676</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;RMA alignment (template-free)&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
+<span class="normal">674</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;RMA alignment (template-free)&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;RMA alignment started&quot;</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">align_all_rma_template_free</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -8756,7 +8748,9 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">678</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">676</span>
+<span class="normal">677</span>
+<span class="normal">678</span>
 <span class="normal">679</span>
 <span class="normal">680</span>
 <span class="normal">681</span>
@@ -8843,9 +8837,7 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 <span class="normal">762</span>
 <span class="normal">763</span>
 <span class="normal">764</span>
-<span class="normal">765</span>
-<span class="normal">766</span>
-<span class="normal">767</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Calculate FSC&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchSubtomogramAnalysis</span><span class="p">)</span>
+<span class="normal">765</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Calculate FSC&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchSubtomogramAnalysis</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Calculating FSC&quot;</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">calculate_fsc</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -9207,7 +9199,9 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">796</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">794</span>
+<span class="normal">795</span>
+<span class="normal">796</span>
 <span class="normal">797</span>
 <span class="normal">798</span>
 <span class="normal">799</span>
@@ -9220,9 +9214,7 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 <span class="normal">806</span>
 <span class="normal">807</span>
 <span class="normal">808</span>
-<span class="normal">809</span>
-<span class="normal">810</span>
-<span class="normal">811</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;fluent:shape-organic-20-filled&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
+<span class="normal">809</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;fluent:shape-organic-20-filled&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">show_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Load and show mask image in the scale of the tomogram.&quot;&quot;&quot;</span>
@@ -9260,12 +9252,12 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">775</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">773</span>
+<span class="normal">774</span>
+<span class="normal">775</span>
 <span class="normal">776</span>
 <span class="normal">777</span>
-<span class="normal">778</span>
-<span class="normal">779</span>
-<span class="normal">780</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;ic:baseline-view-in-ar&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
+<span class="normal">778</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;ic:baseline-view-in-ar&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">show_template</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Load and show template image in the scale of the tomogram.&quot;&quot;&quot;</span>
@@ -9293,7 +9285,9 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">782</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">780</span>
+<span class="normal">781</span>
+<span class="normal">782</span>
 <span class="normal">783</span>
 <span class="normal">784</span>
 <span class="normal">785</span>
@@ -9303,9 +9297,7 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 <span class="normal">789</span>
 <span class="normal">790</span>
 <span class="normal">791</span>
-<span class="normal">792</span>
-<span class="normal">793</span>
-<span class="normal">794</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;material-symbols:view-in-ar&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
+<span class="normal">792</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">&quot;material-symbols:view-in-ar&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">show_template_original</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Load and show template image in the original scale.&quot;&quot;&quot;</span>
