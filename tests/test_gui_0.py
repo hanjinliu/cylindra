@@ -160,6 +160,9 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     ui.open_image_with_reference(path, reference_path=path, bin_size=[1, 2])
     macro_str = str(ui._format_macro()[ui._macro_offset :])
     assert macro_str.startswith("ui.open_image_with_reference(")
+    assert not ui._reserved_layers.ref_inverted
+    ui.open_image_with_reference(path, reference_path=path, invert=True, invert_reference=True, bin_size=[1, 2])
+    assert ui._reserved_layers.ref_inverted
 
 
 def test_io_with_different_data(ui: CylindraMainWidget, tmpdir):
@@ -186,7 +189,7 @@ def test_io_with_different_data(ui: CylindraMainWidget, tmpdir):
 
     ui.load_project(PROJECT_DIR_14PF, filter=None, read_image=False)
     ui.mole_layers.get("Mole-0")
-    ui.mole_layers.get("Mole-100", None)
+    assert ui.mole_layers.get("Mole-100", None) is None
     list(ui.mole_layers.iter())
     ui.mole_layers.first()
     ui.mole_layers.count()
