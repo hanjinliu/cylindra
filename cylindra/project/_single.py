@@ -306,6 +306,9 @@ class CylindraProject(BaseProject):
             cb.await_call()
             gui._init_macro_state()
 
+            # we need to make sure that the `ref_inverted` flag will be set to True
+            # after the inversion
+            gui._reserved_layers.ref_inverted = False
             if path_ref:
                 try:
                     img_ref = ip.imread(path_ref)

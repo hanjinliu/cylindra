@@ -645,6 +645,7 @@ class CylindraMainWidget(MagicTemplate):
         yield cb
         cb.await_call()
         self._project_dir = None
+        self._reserved_layers.ref_inverted = False  # initialize
 
         @thread_worker.callback
         def _on_return():
