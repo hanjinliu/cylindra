@@ -889,8 +889,18 @@ class CylindraMainWidget(MagicTemplate):
     def filter_reference_image(
         self,
         method: ImageFilter = ImageFilter.Lowpass,
+        resolution: Annotated[float, {"label": "Resolution (nm)", "min": 0.1, "step": 0.1, "max": 100.0}] = 1.6,
     ):  # fmt: skip
-        """Apply filter to enhance contrast of the reference image."""
+        """Apply filter to enhance contrast of the reference image.
+
+        Parameters
+        ----------
+        method : "lowpass", "gaussian", "dog", or "log", default "lowpass"
+            Method to filter the reference image.
+        resolution : float, default 1.6
+            The approximate resolution after filtering in nm. Larger value means
+            stronger filtering.
+        """
         if _is_dummy_tomogram(self):
             return
         method = ImageFilter(method)
@@ -899,10 +909,10 @@ class CylindraMainWidget(MagicTemplate):
             img = self._reserved_layers.image_data
             overlap = [min(s, 32) for s in img.shape]
             _tiled = img.tiled(chunks=(224, 224, 224), overlap=overlap)
-            sigma = 1.6 / self._reserved_layers.scale
+            sigma = resolution / self._reserved_layers.scale
             match method:
                 case ImageFilter.Lowpass:
-                    img_filt = _tiled.lowpass_filter(cutoff=0.2)
+                    img_filt = _tiled.lowpass_filter(cutoff=0.33 / sigma)
                 case ImageFilter.Gaussian:
                     img_filt = _tiled.gaussian_filter(sigma=sigma, fourier=True)
                 case ImageFilter.DoG:

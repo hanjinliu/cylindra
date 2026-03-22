@@ -68,9 +68,9 @@ class AppConfig:
         return self
 
     def to_user_dir(self):
+        """Save the config to the user settings directory."""
         with open(USER_SETTINGS, mode="w") as f:
             json.dump(asdict(self), f, indent=4, separators=(", ", ": "))
-        return None
 
     @property
     def default_spline_config_path(self) -> Path:
