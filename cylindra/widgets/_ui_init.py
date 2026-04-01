@@ -452,6 +452,11 @@ def _setup_fn_with_column_selection(self: CylindraMainWidget, gui: FunctionGui):
     gui[0].changed.connect(gui[1].reset_choices)
 
 
+@setup_function_gui(CylindraMainWidget.copy_molecules_features)
+def _setup_copy_molecules_features(self: CylindraMainWidget, gui: FunctionGui):
+    gui.source.changed.connect(gui.column.reset_choices)
+
+
 @setup_function_gui(CylindraMainWidget.binarize_feature)
 def _setup_binarize_feature(self: CylindraMainWidget, gui: FunctionGui):
     gui.layer.changed.connect(gui.target.reset_choices)

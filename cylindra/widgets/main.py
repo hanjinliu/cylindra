@@ -1049,7 +1049,7 @@ class CylindraMainWidget(MagicTemplate):
                     self.Overview.contrast_limits = -chigh, -clow
                 return undo_callback(self.invert_image)
 
-        t0.toc()
+            t0.toc()
         return _invert_image_on_return
 
     @set_design(text=capitalize, location=_sw.ImageMenu.LabelsMenu)
