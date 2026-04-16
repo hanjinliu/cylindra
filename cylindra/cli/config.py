@@ -68,8 +68,7 @@ class ImportAction(argparse.Action):
 
 
 class ParserConfig(ParserBase):
-    """
-    cylindra config [bold green]path[/bold green] [bold cyan]options[/bold cyan]
+    """cylindra config [bold green]path[/bold green] [bold cyan]options[/bold cyan]
 
     [u bold green]path[/u bold green]
         Path to the project/image file.

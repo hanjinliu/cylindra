@@ -7,15 +7,21 @@ so you can copy & paste the macro script to somewhere.
 In `cylindra`, we provide a more elegant way to do this. You can define your own
 workflows, browse and edit them in the GUI, and run them manually or programmatically.
 
-## Define a Workflow
+## Open the Workflow Editor
 
-:material-arrow-right-thin-circle-outline: GUI: `Others > Workflows > Define workflow` or ++ctrl+k++ &rarr; ++ctrl+shift+d++
+:material-arrow-right-thin-circle-outline: GUI: `Others > Workflows > Open workflow edit`
 
-![Define workflow](images/define_workflow.png){ loading=lazy, width=560px }
+![Workflow editor](images/workflow_editor.png){ loading=lazy, width=600px }
 
-In this dialog, you can define a workflow by writing a Python script. The script will be
-saved in the user directory as a file of the given "file name". Since `cylindra` is
-aware of all the files in the user directory, you don't have to keep them by yourself.
+`cylindra` has a dedicated workflow editor. You can create a new workflow, edit existing
+ones, run, and delete them in this editor.
+
+## Write Your Workflows
+
+In the workflow editor, you can define a workflow by writing a Python script. The script
+will be saved in the user directory as a file of the given "file name". Since `cylindra`
+is aware of all the files in the user directory, you don't have to keep them by
+yourself.
 
 ### A simple example
 
@@ -74,27 +80,16 @@ The `path` argument, which is annotated with `Path` type, will be converted into
 input box. The `tilt_range` argument, which is annotated with `tuple[float, float]`
 type, will be converted into two float input boxes.
 
-## View & Edit Workflows
-
-:material-arrow-right-thin-circle-outline: GUI: `Others > Workflows > View/Edit workflows` or ++ctrl+k++ &rarr; ++ctrl+shift+e++
-
-![Edit workflows](images/edit_workflow.png){ loading=lazy, width=560px }
-
-Here you can see all the workflows defined in the user directory. You can also edit and
-overwrite them here. The workflows will be updated immediately, without restarting the
-application.
-
 ## Run Workflows
 
 :material-arrow-right-thin-circle-outline: API: [`run_workflow`][cylindra.widgets.main.CylindraMainWidget.run_workflow]
 
-:material-arrow-right-thin-circle-outline: GUI: `Others > Workflows > Run workflow` or ++ctrl+k++ &rarr; ++ctrl+shift+r++
-
-Defined workflows show up in the `Others > Workflows` menu. You can also open the dialog
-at `Others > Workflows > Run workflow` and select the workflow to run. If the workflow
+Defined workflows show up in the bottom of the `Others > Workflows` menu. You can also
+open the workflow editor, choose a workflow and click the "Run" button. If the workflow
 does not have any input arguments, it will be run immediately. If it has, a new dialog
 will be opened to ask for the input arguments.
 
 !!! note
+
     The defined workflows can also be found in the command palette (++ctrl+p++) labeled
     as the file name.

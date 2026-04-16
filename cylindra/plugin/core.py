@@ -35,6 +35,9 @@ def register_function(func=None, *, record=True, name=None):
     The registered function will be added to the plugin menu when the module is
     installed as a plugin.
 
+    `magicclass` decorators, such as `setup_function_gui` and `impl_preview`,
+    are compatible with this function.
+
     Parameters
     ----------
     func : callable, optional
@@ -49,14 +52,13 @@ def register_function(func=None, *, record=True, name=None):
     """
 
     def _inner(fn: Callable[_P, _R]) -> CylindraPluginFunction[_P, _R]:
-        f = CylindraPluginFunction(fn, name=name)
-        f._is_recordable = record
-        return f
+        return CylindraPluginFunction(fn, name=name, record=record)
 
     return _inner if func is None else _inner(func)
 
 
 def load_plugin(ui: CylindraMainWidget) -> None:
+    """Load all the available plugins into the given instance."""
     from cylindra.plugin._find import iter_plugin_info
 
     for plugin_info in iter_plugin_info():

@@ -7,8 +7,7 @@ from cylindra.core import collect_projects
 
 
 class ParserAverage(ParserBase):
-    """
-    cylindra average [bold green]project[/bold green] [bold cyan]options[/bold cyan]
+    """cylindra average [bold green]project[/bold green] [bold cyan]options[/bold cyan]
 
     [u bold green]project[/u bold green]
         Path to the project file. Can be a pattern containing `*`.

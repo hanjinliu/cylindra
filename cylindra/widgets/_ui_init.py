@@ -35,6 +35,7 @@ from cylindra.widgets.main import CylindraMainWidget
 from cylindra.widgets.sta import SubtomogramAveraging
 
 if TYPE_CHECKING:
+    from magicclass._gui._function_gui import FunctionGuiPlus
     from magicgui.widgets import FloatSpinBox
     from napari.layers import Layer
 
@@ -451,6 +452,11 @@ def _setup_fn_with_column_selection(self: CylindraMainWidget, gui: FunctionGui):
     gui[0].changed.connect(gui[1].reset_choices)
 
 
+@setup_function_gui(CylindraMainWidget.copy_molecules_features)
+def _setup_copy_molecules_features(self: CylindraMainWidget, gui: FunctionGui):
+    gui.source.changed.connect(gui.column.reset_choices)
+
+
 @setup_function_gui(CylindraMainWidget.binarize_feature)
 def _setup_binarize_feature(self: CylindraMainWidget, gui: FunctionGui):
     gui.layer.changed.connect(gui.target.reset_choices)
@@ -476,13 +482,13 @@ def _setup_binarize_feature(self: CylindraMainWidget, gui: FunctionGui):
 def _setup_map_monomers_with_extensions(self: CylindraMainWidget, gui: FunctionGui):
     @gui.spline.changed.connect
     def _on_spline_change(spline: int | None):
-        if spline is None:
+        if spline is None or self.splines.count() <= spline:
             return None
         npf = self.splines[spline].props.get_glob(H.npf, None)
         if npf is None:
             value = {}
         else:
-            value = {i: (0, 0) for i in range(npf)}
+            value = dict.fromkeys(range(npf), (0, 0))
         if gui.n_extend.value.keys() != value.keys():
             gui.n_extend.value = value
 
@@ -550,6 +556,25 @@ def _setup_delete_molecules(self: CylindraMainWidget, gui: FunctionGui):
 
     gui.insert(-1, label)
     label.reset_choices = _on_change  # hack
+
+
+@setup_function_gui(CylindraMainWidget.delete_segments)
+def _setup_delete_segments(self: CylindraMainWidget, gui: FunctionGui):
+    gui.spline.changed.connect(lambda: gui.indices.reset_choices())
+
+
+@setup_function_gui(SubtomogramAveraging.calculate_fsc)
+@setup_function_gui(SubtomogramAveraging.classify_em)
+@setup_function_gui(SubtomogramAveraging.classify_em_template_free)
+@setup_function_gui(SubtomogramAveraging.align_all_rfa)
+@setup_function_gui(SubtomogramAveraging.align_all_rma)
+@setup_function_gui(SubtomogramAveraging.run_rfa_on_landscape)
+@setup_function_gui(SubtomogramAveraging.run_rma_on_landscape)
+@setup_function_gui(SubtomogramAveraging.fit_spline_rfa)
+def _init_seed(self: SubtomogramAveraging, gui: FunctionGuiPlus):
+    @gui.activated.connect
+    def _set_random_seed():
+        gui.seed.value = np.random.randint(0, 1_000_000)
 
 
 @contextmanager

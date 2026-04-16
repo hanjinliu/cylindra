@@ -36,6 +36,8 @@ _PARAMETERS = [
     Parameter(name="tilt_range", type="(float, float), optional", desc="Tilt range of tomogram tilt series in degree."),
     Parameter(name="max_shifts", type="int or tuple of int", desc="Maximum shift between subtomograms and template in nm. ZYX order."),
     Parameter(name="rotations", type="((float, float), (float, float), (float, float))", desc="Rotation in external degree around each axis."),
+    Parameter(name="max_rotations", type="(float, float, float)", desc="Maximum rotation in degree around Z, Y, X axis."),
+    Parameter(name="min_rotation_step", type="float", desc="Minimum rotation search precision in degree."),
     Parameter(name="cutoff", type="float", desc="Cutoff frequency of low-pass filter applied in each subtomogram."),
     Parameter(name="interpolation", type="int", desc="Interpolation order."),
     Parameter(name="size", type="nm", desc="Size of the template in nm. Use the size of template image by default."),
@@ -59,7 +61,8 @@ _PARAMETERS = [
     Parameter(name="range_lat", type="(float, float)", desc="Minimum and maximum allowed distances between laterally consecutive monomers"),
     Parameter(name="angle_max", type="float", desc="Maximum allowed angle between longitudinally consecutive monomers and the Y axis."),
     Parameter(name="temperature_time_const", type="float", desc="Time constant of the temperature decay during annealing. Larger value results in slower annealing. 1.0 is a moderate value."),
-    Parameter(name="random_seeds", type="iterable of int", desc="Random seed integers. Number of integers will be the number of trials."),
+    Parameter(name="num_trials", type="int", desc="Number of independent trials to perform. The best result among all trials will be returned."),
+    Parameter(name="seed", type="int", desc="Random seed for reproducibility."),
     Parameter(name="target", type="str", desc="Target column name on which calculation will run."),
     Parameter(name="footprint", type="array-like", desc="2D binary array that define the convolution kernel structure."),
     Parameter(name="projective", type="bool", desc="If true, only the vector components parallel to the cylinder surface will be considered."),
@@ -68,6 +71,10 @@ _PARAMETERS = [
     Parameter(name="min_radius", type="nm", desc="Minimum possible radius in nm."),
     Parameter(name="max_radius", type="nm", desc="Maximum possible radius in nm."),
     Parameter(name="prefix", type="str", desc="Prefix of the new molecules layer(s)."),
+    Parameter(name="filter_expr", type="str", desc="Expression to filter segments. Variable `value` refers to the segment value.\nSegments with `filter_expr` evaluating to True will be assigned to molecules.\nIf empty, all segments are used."),
+    Parameter(name="eval_expr", type="str", desc="Expression to evaluate segment values. Variable `value` refers to the segment value.\nThe result of `eval_expr` will be assigned to molecules.\nIf empty, the original segment value is used."),
+    Parameter(name="max_num_iters", type="int", desc="Maximum number of iterations to perform."),
+    Parameter(name="lj_const", type="float", desc="If greater than 0, the annealing will use a Lennard-Jones-like potential to allow molecules to separate further apart than the cutoff distance.\nLarger value will prefer longer distances between molecules. 0.25 - 0.5 is usually a good choice."),
 ]
 # fmt: on
 

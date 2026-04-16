@@ -32,6 +32,7 @@ from cylindra.project._single import CylindraProject
 if TYPE_CHECKING:
     import numpy as np
     from acryo import BatchLoader, Molecules
+    from IPython.lib.pretty import RepresentationPrinter
     from numpy.typing import NDArray
 
     from cylindra.components import CylSpline
@@ -78,8 +79,7 @@ class ScaleValidator(Validator[float]):
 
 
 class ProjectSequence(MutableSequence[CylindraProject]):
-    """
-    Collection of Cylindra projects.
+    """Collection of Cylindra projects.
 
     This object is just for project management. BatchLoader, DataFrame and local/global
     properties can be generated from this object.
@@ -178,8 +178,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         curvature: bool = False,
         allow_no_image: bool = False,
     ) -> BatchLoader:
-        """
-        Construct a STA loader from all the projects.
+        """Construct a STA loader from all the projects.
 
         Parameters
         ----------
@@ -193,8 +192,9 @@ class ProjectSequence(MutableSequence[CylindraProject]):
             If True, this method will not raise an error when the image file is not
             found.
         """
-        import impy as ip
         from acryo import BatchLoader
+
+        from cylindra._io import lazy_imread
 
         col = BatchLoader(scale=self._scale_validator.value)
         if name_filter is None:
@@ -212,7 +212,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
 
                 img = np.zeros((0, 0, 0), dtype=np.float32)  # dummy
             else:
-                img = ip.lazy.imread(prj.image, chunks=get_config().dask_chunk).value
+                img = lazy_imread(prj.image, chunks=get_config().dask_chunk).value
             with prj.open_project() as dir:
                 for info, mole in prj.iter_load_molecules(dir):
                     if not name_filter(info.stem):
@@ -240,8 +240,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         id: _IDTYPE = "int",
         spline_details: bool = False,
     ) -> pl.DataFrame:
-        """
-        Collect all localprops into a single dataframe.
+        """Collect all localprops into a single dataframe.
 
         Parameters
         ----------
@@ -309,8 +308,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         suffix: str = "",
         id: _IDTYPE = "int",
     ) -> pl.DataFrame:
-        """
-        Collect all globalprops into a single dataframe.
+        """Collect all globalprops into a single dataframe.
 
         Parameters
         ----------
@@ -359,8 +357,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         id: _IDTYPE = "int",
         spline_details: bool = False,
     ) -> pl.DataFrame:
-        """
-        Collect all the local and global properties into a single dataframe.
+        """Collect all the local and global properties into a single dataframe.
 
         The global properties are suffixed with "_glob". Note that these columns
         will repeat the same values for each spline. For instance, the "spacing"
@@ -409,8 +406,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         spline_details: bool = False,
         suffix: str = "",
     ) -> CollectedProps:
-        """
-        Collect all the local and global properties.
+        """Collect all the local and global properties.
 
         Parameters
         ----------
@@ -445,8 +441,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         *,
         curvature: bool = False,
     ) -> Molecules:
-        """
-        Collect all the molecules in this project sequence.
+        """Collect all the molecules in this project sequence.
 
         Parameters
         ----------
@@ -471,8 +466,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         self,
         name_filter: Callable[[str], bool] | None = None,
     ) -> Iterable[tuple[MoleculesKey, Molecules]]:
-        """
-        Iterate over all the molecules in all the projects.
+        """Iterate over all the molecules in all the projects.
 
         Parameters
         ----------
@@ -492,8 +486,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
         *,
         skip_no_spline: bool = True,
     ) -> Iterator[MoleculesItem]:
-        """
-        Iterate over all the molecules and its source spline.
+        """Iterate over all the molecules and its source spline.
 
         Parameters
         ----------
@@ -514,14 +507,16 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                 for info, mole in prj.iter_load_molecules():
                     if not name_filter(info.name):
                         continue
-                    if (src := info.source) is None and skip_no_spline:
-                        continue
-                    spl = prj.load_spline(src, dir=dir_)
+                    if (src := info.source) is None:
+                        if skip_no_spline:
+                            continue
+                        spl = None
+                    else:
+                        spl = prj.load_spline(src, dir=dir_)
                     yield MoleculesItem(MoleculesKey(i_prj, info.stem), (mole, spl))
 
     def collect_spline_coords(self, ders: int | Iterable[int] = 0) -> pl.DataFrame:
-        """
-        Collect spline coordinates or its derivative(s) as a dataframe.
+        """Collect spline coordinates or its derivative(s) as a dataframe.
 
         Coordinates will be labeled as "z", "y", "x". The 1st derivative will be
         labeled as "dz", "dy", "dx", and so on.
@@ -625,7 +620,7 @@ class MoleculesItem(NamedTuple):
             f"spline={self.spline!r})"
         )
 
-    def _repr_pretty_(self, p, cycle):
+    def _repr_pretty_(self, p: RepresentationPrinter, cycle: bool):
         p.text(
             f"MoleculesItem(\n\tkey={self.key!r},\n\tmolecules={self.molecules!r},"
             f"\n\tspline={self.spline!r}\n)"

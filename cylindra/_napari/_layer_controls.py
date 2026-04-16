@@ -25,6 +25,7 @@ from cylindra._napari._sub_controls import (
     QtHasFeaturesControls,
     QtLandscapeSubControls,
     QtPointStateControl,
+    QtSplineLayerSubControl,
 )
 
 if TYPE_CHECKING:
@@ -32,14 +33,23 @@ if TYPE_CHECKING:
         InteractionVector,
         LandscapeSurface,
         MoleculesLayer,
+        SplineLayer,
     )
 
 
-class QtMoleculesControls(QtLayerControls):
-    layer: MoleculesLayer
+class _PointLayerControl(QtLayerControls):
     MODE = PointsMode
     PAN_ZOOM_ACTION_NAME = "activate_points_pan_zoom_mode"
     TRANSFORM_ACTION_NAME = "activate_points_transform_mode"
+
+    def close(self):
+        """Disconnect events when widget is closing."""
+        disconnect_events(self.layer.text.events, self)
+        super().close()
+
+
+class QtSplineLayerControl(_PointLayerControl):
+    layer: SplineLayer
 
     def __init__(self, layer) -> None:
         super().__init__(layer)
@@ -51,10 +61,28 @@ class QtMoleculesControls(QtLayerControls):
         # Setup widgets controls
         self._projection_mode_control = QtProjectionModeControl(self, layer)
         self._add_widget_controls(self._projection_mode_control)
-        self._face_color_control = QtFaceControls(
-            self,
-            layer,
-        )
+        self._text_visibility_control = QtTextVisibilityControl(self, layer)
+        self._add_widget_controls(self._text_visibility_control)
+        self._out_slice_checkbox_control = QtOutSliceCheckBoxControl(self, layer)
+        self._add_widget_controls(self._out_slice_checkbox_control)
+        self._spline_control = QtSplineLayerSubControl(self, layer)
+        self._add_widget_controls(self._spline_control)
+
+
+class QtMoleculesControls(_PointLayerControl):
+    layer: MoleculesLayer
+
+    def __init__(self, layer) -> None:
+        super().__init__(layer)
+        self.panzoom_button.hide()
+        self.transform_button.hide()
+
+        self._on_editable_or_visible_change()
+
+        # Setup widgets controls
+        self._projection_mode_control = QtProjectionModeControl(self, layer)
+        self._add_widget_controls(self._projection_mode_control)
+        self._face_color_control = QtFaceControls(self, layer)
         self._add_widget_controls(self._face_color_control)
         self._border_color_control = QtBorderControls(self, layer)
         self._add_widget_controls(self._border_color_control)
@@ -66,11 +94,6 @@ class QtMoleculesControls(QtLayerControls):
         self._add_widget_controls(self._point_state_control)
         self._has_features_control = QtHasFeaturesControls(self, layer)
         self._add_widget_controls(self._has_features_control)
-
-    def close(self):
-        """Disconnect events when widget is closing."""
-        disconnect_events(self.layer.text.events, self)
-        super().close()
 
 
 class QtLandscapeSurfaceControls(QtSurfaceControls):
@@ -127,8 +150,10 @@ def install_custom_layers():
         InteractionVector,
         LandscapeSurface,
         MoleculesLayer,
+        SplineLayer,
     )
 
     layer_to_controls[MoleculesLayer] = QtMoleculesControls
     layer_to_controls[LandscapeSurface] = QtLandscapeSurfaceControls
     layer_to_controls[InteractionVector] = QtInteractionControls
+    layer_to_controls[SplineLayer] = QtSplineLayerControl

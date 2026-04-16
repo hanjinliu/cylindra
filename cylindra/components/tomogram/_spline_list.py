@@ -20,12 +20,9 @@ class SplineList(MutableSequence[CylSpline]):
         return f"{self.__class__.__name__}({self._list!r})"
 
     @overload
-    def __getitem__(self, i: int) -> CylSpline:
-        ...
-
+    def __getitem__(self, i: int) -> CylSpline: ...
     @overload
-    def __getitem__(self, i: slice) -> list[CylSpline]:
-        ...
+    def __getitem__(self, i: slice) -> list[CylSpline]: ...
 
     def __getitem__(self, i):
         if isinstance(i, slice):
@@ -105,8 +102,7 @@ class SplineList(MutableSequence[CylSpline]):
     def collect_localprops(
         self, i: int | Iterable[int] = None, allow_none: bool = True
     ) -> pl.DataFrame | None:
-        """
-        Collect all the local properties into a single polars.DataFrame.
+        """Collect all the local properties into a single polars.DataFrame.
 
         Parameters
         ----------

@@ -9,6 +9,7 @@ from .io import (
     open_image_from_imod_project,
     save_molecules,
     save_splines,
+    shift_molecules,
 )
 
 __all__ = [
@@ -20,6 +21,7 @@ __all__ = [
     "load_splines",
     "save_molecules",
     "save_splines",
+    "shift_molecules",
 ]
 
 __cylindra_methods__ = [
@@ -28,7 +30,9 @@ __cylindra_methods__ = [
     Separator,
     export_project,
     export_project_batch,
+    Separator,
     load_molecules,
+    shift_molecules,
     load_splines,
     save_molecules,
     save_splines,

@@ -3,11 +3,14 @@ from __future__ import annotations
 import json
 import warnings
 from dataclasses import dataclass
-from typing import Any, Generic, Literal, Sequence, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Literal, Sequence, TypeVar
 
 import numpy as np
 
 from cylindra.const import nm
+
+if TYPE_CHECKING:
+    from IPython.lib.pretty import RepresentationPrinter
 
 _T = TypeVar("_T")
 
@@ -70,7 +73,7 @@ class SplineConfig:
     fit_depth: nm = 48.0
     fit_width: nm = 44.0
 
-    def _repr_pretty_(self, p, cycle: bool):
+    def _repr_pretty_(self, p: RepresentationPrinter, cycle: bool):
         if cycle:
             p.text(repr(self))
         parts = list[str]()

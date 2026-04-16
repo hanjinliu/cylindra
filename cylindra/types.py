@@ -6,7 +6,7 @@ import napari
 import numpy as np
 from napari.layers import Layer
 
-from cylindra._napari import MoleculesLayer
+from cylindra._napari import LandscapeSurface, MoleculesLayer
 from cylindra.const import PREVIEW_LAYER_NAME
 
 if TYPE_CHECKING:
@@ -23,16 +23,24 @@ def _viewer_ancestor() -> "napari.Viewer | None":
             return ui.parent_viewer
 
 
-# This function will be called by magicgui to find all the available monomer layers.
-def get_monomer_layers(gui: "CategoricalWidget") -> list[MoleculesLayer]:
+def _get_layers_by_type(layer_type: type) -> list[Layer]:
     viewer = _viewer_ancestor()
     if not viewer:
         return []
     return [
         x
         for x in viewer.layers
-        if isinstance(x, MoleculesLayer) and x.name != PREVIEW_LAYER_NAME
+        if isinstance(x, layer_type) and x.name != PREVIEW_LAYER_NAME
     ]
+
+
+# This function will be called by magicgui to find all the available monomer layers.
+def get_molecules_layers(gui: "CategoricalWidget") -> list[MoleculesLayer]:
+    return _get_layers_by_type(MoleculesLayer)
+
+
+def get_landscape_layers(gui: "CategoricalWidget") -> list[LandscapeSurface]:
+    return _get_layers_by_type(LandscapeSurface)
 
 
 def get_splines(gui: "CategoricalWidget") -> list[tuple[str, int]]:
@@ -42,8 +50,29 @@ def get_splines(gui: "CategoricalWidget") -> list[tuple[str, int]]:
     match instance():
         case None:
             return []
-        case tomo:
-            return [(f"({i}) {spl}", i) for i, spl in enumerate(tomo.splines)]
+        case ui:
+            return [(f"({i}) {spl}", i) for i, spl in enumerate(ui.splines)]
+
+
+def get_available_binsize(gui: "CategoricalWidget") -> list[tuple[str, int]]:
+    """Get available bin sizes from the current tomogram."""
+    from cylindra.core import instance
+
+    match instance():
+        case None:
+            return []
+        case ui:
+            tomo = ui.tomogram
+            bins = [x[0] for x in tomo.multiscaled]
+            if 1 not in bins:
+                bins = [1, *bins]
+            return [
+                (
+                    f"{b} pixel{'s' if b > 1 else ''} ({tomo.scale * b:.2f} nm/pixel)",
+                    b,
+                )
+                for b in sorted(bins)
+            ]
 
 
 if TYPE_CHECKING:
@@ -63,7 +92,8 @@ def get_colored_layers(gui: "CategoricalWidget") -> "list[ColoredLayer]":
     ]
 
 
-magicgui.register_type(MoleculesLayer, choices=get_monomer_layers)
+magicgui.register_type(MoleculesLayer, choices=get_molecules_layers)
+magicgui.register_type(LandscapeSurface, choices=get_landscape_layers)
 magicgui.register_type(ColoredLayer, choices=get_colored_layers)
 
 # Record 1D numpy array as a list of floats.

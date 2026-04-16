@@ -1,5 +1,6 @@
 from typing import Annotated, Sequence
 
+import numpy as np
 from magicclass import (
     do_not_record,
     magicclass,
@@ -114,6 +115,20 @@ class Runner(ChildWidget):
         else:
             return -1.0
 
+    def __post_init__(self):
+        self._binsize_auto_adjusted = False
+
+    def _auto_adjust_binsize(self):
+        if self._binsize_auto_adjusted:
+            return
+        main = self._get_main()
+        tomo = main.tomogram
+        ideal_pixel_size = 0.4  # nm
+        bin_sizes = [b for _, b in main._get_available_binsize()]
+        pixel_sizes = np.array([tomo.scale * b for b in bin_sizes])
+        self.bin_size = bin_sizes[np.argmin(np.abs(pixel_sizes - ideal_pixel_size))]
+        self._binsize_auto_adjusted = True
+
     @set_design(text="Fit and Measure")
     @do_not_record(recursive=False)
     @thread_worker.with_progress(
@@ -167,7 +182,7 @@ class Runner(ChildWidget):
             )
             yield
         if infer_polarity:
-            yield from main.infer_polarity.arun(bin_size=bin_size)
+            yield from main.infer_polarity.arun(splines=splines, bin_size=bin_size)
             yield
         if global_props:
             yield from main.global_cft_analysis.arun(splines=splines, bin_size=bin_size)
@@ -175,4 +190,3 @@ class Runner(ChildWidget):
         if map_monomers:
             yield from main.map_monomers.arun(splines, orientation="MinusToPlus")
             yield
-        return None

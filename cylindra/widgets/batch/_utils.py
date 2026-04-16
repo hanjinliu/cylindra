@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import glob
 from pathlib import Path
 from typing import TYPE_CHECKING, Iterator, Literal, NamedTuple, overload
 
@@ -9,6 +8,7 @@ import polars as pl
 from acryo import BatchLoader, Molecules
 
 from cylindra._config import get_config
+from cylindra._io import lazy_imread
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import PropertyNames as H
 from cylindra.project import CylindraProject
@@ -83,7 +83,7 @@ class PathInfo:
 
     def lazy_imread(self) -> ip.LazyImgArray:
         """Get the lazy image array."""
-        img = ip.lazy.imread(self.image, chunks=get_config().dask_chunk)
+        img = lazy_imread(self.image, chunks=get_config().dask_chunk)
         if self.need_invert:
             img = -img
         return img.as_float()
@@ -144,17 +144,3 @@ def _find_source(
                 return None
             return project.load_spline(source, dir=dir)
     return None
-
-
-def unwrap_wildcard(path: str | Path | list[str | Path]) -> list[Path]:
-    """Unwrap a wildcard path to a string."""
-    all_paths = []
-    if isinstance(path, (str, Path)):
-        path = [str(path)]
-    for p in path:
-        p = str(p)
-        if "*" in p or "?" in p:
-            all_paths.extend(glob.glob(p))
-        else:
-            all_paths.append(p)
-    return [Path(p) for p in all_paths]

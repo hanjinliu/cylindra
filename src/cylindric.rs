@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use pyo3::prelude::*;
 use crate::index_error;
 
-#[pyclass]
+#[pyclass(skip_from_py_object)]
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 /// Indices of a molecule on a cylinder lattice.
 pub struct Index {
@@ -136,7 +136,7 @@ impl Neighbors {
     }
 }
 
-#[pyclass]
+#[pyclass(skip_from_py_object)]
 #[derive(Clone, PartialEq, Eq)]
 /// A struct represents cylinder geometry with rise.
 /// nrise is the number of increase in `y` when `a` increases by `na`.

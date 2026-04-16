@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from napari.layers import Layer
 
 from cylindra.const import ImageFilter
+
+if TYPE_CHECKING:
+    from cylindra.template_free import AlignmentState
 
 
 def _get_name(layer) -> str:
@@ -39,17 +44,6 @@ def fmt_layers(fmt: str):
 
 def filter_image_fmt(method: ImageFilter):
     return f"Running {ImageFilter(method).name} filter"
-
-
-def align_averaged_fmt(layers: list[Layer]):
-    n = len(layers)
-    total = 2 * n + 1
-    yield f"(0/{total}) Preparing template images for alignment"
-    for i in range(n):
-        name = _get_name(layers[i])
-        yield f"({i * 2 + 1}/{total}) Subtomogram averaging of {name!r}"
-        yield f"({i * 2 + 2}/{total}) Aligning template to the average image of {name!r}"
-    yield f"({total}/{total}) Finishing"
 
 
 def align_all_fmt(layers: list[Layer]):
@@ -90,16 +84,6 @@ def construct_landscape_fmt(layer: Layer):
     yield "(3/3) Finishing"
 
 
-def classify_pca_fmt(layer: Layer):
-    name = _get_name(layer)
-    yield f"(0/5) Creating template image for PCA clustering from {name!r}"
-    yield "(1/5) Fitting PCA model"
-    yield "(2/5) Transforming all the images"
-    yield "(3/5) Creating average images for each cluster"
-    yield "(4/5) Get transformation for 2D plot"
-    yield "(5/5) Finishing"
-
-
 def fit_spline_rfa_fmt():
     yield "(0/6) Preparing template images"
     yield "(1/6) Calculating the correlation landscape for forward fitting"
@@ -108,3 +92,23 @@ def fit_spline_rfa_fmt():
     yield "(4/6) Calculating the correlation landscape for reverse fitting"
     yield "(5/6) Running reverse RFA"
     yield "(6/6) Finishing"
+
+
+def align_averaged_0(total: int):
+    return f"(0/{total}) Preparing template images for alignment"
+
+
+def align_averaged_1(i: int, total: int, layer: Layer):
+    return f"({i * 2 + 1}/{total}) Subtomogram averaging of {layer.name!r}"
+
+
+def align_averaged_2(i: int, total: int, layer: Layer):
+    return f"({i * 2 + 2}/{total}) Aligning template to the average image of {layer.name!r}"
+
+
+def align_tf_0(alignment_state: AlignmentState):
+    return f"Calculating FSC for iteration {alignment_state.num_iter + 1}"
+
+
+def align_tf_1(alignment_state: AlignmentState):
+    return f"Alignment for iteration {alignment_state.num_iter + 1}"

@@ -35,8 +35,7 @@ class ImportAction(argparse.Action):
 
 
 class ParserWorkflow(ParserBase):
-    """
-    cylindra workflow [bold green]path[/bold green] [bold cyan]options[/bold cyan]
+    """cylindra workflow [bold green]path[/bold green] [bold cyan]options[/bold cyan]
 
     [u bold green]path[/u bold green]
         Path to the workflow file.

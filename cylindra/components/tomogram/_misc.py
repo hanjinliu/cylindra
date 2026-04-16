@@ -42,8 +42,7 @@ _R = TypeVar("_R")
 
 
 class BatchCallable(Protocol[_P, _R]):
-    """
-    Protocol for batch process decorator.
+    """Protocol for batch process decorator.
 
     This protocol enables static type checking of methods decorated with
     `@batch_process`.
@@ -66,7 +65,7 @@ class BatchCallable(Protocol[_P, _R]):
 
 
 def batch_process(
-    func: Callable[Concatenate[CylTomogram, Any, _P], _R]
+    func: Callable[Concatenate[CylTomogram, Any, _P], _R],
 ) -> BatchCallable[_P, _R]:
     """Enable running function for every splines."""
 
@@ -144,9 +143,9 @@ class ImageWithPeak:
 
     def _make_key(self, size: int):
         if size % 2 == 0:
-            return f"{-size//2-1}:{size//2}"
+            return f"{-size // 2 - 1}:{size // 2}"
         else:
-            return f"{-size//2}:{size//2+1}"
+            return f"{-size // 2}:{size // 2 + 1}"
 
 
 def dask_angle_corr(

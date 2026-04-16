@@ -9,8 +9,6 @@ class BatchSubtomogramAnalysis(MagicTemplate):
     average_all = abstractapi()
     average_groups = abstractapi()
     calculate_fsc = abstractapi()
-    sep0 = Separator
-    classify_pca = abstractapi()
 
 
 @magicmenu
@@ -19,6 +17,9 @@ class BatchRefinement(MagicTemplate):
 
     align_all = abstractapi()
     align_all_template_free = abstractapi()
+    sep0 = Separator
+    align_all_rma = abstractapi()
+    align_all_rma_template_free = abstractapi()
 
 
 @magicmenu

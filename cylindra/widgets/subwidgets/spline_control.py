@@ -129,7 +129,6 @@ class SplineControl(ChildWidget):
             plt.imshow(img)
             plt.axis("off")
             plt.show()
-        return None
 
     @num.connect
     @pos.connect
@@ -156,8 +155,6 @@ class SplineControl(ChildWidget):
         highlight.data = spl.map(anc)
         scale = parent._reserved_layers.scale
         highlight.size = tomo.splines[self.num].config.fit_width / scale * 2
-
-        return None
 
     @property
     def need_resample(self) -> bool:
@@ -187,7 +184,6 @@ class SplineControl(ChildWidget):
         if spl.has_anchors:
             self._load_projection(spl)
             self._update_canvas(num=num)
-        return None
 
     def _load_projection(self, spl: "CylSpline"):
         parent = self._get_main()
@@ -229,7 +225,6 @@ class SplineControl(ChildWidget):
             projections.append(Projections(dsk, npf=npf))
 
         self._projections = projections
-        return None
 
     @pos.connect
     def _update_canvas(self, pos: int | None = None, num: int | None = None):
@@ -304,8 +299,6 @@ class SplineControl(ChildWidget):
         else:
             parent.LocalProperties._init_plot()
 
-        return None
-
     def _init_widget(self):
         self.pos = 0
         self["pos"].max = 0
@@ -343,7 +336,6 @@ class SplineControl(ChildWidget):
             img = self.canvas[i].image
             if img is not None:
                 self.canvas[i].contrast_limits = [img.min(), img.max()]
-        return None
 
     @num.connect
     def _highlight_spline_in_main(self, num: int):

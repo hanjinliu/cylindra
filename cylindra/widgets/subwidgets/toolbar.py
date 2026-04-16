@@ -28,7 +28,9 @@ class CylindraToolbar(ChildWidget):
     @do_not_record
     def open_runner(self):
         """Run cylindrical fitting algorithm with various settings."""
-        return self._get_main()._runner.show(run=False)
+        runner = self._get_main()._runner
+        runner.show(run=False)
+        runner._auto_adjust_binsize()
 
     sep0 = Separator
 
@@ -47,11 +49,10 @@ class CylindraToolbar(ChildWidget):
         next_point = picker.iter_pick(imgb, points[-1], points[-2]).next()
         main._reserved_layers.work.add(next_point)
         change_viewer_focus(main.parent_viewer, next_point / scale, scale)
-        return None
 
     @magicmenu(icon="carbon:settings-adjust", record=False)
     class Adjust(ChildWidget):
-        """Adjust auto picker parameters.
+        """Adjust the spline fitting and auto picker parameters.
 
         Attributes
         ----------
@@ -65,6 +66,7 @@ class CylindraToolbar(ChildWidget):
             Maximum shift (nm) to search in auto picking.
         """
 
+        err_max = vfield(0.5).with_options(min=0.0, max=4.0, step=0.1)
         interval = vfield(80.0, widget_type="FloatSlider").with_options(min=10, max=200)  # fmt: skip
         max_angle = vfield(12.0, widget_type="FloatSlider").with_options(min=1.0, max=40.0, step=0.5)  # fmt: skip
         angle_step = vfield(1.0, widget_type="FloatSlider").with_options(min=0.5, max=5.0, step=0.1)  # fmt: skip

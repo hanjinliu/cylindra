@@ -1,10 +1,11 @@
 import impy as ip
 import numpy as np
+import polars as pl
 import pytest
 from IPython.display import display
 from numpy.testing import assert_allclose
 
-from cylindra.components import CylSpline
+from cylindra.components import CylSpline, SplineSegment
 from cylindra.utils import map_coordinates
 
 
@@ -305,3 +306,65 @@ def test_split():
         spl.split(_len - 1, trim=1.1)
     spl.split(1, trim=1.1, allow_discard=True)
     spl.split(_len - 1, trim=1.1, allow_discard=True)
+
+@pytest.mark.parametrize(
+    "values,expected_dtype", [
+        ([SplineSegment(0, 0.5, 11), SplineSegment(0.5, 1, 21)], pl.Int32),
+        ([SplineSegment(0, 0.5, True), SplineSegment(0.5, 1, False)], pl.Boolean),
+        ([SplineSegment(0, 0.2, True), SplineSegment(0.7, 1, False)], pl.Boolean),
+        ([SplineSegment(0, 0.5, 11), SplineSegment(0.5, 1, -0.1)], pl.Float32),
+        ([SplineSegment(0, 0.5, 11), SplineSegment(0.5, 1, None)], pl.Int32),
+        ([SplineSegment(0, 0.5, 11), SplineSegment(0.5, 1, "a")], pl.String),
+    ]
+)
+def test_segments_to_series(values, expected_dtype):
+    spl = CylSpline.line([0, 0, 0], [0, 100, 0])
+    spl.make_anchors(n=4)
+    for seg in values:
+        spl.segments._segments.append(seg)
+    display(spl.segments)
+    ser = spl._segments_to_series(
+        np.linspace(0, 1, 10),
+        column_name="test-col",
+        default=None,
+    )
+    assert ser.dtype == expected_dtype
+
+def test_segments_to_series_with_filter():
+    spl = CylSpline.line([0, 0, 0], [0, 100, 0])
+    for seg in [
+        SplineSegment(0, 0.2, 4),
+        SplineSegment(0.2, 0.5, "xxx"),
+        SplineSegment(0.4, 0.8, 0.5),
+    ]:
+        spl.segments._segments.append(seg)
+    ser = spl._segments_to_series(
+        np.linspace(0, 1, 10),
+        column_name="test-col",
+        default=-1,
+        filter_expr="isinstance(value, (int, float))"
+    )
+    assert ser.dtype == pl.Float32
+
+def test_segments_to_series_with_eval():
+    spl = CylSpline.line([0, 0, 0], [0, 100, 0])
+    for seg in [
+        SplineSegment(0, 0.2, {"name": "a", "value": 4}),
+        SplineSegment(0.2, 0.5, "XX"),
+        SplineSegment(0.4, 0.8, {"name": "b", "value": 6}),
+    ]:
+        spl.segments._segments.append(seg)
+    ser = spl._segments_to_series(
+        np.linspace(0, 1, 11),
+        column_name="test-col",
+        default=-1,
+        filter_expr="isinstance(value, dict)",
+        eval_expr="value.get('value')",
+    )
+    assert ser.dtype == pl.Int32
+    assert_allclose(
+        ser.to_numpy(),
+        np.array([4, 4, 4, -1, 6, 6, 6, 6, 6, -1, -1]),
+        rtol=1e-6,
+        atol=1e-6,
+    )

@@ -6,8 +6,7 @@ from cylindra.cli._base import ParserBase
 
 
 class ParserPlugin(ParserBase):
-    """
-    cylindra plugin ...
+    """cylindra plugin ...
 
     cylindra plugin list [u bold green]filter[/u bold green]
         List all plugins. If [u bold green]filter[/u bold green] is provided, only list

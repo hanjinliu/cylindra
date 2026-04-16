@@ -11,10 +11,12 @@ from cylindra.utils._test_utils import (
 )
 from cylindra.widgets import CylindraMainWidget
 from cylindra_builtins import relion
+from cylindra_builtins.relion.io import _preview_open_relion_job
 
 TEST_JOB_DIR = Path(__file__).parent / "test_jobs"
 JOB_TOMO_DIR = TEST_JOB_DIR / "Tomograms" / "job_tomo"
 JOB_PICK_DIR = TEST_JOB_DIR / "Picks" / "job_picks"
+JOB_CLASS3D_DIR = TEST_JOB_DIR / "Class3D" / "job_class3d"
 JOB_REFINE_DIR = TEST_JOB_DIR / "Refine3D" / "job_refine"
 
 
@@ -53,12 +55,14 @@ def test_opening_jobs(ui: CylindraMainWidget, tmpdir):
     ui.batch.constructor.projects[0].send_to_viewer()
     assert ui.tomogram.scale == pytest.approx(1.052)
     assert not ui.tomogram.is_dummy
+    assert ui.tomogram.tilt_model.tilt_range == pytest.approx((-60.1, 59.9))
 
     relion.open_relion_job(ui, JOB_PICK_DIR / "job.star")
     assert len(ui.batch.constructor.projects) == 2
     ui.batch.constructor.projects[0].send_to_viewer()
     assert ui.tomogram.scale == pytest.approx(1.052)
     assert not ui.tomogram.is_dummy
+    assert ui.tomogram.tilt_model.tilt_range == pytest.approx((-60.1, 59.9))
     relion.save_molecules_for_import(
         ui, tmpdir / "p.star", ui.batch._get_loader_paths()
     )
@@ -77,6 +81,16 @@ def test_opening_jobs(ui: CylindraMainWidget, tmpdir):
         ui.batch._get_loader_paths(),
     )
 
+    # Class3D
+    relion.open_relion_job(ui, JOB_CLASS3D_DIR / "job.star")
+
+    relion.save_molecules_for_extract(
+        ui,
+        tmpdir / "p.star",
+        ui.batch._get_loader_paths(),
+    )
+
+    # Refine3D
     relion.open_relion_job(ui, JOB_REFINE_DIR / "job.star")
 
     relion.save_molecules_for_extract(
@@ -85,4 +99,6 @@ def test_opening_jobs(ui: CylindraMainWidget, tmpdir):
         ui.batch._get_loader_paths(),
     )
 
+    # test preview
     relion.open_relion_job(ui, JOB_REFINE_DIR / "job.star")
+    _preview_open_relion_job(ui, JOB_REFINE_DIR / "job.star")

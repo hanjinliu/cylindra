@@ -27,8 +27,7 @@ class BaseComponent(ABC):
         raise NotImplementedError
 
     def to_json(self, file_path: str | Path | io.IOBase, *, cls=None) -> None:
-        """
-        Save the model in a json format.
+        """Save the model in a json format.
 
         Parameters
         ----------
@@ -49,8 +48,7 @@ class BaseComponent(ABC):
 
     @classmethod
     def from_json(cls, file_path: str | Path | io.IOBase) -> Self:
-        """
-        Construct a spline model from a json file.
+        """Construct a spline model from a json file.
 
         Parameters
         ----------

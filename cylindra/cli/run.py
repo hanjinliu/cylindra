@@ -7,8 +7,7 @@ from cylindra.core import read_project, start
 
 
 class ParserRun(ParserBase):
-    """
-    cylindra run [bold green]path[/bold green] [bold cyan]options[/bold cyan]
+    """cylindra run [bold green]path[/bold green] [bold cyan]options[/bold cyan]
 
     [u bold green]path[/u bold green]
         Path to the project/python file.

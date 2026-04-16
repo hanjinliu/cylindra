@@ -13,23 +13,24 @@ from cylindra._dask import Delayed, delayed
 from cylindra.components._cylinder_params import CylinderParameters
 from cylindra.components._peak import FTPeakInfo, PeakDetector
 from cylindra.components.spline import SplineConfig
+from cylindra.const import Mode, nm
 from cylindra.const import PropertyNames as H
-from cylindra.const import nm
 from cylindra.cyltransform import get_polar_image, get_polar_image_task
-from cylindra.utils import ceilint, floorint, roundint
+from cylindra.utils import ceilint, floorint, map_coordinates_task, roundint
 
 
 class LatticeParams(NamedTuple):
     """Lattice parameters."""
 
-    rise_angle: float
-    rise_length: nm
-    pitch: nm
+    npf: int
+    start: int
     spacing: nm
     skew: float
     twist: float
-    npf: int
-    start: int
+    pitch: nm
+    moire_period: nm
+    rise_angle: float
+    rise_length: nm
 
     def to_polars(self) -> pl.DataFrame:
         """Convert named tuple into a polars DataFrame."""
@@ -39,15 +40,31 @@ class LatticeParams(NamedTuple):
     def polars_schema() -> list[tuple[str, type[pl.DataType]]]:
         """Return the schema of the polars DataFrame."""
         return [
-            (H.rise, pl.Float32),
-            (H.rise_length, pl.Float32),
-            (H.pitch, pl.Float32),
+            (H.npf, pl.UInt8),
+            (H.start, pl.Int8),
             (H.spacing, pl.Float32),
             (H.skew, pl.Float32),
             (H.twist, pl.Float32),
-            (H.npf, pl.UInt8),
-            (H.start, pl.Int8),
+            (H.pitch, pl.Float32),
+            (H.moire_period, pl.Float32),
+            (H.rise, pl.Float32),
+            (H.rise_length, pl.Float32),
         ]
+
+
+class LatticeParamsCartesian(NamedTuple):
+    """Lattice parameters measured in Cartesian coordinates."""
+
+    pitch: nm
+
+    def to_polars(self) -> pl.DataFrame:
+        """Convert named tuple into a polars DataFrame."""
+        return pl.DataFrame([self], schema=self.polars_schema())
+
+    @staticmethod
+    def polars_schema() -> list[tuple[str, type[pl.DataType]]]:
+        """Return the schema of the polars DataFrame."""
+        return [(H.pitch, pl.Float32)]
 
 
 class LatticeAnalyzer:
@@ -79,6 +96,18 @@ class LatticeAnalyzer:
         task = get_polar_image_task(img, coords, radius)
         return self.estimate_lattice_params_polar_delayed(task, radius, nsamples)
 
+    def estimate_lattice_params_task_cartesian(
+        self,
+        img: ip.ImgArray | ip.LazyImgArray,
+        coords: NDArray[np.float32],
+        width: nm,
+        nsamples: int = 1,
+    ) -> Delayed[LatticeParamsCartesian]:
+        task = map_coordinates_task(
+            img, coords, order=3, mode=Mode.constant, cval=np.mean
+        )
+        return self.estimate_lattice_params_cartesian_task(task, width, nsamples)
+
     def estimate_lattice_params_polar(
         self, img: ip.ImgArray, radius: nm, nsamples: int = 8
     ) -> LatticeParams:
@@ -98,9 +127,30 @@ class LatticeAnalyzer:
             twist=cparams.twist,
             npf=cparams.npf,
             start=cparams.start,
+            moire_period=cparams.moire_period,
         )
 
     estimate_lattice_params_polar_delayed = delayed(estimate_lattice_params_polar)
+
+    def estimate_lattice_params_cartesian(
+        self,
+        img: ip.ImgArray,
+        width: nm,
+        nsamples: int = 1,
+    ) -> LatticeParamsCartesian:
+        img = img - float(img.mean())  # normalize.
+        x_center = (img.shape.x - 1) / 2
+        radius = width / img.scale.x / 2
+        x0 = int(x_center - radius)
+        x1 = ceilint(x_center + radius + 1)
+        img_in = img[:, :, x0:x1].mean(axis=2, keepdims=True)
+        img_in.axes = "rya"
+        img_in.set_scale(r=img.scale.z, y=img.scale.y, a=1.0)
+        peak_det = PeakDetector(img_in, nsamples=nsamples)
+        peakv = peak_det.get_peak(**self._params_v_cartesian(img_in))
+        return LatticeParamsCartesian(img.scale.y / peakv.yfreq)
+
+    estimate_lattice_params_cartesian_task = delayed(estimate_lattice_params_cartesian)
 
     # y-axis
     # ^           + <- peakv
@@ -164,6 +214,17 @@ class LatticeAnalyzer:
             "up_a": 20,
         }
 
+    def _params_v_cartesian(self, img: ip.ImgArray):
+        _y_min = img.shape.y * img.scale.y / self._cfg.spacing_range.max
+        _y_max = img.shape.y * img.scale.y / self._cfg.spacing_range.min
+        # image is projected along x-axis before peak detection, so a-axis range is [0, 1]
+        return {
+            "range_y": (_y_min, _y_max),
+            "range_a": (0, 1),
+            "up_y": max(int(6000 / img.shape.y), 1),
+            "up_a": 1,
+        }
+
     def get_params(
         self,
         img: ip.ImgArray,
@@ -173,19 +234,20 @@ class LatticeAnalyzer:
     ) -> CylinderParameters:
         npf_f = peakh.a
         npf = roundint(npf_f)
-        ya_scale_ratio = img.scale.y / img.scale.a
+        start_f = peakv.a
+        start = roundint(start_f)
 
-        tan_rise = peakv.afreq / peakv.yfreq * ya_scale_ratio
-        tan_skew = peakh.yfreq / peakh.afreq / ya_scale_ratio
+        pitch = _safe_div(img.scale.y, peakv.yfreq)
+        moire_period = _safe_div(img.scale.y, peakh.yfreq)
 
         # NOTE: Values dependent on peak{x}.afreq are not stable against radius change.
         # peak{x}.afreq * radius is stable. r-dependent ones are marked as "f(r)" here.
         return CylinderParameters(
-            skew=math.degrees(math.atan(tan_skew)),  # f(r)
-            rise_angle_raw=math.degrees(math.atan(tan_rise)),  # f(r)
-            pitch=img.scale.y / peakv.yfreq,
             radius=radius,
+            pitch=pitch,
+            moire_period=moire_period,
             npf=npf,
+            start_raw=start,
             rise_sign=self._cfg.rise_sign,
         )
 
@@ -268,3 +330,9 @@ def is_clockwise(
         _ave, _std = np.mean(pw_non_peak), np.std(pw_non_peak, ddof=1)
         logger.info(f" >> clockwise = {out} (peak intensity={_val:.2g} compared to {_ave:.2g} ± {_std:.2g})")  # fmt: skip
     return out
+
+
+def _safe_div(a, b):
+    if b == 0:
+        return -float("inf") if a < 0 else float("inf")
+    return a / b

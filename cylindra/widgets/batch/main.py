@@ -1,4 +1,4 @@
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Iterator, Literal
 
 import polars as pl
 from acryo import BatchLoader, Molecules
@@ -10,6 +10,7 @@ from magicclass import (
     field,
     get_button,
     magicclass,
+    nogui,
     set_design,
 )
 from magicclass.types import Optional, Path
@@ -20,12 +21,12 @@ from cylindra.components import CylSpline
 from cylindra.const import FileFilter
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.project import CylindraBatchProject, CylindraProject
-from cylindra.utils import parse_tilt_model
+from cylindra.utils import parse_tilt_model, unwrap_wildcard
 from cylindra.widget_utils import POLARS_NAMESPACE, capitalize
 from cylindra.widgets._accessors import BatchLoaderAccessor
 from cylindra.widgets.batch._loaderlist import LoaderList
 from cylindra.widgets.batch._sequence import PathInfo, ProjectSequenceEdit
-from cylindra.widgets.batch._utils import LoaderInfo, TempFeatures, unwrap_wildcard
+from cylindra.widgets.batch._utils import LoaderInfo, TempFeatures
 from cylindra.widgets.batch.sta import BatchSubtomogramAveraging
 from cylindra.widgets.subwidgets.misc import TiltModelEdit
 
@@ -114,14 +115,15 @@ class CylindraBatchWidget(MagicTemplate):
             they will be overwritten. This is useful when cylindra batch project is
             imported from file outputs of a long-running job from other softwares.
         """
+        _paths = unwrap_wildcard(paths)
         self._new_projects_from_table(
-            unwrap_wildcard(paths),
+            _paths,
             save_root=save_root,
             ref_paths=unwrap_wildcard(ref_paths) or None,
-            scale=[scale] * len(paths),
-            tilt_model=[tilt_model] * len(paths),
-            bin_size=[bin_size] * len(paths),
-            invert=[invert] * len(paths),
+            scale=[scale] * len(_paths),
+            tilt_model=[tilt_model] * len(_paths),
+            bin_size=[bin_size] * len(_paths),
+            invert=[invert] * len(_paths),
             extension=extension,
             strip_prefix=strip_prefix,
             strip_suffix=strip_suffix,
@@ -187,6 +189,7 @@ class CylindraBatchWidget(MagicTemplate):
                 prj.project_path = save_path
             self.constructor.projects._add(prj.project_path)
         self.save_batch_project(save_path=save_root)
+        self.show()
 
     @set_design(text=capitalize, location=constructor)
     @thread_worker
@@ -359,6 +362,12 @@ class CylindraBatchWidget(MagicTemplate):
             Extension of the molecule files.
         """
         return CylindraBatchProject.save_gui(self, Path(save_path), molecules_ext)
+
+    @nogui
+    def iter_projects(self) -> Iterator[CylindraProject]:
+        """Iterate over all projects in the batch project."""
+        for prj_widget in self.constructor.projects:
+            yield prj_widget.project
 
 
 def _or_default_list(value, default, length: int):

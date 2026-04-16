@@ -15,6 +15,7 @@ ALN_SUFFIX = "ALN"
 PREVIEW_LAYER_NAME = "<Preview>"
 LANDSCAPE_PREFIX = "Landscape_"
 SPLINE_ID = "spline-id"
+IS_SEGMENT = "is-segment"
 SEAM_SEARCH_RESULT = "seam-search-result"
 ANNEALING_RESULT = "annealing-result"
 INTERPOLATION_CHOICES = (("0 (nearest)", 0), ("1 (linear)", 1), ("3 (cubic)", 3))
@@ -41,8 +42,7 @@ class Ori(strEnum):
 
     @classmethod
     def invert(cls, ori: Ori, allow_none: bool = True) -> Ori:
-        """
-        Invert orientation.
+        """Invert orientation.
 
         Parameters
         ----------
@@ -96,6 +96,7 @@ class PropertyNames(SimpleNamespace):
     offset_axial = "offset_axial"  # global only
     offset_angular = "offset_angular"  # global only
     start = "start"
+    moire_period = "moire_period"
 
 
 class FileFilter(SimpleNamespace):
@@ -211,6 +212,7 @@ class SplineColor(SimpleNamespace):
 
     DEFAULT = [0.0, 0.0, 1.0, 1.0]
     SELECTED = [0.8, 0.0, 0.5, 1.0]
+    SEGMENT = [1.0, 1.0, 0.0, 1.0]
 
 
 class ImageFilter(strEnum):

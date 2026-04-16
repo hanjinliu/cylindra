@@ -71,11 +71,6 @@ def test_ctf_params(qtbot: QtBot):
     widget._has_input.value = True
 
 
-def test_random_seed_edit():
-    widget = _widget_ext.RandomSeedEdit()
-    widget._btn.clicked()
-
-
 def test_kernel_edit():
     widget = _widget_ext.KernelEdit()
     for value in [

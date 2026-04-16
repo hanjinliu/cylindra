@@ -14,6 +14,7 @@ from cylindra._dask import Delayed, compute
 from cylindra.components._ftprops import (
     LatticeAnalyzer,
     LatticeParams,
+    LatticeParamsCartesian,
     get_polar_image,
     is_clockwise,
 )
@@ -635,6 +636,44 @@ class CylTomogram(Tomogram):
 
         return lprops
 
+    @_misc.batch_process
+    def local_ft_params(
+        self,
+        *,
+        i: int = None,
+        depth: nm = 50.0,
+        binsize: int = 1,
+        radius: nm | Literal["local", "global"] = "global",
+        nsamples: int = 1,
+        update: bool = True,
+        update_glob: bool = False,
+    ) -> pl.DataFrame:
+        LOGGER.info(f"Running: {self.__class__.__name__}.local_ft_params, i={i}")
+        spl = self.splines[i]
+        radii = _misc.prepare_radii(spl, radius)
+        input_img = self._get_multiscale_or_original(binsize)
+        _scale = input_img.scale.x
+        tasks: list[Delayed[LatticeParamsCartesian]] = []
+        spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
+        _analyze_fn = LatticeAnalyzer(spl.config).estimate_lattice_params_task_cartesian
+        for anc, r0 in zip(spl_trans.anchors, radii, strict=True):
+            _, rmax = spl.radius_range(r0)
+            width = rmax * 2
+            coords = spl_trans.local_cartesian((width, width), depth, anc, scale=_scale)
+            tasks.append(_analyze_fn(input_img, coords, width, nsamples=nsamples))
+
+        lprops = pl.DataFrame(
+            compute(*tasks),
+            schema=LatticeParamsCartesian.polars_schema(),
+        )
+        if update:
+            spl.props.update_loc(lprops, depth, bin_size=binsize)
+        if update_glob:
+            gprops = lprops.select(pl.col(H.pitch).mean())
+            spl.props.update_glob(gprops, bin_size=binsize)
+
+        return lprops
+
     def iter_local_image(
         self,
         i: int,
@@ -866,6 +905,29 @@ class CylTomogram(Tomogram):
         rc = (rmin + rmax) / 2
         analyzer = LatticeAnalyzer(spl.config)
         lparams = analyzer.estimate_lattice_params_polar(img_st, rc, nsamples=nsamples)
+        out = lparams.to_polars()
+        if update:
+            spl.props.update_glob(spl.props.glob.with_columns(out), bin_size=binsize)
+        return out
+
+    @_misc.batch_process
+    def global_ft_params(
+        self,
+        *,
+        i: int = None,
+        binsize: int = 1,
+        nsamples: int = 1,
+        update: bool = True,
+    ) -> pl.DataFrame:
+        LOGGER.info(f"Running: {self.__class__.__name__}.global_ft_params, i={i}")
+        spl = self.splines[i]
+        rmin, rmax = spl.radius_range()
+        width = rmax * 2
+        img_st = self.straighten(i, size=(width, width), binsize=binsize)
+        analyzer = LatticeAnalyzer(spl.config)
+        lparams = analyzer.estimate_lattice_params_cartesian(
+            img_st, width, nsamples=nsamples
+        )
         out = lparams.to_polars()
         if update:
             spl.props.update_glob(spl.props.glob.with_columns(out), bin_size=binsize)
@@ -1106,6 +1168,7 @@ class CylTomogram(Tomogram):
         self,
         i: int,
         offsets: tuple[float, float] = (0.0, 0.0),
+        use_local: bool = False,
         **kwargs,
     ) -> CylinderModel:  # fmt: skip
         """Return the cylinder model at the given spline ID.
@@ -1122,7 +1185,17 @@ class CylTomogram(Tomogram):
         CylinderModel
             The cylinder model.
         """
-        return self.splines[i].cylinder_model(offsets=offsets, **kwargs)
+        spl = self.splines[i]
+        if use_local:
+            df_loc = spl.props.loc
+            glob = df_loc.select(pl.selectors.numeric()).mean()
+            if H.npf in df_loc.columns:
+                glob = glob.with_columns(df_loc[H.npf].mode().first())
+            if H.start in df_loc.columns:
+                glob = glob.with_columns(df_loc[H.start].mode().first())
+            for c, val in glob.to_dict().items():
+                kwargs[c] = val[0]
+        return spl.cylinder_model(offsets=offsets, **kwargs)
 
     @_misc.batch_process
     def map_monomers(
@@ -1132,6 +1205,7 @@ class CylTomogram(Tomogram):
         offsets: tuple[nm, float] | None = None,
         orientation: Ori | str | None = None,
         extensions: tuple[int, int] = (0, 0),
+        prop_to_use: Literal["local", "global", "both"] = "global",
         **kwargs,
     ) -> Molecules:
         """Map monomers in a regular cylinder shape.
@@ -1144,13 +1218,22 @@ class CylTomogram(Tomogram):
             The offset of origin of oblique coordinate system to map monomers.
         orientation : Ori or str, optional
             Orientation of the y-axis of each molecule.
+        extensions : tuple of int, default (0, 0)
+            Number of extra monomers to be added before and after the cylinder.
+        prop_to_use : str, default 'global'
+            Which property to use for determining cylinder parameters.
 
         Returns
         -------
         Molecules
             Object that represents monomer positions and angles.
         """
-        model = self.get_cylinder_model(i, offsets=offsets, **kwargs)
+        if prop_to_use not in ("local", "global", "both"):
+            raise ValueError("`prop_to_use` must be 'local', 'global' or 'both'")
+        use_local = prop_to_use == "local"
+        model = self.get_cylinder_model(
+            i, offsets=offsets, use_local=use_local, **kwargs
+        )
         ny, na = model.shape
         ext0, ext1 = extensions
         if ny + ext0 + ext1 < 0:
@@ -1159,7 +1242,8 @@ class CylTomogram(Tomogram):
         yy -= ext0
         coords = np.stack([yy.ravel(), aa.ravel()], axis=1)
         spl = self.splines[i]
-        mole = model.locate_molecules(spl, coords)
+        local = prop_to_use in ("local", "both")
+        mole = model.locate_molecules(spl, coords, local_displace=local)
         if spl._need_rotation(orientation):
             mole = mole.rotate_by_rotvec_internal([np.pi, 0, 0])
         return mole

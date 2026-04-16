@@ -22,13 +22,16 @@ fn _cylindra_ext(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<cylindric::CylinderGeometry>()?;
     m.add_class::<cylindric::Index>()?;
     m.add_class::<annealing::CylindricAnnealingModel>()?;
+    m.add_class::<annealing::CylindricAnnealingModelLJ>()?;
     m.add_class::<annealing::FilamentousAnnealingModel>()?;
     m.add_class::<annealing::DefectiveCylindricAnnealingModel>()?;
     m.add_class::<filters::CylindricArray>()?;
     m.add_class::<regionprops::RegionProfiler>()?;
     m.add_function(pyo3::wrap_pyfunction!(alleviate::alleviate, m)?)?;
     m.add_function(pyo3::wrap_pyfunction!(array::oblique_coordinates, m)?)?;
+    m.add_function(pyo3::wrap_pyfunction!(array::displacement_array, m)?)?;
     m.add_function(pyo3::wrap_pyfunction!(array::cylinder_faces, m)?)?;
     m.add_function(pyo3::wrap_pyfunction!(array::find_changing_point, m)?)?;
+    m.add_function(pyo3::wrap_pyfunction!(array::labels_to_segments, m)?)?;
     Ok(())
 }

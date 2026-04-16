@@ -11,8 +11,7 @@ if TYPE_CHECKING:
 
 
 class ParserPreview(ParserBase):
-    """
-    cylindra preview [bold green]path[/bold green] [bold cyan]options[/bold cyan]
+    """cylindra preview [bold green]path[/bold green] [bold cyan]options[/bold cyan]
 
     [u bold green]path[/u bold green]
         Path to the project file. You can use "::" to specify a file inside the project.

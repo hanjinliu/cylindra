@@ -7,7 +7,6 @@ try:
     from ._layer_controls import install_custom_layers
 
     install_custom_layers()
+    del install_custom_layers
 except ImportError:
     pass
-
-del install_custom_layers

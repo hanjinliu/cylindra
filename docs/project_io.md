@@ -52,7 +52,7 @@ readily loaded from the GUI.
 !!! note
     If you already know the `git stash` command, you should be familiar with this.
 
-# Reuse the Existing Projects
+## Reuse the Existing Projects
 
 :material-arrow-right-thin-circle-outline: API: [`load_project_for_reanalysis`][cylindra.widgets.main.CylindraMainWidget.load_project_for_reanalysis]
 

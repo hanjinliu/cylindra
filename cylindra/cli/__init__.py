@@ -8,6 +8,8 @@ from cylindra.cli.new import ParserNew
 from cylindra.cli.none import ParserNone
 from cylindra.cli.open import ParserOpen
 from cylindra.cli.plugin import ParserPlugin
+from cylindra.cli.prep import ParserPrep
+from cylindra.cli.prep_defaults import ParserPrepDefaults
 from cylindra.cli.preview import ParserPreview
 from cylindra.cli.run import ParserRun
 from cylindra.cli.workflow import ParserWorkflow
@@ -43,6 +45,9 @@ def exec(argv: list[str]):
             ParserWorkflow().parse(args)
         case "plugin", *args:
             ParserPlugin().parse(args)
+        case "prep-defaults", *args:
+            ParserPrepDefaults().parse(args)
+        case "prep", *args:
+            ParserPrep().parse(args)
         case args:
             ParserNone().parse(args)
-    return None

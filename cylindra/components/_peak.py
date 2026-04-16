@@ -21,13 +21,18 @@ def int_translate(img: ip.ImgArray, shift: int, axis: str = "a") -> ip.ImgArray:
 
 
 class PeakDetector:
-    """A power spectrum peak detector for a given image."""
+    """A power spectrum peak detector for a given image.
+
+    With upsampling, the time-shift law is broken. This is problematic for cylindrical
+    coordinate system. By using nsamples larger than 1, we can average out the bias.
+    """
 
     def __init__(self, img: ip.ImgArray, nsamples: int = 8):
         self._img = img
         self._nsamples = nsamples
 
     def dft(self, key, upsample_factor: int) -> ip.ImgArray:
+        """Run discrete Fourier transform on the image with averaging over samples."""
         power_spectra = []
         sample_slope = self._img.shape.a / self._nsamples
         for i in range(self._nsamples):
@@ -47,8 +52,7 @@ class PeakDetector:
         up_y: int = 1,
         up_a: int = 1,
     ):
-        """
-        Get the peak in the power spectrum of the image in subpixel precision.
+        """Get the peak in the power spectrum of the image in subpixel precision.
 
         This method runs a local power spectrum for the given area and returns the
         peak info.

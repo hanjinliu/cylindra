@@ -237,9 +237,10 @@ def test_cylinder_params():
         npf=13,
     )
     assert p.spacing == pytest.approx(4.0, abs=1e-6)
-    assert p.rise_angle == pytest.approx(9.0, abs=1e-6)
     assert p.radius == pytest.approx(10.1, abs=1e-6)
     assert p.npf == 13
+    assert p.start == 3
+    assert p.twist == pytest.approx(0.02, abs=1e-6)
     assert p.skew > 0
     assert p.pitch == pytest.approx(4.0, abs=1e-2)
     assert p.lat_spacing == pytest.approx(5, abs=0.1)
@@ -268,6 +269,29 @@ def test_cylinder_params():
 
     p = CylinderParameters.solve(
         pitch=4.0,
+        skew=-0.4,
+        rise_length=0.87,
+        radius=10.5,
+        npf=14,
+    )
+    assert p.pitch == pytest.approx(4.0, abs=1e-6)
+    assert p.skew == pytest.approx(-0.4, abs=1e-6)
+    assert p.start == 3
+
+    p = CylinderParameters.solve(
+        pitch=4.0,
+        twist=-0.27,
+        rise_length=0.87,
+        radius=10.5,
+        npf=14,
+    )
+    assert p.pitch == pytest.approx(4.0, abs=1e-6)
+    assert p.twist == pytest.approx(-0.27, abs=1e-6)
+    assert p.skew < 0
+    assert p.start == 3
+
+    p = CylinderParameters.solve(
+        pitch=4.0,
         skew=0.1,
         start=0,
         radius=6.6,
@@ -290,7 +314,6 @@ def test_cylinder_params():
     assert p.spacing == pytest.approx(4.0, abs=1e-6)
     assert p.twist > 0
     assert p.skew == pytest.approx(0.1, abs=1e-6)
-    assert p.rise_length == pytest.approx(0.9, abs=1e-6)
 
     # not enough information
     with pytest.raises(ValueError):

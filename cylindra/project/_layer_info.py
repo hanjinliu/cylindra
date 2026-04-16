@@ -38,7 +38,9 @@ class MoleculesInfo(LayerInfo):
     """Info of molecules layer."""
 
     name: str = "#unknown"  # including extension
+    """Name of the molecules file (including extension)."""
     source: int | None = None
+    """ID of the source spline in the tomogram's splines list."""
     visible: bool = True
     color: MoleculeColormap | str = "lime"
     point_size: float = 4.2
@@ -75,7 +77,7 @@ class MoleculesInfo(LayerInfo):
             point_size=layer.point_size,
         )
 
-    def to_molecules(self, project_dir: Path) -> "Molecules":
+    def to_molecules(self, project_dir: Path) -> "Molecules | None":
         from acryo import Molecules
 
         path = project_dir / self.name
@@ -84,7 +86,9 @@ class MoleculesInfo(LayerInfo):
             return None
         return Molecules.from_file(path)
 
-    def to_layer(self, gui: "CylindraMainWidget", project_dir: Path):
+    def to_layer(
+        self, gui: "CylindraMainWidget", project_dir: Path
+    ) -> "MoleculesLayer | None":
         from cylindra._napari import MoleculesLayer
 
         mole = self.to_molecules(project_dir)
@@ -133,7 +137,9 @@ class LandscapeInfo(LayerInfo):
             level=layer.level,
         )
 
-    def to_layer(self, gui: "CylindraMainWidget", project_dir: Path):
+    def to_layer(
+        self, gui: "CylindraMainWidget", project_dir: Path
+    ) -> "LandscapeSurface | None":
         from cylindra._napari import LandscapeSurface
         from cylindra.components.landscape import Landscape
 
@@ -167,7 +173,9 @@ class InteractionInfo(LayerInfo):
 
     @classmethod
     def from_layer(
-        cls, gui: "CylindraMainWidget", layer: "InteractionVector"  # noqa: ARG003
+        cls,
+        gui: "CylindraMainWidget",
+        layer: "InteractionVector",  # noqa: ARG003
     ) -> "LayerInfo":
         origin = target = None
         for mole_layer in gui.mole_layers:
@@ -183,7 +191,9 @@ class InteractionInfo(LayerInfo):
             target=target,
         )
 
-    def to_layer(self, gui: "CylindraMainWidget", project_dir: Path):  # noqa: ARG003
+    def to_layer(
+        self, gui: "CylindraMainWidget", project_dir: Path
+    ) -> "InteractionVector | None":
         from cylindra._napari import InteractionVector
         from cylindra.components.interaction import InterMoleculeNet
 

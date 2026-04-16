@@ -1,6 +1,6 @@
-# Collect projects
+# Post-processing
 
-The collect_projects method collects projects into a `ProjectSequence` object, a
+The `collect_projects` method collects projects into a `ProjectSequence` object, a
 `list`-like container with `CylindraProject` objects.
 
 ```python
@@ -13,6 +13,8 @@ col
 ``` title="Output:"
 ProjectSequence with 20 projects such as CylindraProject(...)
 ```
+
+This object is useful for the post-processing with Python accross multiple projects.
 
 ## Collect Spline Properties
 

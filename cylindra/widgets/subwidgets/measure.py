@@ -21,6 +21,7 @@ from cylindra.const import FileFilter
 from cylindra.const import PropertyNames as H
 from cylindra.utils import roundint
 from cylindra.widget_utils import capitalize
+from cylindra.widgets._annotated import SplineType
 from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 if TYPE_CHECKING:
@@ -392,7 +393,7 @@ class SpectraInspector(ChildWidget):
                 return [(f"({i}) {spl}", i) for i, spl in enumerate(tomo.splines)]
 
             @set_design(text="Set ...")
-            def set_spline(self, idx: Annotated[int, {"choices": _get_splines}]):
+            def set_spline(self, idx: SplineType):
                 """Override the current bin size."""
                 ins = self.find_ancestor(SpectraInspector)
                 ins.load_spline(idx, ins.SidePanel.current_bin_size.value)

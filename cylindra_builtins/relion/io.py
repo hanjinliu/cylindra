@@ -2,23 +2,22 @@ import warnings
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Annotated, Any, Iterator
 
-import impy as ip
 import numpy as np
 import pandas as pd
 import polars as pl
 from acryo import Molecules
+from magicclass import impl_preview
 from magicclass.types import Optional, Path
-
-try:
-    import starfile
-except ImportError:
-    starfile = None
+from magicclass.widgets import ConsoleTextEdit
 
 from cylindra.const import FileFilter, nm
+from cylindra.core import ACTIVE_WIDGETS
 from cylindra.plugin import register_function
 from cylindra.widget_utils import add_molecules
 from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets._annotated import MoleculesLayersType, assert_list_of_layers
+from cylindra_builtins.relion import _relion_utils
+from cylindra_builtins.relion._relion_utils import starfile
 
 if TYPE_CHECKING:
     from cylindra.components.tomogram import CylTomogram
@@ -40,10 +39,13 @@ POS_ORIGIN_COLUMNS = ["rlnOriginZAngst", "rlnOriginYAngst", "rlnOriginXAngst"]
 RELION_TUBE_ID = "rlnHelicalTubeID"
 MOLE_ID = "MoleculeGroupID"
 PIXEL_SIZE = "rlnTomoTiltSeriesPixelSize"
+BINNING = "rlnTomoTomogramBinning"
 OPTICS_GROUP = "rlnOpticsGroup"
 REC_TOMO_PATH = "rlnTomoReconstructedTomogram"
 REC_TOMO_HALF1_PATH = "rlnTomoReconstructedTomogramHalf1"
 REC_TOMO_DENOISED_PATH = "rlnTomoReconstructedTomogramDenoised"
+TILT_STAR = "rlnTomoTiltSeriesStarFile"
+TILT_ANGLE = "rlnTomoNominalStageTiltAngle"
 
 
 @register_function(name="Load molecules")
@@ -117,7 +119,9 @@ def save_molecules(
     """
     save_path = Path(save_path)
     layers = assert_list_of_layers(layers, ui.parent_viewer)
-    tomo_name = tomo_name_override or _strip_relion5_prefix(ui.tomogram.image.name)
+    tomo_name = tomo_name_override or _relion_utils.strip_relion5_prefix(
+        ui.tomogram.image.name
+    )
     df = _mole_to_star_df(
         [layer.molecules for layer in layers],
         ui.tomogram,
@@ -247,7 +251,7 @@ def _iter_dataframe_from_path_sets(
     for path_info in path_sets:
         path_info = PathInfo(*path_info)
         prj = path_info.project_instance(missing_ok=False)
-        tomo_name = _strip_relion5_prefix(path_info.image.stem)
+        tomo_name = _relion_utils.strip_relion5_prefix(path_info.image.stem)
         img = path_info.lazy_imread()
         tomo = CylTomogram.from_image(
             img,
@@ -257,14 +261,19 @@ def _iter_dataframe_from_path_sets(
         )
         moles = list(path_info.iter_molecules(_temp_feat, prj.scale))
         if len(moles) > 0:
-            df = _mole_to_star_df(
-                moles,
-                tomo,
-                tomo_name,
-                save_features,
-                shift_by_origin,
-                centered=centered,
-            )
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message=".*Gimbal.*",
+                )
+                df = _mole_to_star_df(
+                    moles,
+                    tomo,
+                    tomo_name,
+                    save_features,
+                    shift_by_origin,
+                    centered=centered,
+                )
             yield tomo_name, df
 
 
@@ -346,12 +355,55 @@ def open_relion_job(
     bin_size : list[int], default [1]
         The multiscale binning size for the tomograms.
     """
+    project_root, paths, scales, moles, tilt_models = _parse_relion_job(
+        path, project_root
+    )
+
+    ui.batch._new_projects_from_table(
+        paths,
+        save_root=project_root,
+        scale=scales,
+        invert=[invert] * len(paths),
+        molecules=moles,
+        bin_size=[bin_size] * len(paths),
+        tilt_model=tilt_models,
+    )
+
+
+@impl_preview(open_relion_job)
+def _preview_open_relion_job(
+    ui: CylindraMainWidget,
+    path: Path,
+    project_root: Path | None = None,
+    bin_size: list[int] = [1],
+):
+    _, paths, scales, _, _ = _parse_relion_job(path, project_root)
+    lines: list[str] = []
+    for i, path, scale in zip(range(len(paths)), paths, scales, strict=False):
+        _num = f"{i}: "
+        _indent = " " * len(_num)
+        lines.append(f"{_num}{path.name}")
+        lines.append(f"{_indent}at: {path.as_posix()}")
+        binned_scales = ", ".join(f"{scale * b:.4f}" for b in bin_size)
+        lines.append(
+            f"{_indent}scale: {scale:.4f} nm/px -> {binned_scales} nm/px (binned)"
+        )
+
+    widget = ConsoleTextEdit(value="\n".join(lines))
+    widget.native.setParent(ui.native, widget.native.windowFlags())
+    widget.read_only = True
+    widget.show()
+    widget.native.setWindowTitle("Incoming tomograms")
+    ACTIVE_WIDGETS.add(widget)
+
+
+def _parse_relion_job(path, project_root):
     path = Path(path)
     if path.name != "job.star" or not path.is_file() or not path.exists():
         raise ValueError(f"Path must be an existing RELION job.star file, got {path}")
     job_dir_path = Path(path).parent
-    rln_project_path = _relion_project_path(job_dir_path)
-    jobtype = _get_job_type(job_dir_path)
+    rln_project_path = _relion_utils.relion_project_path(job_dir_path)
+    jobtype = _relion_utils.get_job_type(job_dir_path)
     if project_root is None:
         project_root = job_dir_path / "cylindra"
     if jobtype in ("relion.reconstructtomograms", "relion.denoisetomo"):
@@ -362,11 +414,10 @@ def open_relion_job(
                 f"tomogram.star file {tomogram_star_path} does not exist. Make sure "
                 "the input job has an tomogram output."
             )
-        col = (
-            REC_TOMO_DENOISED_PATH if jobtype == "relion.denoisetomo" else REC_TOMO_PATH
-        )
-        _, tomo_paths, scales = _parse_tomo_star(tomogram_star_path, col)
-        paths = [rln_project_path / p for p in tomo_paths]
+        tomostar = TomogramStar(tomogram_star_path)
+        paths = list(tomostar.iter_tomo_paths(rln_project_path))
+        scales = tomostar.scale_nm
+        tilt_models = list(tomostar.iter_tilt_models(rln_project_path))
         moles = None
     elif jobtype in ("relion.picktomo", "relion.pseudosubtomo"):
         if not (opt_star_path := job_dir_path / "optimisation_set.star").exists():
@@ -374,75 +425,91 @@ def open_relion_job(
                 f"Optimisation set star file not found in {job_dir_path}. "
                 "Please ensure the job is a RELION 5.0 pick-particles job."
             )
-        paths, scales, moles = _parse_optimisation_star(opt_star_path, rln_project_path)
-    elif jobtype in ("relion.initialmodel.tomo", "relion.refine3d.tomo"):
-        opt_set_path_list = sorted(
-            job_dir_path.glob("run_it*_optimisation_set.star"),
-            key=lambda p: p.stem,
+        paths, scales, moles, tilt_models = _parse_optimisation_star(
+            opt_star_path, rln_project_path
         )
-        if len(opt_set_path_list) == 0:
-            raise ValueError(
-                f"No optimisation set star files found in {job_dir_path}. "
-                "Please ensure at least one iteration has finished."
-            )
-        opt_star_path = opt_set_path_list[-1]
-        paths, scales, moles = _parse_optimisation_star(opt_star_path, rln_project_path)
+    elif jobtype in (
+        "relion.initialmodel.tomo",
+        "relion.class3d",
+        "relion.refine3d.tomo",
+    ):
+        opt_star_path = _relion_utils.get_optimisation_set_star(job_dir_path)
+        run_data_path = _relion_utils.get_run_data_star(job_dir_path)
+        paths, scales, moles, tilt_models = _parse_optimisation_star(
+            opt_star_path, rln_project_path, run_data_path
+        )
     else:
         raise ValueError(f"Job {job_dir_path.name} is not a supported RELION job.")
-    # TODO: parse tilt angles
-    ui.batch._new_projects_from_table(
-        paths,
-        save_root=project_root,
-        scale=scales,
-        invert=[invert] * len(paths),
-        molecules=moles,
-        bin_size=[bin_size] * len(paths),
-    )
+    return project_root, paths, scales, moles, tilt_models
 
 
-def _relion_project_path(path: Path) -> Path:
-    return path.parent.parent
+class TomogramStar:
+    """Object to parse tomograms.star file."""
+
+    def __init__(self, path: Path):
+        self.df = starfile.read(path)
+        assert isinstance(self.df, pd.DataFrame)
+
+    @property
+    def tomo_names(self) -> pd.Series:
+        return self.df[TOMO_NAME]
+
+    def iter_tomo_paths(self, project_dir: Path) -> Iterator[Path]:
+        candidates = [REC_TOMO_DENOISED_PATH, REC_TOMO_PATH, REC_TOMO_HALF1_PATH]
+        for col in candidates:
+            if col in self.df:
+                rel_paths = self.df[col]
+                break
+        else:
+            raise ValueError(
+                "No tomogram paths found in the tomograms.star file. Expected either "
+                f"{REC_TOMO_DENOISED_PATH!r}, {REC_TOMO_PATH!r} or "
+                f"{REC_TOMO_HALF1_PATH!r} column."
+            )
+        for p in rel_paths:
+            yield project_dir / p
+
+    @property
+    def scale_nm(self) -> np.ndarray:
+        tomo_orig_scale = self.df[PIXEL_SIZE]
+        tomo_bin = self.df[BINNING]
+        return np.asarray(tomo_orig_scale / 10 * tomo_bin)
+
+    def iter_tilt_models(self, project_dir: Path) -> Iterator[dict | None]:
+        tilt_paths = [project_dir / str(p) for p in self.df[TILT_STAR]]
+        for tilt_path in tilt_paths:
+            if not tilt_path.exists():
+                yield None
+            tilt_star = starfile.read(tilt_path)
+            assert isinstance(tilt_star, pd.DataFrame)
+            _range = tilt_star[TILT_ANGLE].min(), tilt_star[TILT_ANGLE].max()
+            yield {"kind": "y", "range": _range}
+
+    def iter_tomo_shapes(self) -> Iterator[tuple[float, float, float]]:
+        bin_size = self.df[BINNING]
+        nzs = self.df["rlnTomoSizeZ"] / bin_size
+        nys = self.df["rlnTomoSizeY"] / bin_size
+        nxs = self.df["rlnTomoSizeX"] / bin_size
+        yield from zip(nzs, nys, nxs, strict=False)
 
 
-def _get_job_type(job_dir: Path) -> str:
-    """Determine the type of RELION job based on the directory structure."""
-    if (job_star_path := job_dir / "job.star").exists():
-        return starfile.read(job_star_path, always_dict=True)["job"]["rlnJobTypeLabel"]
-    raise ValueError(f"{job_dir} is not a RELION job folder.")
-
-
-def _parse_tomo_star(
-    path: Path,
-    col: str = REC_TOMO_PATH,
-) -> tuple[pd.Series, pd.Series, np.ndarray]:
-    df = starfile.read(path)
-    assert isinstance(df, pd.DataFrame)
-    if col in df:
-        tomo_paths = df[col]
-    elif REC_TOMO_HALF1_PATH in df:
-        tomo_paths = df[REC_TOMO_HALF1_PATH]
-    else:
-        raise ValueError(
-            "No tomogram paths found in the tomograms.star file. Expected either "
-            f"{col!r} or 'rlnTomoReconstructedTomogramHalf1' "
-            "column."
-        )
-    tomo_orig_scale = df["rlnTomoTiltSeriesPixelSize"]
-    tomo_bin = df["rlnTomoTomogramBinning"]
-    tomo_names = df[TOMO_NAME]
-    scale_nm = np.asarray(tomo_orig_scale / 10 * tomo_bin)
-    return tomo_names, tomo_paths, scale_nm
-
-
-def _parse_optimisation_star(opt_star_path: Path, rln_project_path: Path):
+def _parse_optimisation_star(
+    opt_star_path: Path,
+    rln_project_path: Path,
+    run_data_path: Path | None = None,
+):
     paths = []
     scales = []
     molecules = []
-    for item in _iter_from_optimisation_star(opt_star_path, rln_project_path):
+    tilt_models = []
+    for item in _iter_from_optimisation_star(
+        opt_star_path, rln_project_path, run_data_path
+    ):
         paths.append(rln_project_path / item.tomo_path)
         scales.append(item.scale)
         molecules.append(item.molecules)
-    return paths, scales, molecules
+        tilt_models.append(item.tilt_model)
+    return paths, scales, molecules, tilt_models
 
 
 @dataclass
@@ -451,11 +518,13 @@ class OptimizationSetItem:
     tomo_path: Path
     scale: nm
     molecules: dict[str, Molecules]
+    tilt_model: dict[str, Any]
 
 
 def _iter_from_optimisation_star(
     path: Path,
     rln_project_path: Path,
+    run_data_path: Path | None = None,
 ) -> "Iterator[OptimizationSetItem]":
     opt_star_df = starfile.read(path)
     if isinstance(opt_star_df, pd.DataFrame):
@@ -464,22 +533,29 @@ def _iter_from_optimisation_star(
     else:
         tomo_star_path: str = opt_star_df["rlnTomoTomogramsFile"]
         particles_path: str = opt_star_df["rlnTomoParticlesFile"]
-    tomo_names, tomo_paths, scale_nm = _parse_tomo_star(
-        rln_project_path / tomo_star_path
-    )
-    tomo_paths = [rln_project_path / p for p in tomo_paths]  # resolve relative paths
-    particles_df = starfile.read(rln_project_path / particles_path)
+    tomostar = TomogramStar(rln_project_path / tomo_star_path)
+    tomo_names = tomostar.tomo_names
+    scale_nm = tomostar.scale_nm
+    tomo_paths = list(tomostar.iter_tomo_paths(rln_project_path))
+    tomo_shapes = list(tomostar.iter_tomo_shapes())
+    tilt_models = list(tomostar.iter_tilt_models(rln_project_path))
+    if run_data_path is None:
+        particles_df = starfile.read(rln_project_path / particles_path)
+    else:
+        particles_df = starfile.read(run_data_path)
+
     if isinstance(particles_df, dict):
         particles_df = particles_df["particles"]
     assert isinstance(particles_df, pd.DataFrame)
     name_to_center_map = {
-        tomo_name: _shape_to_center_zyx(ip.lazy.imread(tomo_path).shape, sc_nm)
-        for tomo_name, tomo_path, sc_nm in zip(
-            tomo_names, tomo_paths, scale_nm, strict=False
+        tomo_name: _relion_utils.shape_to_center_zyx(tomo_shape, sc_nm)
+        for tomo_name, tomo_shape, sc_nm in zip(
+            tomo_names, tomo_shapes, scale_nm, strict=False
         )
     }
     name_to_path_map = dict(zip(tomo_names, tomo_paths, strict=False))
     name_to_scale_map = dict(zip(tomo_names, scale_nm, strict=False))
+    name_to_tilt_model_map = dict(zip(tomo_names, tilt_models, strict=False))
     for tomo_id, particles in particles_df.groupby(TOMO_NAME):
         center_zyx = name_to_center_map.get(tomo_id)
         if center_zyx is None:
@@ -491,16 +567,17 @@ def _iter_from_optimisation_star(
             continue
         scale = name_to_scale_map[tomo_id]
         yield OptimizationSetItem(
-            tomo_id,
-            Path(name_to_path_map[tomo_id]),
+            tomo_id=tomo_id,
+            tomo_path=Path(name_to_path_map[tomo_id]),
             scale=scale,
             molecules=_particles_to_molecules(particles, center_zyx, scale=scale),
+            tilt_model=name_to_tilt_model_map[tomo_id],
         )
 
 
 def _read_star(path: str, tomo: "CylTomogram") -> dict[str, Molecules]:
     fpath = Path(path)
-    center_zyx = _shape_to_center_zyx(tomo.image.shape, tomo.scale)
+    center_zyx = _relion_utils.shape_to_center_zyx(tomo.image.shape, tomo.scale)
     star = starfile.read(fpath)
     if not isinstance(star, dict):
         star = {"particles": star}  # assume particles block
@@ -556,19 +633,6 @@ def _particles_to_molecules(
     return {default_key: mole}
 
 
-def _shape_to_center_zyx(shape: tuple[int, int, int], scale: nm) -> np.ndarray:
-    return (np.array(shape) / 2 - 1) * scale
-
-
-def _strip_relion5_prefix(name: str):
-    """Strip the RELION 5.0 rec prefix from the name."""
-    if name.startswith("rec_"):
-        name = name[4:]
-    if "." in name:
-        name = name.split(".")[0]
-    return name
-
-
 def _mole_to_star_df(
     moles: list[Molecules],
     tomo: "CylTomogram",
@@ -590,7 +654,9 @@ def _mole_to_star_df(
         ROT_COLUMNS[2]: euler_angle[:, 2],
     }
     if centered:
-        centerz, centery, centerx = _shape_to_center_zyx(tomo.image.shape, scale)
+        centerz, centery, centerx = _relion_utils.shape_to_center_zyx(
+            tomo.image.shape, scale
+        )
         # Angstrom
         _pos_dict = {
             POS_CENTERED[2]: (mole.pos[:, 2] - centerx + orig.x) * 10,
