@@ -173,6 +173,8 @@ _InteractionNetType = Annotated[
     },
 ]
 
+_OPEN_IMAGE_PREFIXES = ("ui.open_image(", "ui.open_image_with_reference(")
+
 # stylesheet
 _WIDGETS_PATH = Path(__file__).parent
 _STYLE = (
@@ -334,14 +336,14 @@ class CylindraMainWidget(MagicTemplate):
 
         @self.macro.on_appended.append
         def _on_appended(expr: mk.Expr):
-            self._need_save = not str(expr).startswith("ui.open_image(")
+            self._need_save = not str(expr).startswith(_OPEN_IMAGE_PREFIXES)
             self._auto_saver.save()
 
         @self.macro.on_popped.append
         def _on_popped(*_):
             self._need_save = len(self.macro) >= self._macro_offset and not str(
                 self.macro[-1]
-            ).startswith("ui.open_image(")
+            ).startswith(_OPEN_IMAGE_PREFIXES)
             self._auto_saver.save()
 
         self.default_config = SplineConfig.from_file(cfg.default_spline_config_path)

@@ -83,8 +83,7 @@ def set_gpu():
 
 
 def make_slice_and_pad(z0: int, z1: int, size: int) -> tuple[slice, tuple[int, int]]:
-    """
-    Calculate slice and padding for array slicing.
+    """Calculate slice and padding for array slicing.
 
     This function calculates what slicing and padding are needed when an array is
     sliced by ``z0:z1``. Array must be padded when z0 is negative or z1 is outside the
@@ -109,8 +108,7 @@ def make_slice_and_pad(z0: int, z1: int, size: int) -> tuple[slice, tuple[int, i
 def crop_tomogram(
     img: ip.ImgArray | ip.LazyImgArray, pos, shape: tuple[int, int, int]
 ) -> ip.ImgArray:
-    """
-    Crop tomogram at the integer borders.
+    """Crop tomogram at the integer borders.
 
     From large image ``img``, crop out small region centered at ``pos``.
     Image will be padded if needed.
