@@ -474,6 +474,7 @@ class MoleculesMenu(ChildWidget):
         map_along_spline = abstractapi()
         map_along_spline_helical_symmetry = abstractapi()
         map_along_pf = abstractapi()
+        map_monomers_arbitrary = abstractapi()
         sep0 = Separator
         set_source_spline = abstractapi()
         molecules_to_spline = abstractapi()

@@ -397,6 +397,15 @@ class CylinderModel:
         displace = shifted - mesh
         return self.replace(displace=displace)
 
+    def prep_coords(self, extensions: tuple[int, int]) -> NDArray[np.int32]:
+        ny, na = self.shape
+        ext0, ext1 = extensions
+        if ny + ext0 + ext1 < 0:
+            raise ValueError("The number of monomers is negative.")
+        yy, aa = np.indices((ny + ext0 + ext1, na), dtype=np.int32)
+        yy -= ext0
+        return np.stack([yy.ravel(), aa.ravel()], axis=1)
+
     def _add_directional_shift(self, displace: NDArray[np.floating], axis: int) -> Self:
         _displace = self._displace.copy()
         _displace[:, :, axis] += displace

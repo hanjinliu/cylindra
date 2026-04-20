@@ -1234,13 +1234,7 @@ class CylTomogram(Tomogram):
         model = self.get_cylinder_model(
             i, offsets=offsets, use_local=use_local, **kwargs
         )
-        ny, na = model.shape
-        ext0, ext1 = extensions
-        if ny + ext0 + ext1 < 0:
-            raise ValueError("The number of monomers is negative.")
-        yy, aa = np.indices((ny + ext0 + ext1, na), dtype=np.int32)
-        yy -= ext0
-        coords = np.stack([yy.ravel(), aa.ravel()], axis=1)
+        coords = model.prep_coords(extensions)
         spl = self.splines[i]
         local = prop_to_use in ("local", "both")
         mole = model.locate_molecules(spl, coords, local_displace=local)
