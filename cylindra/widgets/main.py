@@ -2655,8 +2655,6 @@ class CylindraMainWidget(MagicTemplate):
             initial resolution.
         {prefix}
         """
-        tomo = self.tomogram
-
         _Logger.print_html("<code>map_monomers</code>")
         _added_layers = list[MoleculesLayer]()
 
@@ -2667,8 +2665,8 @@ class CylindraMainWidget(MagicTemplate):
             _Logger.print(f"{name!r}: n = {len(mol)}")
 
         for i in self._norm_splines(splines):
-            spl = tomo.splines[i]
-            mol = tomo.map_monomers(
+            spl = self.tomogram.splines[i]
+            mol = self.tomogram.map_monomers(
                 i=i,
                 orientation=orientation,
                 offsets=normalize_offsets(offsets, spl),
@@ -2821,6 +2819,63 @@ class CylindraMainWidget(MagicTemplate):
         layer = self.add_molecules(mol, _name, source=spl)
         _Logger.print(f"{_name!r}: n = {len(mol)}")
         return self._undo_callback_for_layer(layer)
+
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.FromToSpline)
+    @thread_worker.with_progress(desc="Mapping monomers", total=_NSPLINES)
+    def map_monomers_arbitrary(
+        self,
+        splines: SplinesType = None,
+        radius: Optional[nm] = None,
+        monomer_diameter: Annotated[nm, {"label": "Monomer diameter (nm)", "min": 0.1, "max": 100.0, "step": 0.1}] = 4.0,
+        extensions: Annotated[tuple[int, int], {"options": {"min": -100}}] = (0, 0),
+        prefix: str = "Mole",
+    ):  # fmt: skip
+        """Map molecules on the cylinder surface with arbitrary pattern.
+
+        This method does not require lattice parameters, and will only locate molecules
+        at regular intervals. This method is mainly used for particle picking for
+        map refinement in such as RELION.
+
+        Parameters
+        ----------
+        {splines}
+        radius : nm, optional
+            Radius of the cylinder to position monomers.
+        monomer_diameter : nm, default 4.0
+            Diameter of the monomer. This will determine the interval of the molecules.
+        extensions : (int, int), default (0, 0)
+            Number of molecules to extend. Should be a tuple of (prepend, append).
+            Negative values will remove molecules.
+        {prefix}
+        """
+        _Logger.print_html("<code>map_monomers_arbitrary</code>")
+        _added_layers = list[MoleculesLayer]()
+
+        @thread_worker.callback
+        def _add_molecules(mol: Molecules, name: str, spl: CylSpline):
+            layer = self.add_molecules(mol, name, source=spl)
+            _added_layers.append(layer)
+            _Logger.print(f"{name!r}: n = {len(mol)}")
+
+        for i in self._norm_splines(splines):
+            spl = self.tomogram.splines[i]
+            spl0 = spl.copy(copy_props=False, copy_segments=False)
+            radius_normed = normalize_radius(radius, spl)
+            model = spl0.cylinder_model(
+                pitch=monomer_diameter,
+                npf=int(round(2 * np.pi * radius_normed / monomer_diameter)),
+                skew_angle=0,
+                start=0,
+                radius=radius_normed,
+            )
+            coords = model.prep_coords(extensions)
+            mole = model.locate_molecules(spl0, coords)
+
+            cb = _add_molecules.with_args(mole, f"{prefix}-{i}", spl)
+            yield cb
+            cb.await_call()
+
+        return self._undo_callback_for_layer(_added_layers)
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu.FromToSpline)
     def set_source_spline(

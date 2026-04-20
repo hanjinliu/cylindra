@@ -149,7 +149,12 @@ class CylinderParameters:
         _spacing_is_known = given(spacing) or given(pitch)
 
         if not all([_skew_is_known, given(radius), given(npf), _spacing_is_known]):
-            raise ValueError("spacing, radius and npf must be provided.")
+            raise ValueError(
+                f"spacing ({_is_given_str(_spacing_is_known)}), "
+                f"twist ({_is_given_str(_skew_is_known)}), "
+                f"radius ({_is_given_str(given(radius))}) and "
+                f"npf ({_is_given_str(given(npf))}) must be provided."
+            )
 
         radius_: float = radius
         npf = roundint(npf)
@@ -262,3 +267,7 @@ def _skew_start_to_tan_rise(
         return tan_rise_1
     else:
         raise ValueError("No valid solution for tan_rise.")
+
+
+def _is_given_str(s: bool) -> str:
+    return "given" if s else "not given"
