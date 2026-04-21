@@ -26,8 +26,11 @@ class Range(Generic[_T]):
         if self.min > self.max:
             raise ValueError("min must be less than or equal to max")
 
-    def __contains__(self, value: _T) -> bool:
+    def contains(self, value: _T):
+        """Check if the value is in the range."""
         return self.min <= value <= self.max
+
+    __contains__ = contains
 
     def copy(self) -> Range[_T]:
         return Range(self.min, self.max)

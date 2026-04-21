@@ -1,6 +1,5 @@
 import json
 import logging
-import sys
 import tempfile
 import warnings
 from contextlib import contextmanager
@@ -769,8 +768,4 @@ def _prep_save_dir(project_path: Path) -> Generator[Path, None, None]:
 
 
 def _tar_extract_all(tar: "tarfile.TarFile", path: Path) -> None:
-    if sys.version_info >= (3, 11):
-        tar.extractall(path, filter="fully_trusted")
-    else:
-        # in the older version, "filter" argument is not supported sometimes
-        tar.extractall(path)
+    tar.extractall(path, filter="fully_trusted")

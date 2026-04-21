@@ -504,7 +504,6 @@ class Simulator(ChildWidget):
             _Logger.print(f"Image saved at {file_name}.")
 
         main.save_project(save_dir / PROJECT_NAME, molecules_ext=".parquet")
-        return None
 
     @set_design(text=capitalize, location=SimulateMenu)
     @dask_thread_worker.with_progress()
@@ -724,7 +723,6 @@ class Simulator(ChildWidget):
             ts_noise.set_axes("zyx").set_scale(zyx=scale, unit="nm").imsave(save_path)
             _Logger.print(f"{i}-th tilt series saved at {save_path}.")
         self._get_main().save_project(save_dir / PROJECT_NAME, molecules_ext=".parquet")
-        return None
 
     @set_design(icon="iconoir:expand-lines", location=SimulatorTools)
     def expand(
@@ -790,7 +788,6 @@ class Simulator(ChildWidget):
         )
         layer.molecules = model.to_molecules(spl, layer.molecules.features)
         _set_simulation_model(layer, model)
-        return None
 
     @set_design(icon="iconoir:scale-frame-enlarge", location=SimulatorTools)
     def dilate(

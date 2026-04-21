@@ -817,8 +817,7 @@ class OthersMenu(ChildWidget):
 
         @set_design(text=capitalize)
         def show_native_macro(self):
-            """
-            Show the native macro widget of current session.
+            """Show the native macro widget of current session.
 
             The native macro is always synchronized but is not editable.
             """
