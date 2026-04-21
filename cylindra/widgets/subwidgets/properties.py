@@ -95,7 +95,6 @@ class LocalPropertiesWidget(ChildWidget):
         self.params.twist.txt = " -- °"
         self.params.rise.txt = " -- °"
         self.params.structure.txt = " -- "
-        return None
 
     def _set_text(self, spl: "CylSpline", i: int):
         self.params.spacing.txt = f" {spl.props.get_loc(H.spacing)[i]:.2f} nm"
@@ -104,12 +103,10 @@ class LocalPropertiesWidget(ChildWidget):
         npf = int(spl.props.get_loc(H.npf)[i])
         start = spl.props.get_loc(H.start)[i]
         self.params.structure.txt = f" {npf}_{start}"
-        return None
 
     def _init_plot(self):
         for _plot in self.plot:
             _plot.layers.clear()
-        return None
 
     def _set_properties_to_plot(self, props: list[str]):
         # first insert/remove axes to match the number of properties
@@ -130,7 +127,7 @@ class LocalPropertiesWidget(ChildWidget):
 
     def _plot_properties(self, spl: "CylSpline"):
         if not spl.has_anchors:
-            return None
+            return
         x = spl.anchors * spl.length()
         if x[0] > x[-1]:
             x = x[::-1]
@@ -146,7 +143,6 @@ class LocalPropertiesWidget(ChildWidget):
         if len(self.plot) > 0:
             self.plot[0].xlim = (x[0] - 2, x[-1] + 2)
         self._plot_spline_position(x[0])
-        return None
 
     def _plot_spline_position(self, x: float):
         """update current position indicator (the red vertical line)"""
@@ -159,7 +155,6 @@ class LocalPropertiesWidget(ChildWidget):
             if len(self.plot) and (x < xmin or xmax < x):
                 dx = xmax - xmin
                 first_plot.xlim = (x - dx / 2, x + dx / 2)
-        return None
 
     @magicclass(layout="horizontal", labels=False, record=False)
     class footer(MagicTemplate):
@@ -176,7 +171,6 @@ class LocalPropertiesWidget(ChildWidget):
         """Edit which properties to plot."""
         self._set_properties_to_plot(props)
         self._props_changed.emit(props)
-        return None
 
     @set_design(max_width=40, text="Copy", location=footer)
     def copy_screenshot(self):
@@ -201,7 +195,6 @@ class LocalPropertiesWidget(ChildWidget):
             plt.imshow(img)
             plt.axis("off")
             plt.show()
-        return None
 
 
 @magicclass(widget_type="collapsible", name="Global Properties")
@@ -241,7 +234,6 @@ class GlobalPropertiesWidget(MagicTemplate):
         self.params.params1.structure.txt = " -- "
         self.params.params2.radius.txt = " -- nm"
         self.params.params2.orientation_.txt = " -- "
-        return None
 
     def _set_text(self, spl: "CylSpline"):
         self.params.params1.spacing.txt = f" {_fmt_prop(spl, H.spacing)} nm"
@@ -258,7 +250,6 @@ class GlobalPropertiesWidget(MagicTemplate):
             self.params.params2.orientation_.txt = " -- "
         else:
             self.params.params2.orientation_.txt = spl.orientation
-        return None
 
 
 def _fmt_prop(spl: "CylSpline", name: str) -> str:
