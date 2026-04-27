@@ -1333,6 +1333,7 @@ class CylindraMainWidget(MagicTemplate):
         splines: SplinesType = None,
         depth: Annotated[nm, {"min": 5.0, "max": 500.0, "step": 5.0}] = 40,
         bin_size: BinSizeType = 1,
+        sample_every: Annotated[nm, {"label": "Sample every (nm)", "min": 10.0, "max": 9999, "step": 1.0}] = 9999,
     ):  # fmt: skip
         """Automatically detect the cylinder polarities.
 
@@ -1345,11 +1346,18 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {splines}{depth}{bin_size}
+        sample_every : float, default 9999
+            Sample the spline every this length (nm) for polarity inference. If the
+            spline is not fitted well, or the tilt series alignment is not good,
+            decreasing this value may help to get more accurate result.
         """
         tomo = self.tomogram
         _old_orientations = [spl.orientation for spl in self.tomogram.splines]
         for i in self._norm_splines(splines):
-            tomo.infer_polarity(i=i, binsize=bin_size, depth=depth, update=True)
+            tomo.infer_polarity(
+                i=i, binsize=bin_size, depth=depth, sample_every=sample_every,
+                update=True
+            )  # fmt: skip
             yield
         _new_orientations = [spl.orientation for spl in self.tomogram.splines]
 

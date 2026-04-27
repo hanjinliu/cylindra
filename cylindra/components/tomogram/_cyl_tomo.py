@@ -961,6 +961,7 @@ class CylTomogram(Tomogram):
         binsize: int = 1,
         depth: nm = 40,
         mask_freq: bool = True,
+        sample_every: nm = 9999,
         update: bool = True,
     ) -> Ori:
         """Infer spline polarities using polar 2D image.
@@ -971,6 +972,12 @@ class CylTomogram(Tomogram):
             Spline ID that you want to analyze.
         binsize : int, default 1
             Multiscale bin size used for calculation.
+        mask_freq : bool, default True
+            If True, mask the frequency outside the lattice peaks during polarity
+            inference.
+        sample_every : float (nm), default 9999
+            Sample every this length along the spline to get polar images. Sample points
+            will be equally spaced along the spline from the center.
         depth : nm, default 40.0
             Depth of images used to infer polarities.
 
@@ -995,12 +1002,19 @@ class CylTomogram(Tomogram):
         ori_clockwise = Ori(cfg.clockwise)
         ori_counterclockwise = Ori.invert(ori_clockwise, allow_none=False)
         r_range = spl.radius_range()
-        point = 0.5  # the sampling point
-        coords = spl.local_cylindrical(r_range, depth, point, scale=current_scale)
-        polar = get_polar_image(imgb, coords, spl.radius, order=1)
+
+        num_points = ceilint(spl.length() / sample_every)
+        points = np.arange(1, num_points + 1) / (num_points + 1)
+
+        polar_imgs: list[ip.ImgArray] = []
+        for point in points:
+            coords = spl.local_cylindrical(r_range, depth, point, scale=current_scale)
+            polar = get_polar_image(imgb, coords, spl.radius, order=1)
+            polar_imgs.append(polar)
+        LOGGER.info(f" >> Using {num_points} segments ({depth:.1f} nm).")
         clkwise = is_clockwise(
             cfg,
-            polar,
+            sum(polar_imgs) / len(polar_imgs),
             mask_freq=mask_freq,
             npf=spl.props.get_glob(H.npf, None),
             logger=LOGGER,
