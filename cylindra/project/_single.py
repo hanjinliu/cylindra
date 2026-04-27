@@ -26,6 +26,7 @@ from cylindra.project._utils import (
 if TYPE_CHECKING:
     import tarfile
 
+    import macrokit
     from acryo import Molecules
 
     from cylindra.components import CylSpline, CylTomogram
@@ -278,6 +279,7 @@ class CylindraProject(BaseProject):
         from magicclass.utils import thread_worker
 
         from cylindra.components import SplineConfig
+        from cylindra.widget_utils import fix_reference_scale
 
         gui = _get_instance(gui)
         if (
@@ -311,6 +313,10 @@ class CylindraProject(BaseProject):
             if path_ref:
                 try:
                     img_ref = ip.imread(path_ref)
+
+                    if _need_fix_reference_scale(macro_expr):
+                        LOGGER.info("Fixing reference image scale based on the macro.")
+                        img_ref = fix_reference_scale(img_ref, tomogram)
                 except Exception as e:
                     LOGGER.warning(
                         f"Cannot read reference image at {path_ref.as_posix()}: {e}"
@@ -769,3 +775,19 @@ def _prep_save_dir(project_path: Path) -> Generator[Path, None, None]:
 
 def _tar_extract_all(tar: "tarfile.TarFile", path: Path) -> None:
     tar.extractall(path, filter="fully_trusted")
+
+
+def _need_fix_reference_scale(macro_expr: "list[macrokit.Expr]") -> bool:
+    from macrokit import Expr, Head
+
+    for expr in macro_expr:
+        if expr.head is not Head.call:
+            continue
+        _fn, _args, _kwargs = expr.split_call()
+        if (
+            isinstance(_fn, Expr)
+            and _fn.head == Head.getattr
+            and _fn.args[1].name == "open_image_with_reference"
+        ):
+            return _kwargs["fix_reference_scale"].eval()
+    return False

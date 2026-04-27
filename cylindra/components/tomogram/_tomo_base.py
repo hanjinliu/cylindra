@@ -242,13 +242,15 @@ class Tomogram:
         img = lazy_imread(path, chunks=chunks)
         if eager:
             img = img.compute()
-        return cls.from_image(
+        self = cls.from_image(
             _norm_dtype(img),
             scale=scale,
             tilt=tilt,
             binsize=binsize,
             compute=compute,
         )
+        self.metadata["orig_scale"] = img.scale.x
+        return self
 
     def with_cache_info(self, orig_path: Path, cached: bool = False) -> Self:
         """Set cache path."""

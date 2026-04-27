@@ -526,9 +526,22 @@ def prep_tomogram(
         eager=eager,
         compute=compute,
     ).with_cache_info(orig_path=Path(path), cached=cache_image)
-    if orig_scale is not None:
-        tomo.metadata["orig_scale"] = orig_scale
     return tomo
+
+
+def fix_reference_scale(img_ref: ip.ImgArray, tomo: CylTomogram) -> ip.ImgArray:
+    if (orig_scale := tomo.metadata.get("orig_scale", -1)) > 0 and abs(
+        (scale_factor := tomo.scale / orig_scale) - 1
+    ) > 1e-4:
+        _Logger.print(
+            f"Original tomogram has scale {orig_scale:.4f} nm/pixel, while "
+            f"reference has scale {tomo.scale:.4f} nm/pixel. "
+        )
+        img_ref = img_ref.set_scale(
+            **{str(k): v * scale_factor for k, v in img_ref.scale.items()},
+            unit=img_ref.scale_unit,
+        )
+    return img_ref
 
 
 def find_dock_widget(widget: QtW.QWidget | Widget) -> QtW.QDockWidget | None:

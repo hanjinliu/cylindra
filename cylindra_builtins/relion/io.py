@@ -147,6 +147,7 @@ def save_molecules_for_import(
     save_features: bool = False,
     shift_by_origin: bool = True,
     centered: bool = True,
+    relion_scale: Optional[float] = None,
 ):
     """Save the batch analyzer state as star files for "Import" job.
 
@@ -165,6 +166,9 @@ def save_molecules_for_import(
         If True, the positions will be centered around the tomogram center, and columns
         "rlnCenteredCoordinateX/Y/ZAngst" will be used. If False, columns
         "rlnCoordinateX/Y/Z" will be used.
+    relion_scale : float, optional
+        Set this value if different pixel size is used in RELION. This happens when you
+        calibrated the pixel size on cylindra side.
     """
     coordinates_path = Path(coordinates_path)
     save_dir = coordinates_path.parent / f"{coordinates_path.stem}_particles"
@@ -178,6 +182,7 @@ def save_molecules_for_import(
         save_features=save_features,
         shift_by_origin=shift_by_origin,
         centered=centered,
+        relion_scale=relion_scale,
     ):
         particles_path = save_dir / f"{tomo_name}_particles.star"
         particles_dfs.append(df)
@@ -202,6 +207,7 @@ def save_molecules_for_extract(
     save_features: bool = False,
     shift_by_origin: bool = True,
     centered: bool = True,
+    relion_scale: Optional[float] = None,
 ):
     """Save the batch analyzer state as a star file for "Extract subtomo" job.
 
@@ -223,6 +229,9 @@ def save_molecules_for_extract(
         If True, the positions will be centered around the tomogram center, and columns
         "rlnCenteredCoordinateX/Y/ZAngst" will be used. If False, columns
         "rlnCoordinateX/Y/Z" will be used.
+    relion_scale : float, optional
+        Set this value if different pixel size is used in RELION. This happens when you
+        calibrated the pixel size on cylindra side.
     """
     particles_dfs = list[pd.DataFrame]()
     for _, df in _iter_dataframe_from_path_sets(
@@ -230,6 +239,7 @@ def save_molecules_for_extract(
         save_features=save_features,
         shift_by_origin=shift_by_origin,
         centered=centered,
+        relion_scale=relion_scale,
     ):
         particles_dfs.append(df)
     particles_df = pd.concat(particles_dfs)
@@ -241,6 +251,7 @@ def _iter_dataframe_from_path_sets(
     save_features: bool = False,
     shift_by_origin: bool = True,
     centered: bool = True,
+    relion_scale: float | None = None,
 ) -> Iterator[tuple[str, pd.DataFrame]]:
     from cylindra.components.tomogram import CylTomogram
     from cylindra.widgets.batch._sequence import PathInfo
@@ -274,6 +285,10 @@ def _iter_dataframe_from_path_sets(
                     shift_by_origin,
                     centered=centered,
                 )
+            if centered and relion_scale is not None:
+                scale_factor = relion_scale / tomo.scale
+                for col in POS_CENTERED:
+                    df[col] = df[col] * scale_factor
             yield tomo_name, df
 
 
@@ -340,6 +355,7 @@ def open_relion_job(
     project_root: Optional[Path.Save] = None,
     invert: bool = True,
     bin_size: list[int] = [1],
+    scale_override: Optional[float] = None,
 ):
     """Open a RELION tomogram reconstruction job folder.
 
@@ -354,11 +370,15 @@ def open_relion_job(
         Set to True if the tomograms are light backgroud.
     bin_size : list[int], default [1]
         The multiscale binning size for the tomograms.
+    scale_override : float, optional
+        If provided, the pixel size in the tomogram.star file will be ignored and
+        this value will be used in cylindra.
     """
     project_root, paths, scales, moles, tilt_models = _parse_relion_job(
         path, project_root
     )
-
+    if scale_override is not None:
+        scales[:] = scale_override
     ui.batch._new_projects_from_table(
         paths,
         save_root=project_root,
