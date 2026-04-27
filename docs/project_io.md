@@ -19,7 +19,7 @@ the current state.
 - CSV or parquet files ... Coordinates and features of molecules.
 - `script.py` ... An executable Python script to reproduce the session.
 - `spline-*.json` ... The spline objects in JSON format (not human readable, should
-  always be read by [from_json][cylindra.components.BaseComponent.from_json]) method.
+  always be read by [from_json][cylindra.components._base.BaseComponent.from_json]) method.
 
 The project can be a directory, a zip file or a tar file.
 

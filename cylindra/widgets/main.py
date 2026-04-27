@@ -1320,9 +1320,9 @@ class CylindraMainWidget(MagicTemplate):
     def infer_polarity(
         self,
         splines: SplinesType = None,
-        depth: Annotated[nm, {"min": 5.0, "max": 500.0, "step": 5.0}] = 40,
+        depth: Annotated[nm, {"label": "depth (nm)", "min": 5.0, "max": 500.0, "step": 5.0}] = 40,
         bin_size: BinSizeType = 1,
-        sample_every: Annotated[nm, {"label": "Sample every (nm)", "min": 10.0, "max": 9999, "step": 1.0}] = 9999,
+        sample_every: Annotated[nm, {"label": "sample every (nm)", "min": 10.0, "max": 9999, "step": 1.0}] = 9999,
     ):  # fmt: skip
         """Automatically detect the cylinder polarities.
 
@@ -2121,10 +2121,10 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: SplinesType = None,
         interval: _Interval = None,
-        depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 50.0,
+        depth: Annotated[nm, {"label": "depth (nm)", "min": 2.0, "step": 0.5}] = 50.0,
         bin_size: BinSizeType = 1,
-        min_radius: Annotated[nm, {"min": 0.1, "step": 0.1}] = 1.0,
-        max_radius: Annotated[nm, {"min": 0.1, "step": 0.1}] = 100.0,
+        min_radius: Annotated[nm, {"label": "min radius (nm)", "min": 0.1, "step": 0.1}] = 1.0,
+        max_radius: Annotated[nm, {"label": "max radius (nm)", "min": 0.1, "step": 0.1}] = 100.0,
         update_glob: Annotated[bool, {"text": "Also update the global radius"}] = True,
     ):  # fmt: skip
         """Measure radius for each local region along splines.
@@ -2164,7 +2164,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         layers: MoleculesLayersType = (),
         interval: _Interval = None,
-        depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 50.0,
+        depth: Annotated[nm, {"label": "depth (nm)", "min": 2.0, "step": 0.5}] = 50.0,
         update_glob: Annotated[bool, {"text": "Also update the global radius"}] = True,
     ):  # fmt: skip
         """Measure local and global radius for each layer.
@@ -2222,7 +2222,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: SplinesType = None,
         interval: _Interval = None,
-        depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 50.0,
+        depth: Annotated[nm, {"label": "depth (nm)", "min": 2.0, "step": 0.5}] = 50.0,
         bin_size: BinSizeType = 1,
         radius: Literal["local", "global"] = "global",
         update_glob: Annotated[bool, {"text": "Also update the global properties"}] = False,
@@ -2315,7 +2315,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: SplinesType = None,
         interval: _Interval = None,
-        depth: Annotated[nm, {"min": 2.0, "step": 0.5}] = 50.0,
+        depth: Annotated[nm, {"label": "depth (nm)", "min": 2.0, "step": 0.5}] = 50.0,
         bin_size: BinSizeType = 1,
         radius: Literal["local", "global"] = "global",
         update_glob: Annotated[bool, {"text": "Also update the global properties"}] = False,

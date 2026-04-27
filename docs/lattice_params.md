@@ -118,15 +118,20 @@ Many biological filamentous structures have polarity. This feature usually needs
 determined by subtomogram averaging, but in some cases we can undoubtedly distinguish
 the polarity by seeing the chirality of the molecules.
 
-In `cylindra`, an automatic polarity inference method is implemented. This method works
+In `cylindra`, an automatic polarity inference method is available. This method works
 very well for microtubules, using the fact that clockwise appearance of tubulin
 molecules corresponds to the minus-to-plus direction. Theoretically, it should also
-work for other helical structures such as actin filament, but it's not guaranteed.
+work for other helical structures.
 
 !!! note
 
     If the polarity is not inferred correctly, you can set it manually using the
     [`set_spline_props` method][cylindra.widgets.main.CylindraMainWidget.set_spline_props].
+
+!!! tip
+
+    In situ tomograms or misaligned tomograms may cause the inference to fail. In this
+    case, you can try to increase "depth" and/or decrease "sample every" parameter.
 
 ## Running CFT
 
