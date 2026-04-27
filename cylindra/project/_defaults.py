@@ -78,7 +78,7 @@ class TomogramDefaults(BaseModel):
 
 def _resolve_autofill(path: Path) -> Path | None:
     pattern = str(path)
-    if "*" in pattern or "?" in pattern:
+    if "*" in pattern or "?" in pattern or "[" in pattern:
         if matched_path := next(reversed(glob.glob(pattern)), None):
             return Path(matched_path)
-    return None
+    return Path(pattern)

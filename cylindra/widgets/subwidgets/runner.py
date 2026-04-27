@@ -70,6 +70,11 @@ class Runner(ChildWidget):
         Check if calculate global properties.
     infer_polarity : bool
         Check if infer spline polarity after run.
+    infer_every : nm
+        Sample every this length along the spline to get polar images for polarity
+        inference.
+    map_monomers : bool
+        Map monomers on the cylinder surface using the measured lattice parameters.
     """
 
     def _get_splines(self, _=None) -> list[tuple[str, int]]:
@@ -99,6 +104,9 @@ class Runner(ChildWidget):
     params2 = runner_params2
     global_props = vfield(True, label="Calculate global properties")
     infer_polarity = vfield(True, label="Infer polarity")
+    infer_every = vfield(9999.0, label="Infer polarity every (nm)").with_options(
+        min=1.0, max=9999.0, step=1.0
+    )
     map_monomers = vfield(False, label="Map monomers")
 
     @fit.connect
@@ -108,6 +116,10 @@ class Runner(ChildWidget):
     @local_props.connect
     def _toggle_localprops_params(self, val: bool):
         self.params2.enabled = val
+
+    @infer_polarity.connect
+    def _toggle_infer_polarity_params(self, val: bool):
+        self["infer_every"].enabled = val
 
     def _get_max_shift(self, w=None):
         if self.fit:
@@ -147,6 +159,7 @@ class Runner(ChildWidget):
         depth: Annotated[nm, {"bind": params2.depth}] = 50.0,
         global_props: Annotated[bool, {"bind": global_props}] = True,
         infer_polarity: Annotated[bool, {"bind": infer_polarity}] = True,
+        infer_every: Annotated[nm, {"bind": infer_every}] = 9999.0,
         map_monomers: Annotated[bool, {"bind": map_monomers}] = False,
     ):  # fmt: skip
         """Run workflow."""
@@ -182,7 +195,11 @@ class Runner(ChildWidget):
             )
             yield
         if infer_polarity:
-            yield from main.infer_polarity.arun(splines=splines, bin_size=bin_size)
+            yield from main.infer_polarity.arun(
+                splines=splines,
+                bin_size=bin_size,
+                sample_every=infer_every,
+            )
             yield
         if global_props:
             yield from main.global_cft_analysis.arun(splines=splines, bin_size=bin_size)
