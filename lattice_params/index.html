@@ -3033,14 +3033,19 @@ sub-volume along the spline and store it as a local property of the spline.</p>
 <p>Many biological filamentous structures have polarity. This feature usually needs to be
 determined by subtomogram averaging, but in some cases we can undoubtedly distinguish
 the polarity by seeing the chirality of the molecules.</p>
-<p>In <code>cylindra</code>, an automatic polarity inference method is implemented. This method works
+<p>In <code>cylindra</code>, an automatic polarity inference method is available. This method works
 very well for microtubules, using the fact that clockwise appearance of tubulin
 molecules corresponds to the minus-to-plus direction. Theoretically, it should also
-work for other helical structures such as actin filament, but it's not guaranteed.</p>
+work for other helical structures.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>If the polarity is not inferred correctly, you can set it manually using the
 <a class="autorefs autorefs-internal" title="set_spline_props(spline, npf=None, start=None, orientation=None)" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.set_spline_props"><code>set_spline_props</code> method</a>.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>In situ tomograms or misaligned tomograms may cause the inference to fail. In this
+case, you can try to increase "depth" and/or decrease "sample every" parameter.</p>
 </div>
 <h2 id="running-cft">Running CFT</h2>
 <p>CFT (cylindric Fourier Transformation) is a method introduced in our work to measure
