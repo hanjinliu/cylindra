@@ -630,19 +630,8 @@ class CylindraMainWidget(MagicTemplate):
         yield cb
         cb.await_call()
         img_ref = ip.imread(reference_path)
-        if (
-            fix_reference_scale
-            and (orig_scale := tomo.metadata.get("orig_scale", -1)) > 0
-            and abs((scale_factor := tomo.scale / orig_scale) - 1) > 1e-4
-        ):
-            _Logger.print(
-                f"Original tomogram has scale {orig_scale:.4f} nm/pixel, while "
-                f"reference has scale {tomo.scale:.4f} nm/pixel. "
-            )
-            img_ref = img_ref.set_scale(
-                **{str(k): v * scale_factor for k, v in img_ref.scale.items()},
-                unit=img_ref.scale_unit,
-            )
+        if fix_reference_scale:
+            img_ref = widget_utils.fix_reference_scale(img_ref, tomo)
         cb = thread_worker.callback(self._update_reference_image).with_args(img_ref)
         yield cb
         cb.await_call()
