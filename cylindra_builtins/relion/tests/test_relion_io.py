@@ -97,6 +97,7 @@ def test_opening_jobs(ui: CylindraMainWidget, tmpdir):
         ui,
         tmpdir / "p.star",
         ui.batch._get_loader_paths(),
+        relion_scale=1.1,
     )
 
     # test preview
