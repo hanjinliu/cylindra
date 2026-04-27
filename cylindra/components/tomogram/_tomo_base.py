@@ -211,7 +211,7 @@ class Tomogram:
         cls,
         path: str | Path,
         *,
-        scale: float = None,
+        scale: float | None = None,
         tilt: tuple[float, float] | None = None,
         binsize: int | Iterable[int] = (),
         eager: bool = False,
@@ -240,6 +240,7 @@ class Tomogram:
         """
         chunks = get_config().dask_chunk
         img = lazy_imread(path, chunks=chunks)
+        orig_scale = float(img.scale.x)
         if eager:
             img = img.compute()
         self = cls.from_image(
@@ -249,7 +250,7 @@ class Tomogram:
             binsize=binsize,
             compute=compute,
         )
-        self.metadata["orig_scale"] = img.scale.x
+        self.metadata["orig_scale"] = orig_scale
         return self
 
     def with_cache_info(self, orig_path: Path, cached: bool = False) -> Self:
