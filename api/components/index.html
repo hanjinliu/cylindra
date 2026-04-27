@@ -16386,7 +16386,21 @@ guaranteed to be larger than spline order.</p>
 <span class="normal">1341</span>
 <span class="normal">1342</span>
 <span class="normal">1343</span>
-<span class="normal">1344</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylTomogram</span><span class="p">(</span><span class="n">Tomogram</span><span class="p">):</span>
+<span class="normal">1344</span>
+<span class="normal">1345</span>
+<span class="normal">1346</span>
+<span class="normal">1347</span>
+<span class="normal">1348</span>
+<span class="normal">1349</span>
+<span class="normal">1350</span>
+<span class="normal">1351</span>
+<span class="normal">1352</span>
+<span class="normal">1353</span>
+<span class="normal">1354</span>
+<span class="normal">1355</span>
+<span class="normal">1356</span>
+<span class="normal">1357</span>
+<span class="normal">1358</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylTomogram</span><span class="p">(</span><span class="n">Tomogram</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Tomogram with cylindrical splines.&quot;&quot;&quot;</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -17305,6 +17319,7 @@ guaranteed to be larger than spline order.</p>
         <span class="n">binsize</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
         <span class="n">depth</span><span class="p">:</span> <span class="n">nm</span> <span class="o">=</span> <span class="mi">40</span><span class="p">,</span>
         <span class="n">mask_freq</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">sample_every</span><span class="p">:</span> <span class="n">nm</span> <span class="o">=</span> <span class="mi">9999</span><span class="p">,</span>
         <span class="n">update</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Ori</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Infer spline polarities using polar 2D image.</span>
@@ -17315,6 +17330,12 @@ guaranteed to be larger than spline order.</p>
 <span class="sd">            Spline ID that you want to analyze.</span>
 <span class="sd">        binsize : int, default 1</span>
 <span class="sd">            Multiscale bin size used for calculation.</span>
+<span class="sd">        mask_freq : bool, default True</span>
+<span class="sd">            If True, mask the frequency outside the lattice peaks during polarity</span>
+<span class="sd">            inference.</span>
+<span class="sd">        sample_every : float (nm), default 9999</span>
+<span class="sd">            Sample every this length along the spline to get polar images. Sample points</span>
+<span class="sd">            will be equally spaced along the spline from the center.</span>
 <span class="sd">        depth : nm, default 40.0</span>
 <span class="sd">            Depth of images used to infer polarities.</span>
 
@@ -17339,12 +17360,19 @@ guaranteed to be larger than spline order.</p>
         <span class="n">ori_clockwise</span> <span class="o">=</span> <span class="n">Ori</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">clockwise</span><span class="p">)</span>
         <span class="n">ori_counterclockwise</span> <span class="o">=</span> <span class="n">Ori</span><span class="o">.</span><span class="n">invert</span><span class="p">(</span><span class="n">ori_clockwise</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="n">r_range</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">radius_range</span><span class="p">()</span>
-        <span class="n">point</span> <span class="o">=</span> <span class="mf">0.5</span>  <span class="c1"># the sampling point</span>
-        <span class="n">coords</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">local_cylindrical</span><span class="p">(</span><span class="n">r_range</span><span class="p">,</span> <span class="n">depth</span><span class="p">,</span> <span class="n">point</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">current_scale</span><span class="p">)</span>
-        <span class="n">polar</span> <span class="o">=</span> <span class="n">get_polar_image</span><span class="p">(</span><span class="n">imgb</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">spl</span><span class="o">.</span><span class="n">radius</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">num_points</span> <span class="o">=</span> <span class="n">ceilint</span><span class="p">(</span><span class="n">spl</span><span class="o">.</span><span class="n">length</span><span class="p">()</span> <span class="o">/</span> <span class="n">sample_every</span><span class="p">)</span>
+        <span class="n">points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_points</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">num_points</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">polar_imgs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">ip</span><span class="o">.</span><span class="n">ImgArray</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">point</span> <span class="ow">in</span> <span class="n">points</span><span class="p">:</span>
+            <span class="n">coords</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">local_cylindrical</span><span class="p">(</span><span class="n">r_range</span><span class="p">,</span> <span class="n">depth</span><span class="p">,</span> <span class="n">point</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">current_scale</span><span class="p">)</span>
+            <span class="n">polar</span> <span class="o">=</span> <span class="n">get_polar_image</span><span class="p">(</span><span class="n">imgb</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">spl</span><span class="o">.</span><span class="n">radius</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">polar_imgs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">polar</span><span class="p">)</span>
+        <span class="n">LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot; &gt;&gt; Using </span><span class="si">{</span><span class="n">num_points</span><span class="si">}</span><span class="s2"> segments (</span><span class="si">{</span><span class="n">depth</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> nm).&quot;</span><span class="p">)</span>
         <span class="n">clkwise</span> <span class="o">=</span> <span class="n">is_clockwise</span><span class="p">(</span>
             <span class="n">cfg</span><span class="p">,</span>
-            <span class="n">polar</span><span class="p">,</span>
+            <span class="nb">sum</span><span class="p">(</span><span class="n">polar_imgs</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">polar_imgs</span><span class="p">),</span>
             <span class="n">mask_freq</span><span class="o">=</span><span class="n">mask_freq</span><span class="p">,</span>
             <span class="n">npf</span><span class="o">=</span><span class="n">spl</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get_glob</span><span class="p">(</span><span class="n">H</span><span class="o">.</span><span class="n">npf</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
             <span class="n">logger</span><span class="o">=</span><span class="n">LOGGER</span><span class="p">,</span>
@@ -18520,21 +18548,7 @@ cross correlation.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1167</span>
-<span class="normal">1168</span>
-<span class="normal">1169</span>
-<span class="normal">1170</span>
-<span class="normal">1171</span>
-<span class="normal">1172</span>
-<span class="normal">1173</span>
-<span class="normal">1174</span>
-<span class="normal">1175</span>
-<span class="normal">1176</span>
-<span class="normal">1177</span>
-<span class="normal">1178</span>
-<span class="normal">1179</span>
-<span class="normal">1180</span>
-<span class="normal">1181</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1181</span>
 <span class="normal">1182</span>
 <span class="normal">1183</span>
 <span class="normal">1184</span>
@@ -18551,7 +18565,21 @@ cross correlation.</p>
 <span class="normal">1195</span>
 <span class="normal">1196</span>
 <span class="normal">1197</span>
-<span class="normal">1198</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_cylinder_model</span><span class="p">(</span>
+<span class="normal">1198</span>
+<span class="normal">1199</span>
+<span class="normal">1200</span>
+<span class="normal">1201</span>
+<span class="normal">1202</span>
+<span class="normal">1203</span>
+<span class="normal">1204</span>
+<span class="normal">1205</span>
+<span class="normal">1206</span>
+<span class="normal">1207</span>
+<span class="normal">1208</span>
+<span class="normal">1209</span>
+<span class="normal">1210</span>
+<span class="normal">1211</span>
+<span class="normal">1212</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_cylinder_model</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="n">offsets</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
@@ -19171,7 +19199,7 @@ global lattice parameters, use <code>global_cft_params</code> method beforehand.
 
 
 <h4 id="cylindra.components.tomogram.CylTomogram.infer_polarity" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">infer_polarity</span><span class="p">(</span><span class="n">i</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">binsize</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">depth</span><span class="o">=</span><span class="mi">40</span><span class="p">,</span> <span class="n">mask_freq</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">infer_polarity</span><span class="p">(</span><span class="n">i</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">binsize</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">depth</span><span class="o">=</span><span class="mi">40</span><span class="p">,</span> <span class="n">mask_freq</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sample_every</span><span class="o">=</span><span class="mi">9999</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
 
 </h4>
 
@@ -19222,6 +19250,40 @@ global lattice parameters, use <code>global_cft_params</code> method beforehand.
             </td>
             <td>
                   <code>1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>mask_freq</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If True, mask the frequency outside the lattice peaks during polarity
+inference.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>sample_every</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a>(<span title="cylindra.const.nm">nm</span>)</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Sample every this length along the spline to get polar images. Sample points
+will be equally spaced along the spline from the center.</p>
+              </div>
+            </td>
+            <td>
+                  <code>9999</code>
             </td>
           </tr>
           <tr class="doc-section-item">
@@ -19324,7 +19386,21 @@ global lattice parameters, use <code>global_cft_params</code> method beforehand.
 <span class="normal">1008</span>
 <span class="normal">1009</span>
 <span class="normal">1010</span>
-<span class="normal">1011</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
+<span class="normal">1011</span>
+<span class="normal">1012</span>
+<span class="normal">1013</span>
+<span class="normal">1014</span>
+<span class="normal">1015</span>
+<span class="normal">1016</span>
+<span class="normal">1017</span>
+<span class="normal">1018</span>
+<span class="normal">1019</span>
+<span class="normal">1020</span>
+<span class="normal">1021</span>
+<span class="normal">1022</span>
+<span class="normal">1023</span>
+<span class="normal">1024</span>
+<span class="normal">1025</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">infer_polarity</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -19332,6 +19408,7 @@ global lattice parameters, use <code>global_cft_params</code> method beforehand.
     <span class="n">binsize</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
     <span class="n">depth</span><span class="p">:</span> <span class="n">nm</span> <span class="o">=</span> <span class="mi">40</span><span class="p">,</span>
     <span class="n">mask_freq</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">sample_every</span><span class="p">:</span> <span class="n">nm</span> <span class="o">=</span> <span class="mi">9999</span><span class="p">,</span>
     <span class="n">update</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Ori</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Infer spline polarities using polar 2D image.</span>
@@ -19342,6 +19419,12 @@ global lattice parameters, use <code>global_cft_params</code> method beforehand.
 <span class="sd">        Spline ID that you want to analyze.</span>
 <span class="sd">    binsize : int, default 1</span>
 <span class="sd">        Multiscale bin size used for calculation.</span>
+<span class="sd">    mask_freq : bool, default True</span>
+<span class="sd">        If True, mask the frequency outside the lattice peaks during polarity</span>
+<span class="sd">        inference.</span>
+<span class="sd">    sample_every : float (nm), default 9999</span>
+<span class="sd">        Sample every this length along the spline to get polar images. Sample points</span>
+<span class="sd">        will be equally spaced along the spline from the center.</span>
 <span class="sd">    depth : nm, default 40.0</span>
 <span class="sd">        Depth of images used to infer polarities.</span>
 
@@ -19366,12 +19449,19 @@ global lattice parameters, use <code>global_cft_params</code> method beforehand.
     <span class="n">ori_clockwise</span> <span class="o">=</span> <span class="n">Ori</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">clockwise</span><span class="p">)</span>
     <span class="n">ori_counterclockwise</span> <span class="o">=</span> <span class="n">Ori</span><span class="o">.</span><span class="n">invert</span><span class="p">(</span><span class="n">ori_clockwise</span><span class="p">,</span> <span class="n">allow_none</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="n">r_range</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">radius_range</span><span class="p">()</span>
-    <span class="n">point</span> <span class="o">=</span> <span class="mf">0.5</span>  <span class="c1"># the sampling point</span>
-    <span class="n">coords</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">local_cylindrical</span><span class="p">(</span><span class="n">r_range</span><span class="p">,</span> <span class="n">depth</span><span class="p">,</span> <span class="n">point</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">current_scale</span><span class="p">)</span>
-    <span class="n">polar</span> <span class="o">=</span> <span class="n">get_polar_image</span><span class="p">(</span><span class="n">imgb</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">spl</span><span class="o">.</span><span class="n">radius</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">num_points</span> <span class="o">=</span> <span class="n">ceilint</span><span class="p">(</span><span class="n">spl</span><span class="o">.</span><span class="n">length</span><span class="p">()</span> <span class="o">/</span> <span class="n">sample_every</span><span class="p">)</span>
+    <span class="n">points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_points</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">num_points</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">polar_imgs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">ip</span><span class="o">.</span><span class="n">ImgArray</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">point</span> <span class="ow">in</span> <span class="n">points</span><span class="p">:</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">local_cylindrical</span><span class="p">(</span><span class="n">r_range</span><span class="p">,</span> <span class="n">depth</span><span class="p">,</span> <span class="n">point</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">current_scale</span><span class="p">)</span>
+        <span class="n">polar</span> <span class="o">=</span> <span class="n">get_polar_image</span><span class="p">(</span><span class="n">imgb</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">spl</span><span class="o">.</span><span class="n">radius</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">polar_imgs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">polar</span><span class="p">)</span>
+    <span class="n">LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot; &gt;&gt; Using </span><span class="si">{</span><span class="n">num_points</span><span class="si">}</span><span class="s2"> segments (</span><span class="si">{</span><span class="n">depth</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> nm).&quot;</span><span class="p">)</span>
     <span class="n">clkwise</span> <span class="o">=</span> <span class="n">is_clockwise</span><span class="p">(</span>
         <span class="n">cfg</span><span class="p">,</span>
-        <span class="n">polar</span><span class="p">,</span>
+        <span class="nb">sum</span><span class="p">(</span><span class="n">polar_imgs</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">polar_imgs</span><span class="p">),</span>
         <span class="n">mask_freq</span><span class="o">=</span><span class="n">mask_freq</span><span class="p">,</span>
         <span class="n">npf</span><span class="o">=</span><span class="n">spl</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get_glob</span><span class="p">(</span><span class="n">H</span><span class="o">.</span><span class="n">npf</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
         <span class="n">logger</span><span class="o">=</span><span class="n">LOGGER</span><span class="p">,</span>
@@ -20732,21 +20822,7 @@ radii.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1087</span>
-<span class="normal">1088</span>
-<span class="normal">1089</span>
-<span class="normal">1090</span>
-<span class="normal">1091</span>
-<span class="normal">1092</span>
-<span class="normal">1093</span>
-<span class="normal">1094</span>
-<span class="normal">1095</span>
-<span class="normal">1096</span>
-<span class="normal">1097</span>
-<span class="normal">1098</span>
-<span class="normal">1099</span>
-<span class="normal">1100</span>
-<span class="normal">1101</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1101</span>
 <span class="normal">1102</span>
 <span class="normal">1103</span>
 <span class="normal">1104</span>
@@ -20777,7 +20853,21 @@ radii.</p>
 <span class="normal">1129</span>
 <span class="normal">1130</span>
 <span class="normal">1131</span>
-<span class="normal">1132</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
+<span class="normal">1132</span>
+<span class="normal">1133</span>
+<span class="normal">1134</span>
+<span class="normal">1135</span>
+<span class="normal">1136</span>
+<span class="normal">1137</span>
+<span class="normal">1138</span>
+<span class="normal">1139</span>
+<span class="normal">1140</span>
+<span class="normal">1141</span>
+<span class="normal">1142</span>
+<span class="normal">1143</span>
+<span class="normal">1144</span>
+<span class="normal">1145</span>
+<span class="normal">1146</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">map_centers</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -20915,21 +21005,7 @@ radii.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1134</span>
-<span class="normal">1135</span>
-<span class="normal">1136</span>
-<span class="normal">1137</span>
-<span class="normal">1138</span>
-<span class="normal">1139</span>
-<span class="normal">1140</span>
-<span class="normal">1141</span>
-<span class="normal">1142</span>
-<span class="normal">1143</span>
-<span class="normal">1144</span>
-<span class="normal">1145</span>
-<span class="normal">1146</span>
-<span class="normal">1147</span>
-<span class="normal">1148</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1148</span>
 <span class="normal">1149</span>
 <span class="normal">1150</span>
 <span class="normal">1151</span>
@@ -20946,7 +21022,21 @@ radii.</p>
 <span class="normal">1162</span>
 <span class="normal">1163</span>
 <span class="normal">1164</span>
-<span class="normal">1165</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
+<span class="normal">1165</span>
+<span class="normal">1166</span>
+<span class="normal">1167</span>
+<span class="normal">1168</span>
+<span class="normal">1169</span>
+<span class="normal">1170</span>
+<span class="normal">1171</span>
+<span class="normal">1172</span>
+<span class="normal">1173</span>
+<span class="normal">1174</span>
+<span class="normal">1175</span>
+<span class="normal">1176</span>
+<span class="normal">1177</span>
+<span class="normal">1178</span>
+<span class="normal">1179</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">map_centers_helical_symmetry</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -21118,21 +21208,7 @@ radii.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1200</span>
-<span class="normal">1201</span>
-<span class="normal">1202</span>
-<span class="normal">1203</span>
-<span class="normal">1204</span>
-<span class="normal">1205</span>
-<span class="normal">1206</span>
-<span class="normal">1207</span>
-<span class="normal">1208</span>
-<span class="normal">1209</span>
-<span class="normal">1210</span>
-<span class="normal">1211</span>
-<span class="normal">1212</span>
-<span class="normal">1213</span>
-<span class="normal">1214</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1214</span>
 <span class="normal">1215</span>
 <span class="normal">1216</span>
 <span class="normal">1217</span>
@@ -21161,7 +21237,21 @@ radii.</p>
 <span class="normal">1240</span>
 <span class="normal">1241</span>
 <span class="normal">1242</span>
-<span class="normal">1243</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
+<span class="normal">1243</span>
+<span class="normal">1244</span>
+<span class="normal">1245</span>
+<span class="normal">1246</span>
+<span class="normal">1247</span>
+<span class="normal">1248</span>
+<span class="normal">1249</span>
+<span class="normal">1250</span>
+<span class="normal">1251</span>
+<span class="normal">1252</span>
+<span class="normal">1253</span>
+<span class="normal">1254</span>
+<span class="normal">1255</span>
+<span class="normal">1256</span>
+<span class="normal">1257</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">map_monomers</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -21329,21 +21419,7 @@ radii.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1245</span>
-<span class="normal">1246</span>
-<span class="normal">1247</span>
-<span class="normal">1248</span>
-<span class="normal">1249</span>
-<span class="normal">1250</span>
-<span class="normal">1251</span>
-<span class="normal">1252</span>
-<span class="normal">1253</span>
-<span class="normal">1254</span>
-<span class="normal">1255</span>
-<span class="normal">1256</span>
-<span class="normal">1257</span>
-<span class="normal">1258</span>
-<span class="normal">1259</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1259</span>
 <span class="normal">1260</span>
 <span class="normal">1261</span>
 <span class="normal">1262</span>
@@ -21363,7 +21439,21 @@ radii.</p>
 <span class="normal">1276</span>
 <span class="normal">1277</span>
 <span class="normal">1278</span>
-<span class="normal">1279</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
+<span class="normal">1279</span>
+<span class="normal">1280</span>
+<span class="normal">1281</span>
+<span class="normal">1282</span>
+<span class="normal">1283</span>
+<span class="normal">1284</span>
+<span class="normal">1285</span>
+<span class="normal">1286</span>
+<span class="normal">1287</span>
+<span class="normal">1288</span>
+<span class="normal">1289</span>
+<span class="normal">1290</span>
+<span class="normal">1291</span>
+<span class="normal">1292</span>
+<span class="normal">1293</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">map_on_grid</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -21493,21 +21583,7 @@ microtubule.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1281</span>
-<span class="normal">1282</span>
-<span class="normal">1283</span>
-<span class="normal">1284</span>
-<span class="normal">1285</span>
-<span class="normal">1286</span>
-<span class="normal">1287</span>
-<span class="normal">1288</span>
-<span class="normal">1289</span>
-<span class="normal">1290</span>
-<span class="normal">1291</span>
-<span class="normal">1292</span>
-<span class="normal">1293</span>
-<span class="normal">1294</span>
-<span class="normal">1295</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1295</span>
 <span class="normal">1296</span>
 <span class="normal">1297</span>
 <span class="normal">1298</span>
@@ -21535,7 +21611,21 @@ microtubule.</p>
 <span class="normal">1320</span>
 <span class="normal">1321</span>
 <span class="normal">1322</span>
-<span class="normal">1323</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
+<span class="normal">1323</span>
+<span class="normal">1324</span>
+<span class="normal">1325</span>
+<span class="normal">1326</span>
+<span class="normal">1327</span>
+<span class="normal">1328</span>
+<span class="normal">1329</span>
+<span class="normal">1330</span>
+<span class="normal">1331</span>
+<span class="normal">1332</span>
+<span class="normal">1333</span>
+<span class="normal">1334</span>
+<span class="normal">1335</span>
+<span class="normal">1336</span>
+<span class="normal">1337</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">map_pf_line</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -22419,21 +22509,7 @@ afterward, to avoid loading entire image into memory.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1013</span>
-<span class="normal">1014</span>
-<span class="normal">1015</span>
-<span class="normal">1016</span>
-<span class="normal">1017</span>
-<span class="normal">1018</span>
-<span class="normal">1019</span>
-<span class="normal">1020</span>
-<span class="normal">1021</span>
-<span class="normal">1022</span>
-<span class="normal">1023</span>
-<span class="normal">1024</span>
-<span class="normal">1025</span>
-<span class="normal">1026</span>
-<span class="normal">1027</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1027</span>
 <span class="normal">1028</span>
 <span class="normal">1029</span>
 <span class="normal">1030</span>
@@ -22454,7 +22530,21 @@ afterward, to avoid loading entire image into memory.</p>
 <span class="normal">1045</span>
 <span class="normal">1046</span>
 <span class="normal">1047</span>
-<span class="normal">1048</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
+<span class="normal">1048</span>
+<span class="normal">1049</span>
+<span class="normal">1050</span>
+<span class="normal">1051</span>
+<span class="normal">1052</span>
+<span class="normal">1053</span>
+<span class="normal">1054</span>
+<span class="normal">1055</span>
+<span class="normal">1056</span>
+<span class="normal">1057</span>
+<span class="normal">1058</span>
+<span class="normal">1059</span>
+<span class="normal">1060</span>
+<span class="normal">1061</span>
+<span class="normal">1062</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">straighten</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -22632,21 +22722,7 @@ afterward, to avoid loading entire image into memory.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1050</span>
-<span class="normal">1051</span>
-<span class="normal">1052</span>
-<span class="normal">1053</span>
-<span class="normal">1054</span>
-<span class="normal">1055</span>
-<span class="normal">1056</span>
-<span class="normal">1057</span>
-<span class="normal">1058</span>
-<span class="normal">1059</span>
-<span class="normal">1060</span>
-<span class="normal">1061</span>
-<span class="normal">1062</span>
-<span class="normal">1063</span>
-<span class="normal">1064</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1064</span>
 <span class="normal">1065</span>
 <span class="normal">1066</span>
 <span class="normal">1067</span>
@@ -22667,7 +22743,21 @@ afterward, to avoid loading entire image into memory.</p>
 <span class="normal">1082</span>
 <span class="normal">1083</span>
 <span class="normal">1084</span>
-<span class="normal">1085</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
+<span class="normal">1085</span>
+<span class="normal">1086</span>
+<span class="normal">1087</span>
+<span class="normal">1088</span>
+<span class="normal">1089</span>
+<span class="normal">1090</span>
+<span class="normal">1091</span>
+<span class="normal">1092</span>
+<span class="normal">1093</span>
+<span class="normal">1094</span>
+<span class="normal">1095</span>
+<span class="normal">1096</span>
+<span class="normal">1097</span>
+<span class="normal">1098</span>
+<span class="normal">1099</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">straighten_cylindric</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
