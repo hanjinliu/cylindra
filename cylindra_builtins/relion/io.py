@@ -47,6 +47,15 @@ REC_TOMO_DENOISED_PATH = "rlnTomoReconstructedTomogramDenoised"
 TILT_STAR = "rlnTomoTiltSeriesStarFile"
 TILT_ANGLE = "rlnTomoNominalStageTiltAngle"
 
+_RELION_SCALE_TYPE = Annotated[
+    Optional[float],
+    {
+        "label": "RELION scale (nm/pix)",
+        "text": "Use same scale",
+        "options": {"step": 0.0001, "min": 0.01, "max": 1000.0, "value": 0.5},
+    },
+]
+
 
 @register_function(name="Load molecules")
 def load_molecules(ui: CylindraMainWidget, path: Path.Read[FileFilter.STAR]):
@@ -147,7 +156,7 @@ def save_molecules_for_import(
     save_features: bool = False,
     shift_by_origin: bool = True,
     centered: bool = True,
-    relion_scale: Optional[float] = None,
+    relion_scale: _RELION_SCALE_TYPE = None,
 ):
     """Save the batch analyzer state as star files for "Import" job.
 
@@ -207,7 +216,7 @@ def save_molecules_for_extract(
     save_features: bool = False,
     shift_by_origin: bool = True,
     centered: bool = True,
-    relion_scale: Optional[float] = None,
+    relion_scale: _RELION_SCALE_TYPE = None,
 ):
     """Save the batch analyzer state as a star file for "Extract subtomo" job.
 
@@ -630,13 +639,6 @@ def _particles_to_molecules(
             pos[:, target] += particles[source] / 10
         particles.drop(columns=POS_ORIGIN_COLUMNS, inplace=True)
 
-    # TODO: should optics properties be included?
-    # if "optics" in star:
-    #     opt = star["optics"]
-    #     if not isinstance(opt, pd.DataFrame):
-    #         raise NotImplementedError("Optics block must be a dataframe")
-    #     particles = particles.merge(opt, on=OPTICS_GROUP)
-
     if all(c in particles.columns for c in ROT_COLUMNS):
         euler = particles[ROT_COLUMNS].to_numpy()
         features = particles.drop(columns=ROT_COLUMNS)
@@ -692,13 +694,12 @@ def _mole_to_star_df(
         }
     out_dict.update(_pos_dict)
     out_dict.update(_rot_dict)
-    if len(moles) > 1:
-        out_dict[MOLE_ID] = np.concatenate(
-            [
-                np.full(each_mole.count(), i, dtype=np.uint32)
-                for i, each_mole in enumerate(moles)
-            ]
-        )
+    out_dict[MOLE_ID] = np.concatenate(
+        [
+            np.full(each_mole.count(), i, dtype=np.uint32)
+            for i, each_mole in enumerate(moles)
+        ]
+    )
     if save_features:
         for col in mole.features.columns:
             out_dict[col] = mole.features[col]

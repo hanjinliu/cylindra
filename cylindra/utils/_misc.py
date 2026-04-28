@@ -25,10 +25,12 @@ def roundint(a: float) -> int:
 
 
 def ceilint(a: float) -> int:
+    """Returns ⌈a⌉."""
     return int(math.ceil(a))
 
 
 def floorint(a: float) -> int:
+    """Returns ⌊a⌋."""
     return int(math.floor(a))
 
 
@@ -405,7 +407,10 @@ def nd_take(
     return ids
 
 
-def unwrap_wildcard(path: str | Path | Iterable[str | Path]) -> list[Path]:
+def unwrap_wildcard(
+    path: str | Path | Iterable[str | Path],
+    sorted: bool = True,
+) -> list[Path]:
     """Unwrap a wildcard path to a string."""
     all_paths = []
     if isinstance(path, (str, Path)):
@@ -416,7 +421,10 @@ def unwrap_wildcard(path: str | Path | Iterable[str | Path]) -> list[Path]:
             all_paths.extend(glob.glob(p))
         else:
             all_paths.append(p)
-    return [Path(p) for p in all_paths]
+    out = [Path(p) for p in all_paths]
+    if sorted:
+        out.sort(key=lambda p: p.name)
+    return out
 
 
 def create_random_seeds(num_trials: int, seed: int):
