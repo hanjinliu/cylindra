@@ -81,12 +81,33 @@ class SplineControl(ChildWidget):
             return []
         return [(f"({i}) {spl}", i) for i, spl in enumerate(tomo.splines)]
 
-    num = vfield(int, label="Spline").with_choices(_get_splines)
+    @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)}, record=False)
+    class SplineId(ChildWidget):
+        num = abstractapi()
+        prev_spline = abstractapi()
+        next_spline = abstractapi()
+
+    num = vfield(int, label="Spline", location=SplineId).with_choices(_get_splines)
     pos = vfield(int, widget_type="Slider", label="Position").with_options(max=0)
     canvas = box.resizable(
         field(QtMultiImageCanvas, name="Figure").with_options(nrows=1, ncols=3),
         x_enabled=False,
     )
+
+    @set_design(max_width=24, text="<", location=SplineId)
+    def prev_spline(self):
+        """Previous spline."""
+        if self.num is None:
+            return None
+        self.num = max(0, self.num - 1)
+
+    @set_design(max_width=24, text=">", location=SplineId)
+    def next_spline(self):
+        """Next spline."""
+        num_splines = len(self._get_main().tomogram.splines)
+        if self.num is None or num_splines == 0:
+            return None
+        self.num = min(num_splines - 1, self.num + 1)
 
     @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)}, record=False)
     class footer(MagicTemplate):
