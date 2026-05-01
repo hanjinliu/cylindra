@@ -4096,6 +4096,7 @@ class CylindraMainWidget(MagicTemplate):
 def _filter_macro_for_reanalysis(macro_expr: mk.Expr, ui_sym: mk.Symbol):
     _manual_operations = {
         "open_image",
+        "open_image_with_reference",
         "register_path",
         "load_splines",
         "load_molecules",
@@ -4121,7 +4122,10 @@ def _filter_macro_for_reanalysis(macro_expr: mk.Expr, ui_sym: mk.Symbol):
             breaked_line = line
             break
         func_full_name = ".".join(map(str, attrs))
-        if line_id == 0 and func_full_name != "open_image":
+        if line_id == 0 and func_full_name not in (
+            "open_image",
+            "open_image_with_reference",
+        ):
             raise ValueError("The first line of macro must be `ui.open_image`.")
         if func_full_name not in _manual_operations:
             breaked_line = line

@@ -81,4 +81,7 @@ def _resolve_autofill(path: Path) -> Path | None:
     if "*" in pattern or "?" in pattern or "[" in pattern:
         if matched_path := next(reversed(glob.glob(pattern)), None):
             return Path(matched_path)
-    return Path(pattern)
+        return None
+    if (out := Path(pattern)).exists():
+        return out
+    return None
