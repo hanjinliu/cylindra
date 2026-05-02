@@ -130,6 +130,8 @@ class ImageWithPeak:
 
     def power_upsampled(self, upsample: int = 5) -> ip.ImgArray:
         """Calculate local upsampled power spectrum"""
+        if upsample == 1:
+            return self.power()
         ny, na = self.image.shape[1:3]
         y_key = self._make_key(ny)
         a_key = self._make_key(na)

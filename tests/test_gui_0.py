@@ -333,7 +333,7 @@ def test_reanalysis(ui: CylindraMainWidget):
     assert str(ui.macro[-1]).startswith("ui.register_path(")
 
 
-def test_map_molecules(ui: CylindraMainWidget):
+def test_map_molecules(ui: CylindraMainWidget, tmpdir):
     ui.load_project(PROJECT_DIR_14PF, filter=None)
     ui._reserved_layers.prof.show_polarity = False
     assert ui._reserved_layers.prof.size[0] < 0.1
@@ -369,6 +369,14 @@ def test_map_molecules(ui: CylindraMainWidget):
     ui.SplinesMenu.Show.show_splines()
     ui.SplinesMenu.Show.show_splines_as_meshes()
     ui.SplinesMenu.Show.show_splines_as_meshes(color_by="spacing")
+    ui.SplinesMenu.Show.show_splines_as_meshes(color_by="spline_curvature")
+
+    ui.SplinesMenu.Show.make_local_cft_images(
+        [0], save_path=tmpdir, image_format="TIF stacks"
+    )
+    ui.SplinesMenu.Show.make_local_cft_images(
+        [0], save_path=tmpdir, image_format="Separate PNGs", upsample_factor=1
+    )
 
 
 def test_napari_operations(ui: CylindraMainWidget):

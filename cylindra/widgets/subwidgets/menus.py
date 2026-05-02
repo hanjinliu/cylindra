@@ -2,6 +2,7 @@ import shutil
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Literal
 
+import impy as ip
 import matplotlib.pyplot as plt
 import numpy as np
 from acryo import Molecules, pipe
@@ -39,7 +40,9 @@ from cylindra.types import ColoredLayer
 from cylindra.utils import str_color
 from cylindra.widget_utils import capitalize, get_code_theme, show_widget
 from cylindra.widgets._annotated import (
+    BinSizeType,
     MoleculesLayersType,
+    SplinesType,
     assert_layer,
     assert_list_of_layers,
 )
@@ -52,6 +55,14 @@ if TYPE_CHECKING:
 
 _Logger = getLogger("cylindra")
 _AppCfg = _config.get_config()
+
+_Interval = Annotated[
+    Optional[nm],
+    {
+        "text": "Use existing anchors",
+        "options": {"min": 1.0, "step": 0.5, "value": 50.0},
+    },
+]
 
 
 @magicmenu
@@ -275,7 +286,7 @@ class SplinesMenu(ChildWidget):
         def show_splines(self):
             """Show 3D spline paths of cylinder central axes as a layer."""
             main = self._get_main()
-            paths = [r.partition(100) for r in main.tomogram.splines]
+            paths = [r.partition(int(r.length() / 2)) for r in main.tomogram.splines]
             paths = main.parent_viewer.add_shapes(
                 paths,
                 shape_type="path",
@@ -359,6 +370,76 @@ class SplinesMenu(ChildWidget):
             df = main.splines.collect_globalprops()
             table = DataFrameView(value=df)
             show_widget(table, "Spline Global Properties", main)
+
+        sep0 = Separator
+
+        @set_design(text="Make local-CFT images")
+        def make_local_cft_images(
+            self,
+            splines: SplinesType,
+            save_path: Path.Save,
+            image_format: Annotated[str, {"choices": ["TIF stack", "Separate PNGs"]}] = "TIF stack",
+            interval: _Interval = None,
+            depth: Annotated[nm, {"label": "depth (nm)", "min": 2.0, "step": 0.5}] = 50.0,
+            bin_size: BinSizeType = 1,
+            upsample_factor: Annotated[int, {"min": 1}] = 3,
+        ):  # fmt: skip
+            """Save local CFT images along splines for visualization or validation.
+
+            Parameters
+            ----------
+            splines : SplinesType
+                List of spline IDs (or `"all"`) along which local CFT images will be
+                calculated.
+            save_path : Path
+                Directory to save the local CFT images.
+            image_format : str, default "TIF stack"
+                Image format to save.
+                - "TIF stack": Local-CFT along each spline as a TIF stack.
+                - "Separate PNGs": Local-CFT of each fragment saved as separate PNG
+                  files in a subdirectory for each spline.
+            interval : nm, optional
+                Interval to sample local CFT calculation. If not specified, spline
+                anchors will be used.
+            depth : nm, default 50.0
+                Depth of the local image to calculate CFT.
+            bin_size : BinSizeType, default 1
+                Bin size for local image. If bin_size > 1, the local image will be
+                binned by the specified factor before calculating CFT. 0.5 nm/pixel
+                is usually sufficient.
+            upsample_factor : int, default 3
+                Upsample factor for the local CFT image.
+            """
+            main = self._get_main()
+            tomo = main.tomogram
+            save_path = Path(save_path)
+            for i in main._norm_splines(splines):
+                spl = tomo.splines[i]
+                if interval is not None:
+                    anchors = spl.prep_anchor_positions(interval=interval)
+                else:
+                    anchors = spl.anchors
+                peaks = tomo.local_image_with_peaks(
+                    i=i, depth=depth, anchors=anchors, binsize=bin_size
+                )
+                imgs = [peak.power_upsampled(upsample_factor) for peak in peaks]
+                if not save_path.exists():
+                    save_path.mkdir(parents=True)
+                if image_format.lower() == "tif stack":
+                    img_stack = ip.asarray(np.stack(imgs, axis="t"), axes="zyx")
+                    img_stack.imsave(save_path / f"spline_{i:03d}_CFT.tif")
+                elif image_format.lower() == "separate pngs":
+                    subdir = save_path / f"spline_{i:03d}"
+                    subdir.mkdir(exist_ok=True)
+                    for j, img in enumerate(imgs):
+                        factor = 255 / img.max()
+                        img_normed = ip.asarray(img * factor, axes="yx").astype(
+                            np.uint8
+                        )
+                        img_normed.imsave(subdir / f"fragment_{j:03d}_CFT.png")
+                else:
+                    raise ValueError(f"Unknown image format: {image_format!r}")
+            main.logger.print(f"Local CFT images saved to {save_path!r}")
 
     add_anchors = abstractapi()
     sep0 = Separator

@@ -53,12 +53,9 @@ class PeakInspector(ChildWidget):
     pos = vfield(int, widget_type="Slider", label="Position").with_options(max=0)
 
     def _set_peaks(self, peaks: "list[ImageWithPeak]", upsample: int = 1):
-        if upsample == 1:
-            self._power_spectra = [peak.power() for peak in peaks]
-        else:
-            self._power_spectra = [
-                peak.power_upsampled(upsample=upsample) for peak in peaks
-            ]
+        self._power_spectra = [
+            peak.power_upsampled(upsample=upsample) for peak in peaks
+        ]
         self._peaks = peaks
 
     def reset_choices(self, *_):

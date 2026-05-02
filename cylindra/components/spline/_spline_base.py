@@ -14,6 +14,7 @@ from typing import (
 )
 
 import numpy as np
+import polars as pl
 from acryo import Molecules
 from acryo.molecules import axes_to_rotator
 from scipy.interpolate import splev, splprep, splrep
@@ -1200,6 +1201,24 @@ class Spline(BaseComponent):
         u = self.y_to_position(np.linspace(d0, d2, n_pixels))
         y = self.map(u) / scale  # world coordinates of y-axis in spline coords system
         return u, y
+
+    def _spline_detail_dataframe(self) -> pl.DataFrame:
+        _crds = [self.map(der=der) for der in [0, 1, 2]]
+        _cv = self.curvature()
+        return pl.DataFrame(
+            [
+                pl.Series("spline_z", _crds[0][:, 0], dtype=pl.Float32),
+                pl.Series("spline_y", _crds[0][:, 1], dtype=pl.Float32),
+                pl.Series("spline_x", _crds[0][:, 2], dtype=pl.Float32),
+                pl.Series("spline_dz", _crds[1][:, 0], dtype=pl.Float32),
+                pl.Series("spline_dy", _crds[1][:, 1], dtype=pl.Float32),
+                pl.Series("spline_dx", _crds[1][:, 2], dtype=pl.Float32),
+                pl.Series("spline_ddz", _crds[2][:, 0], dtype=pl.Float32),
+                pl.Series("spline_ddy", _crds[2][:, 1], dtype=pl.Float32),
+                pl.Series("spline_ddx", _crds[2][:, 2], dtype=pl.Float32),
+                pl.Series("spline_curvature", _cv, dtype=pl.Float32),
+            ]
+        )
 
 
 # fmt: off
