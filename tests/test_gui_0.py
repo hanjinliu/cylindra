@@ -372,7 +372,7 @@ def test_map_molecules(ui: CylindraMainWidget, tmpdir):
     ui.SplinesMenu.Show.show_splines_as_meshes(color_by="spline_curvature")
 
     ui.SplinesMenu.Show.make_local_cft_images(
-        [0], save_path=tmpdir, image_format="TIF stacks"
+        [0], save_path=tmpdir, image_format="TIF stack", upsample_factor=3,
     )
     ui.SplinesMenu.Show.make_local_cft_images(
         [0], save_path=tmpdir, image_format="Separate PNGs", upsample_factor=1
