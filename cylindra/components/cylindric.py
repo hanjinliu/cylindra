@@ -256,7 +256,11 @@ class CylinderModel:
         verts = spl.cylindrical_to_world(mesh2d.reshape(-1, 3))
         faces = cylinder_faces(*shape)
         if value_by is not None:
-            loc = spl.props.get_loc(value_by)
+            df_loc = spl.props.loc
+            if value_by.startswith("spline_"):
+                # value_by is likely to be one of the spline details.
+                df_loc = df_loc.with_columns(spl._spline_detail_dataframe())
+            loc = df_loc[value_by].to_numpy()
             anc = spl.anchors
             xinterp = np.repeat(np.linspace(0, 1, shape[0]), shape[1]).clip(
                 anc[0], anc[-1]

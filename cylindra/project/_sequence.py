@@ -278,20 +278,7 @@ class ProjectSequence(MutableSequence[CylindraProject]):
                                 f"Cannot collect spline details because spline {spl!r} "
                                 "does not have anchors."
                             )
-                        _crds = [spl.map(der=der) for der in [0, 1, 2]]
-                        _cv = spl.curvature()
-                        _df_spl = _df_spl.with_columns(
-                            pl.Series("spline_z", _crds[0][:, 0], dtype=pl.Float32),
-                            pl.Series("spline_y", _crds[0][:, 1], dtype=pl.Float32),
-                            pl.Series("spline_x", _crds[0][:, 2], dtype=pl.Float32),
-                            pl.Series("spline_dz", _crds[1][:, 0], dtype=pl.Float32),
-                            pl.Series("spline_dy", _crds[1][:, 1], dtype=pl.Float32),
-                            pl.Series("spline_dx", _crds[1][:, 2], dtype=pl.Float32),
-                            pl.Series("spline_ddz", _crds[2][:, 0], dtype=pl.Float32),
-                            pl.Series("spline_ddy", _crds[2][:, 1], dtype=pl.Float32),
-                            pl.Series("spline_ddx", _crds[2][:, 2], dtype=pl.Float32),
-                            pl.Series("spline_curvature", _cv, dtype=pl.Float32),
-                        )
+                        _df_spl = _df_spl.with_columns(spl._spline_detail_dataframe())
                     dfs_spl.append(_df_spl)
                 _df_prj = pl.concat(dfs_spl, how="diagonal")
                 columns = [pl.repeat(idx, pl.len()).cast(pl.UInt16).alias(Mole.image)]

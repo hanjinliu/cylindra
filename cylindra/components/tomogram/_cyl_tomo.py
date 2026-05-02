@@ -678,7 +678,7 @@ class CylTomogram(Tomogram):
         self,
         i: int,
         depth: nm = 50.0,
-        pos: int | None = None,
+        anchors: ArrayLike | None = None,
         binsize: int = 1,
     ) -> Iterable[ip.ImgArray]:
         spl = self.splines[i]
@@ -689,10 +689,8 @@ class CylTomogram(Tomogram):
         _scale = input_img.scale.x
         rmin, rmax = spl.radius_range()
         rc = (rmin + rmax) / 2
-        if pos is None:
+        if anchors is None:
             anchors = spl.anchors
-        else:
-            anchors = [spl.anchors[pos]]
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
         for anc in anchors:
             coords = spl_trans.local_cylindrical((rmin, rmax), depth, anc, scale=_scale)
@@ -706,7 +704,7 @@ class CylTomogram(Tomogram):
         *,
         i: int = None,
         depth: nm = 50.0,
-        pos: int | None = None,
+        anchors: ArrayLike | None = None,
         binsize: int = 1,
     ) -> ip.ImgArray:
         """Calculate non-upsampled local cylindric Fourier transormation along spline.
@@ -719,8 +717,9 @@ class CylTomogram(Tomogram):
             Spline ID that you want to analyze.
         depth : nm, default 50.0
             Length of subtomogram for calculation of local parameters.
-        pos : int, optional
-            Only calculate at ``pos``-th anchor if given.
+        anchors : array-like, optional
+            Anchor positions (between 0 and 1) to calculate local Fourier
+            transformation.
         binsize : int, default 1
             Multiscale bin size used for calculation.
 
@@ -731,7 +730,7 @@ class CylTomogram(Tomogram):
         """
         out = list[ip.ImgArray]()
         with set_gpu():
-            for polar in self.iter_local_image(i, depth, pos, binsize):
+            for polar in self.iter_local_image(i, depth, anchors, binsize):
                 out.append(polar.fft(dims="rya"))
         return np.stack(out, axis="p")
 
@@ -741,7 +740,7 @@ class CylTomogram(Tomogram):
         *,
         i: int = None,
         depth: nm = 50.0,
-        pos: int | None = None,
+        anchors: ArrayLike | None = None,
         binsize: int = 1,
     ) -> ip.ImgArray:
         """Calculate non-upsampled local cylindric power spectra along spline.
@@ -752,8 +751,9 @@ class CylTomogram(Tomogram):
             Spline ID that you want to analyze.
         depth : nm, default 50.0
             Length of subtomogram for calculation of local parameters.
-        pos : int, optional
-            Only calculate at ``pos``-th anchor if given.
+        anchors : array-like, optional
+            Anchor positions (between 0 and 1) to calculate local Fourier
+            transformation.
         binsize : int, default 1
             Multiscale bin size used for calculation.
 
@@ -762,7 +762,7 @@ class CylTomogram(Tomogram):
         ip.ImgArray
             FT images stacked along "p" axis.
         """
-        cft = self.local_cft(i=i, depth=depth, pos=pos, binsize=binsize)
+        cft = self.local_cft(i=i, depth=depth, anchors=anchors, binsize=binsize)
         return cft.real**2 + cft.imag**2
 
     @_misc.batch_process
@@ -770,6 +770,8 @@ class CylTomogram(Tomogram):
         self,
         *,
         i: int = None,
+        depth: nm | None = None,
+        anchors: ArrayLike | None = None,
         binsize: int | None = None,
     ) -> list[_misc.ImageWithPeak]:
         """Recalculate local images and peaks.
@@ -778,12 +780,15 @@ class CylTomogram(Tomogram):
         local lattice parameters, use `local_cft_params` method beforehand.
         """
         spl = self.splines[i]
-        depth = spl.props.window_size[H.twist]
+        if depth is None:
+            depth = spl.props.window_size[H.twist]
         if binsize is None:
             binsize = spl.props.binsize_loc[H.twist]
         df_loc = spl.props.loc
         out = list[_misc.ImageWithPeak]()
-        for j, polar_img in enumerate(self.iter_local_image(i, depth, binsize=binsize)):
+        for j, polar_img in enumerate(
+            self.iter_local_image(i, depth, anchors=anchors, binsize=binsize)
+        ):
             try:
                 cparams = spl.cylinder_params(
                     spacing=_misc.get_component(df_loc, H.spacing, j),
