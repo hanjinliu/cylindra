@@ -75,6 +75,7 @@ class SplineConfig:
     thickness_outer: nm = 3.0
     fit_depth: nm = 48.0
     fit_width: nm = 44.0
+    b_factor: float = 0.0
 
     def _repr_pretty_(self, p: RepresentationPrinter, cycle: bool):
         if cycle:
@@ -98,6 +99,7 @@ class SplineConfig:
             thickness_outer=self.thickness_outer,
             fit_depth=self.fit_depth,
             fit_width=self.fit_width,
+            b_factor=self.b_factor,
         )
 
     def asdict(self) -> dict[str, Any]:
@@ -112,6 +114,7 @@ class SplineConfig:
             "thickness_outer": self.thickness_outer,
             "fit_depth": self.fit_depth,
             "fit_width": self.fit_width,
+            "b_factor": self.b_factor,
         }
 
     def json_dumps(self) -> str:
@@ -183,6 +186,7 @@ class SplineConfig:
         thickness_outer: nm | None = None,
         fit_depth: nm | None = None,
         fit_width: nm | None = None,
+        b_factor: float | None = None,
     ) -> SplineConfig:
         kwargs = locals()
         kwargs.pop("self")

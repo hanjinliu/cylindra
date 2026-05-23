@@ -718,9 +718,9 @@ class CylindraMainWidget(MagicTemplate):
     ):
         """Save current project state and the results in a directory.
 
-        The json file contains paths of images and results, parameters of splines,
-        scales and version. Local and global properties will be exported as csv files.
-        Molecule coordinates and features will be exported as the `molecules_ext`
+        The output project.json file contains paths of images and results, parameters of
+        splines, scales and version. Local and global properties will be exported as csv
+        files. Molecule coordinates and features will be exported as the `molecules_ext`
         format. If results are saved at the default directory, they will be
         written as relative paths in the project json file so that moving root
         directory does not affect the loading behavior.
@@ -728,7 +728,7 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         path : Path
-            Path of json file.
+            Path to the project.
         molecules_ext : str, default ".csv"
             Extension of the molecule file. Can be ".csv" or ".parquet".
         save_landscape : bool, default False
@@ -736,6 +736,8 @@ class CylindraMainWidget(MagicTemplate):
             usually large.
         """
         path = Path(path)
+        if path.name == "project.json":
+            path = path.parent
         CylindraProject.save_gui(self, path, molecules_ext, save_landscape)
         _Logger.print(f"Project saved: {path.as_posix()}")
         self._need_save = False

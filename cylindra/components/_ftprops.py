@@ -164,7 +164,11 @@ class LatticeAnalyzer:
     # This analysis measures skew angle and protofilament number.
 
     def get_peak_h(self, peak_det: PeakDetector, img: ip.ImgArray, radius: nm):
-        return peak_det.get_peak(**self._params_h(img, radius))
+        return peak_det.get_peak(
+            **self._params_h(img, radius),
+            b_factor=self._cfg.b_factor,
+            radius=radius,
+        )
 
     def get_peak_v(self, peak_det: PeakDetector, img: ip.ImgArray, npf: float):
         return peak_det.get_peak(**self._params_v(img, npf))
@@ -314,7 +318,18 @@ def is_clockwise(
         ft = img_flat.fft(shift=False, dims="ra")
         pw = ft.real**2 + ft.imag**2
         img_pw = np.mean(pw, axis=0)
-        npf = np.argmax(img_pw[cfg.npf_range.asslice()]) + cfg.npf_range.min
+        if cfg.b_factor != 0.0:
+            # B-factor sharpening: boost high azimuthal frequencies to compensate
+            # for B-factor decay. radius = N_a * a_scale / (2*pi)
+            radius = img_flat.shape.a * img_flat.scale.a / (2 * np.pi)
+            npf_arr = np.arange(cfg.npf_range.min, cfg.npf_range.max + 1)
+            q_arr = npf_arr / (2 * np.pi * radius)
+            weight = np.exp(cfg.b_factor * q_arr**2)
+            npf = (
+                np.argmax(img_pw[cfg.npf_range.asslice()] * weight) + cfg.npf_range.min
+            )
+        else:
+            npf = np.argmax(img_pw[cfg.npf_range.asslice()]) + cfg.npf_range.min
 
     pw_peak = img_flat.local_power_spectra(
         key=ip.slicer.a[npf - 1 : npf + 2],
