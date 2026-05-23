@@ -432,7 +432,7 @@ class SplinesMenu(ChildWidget):
                     i=i, depth=depth, anchors=anchors, binsize=bin_size
                 )
                 imgs = [peak.power_upsampled(upsample_factor) for peak in peaks]
-                _save_image_stack(imgs, save_path, image_format, i)
+                _save_image_stack(image_format, save_path, imgs, i)
             main.logger.print(f"Local CFT images saved to {save_path!r}")
 
     add_anchors = abstractapi()
