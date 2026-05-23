@@ -300,10 +300,11 @@ class SplinesMenu(ChildWidget):
         @set_design(text=capitalize)
         def show_splines_as_meshes(
             self,
-            color_by: Annotated[Optional[str], {"text": "Do not colorize"}] = None,
+            color_by: Annotated[Optional[str], {"text": "Do not colorize", "value": "spacing"}] = None,
             interval: Annotated[nm, {"min": 0.1, "step": 0.1}] = 4.0,
             interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 0,
             contrast_limits: Annotated[Optional[tuple[float, float]], {"text": "Auto contrast"}] = None,
+            colorbar: Annotated[bool, {"text": "Show colorbar"}] = True,
         ):  # fmt: skip
             """Show 3D spline cylinder as a surface layer.
 
@@ -315,6 +316,12 @@ class SplinesMenu(ChildWidget):
                 Interval of the spline to sample.
             interpolation : int, default 0
                 Interpolation order for points between the anchors.
+            contrast_limits : tuple of (float, float), optional
+                Initial contrast limits for the value given by `color_by`. Note that
+                the contrast limits can be adjusted after the surface layer is added
+                using the layer controls in napari.
+            colorbar : bool, default True
+                Show colorbar for the surface layer if `color_by` is specified.
             """
             main = self._get_main()
             nodes: list[np.ndarray] = []
@@ -343,6 +350,8 @@ class SplinesMenu(ChildWidget):
                 name="cylinders",
                 contrast_limits=contrast_limits,
             )
+            if colorbar and color_by:
+                surf.colorbar.visible = True
             main._reserved_layers.to_be_removed.add(surf)
             return surf
 
@@ -423,22 +432,7 @@ class SplinesMenu(ChildWidget):
                     i=i, depth=depth, anchors=anchors, binsize=bin_size
                 )
                 imgs = [peak.power_upsampled(upsample_factor) for peak in peaks]
-                if not save_path.exists():
-                    save_path.mkdir(parents=True)
-                if image_format.lower() == "tif stack":
-                    img_stack = ip.asarray(np.stack(imgs, axis="t"), axes="zyx")
-                    img_stack.imsave(save_path / f"spline_{i:03d}_CFT.tif")
-                elif image_format.lower() == "separate pngs":
-                    subdir = save_path / f"spline_{i:03d}"
-                    subdir.mkdir(exist_ok=True)
-                    for j, img in enumerate(imgs):
-                        factor = 255 / img.max()
-                        img_normed = ip.asarray(img * factor, axes="yx").astype(
-                            np.uint8
-                        )
-                        img_normed.imsave(subdir / f"fragment_{j:03d}_CFT.png")
-                else:
-                    raise ValueError(f"Unknown image format: {image_format!r}")
+                _save_image_stack(image_format, save_path, imgs, i)
             main.logger.print(f"Local CFT images saved to {save_path!r}")
 
     add_anchors = abstractapi()
@@ -1134,3 +1128,22 @@ def _command_palette_filter(ui: ChildWidget, widget):
     if qn.startswith("_") or "._" in qn:
         return False
     return True
+
+
+def _save_image_stack(
+    image_format: str, save_path: Path, imgs: list[ip.ImgArray], i: int
+):
+    if not save_path.exists():
+        save_path.mkdir(parents=True)
+    if image_format.lower() == "tif stack":
+        img_stack = ip.asarray(np.stack(imgs, axis="t"), axes="zyx")
+        img_stack.imsave(save_path / f"spline_{i:03d}_CFT.tif")
+    elif image_format.lower() == "separate pngs":
+        subdir = save_path / f"spline_{i:03d}"
+        subdir.mkdir(exist_ok=True)
+        for j, img in enumerate(imgs):
+            factor = 255 / img.max()
+            img_normed = ip.asarray(img * factor, axes="yx").astype(np.uint8)
+            img_normed.imsave(subdir / f"fragment_{j:03d}_CFT.png")
+    else:
+        raise ValueError(f"Unknown image format: {image_format!r}")
