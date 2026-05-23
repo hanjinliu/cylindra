@@ -2822,7 +2822,9 @@ class CylindraMainWidget(MagicTemplate):
     def map_monomers_arbitrary(
         self,
         splines: SplinesType = None,
-        radius: Optional[nm] = None,
+        radius: Annotated[Optional[nm], {"value": 10.0, "text": "Use spline properties"}] = None,
+        twist: float = 0.0,
+        rise_angle: float = 0.0,
         monomer_diameter: Annotated[nm, {"label": "Monomer diameter (nm)", "min": 0.1, "max": 100.0, "step": 0.1}] = 4.0,
         extensions: Annotated[tuple[int, int], {"options": {"min": -100}}] = (0, 0),
         prefix: str = "Mole",
@@ -2838,6 +2840,10 @@ class CylindraMainWidget(MagicTemplate):
         {splines}
         radius : nm, optional
             Radius of the cylinder to position monomers.
+        twist : float, default 0.0
+            Twist angle in degree.
+        rise_angle : float, default 0.0
+            Rise angle in degree.
         monomer_diameter : nm, default 4.0
             Diameter of the monomer. This will determine the interval of the molecules.
         extensions : (int, int), default (0, 0)
@@ -2861,12 +2867,37 @@ class CylindraMainWidget(MagicTemplate):
             model = spl0.cylinder_model(
                 pitch=monomer_diameter,
                 npf=int(round(2 * np.pi * radius_normed / monomer_diameter)),
-                skew_angle=0,
-                start=0,
+                twist=twist,
+                rise_angle=rise_angle,
                 radius=radius_normed,
             )
-            coords = model.prep_coords(extensions)
+            if rise_angle != 0:
+                # To locate molecules properly, the rise at the edges need to be
+                # considered as well. The "." below represents the molecules that need
+                # to be filled.
+                #   <--- spline --->
+                # oooooooooooooooo..
+                #   oooooooooooooooo
+                #   ..oooooooooooooooo
+                ext0, ext1 = extensions
+                ext_more = abs(model.nrise)
+                coords = model.prep_coords((ext0 + ext_more, ext1 + ext_more))
+            else:
+                coords = model.prep_coords(extensions)
             mole = model.locate_molecules(spl0, coords)
+
+            if rise_angle != 0:
+                # Molecules outside the expected range should be filtered out (x).
+                #   <--- spline --->
+                # xxoooooooooooooooo
+                #   oooooooooooooooo
+                #   ooooooooooooooooxx
+                eps = 0.05
+                low = (-extensions[0] - eps) * monomer_diameter
+                high = spl0.length() + (extensions[1] + eps) * monomer_diameter
+                mole = mole.filter(
+                    pl.col(Mole.position).is_between(low, high, closed="both")
+                )
 
             cb = _add_molecules.with_args(mole, f"{prefix}-{i}", spl)
             yield cb
