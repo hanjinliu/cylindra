@@ -343,7 +343,7 @@ def test_map_molecules(ui: CylindraMainWidget, tmpdir):
     ui.map_monomers_with_extensions(0, {0: (1, 1), 1: (-1, -1)})
     ui.map_along_pf(0, molecule_interval=4.0)
     ui.map_along_spline(0, molecule_interval=4.0)
-    ui.map_monomers_arbitrary(0, monomer_diameter=6.0)
+    ui.map_monomers_arbitrary(0, monomer_diameter=6.0, rise_angle=10)
     ui.macro.undo()
     ui.macro.undo()
     ui.macro.undo()
