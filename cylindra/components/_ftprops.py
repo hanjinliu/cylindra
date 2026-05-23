@@ -164,10 +164,7 @@ class LatticeAnalyzer:
     # This analysis measures skew angle and protofilament number.
 
     def get_peak_h(self, peak_det: PeakDetector, img: ip.ImgArray, radius: nm):
-        return peak_det.get_peak(
-            **self._params_h(img, radius),
-            radius=radius,
-        )
+        return peak_det.get_peak(**self._params_h(img, radius))
 
     def get_peak_v(self, peak_det: PeakDetector, img: ip.ImgArray, npf: float):
         return peak_det.get_peak(**self._params_v(img, npf))
