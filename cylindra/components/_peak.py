@@ -51,8 +51,6 @@ class PeakDetector:
         range_a: tuple[float, float],
         up_y: int = 1,
         up_a: int = 1,
-        b_factor: float = 0.0,
-        radius: float = 1.0,
     ):
         """Get the peak in the power spectrum of the image in subpixel precision.
 
@@ -69,14 +67,6 @@ class PeakDetector:
             Upsampling factor in y-direction.
         up_a : int, default 1
             Upsampling factor in a-direction.
-        b_factor : float, default 0.0
-            B-factor sharpening applied to the azimuthal power spectrum before peak
-            detection (in nm²). Positive values boost high azimuthal frequencies,
-            compensating for B-factor decay. The sharpening weight is
-            ``exp(b_factor * q²)`` where ``q = n / (2π R)`` is the azimuthal spatial
-            frequency in nm⁻¹ and ``n`` is the azimuthal mode number.
-        radius : float, default 1.0
-            Cylinder radius in nm. Only used when ``b_factor != 0``.
 
         Returns
         -------
@@ -84,14 +74,6 @@ class PeakDetector:
             The peak info object.
         """
         ps, y0, a0 = self._local_ps_and_offset(range_y, range_a, up_y, up_a)
-        if b_factor != 0.0:
-            n_a = ps.shape[-1]
-            # Non-upsampled mode numbers for each upsampled a-index
-            n_freqs = (a0 + np.arange(n_a)) / up_a
-            # Azimuthal spatial frequencies in nm⁻¹: n / (2π R)
-            q_freqs = n_freqs / (2 * np.pi * radius)
-            weight = np.exp(b_factor * q_freqs**2)
-            ps = np.asarray(ps) * weight
         ymax, amax = np.unravel_index(np.argmax(ps), ps.shape)
         (ymaxsub, amaxsub), value = find_peak(ps, index=(ymax, amax), nrepeat=1)
         return FTPeakInfo(
