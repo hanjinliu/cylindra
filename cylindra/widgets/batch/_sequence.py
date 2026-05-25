@@ -408,7 +408,7 @@ class ProjectSequenceEdit(MagicTemplate):
                     continue
                 df = pl.read_csv(glob_path)
             indices_ok = (
-                df.with_columns(pl.arange(0, pl.count()).alias(".index"))
+                df.with_columns(pl.arange(0, pl.len()).alias(".index"))
                 .filter(predicate)[".index"]
                 .to_list()
             )
