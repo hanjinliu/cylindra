@@ -2358,7 +2358,7 @@ class CylindraMainWidget(MagicTemplate):
                 yield _local_ft_analysis_on_yield.with_args(i)
             return tracker.as_undo_callback()
 
-    @set_design(text="Global CFT analysis", location=_sw.AnalysisMenu)
+    @set_design(text="Global FT analysis", location=_sw.AnalysisMenu)
     @thread_worker.with_progress(desc="Global Fourier transform", total=_NSPLINES)
     def global_ft_analysis(
         self,

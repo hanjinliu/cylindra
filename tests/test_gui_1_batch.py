@@ -63,8 +63,9 @@ def test_project_io(ui: CylindraMainWidget, tmpdir):
     assert loader.features["pf-id"].max() == 12  # only 13-PF
 
     ui.batch.constructor.select_all_projects()
-    ui.batch.constructor.select_molecules_by_pattern("Mole-0*")
-    ui.batch.constructor.select_projects_by_pattern("*13*")
+    ui.batch.constructor.select_molecules_by_pattern("Mole-0*", op="or")
+    ui.batch.constructor.select_projects_by_pattern("*13*", op="and")
+    ui.batch.constructor.select_molecules_by_globalprops("col('npf') == 13", op="ignore")
 
     # test loader property
     assert ui.batch.loader_infos[0].name == "Loader"

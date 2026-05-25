@@ -1,5 +1,6 @@
+from enum import StrEnum
 from fnmatch import fnmatch
-from typing import TYPE_CHECKING, Iterator
+from typing import TYPE_CHECKING, Annotated, Iterator
 
 import polars as pl
 from acryo import BatchLoader, Molecules, SubtomogramLoader
@@ -25,12 +26,42 @@ from magicgui.widgets import ComboBox, Container, Widget
 from cylindra._config import get_config
 from cylindra._io import lazy_imread
 from cylindra.const import FileFilter
-from cylindra.const import MoleculesHeader as Mole
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.project import CylindraProject, get_project_file
 from cylindra.utils import unwrap_wildcard
-from cylindra.widget_utils import POLARS_NAMESPACE, capitalize
+from cylindra.widget_utils import POLARS_NAMESPACE, capitalize, norm_polars_expr
 from cylindra.widgets.batch._utils import PathInfo, TempFeatures
+
+
+class SelectionOperations(StrEnum):
+    IGNORE = "ignore"
+    AND = "and"
+    OR = "or"
+
+    def merge(self, old: bool, new: bool) -> bool:
+        match self:
+            case SelectionOperations.IGNORE:
+                return new
+            case SelectionOperations.AND:
+                return old and new
+            case SelectionOperations.OR:
+                return old or new
+            case _:
+                raise ValueError(f"Invalid selection operation: {self}")
+
+
+_SelectionOpType = Annotated[
+    SelectionOperations,
+    {
+        "label": "current selection",
+        "tooltip": (
+            "How to merge the new selection with the current selection.\n"
+            " - IGNORE: ignore whether currently checked or not.\n"
+            " - AND: will be checked if currently checked and to-be-checked.\n"
+            " - OR: will be checked if currently checked or to-be-checked."
+        ),
+    },
+]
 
 
 @magicclass(
@@ -251,16 +282,6 @@ class Project(MagicTemplate):
         mole_paths = [mole.line.value for mole in self.molecules if mole.check]
         return img_path, mole_paths, prj_path
 
-    def _get_localprops(self) -> pl.DataFrame:
-        project = CylindraProject.from_file(self.path)
-        with project.open_project() as dir:
-            localprops_path = project._localprops_path(dir)
-            if not localprops_path.exists():
-                raise ValueError("No localprops file found.")
-
-            df = pl.read_csv(localprops_path)
-        return df
-
 
 @magicclass(
     widget_type="scrollable",
@@ -320,6 +341,7 @@ class ProjectSequenceEdit(MagicTemplate):
         deselect_all_projects = abstractapi()
         select_projects_by_pattern = abstractapi()
         select_molecules_by_pattern = abstractapi()
+        select_molecules_by_globalprops = abstractapi()
 
     @magicmenu
     class View(MagicTemplate):
@@ -347,18 +369,55 @@ class ProjectSequenceEdit(MagicTemplate):
 
     @set_design(text="Select projects by pattern", location=Select)
     @do_not_record
-    def select_projects_by_pattern(self, pattern: str):
+    def select_projects_by_pattern(
+        self, pattern: str, op: _SelectionOpType = SelectionOperations.IGNORE
+    ):
         """Select projects by pattern matching."""
+        op = SelectionOperations(op)
         for prj in self.projects:
-            prj.check = fnmatch(prj.path, pattern)
+            prj.check = op.merge(prj.check, fnmatch(prj.path, pattern))
 
     @set_design(text="Select molecules by pattern", location=Select)
     @do_not_record
-    def select_molecules_by_pattern(self, pattern: str):
+    def select_molecules_by_pattern(
+        self, pattern: str, op: _SelectionOpType = SelectionOperations.IGNORE
+    ):
         """Select molecules by pattern matching."""
+        op = SelectionOperations(op)
         for prj in self.projects:
             for mole in prj.molecules:
-                mole.check = fnmatch(mole.line.value, pattern)
+                mole.check = op.merge(mole.check, fnmatch(mole.line.value, pattern))
+
+    @set_design(text="Select molecules by global props", location=Select)
+    @do_not_record
+    def select_molecules_by_globalprops(
+        self, predicate: str, op: _SelectionOpType = SelectionOperations.IGNORE
+    ):
+        """Select molecules by the global property of the source spline.
+
+        `(col("npf") == 13) & (col("start") == 3)` --> select molecules from 13_3 MTs.
+        `col("spacing") > 4.2` --> select molecules from expanded MTs.
+        """
+        op = SelectionOperations(op)
+        predicate = norm_polars_expr(predicate)
+        for prj in self.projects:
+            project = CylindraProject.from_file(prj.path)
+            with project.open_project() as dir:
+                glob_path = project._globalprops_path(dir)
+                if not glob_path.exists():
+                    continue
+                df = pl.read_csv(glob_path)
+            indices_ok = (
+                df.with_columns(pl.arange(0, pl.count()).alias(".index"))
+                .filter(predicate)[".index"]
+                .to_list()
+            )
+
+            name_to_widget_map = {mole.line.value: mole for mole in prj.molecules}
+            for mole_info in project.molecules_info:
+                check = mole_info.source in indices_ok
+                mole = name_to_widget_map[mole_info.name]
+                mole.check = op.merge(mole.check, check)
 
     @set_design(text="Deselect all projects", location=Select)
     @do_not_record
@@ -404,17 +463,6 @@ class ProjectSequenceEdit(MagicTemplate):
         if output_shape is not None:
             batch_loader = batch_loader.replace(output_shape=output_shape)
         return batch_loader
-
-    def _get_localprops(self) -> pl.DataFrame:
-        dataframes = list[pl.DataFrame]()
-        for idx, prj in enumerate(iter(self.projects)):
-            df = prj._get_localprops()
-            dataframes.append(
-                df.with_columns(
-                    pl.repeat(idx, pl.len()).cast(pl.UInt16).alias(Mole.image)
-                )
-            )
-        return pl.concat(dataframes, how="diagonal")
 
     @set_design(text="View components in 3D", location=View)
     @do_not_record
