@@ -102,6 +102,10 @@ class CylindricArray:
         ker = np.asarray(kernel, dtype=np.bool_)
         return CylindricArray(self._rust_obj.median_filter(ker))
 
+    def build_heatmap(self, footprint: ArrayLike) -> NDArray[np.float32]:
+        footprint = np.asarray(footprint, dtype=np.bool_)
+        return self._rust_obj.build_heatmap(footprint)
+
     def binarize(self, threshold: float) -> Self:
         value = self.as1d()
         new_value = value >= threshold
@@ -236,4 +240,15 @@ def label(df: pl.DataFrame, target: str, nrise: int) -> pl.Series:
         .as_series(target)
         .round()
         .cast(pl.UInt32)
+    )
+
+
+def build_heatmap(
+    df: pl.DataFrame,
+    target: str,
+    nrise: int,
+    footprint: ArrayLike,
+) -> NDArray[np.float32]:
+    return CylindricArray.from_dataframe(df, target, nrise).build_heatmap(
+        footprint=footprint
     )

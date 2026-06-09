@@ -3660,6 +3660,25 @@ class CylindraMainWidget(MagicTemplate):
         self.reset_choices()  # choices regarding of features need update
         return undo_callback(layer.feature_setter(feat, cmap_info))
 
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
+    def heatmap_for_feature(
+        self,
+        layer: MoleculesLayerType,
+        target: Annotated[
+            str, {"choices": _choice_getter("heatmap_for_feature", dtype_kind="b")}
+        ],
+        max_offset_longitudinal: int = 3,
+        max_offset_lateral: int = 2,
+    ):
+        layer = assert_layer(layer, self.parent_viewer)
+        utils.assert_column_exists(feat := layer.molecules.features, target)
+        nrise = _assert_source_spline_exists(layer).nrise()
+        footprint = np.ones(
+            (2 * max_offset_longitudinal + 1, 2 * max_offset_lateral + 1), dtype=int
+        )
+        out = cylfilters.build_heatmap(feat, target, nrise, footprint)
+        self.logger.print_table([[f"{i:.3f}" for i in row] for row in out])
+
     @set_design(text="Analyze region properties", location=_sw.MoleculesMenu.Features)
     def regionprops_features(
         self,

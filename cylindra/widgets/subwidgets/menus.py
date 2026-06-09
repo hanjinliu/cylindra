@@ -578,6 +578,7 @@ class MoleculesMenu(ChildWidget):
         convolve_feature = abstractapi()
         count_neighbors = abstractapi()
         binarize_feature = abstractapi()
+        heatmap_for_feature = abstractapi()
         label_feature_clusters = abstractapi()
         regionprops_features = abstractapi()
 

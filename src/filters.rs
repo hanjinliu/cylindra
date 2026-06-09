@@ -186,6 +186,42 @@ impl CylindricArray {
         labels
     }
 
+    /// Build a heatmap on a boolean array.
+    pub fn build_heatmap(
+        &self,
+        py: Python,
+        footprint: PyReadonlyArray2<bool>
+    ) -> Py<PyArray2<f32>> {
+        let footprint = footprint.as_array();
+        let shape = footprint.shape();
+        let mut heatmap = Array2::<f32>::zeros((shape[0], shape[1]));
+        let cy = (shape[0] - 1) / 2;
+        let cx = (shape[1] - 1) / 2;
+
+        for i in 0..shape[0] {
+            for j in 0..shape[1] {
+                let mut sum_samples = 0.0;
+                for y in 0..self.array.shape()[0] as isize {
+                    for x in 0..self.array.shape()[1] as isize {
+                        let ny = y + (i as isize - cy as isize);
+                        let nx = x + (j as isize - cx as isize);
+                        let val_ori = self[[y, x]];
+                        let val_other = self[[ny, nx]];
+                        if val_ori.is_nan() || val_other.is_nan() {
+                            continue;
+                        }
+                        if val_ori > 0.5 && val_other > 0.5 {
+                            heatmap[[i, j]] += 1.0;
+                        }
+                        sum_samples += 1.0;
+                    }
+                }
+                heatmap[[i, j]] /= sum_samples;
+            }
+        }
+        heatmap.into_pyarray(py).into()
+    }
+
     pub fn with_values(&self, value: PyReadonlyArray1<f32>) -> PyResult<Self> {
         self.with_values_(&value.as_array())
     }
@@ -411,6 +447,8 @@ impl CylindricArray {
         out
     }
 
+    /// consider the cylindrical border and return the normalized indices.
+    /// If the index is out of bounds, return -1.
     fn norm_indices(&self, index: &[isize; 2]) -> (isize, isize) {
         let shape = self.array.shape();
         let nrise = self.nrise;
