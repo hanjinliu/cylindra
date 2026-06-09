@@ -364,7 +364,14 @@ def open_relion_job(
     project_root: Optional[Path.Save] = None,
     invert: bool = True,
     bin_size: list[int] = [1],
-    scale_override: Optional[float] = None,
+    scale_override: Annotated[
+        Optional[float],
+        {
+            "label": "scale override (nm/pix)",
+            "text": "Use same scale",
+            "options": {"step": 0.0001, "min": 0.01, "max": 1000.0, "value": 0.5},
+        },
+    ] = None,
 ):
     """Open a RELION tomogram reconstruction job folder.
 
@@ -650,9 +657,16 @@ def _particles_to_molecules(
     )
     if MOLE_ID in mole.features.columns:
         return {
-            mole_id: m.drop_features(MOLE_ID) for mole_id, m in mole.group_by(MOLE_ID)
+            _norm_mole_id(mole_id): m.drop_features(MOLE_ID)
+            for mole_id, m in mole.group_by(MOLE_ID)
         }
     return {default_key: mole}
+
+
+def _norm_mole_id(mole_id) -> str:
+    if isinstance(mole_id, str):
+        return mole_id
+    return f"Mole-{mole_id}"
 
 
 def _mole_to_star_df(
