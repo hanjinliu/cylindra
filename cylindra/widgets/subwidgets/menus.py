@@ -632,6 +632,7 @@ class MoleculesMenu(ChildWidget):
                 name=name,
                 vector_style="arrow",
             )
+            main._reserved_layers.to_be_removed.add(layer)
             return main._undo_callback_for_layer(layer)
 
         paint_molecules = abstractapi()
