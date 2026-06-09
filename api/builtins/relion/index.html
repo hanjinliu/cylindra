@@ -3249,7 +3249,7 @@ this value will be used in cylindra.</p>
         <span class="n">path</span><span class="p">,</span> <span class="n">project_root</span>
     <span class="p">)</span>
     <span class="k">if</span> <span class="n">scale_override</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">scales</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">scale_override</span>
+        <span class="n">scales</span> <span class="o">=</span> <span class="p">[</span><span class="n">scale_override</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">scales</span><span class="p">)</span>
     <span class="n">ui</span><span class="o">.</span><span class="n">batch</span><span class="o">.</span><span class="n">_new_projects_from_table</span><span class="p">(</span>
         <span class="n">paths</span><span class="p">,</span>
         <span class="n">save_root</span><span class="o">=</span><span class="n">project_root</span><span class="p">,</span>
