@@ -394,7 +394,7 @@ def open_relion_job(
         path, project_root
     )
     if scale_override is not None:
-        scales[:] = scale_override
+        scales = [scale_override] * len(scales)
     ui.batch._new_projects_from_table(
         paths,
         save_root=project_root,
@@ -452,7 +452,7 @@ def _parse_relion_job(path, project_root):
             )
         tomostar = TomogramStar(tomogram_star_path)
         paths = list(tomostar.iter_tomo_paths(rln_project_path))
-        scales = tomostar.scale_nm
+        scales = [float(s) for s in tomostar.scale_nm]
         tilt_models = list(tomostar.iter_tilt_models(rln_project_path))
         moles = None
     elif jobtype in ("relion.picktomo", "relion.pseudosubtomo"):
@@ -534,10 +534,10 @@ def _parse_optimisation_star(
     rln_project_path: Path,
     run_data_path: Path | None = None,
 ):
-    paths = []
-    scales = []
-    molecules = []
-    tilt_models = []
+    paths: list[Path] = []
+    scales: list[float] = []
+    molecules: list[dict[str, Molecules]] = []
+    tilt_models: list[dict[str, Any]] = []
     for item in _iter_from_optimisation_star(
         opt_star_path, rln_project_path, run_data_path
     ):
