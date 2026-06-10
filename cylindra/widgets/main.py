@@ -3664,7 +3664,7 @@ class CylindraMainWidget(MagicTemplate):
     def correlation_heatmap_for_feature(
         self,
         layer: MoleculesLayerType,
-        target: Annotated[str, {"choices": _choice_getter("heatmap_for_feature", dtype_kind="biuf")}],
+        target: Annotated[str, {"choices": _choice_getter("correlation_heatmap_for_feature", dtype_kind="biuf")}],
         max_offset_longitudinal: int = 3,
         max_offset_lateral: int = 2,
         is_binary_data: bool = False,
@@ -3673,6 +3673,23 @@ class CylindraMainWidget(MagicTemplate):
 
         Correlation heatmap shows how likely two molecules with the same relative
         positioning will have the save value.
+
+        Parameters
+        ----------
+        {layer}{target}
+        max_offset_longitudinal : int, default 3
+            Maximum longitudinal offset to consider for the correlation. For example,
+            if `max_offset_longitudinal` is 3, the correlation will be calculated for
+            molecules with longitudinal offsets from -3 to 3.
+        max_offset_lateral : int, default 2
+            Maximum lateral offset to consider for the correlation. For example, if
+            `max_offset_lateral` is 2, the correlation will be calculated for molecules
+            with lateral offsets from -2 to 2.
+        is_binary_data : bool, default False
+            If true, the correlation will be calculated as the binary correlation, i.e.,
+            how likely two molecules with the same relative positioning will have the
+            same true value. Therefore, the small number of true-true correlation will
+            not be buried by the false values.
         """
         from magicclass.ext.polars import DataFrameView
 
