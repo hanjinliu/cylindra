@@ -377,6 +377,7 @@ def test_map_molecules(ui: CylindraMainWidget, tmpdir):
     ui.SplinesMenu.Show.make_local_cft_images(
         [0], save_path=tmpdir, image_format="Separate PNGs", upsample_factor=1
     )
+    ui.correlation_heatmap_for_feature("Mole-0", "pf-id", max_offset_longitudinal=2, max_offset_lateral=1, is_binary_data=False)
 
 
 def test_napari_operations(ui: CylindraMainWidget):
