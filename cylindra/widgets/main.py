@@ -3645,12 +3645,12 @@ class CylindraMainWidget(MagicTemplate):
         from napari.utils.colormaps import label_colormap
 
         layer = assert_layer(layer, self.parent_viewer)
-        utils.assert_column_exists(layer.molecules.features, target)
+        utils.assert_column_exists(feat := layer.molecules.features, target)
         if suffix == "":
             raise ValueError("`suffix` cannot be empty.")
-        feat, cmap_info = layer.molecules.features, layer.colormap_info
+        cmap_info = layer.colormap_info
         nrise = _assert_source_spline_exists(layer).nrise()
-        out = cylfilters.label(layer.molecules.features, target, nrise)
+        out = cylfilters.label(feat, target, nrise)
         feature_name = f"{target}{suffix}"
         layer.molecules = layer.molecules.with_features(out.alias(feature_name))
         self.reset_choices()
@@ -3661,23 +3661,38 @@ class CylindraMainWidget(MagicTemplate):
         return undo_callback(layer.feature_setter(feat, cmap_info))
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
-    def heatmap_for_feature(
+    def correlation_heatmap_for_feature(
         self,
         layer: MoleculesLayerType,
-        target: Annotated[
-            str, {"choices": _choice_getter("heatmap_for_feature", dtype_kind="b")}
-        ],
+        target: Annotated[str, {"choices": _choice_getter("heatmap_for_feature", dtype_kind="biuf")}],
         max_offset_longitudinal: int = 3,
         max_offset_lateral: int = 2,
-    ):
+        is_binary_data: bool = False,
+    ):  # fmt: skip
+        """Calculate a correlation heatmap for a binarized feature column.
+
+        Correlation heatmap shows how likely two molecules with the same relative
+        positioning will have the save value.
+        """
+        from magicclass.ext.polars import DataFrameView
+
         layer = assert_layer(layer, self.parent_viewer)
         utils.assert_column_exists(feat := layer.molecules.features, target)
         nrise = _assert_source_spline_exists(layer).nrise()
         footprint = np.ones(
             (2 * max_offset_longitudinal + 1, 2 * max_offset_lateral + 1), dtype=int
         )
-        out = cylfilters.build_heatmap(feat, target, nrise, footprint)
-        self.logger.print_table([[f"{i:.3f}" for i in row] for row in out])
+        if is_binary_data:
+            out = cylfilters.build_binary_heatmap(feat, target, nrise, footprint)
+        else:
+            out = cylfilters.build_correlation_heatmap(feat, target, nrise, footprint)
+
+        title = f"Heatmap of {target} in {layer.name}"
+        with self.logger.set_plt():
+            widget_utils.plot_heatmap(out, title=title)
+        view = DataFrameView(value=pl.DataFrame(out))
+        widget_utils.show_widget(view, title, self)
+        return out
 
     @set_design(text="Analyze region properties", location=_sw.MoleculesMenu.Features)
     def regionprops_features(
@@ -3714,6 +3729,7 @@ class CylindraMainWidget(MagicTemplate):
         df = reg.calculate(properties)
         view = DataFrameView(value=df)
         widget_utils.show_widget(view, "Region properties", self)
+        return df
 
     @set_design(text="Update pixel scale", location=_sw.ImageMenu)
     def update_scale(
