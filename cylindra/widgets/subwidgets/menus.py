@@ -579,7 +579,7 @@ class MoleculesMenu(ChildWidget):
         count_neighbors = abstractapi()
         binarize_feature = abstractapi()
         label_feature_clusters = abstractapi()
-        label_feature_clusters = abstractapi()
+        correlation_heatmap_for_feature = abstractapi()
         regionprops_features = abstractapi()
 
     @magicmenu(name="Visualize")
