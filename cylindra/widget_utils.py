@@ -302,6 +302,23 @@ def plot_projections(merge: np.ndarray):
     plt.show()
 
 
+def plot_heatmap(heatmap: np.ndarray, title: str | None = None):
+    import matplotlib.pyplot as plt
+
+    plt.figure(figsize=(6.8, 5))
+    plt.imshow(heatmap)
+    plt.colorbar(label="Correlation")
+    plt.xlabel("Lateral")
+    plt.ylabel("Longitudinal")
+    if title is not None:
+        plt.title(title)
+    ny, nx = heatmap.shape
+    plt.xticks(np.arange(nx), np.arange(-nx // 2 + 1, nx // 2 + 1))
+    plt.yticks(np.arange(ny), np.arange(-ny // 2 + 1, ny // 2 + 1))
+    plt.tight_layout()
+    plt.show()
+
+
 @dataclass
 class FscResult:
     """Result of Fourier Shell Correlation."""

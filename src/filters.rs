@@ -186,6 +186,89 @@ impl CylindricArray {
         labels
     }
 
+    /// Build a heatmap on a boolean array.
+    pub fn build_binary_heatmap(
+        &self,
+        py: Python,
+        footprint: PyReadonlyArray2<bool>
+    ) -> Py<PyArray2<f32>> {
+        let footprint = footprint.as_array();
+        let shape = footprint.shape();
+        let mut heatmap = Array2::<f32>::zeros((shape[0], shape[1]));
+        let cy = (shape[0] - 1) / 2;
+        let cx = (shape[1] - 1) / 2;
+
+        for i in 0..shape[0] {
+            for j in 0..shape[1] {
+                let mut sum_samples = 0.0;
+                for y in 0..self.array.shape()[0] as isize {
+                    for x in 0..self.array.shape()[1] as isize {
+                        let ny = y + (i as isize - cy as isize);
+                        let nx = x + (j as isize - cx as isize);
+                        let val_ori = self[[y, x]];
+                        let val_other = self[[ny, nx]];
+                        if val_ori.is_nan() || val_other.is_nan() {
+                            continue;
+                        }
+                        if val_ori > 0.5 && val_other > 0.5 {
+                            heatmap[[i, j]] += 1.0;
+                        }
+                        sum_samples += 1.0;
+                    }
+                }
+                heatmap[[i, j]] /= sum_samples;
+            }
+        }
+        heatmap.into_pyarray(py).into()
+    }
+
+    pub fn build_correlation_heatmap(
+        &self,
+        py: Python,
+        footprint: PyReadonlyArray2<bool>
+    ) -> Py<PyArray2<f32>> {
+        let footprint = footprint.as_array();
+        let shape = footprint.shape();
+        let mut heatmap = Array2::<f32>::zeros((shape[0], shape[1]));
+        let cy = (shape[0] - 1) / 2;
+        let cx = (shape[1] - 1) / 2;
+
+        for i in 0..shape[0] {
+            for j in 0..shape[1] {
+                let mut values_ori = Vec::new();
+                let mut values_other = Vec::new();
+                for y in 0..self.array.shape()[0] as isize {
+                    for x in 0..self.array.shape()[1] as isize {
+                        let ny = y + (i as isize - cy as isize);
+                        let nx = x + (j as isize - cx as isize);
+                        let val_ori = self[[y, x]];
+                        let val_other = self[[ny, nx]];
+                        if val_ori.is_nan() || val_other.is_nan() {
+                            continue;
+                        }
+                        values_ori.push(val_ori);
+                        values_other.push(val_other);
+                    }
+                }
+                // calculate the correlation coefficient
+                let mean_ori = values_ori.iter().sum::<f32>() / values_ori.len() as f32;
+                let mean_other = values_other.iter().sum::<f32>() / values_other.len() as f32;
+                let diff_ori = values_ori.iter().map(|v| v - mean_ori).collect::<Vec<f32>>();
+                let diff_other = values_other.iter().map(|v| v - mean_other).collect::<Vec<f32>>();
+                let numerator = diff_ori.iter().zip(diff_other.iter()).map(|(a, b)| a * b).sum::<f32>();
+                let denominator_ori = diff_ori.iter().map(|v| v * v).sum::<f32>();
+                let denominator_other = diff_other.iter().map(|v| v * v).sum::<f32>();
+                let denominator = (denominator_ori * denominator_other).sqrt();
+                heatmap[[i, j]] = if denominator > 0.0 {
+                    numerator / denominator
+                } else {
+                    0.0
+                };
+            }
+        }
+        heatmap.into_pyarray(py).into()
+    }
+
     pub fn with_values(&self, value: PyReadonlyArray1<f32>) -> PyResult<Self> {
         self.with_values_(&value.as_array())
     }
@@ -411,6 +494,8 @@ impl CylindricArray {
         out
     }
 
+    /// consider the cylindrical border and return the normalized indices.
+    /// If the index is out of bounds, return -1.
     fn norm_indices(&self, index: &[isize; 2]) -> (isize, isize) {
         let shape = self.array.shape();
         let nrise = self.nrise;

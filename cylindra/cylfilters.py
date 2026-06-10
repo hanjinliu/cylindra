@@ -102,6 +102,14 @@ class CylindricArray:
         ker = np.asarray(kernel, dtype=np.bool_)
         return CylindricArray(self._rust_obj.median_filter(ker))
 
+    def build_binary_heatmap(self, footprint: ArrayLike) -> NDArray[np.float32]:
+        footprint = np.asarray(footprint, dtype=np.bool_)
+        return self._rust_obj.build_binary_heatmap(footprint)
+
+    def build_correlation_heatmap(self, footprint: ArrayLike) -> NDArray[np.float32]:
+        footprint = np.asarray(footprint, dtype=np.bool_)
+        return self._rust_obj.build_correlation_heatmap(footprint)
+
     def binarize(self, threshold: float) -> Self:
         value = self.as1d()
         new_value = value >= threshold
@@ -236,4 +244,31 @@ def label(df: pl.DataFrame, target: str, nrise: int) -> pl.Series:
         .as_series(target)
         .round()
         .cast(pl.UInt32)
+    )
+
+
+def build_binary_heatmap(
+    df: pl.DataFrame,
+    target: str,
+    nrise: int,
+    footprint: ArrayLike,
+) -> NDArray[np.float32]:
+    return CylindricArray.from_dataframe(df, target, nrise).build_binary_heatmap(
+        footprint=footprint
+    )
+
+
+def build_correlation_heatmap(
+    df: pl.DataFrame,
+    target: str,
+    nrise: int,
+    footprint: ArrayLike,
+) -> NDArray[np.float32]:
+    """Calculate a correlation heatmap for a numerical feature column.
+
+    Correlation heatmap shows how likely two molecules with the same relative
+    positioning will have the save value.
+    """
+    return CylindricArray.from_dataframe(df, target, nrise).build_correlation_heatmap(
+        footprint=footprint
     )
