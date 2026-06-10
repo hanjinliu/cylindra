@@ -3431,10 +3431,7 @@
 <span class="normal">417</span>
 <span class="normal">418</span>
 <span class="normal">419</span>
-<span class="normal">420</span>
-<span class="normal">421</span>
-<span class="normal">422</span>
-<span class="normal">423</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LatticeParameters</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="normal">420</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LatticeParameters</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
     <span class="n">spacing</span> <span class="o">=</span> <span class="s2">&quot;spacing&quot;</span>
     <span class="n">elev_angle</span> <span class="o">=</span> <span class="s2">&quot;elev_angle&quot;</span>
     <span class="n">twist</span> <span class="o">=</span> <span class="s2">&quot;twist&quot;</span>
@@ -3445,12 +3442,9 @@
     <span class="n">curve_index</span> <span class="o">=</span> <span class="s2">&quot;curve_index&quot;</span>
 
     <span class="nd">@overload</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">calculate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mole</span><span class="p">:</span> <span class="n">Molecules</span><span class="p">,</span> <span class="n">spl</span><span class="p">:</span> <span class="n">CylSpline</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pl</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
-        <span class="o">...</span>
-
+    <span class="k">def</span><span class="w"> </span><span class="nf">calculate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mole</span><span class="p">:</span> <span class="n">Molecules</span><span class="p">,</span> <span class="n">spl</span><span class="p">:</span> <span class="n">CylSpline</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pl</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span> <span class="o">...</span>
     <span class="nd">@overload</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">calculate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pl</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
-        <span class="o">...</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">calculate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pl</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span> <span class="o">...</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">calculate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate this lattice parameter for the given molecule.&quot;&quot;&quot;</span>
@@ -3521,7 +3515,10 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/cylmeasure.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">391</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">388</span>
+<span class="normal">389</span>
+<span class="normal">390</span>
+<span class="normal">391</span>
 <span class="normal">392</span>
 <span class="normal">393</span>
 <span class="normal">394</span>
@@ -3546,10 +3543,7 @@
 <span class="normal">413</span>
 <span class="normal">414</span>
 <span class="normal">415</span>
-<span class="normal">416</span>
-<span class="normal">417</span>
-<span class="normal">418</span>
-<span class="normal">419</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">calculate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="normal">416</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">calculate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate this lattice parameter for the given molecule.&quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">spl</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">cylindra._napari</span><span class="w"> </span><span class="kn">import</span> <span class="n">MoleculesLayer</span>

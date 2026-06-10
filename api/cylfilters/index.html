@@ -2301,6 +2301,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#cylindra.cylfilters.build_correlation_heatmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        build_correlation_heatmap
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2749,6 +2760,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#cylindra.cylfilters.build_correlation_heatmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        build_correlation_heatmap
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2948,7 +2970,15 @@
 <span class="normal">137</span>
 <span class="normal">138</span>
 <span class="normal">139</span>
-<span class="normal">140</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylindricArray</span><span class="p">:</span>
+<span class="normal">140</span>
+<span class="normal">141</span>
+<span class="normal">142</span>
+<span class="normal">143</span>
+<span class="normal">144</span>
+<span class="normal">145</span>
+<span class="normal">146</span>
+<span class="normal">147</span>
+<span class="normal">148</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylindricArray</span><span class="p">:</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rust_obj</span><span class="p">:</span> <span class="n">_CylindricArray</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_rust_obj</span> <span class="o">=</span> <span class="n">rust_obj</span>
 
@@ -3036,6 +3066,14 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">median_filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kernel</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
         <span class="n">ker</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">kernel</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">CylindricArray</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rust_obj</span><span class="o">.</span><span class="n">median_filter</span><span class="p">(</span><span class="n">ker</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_binary_heatmap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">footprint</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">]:</span>
+        <span class="n">footprint</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">footprint</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rust_obj</span><span class="o">.</span><span class="n">build_binary_heatmap</span><span class="p">(</span><span class="n">footprint</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_correlation_heatmap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">footprint</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">]:</span>
+        <span class="n">footprint</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">footprint</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rust_obj</span><span class="o">.</span><span class="n">build_correlation_heatmap</span><span class="p">(</span><span class="n">footprint</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">binarize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">threshold</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
         <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">as1d</span><span class="p">()</span>
@@ -3152,6 +3190,57 @@
 
 </div>
 
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="cylindra.cylfilters.build_correlation_heatmap" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">build_correlation_heatmap</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">nrise</span><span class="p">,</span> <span class="n">footprint</span><span class="p">)</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Calculate a correlation heatmap for a numerical feature column.</p>
+<p>Correlation heatmap shows how likely two molecules with the same relative
+positioning will have the save value.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>cylindra/cylfilters.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">261</span>
+<span class="normal">262</span>
+<span class="normal">263</span>
+<span class="normal">264</span>
+<span class="normal">265</span>
+<span class="normal">266</span>
+<span class="normal">267</span>
+<span class="normal">268</span>
+<span class="normal">269</span>
+<span class="normal">270</span>
+<span class="normal">271</span>
+<span class="normal">272</span>
+<span class="normal">273</span>
+<span class="normal">274</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">build_correlation_heatmap</span><span class="p">(</span>
+    <span class="n">df</span><span class="p">:</span> <span class="n">pl</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">nrise</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">footprint</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate a correlation heatmap for a numerical feature column.</span>
+
+<span class="sd">    Correlation heatmap shows how likely two molecules with the same relative</span>
+<span class="sd">    positioning will have the save value.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">CylindricArray</span><span class="o">.</span><span class="n">from_dataframe</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">nrise</span><span class="p">)</span><span class="o">.</span><span class="n">build_correlation_heatmap</span><span class="p">(</span>
+        <span class="n">footprint</span><span class="o">=</span><span class="n">footprint</span>
+    <span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
 
 
 

@@ -2688,6 +2688,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#cylindra.widgets.main.CylindraMainWidget.correlation_heatmap_for_feature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        correlation_heatmap_for_feature
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#cylindra.widgets.main.CylindraMainWidget.count_neighbors" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4152,6 +4163,17 @@
     <span class="md-ellipsis">
       
         copy_spline
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cylindra.widgets.main.CylindraMainWidget.correlation_heatmap_for_feature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        correlation_heatmap_for_feature
       
     </span>
   </a>
@@ -8959,7 +8981,59 @@
 <span class="normal">4118</span>
 <span class="normal">4119</span>
 <span class="normal">4120</span>
-<span class="normal">4121</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span>
+<span class="normal">4121</span>
+<span class="normal">4122</span>
+<span class="normal">4123</span>
+<span class="normal">4124</span>
+<span class="normal">4125</span>
+<span class="normal">4126</span>
+<span class="normal">4127</span>
+<span class="normal">4128</span>
+<span class="normal">4129</span>
+<span class="normal">4130</span>
+<span class="normal">4131</span>
+<span class="normal">4132</span>
+<span class="normal">4133</span>
+<span class="normal">4134</span>
+<span class="normal">4135</span>
+<span class="normal">4136</span>
+<span class="normal">4137</span>
+<span class="normal">4138</span>
+<span class="normal">4139</span>
+<span class="normal">4140</span>
+<span class="normal">4141</span>
+<span class="normal">4142</span>
+<span class="normal">4143</span>
+<span class="normal">4144</span>
+<span class="normal">4145</span>
+<span class="normal">4146</span>
+<span class="normal">4147</span>
+<span class="normal">4148</span>
+<span class="normal">4149</span>
+<span class="normal">4150</span>
+<span class="normal">4151</span>
+<span class="normal">4152</span>
+<span class="normal">4153</span>
+<span class="normal">4154</span>
+<span class="normal">4155</span>
+<span class="normal">4156</span>
+<span class="normal">4157</span>
+<span class="normal">4158</span>
+<span class="normal">4159</span>
+<span class="normal">4160</span>
+<span class="normal">4161</span>
+<span class="normal">4162</span>
+<span class="normal">4163</span>
+<span class="normal">4164</span>
+<span class="normal">4165</span>
+<span class="normal">4166</span>
+<span class="normal">4167</span>
+<span class="normal">4168</span>
+<span class="normal">4169</span>
+<span class="normal">4170</span>
+<span class="normal">4171</span>
+<span class="normal">4172</span>
+<span class="normal">4173</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span>
     <span class="n">widget_type</span><span class="o">=</span><span class="s2">&quot;scrollable&quot;</span><span class="p">,</span>
     <span class="n">stylesheet</span><span class="o">=</span><span class="n">_STYLE</span><span class="p">,</span>
     <span class="n">name</span><span class="o">=</span><span class="s2">&quot;cylindra&quot;</span><span class="p">,</span>
@@ -12377,12 +12451,12 @@
         <span class="kn">from</span><span class="w"> </span><span class="nn">napari.utils.colormaps</span><span class="w"> </span><span class="kn">import</span> <span class="n">label_colormap</span>
 
         <span class="n">layer</span> <span class="o">=</span> <span class="n">assert_layer</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
-        <span class="n">utils</span><span class="o">.</span><span class="n">assert_column_exists</span><span class="p">(</span><span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+        <span class="n">utils</span><span class="o">.</span><span class="n">assert_column_exists</span><span class="p">(</span><span class="n">feat</span> <span class="o">:=</span> <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">suffix</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;`suffix` cannot be empty.&quot;</span><span class="p">)</span>
-        <span class="n">feat</span><span class="p">,</span> <span class="n">cmap_info</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span><span class="p">,</span> <span class="n">layer</span><span class="o">.</span><span class="n">colormap_info</span>
+        <span class="n">cmap_info</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">colormap_info</span>
         <span class="n">nrise</span> <span class="o">=</span> <span class="n">_assert_source_spline_exists</span><span class="p">(</span><span class="n">layer</span><span class="p">)</span><span class="o">.</span><span class="n">nrise</span><span class="p">()</span>
-        <span class="n">out</span> <span class="o">=</span> <span class="n">cylfilters</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">nrise</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">cylfilters</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="n">feat</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">nrise</span><span class="p">)</span>
         <span class="n">feature_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">target</span><span class="si">}{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">&quot;</span>
         <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">with_features</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">feature_name</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">reset_choices</span><span class="p">()</span>
@@ -12391,6 +12465,57 @@
         <span class="n">layer</span><span class="o">.</span><span class="n">set_colormap</span><span class="p">(</span><span class="n">feature_name</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">label_max</span><span class="p">),</span> <span class="n">cmap</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">reset_choices</span><span class="p">()</span>  <span class="c1"># choices regarding of features need update</span>
         <span class="k">return</span> <span class="n">undo_callback</span><span class="p">(</span><span class="n">layer</span><span class="o">.</span><span class="n">feature_setter</span><span class="p">(</span><span class="n">feat</span><span class="p">,</span> <span class="n">cmap_info</span><span class="p">))</span>
+
+    <span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Features</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">correlation_heatmap_for_feature</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
+        <span class="n">target</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;choices&quot;</span><span class="p">:</span> <span class="n">_choice_getter</span><span class="p">(</span><span class="s2">&quot;correlation_heatmap_for_feature&quot;</span><span class="p">,</span> <span class="n">dtype_kind</span><span class="o">=</span><span class="s2">&quot;biuf&quot;</span><span class="p">)}],</span>
+        <span class="n">max_offset_longitudinal</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="n">max_offset_lateral</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
+        <span class="n">is_binary_data</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>  <span class="c1"># fmt: skip</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate a correlation heatmap for a binarized feature column.</span>
+
+<span class="sd">        Correlation heatmap shows how likely two molecules with the same relative</span>
+<span class="sd">        positioning will have the save value.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        {layer}{target}</span>
+<span class="sd">        max_offset_longitudinal : int, default 3</span>
+<span class="sd">            Maximum longitudinal offset to consider for the correlation. For example,</span>
+<span class="sd">            if `max_offset_longitudinal` is 3, the correlation will be calculated for</span>
+<span class="sd">            molecules with longitudinal offsets from -3 to 3.</span>
+<span class="sd">        max_offset_lateral : int, default 2</span>
+<span class="sd">            Maximum lateral offset to consider for the correlation. For example, if</span>
+<span class="sd">            `max_offset_lateral` is 2, the correlation will be calculated for molecules</span>
+<span class="sd">            with lateral offsets from -2 to 2.</span>
+<span class="sd">        is_binary_data : bool, default False</span>
+<span class="sd">            If true, the correlation will be calculated as the binary correlation, i.e.,</span>
+<span class="sd">            how likely two molecules with the same relative positioning will have the</span>
+<span class="sd">            same true value. Therefore, the small number of true-true correlation will</span>
+<span class="sd">            not be buried by the false values.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">magicclass.ext.polars</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataFrameView</span>
+
+        <span class="n">layer</span> <span class="o">=</span> <span class="n">assert_layer</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
+        <span class="n">utils</span><span class="o">.</span><span class="n">assert_column_exists</span><span class="p">(</span><span class="n">feat</span> <span class="o">:=</span> <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+        <span class="n">nrise</span> <span class="o">=</span> <span class="n">_assert_source_spline_exists</span><span class="p">(</span><span class="n">layer</span><span class="p">)</span><span class="o">.</span><span class="n">nrise</span><span class="p">()</span>
+        <span class="n">footprint</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span>
+            <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">max_offset_longitudinal</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">max_offset_lateral</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">is_binary_data</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">cylfilters</span><span class="o">.</span><span class="n">build_binary_heatmap</span><span class="p">(</span><span class="n">feat</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">nrise</span><span class="p">,</span> <span class="n">footprint</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">cylfilters</span><span class="o">.</span><span class="n">build_correlation_heatmap</span><span class="p">(</span><span class="n">feat</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">nrise</span><span class="p">,</span> <span class="n">footprint</span><span class="p">)</span>
+
+        <span class="n">title</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Heatmap of </span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2"> in </span><span class="si">{</span><span class="n">layer</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">set_plt</span><span class="p">():</span>
+            <span class="n">widget_utils</span><span class="o">.</span><span class="n">plot_heatmap</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">)</span>
+        <span class="n">view</span> <span class="o">=</span> <span class="n">DataFrameView</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">pl</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">out</span><span class="p">))</span>
+        <span class="n">widget_utils</span><span class="o">.</span><span class="n">show_widget</span><span class="p">(</span><span class="n">view</span><span class="p">,</span> <span class="n">title</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span>
 
     <span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Analyze region properties&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Features</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">regionprops_features</span><span class="p">(</span>
@@ -12427,6 +12552,7 @@
         <span class="n">df</span> <span class="o">=</span> <span class="n">reg</span><span class="o">.</span><span class="n">calculate</span><span class="p">(</span><span class="n">properties</span><span class="p">)</span>
         <span class="n">view</span> <span class="o">=</span> <span class="n">DataFrameView</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">df</span><span class="p">)</span>
         <span class="n">widget_utils</span><span class="o">.</span><span class="n">show_widget</span><span class="p">(</span><span class="n">view</span><span class="p">,</span> <span class="s2">&quot;Region properties&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">df</span>
 
     <span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Update pixel scale&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">ImageMenu</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">update_scale</span><span class="p">(</span>
@@ -13370,22 +13496,22 @@ all the existing local properties.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3767</span>
-<span class="normal">3768</span>
-<span class="normal">3769</span>
-<span class="normal">3770</span>
-<span class="normal">3771</span>
-<span class="normal">3772</span>
-<span class="normal">3773</span>
-<span class="normal">3774</span>
-<span class="normal">3775</span>
-<span class="normal">3776</span>
-<span class="normal">3777</span>
-<span class="normal">3778</span>
-<span class="normal">3779</span>
-<span class="normal">3780</span>
-<span class="normal">3781</span>
-<span class="normal">3782</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3819</span>
+<span class="normal">3820</span>
+<span class="normal">3821</span>
+<span class="normal">3822</span>
+<span class="normal">3823</span>
+<span class="normal">3824</span>
+<span class="normal">3825</span>
+<span class="normal">3826</span>
+<span class="normal">3827</span>
+<span class="normal">3828</span>
+<span class="normal">3829</span>
+<span class="normal">3830</span>
+<span class="normal">3831</span>
+<span class="normal">3832</span>
+<span class="normal">3833</span>
+<span class="normal">3834</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">add_molecules</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -15452,6 +15578,231 @@ shared by multiple molecules layers that were aligned in a different parameters.
     <span class="bp">self</span><span class="o">.</span><span class="n">reset_choices</span><span class="p">()</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">SplineControl</span><span class="o">.</span><span class="n">num</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">splines</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
     <span class="k">return</span> <span class="n">undo_callback</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">delete_spline</span><span class="p">)</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="cylindra.widgets.main.CylindraMainWidget.correlation_heatmap_for_feature" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">correlation_heatmap_for_feature</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">max_offset_longitudinal</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">max_offset_lateral</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">is_binary_data</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Calculate a correlation heatmap for a binarized feature column.</p>
+<p>Correlation heatmap shows how likely two molecules with the same relative
+positioning will have the save value.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>layer</code>
+            </td>
+            <td>
+                  <code><span title="cylindra._napari.MoleculesLayer">MoleculesLayer</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Points layer of molecules to be used.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>target</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Target column name on which calculation will run.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>max_offset_longitudinal</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Maximum longitudinal offset to consider for the correlation. For example,
+if <code>max_offset_longitudinal</code> is 3, the correlation will be calculated for
+molecules with longitudinal offsets from -3 to 3.</p>
+              </div>
+            </td>
+            <td>
+                  <code>3</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>max_offset_lateral</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Maximum lateral offset to consider for the correlation. For example, if
+<code>max_offset_lateral</code> is 2, the correlation will be calculated for molecules
+with lateral offsets from -2 to 2.</p>
+              </div>
+            </td>
+            <td>
+                  <code>2</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>is_binary_data</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If true, the correlation will be calculated as the binary correlation, i.e.,
+how likely two molecules with the same relative positioning will have the
+same true value. Therefore, the small number of true-true correlation will
+not be buried by the false values.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3663</span>
+<span class="normal">3664</span>
+<span class="normal">3665</span>
+<span class="normal">3666</span>
+<span class="normal">3667</span>
+<span class="normal">3668</span>
+<span class="normal">3669</span>
+<span class="normal">3670</span>
+<span class="normal">3671</span>
+<span class="normal">3672</span>
+<span class="normal">3673</span>
+<span class="normal">3674</span>
+<span class="normal">3675</span>
+<span class="normal">3676</span>
+<span class="normal">3677</span>
+<span class="normal">3678</span>
+<span class="normal">3679</span>
+<span class="normal">3680</span>
+<span class="normal">3681</span>
+<span class="normal">3682</span>
+<span class="normal">3683</span>
+<span class="normal">3684</span>
+<span class="normal">3685</span>
+<span class="normal">3686</span>
+<span class="normal">3687</span>
+<span class="normal">3688</span>
+<span class="normal">3689</span>
+<span class="normal">3690</span>
+<span class="normal">3691</span>
+<span class="normal">3692</span>
+<span class="normal">3693</span>
+<span class="normal">3694</span>
+<span class="normal">3695</span>
+<span class="normal">3696</span>
+<span class="normal">3697</span>
+<span class="normal">3698</span>
+<span class="normal">3699</span>
+<span class="normal">3700</span>
+<span class="normal">3701</span>
+<span class="normal">3702</span>
+<span class="normal">3703</span>
+<span class="normal">3704</span>
+<span class="normal">3705</span>
+<span class="normal">3706</span>
+<span class="normal">3707</span>
+<span class="normal">3708</span>
+<span class="normal">3709</span>
+<span class="normal">3710</span>
+<span class="normal">3711</span>
+<span class="normal">3712</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="n">capitalize</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Features</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">correlation_heatmap_for_feature</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
+    <span class="n">target</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;choices&quot;</span><span class="p">:</span> <span class="n">_choice_getter</span><span class="p">(</span><span class="s2">&quot;correlation_heatmap_for_feature&quot;</span><span class="p">,</span> <span class="n">dtype_kind</span><span class="o">=</span><span class="s2">&quot;biuf&quot;</span><span class="p">)}],</span>
+    <span class="n">max_offset_longitudinal</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+    <span class="n">max_offset_lateral</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="n">is_binary_data</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">):</span>  <span class="c1"># fmt: skip</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate a correlation heatmap for a binarized feature column.</span>
+
+<span class="sd">    Correlation heatmap shows how likely two molecules with the same relative</span>
+<span class="sd">    positioning will have the save value.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    {layer}{target}</span>
+<span class="sd">    max_offset_longitudinal : int, default 3</span>
+<span class="sd">        Maximum longitudinal offset to consider for the correlation. For example,</span>
+<span class="sd">        if `max_offset_longitudinal` is 3, the correlation will be calculated for</span>
+<span class="sd">        molecules with longitudinal offsets from -3 to 3.</span>
+<span class="sd">    max_offset_lateral : int, default 2</span>
+<span class="sd">        Maximum lateral offset to consider for the correlation. For example, if</span>
+<span class="sd">        `max_offset_lateral` is 2, the correlation will be calculated for molecules</span>
+<span class="sd">        with lateral offsets from -2 to 2.</span>
+<span class="sd">    is_binary_data : bool, default False</span>
+<span class="sd">        If true, the correlation will be calculated as the binary correlation, i.e.,</span>
+<span class="sd">        how likely two molecules with the same relative positioning will have the</span>
+<span class="sd">        same true value. Therefore, the small number of true-true correlation will</span>
+<span class="sd">        not be buried by the false values.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">magicclass.ext.polars</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataFrameView</span>
+
+    <span class="n">layer</span> <span class="o">=</span> <span class="n">assert_layer</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
+    <span class="n">utils</span><span class="o">.</span><span class="n">assert_column_exists</span><span class="p">(</span><span class="n">feat</span> <span class="o">:=</span> <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+    <span class="n">nrise</span> <span class="o">=</span> <span class="n">_assert_source_spline_exists</span><span class="p">(</span><span class="n">layer</span><span class="p">)</span><span class="o">.</span><span class="n">nrise</span><span class="p">()</span>
+    <span class="n">footprint</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span>
+        <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">max_offset_longitudinal</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">max_offset_lateral</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">is_binary_data</span><span class="p">:</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">cylfilters</span><span class="o">.</span><span class="n">build_binary_heatmap</span><span class="p">(</span><span class="n">feat</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">nrise</span><span class="p">,</span> <span class="n">footprint</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">cylfilters</span><span class="o">.</span><span class="n">build_correlation_heatmap</span><span class="p">(</span><span class="n">feat</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">nrise</span><span class="p">,</span> <span class="n">footprint</span><span class="p">)</span>
+
+    <span class="n">title</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Heatmap of </span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2"> in </span><span class="si">{</span><span class="n">layer</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">set_plt</span><span class="p">():</span>
+        <span class="n">widget_utils</span><span class="o">.</span><span class="n">plot_heatmap</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">)</span>
+    <span class="n">view</span> <span class="o">=</span> <span class="n">DataFrameView</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">pl</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">out</span><span class="p">))</span>
+    <span class="n">widget_utils</span><span class="o">.</span><span class="n">show_widget</span><span class="p">(</span><span class="n">view</span><span class="p">,</span> <span class="n">title</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -17629,25 +17980,25 @@ must be "almost" fitted in dense mode.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3784</span>
-<span class="normal">3785</span>
-<span class="normal">3786</span>
-<span class="normal">3787</span>
-<span class="normal">3788</span>
-<span class="normal">3789</span>
-<span class="normal">3790</span>
-<span class="normal">3791</span>
-<span class="normal">3792</span>
-<span class="normal">3793</span>
-<span class="normal">3794</span>
-<span class="normal">3795</span>
-<span class="normal">3796</span>
-<span class="normal">3797</span>
-<span class="normal">3798</span>
-<span class="normal">3799</span>
-<span class="normal">3800</span>
-<span class="normal">3801</span>
-<span class="normal">3802</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3836</span>
+<span class="normal">3837</span>
+<span class="normal">3838</span>
+<span class="normal">3839</span>
+<span class="normal">3840</span>
+<span class="normal">3841</span>
+<span class="normal">3842</span>
+<span class="normal">3843</span>
+<span class="normal">3844</span>
+<span class="normal">3845</span>
+<span class="normal">3846</span>
+<span class="normal">3847</span>
+<span class="normal">3848</span>
+<span class="normal">3849</span>
+<span class="normal">3850</span>
+<span class="normal">3851</span>
+<span class="normal">3852</span>
+<span class="normal">3853</span>
+<span class="normal">3854</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">get_loader</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -18794,12 +19145,12 @@ decreasing this value may help to get more accurate result.</p>
     <span class="kn">from</span><span class="w"> </span><span class="nn">napari.utils.colormaps</span><span class="w"> </span><span class="kn">import</span> <span class="n">label_colormap</span>
 
     <span class="n">layer</span> <span class="o">=</span> <span class="n">assert_layer</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
-    <span class="n">utils</span><span class="o">.</span><span class="n">assert_column_exists</span><span class="p">(</span><span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+    <span class="n">utils</span><span class="o">.</span><span class="n">assert_column_exists</span><span class="p">(</span><span class="n">feat</span> <span class="o">:=</span> <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">suffix</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;`suffix` cannot be empty.&quot;</span><span class="p">)</span>
-    <span class="n">feat</span><span class="p">,</span> <span class="n">cmap_info</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span><span class="p">,</span> <span class="n">layer</span><span class="o">.</span><span class="n">colormap_info</span>
+    <span class="n">cmap_info</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">colormap_info</span>
     <span class="n">nrise</span> <span class="o">=</span> <span class="n">_assert_source_spline_exists</span><span class="p">(</span><span class="n">layer</span><span class="p">)</span><span class="o">.</span><span class="n">nrise</span><span class="p">()</span>
-    <span class="n">out</span> <span class="o">=</span> <span class="n">cylfilters</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">nrise</span><span class="p">)</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">cylfilters</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="n">feat</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">nrise</span><span class="p">)</span>
     <span class="n">feature_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">target</span><span class="si">}{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">&quot;</span>
     <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">with_features</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">feature_name</span><span class="p">))</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">reset_choices</span><span class="p">()</span>
@@ -23987,41 +24338,42 @@ the the property "mean" will be [1.5, 3.5]. For some properties such as "length"
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3663</span>
-<span class="normal">3664</span>
-<span class="normal">3665</span>
-<span class="normal">3666</span>
-<span class="normal">3667</span>
-<span class="normal">3668</span>
-<span class="normal">3669</span>
-<span class="normal">3670</span>
-<span class="normal">3671</span>
-<span class="normal">3672</span>
-<span class="normal">3673</span>
-<span class="normal">3674</span>
-<span class="normal">3675</span>
-<span class="normal">3676</span>
-<span class="normal">3677</span>
-<span class="normal">3678</span>
-<span class="normal">3679</span>
-<span class="normal">3680</span>
-<span class="normal">3681</span>
-<span class="normal">3682</span>
-<span class="normal">3683</span>
-<span class="normal">3684</span>
-<span class="normal">3685</span>
-<span class="normal">3686</span>
-<span class="normal">3687</span>
-<span class="normal">3688</span>
-<span class="normal">3689</span>
-<span class="normal">3690</span>
-<span class="normal">3691</span>
-<span class="normal">3692</span>
-<span class="normal">3693</span>
-<span class="normal">3694</span>
-<span class="normal">3695</span>
-<span class="normal">3696</span>
-<span class="normal">3697</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Analyze region properties&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Features</span><span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3714</span>
+<span class="normal">3715</span>
+<span class="normal">3716</span>
+<span class="normal">3717</span>
+<span class="normal">3718</span>
+<span class="normal">3719</span>
+<span class="normal">3720</span>
+<span class="normal">3721</span>
+<span class="normal">3722</span>
+<span class="normal">3723</span>
+<span class="normal">3724</span>
+<span class="normal">3725</span>
+<span class="normal">3726</span>
+<span class="normal">3727</span>
+<span class="normal">3728</span>
+<span class="normal">3729</span>
+<span class="normal">3730</span>
+<span class="normal">3731</span>
+<span class="normal">3732</span>
+<span class="normal">3733</span>
+<span class="normal">3734</span>
+<span class="normal">3735</span>
+<span class="normal">3736</span>
+<span class="normal">3737</span>
+<span class="normal">3738</span>
+<span class="normal">3739</span>
+<span class="normal">3740</span>
+<span class="normal">3741</span>
+<span class="normal">3742</span>
+<span class="normal">3743</span>
+<span class="normal">3744</span>
+<span class="normal">3745</span>
+<span class="normal">3746</span>
+<span class="normal">3747</span>
+<span class="normal">3748</span>
+<span class="normal">3749</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Analyze region properties&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">MoleculesMenu</span><span class="o">.</span><span class="n">Features</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">regionprops_features</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
@@ -24056,6 +24408,7 @@ the the property "mean" will be [1.5, 3.5]. For some properties such as "length"
     <span class="n">df</span> <span class="o">=</span> <span class="n">reg</span><span class="o">.</span><span class="n">calculate</span><span class="p">(</span><span class="n">properties</span><span class="p">)</span>
     <span class="n">view</span> <span class="o">=</span> <span class="n">DataFrameView</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">df</span><span class="p">)</span>
     <span class="n">widget_utils</span><span class="o">.</span><span class="n">show_widget</span><span class="p">(</span><span class="n">view</span><span class="p">,</span> <span class="s2">&quot;Region properties&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">df</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -27039,59 +27392,7 @@ affected by this operation will be dropped.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/main.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3699</span>
-<span class="normal">3700</span>
-<span class="normal">3701</span>
-<span class="normal">3702</span>
-<span class="normal">3703</span>
-<span class="normal">3704</span>
-<span class="normal">3705</span>
-<span class="normal">3706</span>
-<span class="normal">3707</span>
-<span class="normal">3708</span>
-<span class="normal">3709</span>
-<span class="normal">3710</span>
-<span class="normal">3711</span>
-<span class="normal">3712</span>
-<span class="normal">3713</span>
-<span class="normal">3714</span>
-<span class="normal">3715</span>
-<span class="normal">3716</span>
-<span class="normal">3717</span>
-<span class="normal">3718</span>
-<span class="normal">3719</span>
-<span class="normal">3720</span>
-<span class="normal">3721</span>
-<span class="normal">3722</span>
-<span class="normal">3723</span>
-<span class="normal">3724</span>
-<span class="normal">3725</span>
-<span class="normal">3726</span>
-<span class="normal">3727</span>
-<span class="normal">3728</span>
-<span class="normal">3729</span>
-<span class="normal">3730</span>
-<span class="normal">3731</span>
-<span class="normal">3732</span>
-<span class="normal">3733</span>
-<span class="normal">3734</span>
-<span class="normal">3735</span>
-<span class="normal">3736</span>
-<span class="normal">3737</span>
-<span class="normal">3738</span>
-<span class="normal">3739</span>
-<span class="normal">3740</span>
-<span class="normal">3741</span>
-<span class="normal">3742</span>
-<span class="normal">3743</span>
-<span class="normal">3744</span>
-<span class="normal">3745</span>
-<span class="normal">3746</span>
-<span class="normal">3747</span>
-<span class="normal">3748</span>
-<span class="normal">3749</span>
-<span class="normal">3750</span>
-<span class="normal">3751</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">3751</span>
 <span class="normal">3752</span>
 <span class="normal">3753</span>
 <span class="normal">3754</span>
@@ -27101,7 +27402,59 @@ affected by this operation will be dropped.</p>
 <span class="normal">3758</span>
 <span class="normal">3759</span>
 <span class="normal">3760</span>
-<span class="normal">3761</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Update pixel scale&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">ImageMenu</span><span class="p">)</span>
+<span class="normal">3761</span>
+<span class="normal">3762</span>
+<span class="normal">3763</span>
+<span class="normal">3764</span>
+<span class="normal">3765</span>
+<span class="normal">3766</span>
+<span class="normal">3767</span>
+<span class="normal">3768</span>
+<span class="normal">3769</span>
+<span class="normal">3770</span>
+<span class="normal">3771</span>
+<span class="normal">3772</span>
+<span class="normal">3773</span>
+<span class="normal">3774</span>
+<span class="normal">3775</span>
+<span class="normal">3776</span>
+<span class="normal">3777</span>
+<span class="normal">3778</span>
+<span class="normal">3779</span>
+<span class="normal">3780</span>
+<span class="normal">3781</span>
+<span class="normal">3782</span>
+<span class="normal">3783</span>
+<span class="normal">3784</span>
+<span class="normal">3785</span>
+<span class="normal">3786</span>
+<span class="normal">3787</span>
+<span class="normal">3788</span>
+<span class="normal">3789</span>
+<span class="normal">3790</span>
+<span class="normal">3791</span>
+<span class="normal">3792</span>
+<span class="normal">3793</span>
+<span class="normal">3794</span>
+<span class="normal">3795</span>
+<span class="normal">3796</span>
+<span class="normal">3797</span>
+<span class="normal">3798</span>
+<span class="normal">3799</span>
+<span class="normal">3800</span>
+<span class="normal">3801</span>
+<span class="normal">3802</span>
+<span class="normal">3803</span>
+<span class="normal">3804</span>
+<span class="normal">3805</span>
+<span class="normal">3806</span>
+<span class="normal">3807</span>
+<span class="normal">3808</span>
+<span class="normal">3809</span>
+<span class="normal">3810</span>
+<span class="normal">3811</span>
+<span class="normal">3812</span>
+<span class="normal">3813</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Update pixel scale&quot;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">_sw</span><span class="o">.</span><span class="n">ImageMenu</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">update_scale</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">new_scale</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">nm</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s2">&quot;step&quot;</span><span class="p">:</span> <span class="mf">0.0001</span><span class="p">}]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
