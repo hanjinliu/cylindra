@@ -20,7 +20,7 @@ from cylindra_builtins.relion import _relion_utils
 from cylindra_builtins.relion._relion_utils import starfile
 
 if TYPE_CHECKING:
-    from cylindra.components.tomogram import CylTomogram
+    from cylindra.components import CylSpline, CylTomogram
 
 TOMO_NAME = "rlnTomoName"
 IMPORT_PARTICLE_FILE = "rlnTomoImportParticleFile"
@@ -282,10 +282,7 @@ def _iter_dataframe_from_path_sets(
         moles = list(path_info.iter_molecules(_temp_feat, prj.scale))
         if len(moles) > 0:
             with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore",
-                    message=".*Gimbal.*",
-                )
+                warnings.filterwarnings("ignore", message=".*Gimbal.*")
                 df = _mole_to_star_df(
                     moles,
                     tomo,
@@ -361,7 +358,7 @@ def save_splines(
 def open_relion_job(
     ui: CylindraMainWidget,
     path: Path.Read[FileFilter.STAR_JOB],
-    project_root: Optional[Path.Save] = None,
+    project_root: Annotated[Optional[Path.Save], {"text": "Under the RELION job"}] = None,
     invert: bool = True,
     bin_size: list[int] = [1],
     scale_override: Annotated[
@@ -372,8 +369,10 @@ def open_relion_job(
             "options": {"step": 0.0001, "min": 0.01, "max": 1000.0, "value": 0.5},
         },
     ] = None,
-):
-    """Open a RELION tomogram reconstruction job folder.
+    join_molecules_by_id: Annotated[bool, {"text": "Join RELION particles to the current batch project"}] = False,
+    path_sets: Annotated[Any, {"bind": _get_loader_paths}] = None,
+):  # fmt: skip
+    """Open a RELION tomogram reconstruction/refinement job as a cylindra batch project.
 
     Parameters
     ----------
@@ -389,18 +388,30 @@ def open_relion_job(
     scale_override : float, optional
         If provided, the pixel size in the tomogram.star file will be ignored and
         this value will be used in cylindra.
+    join_molecules_by_id : bool, default False
+        If True, particle will be joined to the cylindra particles assuming that the
+        current Batch Analysis widget state is the same as the state when you exported
+        cylindra particles for RELION. This option is useful when you want to import
+        particles back to cylindra and fill the missing geometrical features (e.g. `nth`
+        and `pf-id` used for lattice structure analysis).
     """
     project_root, paths, scales, moles, tilt_models = _parse_relion_job(
         path, project_root
     )
     if scale_override is not None:
         scales = [scale_override] * len(scales)
+    splines = None
+    molecule_sources = None
+    if join_molecules_by_id:
+        moles, splines, molecule_sources = _match_molecules(moles, path_sets)
     ui.batch._new_projects_from_table(
         paths,
         save_root=project_root,
+        splines=splines,
         scale=scales,
         invert=[invert] * len(paths),
         molecules=moles,
+        molecule_sources=molecule_sources,
         bin_size=[bin_size] * len(paths),
         tilt_model=tilt_models,
     )
@@ -479,6 +490,78 @@ def _parse_relion_job(path, project_root):
     return project_root, paths, scales, moles, tilt_models
 
 
+def _match_molecules(
+    moles: list[dict[str, Molecules]],
+    path_sets: list,
+) -> tuple[
+    list[dict[str, Molecules]], list[list["CylSpline"]], list[dict[str, int | None]]
+]:
+    from cylindra.widgets.batch._sequence import PathInfo
+    from cylindra.widgets.batch._utils import TempFeatures
+
+    _ith_ = ".ith"
+    _mole_name_ = ".mole_name"
+
+    rln_particle_id = pl.col("rlnTomoParticleName").str.split("/")
+    rln_moles: dict[str, list[Molecules]] = {}  # tomo_name -> list of moles in the tomo
+    for m_dict in moles:
+        for m_name, m0 in m_dict.items():
+            tomo_names = m0.features.select(rln_particle_id.list[0]).to_series()
+            if tomo_names.n_unique() > 1:
+                raise ValueError("Molecules did not match.")
+            tomo_name = tomo_names[0]
+            if tomo_name not in rln_moles:
+                rln_moles[tomo_name] = []
+            rln_moles[tomo_name].append(
+                m0.with_features(
+                    rln_particle_id.list[1].cast(pl.Int64).alias(_ith_),
+                    pl.lit(m_name).alias(_mole_name_),
+                )
+            )
+
+    _temp_feat = TempFeatures()
+
+    moles_matched = []
+    all_splines = []
+    all_sources = []
+    for path_info in path_sets:
+        path_info = PathInfo(*path_info)
+        prj = path_info.project_instance(missing_ok=False)
+        splines = list(prj.iter_load_splines())
+        tomo_name = _relion_utils.strip_relion5_prefix(prj.image.stem)
+        mole_dict = {}
+        mole_source = {}
+        for molecule_id, mole in enumerate(
+            path_info.iter_molecules(_temp_feat, prj.scale)
+        ):
+            mole = mole.with_features(pl.arange(1, pl.len() + 1).alias(_ith_))
+            mole_info = prj.molecules_info[molecule_id]
+            if tomo_name not in rln_moles:
+                raise ValueError(
+                    f"No RELION particles found for tomogram {tomo_name!r}."
+                )
+            rln_parts = rln_moles[tomo_name][molecule_id]
+            df_filt = (
+                rln_parts.to_dataframe()
+                .join(mole.to_dataframe(), on=_ith_, how="left")
+                .drop(_ith_)
+            )
+            mole_filt = Molecules.from_dataframe(df_filt)
+            mole_names = mole_filt.features[_mole_name_].unique().to_list()
+            if len(mole_names) > 1:
+                raise ValueError("Molecules did not match.")
+            elif len(mole_names) == 0:
+                continue  # No molecules matched, skip
+            mole_name = mole_names[0]
+            mole_dict[mole_name] = mole_filt.drop_features(_mole_name_)
+            mole_source[mole_name] = mole_info.source
+
+        moles_matched.append(mole_dict)
+        all_splines.append(splines)
+        all_sources.append(mole_source)
+    return moles_matched, all_splines, all_sources
+
+
 class TomogramStar:
     """Object to parse tomograms.star file."""
 
@@ -512,6 +595,10 @@ class TomogramStar:
         return np.asarray(tomo_orig_scale / 10 * tomo_bin)
 
     def iter_tilt_models(self, project_dir: Path) -> Iterator[dict | None]:
+        if TILT_STAR not in self.df.columns:
+            for _ in range(1000):
+                yield None
+            raise StopIteration
         tilt_paths = [project_dir / str(p) for p in self.df[TILT_STAR]]
         for tilt_path in tilt_paths:
             if not tilt_path.exists():
@@ -574,7 +661,6 @@ def _iter_from_optimisation_star(
     scale_nm = tomostar.scale_nm
     tomo_paths = list(tomostar.iter_tomo_paths(rln_project_path))
     tomo_shapes = list(tomostar.iter_tomo_shapes())
-    tilt_models = list(tomostar.iter_tilt_models(rln_project_path))
     if run_data_path is None:
         particles_df = starfile.read(rln_project_path / particles_path)
     else:
@@ -591,7 +677,9 @@ def _iter_from_optimisation_star(
     }
     name_to_path_map = dict(zip(tomo_names, tomo_paths, strict=False))
     name_to_scale_map = dict(zip(tomo_names, scale_nm, strict=False))
-    name_to_tilt_model_map = dict(zip(tomo_names, tilt_models, strict=False))
+    name_to_tilt_model_map = dict(
+        zip(tomo_names, tomostar.iter_tilt_models(rln_project_path), strict=False)
+    )
     for tomo_id, particles in particles_df.groupby(TOMO_NAME):
         center_zyx = name_to_center_map.get(tomo_id)
         if center_zyx is None:

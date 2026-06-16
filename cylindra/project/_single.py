@@ -115,6 +115,7 @@ class CylindraProject(BaseProject):
         project_dir: Path,
         splines: "list[CylSpline]" = [],
         molecules: "dict[str, Molecules]" = {},
+        molecule_sources: "dict[str, int | None]" = {},
     ) -> None:
         """Save this project."""
         from macrokit import parse
@@ -144,7 +145,10 @@ class CylindraProject(BaseProject):
                 save_path = results_dir / name
                 if save_path.suffix == "":
                     save_path = save_path.with_suffix(".csv")
-                self_copy.molecules_info.append(MoleculesInfo(name=save_path.name))
+                source = molecule_sources.get(name, None)
+                self_copy.molecules_info.append(
+                    MoleculesInfo(name=save_path.name, source=source)
+                )
                 mole.to_file(save_path)
             self_copy.to_json(self._project_json_path(results_dir))
 
