@@ -543,7 +543,8 @@ def _match_molecules(
             mole_info = prj.molecules_info[molecule_id]
             if tomo_name not in rln_moles:
                 raise ValueError(
-                    f"No RELION particles found for tomogram {tomo_name!r}."
+                    f"No RELION particles found for tomogram {tomo_name!r}. Valid "
+                    f"names are {list(rln_moles.keys())!r}."
                 )
             rln_parts = rln_moles[tomo_name][molecule_id]
             df_filt = (
