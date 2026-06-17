@@ -3920,7 +3920,6 @@ class CylindraMainWidget(MagicTemplate):
             _config.uncache_tomogram(old_tomo.source)
 
         # update viewer dimensions
-        viewer.scale_bar.unit = imgb.scale_unit
         viewer.dims.axis_labels = ("z", "y", "x")
         change_viewer_focus(viewer, np.asarray(imgb.shape) / 2, imgb.scale.x)
 

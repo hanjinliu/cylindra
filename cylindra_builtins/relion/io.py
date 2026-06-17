@@ -403,6 +403,11 @@ def open_relion_job(
     splines = None
     molecule_sources = None
     if join_molecules_by_id:
+        if path_sets is None or len(path_sets) == 0:
+            raise ValueError(
+                "No molecules to join. Please add projects in the batch analysis "
+                "widget first to join RELION particles."
+            )
         moles, splines, molecule_sources = _match_molecules(moles, path_sets)
     ui.batch._new_projects_from_table(
         paths,

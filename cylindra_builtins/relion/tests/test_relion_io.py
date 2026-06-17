@@ -101,5 +101,10 @@ def test_opening_jobs(ui: CylindraMainWidget, tmpdir):
     )
 
     # test preview
-    relion.open_relion_job(ui, JOB_REFINE_DIR / "job.star")
+    relion.open_relion_job(
+        ui,
+        JOB_REFINE_DIR / "job.star",
+        join_molecules_by_id=True,
+        path_sets=ui.batch._get_loader_paths(),
+    )
     _preview_open_relion_job(ui, JOB_REFINE_DIR / "job.star")

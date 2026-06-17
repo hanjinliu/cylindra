@@ -229,6 +229,7 @@ def add_molecules(
         source=source,
         metadata=metadata,
         cmap=cmap,
+        units=["nm"] * 3,
         **kwargs,
     )
     return viewer.add_layer(layer)
@@ -245,6 +246,7 @@ def add_labels(
         translate=[tr, tr, tr],
         scale=list(label.scale.values()),
         opacity=0.4,
+        units=["nm"] * label.ndim,
     )
 
 
@@ -446,7 +448,6 @@ def add_image_to_sub_viewer(
     """Add an image to the sub-viewer."""
     image.scale_unit = "nm"
     viewer.scale_bar.visible = True
-    viewer.scale_bar.unit = "nm"
     if threshold is None and isinstance(image, ip.ImgArray):
         from skimage.filters.thresholding import threshold_yen
 
@@ -463,6 +464,7 @@ def add_image_to_sub_viewer(
         rendering="iso",
         iso_threshold=threshold,
         blending="opaque",
+        units=["nm"] * image.ndim,
     )
 
 
