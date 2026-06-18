@@ -73,6 +73,12 @@ class CylindricArray:
 
     @classmethod
     def from_dataframe(self, df: pl.DataFrame, target: str, nrise: int) -> Self:
+        """Construct a CylindricArray from a DataFrame."""
+        if Mole.nth not in df.columns or Mole.pf not in df.columns:
+            raise ValueError(
+                f"DataFrame must contain columns {Mole.nth!r} and {Mole.pf!r} to "
+                f"construct a {type(self).__name__} object."
+            )
         nth = df[Mole.nth].to_numpy()
         npf = df[Mole.pf].to_numpy()
         value = df[target].to_numpy()

@@ -139,8 +139,9 @@ class CylindraBatchWidget(MagicTemplate):
         tilt_model: list[dict | None] | None = None,
         bin_size: list[list[int]] | None = None,
         invert: list[bool] | None = None,
-        splines: list["CylSpline"] | None = None,
+        splines: list[list["CylSpline"]] | None = None,
         molecules: list[dict[str, Molecules]] | None = None,
+        molecule_sources: list[dict[str, int | None]] | None = None,
         extension: Literal["", ".zip", ".tar"] = "",
         strip_prefix: str = "",
         strip_suffix: str = "",
@@ -171,10 +172,11 @@ class CylindraBatchWidget(MagicTemplate):
             raise ValueError("No projects created.")
         save_root.mkdir(parents=True, exist_ok=True)
         self.constructor.projects.clear()
-        for (prj, prj_name), spl, mole in zip(
+        for (prj, prj_name), spl, mole, mole_src in zip(
             projects,
             splines or [[]] * num_projects,
             molecules or [{}] * num_projects,
+            molecule_sources or [{}] * num_projects,
             strict=True,
         ):
             if strip_prefix and prj_name.startswith(strip_prefix):
@@ -185,7 +187,9 @@ class CylindraBatchWidget(MagicTemplate):
             if save_path.exists() and not overwrite:
                 prj = CylindraProject.from_file(save_path)
             else:
-                prj.save(save_path, splines=spl, molecules=mole)
+                prj.save(
+                    save_path, splines=spl, molecules=mole, molecule_sources=mole_src
+                )
                 prj.project_path = save_path
             self.constructor.projects._add(prj.project_path)
         self.save_batch_project(save_path=save_root)
