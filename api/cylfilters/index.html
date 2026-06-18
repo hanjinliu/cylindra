@@ -2296,6 +2296,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#cylindra.cylfilters.CylindricArray.from_dataframe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        from_dataframe
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2755,6 +2766,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#cylindra.cylfilters.CylindricArray.from_dataframe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        from_dataframe
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2978,7 +3000,13 @@
 <span class="normal">145</span>
 <span class="normal">146</span>
 <span class="normal">147</span>
-<span class="normal">148</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylindricArray</span><span class="p">:</span>
+<span class="normal">148</span>
+<span class="normal">149</span>
+<span class="normal">150</span>
+<span class="normal">151</span>
+<span class="normal">152</span>
+<span class="normal">153</span>
+<span class="normal">154</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylindricArray</span><span class="p">:</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rust_obj</span><span class="p">:</span> <span class="n">_CylindricArray</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_rust_obj</span> <span class="o">=</span> <span class="n">rust_obj</span>
 
@@ -3038,6 +3066,12 @@
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">from_dataframe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">pl</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">nrise</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Construct a CylindricArray from a DataFrame.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">Mole</span><span class="o">.</span><span class="n">nth</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span> <span class="ow">or</span> <span class="n">Mole</span><span class="o">.</span><span class="n">pf</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;DataFrame must contain columns </span><span class="si">{</span><span class="n">Mole</span><span class="o">.</span><span class="n">nth</span><span class="si">!r}</span><span class="s2"> and </span><span class="si">{</span><span class="n">Mole</span><span class="o">.</span><span class="n">pf</span><span class="si">!r}</span><span class="s2"> to &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;construct a </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> object.&quot;</span>
+            <span class="p">)</span>
         <span class="n">nth</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">Mole</span><span class="o">.</span><span class="n">nth</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
         <span class="n">npf</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">Mole</span><span class="o">.</span><span class="n">pf</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
         <span class="n">value</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">target</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
@@ -3182,6 +3216,55 @@
 
 </div>
 
+<div class="doc doc-object doc-function">
+
+
+<h4 id="cylindra.cylfilters.CylindricArray.from_dataframe" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">from_dataframe</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">nrise</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Construct a CylindricArray from a DataFrame.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>cylindra/cylfilters.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">74</span>
+<span class="normal">75</span>
+<span class="normal">76</span>
+<span class="normal">77</span>
+<span class="normal">78</span>
+<span class="normal">79</span>
+<span class="normal">80</span>
+<span class="normal">81</span>
+<span class="normal">82</span>
+<span class="normal">83</span>
+<span class="normal">84</span>
+<span class="normal">85</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">from_dataframe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">pl</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">nrise</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Construct a CylindricArray from a DataFrame.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">Mole</span><span class="o">.</span><span class="n">nth</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span> <span class="ow">or</span> <span class="n">Mole</span><span class="o">.</span><span class="n">pf</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;DataFrame must contain columns </span><span class="si">{</span><span class="n">Mole</span><span class="o">.</span><span class="n">nth</span><span class="si">!r}</span><span class="s2"> and </span><span class="si">{</span><span class="n">Mole</span><span class="o">.</span><span class="n">pf</span><span class="si">!r}</span><span class="s2"> to &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;construct a </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> object.&quot;</span>
+        <span class="p">)</span>
+    <span class="n">nth</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">Mole</span><span class="o">.</span><span class="n">nth</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+    <span class="n">npf</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">Mole</span><span class="o">.</span><span class="n">pf</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">target</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">CylindricArray</span><span class="o">.</span><span class="n">from_sequences</span><span class="p">(</span><span class="n">nth</span><span class="p">,</span> <span class="n">npf</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">nrise</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
 
 
   </div>
@@ -3209,20 +3292,20 @@ positioning will have the save value.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/cylfilters.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">261</span>
-<span class="normal">262</span>
-<span class="normal">263</span>
-<span class="normal">264</span>
-<span class="normal">265</span>
-<span class="normal">266</span>
-<span class="normal">267</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">267</span>
 <span class="normal">268</span>
 <span class="normal">269</span>
 <span class="normal">270</span>
 <span class="normal">271</span>
 <span class="normal">272</span>
 <span class="normal">273</span>
-<span class="normal">274</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">build_correlation_heatmap</span><span class="p">(</span>
+<span class="normal">274</span>
+<span class="normal">275</span>
+<span class="normal">276</span>
+<span class="normal">277</span>
+<span class="normal">278</span>
+<span class="normal">279</span>
+<span class="normal">280</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">build_correlation_heatmap</span><span class="p">(</span>
     <span class="n">df</span><span class="p">:</span> <span class="n">pl</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
     <span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">nrise</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>

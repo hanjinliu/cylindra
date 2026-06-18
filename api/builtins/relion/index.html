@@ -3057,14 +3057,14 @@
 
 
 <h3 id="cylindra_builtins.relion.open_relion_job" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">open_relion_job</span><span class="p">(</span><span class="n">ui</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">project_root</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">invert</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">scale_override</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">open_relion_job</span><span class="p">(</span><span class="n">ui</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">project_root</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">invert</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">scale_override</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">join_molecules_by_id</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">path_sets</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h3>
 
 
     <div class="doc doc-contents ">
 
-        <p>Open a RELION tomogram reconstruction job folder.</p>
+        <p>Open a RELION tomogram reconstruction/refinement job as a cylindra batch project.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -3160,13 +3160,36 @@ this value will be used in cylindra.</p>
                   <code>None</code>
             </td>
           </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>join_molecules_by_id</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If True, particle will be joined to the cylindra particles assuming that the
+current Batch Analysis widget state is the same as the state when you exported
+cylindra particles for RELION. This option is useful when you want to import
+particles back to cylindra and fill the missing geometrical features (e.g. <code>nth</code>
+and <code>pf-id</code> used for lattice structure analysis).</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
       </tbody>
     </table>
 
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra_builtins/relion/io.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">360</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">357</span>
+<span class="normal">358</span>
+<span class="normal">359</span>
+<span class="normal">360</span>
 <span class="normal">361</span>
 <span class="normal">362</span>
 <span class="normal">363</span>
@@ -3212,11 +3235,27 @@ this value will be used in cylindra.</p>
 <span class="normal">403</span>
 <span class="normal">404</span>
 <span class="normal">405</span>
-<span class="normal">406</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Open RELION job&quot;</span><span class="p">)</span>
+<span class="normal">406</span>
+<span class="normal">407</span>
+<span class="normal">408</span>
+<span class="normal">409</span>
+<span class="normal">410</span>
+<span class="normal">411</span>
+<span class="normal">412</span>
+<span class="normal">413</span>
+<span class="normal">414</span>
+<span class="normal">415</span>
+<span class="normal">416</span>
+<span class="normal">417</span>
+<span class="normal">418</span>
+<span class="normal">419</span>
+<span class="normal">420</span>
+<span class="normal">421</span>
+<span class="normal">422</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Open RELION job&quot;</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">open_relion_job</span><span class="p">(</span>
     <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span>
     <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Read</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">STAR_JOB</span><span class="p">],</span>
-    <span class="n">project_root</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="o">.</span><span class="n">Save</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">project_root</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="o">.</span><span class="n">Save</span><span class="p">],</span> <span class="p">{</span><span class="s2">&quot;text&quot;</span><span class="p">:</span> <span class="s2">&quot;Under the RELION job&quot;</span><span class="p">}]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">invert</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="n">bin_size</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span>
     <span class="n">scale_override</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
@@ -3227,8 +3266,10 @@ this value will be used in cylindra.</p>
             <span class="s2">&quot;options&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;step&quot;</span><span class="p">:</span> <span class="mf">0.0001</span><span class="p">,</span> <span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mf">1000.0</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">},</span>
         <span class="p">},</span>
     <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Open a RELION tomogram reconstruction job folder.</span>
+    <span class="n">join_molecules_by_id</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;text&quot;</span><span class="p">:</span> <span class="s2">&quot;Join RELION particles to the current batch project&quot;</span><span class="p">}]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">path_sets</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;bind&quot;</span><span class="p">:</span> <span class="n">_get_loader_paths</span><span class="p">}]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">):</span>  <span class="c1"># fmt: skip</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Open a RELION tomogram reconstruction/refinement job as a cylindra batch project.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -3244,18 +3285,35 @@ this value will be used in cylindra.</p>
 <span class="sd">    scale_override : float, optional</span>
 <span class="sd">        If provided, the pixel size in the tomogram.star file will be ignored and</span>
 <span class="sd">        this value will be used in cylindra.</span>
+<span class="sd">    join_molecules_by_id : bool, default False</span>
+<span class="sd">        If True, particle will be joined to the cylindra particles assuming that the</span>
+<span class="sd">        current Batch Analysis widget state is the same as the state when you exported</span>
+<span class="sd">        cylindra particles for RELION. This option is useful when you want to import</span>
+<span class="sd">        particles back to cylindra and fill the missing geometrical features (e.g. `nth`</span>
+<span class="sd">        and `pf-id` used for lattice structure analysis).</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">project_root</span><span class="p">,</span> <span class="n">paths</span><span class="p">,</span> <span class="n">scales</span><span class="p">,</span> <span class="n">moles</span><span class="p">,</span> <span class="n">tilt_models</span> <span class="o">=</span> <span class="n">_parse_relion_job</span><span class="p">(</span>
         <span class="n">path</span><span class="p">,</span> <span class="n">project_root</span>
     <span class="p">)</span>
     <span class="k">if</span> <span class="n">scale_override</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">scales</span> <span class="o">=</span> <span class="p">[</span><span class="n">scale_override</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">scales</span><span class="p">)</span>
+    <span class="n">splines</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">molecule_sources</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">join_molecules_by_id</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">path_sets</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">path_sets</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;No molecules to join. Please add projects in the batch analysis &quot;</span>
+                <span class="s2">&quot;widget first to join RELION particles.&quot;</span>
+            <span class="p">)</span>
+        <span class="n">moles</span><span class="p">,</span> <span class="n">splines</span><span class="p">,</span> <span class="n">molecule_sources</span> <span class="o">=</span> <span class="n">_match_molecules</span><span class="p">(</span><span class="n">moles</span><span class="p">,</span> <span class="n">path_sets</span><span class="p">)</span>
     <span class="n">ui</span><span class="o">.</span><span class="n">batch</span><span class="o">.</span><span class="n">_new_projects_from_table</span><span class="p">(</span>
         <span class="n">paths</span><span class="p">,</span>
         <span class="n">save_root</span><span class="o">=</span><span class="n">project_root</span><span class="p">,</span>
+        <span class="n">splines</span><span class="o">=</span><span class="n">splines</span><span class="p">,</span>
         <span class="n">scale</span><span class="o">=</span><span class="n">scales</span><span class="p">,</span>
         <span class="n">invert</span><span class="o">=</span><span class="p">[</span><span class="n">invert</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">paths</span><span class="p">),</span>
         <span class="n">molecules</span><span class="o">=</span><span class="n">moles</span><span class="p">,</span>
+        <span class="n">molecule_sources</span><span class="o">=</span><span class="n">molecule_sources</span><span class="p">,</span>
         <span class="n">bin_size</span><span class="o">=</span><span class="p">[</span><span class="n">bin_size</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">paths</span><span class="p">),</span>
         <span class="n">tilt_model</span><span class="o">=</span><span class="n">tilt_models</span><span class="p">,</span>
     <span class="p">)</span>
@@ -4047,7 +4105,10 @@ option is required if you picked molecules in a trimmed tomogram.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra_builtins/relion/io.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">304</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">301</span>
+<span class="normal">302</span>
+<span class="normal">303</span>
+<span class="normal">304</span>
 <span class="normal">305</span>
 <span class="normal">306</span>
 <span class="normal">307</span>
@@ -4097,10 +4158,7 @@ option is required if you picked molecules in a trimmed tomogram.</p>
 <span class="normal">351</span>
 <span class="normal">352</span>
 <span class="normal">353</span>
-<span class="normal">354</span>
-<span class="normal">355</span>
-<span class="normal">356</span>
-<span class="normal">357</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Save splines&quot;</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="normal">354</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Save splines&quot;</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">save_splines</span><span class="p">(</span>
     <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span>
     <span class="n">save_path</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Save</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">STAR</span><span class="p">],</span>
