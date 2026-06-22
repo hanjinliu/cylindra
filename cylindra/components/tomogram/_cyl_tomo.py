@@ -309,9 +309,10 @@ class CylTomogram(Tomogram):
     ) -> _misc.FitResult:
         """Spline refinement using global lattice structural parameters.
 
-        Refine spline using the result of previous fit and the global structural parameters.
-        During refinement, Y-projection of XZ cross section of cylinder is rotated with the
-        twist angles, thus is much more precise than the coarse fitting.
+        Refine spline using the result of previous fit and the global structural
+        parameters. During refinement, Y-projection of XZ cross section of cylinder is
+        rotated with the twist angles, thus is much more precise than the coarse
+        fitting.
 
         Parameters
         ----------
@@ -649,7 +650,9 @@ class CylTomogram(Tomogram):
         nsamples: int = 1,
         update: bool = True,
         update_glob: bool = False,
+        mask_cylinder: bool = False,
     ) -> pl.DataFrame:
+        """Calculate local lattice parameters from the Cartesian Fourier space."""
         LOGGER.info(f"Running: {self.__class__.__name__}.local_ft_params, i={i}")
         spl = self.splines[i]
         radii = _misc.prepare_radii(spl, radius)
@@ -658,11 +661,19 @@ class CylTomogram(Tomogram):
         tasks: list[Delayed[LatticeParamsCartesian]] = []
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
         _analyze_fn = LatticeAnalyzer(spl.config).estimate_lattice_params_task_cartesian
+        _factory = CylindricalMaskFactory()
         for anc, r0 in zip(spl_trans.anchors, radii, strict=True):
-            _, rmax = spl.radius_range(r0)
+            rmin, rmax = spl.radius_range(r0)
             width = rmax * 2
             coords = spl_trans.local_cartesian((width, width), depth, anc, scale=_scale)
-            tasks.append(_analyze_fn(input_img, coords, width, nsamples=nsamples))
+            if mask_cylinder:
+                _factory.set_shape(coords.shape[1:])
+                mask = _factory.create_mask(rmin / _scale, rmax / _scale)
+            else:
+                mask = None
+            tasks.append(
+                _analyze_fn(input_img, coords, width, nsamples=nsamples, mask=mask)
+            )
 
         lprops = pl.DataFrame(
             compute(*tasks),
@@ -1375,3 +1386,32 @@ def _filter_by_corr(imgs_aligned: ip.ImgArray, corr_allowed: float) -> ip.ImgArr
     imgs_aligned = imgs_aligned[indices.tolist()]
     LOGGER.info(f" >> Correlation: {np.mean(corrs):.3f} ± {np.std(corrs):.3f}")
     return imgs_aligned
+
+
+class CylindricalMaskFactory:
+    def __init__(self):
+        self._shape = (0, 0, 0)
+        # key = (rmin, rmax) * 1000 (pixels)
+        self._cache: dict[tuple[int, int], NDArray[np.float32]] = {}
+
+    def set_shape(self, shape: tuple[int, int, int]):
+        if self._shape != shape:
+            self._shape = shape
+            self._cache.clear()
+
+    def create_mask(self, rmin: float, rmax: float) -> NDArray[np.float32]:
+        key = (roundint(rmin * 1000), roundint(rmax * 1000))
+        if key not in self._cache:
+            mask = np.zeros(self._shape, dtype=np.float32)
+            zz, _, xx = np.indices(self._shape, dtype=np.float32)
+            dist = np.sqrt(
+                (zz - (self._shape[0] - 1) / 2) ** 2
+                + (xx - (self._shape[2] - 1) / 2) ** 2
+            )
+            _rmin_sl = (rmin - 1 <= dist) & (dist < rmin)
+            mask[_rmin_sl] = (dist - rmin + 1)[_rmin_sl]
+            _rmax_sl = (rmax < dist) & (dist <= rmax + 1)
+            mask[_rmax_sl] = (rmax + 1 - dist)[_rmax_sl]
+            mask[(rmin <= dist) & (dist <= rmax)] = 1.0
+            self._cache[key] = mask
+        return self._cache[key]

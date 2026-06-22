@@ -2320,6 +2320,7 @@ class CylindraMainWidget(MagicTemplate):
         depth: Annotated[nm, {"label": "depth (nm)", "min": 2.0, "step": 0.5}] = 50.0,
         bin_size: BinSizeType = 1,
         radius: Literal["local", "global"] = "global",
+        mask_cylinder: Annotated[bool, {"text": "Mask cylinder in real space"}] = True,
         update_glob: Annotated[bool, {"text": "Also update the global properties"}] = False,
     ):  # fmt: skip
         """Determine local lattice parameters by canonical local Fourier transformation.
@@ -2333,6 +2334,10 @@ class CylindraMainWidget(MagicTemplate):
         radius : str, default "global"
             If "local", use the local radius for the analysis. If "global", use the
             global radius.
+        mask_cylinder : bool, default True
+            If True, mask the cylinder in real space before Fourier transformation. This
+            option will reduce the noise from the background and reduce the signals from
+            the bound proteins.
         {update_glob}
         """
         tomo = self.tomogram
@@ -2353,7 +2358,7 @@ class CylindraMainWidget(MagicTemplate):
                     tomo.make_anchors(i=i, interval=interval)
                 tomo.local_ft_params(
                     i=i, depth=depth, binsize=bin_size, radius=radius,
-                    update_glob=update_glob,
+                    update_glob=update_glob, mask_cylinder=mask_cylinder,
                 )  # fmt: skip
                 yield _local_ft_analysis_on_yield.with_args(i)
             return tracker.as_undo_callback()

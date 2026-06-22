@@ -102,10 +102,13 @@ class LatticeAnalyzer:
         coords: NDArray[np.float32],
         width: nm,
         nsamples: int = 1,
+        mask: NDArray[np.floating] | None = None,
     ) -> Delayed[LatticeParamsCartesian]:
         task = map_coordinates_task(
             img, coords, order=3, mode=Mode.constant, cval=np.mean
         )
+        if mask is not None:
+            task = task * mask
         return self.estimate_lattice_params_cartesian_task(task, width, nsamples)
 
     def estimate_lattice_params_polar(
