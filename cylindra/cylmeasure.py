@@ -381,12 +381,9 @@ class LatticeParameters(Enum):
     curve_index = "curve_index"
 
     @overload
-    def calculate(self, mole: Molecules, spl: CylSpline) -> pl.Series:
-        ...
-
+    def calculate(self, mole: Molecules, spl: CylSpline) -> pl.Series: ...
     @overload
-    def calculate(self, layer: MoleculesLayer) -> pl.Series:
-        ...
+    def calculate(self, layer: MoleculesLayer) -> pl.Series: ...
 
     def calculate(self, mole, spl=None):
         """Calculate this lattice parameter for the given molecule."""

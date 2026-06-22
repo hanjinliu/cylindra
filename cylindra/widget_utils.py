@@ -229,6 +229,7 @@ def add_molecules(
         source=source,
         metadata=metadata,
         cmap=cmap,
+        units=["nm"] * 3,
         **kwargs,
     )
     return viewer.add_layer(layer)
@@ -245,6 +246,7 @@ def add_labels(
         translate=[tr, tr, tr],
         scale=list(label.scale.values()),
         opacity=0.4,
+        units=["nm"] * label.ndim,
     )
 
 
@@ -298,6 +300,23 @@ def plot_projections(merge: np.ndarray):
     axes[1].imshow(np.max(merge, axis=1))
     axes[1].set_xlabel("X")
     axes[1].set_ylabel("Z")
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_heatmap(heatmap: np.ndarray, title: str | None = None):
+    import matplotlib.pyplot as plt
+
+    plt.figure(figsize=(6.8, 5))
+    plt.imshow(heatmap)
+    plt.colorbar(label="Correlation")
+    plt.xlabel("Lateral")
+    plt.ylabel("Longitudinal")
+    if title is not None:
+        plt.title(title)
+    ny, nx = heatmap.shape
+    plt.xticks(np.arange(nx), np.arange(-nx // 2 + 1, nx // 2 + 1))
+    plt.yticks(np.arange(ny), np.arange(-ny // 2 + 1, ny // 2 + 1))
     plt.tight_layout()
     plt.show()
 
@@ -429,7 +448,6 @@ def add_image_to_sub_viewer(
     """Add an image to the sub-viewer."""
     image.scale_unit = "nm"
     viewer.scale_bar.visible = True
-    viewer.scale_bar.unit = "nm"
     if threshold is None and isinstance(image, ip.ImgArray):
         from skimage.filters.thresholding import threshold_yen
 
@@ -446,6 +464,7 @@ def add_image_to_sub_viewer(
         rendering="iso",
         iso_threshold=threshold,
         blending="opaque",
+        units=["nm"] * image.ndim,
     )
 
 

@@ -26,7 +26,7 @@ class ReservedLayers:
     """A class that stores layers reserved for a cylindra session."""
 
     def __init__(self):
-        self.image = Image(ip.zeros((1, 1, 1), axes="zyx"))
+        self.image = Image(ip.zeros((1, 1, 1), axes="zyx"), units=["nm"] * 3)
         self.prof = _prof_layer()
         self.work = _work_layer()
         self.highlight = Points(
@@ -38,6 +38,7 @@ class ReservedLayers:
             border_width_is_relative=True,
             out_of_slice_display=True,
             blending="translucent_no_depth",
+            units=["nm"] * 3,
         )
         self.highlight.locked = True
         self.plane = Shapes(
@@ -45,6 +46,7 @@ class ReservedLayers:
             name="Picker Plane",
             face_color=[1.0, 0.2, 0.2, 0.44],
             edge_color=[1.0, 0.2, 0.2, 0.84],
+            units=["nm"] * 3,
         )
         self.plane.locked = True
         self.highlight.editable = False
@@ -70,6 +72,7 @@ class ReservedLayers:
             translate=[tr, tr, tr],
             contrast_limits=_calc_contrast_limits(img),
             blending="translucent_no_depth",
+            units=["nm"] * img.ndim,
         )
         self.image.bounding_box.points = False
         self.image.bounding_box.line_color = "#a0a0a0"
@@ -211,6 +214,7 @@ def _prof_layer() -> SplineLayer:
         border_color="black",
         face_color=SplineColor.DEFAULT,
         text={"color": "yellow"},
+        units=["nm"] * 3,
     )
     prof.feature_defaults[SPLINE_ID] = 0
     prof.feature_defaults[IS_SEGMENT] = False
@@ -226,6 +230,7 @@ def _work_layer() -> Points:
         name=WORKING_LAYER_NAME,
         face_color="yellow",
         blending="translucent",
+        units=["nm"] * 3,
     )
     work.mode = "add"
     work.bind_key("Ctrl-C")(_work_layer_copy)

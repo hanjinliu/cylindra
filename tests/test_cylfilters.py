@@ -31,6 +31,48 @@ def test_label(nrise, ans):
         np.array(ans),
     )
 
+def test_heatmap():
+    # 0 0 0 0 0 0
+    # 0 0 0 0 0 1 0
+    # 1 0 0 0 0 0 0
+    # 0 0 0 0 0 0 1
+    # 0 1 0 0 0 0 0
+    # 0 0 0 0 0 0 0
+    # 0 0 1 0 0 0 0
+    # 0 0 0 0 0 0 0
+    # 0 0 0 1 0 0 0
+    #             0
+    data = np.array(
+        [[0, 0, 0, 0, 0, 0],
+         [0, 0, 0, 0, 0, 1],
+         [1, 0, 0, 0, 0, 0],
+         [0, 0, 0, 0, 0, 0],
+         [0, 1, 0, 0, 0, 0],
+         [0, 0, 0, 0, 0, 0],
+         [0, 0, 1, 0, 0, 0],
+         [0, 0, 0, 0, 0, 0],
+         [0, 0, 0, 1, 0, 0]]
+    )
+    nrise = -1
+    df = _2d_array_to_input(data)
+    footprint = np.ones((5, 3), dtype=int)
+    out = cylfilters.build_binary_heatmap(df, "value", nrise, footprint)
+    assert out.shape == (5, 3)
+    a21 = 4 / (7 * 6 + 1)
+    a00 = np.mean(data)
+    assert out[0, 0] == out[4, 2]  # symmetry
+    np.testing.assert_allclose(
+        out,
+        [[a21, 0, 0],
+         [0, 0, 0],
+         [0, a00, 0],
+         [0, 0, 0],
+         [0, 0, a21],]
+    )
+
+    out = cylfilters.build_correlation_heatmap(df, "value", nrise, footprint)
+    assert out.shape == (5, 3)
+
 
 @pytest.mark.parametrize(
     "nrise, ans",

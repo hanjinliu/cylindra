@@ -173,6 +173,7 @@ class MoleculesLayer(_FeatureBoundLayer, Points, _SourceBoundLayer):
     def __init__(self, data: Molecules, **kwargs):
         if not isinstance(data, Molecules):
             raise TypeError("data must be a Molecules object")
+        kwargs.setdefault("units", ["nm"] * 3)
         self._molecules = data
         self._colormap_info: ColormapInfo | str = "lime"
         self._point_size = float(kwargs.get("size", get_config().point_size))
@@ -419,6 +420,7 @@ class LandscapeSurface(Surface, _SourceBoundLayer):
             "colormap",
             Colormap([[0, 0, 0, 0], [0, 0, 0, 0]], controls=[0, 1], name="invisible"),
         )
+        kwargs.setdefault("units", ["nm"] * 3)
         self._level_min = landscape.energies.min()
         self._level_max = landscape.energies.max()
         if level is None:
@@ -513,6 +515,7 @@ class InteractionVector(Vectors):
         kwargs.setdefault("out_of_slice_display", True)
         kwargs.setdefault("edge_width", 0.7)
         kwargs.setdefault("edge_color", "darkgreen")
+        kwargs.setdefault("units", ["nm"] * 3)
         super().__init__(vectors, **kwargs)
         self._net = net
         if net.features.shape[1] > 0:

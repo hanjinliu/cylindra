@@ -79,8 +79,6 @@ class CylindraBatchProject(BaseProject):
         project_dir: Path,
         mole_ext: str = ".csv",
     ) -> "CylindraBatchProject":
-        _versions = get_versions()
-
         def as_relative(p: Path):
             assert isinstance(p, Path)
             try:

@@ -475,8 +475,10 @@ class CylTomogram(Tomogram):
             )
             for anc in pos
         ]
+        # get the mean profile for all the positions.
         profs: list[NDArray[np.float32]] = compute(*tasks)
         prof = np.stack(profs, axis=0).mean(axis=0)
+
         imax_sub = find_centroid_peak(prof, *_misc.get_thickness(spl, _scale))
         offset_px = _misc.get_radius_offset(min_radius_px, max_radius_px)
         radius = (imax_sub + offset_px) * _scale
