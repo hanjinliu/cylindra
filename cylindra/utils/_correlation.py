@@ -6,7 +6,7 @@ import impy as ip
 import numpy as np
 from numpy.typing import NDArray
 
-from cylindra.utils._misc import set_gpu
+from cylindra.utils._misc import Mode, set_gpu
 
 
 def mirror_pcc(img0: ip.ImgArray, mask=None, max_shifts=None):
@@ -54,12 +54,12 @@ def rotated_auto_zncc(
 ) -> NDArray[np.floating]:
     results = list[tuple[np.ndarray, float, float]]()
     for deg in degrees:
-        img1 = img0.rotate(deg, mode="constant", dims=2)
+        img1 = img0.rotate(deg, mode=Mode.constant, dims=2)
         results.append(
             (*ip.zncc_maximum_with_corr(img0, img1, max_shifts=max_shifts), deg)
         )
 
-    shift, corr, optimal_deg = max(results, key=lambda x: x[1])
+    shift, _, optimal_deg = max(results, key=lambda x: x[1])
 
     rad = np.deg2rad(optimal_deg - 180.0) / 2
     cos, sin = np.cos(rad), np.sin(rad)
