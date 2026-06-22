@@ -40,6 +40,7 @@ class ReservedLayers:
             blending="translucent_no_depth",
             units=["nm"] * 3,
         )
+        self.highlight.locked = True
         self.plane = Shapes(
             ndim=3,
             name="Picker Plane",
@@ -47,6 +48,7 @@ class ReservedLayers:
             edge_color=[1.0, 0.2, 0.2, 0.84],
             units=["nm"] * 3,
         )
+        self.plane.locked = True
         self.highlight.editable = False
         self.plane.editable = False
         self.to_be_removed = WeakSet[Layer]()
@@ -74,6 +76,7 @@ class ReservedLayers:
         )
         self.image.bounding_box.points = False
         self.image.bounding_box.line_color = "#a0a0a0"
+        self.image.locked = True
 
     def highlight_spline(self, i: int):
         """Highlight the current spline."""
@@ -215,6 +218,7 @@ def _prof_layer() -> SplineLayer:
     )
     prof.feature_defaults[SPLINE_ID] = 0
     prof.feature_defaults[IS_SEGMENT] = False
+    prof.locked = True
     return prof
 
 
@@ -232,6 +236,7 @@ def _work_layer() -> Points:
     work.bind_key("Ctrl-C")(_work_layer_copy)
     work.bind_key("Ctrl-X")(_work_layer_cut)
     work.bind_key("Ctrl-V")(_work_layer_paste)
+    work.locked = True
     return work
 
 

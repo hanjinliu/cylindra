@@ -3339,6 +3339,7 @@ class CylindraMainWidget(MagicTemplate):
         color_by: Annotated[str, {"choices": _choice_getter("paint_molecules")}],
         cmap: _CmapType = DEFAULT_COLORMAP,
         limits: Annotated[tuple[float, float], {"options": {"min": -20, "max": 20, "step": 0.01}}] = (4.00, 4.24),
+        colorbar: Annotated[bool, {"text": "Show colorbar"}] = False,
     ):  # fmt: skip
         """Paint molecules by a feature.
 
@@ -3349,6 +3350,8 @@ class CylindraMainWidget(MagicTemplate):
         layer = assert_layer(layer, self.parent_viewer)
         info = layer.colormap_info
         layer.set_colormap(color_by, limits, cmap)
+        if colorbar:
+            layer.face_colorbar.visible = True
 
         match info:
             case str(color):
