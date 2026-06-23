@@ -11,6 +11,9 @@ on:
 jobs:
   docs:
     runs-on: macos-latest  # windows not working due to OpenGL error in vispy
+    env:
+      DISABLE_MKDOCS_2_WARNING: "true"
+
     steps:
       - uses: actions/checkout@v4
         with:
