@@ -2369,6 +2369,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: SplinesType = None,
         bin_size: BinSizeType = 1,
+        mask_cylinder: Annotated[bool, {"text": "Mask cylinder in real space"}] = True,
     ):  # fmt: skip
         """Determine global structural parameters by canonical Fourier transformation.
 
@@ -2378,6 +2379,10 @@ class CylindraMainWidget(MagicTemplate):
         Parameters
         ----------
         {splines}{bin_size}
+        mask_cylinder : bool, default True
+            If True, mask the cylinder in real space before Fourier transformation. This
+            option will reduce the noise from the background and reduce the signals from
+            the bound proteins.
         """
         tomo = self.tomogram
         splines = self._norm_splines(splines)
@@ -2387,7 +2392,9 @@ class CylindraMainWidget(MagicTemplate):
                 spl = tomo.splines[i]
                 if spl.radius is None:
                     tomo.measure_radius(i=i)
-                tomo.global_ft_params(i=i, binsize=bin_size)
+                tomo.global_ft_params(
+                    i=i, binsize=bin_size, mask_cylinder=mask_cylinder
+                )
                 yield
 
             # show all in a table
@@ -3676,6 +3683,7 @@ class CylindraMainWidget(MagicTemplate):
         max_offset_longitudinal: int = 3,
         max_offset_lateral: int = 2,
         is_binary_data: bool = False,
+        save_path: Annotated[Optional[Path.Save[FileFilter.CSV]], {"text": "Just show in table widget"}] = None,
     ):  # fmt: skip
         """Calculate a correlation heatmap for a binarized feature column.
 
@@ -3715,8 +3723,12 @@ class CylindraMainWidget(MagicTemplate):
         title = f"Heatmap of {target} in {layer.name}"
         with self.logger.set_plt():
             widget_utils.plot_heatmap(out, title=title)
-        view = DataFrameView(value=pl.DataFrame(out))
-        widget_utils.show_widget(view, title, self)
+        if save_path is None:
+            view = DataFrameView(value=pl.DataFrame(out))
+            widget_utils.show_widget(view, title, self)
+        else:
+            with open(save_path, "w", encoding="utf-8") as f:
+                np.savetxt(f, out, fmt=".6f", delimiter=",")
         return out
 
     @set_design(text="Analyze region properties", location=_sw.MoleculesMenu.Features)
@@ -3726,12 +3738,14 @@ class CylindraMainWidget(MagicTemplate):
         target: Annotated[str, {"choices": _choice_getter("regionprops_features", dtype_kind="uif")}],
         label: Annotated[str, {"choices": _choice_getter("regionprops_features", dtype_kind="ui")}],
         properties: Annotated[list[str], {"choices": cylmeasure.RegionProfiler.CHOICES, "widget_type": CheckBoxes}] = ("area", "mean"),
+        save_path: Annotated[Optional[Path.Save[FileFilter.CSV]], {"text": "Just show in table widget"}] = None,
     ):  # fmt: skip
         """Analyze region properties using another feature column as the labels.
 
-        For instance, if the target data is [0, 1, 2, 3, 4] and the labels are [0, 1, 1, 2, 2],
-        the the property "mean" will be [1.5, 3.5]. For some properties such as "length" and
-        "width", the monomer connection will be considered.
+        For instance, if the target data is `[0, 1, 2, 3, 4]` and the labels are
+        `[0, 1, 1, 2, 2]`, the the property "mean" will be `[1.5, 3.5]`. For some
+        properties such as "length" and "width", the monomer connection will be
+        considered.
 
         Parameters
         ----------
@@ -3752,8 +3766,11 @@ class CylindraMainWidget(MagicTemplate):
             layer.molecules, spl, target, label
         )
         df = reg.calculate(properties)
-        view = DataFrameView(value=df)
-        widget_utils.show_widget(view, "Region properties", self)
+        if save_path is None:
+            view = DataFrameView(value=df)
+            widget_utils.show_widget(view, "Region properties", self)
+        else:
+            df.write_csv(save_path)
         return df
 
     @set_design(text="Update pixel scale", location=_sw.ImageMenu)
