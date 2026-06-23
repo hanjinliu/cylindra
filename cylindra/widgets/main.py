@@ -3728,7 +3728,7 @@ class CylindraMainWidget(MagicTemplate):
             widget_utils.show_widget(view, title, self)
         else:
             with open(save_path, "w", encoding="utf-8") as f:
-                np.savetxt(f, out, fmt=".6f", delimiter=",")
+                np.savetxt(f, out, fmt="%.6f", delimiter=",")
         return out
 
     @set_design(text="Analyze region properties", location=_sw.MoleculesMenu.Features)
