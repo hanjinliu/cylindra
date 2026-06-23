@@ -378,6 +378,7 @@ def test_map_molecules(ui: CylindraMainWidget, tmpdir):
         [0], save_path=tmpdir, image_format="Separate PNGs", upsample_factor=1
     )
     ui.correlation_heatmap_for_feature("Mole-0", "pf-id", max_offset_longitudinal=2, max_offset_lateral=1, is_binary_data=False)
+    ui.correlation_heatmap_for_feature("Mole-0", "pf-id", max_offset_longitudinal=2, max_offset_lateral=1, is_binary_data=True, save_path=tmpdir / "heatmap.csv")
 
 
 def test_napari_operations(ui: CylindraMainWidget):
@@ -1813,7 +1814,7 @@ def test_landscape_and_interaction(ui: CylindraMainWidget, tmpdir):
     assert_allclose(layer_net.net.distances(), dist_old * factor, rtol=1e-5)
 
 
-def test_regionprops(ui: CylindraMainWidget):
+def test_regionprops(ui: CylindraMainWidget, tmpdir):
     ui.load_project(PROJECT_DIR_13PF, filter=None)
     for meth in ["mean", "median", "min", "max"]:
         ui.convolve_feature(
@@ -1839,6 +1840,16 @@ def test_regionprops(ui: CylindraMainWidget):
             "area", "length", "width", "sum", "mean", "median",
             "max", "min", "std",
         ],
+    )  # fmt: skip
+    ui.regionprops_features(
+        layer=ui.parent_viewer.layers["Mole-0"],
+        target="nth",
+        label="pf-id_binarize_label",
+        properties=[
+            "area", "length", "width", "sum", "mean", "median",
+            "max", "min", "std",
+        ],
+        save_path=tmpdir / "regionprops.csv",
     )  # fmt: skip
     ui.count_neighbors("Mole-0")
     ui.distance_from_spline("Mole-0", spline=1)

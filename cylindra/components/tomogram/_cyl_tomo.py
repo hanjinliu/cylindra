@@ -650,7 +650,7 @@ class CylTomogram(Tomogram):
         nsamples: int = 1,
         update: bool = True,
         update_glob: bool = False,
-        mask_cylinder: bool = False,
+        mask_cylinder: bool = True,
     ) -> pl.DataFrame:
         """Calculate local lattice parameters from the Cartesian Fourier space."""
         LOGGER.info(f"Running: {self.__class__.__name__}.local_ft_params, i={i}")
@@ -936,12 +936,20 @@ class CylTomogram(Tomogram):
         binsize: int = 1,
         nsamples: int = 1,
         update: bool = True,
+        mask_cylinder: bool = True,
     ) -> pl.DataFrame:
         LOGGER.info(f"Running: {self.__class__.__name__}.global_ft_params, i={i}")
         spl = self.splines[i]
         rmin, rmax = spl.radius_range()
         width = rmax * 2
         img_st = self.straighten(i, size=(width, width), binsize=binsize)
+        if mask_cylinder:
+            _factory = CylindricalMaskFactory()
+            _scale = img_st.scale.x * binsize
+            _factory.set_shape(img_st.shape)
+            mask = _factory.create_mask(rmin / _scale, rmax / _scale)
+            img_st *= mask
+
         analyzer = LatticeAnalyzer(spl.config)
         lparams = analyzer.estimate_lattice_params_cartesian(
             img_st, width, nsamples=nsamples

@@ -293,6 +293,7 @@ class SplinesMenu(ChildWidget):
                 name="Spline Curves",
                 edge_color="lime",
                 edge_width=1,
+                units=["nm"] * 3,
             )
             main._reserved_layers.to_be_removed.add(paths)
             return paths
@@ -349,6 +350,7 @@ class SplinesMenu(ChildWidget):
                 colormap=cmap,
                 name="cylinders",
                 contrast_limits=contrast_limits,
+                units=["nm"] * 3,
             )
             if colorbar and color_by:
                 surf.colorbar.visible = True
@@ -381,6 +383,31 @@ class SplinesMenu(ChildWidget):
             show_widget(table, "Spline Global Properties", main)
 
         sep0 = Separator
+
+        # @set_design(text="Make local-FT images")
+        # def make_local_ft_images(
+        #     self,
+        #     splines: SplinesType,
+        #     save_path: Path.Save,
+        #     image_format: Annotated[str, {"choices": ["TIF stack", "Separate PNGs"]}] = "TIF stack",
+        #     interval: _Interval = None,
+        #     depth: Annotated[nm, {"label": "depth (nm)", "min": 2.0, "step": 0.5}] = 50.0,
+        #     bin_size: BinSizeType = 1,
+        #     upsample_factor: Annotated[int, {"min": 1}] = 3,
+        #     mask_cylinder: bool = True,
+        # ):  # fmt: skip
+        #     main = self._get_main()
+        #     tomo = main.tomogram
+        #     save_path = Path(save_path)
+        #     for i in main._norm_splines(splines):
+        #         spl = tomo.splines[i]
+        #         if interval is not None:
+        #             anchors = spl.prep_anchor_positions(interval=interval)
+        #         else:
+        #             anchors = spl.anchors
+        #         imgs = ...
+        #         _save_image_stack(image_format, save_path, imgs, i)
+        #     main.logger.print(f"Local FT images saved to {save_path!r}")
 
         @set_design(text="Make local-CFT images")
         def make_local_cft_images(
