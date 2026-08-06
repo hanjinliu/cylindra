@@ -184,6 +184,13 @@ curved when it's viewed in the Cartesian coordinate system.
     6. If you want to update all the global properties, check the "Also update the
        global properties" checkbox.
 
+!!! important
+
+    Double-check that the tomogram is dark-background and the spline configuration is
+    correct! The contours of cylindrical coordinate system will be shown in the 2D
+    projection images. If the contours look a few pixels off in the XZ projection, the
+    results may not be accurate.
+
 After local-CFT, the spline local properties are updated. You can access them as a
 `DataFrame` by:
 
