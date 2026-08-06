@@ -628,11 +628,11 @@ class MoleculesMenu(ChildWidget):
             ----------
             layers : molecules layers
                 The layer(s) to show the orientation of.
-            x_color : Color, defaultrimson"
+            x_color : Color, default "orange"
                 Vector color of the x direction.
             y_color : Color, default "cyan"
                 Vector color of the y direction.
-            z_color : Color, default "orange"
+            z_color : Color, default "crimson"
                 Vector color of the z direction.
             """
             main = self._get_main()
@@ -659,6 +659,7 @@ class MoleculesMenu(ChildWidget):
                 length=_config.get_config().point_size * 0.8,
                 name=name,
                 vector_style="arrow",
+                units=["nm"] * 3,
             )
             main._reserved_layers.to_be_removed.add(layer)
             return main._undo_callback_for_layer(layer)

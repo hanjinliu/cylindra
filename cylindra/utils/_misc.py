@@ -54,7 +54,7 @@ def distance_matrix(
 
     distance_matrix(a, b) will return a matrix of shape (a.shape[0], b.shape[0])
     """
-    return spatial.distance_matrix(a, b)
+    return spatial.distance.cdist(a, b)
 
 
 def interp(
