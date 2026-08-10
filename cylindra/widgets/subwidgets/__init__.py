@@ -1,3 +1,4 @@
+from cylindra.widgets.subwidgets import menus
 from cylindra.widgets.subwidgets.config_edit import ConfigEdit
 from cylindra.widgets.subwidgets.function_menu import Volume
 from cylindra.widgets.subwidgets.image_processor import ImageProcessor
@@ -39,6 +40,7 @@ __all__ = [
     "SplineClipper",
     "SplineControl",
     "SplineFitter",
+    "menus",
     "FileMenu",
     "ImageMenu",
     "SplinesMenu",

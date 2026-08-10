@@ -19,6 +19,7 @@ from magicclass import (
     nogui,
     set_design,
 )
+from magicclass.command_palette import register_actions_to_napari
 from magicclass.ext.dask import dask_thread_worker
 from magicclass.ext.pyqtgraph import QtImageCanvas
 from magicclass.logging import getLogger
@@ -356,6 +357,14 @@ class CylindraMainWidget(MagicTemplate):
 
         # load plugins
         load_plugin(self)
+
+        # register methods to napari command palette
+        register_actions_to_napari(
+            self,
+            title=_sw.menus._command_palette_title_fmt,
+            filter=_sw.menus._command_palette_filter,
+            prefix="cylindra",
+        )
 
     @property
     def events(self) -> MainWidgetEvents:

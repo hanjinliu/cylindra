@@ -91,5 +91,5 @@ will be opened to ask for the input arguments.
 
 !!! note
 
-    The defined workflows can also be found in the command palette (++ctrl+p++) labeled
-    as the file name.
+    The defined workflows can also be found in the command palette (++ctrl+shift+p++)
+    labeled as "[cylindra] Others > Workflows: Run `<file name>`".
