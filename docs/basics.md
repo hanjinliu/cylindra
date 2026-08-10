@@ -84,7 +84,7 @@ Throughout this documentation, you'll find following notations:
 :material-arrow-right-thin-circle-outline: GUI: `XXX > YYY` or maybe some shortcut keys
 
 These notations tell you how to do the same thing programmatically or manually. You can
-also open the command palette (++ctrl+p++) to search for the operation.
+also open the command palette (++ctrl+shift+p++) to search for the operation.
 
 ## Macro Recording
 

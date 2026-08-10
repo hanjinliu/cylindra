@@ -1,4 +1,5 @@
 import shutil
+import warnings
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Literal
 
@@ -981,18 +982,16 @@ class OthersMenu(ChildWidget):
 
     sep0 = Separator
 
-    @set_design(text="Command palette")
+    @set_design(text="Command palette (deprecated)")
     @do_not_record
     @bind_key("Ctrl+P")
     def open_command_palette(self):
-        """Open the command palette widget."""
-        from magicclass.command_palette import exec_command_palette
-
-        return exec_command_palette(
-            self._get_main(),
-            alignment="screen",
-            title=_command_palette_title_fmt,
-            filter=_command_palette_filter,
+        warnings.warn(
+            "Cylindra's command palette was merged with napari's built-in command "
+            "palette. Please use Ctrl+Shift+P (or anything else if you customized the "
+            "key-binding) to open it. This method will be removed in future versions.",
+            category=DeprecationWarning,
+            stacklevel=1,
         )
 
     @set_design(text=capitalize)
