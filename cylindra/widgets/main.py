@@ -525,6 +525,7 @@ class CylindraMainWidget(MagicTemplate):
         del self.macro[self._macro_image_load_offset + 1 :]
         self._need_save = False
         self.reset_choices()
+        self.events.cleared.emit()
 
     def _format_macro(self, macro: "mk.Macro | None" = None):
         if macro is None:
@@ -714,7 +715,13 @@ class CylindraMainWidget(MagicTemplate):
         )
         if project_path is not None:
             self._project_dir = project_path
-        _Logger.print(f"Project loaded: {project_path.as_posix()}")
+
+        @thread_worker.callback
+        def _on_loaded():
+            self.events.project_loaded.emit()
+            _Logger.print(f"Project loaded: {project_path.as_posix()}")
+
+        yield _on_loaded
 
     @set_design(text=capitalize, location=_sw.FileMenu)
     @do_not_record
@@ -2477,7 +2484,8 @@ class CylindraMainWidget(MagicTemplate):
         """
         macro = self._get_reanalysis_macro(path)
         macro.eval({mk.symbol(self): self})
-        return self.macro.clear_undo_stack()
+        self.macro.clear_undo_stack()
+        self.events.project_loaded.emit()
 
     @set_design(text=capitalize, location=_sw.AnalysisMenu.Interaction)
     def construct_molecule_interaction(
