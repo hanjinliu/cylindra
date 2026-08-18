@@ -1164,14 +1164,25 @@ def test_molecules_methods(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=None)
     layer0 = ui.mole_layers["Mole-0"]
     layer1 = ui.mole_layers["Mole-1"]
+    num_mole_sum = layer0.data.shape[0] + layer1.data.shape[0]
     ui.MoleculesMenu.View.show_orientation([layer0, layer1])
     ui.concatenate_molecules([layer0, layer1])
     last_layer = ui.mole_layers.last()
-    assert last_layer.data.shape[0] == layer0.data.shape[0] + layer1.data.shape[0]
-    ui.mole_layers.delete(include="concat")
+    assert last_layer.data.shape[0] == num_mole_sum
+    assert "Mole-concat" in ui.mole_layers.names()
+    assert "Mole-0" not in ui.mole_layers.names()
+    assert "Mole-1" not in ui.mole_layers.names()
+    ui.macro.undo()
+    assert "Mole-concat" not in ui.mole_layers.names()
+    assert "Mole-0" in ui.mole_layers.names()
+    assert "Mole-1" in ui.mole_layers.names()
     ui.split_molecules("Mole-0", by=Mole.pf)
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError):  # not a molecules layer
         ui.split_molecules(ui.parent_viewer.layers[0].name, by=Mole.pf)
+    with pytest.raises(ValueError):
+        ui.split_molecules("Mole-1", by=Mole.position)
+
+    layer0 = ui.mole_layers["Mole-0"]
     ui.interpolate_spline_properties("Mole-0", interpolation=1)
     ui.MoleculesMenu.View.render_molecules(
         layer0,

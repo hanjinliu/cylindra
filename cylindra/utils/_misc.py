@@ -423,7 +423,7 @@ def unwrap_wildcard(
             all_paths.append(p)
     out = [Path(p) for p in all_paths]
     if sorted:
-        out.sort(key=lambda p: p.name)
+        out.sort()
     return out
 
 
