@@ -1053,9 +1053,7 @@ class CylindraMainWidget(MagicTemplate):
                     not self._reserved_layers.ref_inverted
                 )
                 if self.Overview.image is not None:
-                    clow, chigh = self.Overview.contrast_limits
                     self.Overview.image = -self.Overview.image
-                    self.Overview.contrast_limits = -chigh, -clow
                 return undo_callback(self.invert_image)
 
             t0.toc()
@@ -1251,7 +1249,7 @@ class CylindraMainWidget(MagicTemplate):
         self.parent_viewer.dims.set_current_step(axis=0, value=current_z * factor)
 
         # update overview
-        self.Overview.image = imgb.mean(axis="z")
+        self.Overview.image = imgb.max(axis="z")
         self.Overview.xlim = [x * factor for x in self.Overview.xlim]
         self.Overview.ylim = [y * factor for y in self.Overview.ylim]
         self._current_binsize = bin_size
@@ -2964,7 +2962,10 @@ class CylindraMainWidget(MagicTemplate):
         layers: MoleculesLayersType,
         name: str = "Mole-concat",
     ):  # fmt: skip
-        """Concatenate selected molecules and create a new ones.
+        """Concatenate selected molecules.
+
+        Concatenated molecules have a new feature column named "molecules-layer-name"
+        that indicates the original layer name.
 
         Parameters
         ----------
@@ -2972,20 +2973,44 @@ class CylindraMainWidget(MagicTemplate):
         name : str, default "Mole-concat"
             Name of the new molecules layer.
         """
-        layers = assert_list_of_layers(layers, self.parent_viewer)
-        all_molecules = Molecules.concat([layer.molecules for layer in layers])
-        points = add_molecules(self.parent_viewer, all_molecules, name=name)
+        viewer = self.parent_viewer
+        layers = assert_list_of_layers(layers, viewer)
+        cname = "molecules-layer-name"
+        all_molecules = Molecules.concat(
+            [
+                layer.molecules.with_features(pl.lit(layer.name).alias(cname))
+                for layer in layers
+            ]
+        )
+        points = add_molecules(viewer, all_molecules, name=name)
+        name_concat = points.name
 
-        # logging
+        # remove and log
         layer_names = list[str]()
+        layer_name_to_source_map = {}
         for layer in layers:
-            layer.visible = False
+            viewer.layers.remove(layer)
             layer_names.append(layer.name)
+            if layer.source_component is not None:
+                layer_name_to_source_map[layer.name] = layer.source_component
 
         _Logger.print_html("<code>concatenate_molecules</code>")
         _Logger.print("Concatenated:", ", ".join(layer_names))
-        _Logger.print(f"{points.name!r}: n = {len(all_molecules)}")
-        return self._undo_callback_for_layer(points)
+        _Logger.print(f"{name_concat!r}: n = {len(all_molecules)}")
+
+        @undo_callback
+        def _undo():
+            layer_concat = self.mole_layers[name_concat]
+            for layer_name, each_mole in layer_concat.molecules.group_by(cname):
+                add_molecules(
+                    viewer,
+                    each_mole.drop_features(cname),
+                    name=layer_name,
+                    source=layer_name_to_source_map.get(layer_name, None),
+                )
+            viewer.layers.remove(layer_concat)
+
+        return _undo
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu.Combine)
     def merge_molecule_info(
@@ -3068,6 +3093,12 @@ class CylindraMainWidget(MagicTemplate):
         layer = assert_layer(layer, self.parent_viewer)
         utils.assert_column_exists(layer.molecules.features, by)
         _added_layers = list[MoleculesLayer]()
+        n_uni = layer.molecules.features[by].n_unique()
+        if n_uni > 48 or layer.molecules.count() / n_uni < 3:
+            raise ValueError(
+                f"Too many unique values in {by!r} ({n_uni}). Please double check the "
+                "feature is correctly set."
+            )
         for _key, mole in layer.molecules.groupby(by):
             new = self.add_molecules(
                 mole, name=f"{layer.name}_{_key}", source=layer.source_component
@@ -4029,7 +4060,7 @@ class CylindraMainWidget(MagicTemplate):
         if _is_lazy:
             self.Overview.image = np.zeros((1, 1), dtype=np.float32)
         else:
-            self.Overview.image = img.mean(axis="z")
+            self.Overview.image = img.max(axis="z")
         self.Overview.ylim = (0, img.shape[1])
 
     def _on_layer_removing(self, event: "Event"):
