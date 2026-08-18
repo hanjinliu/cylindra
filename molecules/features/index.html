@@ -2739,7 +2739,7 @@
 
 <h1 id="molecule-features">Molecule Features</h1>
 <p>Molecules are tagged with features. For example, just after <a href="../spline_to_molecules/">mapping molecules from a spline</a>, features will be like this:</p>
-<div class="highlight"><pre><span></span><code><span class="n">layer</span> <span class="o">=</span> <span class="n">ui</span><span class="o">.</span><span class="n">mole_layers</span><span class="p">[</span><span class="s2">&quot;Mole-0&quot;</span><span class="p">]</span>  <span class="c1"># the molecules layer named &quot;Mole-0&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="n">layer</span> <span class="o">=</span> <span class="n">ui</span><span class="o">.</span><span class="n">mole_layers</span><span class="p">[</span><span class="s2">"Mole-0"</span><span class="p">]</span>  <span class="c1"># the molecules layer named "Mole-0"</span>
 <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span>
 </code></pre></div>
 <div class="highlight"><span class="filename">Output:</span><pre><span></span><code>shape: (286, 3)
@@ -2764,7 +2764,7 @@ You can get any of the columns by <code>df["column-name"]</code>.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
 
 <span class="n">df</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s2">&quot;pf-id&quot;</span><span class="p">],</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;score&quot;</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s2">"pf-id"</span><span class="p">],</span> <span class="n">df</span><span class="p">[</span><span class="s2">"score"</span><span class="p">])</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </code></pre></div>
 <h2 id="paint-molecules-by-features">Paint Molecules by Features</h2>
@@ -2782,11 +2782,11 @@ follow the <a href="../expressions/"><code>polars expression</code></a> syntax.<
 <p>Following function call will add a new feature named "pf-is-odd" to the molecules
 layer, which indicates whether the molecule id is odd or not.</p>
 <div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="o">.</span><span class="n">calculate_molecule_features</span><span class="p">(</span>
-    <span class="n">layer</span><span class="o">=</span><span class="s2">&quot;Mole-0&quot;</span><span class="p">,</span>
-    <span class="n">column_name</span><span class="o">=</span><span class="s2">&quot;pf-is-odd&quot;</span><span class="p">,</span>
-    <span class="n">expression</span><span class="o">=</span><span class="s2">&quot;col(&#39;pf-id&#39;) % 2 == 1&quot;</span><span class="p">,</span>
+    <span class="n">layer</span><span class="o">=</span><span class="s2">"Mole-0"</span><span class="p">,</span>
+    <span class="n">column_name</span><span class="o">=</span><span class="s2">"pf-is-odd"</span><span class="p">,</span>
+    <span class="n">expression</span><span class="o">=</span><span class="s2">"col('pf-id') % 2 == 1"</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">ui</span><span class="o">.</span><span class="n">mole_layers</span><span class="p">[</span><span class="s2">&quot;Mole-0&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span><span class="p">[</span><span class="s2">&quot;pf-is-odd&quot;</span><span class="p">])</span>  <span class="c1"># print the feature</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">ui</span><span class="o">.</span><span class="n">mole_layers</span><span class="p">[</span><span class="s2">"Mole-0"</span><span class="p">]</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">features</span><span class="p">[</span><span class="s2">"pf-is-odd"</span><span class="p">])</span>  <span class="c1"># print the feature</span>
 </code></pre></div>
 </details>
 <h2 id="calculate-lattice-structures">Calculate Lattice Structures</h2>
@@ -2797,8 +2797,8 @@ can be calculated from the molecule coordinates and spline parameters.</p>
 <details class="example">
 <summary>calculate spacing and twist</summary>
 <div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="o">.</span><span class="n">calculate_lattice_structure</span><span class="p">(</span>
-    <span class="n">layer</span><span class="o">=</span><span class="s2">&quot;Mole-0&quot;</span><span class="p">,</span>
-    <span class="n">props</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;spacing&quot;</span><span class="p">,</span> <span class="s2">&quot;twist&quot;</span><span class="p">],</span>
+    <span class="n">layer</span><span class="o">=</span><span class="s2">"Mole-0"</span><span class="p">,</span>
+    <span class="n">props</span><span class="o">=</span><span class="p">[</span><span class="s2">"spacing"</span><span class="p">,</span> <span class="s2">"twist"</span><span class="p">],</span>
 <span class="p">)</span>
 </code></pre></div>
 </details>

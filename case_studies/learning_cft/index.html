@@ -2794,7 +2794,7 @@ microtubule.</p>
 <p>Now, we can simulate a tomogram with the generated molecules. Because we immediately
 need the tomogram in the viewer, we can use <a class="autorefs autorefs-internal" title="simulate_tomogram_and_open(components, nsr=1.5, bin_size=[1], tilt_range=(-60.0, 60.0), n_tilt=21, ctf=None, interpolation=3, seed=None)" href="../../api/widgets/subwidgets/#cylindra.widgets.subwidgets.Simulator.simulate_tomogram_and_open"><code>simulate_tomogram_and_open</code></a>. You can download a low-resolution
 tubulin structure in the <a href="https://github.com/hanjinliu/cylindra/blob/main/tests/beta-tubulin.mrc">test directory of <code>cylindra</code> repository</a>.</p>
-<div class="highlight"><pre><span></span><code><span class="n">tubulin_path</span> <span class="o">=</span> <span class="s2">&quot;path/to/tubulin.mrc&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="n">tubulin_path</span> <span class="o">=</span> <span class="s2">"path/to/tubulin.mrc"</span>
 <span class="n">mole_layer</span> <span class="o">=</span> <span class="n">ui</span><span class="o">.</span><span class="n">mole_layers</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>  <span class="c1"># the just added molecules layer</span>
 <span class="n">ui</span><span class="o">.</span><span class="n">simulator</span><span class="o">.</span><span class="n">simulate_tomogram_and_open</span><span class="p">(</span>
     <span class="n">components</span><span class="o">=</span><span class="p">[(</span><span class="n">mole_layer</span><span class="p">,</span> <span class="n">tubulin_path</span><span class="p">)],</span>
@@ -2818,7 +2818,7 @@ use <a class="autorefs autorefs-internal" title="get_cylindric_power_spectrum(sp
 <p>To plot the power spectra, we can use the popular <a href="https://matplotlib.org/"><code>matplotlib</code></a>
 package.</p>
 <div class="highlight"><pre><span></span><code><span class="n">img</span> <span class="o">=</span> <span class="n">ui</span><span class="o">.</span><span class="n">spline_slicer</span><span class="o">.</span><span class="n">get_cylindric_power_spectrum</span><span class="p">(</span><span class="n">spline</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">pos</span><span class="o">=</span><span class="n">length</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">img</span><span class="o">.</span><span class="n">imshow</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s2">&quot;gray&quot;</span><span class="p">)</span>  <span class="c1"># plot the power spectrum</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">img</span><span class="o">.</span><span class="n">imshow</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s2">"gray"</span><span class="p">)</span>  <span class="c1"># plot the power spectrum</span>
 </code></pre></div>
 <p><img alt="" loading="lazy," src="../../images/learning_cft-cft.png" width="400px" /></p>
 

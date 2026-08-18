@@ -2815,15 +2815,15 @@ splines and summarize the results in a histogram.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">cylindra.widgets</span><span class="w"> </span><span class="kn">import</span> <span class="n">CylindraMainWidget</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
 
-<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="n">ui</span><span class="p">:</span> <span class="s2">&quot;CylindraMainWidget&quot;</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="n">ui</span><span class="p">:</span> <span class="s2">"CylindraMainWidget"</span><span class="p">):</span>
     <span class="c1"># fit and measure</span>
-    <span class="n">ui</span><span class="o">.</span><span class="n">fit_splines</span><span class="p">(</span><span class="n">splines</span><span class="o">=</span><span class="s2">&quot;all&quot;</span><span class="p">)</span>
-    <span class="n">ui</span><span class="o">.</span><span class="n">measure_radius</span><span class="p">(</span><span class="n">splines</span><span class="o">=</span><span class="s2">&quot;all&quot;</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-    <span class="n">ui</span><span class="o">.</span><span class="n">local_cft_analysis</span><span class="p">(</span><span class="n">splines</span><span class="o">=</span><span class="s2">&quot;all&quot;</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">ui</span><span class="o">.</span><span class="n">fit_splines</span><span class="p">(</span><span class="n">splines</span><span class="o">=</span><span class="s2">"all"</span><span class="p">)</span>
+    <span class="n">ui</span><span class="o">.</span><span class="n">measure_radius</span><span class="p">(</span><span class="n">splines</span><span class="o">=</span><span class="s2">"all"</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">ui</span><span class="o">.</span><span class="n">local_cft_analysis</span><span class="p">(</span><span class="n">splines</span><span class="o">=</span><span class="s2">"all"</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
 
     <span class="c1"># plot histograms of lattice spacings</span>
     <span class="k">for</span> <span class="n">spl</span> <span class="ow">in</span> <span class="n">ui</span><span class="o">.</span><span class="n">splines</span><span class="p">:</span>
-        <span class="n">plt</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">spl</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get_loc</span><span class="p">(</span><span class="s2">&quot;spacing&quot;</span><span class="p">))</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">spl</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get_loc</span><span class="p">(</span><span class="s2">"spacing"</span><span class="p">))</span>
     <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </code></pre></div>
 <p>This workflow can be called at any time &rarr; <a href="./#run-workflows">Run Workflows</a>.</p>
@@ -2838,7 +2838,7 @@ shows how to define a workflow with input parameters.</p>
 <span class="kn">from</span><span class="w"> </span><span class="nn">cylindra.widgets</span><span class="w"> </span><span class="kn">import</span> <span class="n">CylindraMainWidget</span>
 
 <span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span>
-    <span class="n">ui</span><span class="p">:</span> <span class="s2">&quot;CylindraMainWidget&quot;</span><span class="p">,</span>
+    <span class="n">ui</span><span class="p">:</span> <span class="s2">"CylindraMainWidget"</span><span class="p">,</span>
     <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
     <span class="n">tilt_range</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mi">60</span><span class="p">,</span> <span class="mi">60</span><span class="p">),</span>
 <span class="p">):</span>

@@ -2705,8 +2705,8 @@ is created, it doesn't do any calculation.</p>
 <span class="c1"># create a DataFrame object</span>
 <span class="n">df</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
     <span class="p">{</span>
-        <span class="s2">&quot;nth&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>
-        <span class="s2">&quot;score&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">,</span> <span class="mf">0.4</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">]</span>
+        <span class="s2">"nth"</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>
+        <span class="s2">"score"</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">,</span> <span class="mf">0.4</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">]</span>
     <span class="p">},</span>
 <span class="p">)</span>
 <span class="n">df</span>
@@ -2724,9 +2724,9 @@ is created, it doesn't do any calculation.</p>
 └─────┴───────┘
 </code></pre></div>
 <p>You can create an expression for a filtration predicate.</p>
-<div class="highlight"><pre><span></span><code><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;score&quot;</span><span class="p">)</span>  <span class="c1"># expression indicating the column named &quot;score&quot;</span>
-<span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;score&quot;</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.7</span>  <span class="c1"># expression of &quot;score is larger than 0.7&quot;</span>
-<span class="n">df_filt</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;score&quot;</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.7</span><span class="p">)</span>  <span class="c1"># here the expression is evaluated</span>
+<div class="highlight"><pre><span></span><code><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">"score"</span><span class="p">)</span>  <span class="c1"># expression indicating the column named "score"</span>
+<span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">"score"</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.7</span>  <span class="c1"># expression of "score is larger than 0.7"</span>
+<span class="n">df_filt</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">"score"</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.7</span><span class="p">)</span>  <span class="c1"># here the expression is evaluated</span>
 <span class="n">df_filt</span>
 </code></pre></div>
 <div class="highlight"><span class="filename">Output:</span><pre><span></span><code>shape: (3, 2)

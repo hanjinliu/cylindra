@@ -3181,20 +3181,20 @@
 <span class="normal">269</span>
 <span class="normal">270</span>
 <span class="normal">271</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylinderSurface</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Class to define the surface of a spline cylinder.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Class to define the surface of a spline cylinder."""</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spl</span><span class="p">:</span> <span class="n">CylSpline</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_spl</span> <span class="o">=</span> <span class="n">spl</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_radius</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">radius</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_radius</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The spline must have a radius.&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"The spline must have a radius."</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">transform_vector</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">vec</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">],</span>  <span class="c1"># (N, 3)</span>
         <span class="n">start</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">],</span>  <span class="c1"># (N, 4)</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Transform vector(s) to (r, y, a).&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Transform vector(s) to (r, y, a)."""</span>
         <span class="n">start</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_2d</span><span class="p">(</span><span class="n">start</span><span class="p">)</span>
         <span class="n">start_zyx</span> <span class="o">=</span> <span class="n">start</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span>
         <span class="n">start_pos</span> <span class="o">=</span> <span class="n">start</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">]</span>
@@ -3210,7 +3210,7 @@
         <span class="n">ey0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_spline_vec_norm</span><span class="p">(</span><span class="n">start_pos</span><span class="p">)</span>
         <span class="n">ey1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_spline_vec_norm</span><span class="p">(</span><span class="n">end_pos</span><span class="p">)</span>
 
-        <span class="c1"># the &quot;mean&quot; unit vectors</span>
+        <span class="c1"># the "mean" unit vectors</span>
         <span class="n">ey</span> <span class="o">=</span> <span class="n">_norm</span><span class="p">(</span><span class="n">ey0</span> <span class="o">+</span> <span class="n">ey1</span><span class="p">)</span>
         <span class="n">er</span> <span class="o">=</span> <span class="n">_norm</span><span class="p">(</span><span class="n">er0</span> <span class="o">+</span> <span class="n">er1</span><span class="p">)</span>
         <span class="n">ea</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">er</span><span class="p">,</span> <span class="n">ey</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
@@ -3227,14 +3227,14 @@
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">coords</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">],</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Get the surface vector at the given coordinates.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        coords : (N, 4) array</span>
 <span class="sd">            Coordinate of points. The last column is the spline parameter.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_2d</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span>
         <span class="k">assert</span> <span class="n">coords</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span> <span class="ow">and</span> <span class="n">coords</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">4</span>
         <span class="n">zyx</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span>
@@ -3245,7 +3245,7 @@
         <span class="k">return</span> <span class="n">_norm</span><span class="p">(</span><span class="n">_cancel_component</span><span class="p">(</span><span class="n">_mole_to_spl_vec</span><span class="p">,</span> <span class="n">_spl_vec_norm</span><span class="p">))</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_spline_vec_norm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pos</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Normalized spline tangent vector for given positions (nm).&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Normalized spline tangent vector for given positions (nm)."""</span>
         <span class="n">u</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_spl</span><span class="o">.</span><span class="n">y_to_position</span><span class="p">(</span><span class="n">pos</span><span class="p">)</span>
         <span class="n">_spl_vec</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_spl</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">u</span><span class="p">,</span> <span class="n">der</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">_norm</span><span class="p">(</span><span class="n">_spl_vec</span><span class="p">)</span>
@@ -3318,7 +3318,7 @@
     <span class="n">vec</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">],</span>  <span class="c1"># (N, 3)</span>
     <span class="n">start</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">],</span>  <span class="c1"># (N, 4)</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Transform vector(s) to (r, y, a).&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Transform vector(s) to (r, y, a)."""</span>
     <span class="n">start</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_2d</span><span class="p">(</span><span class="n">start</span><span class="p">)</span>
     <span class="n">start_zyx</span> <span class="o">=</span> <span class="n">start</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span>
     <span class="n">start_pos</span> <span class="o">=</span> <span class="n">start</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">]</span>
@@ -3334,7 +3334,7 @@
     <span class="n">ey0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_spline_vec_norm</span><span class="p">(</span><span class="n">start_pos</span><span class="p">)</span>
     <span class="n">ey1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_spline_vec_norm</span><span class="p">(</span><span class="n">end_pos</span><span class="p">)</span>
 
-    <span class="c1"># the &quot;mean&quot; unit vectors</span>
+    <span class="c1"># the "mean" unit vectors</span>
     <span class="n">ey</span> <span class="o">=</span> <span class="n">_norm</span><span class="p">(</span><span class="n">ey0</span> <span class="o">+</span> <span class="n">ey1</span><span class="p">)</span>
     <span class="n">er</span> <span class="o">=</span> <span class="n">_norm</span><span class="p">(</span><span class="n">er0</span> <span class="o">+</span> <span class="n">er1</span><span class="p">)</span>
     <span class="n">ea</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">er</span><span class="p">,</span> <span class="n">ey</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
@@ -3432,14 +3432,14 @@
 <span class="normal">418</span>
 <span class="normal">419</span>
 <span class="normal">420</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LatticeParameters</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
-    <span class="n">spacing</span> <span class="o">=</span> <span class="s2">&quot;spacing&quot;</span>
-    <span class="n">elev_angle</span> <span class="o">=</span> <span class="s2">&quot;elev_angle&quot;</span>
-    <span class="n">twist</span> <span class="o">=</span> <span class="s2">&quot;twist&quot;</span>
-    <span class="n">skew_angle</span> <span class="o">=</span> <span class="s2">&quot;skew_angle&quot;</span>
-    <span class="n">radius</span> <span class="o">=</span> <span class="s2">&quot;radius&quot;</span>
-    <span class="n">rise_angle</span> <span class="o">=</span> <span class="s2">&quot;rise_angle&quot;</span>
-    <span class="n">lat_interv</span> <span class="o">=</span> <span class="s2">&quot;lat_interv&quot;</span>
-    <span class="n">curve_index</span> <span class="o">=</span> <span class="s2">&quot;curve_index&quot;</span>
+    <span class="n">spacing</span> <span class="o">=</span> <span class="s2">"spacing"</span>
+    <span class="n">elev_angle</span> <span class="o">=</span> <span class="s2">"elev_angle"</span>
+    <span class="n">twist</span> <span class="o">=</span> <span class="s2">"twist"</span>
+    <span class="n">skew_angle</span> <span class="o">=</span> <span class="s2">"skew_angle"</span>
+    <span class="n">radius</span> <span class="o">=</span> <span class="s2">"radius"</span>
+    <span class="n">rise_angle</span> <span class="o">=</span> <span class="s2">"rise_angle"</span>
+    <span class="n">lat_interv</span> <span class="o">=</span> <span class="s2">"lat_interv"</span>
+    <span class="n">curve_index</span> <span class="o">=</span> <span class="s2">"curve_index"</span>
 
     <span class="nd">@overload</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">calculate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mole</span><span class="p">:</span> <span class="n">Molecules</span><span class="p">,</span> <span class="n">spl</span><span class="p">:</span> <span class="n">CylSpline</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pl</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span> <span class="o">...</span>
@@ -3447,15 +3447,15 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">calculate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pl</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span> <span class="o">...</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">calculate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate this lattice parameter for the given molecule.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Calculate this lattice parameter for the given molecule."""</span>
         <span class="k">if</span> <span class="n">spl</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="kn">from</span><span class="w"> </span><span class="nn">cylindra._napari</span><span class="w"> </span><span class="kn">import</span> <span class="n">MoleculesLayer</span>
 
             <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">MoleculesLayer</span><span class="p">):</span>
-                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;mole must be a MoleculesLayer.&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">"mole must be a MoleculesLayer."</span><span class="p">)</span>
             <span class="n">mole</span><span class="p">,</span> <span class="n">spl</span> <span class="o">=</span> <span class="n">mole</span><span class="o">.</span><span class="n">molecules</span><span class="p">,</span> <span class="n">mole</span><span class="o">.</span><span class="n">source_spline</span>
             <span class="k">if</span> <span class="n">spl</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The source spline is not defined.&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"The source spline is not defined."</span><span class="p">)</span>
         <span class="k">match</span> <span class="bp">self</span><span class="p">:</span>
             <span class="k">case</span> <span class="n">LatticeParameters</span><span class="o">.</span><span class="n">spacing</span><span class="p">:</span>
                 <span class="k">return</span> <span class="n">calc_spacing</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">)</span>
@@ -3474,7 +3474,7 @@
             <span class="k">case</span> <span class="n">LatticeParameters</span><span class="o">.</span><span class="n">curve_index</span><span class="p">:</span>
                 <span class="k">return</span> <span class="n">calc_curve_index</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">)</span>
             <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown lattice parameter </span><span class="si">{</span><span class="bp">self</span><span class="si">!r}</span><span class="s2">.&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Unknown lattice parameter </span><span class="si">{</span><span class="bp">self</span><span class="si">!r}</span><span class="s2">."</span><span class="p">)</span>
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">choices</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
@@ -3544,15 +3544,15 @@
 <span class="normal">414</span>
 <span class="normal">415</span>
 <span class="normal">416</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">calculate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate this lattice parameter for the given molecule.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Calculate this lattice parameter for the given molecule."""</span>
     <span class="k">if</span> <span class="n">spl</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">cylindra._napari</span><span class="w"> </span><span class="kn">import</span> <span class="n">MoleculesLayer</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">MoleculesLayer</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;mole must be a MoleculesLayer.&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">"mole must be a MoleculesLayer."</span><span class="p">)</span>
         <span class="n">mole</span><span class="p">,</span> <span class="n">spl</span> <span class="o">=</span> <span class="n">mole</span><span class="o">.</span><span class="n">molecules</span><span class="p">,</span> <span class="n">mole</span><span class="o">.</span><span class="n">source_spline</span>
         <span class="k">if</span> <span class="n">spl</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The source spline is not defined.&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"The source spline is not defined."</span><span class="p">)</span>
     <span class="k">match</span> <span class="bp">self</span><span class="p">:</span>
         <span class="k">case</span> <span class="n">LatticeParameters</span><span class="o">.</span><span class="n">spacing</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">calc_spacing</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">)</span>
@@ -3571,7 +3571,7 @@
         <span class="k">case</span> <span class="n">LatticeParameters</span><span class="o">.</span><span class="n">curve_index</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">calc_curve_index</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">)</span>
         <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown lattice parameter </span><span class="si">{</span><span class="bp">self</span><span class="si">!r}</span><span class="s2">.&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Unknown lattice parameter </span><span class="si">{</span><span class="bp">self</span><span class="si">!r}</span><span class="s2">."</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -3708,7 +3708,7 @@
 <span class="normal">369</span>
 <span class="normal">370</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">RegionProfiler</span><span class="p">:</span>
     <span class="n">CHOICES</span> <span class="o">=</span> <span class="p">[</span>
-        <span class="s2">&quot;area&quot;</span><span class="p">,</span> <span class="s2">&quot;length&quot;</span><span class="p">,</span> <span class="s2">&quot;width&quot;</span><span class="p">,</span> <span class="s2">&quot;sum&quot;</span><span class="p">,</span> <span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="s2">&quot;median&quot;</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">,</span> <span class="s2">&quot;min&quot;</span><span class="p">,</span> <span class="s2">&quot;std&quot;</span><span class="p">,</span>
+        <span class="s2">"area"</span><span class="p">,</span> <span class="s2">"length"</span><span class="p">,</span> <span class="s2">"width"</span><span class="p">,</span> <span class="s2">"sum"</span><span class="p">,</span> <span class="s2">"mean"</span><span class="p">,</span> <span class="s2">"median"</span><span class="p">,</span> <span class="s2">"max"</span><span class="p">,</span> <span class="s2">"min"</span><span class="p">,</span> <span class="s2">"std"</span><span class="p">,</span>
     <span class="p">]</span>  <span class="c1"># fmt: skip</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rust_obj</span><span class="p">:</span> <span class="n">_RegionProfiler</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -3728,16 +3728,16 @@
         <span class="bp">cls</span><span class="p">,</span>
         <span class="n">mole</span><span class="p">:</span> <span class="n">Molecules</span><span class="p">,</span>
         <span class="n">spl</span><span class="p">:</span> <span class="n">CylSpline</span><span class="p">,</span>
-        <span class="n">target</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;nth&quot;</span><span class="p">,</span>
-        <span class="n">label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;pf-id&quot;</span><span class="p">,</span>
+        <span class="n">target</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"nth"</span><span class="p">,</span>
+        <span class="n">label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"pf-id"</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegionProfiler</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Construct a region profiler from molecules and splines.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        mole : Molecules</span>
-<span class="sd">            Molecules to be profiled. Must have features &quot;nth&quot;, &quot;pf-id&quot;.</span>
+<span class="sd">            Molecules to be profiled. Must have features "nth", "pf-id".</span>
 <span class="sd">        spl : CylSpline</span>
 <span class="sd">            Spline from which the molecules are generated.</span>
 <span class="sd">        target : str, optional</span>
@@ -3745,13 +3745,13 @@
 <span class="sd">            do not require target values are to be calculated.</span>
 <span class="sd">        label : str</span>
 <span class="sd">            Column name of the label values. Must be an integer column.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="n">feat</span> <span class="o">=</span> <span class="n">mole</span><span class="o">.</span><span class="n">features</span>
         <span class="n">assert_column_exists</span><span class="p">(</span><span class="n">feat</span><span class="p">,</span> <span class="p">[</span><span class="n">target</span><span class="p">,</span> <span class="n">label</span><span class="p">])</span>
         <span class="n">feat_label</span> <span class="o">=</span> <span class="n">feat</span><span class="p">[</span><span class="n">label</span><span class="p">]</span>
 
         <span class="k">if</span> <span class="p">(</span><span class="n">dtype</span> <span class="o">:=</span> <span class="n">feat_label</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">POLARS_INTEGER_DTYPES</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;label must be an integer column, got </span><span class="si">{</span><span class="n">dtype</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"label must be an integer column, got </span><span class="si">{</span><span class="n">dtype</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span>
         <span class="n">nth</span> <span class="o">=</span> <span class="n">feat</span><span class="p">[</span><span class="n">Mole</span><span class="o">.</span><span class="n">nth</span><span class="p">]</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">Int32</span><span class="p">)</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
         <span class="n">pf</span> <span class="o">=</span> <span class="n">feat</span><span class="p">[</span><span class="n">Mole</span><span class="o">.</span><span class="n">pf</span><span class="p">]</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">Int32</span><span class="p">)</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
         <span class="n">values</span> <span class="o">=</span> <span class="n">feat</span><span class="p">[</span><span class="n">target</span><span class="p">]</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">Float32</span><span class="p">)</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
@@ -3764,7 +3764,7 @@
         <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">reg</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">calculate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">props</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="o">*</span><span class="n">more_props</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pl</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Calculate properties for each region.</span>
 
 <span class="sd">        Parameters</span>
@@ -3785,13 +3785,13 @@
 <span class="sd">        -------</span>
 <span class="sd">        pl.DataFrame</span>
 <span class="sd">            DataFrame with columns corresponding to the given property names.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">props</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="n">all_props</span> <span class="o">=</span> <span class="p">[</span><span class="n">props</span><span class="p">,</span> <span class="o">*</span><span class="n">more_props</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">more_props</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
-                    <span class="s2">&quot;Must be calculate(str, str, ...) or calculate([str, str, ...])&quot;</span>
+                    <span class="s2">"Must be calculate(str, str, ...) or calculate([str, str, ...])"</span>
                 <span class="p">)</span>
             <span class="n">all_props</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">props</span><span class="p">)</span>
         <span class="n">props</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">props</span><span class="p">)</span>
@@ -3800,8 +3800,8 @@
         <span class="k">return</span> <span class="n">pl</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">out</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">all_props</span><span class="p">})</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">n_regions</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Number of regions.&quot;&quot;&quot;</span>
-        <span class="n">_area</span> <span class="o">=</span> <span class="s2">&quot;area&quot;</span>
+<span class="w">        </span><span class="sd">"""Number of regions."""</span>
+        <span class="n">_area</span> <span class="o">=</span> <span class="s2">"area"</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rust_obj</span><span class="o">.</span><span class="n">calculate</span><span class="p">([</span><span class="n">_area</span><span class="p">])[</span><span class="n">_area</span><span class="p">]</span><span class="o">.</span><span class="n">size</span>
 </code></pre></div></td></tr></table></div>
               </details>
@@ -3933,7 +3933,7 @@
 <span class="normal">363</span>
 <span class="normal">364</span>
 <span class="normal">365</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">calculate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">props</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="o">*</span><span class="n">more_props</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pl</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Calculate properties for each region.</span>
 
 <span class="sd">    Parameters</span>
@@ -3954,13 +3954,13 @@
 <span class="sd">    -------</span>
 <span class="sd">    pl.DataFrame</span>
 <span class="sd">        DataFrame with columns corresponding to the given property names.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">props</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
         <span class="n">all_props</span> <span class="o">=</span> <span class="p">[</span><span class="n">props</span><span class="p">,</span> <span class="o">*</span><span class="n">more_props</span><span class="p">]</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">more_props</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
-                <span class="s2">&quot;Must be calculate(str, str, ...) or calculate([str, str, ...])&quot;</span>
+                <span class="s2">"Must be calculate(str, str, ...) or calculate([str, str, ...])"</span>
             <span class="p">)</span>
         <span class="n">all_props</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">props</span><span class="p">)</span>
     <span class="n">props</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">props</span><span class="p">)</span>
@@ -3977,7 +3977,7 @@
 
 
 <h4 id="cylindra.cylmeasure.RegionProfiler.from_components" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">from_components</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s1">&#39;nth&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;pf-id&#39;</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">from_components</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s1">'nth'</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">'pf-id'</span><span class="p">)</span></code>
 
   <span class="doc doc-labels">
       <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
@@ -4116,16 +4116,16 @@ do not require target values are to be calculated.</p>
     <span class="bp">cls</span><span class="p">,</span>
     <span class="n">mole</span><span class="p">:</span> <span class="n">Molecules</span><span class="p">,</span>
     <span class="n">spl</span><span class="p">:</span> <span class="n">CylSpline</span><span class="p">,</span>
-    <span class="n">target</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;nth&quot;</span><span class="p">,</span>
-    <span class="n">label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;pf-id&quot;</span><span class="p">,</span>
+    <span class="n">target</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"nth"</span><span class="p">,</span>
+    <span class="n">label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"pf-id"</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegionProfiler</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Construct a region profiler from molecules and splines.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    mole : Molecules</span>
-<span class="sd">        Molecules to be profiled. Must have features &quot;nth&quot;, &quot;pf-id&quot;.</span>
+<span class="sd">        Molecules to be profiled. Must have features "nth", "pf-id".</span>
 <span class="sd">    spl : CylSpline</span>
 <span class="sd">        Spline from which the molecules are generated.</span>
 <span class="sd">    target : str, optional</span>
@@ -4133,13 +4133,13 @@ do not require target values are to be calculated.</p>
 <span class="sd">        do not require target values are to be calculated.</span>
 <span class="sd">    label : str</span>
 <span class="sd">        Column name of the label values. Must be an integer column.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">feat</span> <span class="o">=</span> <span class="n">mole</span><span class="o">.</span><span class="n">features</span>
     <span class="n">assert_column_exists</span><span class="p">(</span><span class="n">feat</span><span class="p">,</span> <span class="p">[</span><span class="n">target</span><span class="p">,</span> <span class="n">label</span><span class="p">])</span>
     <span class="n">feat_label</span> <span class="o">=</span> <span class="n">feat</span><span class="p">[</span><span class="n">label</span><span class="p">]</span>
 
     <span class="k">if</span> <span class="p">(</span><span class="n">dtype</span> <span class="o">:=</span> <span class="n">feat_label</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">POLARS_INTEGER_DTYPES</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;label must be an integer column, got </span><span class="si">{</span><span class="n">dtype</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"label must be an integer column, got </span><span class="si">{</span><span class="n">dtype</span><span class="si">}</span><span class="s2">."</span><span class="p">)</span>
     <span class="n">nth</span> <span class="o">=</span> <span class="n">feat</span><span class="p">[</span><span class="n">Mole</span><span class="o">.</span><span class="n">nth</span><span class="p">]</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">Int32</span><span class="p">)</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
     <span class="n">pf</span> <span class="o">=</span> <span class="n">feat</span><span class="p">[</span><span class="n">Mole</span><span class="o">.</span><span class="n">pf</span><span class="p">]</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">Int32</span><span class="p">)</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
     <span class="n">values</span> <span class="o">=</span> <span class="n">feat</span><span class="p">[</span><span class="n">target</span><span class="p">]</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">Float32</span><span class="p">)</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
@@ -4176,8 +4176,8 @@ do not require target values are to be calculated.</p>
 <span class="normal">368</span>
 <span class="normal">369</span>
 <span class="normal">370</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">n_regions</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Number of regions.&quot;&quot;&quot;</span>
-    <span class="n">_area</span> <span class="o">=</span> <span class="s2">&quot;area&quot;</span>
+<span class="w">    </span><span class="sd">"""Number of regions."""</span>
+    <span class="n">_area</span> <span class="o">=</span> <span class="s2">"area"</span>
     <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rust_obj</span><span class="o">.</span><span class="n">calculate</span><span class="p">([</span><span class="n">_area</span><span class="p">])[</span><span class="n">_area</span><span class="p">]</span><span class="o">.</span><span class="n">size</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -4228,13 +4228,13 @@ of the curve is positive.</p>
 <span class="normal">152</span>
 <span class="normal">153</span>
 <span class="normal">154</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">calc_curve_index</span><span class="p">(</span><span class="n">mole</span><span class="p">:</span> <span class="n">Molecules</span><span class="p">,</span> <span class="n">spl</span><span class="p">:</span> <span class="n">CylSpline</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    The curve orientation index.</span>
 
 <span class="sd">    The curve orientation is defined as the cosine of the angle between the</span>
 <span class="sd">    second derivative and the relative molecule vector. That is, the inside</span>
 <span class="sd">    of the curve is positive.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">_u</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">y_to_position</span><span class="p">(</span><span class="n">mole</span><span class="o">.</span><span class="n">features</span><span class="p">[</span><span class="n">Mole</span><span class="o">.</span><span class="n">position</span><span class="p">])</span>
     <span class="n">der0</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">_u</span><span class="p">,</span> <span class="n">der</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
     <span class="n">der2</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">_u</span><span class="p">,</span> <span class="n">der</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
@@ -4276,13 +4276,13 @@ of the curve is positive.</p>
 <span class="normal">46</span>
 <span class="normal">47</span>
 <span class="normal">48</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">calc_elevation_angle</span><span class="p">(</span><span class="n">mole</span><span class="p">:</span> <span class="n">Molecules</span><span class="p">,</span> <span class="n">spl</span><span class="p">:</span> <span class="n">CylSpline</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pl</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate the elevation angle of the longitudinal neighbors.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Calculate the elevation angle of the longitudinal neighbors."""</span>
     <span class="k">return</span> <span class="p">(</span>
         <span class="n">calc_localvec_long</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">,</span> <span class="n">fill</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
         <span class="o">.</span><span class="n">select</span><span class="p">(</span>
-            <span class="n">pl</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="s2">&quot;vecr&quot;</span><span class="p">,</span> <span class="s2">&quot;vecy&quot;</span><span class="p">)</span>
+            <span class="n">pl</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="s2">"vecr"</span><span class="p">,</span> <span class="s2">"vecy"</span><span class="p">)</span>
             <span class="o">.</span><span class="n">degrees</span><span class="p">()</span>
-            <span class="o">.</span><span class="n">fill_nan</span><span class="p">(</span><span class="o">-</span><span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">))</span>
+            <span class="o">.</span><span class="n">fill_nan</span><span class="p">(</span><span class="o">-</span><span class="nb">float</span><span class="p">(</span><span class="s2">"inf"</span><span class="p">))</span>
             <span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">Mole</span><span class="o">.</span><span class="n">elev_angle</span><span class="p">)</span>
         <span class="p">)</span>
         <span class="o">.</span><span class="n">to_series</span><span class="p">()</span>
@@ -4318,7 +4318,7 @@ of the curve is positive.</p>
 <span class="normal">87</span>
 <span class="normal">88</span>
 <span class="normal">89</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">calc_radius</span><span class="p">(</span><span class="n">mole</span><span class="p">:</span> <span class="n">Molecules</span><span class="p">,</span> <span class="n">spl</span><span class="p">:</span> <span class="n">CylSpline</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pl</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate the radius of each molecule.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Calculate the radius of each molecule."""</span>
     <span class="n">_u</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">y_to_position</span><span class="p">(</span><span class="n">mole</span><span class="o">.</span><span class="n">features</span><span class="p">[</span><span class="n">Mole</span><span class="o">.</span><span class="n">position</span><span class="p">])</span>
     <span class="n">_spl_pos</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">_u</span><span class="p">,</span> <span class="n">der</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
     <span class="n">_spl_vec</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">_u</span><span class="p">,</span> <span class="n">der</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
@@ -4358,15 +4358,15 @@ of the curve is positive.</p>
 <span class="normal"> 99</span>
 <span class="normal">100</span>
 <span class="normal">101</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">calc_rise</span><span class="p">(</span><span class="n">mole</span><span class="p">:</span> <span class="n">Molecules</span><span class="p">,</span> <span class="n">spl</span><span class="p">:</span> <span class="n">CylSpline</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pl</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Add a column of rise angles of each molecule.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Add a column of rise angles of each molecule."""</span>
     <span class="c1"># NOTE: molecules must be in the canonical arrangement.</span>
     <span class="n">sign</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">rise_sign</span>
     <span class="k">return</span> <span class="p">(</span>
         <span class="n">calc_localvec_lat</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">,</span> <span class="n">fill</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
-        <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="s2">&quot;vecy&quot;</span><span class="p">,</span> <span class="s2">&quot;veca&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">degrees</span><span class="p">()</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">Mole</span><span class="o">.</span><span class="n">rise</span><span class="p">))</span>
+        <span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="s2">"vecy"</span><span class="p">,</span> <span class="s2">"veca"</span><span class="p">)</span><span class="o">.</span><span class="n">degrees</span><span class="p">()</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">Mole</span><span class="o">.</span><span class="n">rise</span><span class="p">))</span>
         <span class="o">.</span><span class="n">to_series</span><span class="p">()</span>
         <span class="o">*</span> <span class="n">sign</span>
-    <span class="p">)</span><span class="o">.</span><span class="n">fill_nan</span><span class="p">(</span><span class="o">-</span><span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">))</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">fill_nan</span><span class="p">(</span><span class="o">-</span><span class="nb">float</span><span class="p">(</span><span class="s2">"inf"</span><span class="p">))</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -4401,13 +4401,13 @@ of the curve is positive.</p>
 <span class="normal">60</span>
 <span class="normal">61</span>
 <span class="normal">62</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">calc_skew</span><span class="p">(</span><span class="n">mole</span><span class="p">:</span> <span class="n">Molecules</span><span class="p">,</span> <span class="n">spl</span><span class="p">:</span> <span class="n">CylSpline</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pl</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate the skew of each molecule to the next one.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Calculate the skew of each molecule to the next one."""</span>
     <span class="k">return</span> <span class="p">(</span>
         <span class="n">calc_localvec_long</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">,</span> <span class="n">fill</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
         <span class="o">.</span><span class="n">select</span><span class="p">(</span>
-            <span class="n">pl</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="s2">&quot;veca&quot;</span><span class="p">,</span> <span class="s2">&quot;vecy&quot;</span><span class="p">)</span>
+            <span class="n">pl</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="s2">"veca"</span><span class="p">,</span> <span class="s2">"vecy"</span><span class="p">)</span>
             <span class="o">.</span><span class="n">degrees</span><span class="p">()</span>
-            <span class="o">.</span><span class="n">fill_nan</span><span class="p">(</span><span class="o">-</span><span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">))</span>
+            <span class="o">.</span><span class="n">fill_nan</span><span class="p">(</span><span class="o">-</span><span class="nb">float</span><span class="p">(</span><span class="s2">"inf"</span><span class="p">))</span>
             <span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">Mole</span><span class="o">.</span><span class="n">skew</span><span class="p">)</span>
         <span class="p">)</span>
         <span class="o">.</span><span class="n">to_series</span><span class="p">()</span>
@@ -4446,13 +4446,13 @@ of the curve is positive.</p>
 <span class="normal">32</span>
 <span class="normal">33</span>
 <span class="normal">34</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">calc_spacing</span><span class="p">(</span><span class="n">mole</span><span class="p">:</span> <span class="n">Molecules</span><span class="p">,</span> <span class="n">spl</span><span class="p">:</span> <span class="n">CylSpline</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pl</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate the interval of each molecule to the next one.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Calculate the interval of each molecule to the next one."""</span>
     <span class="k">return</span> <span class="p">(</span>
         <span class="n">calc_localvec_long</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">,</span> <span class="n">fill</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
         <span class="o">.</span><span class="n">select</span><span class="p">(</span>
-            <span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;vecy&quot;</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;veca&quot;</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">"vecy"</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">"veca"</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
             <span class="o">.</span><span class="n">sqrt</span><span class="p">()</span>
-            <span class="o">.</span><span class="n">fill_nan</span><span class="p">(</span><span class="o">-</span><span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">))</span>
+            <span class="o">.</span><span class="n">fill_nan</span><span class="p">(</span><span class="o">-</span><span class="nb">float</span><span class="p">(</span><span class="s2">"inf"</span><span class="p">))</span>
             <span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">Mole</span><span class="o">.</span><span class="n">spacing</span><span class="p">)</span>
         <span class="p">)</span>
         <span class="o">.</span><span class="n">to_series</span><span class="p">()</span>
@@ -4493,14 +4493,14 @@ of the curve is positive.</p>
 <span class="normal">76</span>
 <span class="normal">77</span>
 <span class="normal">78</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">calc_twist</span><span class="p">(</span><span class="n">mole</span><span class="p">:</span> <span class="n">Molecules</span><span class="p">,</span> <span class="n">spl</span><span class="p">:</span> <span class="n">CylSpline</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pl</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate the twist of each molecule to the next one.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Calculate the twist of each molecule to the next one."""</span>
     <span class="k">return</span> <span class="p">(</span>
         <span class="n">calc_localvec_long</span><span class="p">(</span><span class="n">mole</span><span class="p">,</span> <span class="n">spl</span><span class="p">,</span> <span class="n">fill</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
         <span class="o">.</span><span class="n">select</span><span class="p">(</span>
-            <span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;veca&quot;</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">/</span> <span class="n">spl</span><span class="o">.</span><span class="n">radius</span><span class="p">)</span>
+            <span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">"veca"</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">/</span> <span class="n">spl</span><span class="o">.</span><span class="n">radius</span><span class="p">)</span>
             <span class="o">.</span><span class="n">arcsin</span><span class="p">()</span>
             <span class="o">.</span><span class="n">degrees</span><span class="p">()</span>
-            <span class="o">.</span><span class="n">fill_nan</span><span class="p">(</span><span class="o">-</span><span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">))</span>
+            <span class="o">.</span><span class="n">fill_nan</span><span class="p">(</span><span class="o">-</span><span class="nb">float</span><span class="p">(</span><span class="s2">"inf"</span><span class="p">))</span>
             <span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">Mole</span><span class="o">.</span><span class="n">twist</span><span class="p">)</span>
             <span class="o">*</span> <span class="mi">2</span>
         <span class="p">)</span>

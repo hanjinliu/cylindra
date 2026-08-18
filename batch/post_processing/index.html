@@ -2776,7 +2776,7 @@
 <code>list</code>-like container with <code>CylindraProject</code> objects.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">cylindra</span><span class="w"> </span><span class="kn">import</span> <span class="n">collect_projects</span>
 
-<span class="n">col</span> <span class="o">=</span> <span class="n">collect_projects</span><span class="p">(</span><span class="s2">&quot;path/to/root/*.tar&quot;</span><span class="p">)</span>
+<span class="n">col</span> <span class="o">=</span> <span class="n">collect_projects</span><span class="p">(</span><span class="s2">"path/to/root/*.tar"</span><span class="p">)</span>
 <span class="n">col</span>
 </code></pre></div>
 <div class="highlight"><span class="filename">Output:</span><pre><span></span><code>ProjectSequence with 20 projects such as CylindraProject(...)
@@ -2797,7 +2797,7 @@ For example, following code plots the distribution of the "twist" parameters.</p
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
 
 <span class="n">df</span> <span class="o">=</span> <span class="n">col</span><span class="o">.</span><span class="n">collect_localprops</span><span class="p">()</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s2">&quot;twist&quot;</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s2">"twist"</span><span class="p">])</span>
 </code></pre></div>
 <p>Asides from the local properties, it also adds the following columns:</p>
 <ul>
@@ -2810,7 +2810,7 @@ For example, following code plots the distribution of the "twist" parameters.</p
 <p>This method collects all the global properties of the splines in the projects.
 For example, following code returns the number of splines with each orientation.</p>
 <div class="highlight"><pre><span></span><code><span class="n">df</span> <span class="o">=</span> <span class="n">col</span><span class="o">.</span><span class="n">collect_globalprops</span><span class="p">()</span>
-<span class="n">df</span><span class="p">[</span><span class="s2">&quot;orientation&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">value_counts</span><span class="p">()</span>
+<span class="n">df</span><span class="p">[</span><span class="s2">"orientation"</span><span class="p">]</span><span class="o">.</span><span class="n">value_counts</span><span class="p">()</span>
 </code></pre></div>
 <div class="highlight"><span class="filename">Output:</span><pre><span></span><code>shape: (2, 2)
 ┌─────────────┬───────┐
@@ -2828,7 +2828,7 @@ properties will be suffixed with "_glob". The returned dataframe will have a lot
 duplicate values, but it is very useful for rich analysis. For example, following code
 plots the distribution of the local "twist" parameters of 13-protofilament microtubules.</p>
 <div class="highlight"><pre><span></span><code><span class="n">df</span> <span class="o">=</span> <span class="n">col</span><span class="o">.</span><span class="n">collect_joinedprops</span><span class="p">()</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">&quot;npf_glob&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">13</span><span class="p">)[</span><span class="s2">&quot;twist&quot;</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="s2">"npf_glob"</span><span class="p">)</span> <span class="o">==</span> <span class="mi">13</span><span class="p">)[</span><span class="s2">"twist"</span><span class="p">])</span>
 </code></pre></div>
 
 

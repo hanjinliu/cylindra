@@ -3032,15 +3032,15 @@ color, size, and opacity.</p>
 <p>All the layers in <code>napari</code> are stored in the <code>layers</code> attribute. For example, you can
 get the layer named "Mole-0" by following code.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># `viewer` is the napari viewer object.</span>
-<span class="n">viewer</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="s2">&quot;Mole-0&quot;</span><span class="p">]</span>
+<span class="n">viewer</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="s2">"Mole-0"</span><span class="p">]</span>
 
 <span class="c1"># The `parent_viewer` is the parent napari viewer of the `cylindra` GUI, thun points to</span>
 <span class="c1"># the same viewer object.</span>
-<span class="n">ui</span><span class="o">.</span><span class="n">parent_viewer</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="s2">&quot;Mole-0&quot;</span><span class="p">]</span>
+<span class="n">ui</span><span class="o">.</span><span class="n">parent_viewer</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="s2">"Mole-0"</span><span class="p">]</span>
 </code></pre></div>
 <p>However, the cylindra GUI has another convenient accessor <code>mole_layers</code> that only
 considers the <code>MoleculesLayer</code> objects.</p>
-<div class="highlight"><pre><span></span><code><span class="n">layer</span> <span class="o">=</span> <span class="n">ui</span><span class="o">.</span><span class="n">mole_layers</span><span class="p">[</span><span class="s2">&quot;Mole-0&quot;</span><span class="p">]</span>  <span class="c1"># get the layer named &quot;Mole-0&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="n">layer</span> <span class="o">=</span> <span class="n">ui</span><span class="o">.</span><span class="n">mole_layers</span><span class="p">[</span><span class="s2">"Mole-0"</span><span class="p">]</span>  <span class="c1"># get the layer named "Mole-0"</span>
 
 <span class="c1"># iterate over all the molecules-layer</span>
 <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="n">ui</span><span class="o">.</span><span class="n">mole_layers</span><span class="p">:</span>
@@ -3058,7 +3058,7 @@ considers the <code>MoleculesLayer</code> objects.</p>
 <p>The positional coordinates (in nanometer) of the molecules can be accessed by the
 <code>data</code> attribute as a <code>numpy</code> array, as in the <code>Points</code> layer. This array is identical
 to the array returned by the <code>pos</code> property of the <code>Molecules</code> object.</p>
-<div class="highlight"><pre><span></span><code><span class="n">layer</span> <span class="o">=</span> <span class="n">ui</span><span class="o">.</span><span class="n">mole_layers</span><span class="p">[</span><span class="s2">&quot;Mole-0&quot;</span><span class="p">]</span>  <span class="c1"># get the layer named &quot;Mole-0&quot;</span>
+<div class="highlight"><pre><span></span><code><span class="n">layer</span> <span class="o">=</span> <span class="n">ui</span><span class="o">.</span><span class="n">mole_layers</span><span class="p">[</span><span class="s2">"Mole-0"</span><span class="p">]</span>  <span class="c1"># get the layer named "Mole-0"</span>
 <span class="n">layer</span><span class="o">.</span><span class="n">data</span>  <span class="c1"># or `layer.molecules.pos`</span>
 </code></pre></div>
 <div class="highlight"><span class="filename">Output:</span><pre><span></span><code>array([[ 18.7135, 187.5845,  40.6184],
@@ -3071,7 +3071,7 @@ to the array returned by the <code>pos</code> property of the <code>Molecules</c
 <p>The "rotation" of a molecule is defined by the transformation to fit the world z, y, x
 axes to the molecule local z, y, x axes. Rotation is represented by a <a href="https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.transform.Rotation.html"><code>Rotation</code> object of <code>scipy</code></a>.</p>
 <p><code>Rotation</code> object is stored as the <code>rotator</code> attribute of the <code>Molecules</code>.</p>
-<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="o">.</span><span class="n">mole_layers</span><span class="p">[</span><span class="s2">&quot;Mole-0&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">rotator</span>
+<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="o">.</span><span class="n">mole_layers</span><span class="p">[</span><span class="s2">"Mole-0"</span><span class="p">]</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">rotator</span>
 </code></pre></div>
 <div class="highlight"><span class="filename">Output:</span><pre><span></span><code>&lt;scipy.spatial.transform._rotation.Rotation at XXXXXXX&gt;
 </code></pre></div>
@@ -3079,7 +3079,7 @@ axes to the molecule local z, y, x axes. Rotation is represented by a <a href="h
 Euler angles, quaternion and rotation vector. You can get these representations by
 following methods.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># get the ZXZ-Euler angles in degrees as (N, 3) array</span>
-<span class="n">Molecules</span><span class="o">.</span><span class="n">euler_angle</span><span class="p">(</span><span class="s2">&quot;ZXZ&quot;</span><span class="p">,</span> <span class="n">degrees</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">Molecules</span><span class="o">.</span><span class="n">euler_angle</span><span class="p">(</span><span class="s2">"ZXZ"</span><span class="p">,</span> <span class="n">degrees</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
 <span class="c1"># get the rotation vector (z, y, x) as (N, 3) array</span>
 <span class="n">Molecules</span><span class="o">.</span><span class="n">rotvec</span><span class="p">()</span>

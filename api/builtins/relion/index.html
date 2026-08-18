@@ -2935,19 +2935,19 @@
 <span class="normal">69</span>
 <span class="normal">70</span>
 <span class="normal">71</span>
-<span class="normal">72</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Load molecules&quot;</span><span class="p">)</span>
+<span class="normal">72</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Load molecules"</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">load_molecules</span><span class="p">(</span><span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Read</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">STAR</span><span class="p">]):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Read monomer coordinates and angles from RELION .star file.</span>
+<span class="w">    </span><span class="sd">"""Read monomer coordinates and angles from RELION .star file.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    path : path-like</span>
 <span class="sd">        The path to the star file.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
     <span class="n">moles</span> <span class="o">=</span> <span class="n">_read_star</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">ui</span><span class="o">.</span><span class="n">tomogram</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">mole</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">moles</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
-        <span class="n">add_molecules</span><span class="p">(</span><span class="n">ui</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">,</span> <span class="n">mole</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="n">add_molecules</span><span class="p">(</span><span class="n">ui</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">,</span> <span class="n">mole</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -3024,22 +3024,22 @@
 <span class="normal">94</span>
 <span class="normal">95</span>
 <span class="normal">96</span>
-<span class="normal">97</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Load splines&quot;</span><span class="p">)</span>
+<span class="normal">97</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Load splines"</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">load_splines</span><span class="p">(</span><span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Read</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">STAR</span><span class="p">]):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Read a star file and register all the tubes as splines.</span>
+<span class="w">    </span><span class="sd">"""Read a star file and register all the tubes as splines.</span>
 
-<span class="sd">    The &quot;rlnHelicalTubeID&quot; column will be used to group the points into splines.</span>
+<span class="sd">    The "rlnHelicalTubeID" column will be used to group the points into splines.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    path : path-like</span>
 <span class="sd">        The path to the star file.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">mole</span> <span class="o">=</span> <span class="n">Molecules</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">_read_star</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">ui</span><span class="o">.</span><span class="n">tomogram</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
     <span class="k">if</span> <span class="n">RELION_TUBE_ID</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">mole</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
         <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">RELION_TUBE_ID</span><span class="si">!r}</span><span class="s2"> not found in star file. Use all points as a &quot;</span>
-            <span class="s2">&quot;single spline.&quot;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">RELION_TUBE_ID</span><span class="si">!r}</span><span class="s2"> not found in star file. Use all points as a "</span>
+            <span class="s2">"single spline."</span><span class="p">,</span>
             <span class="ne">UserWarning</span><span class="p">,</span>
             <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
         <span class="p">)</span>
@@ -3251,25 +3251,25 @@ and <code>pf-id</code> used for lattice structure analysis).</p>
 <span class="normal">419</span>
 <span class="normal">420</span>
 <span class="normal">421</span>
-<span class="normal">422</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Open RELION job&quot;</span><span class="p">)</span>
+<span class="normal">422</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Open RELION job"</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">open_relion_job</span><span class="p">(</span>
     <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span>
     <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Read</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">STAR_JOB</span><span class="p">],</span>
-    <span class="n">project_root</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="o">.</span><span class="n">Save</span><span class="p">],</span> <span class="p">{</span><span class="s2">&quot;text&quot;</span><span class="p">:</span> <span class="s2">&quot;Under the RELION job&quot;</span><span class="p">}]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">project_root</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="o">.</span><span class="n">Save</span><span class="p">],</span> <span class="p">{</span><span class="s2">"text"</span><span class="p">:</span> <span class="s2">"Under the RELION job"</span><span class="p">}]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">invert</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="n">bin_size</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span>
     <span class="n">scale_override</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
         <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span>
         <span class="p">{</span>
-            <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;scale override (nm/pix)&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;text&quot;</span><span class="p">:</span> <span class="s2">&quot;Use same scale&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;options&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;step&quot;</span><span class="p">:</span> <span class="mf">0.0001</span><span class="p">,</span> <span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mf">1000.0</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">},</span>
+            <span class="s2">"label"</span><span class="p">:</span> <span class="s2">"scale override (nm/pix)"</span><span class="p">,</span>
+            <span class="s2">"text"</span><span class="p">:</span> <span class="s2">"Use same scale"</span><span class="p">,</span>
+            <span class="s2">"options"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"step"</span><span class="p">:</span> <span class="mf">0.0001</span><span class="p">,</span> <span class="s2">"min"</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s2">"max"</span><span class="p">:</span> <span class="mf">1000.0</span><span class="p">,</span> <span class="s2">"value"</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">},</span>
         <span class="p">},</span>
     <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-    <span class="n">join_molecules_by_id</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;text&quot;</span><span class="p">:</span> <span class="s2">&quot;Join RELION particles to the current batch project&quot;</span><span class="p">}]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-    <span class="n">path_sets</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;bind&quot;</span><span class="p">:</span> <span class="n">_get_loader_paths</span><span class="p">}]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">join_molecules_by_id</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="p">{</span><span class="s2">"text"</span><span class="p">:</span> <span class="s2">"Join RELION particles to the current batch project"</span><span class="p">}]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">path_sets</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="p">{</span><span class="s2">"bind"</span><span class="p">:</span> <span class="n">_get_loader_paths</span><span class="p">}]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">):</span>  <span class="c1"># fmt: skip</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Open a RELION tomogram reconstruction/refinement job as a cylindra batch project.</span>
+<span class="w">    </span><span class="sd">"""Open a RELION tomogram reconstruction/refinement job as a cylindra batch project.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -3291,7 +3291,7 @@ and <code>pf-id</code> used for lattice structure analysis).</p>
 <span class="sd">        cylindra particles for RELION. This option is useful when you want to import</span>
 <span class="sd">        particles back to cylindra and fill the missing geometrical features (e.g. `nth`</span>
 <span class="sd">        and `pf-id` used for lattice structure analysis).</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">project_root</span><span class="p">,</span> <span class="n">paths</span><span class="p">,</span> <span class="n">scales</span><span class="p">,</span> <span class="n">moles</span><span class="p">,</span> <span class="n">tilt_models</span> <span class="o">=</span> <span class="n">_parse_relion_job</span><span class="p">(</span>
         <span class="n">path</span><span class="p">,</span> <span class="n">project_root</span>
     <span class="p">)</span>
@@ -3302,8 +3302,8 @@ and <code>pf-id</code> used for lattice structure analysis).</p>
     <span class="k">if</span> <span class="n">join_molecules_by_id</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">path_sets</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">path_sets</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="s2">&quot;No molecules to join. Please add projects in the batch analysis &quot;</span>
-                <span class="s2">&quot;widget first to join RELION particles.&quot;</span>
+                <span class="s2">"No molecules to join. Please add projects in the batch analysis "</span>
+                <span class="s2">"widget first to join RELION particles."</span>
             <span class="p">)</span>
         <span class="n">moles</span><span class="p">,</span> <span class="n">splines</span><span class="p">,</span> <span class="n">molecule_sources</span> <span class="o">=</span> <span class="n">_match_molecules</span><span class="p">(</span><span class="n">moles</span><span class="p">,</span> <span class="n">path_sets</span><span class="p">)</span>
     <span class="n">ui</span><span class="o">.</span><span class="n">batch</span><span class="o">.</span><span class="n">_new_projects_from_table</span><span class="p">(</span>
@@ -3327,7 +3327,7 @@ and <code>pf-id</code> used for lattice structure analysis).</p>
 
 
 <h3 id="cylindra_builtins.relion.save_molecules" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">save_molecules</span><span class="p">(</span><span class="n">ui</span><span class="p">,</span> <span class="n">save_path</span><span class="p">,</span> <span class="n">layers</span><span class="p">,</span> <span class="n">save_features</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">tomo_name_override</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">shift_by_origin</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">save_molecules</span><span class="p">(</span><span class="n">ui</span><span class="p">,</span> <span class="n">save_path</span><span class="p">,</span> <span class="n">layers</span><span class="p">,</span> <span class="n">save_features</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">tomo_name_override</span><span class="o">=</span><span class="s1">''</span><span class="p">,</span> <span class="n">shift_by_origin</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
 
 </h3>
 
@@ -3479,16 +3479,16 @@ option is required if you picked molecules in a trimmed tomogram.</p>
 <span class="normal">138</span>
 <span class="normal">139</span>
 <span class="normal">140</span>
-<span class="normal">141</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Save molecules&quot;</span><span class="p">)</span>
+<span class="normal">141</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Save molecules"</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">save_molecules</span><span class="p">(</span>
     <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span>
     <span class="n">save_path</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Save</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">STAR</span><span class="p">],</span>
     <span class="n">layers</span><span class="p">:</span> <span class="n">MoleculesLayersType</span><span class="p">,</span>
     <span class="n">save_features</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-    <span class="n">tomo_name_override</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+    <span class="n">tomo_name_override</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span><span class="p">,</span>
     <span class="n">shift_by_origin</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
 <span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Save the selected molecules to a RELION .star file.</span>
+<span class="w">    </span><span class="sd">"""Save the selected molecules to a RELION .star file.</span>
 
 <span class="sd">    If multiple layers are selected, the `MoleculeGroupID` column will be added</span>
 <span class="sd">    to the star file to distinguish the layers. This method is RELION 5 compliant.</span>
@@ -3501,13 +3501,13 @@ option is required if you picked molecules in a trimmed tomogram.</p>
 <span class="sd">        The layers to save.</span>
 <span class="sd">    save_features : bool, default True</span>
 <span class="sd">        Whether to save the features of the molecules.</span>
-<span class="sd">    tomo_name_override : str, default &quot;&quot;</span>
+<span class="sd">    tomo_name_override : str, default ""</span>
 <span class="sd">        If provided, this will override the tomogram name identifier (the rlnTomoName</span>
 <span class="sd">        column) in the star file.</span>
 <span class="sd">    shift_by_origin : bool, default True</span>
 <span class="sd">        If True, the positions will be shifted by the origin of the tomogram. This</span>
 <span class="sd">        option is required if you picked molecules in a trimmed tomogram.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">save_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">save_path</span><span class="p">)</span>
     <span class="n">layers</span> <span class="o">=</span> <span class="n">assert_list_of_layers</span><span class="p">(</span><span class="n">layers</span><span class="p">,</span> <span class="n">ui</span><span class="o">.</span><span class="n">parent_viewer</span><span class="p">)</span>
     <span class="n">tomo_name</span> <span class="o">=</span> <span class="n">tomo_name_override</span> <span class="ow">or</span> <span class="n">_relion_utils</span><span class="o">.</span><span class="n">strip_relion5_prefix</span><span class="p">(</span>
@@ -3704,20 +3704,20 @@ calibrated the pixel size on cylindra side.</p>
 <span class="normal">252</span>
 <span class="normal">253</span>
 <span class="normal">254</span>
-<span class="normal">255</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Save molecules for extract&quot;</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="normal">255</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Save molecules for extract"</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">save_molecules_for_extract</span><span class="p">(</span>
     <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span>
     <span class="n">coordinates_path</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Save</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">STAR</span><span class="p">],</span>
-    <span class="n">path_sets</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;bind&quot;</span><span class="p">:</span> <span class="n">_get_loader_paths</span><span class="p">}],</span>
+    <span class="n">path_sets</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="p">{</span><span class="s2">"bind"</span><span class="p">:</span> <span class="n">_get_loader_paths</span><span class="p">}],</span>
     <span class="n">save_features</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">shift_by_origin</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="n">centered</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="n">relion_scale</span><span class="p">:</span> <span class="n">_RELION_SCALE_TYPE</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Save the batch analyzer state as a star file for &quot;Extract subtomo&quot; job.</span>
+<span class="w">    </span><span class="sd">"""Save the batch analyzer state as a star file for "Extract subtomo" job.</span>
 
-<span class="sd">    The output star file should be provided as the &quot;I/O &gt; Input particle set&quot; with</span>
-<span class="sd">    &quot;OR: use direct entries&quot; set to &quot;Yes&quot;.</span>
+<span class="sd">    The output star file should be provided as the "I/O &gt; Input particle set" with</span>
+<span class="sd">    "OR: use direct entries" set to "Yes".</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -3732,12 +3732,12 @@ calibrated the pixel size on cylindra side.</p>
 <span class="sd">        option is required if you picked molecules in a trimmed tomogram.</span>
 <span class="sd">    centered : bool, default True</span>
 <span class="sd">        If True, the positions will be centered around the tomogram center, and columns</span>
-<span class="sd">        &quot;rlnCenteredCoordinateX/Y/ZAngst&quot; will be used. If False, columns</span>
-<span class="sd">        &quot;rlnCoordinateX/Y/Z&quot; will be used.</span>
+<span class="sd">        "rlnCenteredCoordinateX/Y/ZAngst" will be used. If False, columns</span>
+<span class="sd">        "rlnCoordinateX/Y/Z" will be used.</span>
 <span class="sd">    relion_scale : float, optional</span>
 <span class="sd">        Set this value if different pixel size is used in RELION. This happens when you</span>
 <span class="sd">        calibrated the pixel size on cylindra side.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">particles_dfs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]()</span>
     <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">df</span> <span class="ow">in</span> <span class="n">_iter_dataframe_from_path_sets</span><span class="p">(</span>
         <span class="n">path_sets</span><span class="p">,</span>
@@ -3748,7 +3748,7 @@ calibrated the pixel size on cylindra side.</p>
     <span class="p">):</span>
         <span class="n">particles_dfs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
     <span class="n">particles_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">particles_dfs</span><span class="p">)</span>
-    <span class="n">starfile</span><span class="o">.</span><span class="n">write</span><span class="p">({</span><span class="s2">&quot;particles&quot;</span><span class="p">:</span> <span class="n">particles_df</span><span class="p">},</span> <span class="n">coordinates_path</span><span class="p">)</span>
+    <span class="n">starfile</span><span class="o">.</span><span class="n">write</span><span class="p">({</span><span class="s2">"particles"</span><span class="p">:</span> <span class="n">particles_df</span><span class="p">},</span> <span class="n">coordinates_path</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -3943,17 +3943,17 @@ calibrated the pixel size on cylindra side.</p>
 <span class="normal">205</span>
 <span class="normal">206</span>
 <span class="normal">207</span>
-<span class="normal">208</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Save molecules for import&quot;</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="normal">208</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Save molecules for import"</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">save_molecules_for_import</span><span class="p">(</span>
     <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span>
     <span class="n">coordinates_path</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Save</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">STAR</span><span class="p">],</span>
-    <span class="n">path_sets</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;bind&quot;</span><span class="p">:</span> <span class="n">_get_loader_paths</span><span class="p">}],</span>
+    <span class="n">path_sets</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="p">{</span><span class="s2">"bind"</span><span class="p">:</span> <span class="n">_get_loader_paths</span><span class="p">}],</span>
     <span class="n">save_features</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">shift_by_origin</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="n">centered</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
     <span class="n">relion_scale</span><span class="p">:</span> <span class="n">_RELION_SCALE_TYPE</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Save the batch analyzer state as star files for &quot;Import&quot; job.</span>
+<span class="w">    </span><span class="sd">"""Save the batch analyzer state as star files for "Import" job.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -3968,14 +3968,14 @@ calibrated the pixel size on cylindra side.</p>
 <span class="sd">        option is required if you picked molecules in a trimmed tomogram.</span>
 <span class="sd">    centered : bool, default True</span>
 <span class="sd">        If True, the positions will be centered around the tomogram center, and columns</span>
-<span class="sd">        &quot;rlnCenteredCoordinateX/Y/ZAngst&quot; will be used. If False, columns</span>
-<span class="sd">        &quot;rlnCoordinateX/Y/Z&quot; will be used.</span>
+<span class="sd">        "rlnCenteredCoordinateX/Y/ZAngst" will be used. If False, columns</span>
+<span class="sd">        "rlnCoordinateX/Y/Z" will be used.</span>
 <span class="sd">    relion_scale : float, optional</span>
 <span class="sd">        Set this value if different pixel size is used in RELION. This happens when you</span>
 <span class="sd">        calibrated the pixel size on cylindra side.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">coordinates_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">coordinates_path</span><span class="p">)</span>
-    <span class="n">save_dir</span> <span class="o">=</span> <span class="n">coordinates_path</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">coordinates_path</span><span class="o">.</span><span class="n">stem</span><span class="si">}</span><span class="s2">_particles&quot;</span>
+    <span class="n">save_dir</span> <span class="o">=</span> <span class="n">coordinates_path</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">coordinates_path</span><span class="o">.</span><span class="n">stem</span><span class="si">}</span><span class="s2">_particles"</span>
     <span class="n">save_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
     <span class="n">tomo_names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]()</span>
@@ -3988,7 +3988,7 @@ calibrated the pixel size on cylindra side.</p>
         <span class="n">centered</span><span class="o">=</span><span class="n">centered</span><span class="p">,</span>
         <span class="n">relion_scale</span><span class="o">=</span><span class="n">relion_scale</span><span class="p">,</span>
     <span class="p">):</span>
-        <span class="n">particles_path</span> <span class="o">=</span> <span class="n">save_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">tomo_name</span><span class="si">}</span><span class="s2">_particles.star&quot;</span>
+        <span class="n">particles_path</span> <span class="o">=</span> <span class="n">save_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">tomo_name</span><span class="si">}</span><span class="s2">_particles.star"</span>
         <span class="n">particles_dfs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
         <span class="n">particles_paths</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">particles_path</span><span class="p">)</span>
         <span class="n">tomo_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tomo_name</span><span class="p">)</span>
@@ -4011,7 +4011,7 @@ calibrated the pixel size on cylindra side.</p>
 
 
 <h3 id="cylindra_builtins.relion.save_splines" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">save_splines</span><span class="p">(</span><span class="n">ui</span><span class="p">,</span> <span class="n">save_path</span><span class="p">,</span> <span class="n">interval</span><span class="o">=</span><span class="mf">10.0</span><span class="p">,</span> <span class="n">tomo_name_override</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">shift_by_origin</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">save_splines</span><span class="p">(</span><span class="n">ui</span><span class="p">,</span> <span class="n">save_path</span><span class="p">,</span> <span class="n">interval</span><span class="o">=</span><span class="mf">10.0</span><span class="p">,</span> <span class="n">tomo_name_override</span><span class="o">=</span><span class="s1">''</span><span class="p">,</span> <span class="n">shift_by_origin</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
 
 </h3>
 
@@ -4158,15 +4158,15 @@ option is required if you picked molecules in a trimmed tomogram.</p>
 <span class="normal">351</span>
 <span class="normal">352</span>
 <span class="normal">353</span>
-<span class="normal">354</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;Save splines&quot;</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="normal">354</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Save splines"</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">save_splines</span><span class="p">(</span>
     <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span>
     <span class="n">save_path</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Save</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">STAR</span><span class="p">],</span>
-    <span class="n">interval</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mf">1000.0</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Sampling interval (nm)&quot;</span><span class="p">}]</span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">,</span>
-    <span class="n">tomo_name_override</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+    <span class="n">interval</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="p">{</span><span class="s2">"min"</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s2">"max"</span><span class="p">:</span> <span class="mf">1000.0</span><span class="p">,</span> <span class="s2">"label"</span><span class="p">:</span> <span class="s2">"Sampling interval (nm)"</span><span class="p">}]</span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">,</span>
+    <span class="n">tomo_name_override</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span><span class="p">,</span>
     <span class="n">shift_by_origin</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
 <span class="p">):</span>  <span class="c1"># fmt: skip</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Save the current splines to a RELION .star file.</span>
+<span class="w">    </span><span class="sd">"""Save the current splines to a RELION .star file.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -4175,16 +4175,16 @@ option is required if you picked molecules in a trimmed tomogram.</p>
 <span class="sd">    interval : float, default 10.0</span>
 <span class="sd">        Sampling interval along the splines. For example, if interval=10.0 and the</span>
 <span class="sd">        length of a spline is 100.0, 11 points will be sampled.</span>
-<span class="sd">    tomo_name_override : str, default &quot;&quot;</span>
+<span class="sd">    tomo_name_override : str, default ""</span>
 <span class="sd">        If provided, this will override the tomogram name identifier (the rlnTomoName</span>
 <span class="sd">        column) in the star file.</span>
 <span class="sd">    shift_by_origin : bool, default True</span>
 <span class="sd">        If True, the positions will be shifted by the origin of the tomogram. This</span>
 <span class="sd">        option is required if you picked molecules in a trimmed tomogram.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="k">if</span> <span class="n">interval</span> <span class="o">&lt;=</span> <span class="mf">1e-4</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Interval must be larger than 1e-4.&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Interval must be larger than 1e-4."</span><span class="p">)</span>
     <span class="n">save_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">save_path</span><span class="p">)</span>
     <span class="n">data_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">pl</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">orig</span> <span class="o">=</span> <span class="n">ui</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">origin</span>
@@ -4210,7 +4210,7 @@ option is required if you picked molecules in a trimmed tomogram.</p>
             <span class="p">}</span>
         <span class="p">)</span>
         <span class="n">data_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
-    <span class="n">df</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">data_list</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;vertical&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to_pandas</span><span class="p">()</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">data_list</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">"vertical"</span><span class="p">)</span><span class="o">.</span><span class="n">to_pandas</span><span class="p">()</span>
     <span class="n">starfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">save_path</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>

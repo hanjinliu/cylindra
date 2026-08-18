@@ -2734,12 +2734,12 @@ this workflow.</p>
 molecules can be initialized along each spline at dimeric intervals. The interval can be
 described by the <code>polars</code> expression <code>col('pitch') * 2</code>, which is evaluated with the
 "pitch" value of spline global properties.</p>
-<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="o">.</span><span class="n">infer_polarity</span><span class="p">(</span><span class="n">splines</span><span class="o">=</span><span class="s2">&quot;all&quot;</span><span class="p">)</span>
-<span class="n">ui</span><span class="o">.</span><span class="n">global_cft_analysis</span><span class="p">(</span><span class="n">splines</span><span class="o">=</span><span class="s2">&quot;all&quot;</span><span class="p">)</span>  <span class="c1"># to get lattice pitch</span>
+<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="o">.</span><span class="n">infer_polarity</span><span class="p">(</span><span class="n">splines</span><span class="o">=</span><span class="s2">"all"</span><span class="p">)</span>
+<span class="n">ui</span><span class="o">.</span><span class="n">global_cft_analysis</span><span class="p">(</span><span class="n">splines</span><span class="o">=</span><span class="s2">"all"</span><span class="p">)</span>  <span class="c1"># to get lattice pitch</span>
 <span class="n">ui</span><span class="o">.</span><span class="n">map_along_spline</span><span class="p">(</span>
-    <span class="n">splines</span><span class="o">=</span><span class="s2">&quot;all&quot;</span><span class="p">,</span>
-    <span class="n">molecule_interval</span><span class="o">=</span><span class="s2">&quot;col(&#39;pitch&#39;) * 2&quot;</span><span class="p">,</span>
-    <span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;Center&quot;</span><span class="p">,</span>
+    <span class="n">splines</span><span class="o">=</span><span class="s2">"all"</span><span class="p">,</span>
+    <span class="n">molecule_interval</span><span class="o">=</span><span class="s2">"col('pitch') * 2"</span><span class="p">,</span>
+    <span class="n">prefix</span><span class="o">=</span><span class="s2">"Center"</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
 <p>You can further refine the molecules by aligning them to the pre-determined structure
@@ -2750,8 +2750,8 @@ of microtubules such as <a href="https://www.ebi.ac.uk/emdb/EMD-7974">EMD-7974</
 the template microtubule matches the y-axis.</p>
 </div>
 <div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="o">.</span><span class="n">sta</span><span class="o">.</span><span class="n">align_all</span><span class="p">(</span>
-    <span class="n">layers</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Center-0&#39;</span><span class="p">],</span>
-    <span class="n">template_path</span><span class="o">=</span><span class="s2">&quot;path/to/template.mrc&quot;</span><span class="p">,</span>
+    <span class="n">layers</span><span class="o">=</span><span class="p">[</span><span class="s1">'Center-0'</span><span class="p">],</span>
+    <span class="n">template_path</span><span class="o">=</span><span class="s2">"path/to/template.mrc"</span><span class="p">,</span>
     <span class="n">mask_params</span><span class="o">=</span><span class="p">(</span><span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">),</span>
     <span class="n">max_shifts</span><span class="o">=</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
     <span class="n">rotations</span><span class="o">=</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)),</span>
@@ -2761,7 +2761,7 @@ the template microtubule matches the y-axis.</p>
 <p>By the standard subtomogram averaging using
 <a class="autorefs autorefs-internal" title="average_all(layers, size=None, interpolation=1, bin_size=1)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.average_all"><code>average_all</code></a>, you can check if
 the alignment was successful.</p>
-<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="o">.</span><span class="n">sta</span><span class="o">.</span><span class="n">average_all</span><span class="p">(</span><span class="n">layers</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Center-0-ALN1&#39;</span><span class="p">],</span> <span class="n">size</span><span class="o">=</span><span class="mf">48.0</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="o">.</span><span class="n">sta</span><span class="o">.</span><span class="n">average_all</span><span class="p">(</span><span class="n">layers</span><span class="o">=</span><span class="p">[</span><span class="s1">'Center-0-ALN1'</span><span class="p">],</span> <span class="n">size</span><span class="o">=</span><span class="mf">48.0</span><span class="p">)</span>
 </code></pre></div>
 <h2 id="ssta">SSTA</h2>
 <p>Molecules can be grouped by its <a href="../../molecules/features/">features</a>. This means that
@@ -2776,9 +2776,9 @@ the molecules into segments of <code>Ns</code> molecules. Since we initialized m
 intervals, the intervals are usually ~8.2 nm. For 100-nm SSTA, the <code>Ns</code> value should be
 <span class="arithmatex">\(100 / 8.2 \approx 12\)</span>.</p>
 <div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="o">.</span><span class="n">sta</span><span class="o">.</span><span class="n">average_groups</span><span class="p">(</span>
-    <span class="n">layers</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Center-0-ALN1&#39;</span><span class="p">],</span>
+    <span class="n">layers</span><span class="o">=</span><span class="p">[</span><span class="s1">'Center-0-ALN1'</span><span class="p">],</span>
     <span class="n">size</span><span class="o">=</span><span class="mf">48.0</span><span class="p">,</span>
-    <span class="n">by</span><span class="o">=</span><span class="s2">&quot;col(&#39;nth&#39;) // 12&quot;</span><span class="p">,</span>
+    <span class="n">by</span><span class="o">=</span><span class="s2">"col('nth') // 12"</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
 

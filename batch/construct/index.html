@@ -2876,11 +2876,11 @@ loader will be constructed immediately.</p>
 <p>The low-level API is rarely used on the user side.</p>
 <div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="o">.</span><span class="n">batch</span><span class="o">.</span><span class="n">construct_loader</span><span class="p">(</span>
     <span class="n">paths</span><span class="o">=</span><span class="p">[</span>
-        <span class="p">(</span><span class="s2">&quot;path/to/image-0.tif&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;Mole-0.csv&quot;</span><span class="p">]),</span>
-        <span class="p">(</span><span class="s2">&quot;path/to/image-1.tif&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;Mole-0.csv&quot;</span><span class="p">,</span> <span class="s2">&quot;Mole-1.csv&quot;</span><span class="p">]),</span>
+        <span class="p">(</span><span class="s2">"path/to/image-0.tif"</span><span class="p">,</span> <span class="p">[</span><span class="s2">"Mole-0.csv"</span><span class="p">]),</span>
+        <span class="p">(</span><span class="s2">"path/to/image-1.tif"</span><span class="p">,</span> <span class="p">[</span><span class="s2">"Mole-0.csv"</span><span class="p">,</span> <span class="s2">"Mole-1.csv"</span><span class="p">]),</span>
     <span class="p">],</span>
     <span class="n">predicate</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Loader&quot;</span><span class="p">,</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">"Loader"</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
 <h3 id="construct-from-a-list-of-paths">Construct from a list of paths</h3>
@@ -2888,21 +2888,21 @@ loader will be constructed immediately.</p>
 <p>The simplest way to construct a loader is to provide a list of paths of project files.</p>
 <div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="o">.</span><span class="n">batch</span><span class="o">.</span><span class="n">construct_loader_by_list</span><span class="p">(</span>
     <span class="n">project_paths</span><span class="o">=</span><span class="p">[</span>
-        <span class="s2">&quot;path/to/project-0.zip&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;path/to/project-1.zip&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;path/to/project-2.zip&quot;</span><span class="p">,</span>
+        <span class="s2">"path/to/project-0.zip"</span><span class="p">,</span>
+        <span class="s2">"path/to/project-1.zip"</span><span class="p">,</span>
+        <span class="s2">"path/to/project-2.zip"</span><span class="p">,</span>
     <span class="p">],</span>
-    <span class="n">mole_pattern</span><span class="o">=</span><span class="s2">&quot;*-ALN1.csv&quot;</span><span class="p">,</span>  <span class="c1"># only use molecules with name ending with &quot;-ALN1.csv&quot;</span>
-    <span class="n">predicate</span><span class="o">=</span><span class="s2">&quot;col(&#39;npf_glob&#39;) == 13&quot;</span><span class="p">,</span>  <span class="c1"># only use molecules from 13-pf microtubules</span>
-    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Loader&quot;</span><span class="p">,</span>
+    <span class="n">mole_pattern</span><span class="o">=</span><span class="s2">"*-ALN1.csv"</span><span class="p">,</span>  <span class="c1"># only use molecules with name ending with "-ALN1.csv"</span>
+    <span class="n">predicate</span><span class="o">=</span><span class="s2">"col('npf_glob') == 13"</span><span class="p">,</span>  <span class="c1"># only use molecules from 13-pf microtubules</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">"Loader"</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
 <p>File patterns can also be used.</p>
 <div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="o">.</span><span class="n">batch</span><span class="o">.</span><span class="n">construct_loader_by_list</span><span class="p">(</span>
-    <span class="s2">&quot;path/to/project-*.zip&quot;</span><span class="p">,</span>
-    <span class="n">mole_pattern</span><span class="o">=</span><span class="s2">&quot;*-ALN1.csv&quot;</span><span class="p">,</span>  <span class="c1"># only use molecules with name ending with &quot;-ALN1.csv&quot;</span>
-    <span class="n">predicate</span><span class="o">=</span><span class="s2">&quot;col(&#39;npf_glob&#39;) == 13&quot;</span><span class="p">,</span>  <span class="c1"># only use molecules from 13-pf microtubules</span>
-    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Loader&quot;</span><span class="p">,</span>
+    <span class="s2">"path/to/project-*.zip"</span><span class="p">,</span>
+    <span class="n">mole_pattern</span><span class="o">=</span><span class="s2">"*-ALN1.csv"</span><span class="p">,</span>  <span class="c1"># only use molecules with name ending with "-ALN1.csv"</span>
+    <span class="n">predicate</span><span class="o">=</span><span class="s2">"col('npf_glob') == 13"</span><span class="p">,</span>  <span class="c1"># only use molecules from 13-pf microtubules</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">"Loader"</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
 

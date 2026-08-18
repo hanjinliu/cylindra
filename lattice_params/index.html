@@ -2960,8 +2960,8 @@ constant along the cylindric structure.</p>
 <p>After this estimation, the radius is stored as a global property of the spline. It is
 available in the <code>spline</code> properties.</p>
 <div class="highlight"><pre><span></span><code><span class="n">spl</span> <span class="o">=</span> <span class="n">ui</span><span class="o">.</span><span class="n">splines</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># the first Spline object</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">spl</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get_glob</span><span class="p">(</span><span class="s2">&quot;radius&quot;</span><span class="p">))</span>  <span class="c1"># print the global radius of the spline</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">spl</span><span class="o">.</span><span class="n">radius</span><span class="p">)</span>  <span class="c1"># a shorthand for spl.props.get_glob(&quot;radius&quot;)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">spl</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get_glob</span><span class="p">(</span><span class="s2">"radius"</span><span class="p">))</span>  <span class="c1"># print the global radius of the spline</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">spl</span><span class="o">.</span><span class="n">radius</span><span class="p">)</span>  <span class="c1"># a shorthand for spl.props.get_glob("radius")</span>
 </code></pre></div>
 <details class="info">
 <summary>If the estimated value is not appropriate</summary>
@@ -2998,11 +2998,11 @@ manually. If the latter, you'll use the <a href="../molecules/expressions/">expr
 <details class="example">
 <summary>set radius using an expression</summary>
 <p>Calculate the radius based on the number of protofilaments.</p>
-<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="o">.</span><span class="n">set_radius</span><span class="p">(</span><span class="n">splines</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">radius</span><span class="o">=</span><span class="s2">&quot;col(&#39;npf&#39;) * 0.78&quot;</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="o">.</span><span class="n">set_radius</span><span class="p">(</span><span class="n">splines</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">radius</span><span class="o">=</span><span class="s2">"col('npf') * 0.78"</span><span class="p">)</span>
 </code></pre></div>
 <p>The <a href="https://docs.pola.rs/py-polars/html/reference/expressions/api/polars.Expr.replace.html">replace</a>
 method is useful to map the number of protofilaments to the radius value.</p>
-<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="o">.</span><span class="n">set_radius</span><span class="p">(</span><span class="n">splines</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">radius</span><span class="o">=</span><span class="s2">&quot;col(&#39;npf&#39;).replace({13: 10.0, 14: 11.0})&quot;</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="o">.</span><span class="n">set_radius</span><span class="p">(</span><span class="n">splines</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">radius</span><span class="o">=</span><span class="s2">"col('npf').replace({13: 10.0, 14: 11.0})"</span><span class="p">)</span>
 </code></pre></div>
 </details>
 <h3 id="the-local-radius">The local radius</h3>
@@ -3116,10 +3116,10 @@ results may not be accurate.</p>
 └────────────┴─────────────┴──────────┴───┴─────┴───────┘
 </code></pre></div>
 <p>... or as a series:</p>
-<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="o">.</span><span class="n">splines</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get_loc</span><span class="p">(</span><span class="s2">&quot;rise_angle&quot;</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="o">.</span><span class="n">splines</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get_loc</span><span class="p">(</span><span class="s2">"rise_angle"</span><span class="p">)</span>
 </code></pre></div>
 <div class="highlight"><span class="filename">Output:</span><pre><span></span><code>shape: (3,)
-Series: &#39;rise_angle&#39; [f32]
+Series: 'rise_angle' [f32]
 [
     9.999075
     10.028508
@@ -3154,7 +3154,7 @@ similarly.</p>
 └───────────┴─────────────┴────────────┴───┴──────────┴─────┴───────┘
 </code></pre></div>
 <p>... or as a scalar:</p>
-<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="o">.</span><span class="n">splines</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get_glob</span><span class="p">(</span><span class="s2">&quot;rise_angle&quot;</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="o">.</span><span class="n">splines</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get_glob</span><span class="p">(</span><span class="s2">"rise_angle"</span><span class="p">)</span>
 </code></pre></div>
 <div class="highlight"><span class="filename">Output:</span><pre><span></span><code>10.027519226074219
 </code></pre></div>

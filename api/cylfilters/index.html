@@ -3011,15 +3011,15 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_rust_obj</span> <span class="o">=</span> <span class="n">rust_obj</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;CylindricArray(</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_rust_obj</span><span class="o">.</span><span class="n">asarray</span><span class="p">()</span><span class="si">}</span><span class="s2">, nrise=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">nrise</span><span class="si">}</span><span class="s2">)&quot;</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">"CylindricArray(</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_rust_obj</span><span class="o">.</span><span class="n">asarray</span><span class="p">()</span><span class="si">}</span><span class="s2">, nrise=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">nrise</span><span class="si">}</span><span class="s2">)"</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">nrise</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;The number of rise of the cylindric structure.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""The number of rise of the cylindric structure."""</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rust_obj</span><span class="o">.</span><span class="n">nrise</span><span class="p">()</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">asarray</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;As a 2D numpy array.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""As a 2D numpy array."""</span>
         <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rust_obj</span><span class="o">.</span><span class="n">asarray</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">dtype</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">out</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">dtype</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
@@ -3031,7 +3031,7 @@
             <span class="n">out</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">dtype</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">out</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">as_series</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pl</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">as_series</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pl</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
         <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">type</span> <span class="ow">and</span> <span class="n">dtype</span> <span class="ow">in</span> <span class="n">pl</span><span class="o">.</span><span class="n">DataType</span><span class="p">:</span>
             <span class="n">pl_dtype</span> <span class="o">=</span> <span class="n">dtype</span>
             <span class="n">np_dtype</span> <span class="o">=</span> <span class="kc">None</span>
@@ -3066,11 +3066,11 @@
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">from_dataframe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">pl</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">nrise</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Construct a CylindricArray from a DataFrame.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Construct a CylindricArray from a DataFrame."""</span>
         <span class="k">if</span> <span class="n">Mole</span><span class="o">.</span><span class="n">nth</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span> <span class="ow">or</span> <span class="n">Mole</span><span class="o">.</span><span class="n">pf</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;DataFrame must contain columns </span><span class="si">{</span><span class="n">Mole</span><span class="o">.</span><span class="n">nth</span><span class="si">!r}</span><span class="s2"> and </span><span class="si">{</span><span class="n">Mole</span><span class="o">.</span><span class="n">pf</span><span class="si">!r}</span><span class="s2"> to &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;construct a </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> object.&quot;</span>
+                <span class="sa">f</span><span class="s2">"DataFrame must contain columns </span><span class="si">{</span><span class="n">Mole</span><span class="o">.</span><span class="n">nth</span><span class="si">!r}</span><span class="s2"> and </span><span class="si">{</span><span class="n">Mole</span><span class="o">.</span><span class="n">pf</span><span class="si">!r}</span><span class="s2"> to "</span>
+                <span class="sa">f</span><span class="s2">"construct a </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> object."</span>
             <span class="p">)</span>
         <span class="n">nth</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">Mole</span><span class="o">.</span><span class="n">nth</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
         <span class="n">npf</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">Mole</span><span class="o">.</span><span class="n">pf</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
@@ -3128,7 +3128,7 @@
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">with_values</span><span class="p">(</span><span class="n">op</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">as1d</span><span class="p">(),</span> <span class="n">value</span><span class="p">))</span>
 
         <span class="n">_method</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">=</span> <span class="n">op</span><span class="o">.</span><span class="vm">__name__</span>
-        <span class="n">_method</span><span class="o">.</span><span class="vm">__qualname__</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;CylindricArray.</span><span class="si">{</span><span class="n">op</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">_method</span><span class="o">.</span><span class="vm">__qualname__</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"CylindricArray.</span><span class="si">{</span><span class="n">op</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">"</span>
         <span class="k">return</span> <span class="n">_method</span>
 
     <span class="fm">__eq__</span> <span class="o">=</span> <span class="n">_make_operator</span><span class="p">(</span><span class="n">operator</span><span class="o">.</span><span class="fm">__eq__</span><span class="p">)</span>
@@ -3205,7 +3205,7 @@
 <span class="normal">31</span>
 <span class="normal">32</span>
 <span class="normal">33</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">asarray</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;As a 2D numpy array.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""As a 2D numpy array."""</span>
     <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rust_obj</span><span class="o">.</span><span class="n">asarray</span><span class="p">()</span>
     <span class="k">if</span> <span class="n">dtype</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">out</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">dtype</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
@@ -3249,11 +3249,11 @@
 <span class="normal">84</span>
 <span class="normal">85</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">from_dataframe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">pl</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">nrise</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Construct a CylindricArray from a DataFrame.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Construct a CylindricArray from a DataFrame."""</span>
     <span class="k">if</span> <span class="n">Mole</span><span class="o">.</span><span class="n">nth</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span> <span class="ow">or</span> <span class="n">Mole</span><span class="o">.</span><span class="n">pf</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;DataFrame must contain columns </span><span class="si">{</span><span class="n">Mole</span><span class="o">.</span><span class="n">nth</span><span class="si">!r}</span><span class="s2"> and </span><span class="si">{</span><span class="n">Mole</span><span class="o">.</span><span class="n">pf</span><span class="si">!r}</span><span class="s2"> to &quot;</span>
-            <span class="sa">f</span><span class="s2">&quot;construct a </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> object.&quot;</span>
+            <span class="sa">f</span><span class="s2">"DataFrame must contain columns </span><span class="si">{</span><span class="n">Mole</span><span class="o">.</span><span class="n">nth</span><span class="si">!r}</span><span class="s2"> and </span><span class="si">{</span><span class="n">Mole</span><span class="o">.</span><span class="n">pf</span><span class="si">!r}</span><span class="s2"> to "</span>
+            <span class="sa">f</span><span class="s2">"construct a </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> object."</span>
         <span class="p">)</span>
     <span class="n">nth</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">Mole</span><span class="o">.</span><span class="n">nth</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
     <span class="n">npf</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">Mole</span><span class="o">.</span><span class="n">pf</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
@@ -3311,11 +3311,11 @@ positioning will have the save value.</p>
     <span class="n">nrise</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="n">footprint</span><span class="p">:</span> <span class="n">ArrayLike</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate a correlation heatmap for a numerical feature column.</span>
+<span class="w">    </span><span class="sd">"""Calculate a correlation heatmap for a numerical feature column.</span>
 
 <span class="sd">    Correlation heatmap shows how likely two molecules with the same relative</span>
 <span class="sd">    positioning will have the save value.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">return</span> <span class="n">CylindricArray</span><span class="o">.</span><span class="n">from_dataframe</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">nrise</span><span class="p">)</span><span class="o">.</span><span class="n">build_correlation_heatmap</span><span class="p">(</span>
         <span class="n">footprint</span><span class="o">=</span><span class="n">footprint</span>
     <span class="p">)</span>
