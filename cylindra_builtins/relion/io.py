@@ -454,10 +454,15 @@ def _parse_relion_job(path, project_root):
     if path.name != "job.star" or not path.is_file() or not path.exists():
         raise ValueError(f"Path must be an existing RELION job.star file, got {path}")
     job_dir_path = Path(path).parent
-    rln_project_path = _relion_utils.relion_project_path(job_dir_path)
     jobtype = _relion_utils.get_job_type(job_dir_path)
     if project_root is None:
         project_root = job_dir_path / "cylindra"
+    return _parse_relion_job_by_type(path, jobtype, project_root)
+
+
+def _parse_relion_job_by_type(path: Path, jobtype: str, project_root: Path):
+    job_dir_path = Path(path).parent
+    rln_project_path = _relion_utils.relion_project_path(job_dir_path)
     if jobtype in ("relion.reconstructtomograms", "relion.denoisetomo"):
         # Reconstruct Tomogram job
         tomogram_star_path = job_dir_path / "tomograms.star"
@@ -490,6 +495,10 @@ def _parse_relion_job(path, project_root):
         paths, scales, moles, tilt_models = _parse_optimisation_star(
             opt_star_path, rln_project_path, run_data_path
         )
+    elif (job_dir_path / "tomograms.star").exists():
+        # some External jobs may implement the same protocol as Reconstruct Tomo job.
+        jobtype = "relion.reconstructtomograms"
+        return _parse_relion_job_by_type(path, jobtype, project_root)
     else:
         raise ValueError(f"Job {job_dir_path.name} is not a supported RELION job.")
     return project_root, paths, scales, moles, tilt_models
