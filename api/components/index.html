@@ -6034,11 +6034,7 @@
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>cylindra/components/spline/_cyl_spline.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 16</span>
-<span class="normal"> 17</span>
-<span class="normal"> 18</span>
-<span class="normal"> 19</span>
-<span class="normal"> 20</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 20</span>
 <span class="normal"> 21</span>
 <span class="normal"> 22</span>
 <span class="normal"> 23</span>
@@ -6332,7 +6328,53 @@
 <span class="normal">311</span>
 <span class="normal">312</span>
 <span class="normal">313</span>
-<span class="normal">314</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylSpline</span><span class="p">(</span><span class="n">Spline</span><span class="p">):</span>
+<span class="normal">314</span>
+<span class="normal">315</span>
+<span class="normal">316</span>
+<span class="normal">317</span>
+<span class="normal">318</span>
+<span class="normal">319</span>
+<span class="normal">320</span>
+<span class="normal">321</span>
+<span class="normal">322</span>
+<span class="normal">323</span>
+<span class="normal">324</span>
+<span class="normal">325</span>
+<span class="normal">326</span>
+<span class="normal">327</span>
+<span class="normal">328</span>
+<span class="normal">329</span>
+<span class="normal">330</span>
+<span class="normal">331</span>
+<span class="normal">332</span>
+<span class="normal">333</span>
+<span class="normal">334</span>
+<span class="normal">335</span>
+<span class="normal">336</span>
+<span class="normal">337</span>
+<span class="normal">338</span>
+<span class="normal">339</span>
+<span class="normal">340</span>
+<span class="normal">341</span>
+<span class="normal">342</span>
+<span class="normal">343</span>
+<span class="normal">344</span>
+<span class="normal">345</span>
+<span class="normal">346</span>
+<span class="normal">347</span>
+<span class="normal">348</span>
+<span class="normal">349</span>
+<span class="normal">350</span>
+<span class="normal">351</span>
+<span class="normal">352</span>
+<span class="normal">353</span>
+<span class="normal">354</span>
+<span class="normal">355</span>
+<span class="normal">356</span>
+<span class="normal">357</span>
+<span class="normal">358</span>
+<span class="normal">359</span>
+<span class="normal">360</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylSpline</span><span class="p">(</span><span class="n">Spline</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""A spline object with cylindrical structure."""</span>
 
     <span class="nd">@property</span>
@@ -6631,6 +6673,48 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">ser</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">column_name</span><span class="p">,</span> <span class="n">feat</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">pl</span><span class="o">.</span><span class="n">String</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">ser</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">map_monomers_by_cylinder_model</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">cylinder_model</span><span class="p">:</span> <span class="n">CylinderModel</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">extensions</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="n">local_displace</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">edge_processing</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"none"</span><span class="p">,</span> <span class="s2">"flat"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"none"</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Molecules</span><span class="p">:</span>
+        <span class="n">_fill_needed</span> <span class="o">=</span> <span class="n">cylinder_model</span><span class="o">.</span><span class="n">tilts</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">edge_processing</span> <span class="o">!=</span> <span class="s2">"none"</span>
+        <span class="k">if</span> <span class="n">_fill_needed</span><span class="p">:</span>
+            <span class="c1"># To locate molecules properly, the rise at the edges need to be</span>
+            <span class="c1"># considered as well. The "." below represents the molecules that need</span>
+            <span class="c1"># to be filled.</span>
+            <span class="c1">#   &lt;--- spline ---&gt;</span>
+            <span class="c1"># oooooooooooooooo..</span>
+            <span class="c1">#   oooooooooooooooo</span>
+            <span class="c1">#   ..oooooooooooooooo</span>
+            <span class="n">ext0</span><span class="p">,</span> <span class="n">ext1</span> <span class="o">=</span> <span class="n">extensions</span>
+            <span class="n">ext_more</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">cylinder_model</span><span class="o">.</span><span class="n">nrise</span><span class="p">)</span>
+            <span class="n">coords</span> <span class="o">=</span> <span class="n">cylinder_model</span><span class="o">.</span><span class="n">prep_coords</span><span class="p">((</span><span class="n">ext0</span> <span class="o">+</span> <span class="n">ext_more</span><span class="p">,</span> <span class="n">ext1</span> <span class="o">+</span> <span class="n">ext_more</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">coords</span> <span class="o">=</span> <span class="n">cylinder_model</span><span class="o">.</span><span class="n">prep_coords</span><span class="p">(</span><span class="n">extensions</span><span class="p">)</span>
+        <span class="n">mole</span> <span class="o">=</span> <span class="n">cylinder_model</span><span class="o">.</span><span class="n">locate_molecules</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">coords</span><span class="p">,</span>
+            <span class="n">local_displace</span><span class="o">=</span><span class="n">local_displace</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">_fill_needed</span><span class="p">:</span>
+            <span class="c1"># Molecules outside the expected range should be filtered out (x).</span>
+            <span class="c1">#   &lt;--- spline ---&gt;</span>
+            <span class="c1"># xxoooooooooooooooo</span>
+            <span class="c1">#   oooooooooooooooo</span>
+            <span class="c1">#   ooooooooooooooooxx</span>
+            <span class="n">eps</span> <span class="o">=</span> <span class="mf">0.05</span>
+            <span class="n">pitch</span> <span class="o">=</span> <span class="n">cylinder_model</span><span class="o">.</span><span class="n">intervals</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">low</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="n">extensions</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">eps</span><span class="p">)</span> <span class="o">*</span> <span class="n">pitch</span>
+            <span class="n">high</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">()</span> <span class="o">+</span> <span class="p">(</span><span class="n">extensions</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">eps</span><span class="p">)</span> <span class="o">*</span> <span class="n">pitch</span>
+            <span class="n">mole</span> <span class="o">=</span> <span class="n">mole</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span>
+                <span class="n">pl</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="n">Mole</span><span class="o">.</span><span class="n">position</span><span class="p">)</span><span class="o">.</span><span class="n">is_between</span><span class="p">(</span><span class="n">low</span><span class="p">,</span> <span class="n">high</span><span class="p">,</span> <span class="n">closed</span><span class="o">=</span><span class="s2">"both"</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">mole</span>
 </code></pre></div></td></tr></table></div>
               </details>
 
@@ -6783,11 +6867,7 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/spline/_cyl_spline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 75</span>
-<span class="normal"> 76</span>
-<span class="normal"> 77</span>
-<span class="normal"> 78</span>
-<span class="normal"> 79</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 79</span>
 <span class="normal"> 80</span>
 <span class="normal"> 81</span>
 <span class="normal"> 82</span>
@@ -6811,7 +6891,11 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 <span class="normal">100</span>
 <span class="normal">101</span>
 <span class="normal">102</span>
-<span class="normal">103</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">clip</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">stop</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CylSpline</span><span class="p">:</span>
+<span class="normal">103</span>
+<span class="normal">104</span>
+<span class="normal">105</span>
+<span class="normal">106</span>
+<span class="normal">107</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">clip</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">stop</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CylSpline</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Clip spline and generate a new one.</span>
 
 <span class="sd">    This method does not convert spline bases. ``_lims`` is updated instead.</span>
@@ -6916,11 +7000,7 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/spline/_cyl_spline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">152</span>
-<span class="normal">153</span>
-<span class="normal">154</span>
-<span class="normal">155</span>
-<span class="normal">156</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">156</span>
 <span class="normal">157</span>
 <span class="normal">158</span>
 <span class="normal">159</span>
@@ -6952,7 +7032,11 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 <span class="normal">185</span>
 <span class="normal">186</span>
 <span class="normal">187</span>
-<span class="normal">188</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cylinder_model</span><span class="p">(</span>
+<span class="normal">188</span>
+<span class="normal">189</span>
+<span class="normal">190</span>
+<span class="normal">191</span>
+<span class="normal">192</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cylinder_model</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">offsets</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
     <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
@@ -7011,11 +7095,7 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/spline/_cyl_spline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">132</span>
-<span class="normal">133</span>
-<span class="normal">134</span>
-<span class="normal">135</span>
-<span class="normal">136</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">136</span>
 <span class="normal">137</span>
 <span class="normal">138</span>
 <span class="normal">139</span>
@@ -7029,7 +7109,11 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 <span class="normal">147</span>
 <span class="normal">148</span>
 <span class="normal">149</span>
-<span class="normal">150</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cylinder_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CylinderParameters</span><span class="p">:</span>
+<span class="normal">150</span>
+<span class="normal">151</span>
+<span class="normal">152</span>
+<span class="normal">153</span>
+<span class="normal">154</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cylinder_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CylinderParameters</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Get the cylinder parameters of the spline."""</span>
     <span class="n">radius</span> <span class="o">=</span> <span class="n">_get_globalprops</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">H</span><span class="o">.</span><span class="n">radius</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">radius</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -7093,11 +7177,7 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/spline/_cyl_spline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">61</span>
-<span class="normal">62</span>
-<span class="normal">63</span>
-<span class="normal">64</span>
-<span class="normal">65</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">65</span>
 <span class="normal">66</span>
 <span class="normal">67</span>
 <span class="normal">68</span>
@@ -7105,7 +7185,11 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 <span class="normal">70</span>
 <span class="normal">71</span>
 <span class="normal">72</span>
-<span class="normal">73</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">invert</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CylSpline</span><span class="p">:</span>
+<span class="normal">73</span>
+<span class="normal">74</span>
+<span class="normal">75</span>
+<span class="normal">76</span>
+<span class="normal">77</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">invert</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CylSpline</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Invert the direction of spline. Also invert orientation if exists.</span>
 
 <span class="sd">    Returns</span>
@@ -7140,15 +7224,15 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/spline/_cyl_spline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">122</span>
-<span class="normal">123</span>
-<span class="normal">124</span>
-<span class="normal">125</span>
-<span class="normal">126</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">126</span>
 <span class="normal">127</span>
 <span class="normal">128</span>
 <span class="normal">129</span>
-<span class="normal">130</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">nrise</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="normal">130</span>
+<span class="normal">131</span>
+<span class="normal">132</span>
+<span class="normal">133</span>
+<span class="normal">134</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">nrise</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Raw start number (minus for microtubule)"""</span>
     <span class="k">if</span> <span class="n">H</span><span class="o">.</span><span class="n">start</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
         <span class="n">start</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="n">H</span><span class="o">.</span><span class="n">start</span><span class="p">]</span>
@@ -7179,14 +7263,14 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/spline/_cyl_spline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">38</span>
-<span class="normal">39</span>
-<span class="normal">40</span>
-<span class="normal">41</span>
-<span class="normal">42</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">42</span>
 <span class="normal">43</span>
 <span class="normal">44</span>
-<span class="normal">45</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">radius_range</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rc</span><span class="p">:</span> <span class="n">nm</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">nm</span><span class="p">,</span> <span class="n">nm</span><span class="p">]:</span>
+<span class="normal">45</span>
+<span class="normal">46</span>
+<span class="normal">47</span>
+<span class="normal">48</span>
+<span class="normal">49</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">radius_range</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rc</span><span class="p">:</span> <span class="n">nm</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">nm</span><span class="p">,</span> <span class="n">nm</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">"""Return the range of the radius used for the cylindric coordinate."""</span>
     <span class="k">if</span> <span class="n">rc</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">radius</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -7239,11 +7323,7 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/spline/_cyl_spline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">105</span>
-<span class="normal">106</span>
-<span class="normal">107</span>
-<span class="normal">108</span>
-<span class="normal">109</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">109</span>
 <span class="normal">110</span>
 <span class="normal">111</span>
 <span class="normal">112</span>
@@ -7254,7 +7334,11 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 <span class="normal">117</span>
 <span class="normal">118</span>
 <span class="normal">119</span>
-<span class="normal">120</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">restore</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CylSpline</span><span class="p">:</span>
+<span class="normal">120</span>
+<span class="normal">121</span>
+<span class="normal">122</span>
+<span class="normal">123</span>
+<span class="normal">124</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">restore</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CylSpline</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Restore the original, not-clipped spline.</span>
 
@@ -7292,11 +7376,7 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/spline/_cyl_spline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">246</span>
-<span class="normal">247</span>
-<span class="normal">248</span>
-<span class="normal">249</span>
-<span class="normal">250</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">250</span>
 <span class="normal">251</span>
 <span class="normal">252</span>
 <span class="normal">253</span>
@@ -7306,7 +7386,11 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 <span class="normal">257</span>
 <span class="normal">258</span>
 <span class="normal">259</span>
-<span class="normal">260</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">update_glob_by_cylinder_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cparams</span><span class="p">:</span> <span class="n">CylinderParameters</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CylSpline</span><span class="p">:</span>
+<span class="normal">260</span>
+<span class="normal">261</span>
+<span class="normal">262</span>
+<span class="normal">263</span>
+<span class="normal">264</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">update_glob_by_cylinder_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cparams</span><span class="p">:</span> <span class="n">CylinderParameters</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CylSpline</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Update the global properties using a CylinderParameters object."""</span>
     <span class="n">props</span> <span class="o">=</span> <span class="p">{</span>
         <span class="n">H</span><span class="o">.</span><span class="n">rise</span><span class="p">:</span> <span class="n">cparams</span><span class="o">.</span><span class="n">rise_angle</span><span class="p">,</span>
@@ -7343,11 +7427,7 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/spline/_cyl_spline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">190</span>
-<span class="normal">191</span>
-<span class="normal">192</span>
-<span class="normal">193</span>
-<span class="normal">194</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">194</span>
 <span class="normal">195</span>
 <span class="normal">196</span>
 <span class="normal">197</span>
@@ -7397,7 +7477,11 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 <span class="normal">241</span>
 <span class="normal">242</span>
 <span class="normal">243</span>
-<span class="normal">244</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">update_props</span><span class="p">(</span>
+<span class="normal">244</span>
+<span class="normal">245</span>
+<span class="normal">246</span>
+<span class="normal">247</span>
+<span class="normal">248</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">update_props</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">npf</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -16484,7 +16568,12 @@ guaranteed to be larger than spline order.</p>
 <span class="normal">1381</span>
 <span class="normal">1382</span>
 <span class="normal">1383</span>
-<span class="normal">1384</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylTomogram</span><span class="p">(</span><span class="n">Tomogram</span><span class="p">):</span>
+<span class="normal">1384</span>
+<span class="normal">1385</span>
+<span class="normal">1386</span>
+<span class="normal">1387</span>
+<span class="normal">1388</span>
+<span class="normal">1389</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylTomogram</span><span class="p">(</span><span class="n">Tomogram</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Tomogram with cylindrical splines."""</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -17688,6 +17777,7 @@ guaranteed to be larger than spline order.</p>
         <span class="n">orientation</span><span class="p">:</span> <span class="n">Ori</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">extensions</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
         <span class="n">prop_to_use</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"local"</span><span class="p">,</span> <span class="s2">"global"</span><span class="p">,</span> <span class="s2">"both"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"global"</span><span class="p">,</span>
+        <span class="n">edge_processing</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"none"</span><span class="p">,</span> <span class="s2">"flat"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"none"</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Molecules</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Map monomers in a regular cylinder shape.</span>
@@ -17712,14 +17802,18 @@ guaranteed to be larger than spline order.</p>
 <span class="sd">        """</span>
         <span class="k">if</span> <span class="n">prop_to_use</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"local"</span><span class="p">,</span> <span class="s2">"global"</span><span class="p">,</span> <span class="s2">"both"</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"`prop_to_use` must be 'local', 'global' or 'both'"</span><span class="p">)</span>
+        <span class="n">spl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">splines</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
         <span class="n">use_local</span> <span class="o">=</span> <span class="n">prop_to_use</span> <span class="o">==</span> <span class="s2">"local"</span>
-        <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_cylinder_model</span><span class="p">(</span>
+        <span class="n">locate_local</span> <span class="o">=</span> <span class="n">prop_to_use</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"local"</span><span class="p">,</span> <span class="s2">"both"</span><span class="p">)</span>
+        <span class="n">cylinder_model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_cylinder_model</span><span class="p">(</span>
             <span class="n">i</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="n">offsets</span><span class="p">,</span> <span class="n">use_local</span><span class="o">=</span><span class="n">use_local</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
         <span class="p">)</span>
-        <span class="n">coords</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">prep_coords</span><span class="p">(</span><span class="n">extensions</span><span class="p">)</span>
-        <span class="n">spl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">splines</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-        <span class="n">local</span> <span class="o">=</span> <span class="n">prop_to_use</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"local"</span><span class="p">,</span> <span class="s2">"both"</span><span class="p">)</span>
-        <span class="n">mole</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">locate_molecules</span><span class="p">(</span><span class="n">spl</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">local_displace</span><span class="o">=</span><span class="n">local</span><span class="p">)</span>
+        <span class="n">mole</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">map_monomers_by_cylinder_model</span><span class="p">(</span>
+            <span class="n">cylinder_model</span><span class="p">,</span>
+            <span class="n">extensions</span><span class="o">=</span><span class="n">extensions</span><span class="p">,</span>
+            <span class="n">local_displace</span><span class="o">=</span><span class="n">locate_local</span><span class="p">,</span>
+            <span class="n">edge_processing</span><span class="o">=</span><span class="n">edge_processing</span><span class="p">,</span>
+        <span class="p">)</span>
         <span class="k">if</span> <span class="n">spl</span><span class="o">.</span><span class="n">_need_rotation</span><span class="p">(</span><span class="n">orientation</span><span class="p">):</span>
             <span class="n">mole</span> <span class="o">=</span> <span class="n">mole</span><span class="o">.</span><span class="n">rotate_by_rotvec_internal</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
         <span class="k">return</span> <span class="n">mole</span>
@@ -21319,7 +21413,7 @@ radii.</p>
 
 
 <h4 id="cylindra.components.tomogram.CylTomogram.map_monomers" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">map_monomers</span><span class="p">(</span><span class="n">i</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">orientation</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">extensions</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">prop_to_use</span><span class="o">=</span><span class="s1">'global'</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">map_monomers</span><span class="p">(</span><span class="n">i</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">orientation</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">extensions</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">prop_to_use</span><span class="o">=</span><span class="s1">'global'</span><span class="p">,</span> <span class="n">edge_processing</span><span class="o">=</span><span class="s1">'none'</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
 
 </h4>
 
@@ -21492,7 +21586,12 @@ radii.</p>
 <span class="normal">1280</span>
 <span class="normal">1281</span>
 <span class="normal">1282</span>
-<span class="normal">1283</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
+<span class="normal">1283</span>
+<span class="normal">1284</span>
+<span class="normal">1285</span>
+<span class="normal">1286</span>
+<span class="normal">1287</span>
+<span class="normal">1288</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">map_monomers</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -21501,6 +21600,7 @@ radii.</p>
     <span class="n">orientation</span><span class="p">:</span> <span class="n">Ori</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">extensions</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
     <span class="n">prop_to_use</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"local"</span><span class="p">,</span> <span class="s2">"global"</span><span class="p">,</span> <span class="s2">"both"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"global"</span><span class="p">,</span>
+    <span class="n">edge_processing</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"none"</span><span class="p">,</span> <span class="s2">"flat"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"none"</span><span class="p">,</span>
     <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Molecules</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Map monomers in a regular cylinder shape.</span>
@@ -21525,14 +21625,18 @@ radii.</p>
 <span class="sd">    """</span>
     <span class="k">if</span> <span class="n">prop_to_use</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"local"</span><span class="p">,</span> <span class="s2">"global"</span><span class="p">,</span> <span class="s2">"both"</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"`prop_to_use` must be 'local', 'global' or 'both'"</span><span class="p">)</span>
+    <span class="n">spl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">splines</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
     <span class="n">use_local</span> <span class="o">=</span> <span class="n">prop_to_use</span> <span class="o">==</span> <span class="s2">"local"</span>
-    <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_cylinder_model</span><span class="p">(</span>
+    <span class="n">locate_local</span> <span class="o">=</span> <span class="n">prop_to_use</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"local"</span><span class="p">,</span> <span class="s2">"both"</span><span class="p">)</span>
+    <span class="n">cylinder_model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_cylinder_model</span><span class="p">(</span>
         <span class="n">i</span><span class="p">,</span> <span class="n">offsets</span><span class="o">=</span><span class="n">offsets</span><span class="p">,</span> <span class="n">use_local</span><span class="o">=</span><span class="n">use_local</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
     <span class="p">)</span>
-    <span class="n">coords</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">prep_coords</span><span class="p">(</span><span class="n">extensions</span><span class="p">)</span>
-    <span class="n">spl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">splines</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-    <span class="n">local</span> <span class="o">=</span> <span class="n">prop_to_use</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"local"</span><span class="p">,</span> <span class="s2">"both"</span><span class="p">)</span>
-    <span class="n">mole</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">locate_molecules</span><span class="p">(</span><span class="n">spl</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">local_displace</span><span class="o">=</span><span class="n">local</span><span class="p">)</span>
+    <span class="n">mole</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">map_monomers_by_cylinder_model</span><span class="p">(</span>
+        <span class="n">cylinder_model</span><span class="p">,</span>
+        <span class="n">extensions</span><span class="o">=</span><span class="n">extensions</span><span class="p">,</span>
+        <span class="n">local_displace</span><span class="o">=</span><span class="n">locate_local</span><span class="p">,</span>
+        <span class="n">edge_processing</span><span class="o">=</span><span class="n">edge_processing</span><span class="p">,</span>
+    <span class="p">)</span>
     <span class="k">if</span> <span class="n">spl</span><span class="o">.</span><span class="n">_need_rotation</span><span class="p">(</span><span class="n">orientation</span><span class="p">):</span>
         <span class="n">mole</span> <span class="o">=</span> <span class="n">mole</span><span class="o">.</span><span class="n">rotate_by_rotvec_internal</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
     <span class="k">return</span> <span class="n">mole</span>
@@ -21660,12 +21764,7 @@ radii.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1285</span>
-<span class="normal">1286</span>
-<span class="normal">1287</span>
-<span class="normal">1288</span>
-<span class="normal">1289</span>
-<span class="normal">1290</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1290</span>
 <span class="normal">1291</span>
 <span class="normal">1292</span>
 <span class="normal">1293</span>
@@ -21694,7 +21793,12 @@ radii.</p>
 <span class="normal">1316</span>
 <span class="normal">1317</span>
 <span class="normal">1318</span>
-<span class="normal">1319</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
+<span class="normal">1319</span>
+<span class="normal">1320</span>
+<span class="normal">1321</span>
+<span class="normal">1322</span>
+<span class="normal">1323</span>
+<span class="normal">1324</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">map_on_grid</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -21824,12 +21928,7 @@ microtubule.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1321</span>
-<span class="normal">1322</span>
-<span class="normal">1323</span>
-<span class="normal">1324</span>
-<span class="normal">1325</span>
-<span class="normal">1326</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1326</span>
 <span class="normal">1327</span>
 <span class="normal">1328</span>
 <span class="normal">1329</span>
@@ -21866,7 +21965,12 @@ microtubule.</p>
 <span class="normal">1360</span>
 <span class="normal">1361</span>
 <span class="normal">1362</span>
-<span class="normal">1363</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
+<span class="normal">1363</span>
+<span class="normal">1364</span>
+<span class="normal">1365</span>
+<span class="normal">1366</span>
+<span class="normal">1367</span>
+<span class="normal">1368</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">map_pf_line</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
