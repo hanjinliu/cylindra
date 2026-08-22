@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 import polars as pl
@@ -8,9 +8,13 @@ import polars as pl
 from cylindra.components._cylinder_params import CylinderParameters
 from cylindra.components.cylindric import CylinderModel
 from cylindra.components.spline._spline_base import Spline
+from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import Ori, nm
 from cylindra.const import PropertyNames as H
 from cylindra.utils import roundint, with_columns
+
+if TYPE_CHECKING:
+    from acryo import Molecules
 
 
 class CylSpline(Spline):
@@ -312,6 +316,48 @@ class CylSpline(Spline):
         else:
             ser = pl.Series(column_name, feat.tolist(), dtype=pl.String, strict=False)
         return ser
+
+    def map_monomers_by_cylinder_model(
+        self,
+        cylinder_model: CylinderModel | None = None,
+        extensions: tuple[int, int] = (0, 0),
+        local_displace: bool = False,
+        edge_processing: Literal["none", "flat"] = "none",
+    ) -> Molecules:
+        _fill_needed = cylinder_model.tilts[1] != 0 and edge_processing != "none"
+        if _fill_needed:
+            # To locate molecules properly, the rise at the edges need to be
+            # considered as well. The "." below represents the molecules that need
+            # to be filled.
+            #   <--- spline --->
+            # oooooooooooooooo..
+            #   oooooooooooooooo
+            #   ..oooooooooooooooo
+            ext0, ext1 = extensions
+            ext_more = abs(cylinder_model.nrise)
+            coords = cylinder_model.prep_coords((ext0 + ext_more, ext1 + ext_more))
+        else:
+            coords = cylinder_model.prep_coords(extensions)
+        mole = cylinder_model.locate_molecules(
+            self,
+            coords,
+            local_displace=local_displace,
+        )
+
+        if _fill_needed:
+            # Molecules outside the expected range should be filtered out (x).
+            #   <--- spline --->
+            # xxoooooooooooooooo
+            #   oooooooooooooooo
+            #   ooooooooooooooooxx
+            eps = 0.05
+            pitch = cylinder_model.intervals[0]
+            low = (-extensions[0] - eps) * pitch
+            high = self.length() + (extensions[1] + eps) * pitch
+            mole = mole.filter(
+                pl.col(Mole.position).is_between(low, high, closed="both")
+            )
+        return mole
 
 
 def _get_globalprops(spl: CylSpline, kwargs: dict[str, Any], name: str):

@@ -365,7 +365,7 @@ def test_map_molecules(ui: CylindraMainWidget, tmpdir):
     ui.map_along_spline_helical_symmetry(0)
 
     ui.map_monomers(0, extensions=(1, 2), prop_to_use="local")
-    ui.map_monomers(0, extensions=(-1, 2), prop_to_use="both")
+    ui.map_monomers(0, extensions=(-1, 2), prop_to_use="both", edge_processing="flat")
     ui.SplinesMenu.Show.show_splines()
     ui.SplinesMenu.Show.show_splines_as_meshes()
     ui.SplinesMenu.Show.show_splines_as_meshes(color_by="spacing")
