@@ -1246,6 +1246,7 @@ class CylTomogram(Tomogram):
         orientation: Ori | str | None = None,
         extensions: tuple[int, int] = (0, 0),
         prop_to_use: Literal["local", "global", "both"] = "global",
+        edge_processing: Literal["none", "flat"] = "none",
         **kwargs,
     ) -> Molecules:
         """Map monomers in a regular cylinder shape.
@@ -1270,14 +1271,18 @@ class CylTomogram(Tomogram):
         """
         if prop_to_use not in ("local", "global", "both"):
             raise ValueError("`prop_to_use` must be 'local', 'global' or 'both'")
+        spl = self.splines[i]
         use_local = prop_to_use == "local"
-        model = self.get_cylinder_model(
+        locate_local = prop_to_use in ("local", "both")
+        cylinder_model = self.get_cylinder_model(
             i, offsets=offsets, use_local=use_local, **kwargs
         )
-        coords = model.prep_coords(extensions)
-        spl = self.splines[i]
-        local = prop_to_use in ("local", "both")
-        mole = model.locate_molecules(spl, coords, local_displace=local)
+        mole = spl.map_monomers_by_cylinder_model(
+            cylinder_model,
+            extensions=extensions,
+            local_displace=locate_local,
+            edge_processing=edge_processing,
+        )
         if spl._need_rotation(orientation):
             mole = mole.rotate_by_rotvec_internal([np.pi, 0, 0])
         return mole

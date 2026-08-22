@@ -2658,6 +2658,7 @@ class CylindraMainWidget(MagicTemplate):
         radius: Optional[nm] = None,
         extensions: Annotated[tuple[int, int], {"options": {"min": -100}}] = (0, 0),
         prop_to_use: Annotated[Literal["local", "global", "both"], {"label": "properties to use"}] = "global",
+        edge_processing: Literal["none", "flat"] = "none",
         prefix: str = "Mole",
     ):  # fmt: skip
         """Map monomers as a regular cylindrical grid assembly.
@@ -2679,6 +2680,12 @@ class CylindraMainWidget(MagicTemplate):
             properties to map monomers in a heterogeneous manner. If the lattice
             parameters are accurately estimated, using "local" usually gives better
             initial resolution.
+        edge_processing : str, default "none"
+            How to process the edge of the mapped monomers.
+            - "none": do not process the edge, which may cause some molecules to be
+              mapped outside the spline region.
+            - "flat": flatten the edge of the mapped monomers so that all the molecules
+              are mapped within the spline region.
         {prefix}
         """
         _Logger.print_html("<code>map_monomers</code>")
@@ -2699,6 +2706,7 @@ class CylindraMainWidget(MagicTemplate):
                 radius=normalize_radius(radius, spl),
                 extensions=extensions,
                 prop_to_use=prop_to_use,
+                edge_processing=edge_processing,
             )
 
             cb = _add_molecules.with_args(mol, f"{prefix}-{i}", spl)
@@ -2900,34 +2908,11 @@ class CylindraMainWidget(MagicTemplate):
                 rise_angle=rise_angle,
                 radius=radius_normed,
             )
-            if rise_angle != 0:
-                # To locate molecules properly, the rise at the edges need to be
-                # considered as well. The "." below represents the molecules that need
-                # to be filled.
-                #   <--- spline --->
-                # oooooooooooooooo..
-                #   oooooooooooooooo
-                #   ..oooooooooooooooo
-                ext0, ext1 = extensions
-                ext_more = abs(model.nrise)
-                coords = model.prep_coords((ext0 + ext_more, ext1 + ext_more))
-            else:
-                coords = model.prep_coords(extensions)
-            mole = model.locate_molecules(spl0, coords)
-
-            if rise_angle != 0:
-                # Molecules outside the expected range should be filtered out (x).
-                #   <--- spline --->
-                # xxoooooooooooooooo
-                #   oooooooooooooooo
-                #   ooooooooooooooooxx
-                eps = 0.05
-                low = (-extensions[0] - eps) * monomer_diameter
-                high = spl0.length() + (extensions[1] + eps) * monomer_diameter
-                mole = mole.filter(
-                    pl.col(Mole.position).is_between(low, high, closed="both")
-                )
-
+            mole = spl0.map_monomers_by_cylinder_model(
+                model,
+                extensions,
+                edge_processing="flat",
+            )
             cb = _add_molecules.with_args(mole, f"{prefix}-{i}", spl)
             yield cb
             cb.await_call()
