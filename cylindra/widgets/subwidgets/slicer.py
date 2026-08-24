@@ -1,5 +1,5 @@
 from contextlib import suppress
-from typing import Callable
+from typing import Annotated, Callable
 
 import impy as ip
 import numpy as np
@@ -7,12 +7,13 @@ from magicclass import (
     abstractapi,
     bind_key,
     field,
+    get_button,
     magicclass,
     nogui,
     set_design,
     vfield,
 )
-from magicclass.ext.pyqtgraph import QtImageCanvas
+from magicclass.ext.pyqtgraph import QtMultiImageCanvas
 from magicclass.logging import getLogger
 from magicclass.types import Optional
 from magicclass.utils import thread_worker
@@ -21,7 +22,7 @@ from numpy.typing import NDArray
 from cylindra.components._ftprops import LatticeAnalyzer, is_clockwise
 from cylindra.const import nm
 from cylindra.cyltransform import get_polar_image
-from cylindra.utils import map_coordinates
+from cylindra.utils import map_coordinates, rotational_average
 from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 YPROJ = "Y-projection"
@@ -68,6 +69,20 @@ class SplineSlicer(ChildWidget):
     def __init__(self):
         self._current_cparams = None
 
+    def __post_init__(self):
+        self._circ_inner = self.canvas.add_curve(
+            [], [], color="lime", lw=2, ls="--", antialias=True
+        )
+        self._circ_outer = self.canvas.add_curve(
+            [], [], color="lime", lw=2, ls="--", antialias=True
+        )
+
+        self.npf.enabled = False
+        self.start.enabled = False
+        self.orient.enabled = False
+        get_button(self.apply_n_s).enabled = False
+        self.canvases[0].lock_contrast_limits = True
+
     @magicclass(layout="horizontal")
     class params(ChildWidget):
         """Slicing parameters.
@@ -111,7 +126,12 @@ class SplineSlicer(ChildWidget):
     post_filter = vfield(label="Filter", location=Row0).with_choices(POST_FILTERS)
     thickness_inner = vfield(2.0, label="Inner thickness (nm)", location=Row1).with_options(min=0.1, max=10.0, step=0.1)  # fmt: skip
     thickness_outer = vfield(2.0, label="Outer thickness (nm)", location=Row1).with_options(min=0.1, max=10.0, step=0.1)  # fmt: skip
-    canvas = field(QtImageCanvas).with_options(lock_contrast_limits=True)
+    canvases = field(QtMultiImageCanvas)
+
+    @property
+    def canvas(self):
+        """The first canvas."""
+        return self.canvases[0]
 
     @magicclass(widget_type="frame")
     class controller(ChildWidget):
@@ -146,13 +166,52 @@ class SplineSlicer(ChildWidget):
         apply_radius_and_thickness = abstractapi()
         refresh_widget_state = abstractapi()
 
-    def __post_init__(self):
-        self._circ_inner = self.canvas.add_curve(
-            [], [], color="lime", lw=2, ls="--", antialias=True
-        )
-        self._circ_outer = self.canvas.add_curve(
-            [], [], color="lime", lw=2, ls="--", antialias=True
-        )
+    @magicclass(layout="horizontal", labels=False)
+    class Row4(ChildWidget):
+        check_n_s = abstractapi()
+        label0 = field("  N_S =", widget_type="Label")
+        npf = abstractapi()
+        start = abstractapi()
+        orient = abstractapi()
+        apply_n_s = abstractapi()
+
+    check_n_s = vfield(False, label="Check N_S", location=Row4)
+    npf = field(13, location=Row4).with_options(min=1, max=100)
+    start = field(3, location=Row4).with_options(min=-100, max=100)
+    orient = field("MinusToPlus", location=Row4).with_choices(
+        [None, "PlusToMinus", "MinusToPlus"]
+    )
+
+    @set_design(text="Apply N_S", location=Row4)
+    def apply_n_s(
+        self,
+        npf: Annotated[int, {"bind": npf}],
+        start: Annotated[int, {"bind": start}],
+        orientation: Annotated[str, {"bind": orient}],
+    ):
+        """Apply the current N and start to the current spline."""
+        idx = self.controller.spline_id
+        main = self._get_main()
+        main.set_spline_props(idx, npf=npf, start=start, orientation=orientation)
+
+    @check_n_s.connect
+    def _on_check_n_s_changed(self, value: bool):
+        self.npf.enabled = value
+        self.start.enabled = value
+        self.orient.enabled = value
+        get_button(self.apply_n_s).enabled = value
+        if len(self.canvases) == 1 and value:
+            c2 = self.canvases.addaxis(0, 1)
+            c2.lock_contrast_limits = True
+            c2.image = self._rotation_average(self.npf.value)
+        elif len(self.canvases) == 2 and not value:
+            del self.canvases[1]
+
+    @npf.connect
+    def _on_npf_changed(self, value: int):
+        if len(self.canvases) == 2:
+            c2 = self.canvases[1]
+            c2.image = self._rotation_average(value)
 
     def _update_circles(self, radius: float | None):
         if self.show_what != YPROJ or radius is None:
@@ -276,8 +335,9 @@ class SplineSlicer(ChildWidget):
 
     @controller.spline_id.connect
     def _spline_changed(self, idx: int, refer_config: bool = True):
+        tomo = self._get_main().tomogram
         try:
-            spl = self._get_main().tomogram.splines[idx]
+            spl = tomo.splines[idx]
             self.controller.pos.max = max(spl.length(), 0)
             if refer_config:
                 self.thickness_inner = spl.config.thickness_inner
@@ -287,6 +347,11 @@ class SplineSlicer(ChildWidget):
         else:
             with suppress(Exception):
                 self._current_cparams = spl.cylinder_params()
+        with suppress(Exception):
+            spl = tomo.splines[idx]
+            self.npf.value = spl.props.get_glob("npf")
+            self.start.value = spl.props.get_glob("start")
+            self.orient.value = spl.props.get_glob("orientation", None)
 
     @show_what.connect_async(timeout=0.1)
     @params.binsize.connect_async(timeout=0.1)
@@ -371,22 +436,11 @@ class SplineSlicer(ChildWidget):
         else:
             raise RuntimeError(_type)
 
-        yield
+        yield self._update_image_cb.with_args(img)
 
-        @thread_worker.callback
-        def _update_image():
-            self.canvas.image = img
-            self.canvas.text_overlay.visible = False
-            factor = self.params._old_binsize / self.params.binsize
-            if factor != 1:
-                xlim = [(v + 0.5) * factor - 0.5 for v in self.canvas.xlim]
-                ylim = [(v + 0.5) * factor - 0.5 for v in self.canvas.ylim]
-                self.canvas.xlim = xlim
-                self.canvas.ylim = ylim
-            self.params._old_binsize = self.params.binsize
-            self._update_circles(self._get_radius())
-
-        yield _update_image
+        if len(self.canvases) > 1:
+            img_rot_avg = self._rotation_average(self.npf.value)
+            yield self._update_rot_image_cb.with_args(img_rot_avg)
 
         if update_clim:
             lims = img.min(), img.max()
@@ -395,7 +449,28 @@ class SplineSlicer(ChildWidget):
             def _update_clim():
                 self.canvas.contrast_limits = lims
 
-            return _update_clim
+            yield _update_clim
+
+    @thread_worker.callback
+    def _update_image_cb(self, img: ip.ImgArray):
+        self.canvas.image = img
+        self.canvas.text_overlay.visible = False
+        factor = self.params._old_binsize / self.params.binsize
+        if factor != 1:
+            xlim = [(v + 0.5) * factor - 0.5 for v in self.canvas.xlim]
+            ylim = [(v + 0.5) * factor - 0.5 for v in self.canvas.ylim]
+            self.canvas.xlim = xlim
+            self.canvas.ylim = ylim
+
+            if len(self.canvases) == 2:
+                self.canvases[1].xlim = xlim
+                self.canvases[1].ylim = ylim
+        self.params._old_binsize = self.params.binsize
+        self._update_circles(self._get_radius())
+
+    @thread_worker.callback
+    def _update_rot_image_cb(self, img: ip.ImgArray):
+        self.canvases[1].image = img
 
     def _show_overlay_text(self, txt):
         self.canvas.text_overlay.visible = True
@@ -404,7 +479,6 @@ class SplineSlicer(ChildWidget):
         self.canvas.text_overlay.color = "yellow"
         self.canvas.text_overlay.font_size = 20
         del self.canvas.image
-        return
 
     @thread_worker.callback
     def _show_overlay_text_cb(self, txt):
@@ -473,6 +547,10 @@ class SplineSlicer(ChildWidget):
             spl = self._get_main().tomogram.splines[idx]
             return spl.radius
         return self.radius
+
+    def _rotation_average(self, npf: int):
+        img_orig = ip.asarray(self.canvas.image, axes="zx")
+        return rotational_average(img_orig, npf)
 
     @nogui
     def get_cartesian_image(
