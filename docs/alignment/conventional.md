@@ -93,6 +93,12 @@ should be *almost* well fitted to the template image.
     5. "bin size" is the binning factor for resampling.
     6. "method" is the method used to calculate cross correlation.
 
+:sparkles: *New in v1.1.3*: You can apply a cylindrical mask to get rid of the density
+near the cylinder by checking "Use cylindrical mask". The mask is automatically
+generated based on the radius measured from each spline and the [spline configs](../spline/config.md).
+
+![Cylindrical mask](../images/align_averaged_cylindrical_mask.png){ loading=lazy, width=480px }
+
 ## Fourier Shell Correlation (FSC)
 
 :material-arrow-right-thin-circle-outline: API: [`calculate_fsc`][cylindra.widgets.sta.SubtomogramAveraging.calculate_fsc]
