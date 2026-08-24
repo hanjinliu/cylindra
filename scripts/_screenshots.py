@@ -186,6 +186,7 @@ def main():
 
     ### canvas with monomers ###
     ui.parent_viewer.dims.ndisplay = 3
+    ui.parent_viewer.reset_view()
     _viewer_screenshot(ui, "viewer_01_monomer_mapped", canvas_only=True)
     ui.parent_viewer.dims.ndisplay = 2
 

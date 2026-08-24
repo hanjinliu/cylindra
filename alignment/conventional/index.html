@@ -2924,7 +2924,7 @@ image. New molecules layer will be suffixed with "ALN1", "ALN2", etc.</p>
 </ol>
 </details>
 <h2 id="align-averaged-image">Align Averaged Image</h2>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="align_averaged(layers, template_path, mask_params, max_shifts=None, rotations=((0.0, 0.0), (15.0, 1.0), (3.0, 1.0)), bin_size=1, method='zncc')" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.align_averaged"><code>align_averaged</code></a></p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="align_averaged(layers, template_path, mask_params, max_shifts=None, rotations=((0.0, 0.0), (15.0, 1.0), (3.0, 1.0)), bin_size=1, method='zncc', cylinderical_mask=False)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.align_averaged"><code>align_averaged</code></a></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>STA widget &gt; Alignment &gt; Align average to template</code></p>
 <p>This method is mostly used after molecules are initialized by <a href="../../molecules/spline_to_molecules/#molecules-on-the-cylinder-surface"><code>map_monomers</code></a>.
 It first calculates the average, then fit the average to the template image. The
@@ -2950,6 +2950,10 @@ should be <em>almost</em> well fitted to the template image.</p>
 <li>"method" is the method used to calculate cross correlation.</li>
 </ol>
 </details>
+<p><img alt="✨" class="twemoji" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@16.0.1/assets/svg/2728.svg" title=":sparkles:" /> <em>New in v1.1.3</em>: You can apply a cylindrical mask to get rid of the density
+near the cylinder by checking "Use cylindrical mask". The mask is automatically
+generated based on the radius measured from each spline and the <a href="../../spline/config/">spline configs</a>.</p>
+<p><img alt="Cylindrical mask" loading="lazy," src="../../images/align_averaged_cylindrical_mask.png" width="480px" /></p>
 <h2 id="fourier-shell-correlation-fsc">Fourier Shell Correlation (FSC)</h2>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="calculate_fsc(layers, template_path=None, mask_params=None, size=None, seed=0, interpolation=1, n_pairs=1, show_average=True, dfreq=None)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.calculate_fsc"><code>calculate_fsc</code></a></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>STA widget &gt; Analysis &gt; Calculate FSC</code></p>
