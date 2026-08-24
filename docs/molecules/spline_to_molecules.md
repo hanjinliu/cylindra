@@ -64,6 +64,12 @@ Following image shows an example of the result of this operation.
 
 ![Map monomers result](../images/viewer_01_monomer_mapped.png){ loading=lazy, width=320px }
 
+:sparkles: *New in v1.1.3*: You can process the edges of the mapped molecules.
+`edge_processing="flat"` will fill/remove the molecules at the edges to make the
+collection of molecules look flat.
+
+![Map monomers edge processing](../images/map_monomers_edge_processing.png){ loading=lazy, width=400px }
+
 ## Molecules Along the Spline
 
 #### Simple Mapping

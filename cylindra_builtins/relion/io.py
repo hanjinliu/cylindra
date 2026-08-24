@@ -214,7 +214,7 @@ def save_molecules_for_extract(
     coordinates_path: Path.Save[FileFilter.STAR],
     path_sets: Annotated[Any, {"bind": _get_loader_paths}],
     save_features: bool = False,
-    shift_by_origin: bool = True,
+    shift_by_origin: bool = False,
     centered: bool = True,
     relion_scale: _RELION_SCALE_TYPE = None,
 ):
@@ -252,6 +252,9 @@ def save_molecules_for_extract(
     ):
         particles_dfs.append(df)
     particles_df = pd.concat(particles_dfs)
+    coordinates_path = Path(coordinates_path)
+    if coordinates_path.suffix == "":
+        coordinates_path = coordinates_path.with_suffix(".star")
     starfile.write({"particles": particles_df}, coordinates_path)
 
 

@@ -888,6 +888,7 @@ class SubtomogramAveraging(ChildWidget):
         rotations: _Rotations = ((0.0, 0.0), (15.0, 1.0), (3.0, 1.0)),
         bin_size: BinSizeType = 1,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
+        cylinderical_mask: Annotated[bool, {"text": "Use cylinderical mask"}] = False,
     ):  # fmt: skip
         """Align the averaged image at current molecules to the template image.
 
@@ -900,6 +901,11 @@ class SubtomogramAveraging(ChildWidget):
         Parameters
         ----------
         {layers}{template_path}{mask_params}{max_shifts}{rotations}{bin_size}{method}
+        cylinderical_mask : bool, default: False
+            If True, apply a cylinderical mask to the averaged image before alignment.
+            This option is useful if the averaged image contains a lot of background
+            density that may interfere with the alignment (e.g., MAPs decoration, in
+            situ data, etc).
         """
         t0 = timer()
         layers = assert_list_of_layers(layers, self.parent_viewer)
@@ -951,6 +957,20 @@ class SubtomogramAveraging(ChildWidget):
             avg = loader.average(template.shape)
             yield thread_worker.description(_pdesc.align_averaged_2(i, total, layer))
             max_shifts_px = [_s / _scale for _s in max_shifts]
+
+            # apply cylindrical mask
+            if cylinderical_mask:
+                if spl := layer.source_spline:
+                    _cyl_mask = _make_cylindrical_mask(
+                        spl, mole, avg.shape, loader.scale
+                    )
+                    avg *= _cyl_mask
+                else:
+                    _Logger.print(
+                        f"Layer {layer.name} has no source spline, cannot apply "
+                        "cylindrical mask."
+                    )
+
             _img_trans, result = model.fit(avg, max_shifts=max_shifts_px)
 
             rotator = Rotation.from_quat(result.quat)
@@ -2627,6 +2647,33 @@ def _align_averages_table(svec, rvec):
         ["Shift (nm)", _fmt(svec[2]), _fmt(svec[1]), _fmt(svec[0])],
         ["Rot vector", _fmt(rvec[2]), _fmt(rvec[1]), _fmt(rvec[0])],
     ]
+
+
+def _make_cylindrical_mask(
+    spl: CylSpline,
+    mole: Molecules,
+    shape: tuple[int, int, int],
+    scale: nm,
+) -> "NDArray[np.float32]":
+    _inner = spl.config.thickness_inner / scale
+    _outer = spl.config.thickness_outer / scale
+    if spl.radius is None:
+        _radius_nm: nm = cylmeasure.calc_radius(mole, spl).mean()
+    else:
+        _radius_nm = spl.radius
+    _radius = _radius_nm / scale
+    zz, xx = np.indices((shape[0], shape[2]), dtype=np.float32)
+    xx -= (shape[2] - 1) / 2
+    zz -= (shape[0] - 1) / 2 - _radius
+    dd2 = zz**2 + xx**2
+    _cyl_mask_2d = ((_radius - _inner) ** 2 < dd2) & (dd2 < (_radius + _outer) ** 2)
+    return (
+        ip.asarray(
+            np.repeat(_cyl_mask_2d[:, np.newaxis, :], shape[1], axis=1), axes="zyx"
+        )
+        .smooth_mask(sigma=1 / scale, dilate_radius=0.5 / scale)
+        .value
+    )
 
 
 impl_preview(SubtomogramAveraging.align_all_rma, text="Preview molecule network")(
