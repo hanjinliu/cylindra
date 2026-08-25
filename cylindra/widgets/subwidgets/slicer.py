@@ -151,8 +151,31 @@ class SplineSlicer(ChildWidget):
             except Exception:
                 return []
 
-        spline_id = vfield(label="Spline").with_choices(_get_spline_id)
+        @magicclass(layout="horizontal", labels=False)
+        class SplineId(ChildWidget):
+            spline_id = abstractapi()
+            prev_spline = abstractapi()
+            next_spline = abstractapi()
+
+        spline_id = vfield(label="Spline", location=SplineId).with_choices(
+            _get_spline_id
+        )
         pos = field(nm, label="Position (nm)", widget_type="FloatSlider").with_options(max=0)  # fmt: skip
+
+        @set_design(max_width=24, text="<", location=SplineId)
+        def prev_spline(self):
+            """Previous spline."""
+            if self.spline_id is None:
+                return None
+            self.spline_id = max(0, self.spline_id - 1)
+
+        @set_design(max_width=24, text=">", location=SplineId)
+        def next_spline(self):
+            """Next spline."""
+            num_splines = len(self._get_main().tomogram.splines)
+            if self.spline_id is None or num_splines == 0:
+                return None
+            self.spline_id = min(num_splines - 1, self.spline_id + 1)
 
     @magicclass(layout="horizontal")
     class Row2(ChildWidget):
@@ -439,7 +462,10 @@ class SplineSlicer(ChildWidget):
         yield self._update_image_cb.with_args(img)
 
         if len(self.canvases) > 1:
-            img_rot_avg = self._rotation_average(self.npf.value)
+            if self.show_what == YPROJ:
+                img_rot_avg = self._rotation_average(self.npf.value)
+            else:
+                img_rot_avg = None
             yield self._update_rot_image_cb.with_args(img_rot_avg)
 
         if update_clim:
@@ -469,8 +495,11 @@ class SplineSlicer(ChildWidget):
         self._update_circles(self._get_radius())
 
     @thread_worker.callback
-    def _update_rot_image_cb(self, img: ip.ImgArray):
-        self.canvases[1].image = img
+    def _update_rot_image_cb(self, img: ip.ImgArray | None):
+        if img is None:
+            self.check_n_s = False
+        else:
+            self.canvases[1].image = img
 
     def _show_overlay_text(self, txt):
         self.canvas.text_overlay.visible = True
@@ -517,7 +546,7 @@ class SplineSlicer(ChildWidget):
                 pos,
                 depth=depth,
                 binsize=binsize,
-                radius=self.radius,
+                radius=self._get_radius(),
                 order=1,
                 use_orig_config=False,
             )
@@ -663,7 +692,7 @@ class SplineSlicer(ChildWidget):
                 "thickness_outer": self.thickness_outer,
             },
             copy_props=True,
-        ).radius_range()
+        ).radius_range(r)
         spl_trans = spl.translate([-tomo.multiscale_translation(binsize)] * 3)
         anc = pos / spl.length()
         coords = spl_trans.local_cylindrical((rmin, rmax), depth, anc, scale=_scale)
