@@ -5,6 +5,7 @@ import numpy as np
 import polars as pl
 from acryo import Molecules
 from magicclass.types import Optional, Path
+from magicclass.widgets import ToggleButtons
 
 from cylindra import instance
 from cylindra.const import FileFilter, ImageFilter
@@ -189,11 +190,11 @@ def open_image_from_imod_project(
         {"text": "Use header scale", "options": {"step": 0.0001, "value": 1.0}},
     ] = None,
     bin_size: list[int] = [4],
-    filter: ImageFilter | None = ImageFilter.Lowpass,
+    filter: Annotated[ImageFilter | None, {"widget_type": ToggleButtons}] = ImageFilter.Lowpass,
     invert: bool = True,
     eager: Annotated[bool, {"label": "Load the entire image into memory"}] = False,
     cache_image: Annotated[bool, {"label": "Cache image on SSD"}] = False,
-):
+):  # fmt: skip
     """Open an image from an IMOD project.
 
     Parameters

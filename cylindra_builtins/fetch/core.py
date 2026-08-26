@@ -1,8 +1,9 @@
 import tempfile
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Annotated, Literal
 
 from magicclass.utils import thread_worker
+from magicclass.widgets import ToggleButtons
 
 from cylindra.const import ImageFilter
 from cylindra.plugin import register_function
@@ -33,7 +34,9 @@ COORDS_14_FIT = [
 @thread_worker
 def mt_13pf(
     ui: "CylindraMainWidget",
-    filter: ImageFilter = ImageFilter.Lowpass,
+    filter: Annotated[
+        ImageFilter | None, {"widget_type": ToggleButtons}
+    ] = ImageFilter.Lowpass,
     with_spline: Literal["none", "roughly fitted", "fitted"] = "none",
 ):
     """Fetch and open a 13-protofilament microtubule test image."""
@@ -46,7 +49,9 @@ def mt_13pf(
 @thread_worker
 def mt_14pf(
     ui: "CylindraMainWidget",
-    filter: ImageFilter = ImageFilter.Lowpass,
+    filter: Annotated[
+        ImageFilter | None, {"widget_type": ToggleButtons}
+    ] = ImageFilter.Lowpass,
     with_spline: Literal["none", "roughly fitted", "fitted"] = "none",
 ):
     """Fetch and open a 14-protofilament microtubule test image."""

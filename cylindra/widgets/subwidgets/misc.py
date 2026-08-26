@@ -9,7 +9,7 @@ from magicclass import (
     set_design,
     vfield,
 )
-from magicclass.widgets import ConsoleTextEdit
+from magicclass.widgets import ConsoleTextEdit, ToggleButtons
 from magicgui.widgets import TextEdit
 from qtpy import QtGui
 from qtpy.QtCore import Qt
@@ -167,7 +167,9 @@ class ImageLoader(MagicTemplate):
 
     tilt_model = field(TiltModelEdit)
     bin_size = vfield([1]).with_options(options={"min": 1, "max": 32})
-    filter = vfield(ImageFilter | None).with_options(value=ImageFilter.Lowpass)
+    filter = vfield(ImageFilter | None, widget_type=ToggleButtons).with_options(
+        value=ImageFilter.Lowpass
+    )
 
     @magicclass(layout="horizontal", labels=False)
     class invert_section(MagicTemplate):
