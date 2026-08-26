@@ -8461,8 +8461,8 @@ denoising the Y-projection images.</p>
 <span class="sd">        Attributes</span>
 <span class="sd">        ----------</span>
 <span class="sd">        depth : float</span>
-<span class="sd">            The depth of the projection along splines. For instance, depth=50.0 means</span>
-<span class="sd">            that Y-projection will be calculated using subvolume of size L * 50.0 nm * L.</span>
+<span class="sd">            The depth of the projection along splines. For instance, depth=50 means</span>
+<span class="sd">            that Y-projection will be calculated using subvolume of size L * 50 nm * L.</span>
 <span class="sd">        binsize : int</span>
 <span class="sd">            The size of the binning. For instance, binsize=2 means that the image will</span>
 <span class="sd">            be binned by 2 before projection and/or Fourier transformation.</span>
@@ -8471,11 +8471,11 @@ denoising the Y-projection images.</p>
         <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_old_binsize</span> <span class="o">=</span> <span class="mi">1</span>
 
-        <span class="k">def</span><span class="w"> </span><span class="nf">_get_available_binsize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">widget</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"list[int]"</span><span class="p">:</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">_get_available_binsize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">widget</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"list[tuple[str, int]]"</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_main</span><span class="p">()</span><span class="o">.</span><span class="n">_get_available_binsize</span><span class="p">(</span><span class="n">widget</span><span class="p">)</span>
             <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-                <span class="k">return</span> <span class="p">[]</span>
+                <span class="k">return</span> <span class="p">[(</span><span class="s2">"1 pixel"</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]</span>
 
         <span class="n">depth</span> <span class="o">=</span> <span class="n">vfield</span><span class="p">(</span><span class="mf">50.0</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">"depth (nm)"</span><span class="p">)</span><span class="o">.</span><span class="n">with_options</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mf">200.0</span><span class="p">)</span>
         <span class="n">binsize</span> <span class="o">=</span> <span class="n">vfield</span><span class="p">()</span><span class="o">.</span><span class="n">with_choices</span><span class="p">(</span><span class="n">_get_available_binsize</span><span class="p">)</span>
@@ -9464,8 +9464,8 @@ denoising the Y-projection images.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>The depth of the projection along splines. For instance, depth=50.0 means
-that Y-projection will be calculated using subvolume of size L * 50.0 nm * L.</p>
+                <p>The depth of the projection along splines. For instance, depth=50 means
+that Y-projection will be calculated using subvolume of size L * 50 nm * L.</p>
               </div>
             </td>
           </tr>
@@ -9524,8 +9524,8 @@ be binned by 2 before projection and/or Fourier transformation.</p>
 <span class="sd">    Attributes</span>
 <span class="sd">    ----------</span>
 <span class="sd">    depth : float</span>
-<span class="sd">        The depth of the projection along splines. For instance, depth=50.0 means</span>
-<span class="sd">        that Y-projection will be calculated using subvolume of size L * 50.0 nm * L.</span>
+<span class="sd">        The depth of the projection along splines. For instance, depth=50 means</span>
+<span class="sd">        that Y-projection will be calculated using subvolume of size L * 50 nm * L.</span>
 <span class="sd">    binsize : int</span>
 <span class="sd">        The size of the binning. For instance, binsize=2 means that the image will</span>
 <span class="sd">        be binned by 2 before projection and/or Fourier transformation.</span>
@@ -9534,11 +9534,11 @@ be binned by 2 before projection and/or Fourier transformation.</p>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_old_binsize</span> <span class="o">=</span> <span class="mi">1</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_get_available_binsize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">widget</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"list[int]"</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_available_binsize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">widget</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"list[tuple[str, int]]"</span><span class="p">:</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_main</span><span class="p">()</span><span class="o">.</span><span class="n">_get_available_binsize</span><span class="p">(</span><span class="n">widget</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-            <span class="k">return</span> <span class="p">[]</span>
+            <span class="k">return</span> <span class="p">[(</span><span class="s2">"1 pixel"</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]</span>
 
     <span class="n">depth</span> <span class="o">=</span> <span class="n">vfield</span><span class="p">(</span><span class="mf">50.0</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">"depth (nm)"</span><span class="p">)</span><span class="o">.</span><span class="n">with_options</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mf">200.0</span><span class="p">)</span>
     <span class="n">binsize</span> <span class="o">=</span> <span class="n">vfield</span><span class="p">()</span><span class="o">.</span><span class="n">with_choices</span><span class="p">(</span><span class="n">_get_available_binsize</span><span class="p">)</span>
