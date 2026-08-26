@@ -27,6 +27,7 @@ from magicclass.types import Colormap as ColormapType
 from magicclass.types import Optional, Path
 from magicclass.undo import undo_callback
 from magicclass.utils import thread_worker
+from magicclass.widgets import ToggleButtons
 from napari.layers import Labels, Layer
 from napari.utils.notifications import show_info as _napari_show_info
 
@@ -66,6 +67,8 @@ from cylindra.widgets._annotated import (
     BinSizeType,
     MoleculesLayersType,
     MoleculesLayerType,
+    PlusOrMinusOrNoneType,
+    PlusOrMinusType,
     SplinesType,
     SplineType,
     assert_layer,
@@ -670,7 +673,9 @@ class CylindraMainWidget(MagicTemplate):
     def load_project(
         self,
         path: Path.Read[FileFilter.PROJECT],
-        filter: ImageFilter | None = ImageFilter.Lowpass,
+        filter: Annotated[
+            ImageFilter | None, {"widget_type": ToggleButtons}
+        ] = ImageFilter.Lowpass,
         read_image: Annotated[bool, {"label": "read image data"}] = True,
         read_reference: Annotated[bool, {"label": "read reference image"}] = True,
         update_config: bool = False,
@@ -729,9 +734,9 @@ class CylindraMainWidget(MagicTemplate):
     def save_project(
         self,
         path: Path.Save,
-        molecules_ext: Literal[".csv", ".parquet"] = ".csv",
+        molecules_ext: Annotated[Literal[".csv", ".parquet"], {"widget_type": ToggleButtons}] = ".csv",
         save_landscape: Annotated[bool, {"label": "Save landscape layers"}] = False,
-    ):
+    ):  # fmt: skip
         """Save current project state and the results in a directory.
 
         The output project.json file contains paths of images and results, parameters of
@@ -897,7 +902,7 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def filter_reference_image(
         self,
-        method: ImageFilter = ImageFilter.Lowpass,
+        method: Annotated[ImageFilter, {"widget_type": ToggleButtons}] = ImageFilter.Lowpass,
         resolution: Annotated[float, {"label": "Resolution (nm)", "min": 0.1, "step": 0.1, "max": 100.0}] = 1.6,
     ):  # fmt: skip
         """Apply filter to enhance contrast of the reference image.
@@ -939,8 +944,13 @@ class CylindraMainWidget(MagicTemplate):
     @do_not_record
     def z_project_reference_image(
         self,
-        method: Literal["max", "min", "mean"] = "max",
-        colormap: Literal["twilight", "cyan", "magenta", "gray"] = "twilight",
+        method: Annotated[
+            Literal["max", "min", "mean"], {"widget_type": ToggleButtons}
+        ] = "max",
+        colormap: Annotated[
+            Literal["twilight", "cyan", "magenta", "gray"],
+            {"widget_type": ToggleButtons},
+        ] = "twilight",
         overlay: bool = True,
     ):
         """Z-project the reference image and overlay it on the viewer.
@@ -1305,8 +1315,9 @@ class CylindraMainWidget(MagicTemplate):
 
     @set_design(text=capitalize, location=_sw.SplinesMenu.Orientation)
     def align_to_polarity(
-        self, orientation: Literal["MinusToPlus", "PlusToMinus"] = "MinusToPlus"
-    ):
+        self,
+        orientation: PlusOrMinusType = "MinusToPlus"
+    ):  # fmt: skip
         """Align all the splines in the direction parallel to the cylinder polarity.
 
         Parameters
@@ -1569,7 +1580,7 @@ class CylindraMainWidget(MagicTemplate):
         twist_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.05}}] = (-1.0, 1.0),
         rise_range: Annotated[tuple[float, float], {"options": {"min": -45.0, "max": 45.0, "step": 0.1}}] = (0.0, 45.0),
         rise_sign: Literal[-1, 1] = -1,
-        clockwise: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus",
+        clockwise: PlusOrMinusType = "MinusToPlus",
         thickness_inner: Annotated[nm, {"min": 0.0, "step": 0.1}] = 2.8,
         thickness_outer: Annotated[nm, {"min": 0.0, "step": 0.1}] = 2.8,
         fit_depth: Annotated[nm, {"min": 4.0, "step": 1}] = 48.0,
@@ -1685,7 +1696,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: SplinesType = None,
         interval: Annotated[nm, {"label": "Interval between anchors (nm)", "min": 1.0}] = 25.0,
-        how: Literal["pack", "equal"] = "pack",
+        how: Annotated[Literal["pack", "equal"], {"widget_type": ToggleButtons}] = "pack",
     ):  # fmt: skip
         """Add anchors to splines.
 
@@ -1901,7 +1912,7 @@ class CylindraMainWidget(MagicTemplate):
         spline: Annotated[int, {"bind": _get_spline_idx}],
         npf: Annotated[Optional[int], {"label": "number of PF", "text": "Do not update"}] = None,
         start: Annotated[Optional[int], {"label": "start number", "text": "Do not update", "options": {"min": -100}}] = None,
-        orientation: Annotated[Optional[Literal["MinusToPlus", "PlusToMinus"]], {"text": "Do not update"}] = None,
+        orientation: Annotated[Optional[PlusOrMinusType], {"text": "Do not update"}] = None,
     ):  # fmt: skip
         """Set spline global properties.
 
@@ -2240,7 +2251,7 @@ class CylindraMainWidget(MagicTemplate):
         interval: _Interval = None,
         depth: Annotated[nm, {"label": "depth (nm)", "min": 2.0, "step": 0.5}] = 50.0,
         bin_size: BinSizeType = 1,
-        radius: Literal["local", "global"] = "global",
+        radius: Annotated[Literal["local", "global"], {"widget_type": ToggleButtons}] = "global",
         update_glob: Annotated[bool, {"text": "Also update the global properties"}] = False,
     ):  # fmt: skip
         """Determine local lattice parameters by local cylindric Fourier transformation.
@@ -2333,7 +2344,7 @@ class CylindraMainWidget(MagicTemplate):
         interval: _Interval = None,
         depth: Annotated[nm, {"label": "depth (nm)", "min": 2.0, "step": 0.5}] = 50.0,
         bin_size: BinSizeType = 1,
-        radius: Literal["local", "global"] = "global",
+        radius: Annotated[Literal["local", "global"], {"widget_type": ToggleButtons}] = "global",
         mask_cylinder: Annotated[bool, {"text": "Mask cylinder in real space"}] = True,
         update_glob: Annotated[bool, {"text": "Also update the global properties"}] = False,
     ):  # fmt: skip
@@ -2574,8 +2585,8 @@ class CylindraMainWidget(MagicTemplate):
     def interaction_to_molecules(
         self,
         interaction: _InteractionNetType,
-        which: Literal["origin", "target", "both"] = "origin",
-    ):
+        which: Annotated[Literal["origin", "target", "both"], {"widget_type": ToggleButtons}] = "origin",
+    ):  # fmt: skip
         """Make a molecules layer from the interaction network.
 
         Parameters
@@ -2653,12 +2664,12 @@ class CylindraMainWidget(MagicTemplate):
     def map_monomers(
         self,
         splines: SplinesType = None,
-        orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
+        orientation: PlusOrMinusOrNoneType = None,
         offsets: _OffsetType = None,
         radius: Optional[nm] = None,
         extensions: Annotated[tuple[int, int], {"options": {"min": -100}}] = (0, 0),
-        prop_to_use: Annotated[Literal["local", "global", "both"], {"label": "properties to use"}] = "global",
-        edge_processing: Literal["none", "flat"] = "none",
+        prop_to_use: Annotated[Literal["local", "global", "both"], {"label": "properties to use", "widget_type": ToggleButtons}] = "global",
+        edge_processing: Annotated[Literal["none", "flat"], {"widget_type": ToggleButtons}] = "none",
         prefix: str = "Mole",
     ):  # fmt: skip
         """Map monomers as a regular cylindrical grid assembly.
@@ -2720,7 +2731,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         spline: SplineType,
         n_extend: Annotated[dict[int, tuple[int, int]], {"label": "prepend/append", "widget_type": ProtofilamentEdit}] = {},
-        orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
+        orientation: PlusOrMinusOrNoneType = None,
         offsets: _OffsetType = None,
         radius: Optional[nm] = None,
         prefix: str = "Mole",
@@ -2758,7 +2769,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: SplinesType = None,
         molecule_interval: PolarsExprStrOrScalar = "col('spacing')",
-        orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
+        orientation: PlusOrMinusOrNoneType = None,
         rotate_molecules: bool = True,
         prefix: str = "Center",
     ):  # fmt: skip
@@ -2798,7 +2809,7 @@ class CylindraMainWidget(MagicTemplate):
     def map_along_spline_helical_symmetry(
         self,
         splines: SplinesType = None,
-        orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
+        orientation: PlusOrMinusOrNoneType = None,
         prefix: str = "Center",
     ):
         """Map molecules along splines considering helical symmetry.
@@ -2830,7 +2841,7 @@ class CylindraMainWidget(MagicTemplate):
         spline: SplineType,
         molecule_interval: PolarsExprStrOrScalar = "col('spacing')",
         offsets: _OffsetType = None,
-        orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
+        orientation: PlusOrMinusOrNoneType = None,
         prefix: str = "PF",
     ):  # fmt: skip
         """Map molecules along the line of a protofilament.
@@ -3192,7 +3203,7 @@ class CylindraMainWidget(MagicTemplate):
         layer: MoleculesLayerType,
         spline_id_column: Annotated[str, {"choices": _choice_getter( "rotate_molecule_toward_spline", "iu", nullable=True)}] = "",
         inherit_source: Annotated[bool, {"label": "Inherit source spline"}] = True,
-        orientation: Literal[None, "PlusToMinus", "MinusToPlus"] = None,
+        orientation: PlusOrMinusOrNoneType = None,
     ):  # fmt: skip
         """Rotate molecules to align its orientation to the spline.
 
@@ -3513,7 +3524,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         layer: MoleculesLayerType,
         target: Annotated[str, {"choices": _choice_getter("convolve_feature", dtype_kind="uifb")}],
-        method: Literal["mean", "max", "min", "median"] = "mean",
+        method: Annotated[Literal["mean", "max", "min", "median"], {"widget_type": ToggleButtons}] = "mean",
         footprint: Annotated[Any, {"widget_type": KernelEdit}] = [[0, 1, 0], [1, 1, 1], [0, 1, 0]],
     ):  # fmt: skip
         """Run a convolution on the lattice.

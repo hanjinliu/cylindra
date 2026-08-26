@@ -77,6 +77,7 @@ from cylindra.widgets._annotated import (
     LandscapeLayerType,
     MoleculesLayersType,
     MoleculesLayerType,
+    PlusOrMinusType,
     SplineType,
     assert_layer,
     assert_list_of_layers,
@@ -888,7 +889,7 @@ class SubtomogramAveraging(ChildWidget):
         rotations: _Rotations = ((0.0, 0.0), (15.0, 1.0), (3.0, 1.0)),
         bin_size: BinSizeType = 1,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
-        cylindrical_mask: Annotated[bool, {"text": "Use cylinderical mask"}] = False,
+        cylindrical_mask: Annotated[bool, {"text": "Use cylindrical mask"}] = False,
     ):  # fmt: skip
         """Align the averaged image at current molecules to the template image.
 
@@ -902,7 +903,7 @@ class SubtomogramAveraging(ChildWidget):
         ----------
         {layers}{template_path}{mask_params}{max_shifts}{rotations}{bin_size}{method}
         cylindrical_mask : bool, default: False
-            If True, apply a cylinderical mask to the averaged image before alignment.
+            If True, apply a cylindrical mask to the averaged image before alignment.
             This option is useful if the averaged image contains a lot of background
             density that may interfere with the alignment (e.g., MAPs decoration, in
             situ data, etc).
@@ -1361,7 +1362,7 @@ class SubtomogramAveraging(ChildWidget):
         self,
         spline: SplineType,
         template_path: Annotated[_PathOrPathsOrNone, {"bind": _template_params}],
-        forward_is: Literal["PlusToMinus", "MinusToPlus"] = "MinusToPlus",
+        forward_is: PlusOrMinusType = "MinusToPlus",
         interval: PolarsExprStrOrScalar = "4.1",
         err_max: Annotated[nm, {"label": "Max fit error (nm)", "step": 0.1}] = 0.5,
         mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,

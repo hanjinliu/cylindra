@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from ast import literal_eval
-from contextlib import contextmanager
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Callable, Iterable, Literal, TypedDict
@@ -573,15 +572,6 @@ class IndexEdit(LineEdit):
         return eval(string.strip(), ns, {})
 
 
-@contextmanager
-def _signals_blocked(obj: QtW.QWidget):
-    before = obj.blockSignals(True)
-    try:
-        yield
-    finally:
-        obj.blockSignals(before)
-
-
 def _not(x: Qt.CheckState) -> Qt.CheckState:
     if x == Qt.CheckState.Checked:
         state = Qt.CheckState.Unchecked
@@ -696,7 +686,7 @@ class BaseSelect(backend_qtw.QBaseValueWidget, protocols.CategoricalWidgetProtoc
         if not isinstance(value, (list, tuple)):
             value = [value]
         selected_prev = self._iter_checked()
-        with _signals_blocked(self._qwidget):
+        with QtCore.QSignalBlocker(self._qwidget):
             for i in range(self._qwidget.count()):
                 item = self._qwidget.item(i)
                 if item.data(Qt.ItemDataRole.UserRole) in value:
@@ -729,7 +719,7 @@ class BaseSelect(backend_qtw.QBaseValueWidget, protocols.CategoricalWidgetProtoc
             self._qwidget.clear()
             return
 
-        with _signals_blocked(self._qwidget):
+        with QtCore.QSignalBlocker(self._qwidget):
             choice_names = [x[0] for x in choices_]
             selected_prev = self._iter_checked()
             # remove choices that no longer exist

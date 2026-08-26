@@ -90,8 +90,8 @@ class SplineSlicer(ChildWidget):
         Attributes
         ----------
         depth : float
-            The depth of the projection along splines. For instance, depth=50.0 means
-            that Y-projection will be calculated using subvolume of size L * 50.0 nm * L.
+            The depth of the projection along splines. For instance, depth=50 means
+            that Y-projection will be calculated using subvolume of size L * 50 nm * L.
         binsize : int
             The size of the binning. For instance, binsize=2 means that the image will
             be binned by 2 before projection and/or Fourier transformation.
@@ -100,11 +100,11 @@ class SplineSlicer(ChildWidget):
         def __init__(self):
             self._old_binsize = 1
 
-        def _get_available_binsize(self, widget=None) -> "list[int]":
+        def _get_available_binsize(self, widget=None) -> "list[tuple[str, int]]":
             try:
                 return self._get_main()._get_available_binsize(widget)
             except Exception:
-                return []
+                return [("1 pixel", 1)]
 
         depth = vfield(50.0, label="depth (nm)").with_options(min=1.0, max=200.0)
         binsize = vfield().with_choices(_get_available_binsize)

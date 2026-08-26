@@ -14,7 +14,13 @@ from magicclass.ext.polars import DataFrameView
 from magicclass.ext.vispy import Vispy3DCanvas
 from magicclass.types import Path
 from magicclass.utils import thread_worker
-from magicclass.widgets import ConsoleTextEdit, FrameContainer, Label, ToggleSwitch
+from magicclass.widgets import (
+    ConsoleTextEdit,
+    FrameContainer,
+    Label,
+    ToggleButtons,
+    ToggleSwitch,
+)
 
 from cylindra._io import lazy_imread
 from cylindra.const import ImageFilter
@@ -171,10 +177,10 @@ class ProjectViewer(MagicTemplate):
     def load_this_project(
         self,
         path: Annotated[str, {"bind": _get_project_path}],
-        filter: ImageFilter | None = ImageFilter.Lowpass,
+        filter: Annotated[ImageFilter | None, {"widget_type": ToggleButtons}] = ImageFilter.Lowpass,
         read_image: Annotated[bool, {"label": "read image data"}] = True,
         update_config: bool = False,
-    ):
+    ):  # fmt: skip
         """Load current project in main window."""
         from cylindra import instance
 

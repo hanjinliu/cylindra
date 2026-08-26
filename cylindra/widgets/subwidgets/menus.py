@@ -22,7 +22,7 @@ from magicclass.ext.polars import DataFrameView
 from magicclass.logging import getLogger
 from magicclass.types import Color, Optional, Path
 from magicclass.utils import open_url, thread_worker
-from magicclass.widgets import ConsoleTextEdit
+from magicclass.widgets import ConsoleTextEdit, ToggleButtons
 from magicgui.types import Separator
 from magicgui.widgets import ComboBox, Container
 
@@ -135,8 +135,8 @@ class FileMenu(ChildWidget):
         def load_stash_project(
             self,
             name: Annotated[str, {"choices": _get_stashed_names}],
-            filter: ImageFilter | None = ImageFilter.Lowpass,
-        ):
+            filter: Annotated[ImageFilter | None, {"widget_type": ToggleButtons}] = ImageFilter.Lowpass,
+        ):  # fmt: skip
             """Load a stashed project.
 
             Parameters

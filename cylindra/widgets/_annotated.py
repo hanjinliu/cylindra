@@ -3,6 +3,7 @@ from typing import Annotated, Any, Literal
 import napari
 from magicclass._gui import BaseGui
 from magicclass.types import Optional
+from magicclass.widgets import ToggleButtons
 
 from cylindra.types import (
     LandscapeSurface,
@@ -120,6 +121,15 @@ SplinesType = Annotated[
 ]
 
 BinSizeType = Annotated[int, {"choices": get_available_binsize}]
+
+PlusOrMinusType = Annotated[
+    Literal["PlusToMinus", "MinusToPlus"],
+    {"widget_type": ToggleButtons},
+]
+PlusOrMinusOrNoneType = Annotated[
+    Literal[None, "PlusToMinus", "MinusToPlus"],
+    {"widget_type": ToggleButtons},
+]
 
 
 def assert_layer(layer: Any, viewer: "napari.Viewer") -> MoleculesLayer:
