@@ -888,7 +888,7 @@ class SubtomogramAveraging(ChildWidget):
         rotations: _Rotations = ((0.0, 0.0), (15.0, 1.0), (3.0, 1.0)),
         bin_size: BinSizeType = 1,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
-        cylinderical_mask: Annotated[bool, {"text": "Use cylinderical mask"}] = False,
+        cylindrical_mask: Annotated[bool, {"text": "Use cylinderical mask"}] = False,
     ):  # fmt: skip
         """Align the averaged image at current molecules to the template image.
 
@@ -901,7 +901,7 @@ class SubtomogramAveraging(ChildWidget):
         Parameters
         ----------
         {layers}{template_path}{mask_params}{max_shifts}{rotations}{bin_size}{method}
-        cylinderical_mask : bool, default: False
+        cylindrical_mask : bool, default: False
             If True, apply a cylinderical mask to the averaged image before alignment.
             This option is useful if the averaged image contains a lot of background
             density that may interfere with the alignment (e.g., MAPs decoration, in
@@ -959,7 +959,7 @@ class SubtomogramAveraging(ChildWidget):
             max_shifts_px = [_s / _scale for _s in max_shifts]
 
             # apply cylindrical mask
-            if cylinderical_mask:
+            if cylindrical_mask:
                 if spl := layer.source_spline:
                     _cyl_mask = _make_cylindrical_mask(
                         spl, mole, avg.shape, loader.scale
