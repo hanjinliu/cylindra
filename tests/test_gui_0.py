@@ -841,6 +841,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int, tmpdir):
         template_path=template_path,
         mask_params=(1, 1),
         bin_size=bin_size,
+        cylindrical_mask=True,
     )
     assert "offset_axial" in ui.splines[0].props.glob.columns
     ui.macro.undo()
