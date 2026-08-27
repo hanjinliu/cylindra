@@ -9097,7 +9097,11 @@
 <span class="normal">4238</span>
 <span class="normal">4239</span>
 <span class="normal">4240</span>
-<span class="normal">4241</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span>
+<span class="normal">4241</span>
+<span class="normal">4242</span>
+<span class="normal">4243</span>
+<span class="normal">4244</span>
+<span class="normal">4245</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span>
     <span class="n">widget_type</span><span class="o">=</span><span class="s2">"scrollable"</span><span class="p">,</span>
     <span class="n">stylesheet</span><span class="o">=</span><span class="n">_STYLE</span><span class="p">,</span>
     <span class="n">name</span><span class="o">=</span><span class="s2">"cylindra"</span><span class="p">,</span>
@@ -12859,13 +12863,17 @@
         <span class="n">change_viewer_focus</span><span class="p">(</span><span class="n">viewer</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">imgb</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="n">imgb</span><span class="o">.</span><span class="n">scale</span><span class="o">.</span><span class="n">x</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">fp</span> <span class="o">:=</span> <span class="n">tomo</span><span class="o">.</span><span class="n">_orig_or_read_path</span><span class="p">():</span>
-            <span class="n">parts</span> <span class="o">=</span> <span class="n">fp</span><span class="o">.</span><span class="n">parts</span>
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
-                <span class="n">_name</span> <span class="o">=</span> <span class="s2">"…/"</span> <span class="o">+</span> <span class="n">Path</span><span class="p">(</span><span class="o">*</span><span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:])</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">_name</span> <span class="o">=</span> <span class="n">tomo</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>
+            <span class="n">_names</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">fp_each</span> <span class="ow">in</span> <span class="n">fp</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">";"</span><span class="p">):</span>
+                <span class="n">parts</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">fp_each</span><span class="p">)</span><span class="o">.</span><span class="n">parts</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+                    <span class="n">_name_each</span> <span class="o">=</span> <span class="s2">"…/"</span> <span class="o">+</span> <span class="n">Path</span><span class="p">(</span><span class="o">*</span><span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:])</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">_name_each</span> <span class="o">=</span> <span class="n">tomo</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>
+                <span class="n">_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_name_each</span><span class="p">)</span>
+            <span class="n">_name</span> <span class="o">=</span> <span class="s2">" + "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">_names</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Tomogram&lt;</span><span class="si">{</span><span class="nb">hex</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="n">tomo</span><span class="p">))</span><span class="si">}</span><span class="s2">&gt;"</span>
+            <span class="n">_name</span> <span class="o">=</span> <span class="s2">"Tomogram from unknown source"</span>
         <span class="n">_Logger</span><span class="o">.</span><span class="n">print_html</span><span class="p">(</span><span class="s2">"&lt;hr&gt;"</span><span class="p">)</span>
         <span class="n">_Logger</span><span class="o">.</span><span class="n">print_html</span><span class="p">(</span><span class="sa">f</span><span class="s2">"&lt;h2&gt;</span><span class="si">{</span><span class="n">_name</span><span class="si">}</span><span class="s2">&lt;/h2&gt;"</span><span class="p">)</span>
 
