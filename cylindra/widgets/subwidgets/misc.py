@@ -194,6 +194,8 @@ class ImageLoader(MagicTemplate):
         elif "*" in path_str or "?" in path_str or "[" in path_str:
             # use glob to find the first file
             path = Path(sorted(glob.glob(path_str, recursive=True))[0])
+        else:
+            path = Path(path_str)
         if not path.exists() or not path.is_file():
             return
         # try to read header
