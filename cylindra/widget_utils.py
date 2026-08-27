@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import glob
 import inspect
 import re
 from dataclasses import dataclass
@@ -505,20 +506,10 @@ def capitalize(s: str):
     return s.replace("_", " ").capitalize()
 
 
-def prep_tomogram(
-    path,
-    scale,
-    bin_size,
-    tilt_range=None,
-    eager: bool = False,
-    cache_image: bool = False,
-    compute: bool = True,
-) -> CylTomogram:
-    if cache_image:
-        read_path = _config.cache_tomogram(path)
-    else:
-        read_path = Path(path)
-    # check scale and bin size
+def _check_scale_and_bin_size(
+    read_path, scale, bin_size
+) -> tuple[float, list[int], float | None]:
+    # check scale
     scale_dict = _io.read_header(read_path).scale
     if scale_dict is None or len(scale_dict) == 0:
         orig_scale = None
@@ -530,14 +521,52 @@ def prep_tomogram(
         if orig_scale is None:
             raise ValueError("Could not infer scale from the image header.")
         scale = orig_scale
+
+    # norm bin_size
     if isinstance(bin_size, int):
         bin_size = [bin_size]
     elif len(bin_size) == 0:
         raise ValueError("You must specify at least one bin size.")
     else:
         bin_size = list(set(bin_size))  # delete duplication
+    return scale, bin_size, orig_scale
 
-    tomo = CylTomogram.imread(
+
+def prep_tomogram(
+    path,
+    scale,
+    bin_size,
+    tilt_range=None,
+    eager: bool = False,
+    cache_image: bool = False,
+    compute: bool = True,
+) -> CylTomogram:
+    path_str = str(path)
+    if ";" in path_str or "?" in path_str or "*" in path_str or "[" in path_str:
+        # input is two half tomograms
+        if ";" in path_str:
+            path1, path2 = str(path).split(";", 1)
+        else:
+            path1, path2 = sorted(glob.glob(path_str))
+        return prep_tomogram_from_halves(
+            path1=path1,
+            path2=path2,
+            scale=scale,
+            bin_size=bin_size,
+            tilt_range=tilt_range,
+            eager=eager,
+            cache_image=cache_image,
+            compute=compute,
+        )
+
+    if cache_image:
+        read_path = _config.cache_tomogram(path)
+    else:
+        read_path = Path(path)
+
+    scale, bin_size, orig_scale = _check_scale_and_bin_size(read_path, scale, bin_size)
+
+    return CylTomogram.imread(
         path=read_path,
         scale=scale,
         tilt=tilt_range,
@@ -545,7 +574,28 @@ def prep_tomogram(
         eager=eager,
         compute=compute,
     ).with_cache_info(orig_path=Path(path), cached=cache_image)
-    return tomo
+
+
+def prep_tomogram_from_halves(
+    path1,
+    path2,
+    scale,
+    bin_size,
+    tilt_range=None,
+    eager: bool = False,
+    cache_image: bool = False,
+    compute: bool = True,
+) -> CylTomogram:
+    scale, bin_size, orig_scale = _check_scale_and_bin_size(path1, scale, bin_size)
+    return CylTomogram.imread_halves(
+        path1=path1,
+        path2=path2,
+        scale=scale,
+        tilt=tilt_range,
+        binsize=bin_size,
+        eager=eager,
+        compute=compute,
+    )
 
 
 def fix_reference_scale(img_ref: ip.ImgArray, tomo: CylTomogram) -> ip.ImgArray:
