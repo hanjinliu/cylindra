@@ -1,3 +1,4 @@
+import glob
 from pathlib import Path
 
 from acryo.tilt import NoWedge, SingleAxis
@@ -187,7 +188,12 @@ class ImageLoader(MagicTemplate):
     @set_design(text="Scan", max_width=60, location=scale)
     def scan_header_or_defaults(self):
         """Scan header or the default setting to update this GUI."""
-        path = Path(self.path)
+        path_str = str(self.path)
+        if ";" in path_str:
+            path = Path(path_str.split(";")[0])  # only use the first path
+        elif "*" in path_str or "?" in path_str or "[" in path_str:
+            # use glob to find the first file
+            path = Path(sorted(glob.glob(path_str, recursive=True))[0])
         if not path.exists() or not path.is_file():
             return
         # try to read header
@@ -258,7 +264,7 @@ class GeneralInfo(MagicTemplate):
 
     def _refer_tomogram(self, tomo: CylTomogram):
         img = tomo.image
-        fpath = tomo._orig_or_read_path() or "Unknown"
+        fpath = (tomo._orig_or_read_path() or "Unknown").replace(";", " + ")
         scale = tomo.scale
         shape_px = ", ".join(f"{s} px" for s in img.shape)
         shape_nm = ", ".join(f"{s * scale:.2f} nm" for s in img.shape)
@@ -275,17 +281,17 @@ class GeneralInfo(MagicTemplate):
             size = f"{nbytes / 1024**2:.2f} MB"
         else:
             size = f"{nbytes / 1024**3:.2f} GB"
-        value = (
-            f"File: {fpath}\n"
-            f"Scale: {scale:.4f} nm/pixel\n"
-            f"ZYX shape: ({shape_px})\n"
-            f"ZYX shape (nm): ({shape_nm})\n"
-            f"ZYX origin (nm): ({orig_nm})\n"
-            f"Tilt range: {tilt_range}\n"
-            f"Data type: {img.dtype}\n"
-            f"Data size: {size}\n"
+
+        self.image_info.value = (
+            f'<span style="color: gray;">File:</span> {fpath}<br>'
+            f'<span style="color: gray;">Scale:</span> {scale:.4f} nm/pixel<br>'
+            f'<span style="color: gray;">ZYX shape:</span> ({shape_px})<br>'
+            f'<span style="color: gray;">ZYX shape (nm):</span> ({shape_nm})<br>'
+            f'<span style="color: gray;">ZYX origin (nm):</span> ({orig_nm})<br>'
+            f'<span style="color: gray;">Tilt range:</span> {tilt_range}<br>'
+            f'<span style="color: gray;">Data type:</span> {img.dtype}<br>'
+            f'<span style="color: gray;">Data size:</span> {size}'
         )
-        self.image_info.value = value
 
     def _refer_project(self, project: CylindraProject):
         self.project_desc.value = project.project_description

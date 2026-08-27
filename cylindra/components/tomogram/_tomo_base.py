@@ -18,6 +18,8 @@ from cylindra.utils import parse_tilt_model
 if TYPE_CHECKING:
     from acryo import Molecules, SubtomogramLoader
 
+_ImageType = ip.ImgArray | ip.LazyImgArray
+
 
 class Tomogram:
     """Lazy-loading/multi-scale tomogram object.
@@ -30,7 +32,8 @@ class Tomogram:
 
     def __init__(self):
         self._metadata: dict[str, Any] = {}
-        self._image: ip.ImgArray | ip.LazyImgArray | None = None
+        self._image: _ImageType | None = None
+        self._image_halves: tuple[_ImageType, _ImageType] | None = None
         self._multiscaled = list[tuple[int, ip.ImgArray]]()
         self._tilt_model: TiltSeriesModel = single_axis(None)
         self._scale = 1.0
@@ -88,11 +91,14 @@ class Tomogram:
             raise ValueError("Source file is unknown.")
         return Path(source)
 
-    def _orig_or_read_path(self) -> Path | None:
+    def _orig_or_read_path(self) -> str | None:
+        if self._image_halves is not None:
+            img1, img2 = self._image_halves
+            return img1.source.as_posix() + ";" + img2.source.as_posix()
         if path := self.metadata.get("orig_path", None):
-            return path
+            return Path(path).as_posix()
         if path := self.metadata.get("source", None):
-            return Path(path)
+            return Path(path).as_posix()
         return None
 
     @property
@@ -154,7 +160,7 @@ class Tomogram:
     @classmethod
     def from_image(
         cls,
-        img: ip.ImgArray | ip.LazyImgArray,
+        img: _ImageType,
         *,
         scale: float | None = None,
         tilt: TiltSeriesModel | dict[str, Any] | None = None,
@@ -207,6 +213,33 @@ class Tomogram:
         return self
 
     @classmethod
+    def from_image_halves(
+        cls,
+        img1: _ImageType,
+        img2: _ImageType,
+        *,
+        scale: float | None = None,
+        tilt: TiltSeriesModel | dict[str, Any] | None = None,
+        binsize: int | Iterable[int] = (),
+        compute: bool = True,
+    ):
+        if type(img1) is not type(img2):
+            raise TypeError(
+                f"Image halves must be of the same type, got {type(img1)} and {type(img2)}."
+            )
+        img_comb = img1 + img2
+        img_comb.source = None
+        self = cls.from_image(
+            img_comb,
+            scale=scale,
+            tilt=tilt,
+            binsize=binsize,
+            compute=compute,
+        )
+        self._image_halves = (img1, img2)
+        return self
+
+    @classmethod
     def imread(
         cls,
         path: str | Path,
@@ -216,6 +249,7 @@ class Tomogram:
         binsize: int | Iterable[int] = (),
         eager: bool = False,
         compute: bool = True,
+        image_halves: tuple[str | Path, str | Path] | None = None,
     ) -> Self:
         """Read a image as a dask array.
 
@@ -251,6 +285,37 @@ class Tomogram:
             compute=compute,
         )
         self.metadata["orig_scale"] = orig_scale
+        if image_halves is not None:
+            self._image_halves = _read_halves(*image_halves, chunks=chunks)
+        return self
+
+    @classmethod
+    def imread_halves(
+        cls,
+        path1: str | Path,
+        path2: str | Path,
+        *,
+        scale: float | None = None,
+        tilt: tuple[float, float] | None = None,
+        binsize: int | Iterable[int] = (),
+        eager: bool = False,
+        compute: bool = True,
+    ) -> Self:
+        chunks = get_config().dask_chunk
+        img1, img2 = _read_halves(path1, path2, chunks=chunks)
+        orig_scale = float(img1.scale.x)
+        if eager:
+            img1 = img1.compute()
+            img2 = img2.compute()
+        self = cls.from_image_halves(
+            img1,
+            img2,
+            scale=scale,
+            tilt=tilt,
+            binsize=binsize,
+            compute=compute,
+        )
+        self.metadata["orig_scale"] = orig_scale
         return self
 
     def with_cache_info(self, orig_path: Path, cached: bool = False) -> Self:
@@ -264,11 +329,16 @@ class Tomogram:
         return self
 
     @property
-    def image(self) -> ip.ImgArray | ip.LazyImgArray:
+    def image(self) -> _ImageType:
         """Tomogram image data."""
         if self._image is None:
             raise ValueError("Image is not set.")
         return self._image
+
+    @property
+    def image_halves(self) -> tuple[_ImageType, _ImageType] | None:
+        """Tomogram image halves data."""
+        return self._image_halves
 
     @property
     def multiscaled(self) -> list[tuple[int, ip.ImgArray]]:
@@ -295,7 +365,6 @@ class Tomogram:
             raise ValueError("Uneven scale.")
         self._scale = _img.scale.x
         self._image = _img
-        return None
 
     @overload
     def nm2pixel(self, value: nm, binsize: float = 1) -> int: ...
@@ -413,6 +482,12 @@ def _norm_dtype(img: ip.LazyImgArray):
     if img.dtype not in (np.float32, np.int8, np.int16):
         img = img.as_float()
     return img
+
+
+def _read_halves(path1, path2, chunks):
+    img1 = lazy_imread(path1, chunks=chunks)
+    img2 = lazy_imread(path2, chunks=chunks)
+    return _norm_dtype(img1), _norm_dtype(img2)
 
 
 class OriginTuple(NamedTuple):

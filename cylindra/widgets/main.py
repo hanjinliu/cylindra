@@ -3993,13 +3993,17 @@ class CylindraMainWidget(MagicTemplate):
         change_viewer_focus(viewer, np.asarray(imgb.shape) / 2, imgb.scale.x)
 
         if fp := tomo._orig_or_read_path():
-            parts = fp.parts
-            if len(parts) > 2:
-                _name = "…/" + Path(*parts[-2:]).as_posix()
-            else:
-                _name = tomo.source.as_posix()
+            _names = []
+            for fp_each in fp.split(";"):
+                parts = Path(fp_each).parts
+                if len(parts) > 2:
+                    _name_each = "…/" + Path(*parts[-2:]).as_posix()
+                else:
+                    _name_each = tomo.source.as_posix()
+                _names.append(_name_each)
+            _name = " + ".join(_names)
         else:
-            _name = f"Tomogram<{hex(id(tomo))}>"
+            _name = "Tomogram from unknown source"
         _Logger.print_html("<hr>")
         _Logger.print_html(f"<h2>{_name}</h2>")
 

@@ -2021,3 +2021,20 @@ def test_labels_methods(ui: CylindraMainWidget):
     labels_layer.data["y=:N//2"] = 3
     ui.add_molecule_feature_from_labels_layer("Mole-0", labels_layer=labels_layer)
     ui.add_spline_segments_from_labels_layer(0, labels_layer=labels_layer)
+
+def test_half_tomos(ui: CylindraMainWidget, tmpdir):
+    image_path = str(TEST_DIR / "14pf_MT.tif")
+    ui.open_image(image_path + ";" + image_path, scale=1.052, tilt_range=(-60, 60))
+    assert ui.tomogram.image_halves is not None
+    img1, img2 = ui.tomogram.image_halves
+    assert img1.shape == img2.shape
+    assert img1.dtype == img2.dtype
+    assert ui.tomogram.image.mean().compute() == pytest.approx((img1.mean() + img2.mean()).compute(), rel=1e-5)
+
+    ui.save_project(tmpdir)
+    ui.load_project(tmpdir / "project.json", filter=None)
+    assert ui.tomogram.image_halves is not None
+    img1, img2 = ui.tomogram.image_halves
+    assert img1.shape == img2.shape
+    assert img1.dtype == img2.dtype
+    assert ui.tomogram.image.mean().compute() == pytest.approx((img1.mean() + img2.mean()).compute(), rel=1e-5)

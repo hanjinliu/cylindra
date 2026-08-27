@@ -48,6 +48,8 @@ class CylindraProject(BaseProject):
     """Path to the image file."""
     image_relative: PathLike | None = None
     """Relative path to the image file, used as a fallback."""
+    image_halves: tuple[PathLike, PathLike] | None = None
+    """Paths to the two half tomograms."""
     cache_image: bool = False
     """Whether to cache the image in SSD."""
     scale: float
@@ -73,6 +75,11 @@ class CylindraProject(BaseProject):
         """Resolve the path of the project."""
         file_dir = Path(file_dir)
         self.image = resolve_path(self.image, file_dir)
+        if self.image_halves is not None:
+            self.image_halves = (
+                resolve_path(self.image_halves[0], file_dir),
+                resolve_path(self.image_halves[1], file_dir),
+            )
         return self
 
     @classmethod
@@ -131,6 +138,7 @@ class CylindraProject(BaseProject):
                 f"ui.open_image({path=}, {scale=:.4f}, {bin_size=}, {tilt_range=})",
                 squeeze=False,
             )
+            # TODO: consider half tomos
             expr = as_main_function(expr_open)
             self._script_py_path(results_dir).write_text(expr)
             self_copy = self.model_copy()
@@ -185,6 +193,10 @@ class CylindraProject(BaseProject):
                 interaction_infos.append(InteractionInfo.from_layer(gui, layer))
 
         orig_path = tomo.metadata.get("orig_path", None)
+        if _image_halves := tomo.image_halves:
+            path_halves = tuple(i.source for i in _image_halves)
+        else:
+            path_halves = None
         img_ref_path = gui._reserved_layers.image_data.source
         if tomo.metadata.get("source", None) == img_ref_path:
             img_ref_path = None
@@ -194,6 +206,7 @@ class CylindraProject(BaseProject):
             dependency_versions=_versions,
             image=orig_path,
             image_relative=as_relative(orig_path, project_dir),
+            image_halves=path_halves,
             cache_image=tomo.metadata.get("cache_image", False),
             scale=tomo.scale,
             image_reference=img_ref_path,
@@ -574,6 +587,11 @@ class CylindraProject(BaseProject):
         """
         from cylindra.components import CylTomogram
 
+        kwargs = {
+            "scale": self.scale,
+            "tilt": self.missing_wedge.as_param(),
+            "binsize": self.multiscales,
+        }
         if self.image is not None:
             if self.cache_image:
                 read_path = _config.cache_tomogram(self.image)
@@ -582,37 +600,45 @@ class CylindraProject(BaseProject):
             if read_path.exists():
                 tomo = CylTomogram.imread(
                     path=read_path,
-                    scale=self.scale,
-                    tilt=self.missing_wedge.as_param(),
-                    binsize=self.multiscales,
+                    **kwargs,
                     compute=compute,
+                    image_halves=self.image_halves,
                 ).with_cache_info(orig_path=Path(self.image), cached=self.cache_image)
             elif _rpath := self._try_resolve_image_relative():
                 tomo = CylTomogram.imread(
                     path=_rpath,
-                    scale=self.scale,
-                    tilt=self.missing_wedge.as_param(),
-                    binsize=self.multiscales,
+                    **kwargs,
                     compute=compute,
+                    image_halves=self.image_halves,
                 ).with_cache_info(orig_path=Path(self.image), cached=self.cache_image)
             else:
                 LOGGER.warning(
                     f"Cannot find image file: {read_path.as_posix()}. "
                     "Load other components only.",
                 )
+                tomo = CylTomogram.dummy(**kwargs, name="<Image not found>")
+        elif self.image_halves is not None:
+            path1, path2 = self.image_halves
+            if Path(path1).exists() and Path(path2).exists():
+                tomo = CylTomogram.imread_halves(
+                    path1,
+                    path2,
+                    **kwargs,
+                    compute=compute,
+                )
+            else:
+                LOGGER.warning(
+                    f"Cannot find half tomogram files: {path1}, {path2}. "
+                    "Load other components only.",
+                )
                 tomo = CylTomogram.dummy(
                     scale=self.scale,
                     tilt=self.missing_wedge.as_param(),
                     binsize=self.multiscales,
-                    name="<Image not found>",
+                    name="<Half tomograms not found>",
                 )
         else:
-            tomo = CylTomogram.dummy(
-                scale=self.scale,
-                tilt=self.missing_wedge.as_param(),
-                binsize=self.multiscales,
-                name="<No image>",
-            )
+            tomo = CylTomogram.dummy(**kwargs, name="<No image>")
         tomo.splines.extend(self.iter_load_splines(dir))
         return tomo
 
