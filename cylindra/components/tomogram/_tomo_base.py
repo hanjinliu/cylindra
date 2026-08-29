@@ -476,35 +476,6 @@ class Tomogram:
             kwargs["output_shape"] = tuple(self.nm2pixel(output_shape, binsize=binsize))
         return SubtomogramLoader(img.value, mole, **kwargs)
 
-    def get_subtomogram_half_loaders(
-        self,
-        mole: Molecules,
-        output_shape: tuple[nm, nm, nm] | None = None,
-        binsize: int = 1,
-        order: int = 1,
-    ) -> tuple[SubtomogramLoader, SubtomogramLoader]:
-        """Create a subtomogram loader from molecules using image halves."""
-        if self._image_halves is None:
-            raise ValueError("Image halves are not set.")
-        img1, img2 = self.image_halves
-        if binsize > 1:
-            tr = -self.multiscale_translation(binsize)
-            mole = mole.translate([tr, tr, tr])
-            img1 = img1.binning(binsize, check_edges=False)
-            img2 = img2.binning(binsize, check_edges=False)
-
-        kwargs = {
-            "order": order,
-            "scale": self.scale * binsize,
-            "tilt_model": self.tilt_model,
-        }
-        if output_shape is not None:
-            kwargs["output_shape"] = tuple(self.nm2pixel(output_shape, binsize=binsize))
-        return (
-            SubtomogramLoader(img1.value, mole, **kwargs),
-            SubtomogramLoader(img2.value, mole, **kwargs),
-        )
-
     def get_subtomogram_and_noise_loader(
         self,
         mole: Molecules,
