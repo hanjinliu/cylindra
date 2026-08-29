@@ -16,6 +16,7 @@ import impy as ip
 import numpy as np
 import polars as pl
 from acryo import Molecules, alignment, pipe
+from dask import array as da
 from magicclass.logging import getLogger
 from numpy.typing import NDArray
 from scipy.spatial.transform import Rotation
@@ -30,7 +31,6 @@ from cylindra.const import nm
 if TYPE_CHECKING:
     from acryo.alignment._base import ParametrizedModel, TomographyInput
     from acryo.loader._base import LoaderBase, MaskInputType, TemplateInputType
-    from dask import array as da
 
     from cylindra._cylindra_ext import (
         BaseCylindricAnnealingModel,
@@ -140,23 +140,7 @@ class Landscape:
         alignment_model : alignment model object
             Alignment model to be used to evaluate correlation score.
         """
-        if isinstance(template, (str, Path)):
-            template = pipe.from_file(template)
-            num_templates = 1
-        elif isinstance(template, (list, tuple)):
-            if all(isinstance(t, (str, Path)) for t in template):
-                num_templates = len(template)
-                template = pipe.from_files(template)
-            else:
-                template = list(template)
-                num_templates = len(template)
-        elif isinstance(template, np.ndarray):
-            if template.ndim == 4:
-                num_templates = template.shape[0]
-            else:
-                num_templates = 1
-        else:
-            raise TypeError(f"Invalid type of template: {type(template)}")
+        template, num_templates = _norm_template_input(template)
 
         _Logger.print(f"Using {num_templates} template(s) for landscape construction.")
         score_dsk = loader.construct_landscape(
@@ -167,8 +151,8 @@ class Landscape:
             alignment_model=alignment_model,
         )
         score, argmax = _calc_landscape(
-            alignment_model, score_dsk, multi_templates=num_templates > 1
-        )
+            alignment_model, [score_dsk], multi_templates=num_templates > 1
+        )[0]
         _Logger.print(
             f"{loader.molecules.count()} cross-correlation landscapes with precision "
             f"{loader.scale / upsample_factor:.3f} nm and local shape {score.shape[1:]} "
@@ -185,6 +169,55 @@ class Landscape:
             quaternions=alignment_model.quaternions,
             scale_factor=loader.scale / upsample_factor,
             num_templates=num_templates,
+        )
+
+    @classmethod
+    def diff_landscapes(
+        cls,
+        loader_s: LoaderBase,
+        loader_n: LoaderBase,
+        template: TemplateInputType,
+        mask: MaskInputType = None,
+        max_shifts: tuple[nm, nm, nm] = (0.8, 0.8, 0.8),
+        upsample_factor: int = 2,
+        alignment_model: alignment.TomographyInput = alignment.ZNCCAlignment,
+    ) -> tuple[Landscape, Landscape]:
+        template, num_templates = _norm_template_input(template)
+
+        _Logger.print(f"Using {num_templates} template(s) for landscape construction.")
+        kwargs = {
+            "template": template,
+            "mask": mask,
+            "max_shifts": max_shifts,
+            "upsample": upsample_factor,
+            "alignment_model": alignment_model,
+        }
+        score_dsk_s = loader_s.construct_landscape(**kwargs)
+        score_dsk_n = loader_n.construct_landscape(**kwargs)
+
+        (score_s, argmax_s), (score_n, argmax_n) = _calc_landscape(
+            alignment_model,
+            [score_dsk_s, score_dsk_n],
+            multi_templates=num_templates > 1,
+        )
+        _Logger.print(
+            f"{loader_s.molecules.count()} cross-correlation landscapes with precision "
+            f"{loader_s.scale / upsample_factor:.3f} nm and local shape {score_s.shape[1:]} "
+            "were constructed."
+        )
+        mole = loader_s.molecules
+        to_drop = set(mole.features.columns) - {Mole.nth, Mole.pf, Mole.position}
+        if to_drop:
+            mole = mole.drop_features(*to_drop)
+        kwargs = {
+            "molecules": mole,
+            "quaternions": alignment_model.quaternions,
+            "scale_factor": loader_s.scale / upsample_factor,
+            "num_templates": num_templates,
+        }
+        return (
+            cls(energies=-np.ascontiguousarray(score_s), argmax=argmax_s, **kwargs),
+            cls(energies=-np.ascontiguousarray(score_n), argmax=argmax_n, **kwargs),
         )
 
     def transform_molecules(
@@ -795,6 +828,32 @@ class Landscape:
         return ViterbiGrid(-self.energies, origin, zvec, yvec, xvec)
 
 
+def _norm_template_input(template: TemplateInputType) -> tuple[TemplateInputType, int]:
+    if isinstance(template, (str, Path)):
+        template = pipe.from_file(template)
+        num_templates = 1
+    elif isinstance(template, (list, tuple)):
+        if all(isinstance(t, (str, Path)) for t in template):
+            num_templates = len(template)
+            template = pipe.from_files(template)
+        else:
+            template = list(template)
+            num_templates = len(template)
+    elif isinstance(template, np.ndarray):
+        if template.ndim == 4:
+            num_templates = template.shape[0]
+        else:
+            num_templates = 1
+    else:
+        raise TypeError(f"Invalid type of template: {type(template)}")
+    return template, num_templates
+
+
+def _softplus(x: da.Array, beta: float = 10.0, const: float = 0.0) -> da.Array:
+    """Softplus function."""
+    return da.log1p(da.exp(beta * x)) / beta - const
+
+
 def _norm_distance(v: str | nm, arr) -> nm:
     if not isinstance(v, str):
         return v
@@ -964,9 +1023,9 @@ class ViterbiResult:
 
 def _calc_landscape(
     model: ParametrizedModel | TomographyInput,
-    score_dsk: da.Array,
+    score_dsk: list[da.Array],
     multi_templates: bool = False,
-) -> tuple[NDArray[np.float32], NDArray[np.int32] | None]:
+) -> list[tuple[NDArray[np.float32], NDArray[np.int32] | None]]:
     from dask import array as da
 
     # NOTE: shape of score_dsk
@@ -975,13 +1034,17 @@ def _calc_landscape(
     # - no rotation, Nt templates: (P, Nt, Z, Y, X)
     # - Nr rotations, Nt templates: (P, Nr*Nt, Z, Y, X)
     if not model.has_rotation and not multi_templates:
-        score = score_dsk.compute()
+        score = da.compute(score_dsk)[0]
         argmax = None
+        out = [(_s, None) for _s in score]
     else:
-        score = da.max(score_dsk, axis=1)
-        argmax = da.argmax(score_dsk, axis=1)
-        score, argmax = da.compute(score, argmax)
-    return score, argmax
+        tasks = []
+        for each_score_dsk in score_dsk:
+            score = da.max(each_score_dsk, axis=1)
+            argmax = da.argmax(each_score_dsk, axis=1)
+            tasks.append((score, argmax))
+        out = da.compute(tasks)[0]
+    return out
 
 
 def _as_n_series(fmt: str, arr: NDArray[np.floating]) -> list[pl.Series]:

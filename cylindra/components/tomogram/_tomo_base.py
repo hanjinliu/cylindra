@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterable, NamedTuple, Self, overload
+from typing import Any, Iterable, NamedTuple, Self, overload
 
 import impy as ip
 import numpy as np
+from acryo import Molecules, SubtomogramLoader
 from acryo.tilt import NoWedge, TiltSeriesModel, single_axis
 from acryo.tilt.core import SingleAxisX, SingleAxisY, UnionAxes
 from numpy.typing import NDArray
@@ -14,9 +15,6 @@ from cylindra._config import get_config
 from cylindra._io import lazy_imread
 from cylindra.const import nm
 from cylindra.utils import parse_tilt_model
-
-if TYPE_CHECKING:
-    from acryo import Molecules, SubtomogramLoader
 
 _ImageType = ip.ImgArray | ip.LazyImgArray
 
@@ -446,6 +444,9 @@ class Tomogram:
         self.metadata["is_inverted"] = True
         for i, (_b, _img) in enumerate(self._multiscaled):
             self._multiscaled[i] = (_b, -_img)
+        if self._image_halves is not None:
+            img1, img2 = self._image_halves
+            self._image_halves = (-img1, -img2)
         return self
 
     def get_subtomogram_loader(
@@ -456,8 +457,6 @@ class Tomogram:
         order: int = 1,
     ) -> SubtomogramLoader:
         """Create a subtomogram loader from molecules."""
-        from acryo import SubtomogramLoader
-
         if binsize == 1:
             try:
                 img = self.get_multiscale(1)
@@ -476,6 +475,60 @@ class Tomogram:
         if output_shape is not None:
             kwargs["output_shape"] = tuple(self.nm2pixel(output_shape, binsize=binsize))
         return SubtomogramLoader(img.value, mole, **kwargs)
+
+    def get_subtomogram_half_loaders(
+        self,
+        mole: Molecules,
+        output_shape: tuple[nm, nm, nm] | None = None,
+        binsize: int = 1,
+        order: int = 1,
+    ) -> tuple[SubtomogramLoader, SubtomogramLoader]:
+        """Create a subtomogram loader from molecules using image halves."""
+        if self._image_halves is None:
+            raise ValueError("Image halves are not set.")
+        img1, img2 = self.image_halves
+        if binsize > 1:
+            tr = -self.multiscale_translation(binsize)
+            mole = mole.translate([tr, tr, tr])
+            img1 = img1.binning(binsize, check_edges=False)
+            img2 = img2.binning(binsize, check_edges=False)
+
+        kwargs = {
+            "order": order,
+            "scale": self.scale * binsize,
+            "tilt_model": self.tilt_model,
+        }
+        if output_shape is not None:
+            kwargs["output_shape"] = tuple(self.nm2pixel(output_shape, binsize=binsize))
+        return (
+            SubtomogramLoader(img1.value, mole, **kwargs),
+            SubtomogramLoader(img2.value, mole, **kwargs),
+        )
+
+    def get_subtomogram_and_noise_loader(
+        self,
+        mole: Molecules,
+        output_shape: tuple[nm, nm, nm] | None = None,
+        binsize: int = 1,
+        order: int = 1,
+    ) -> tuple[SubtomogramLoader, SubtomogramLoader]:
+        img1, img2 = self.image_halves
+        if binsize > 1:
+            tr = -self.multiscale_translation(binsize)
+            mole = mole.translate([tr, tr, tr])
+            img1 = img1.binning(binsize, check_edges=False)
+            img2 = img2.binning(binsize, check_edges=False)
+
+        kwargs = {
+            "order": order,
+            "scale": self.scale * binsize,
+        }
+        if output_shape is not None:
+            kwargs["output_shape"] = tuple(self.nm2pixel(output_shape, binsize=binsize))
+        return (
+            SubtomogramLoader(img1.value + img2.value, mole, **kwargs),
+            SubtomogramLoader(img1.value - img2.value, mole, **kwargs),
+        )
 
 
 def _norm_dtype(img: ip.LazyImgArray):
