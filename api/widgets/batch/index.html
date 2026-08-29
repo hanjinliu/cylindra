@@ -5805,10 +5805,7 @@ imported from file outputs of a long-running job from other softwares.</p>
 <span class="normal">867</span>
 <span class="normal">868</span>
 <span class="normal">869</span>
-<span class="normal">870</span>
-<span class="normal">871</span>
-<span class="normal">872</span>
-<span class="normal">873</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Batch Subtomogram Analysis"</span><span class="p">)</span>
+<span class="normal">870</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Batch Subtomogram Analysis"</span><span class="p">)</span>
 <span class="nd">@_shared_doc</span><span class="o">.</span><span class="n">update_cls</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">BatchSubtomogramAveraging</span><span class="p">(</span><span class="n">MagicTemplate</span><span class="p">):</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_get_parent</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -6132,9 +6129,8 @@ imported from file outputs of a long-running job from other softwares.</p>
         <span class="p">)</span>
         <span class="k">yield</span> <span class="n">thread_worker</span><span class="o">.</span><span class="n">description</span><span class="p">(</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_tf_0</span><span class="p">(</span><span class="n">_alignment_state</span><span class="p">))</span>
         <span class="n">result0</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">fsc_step_init</span><span class="p">(</span><span class="n">loader</span><span class="p">,</span> <span class="n">max_shifts</span><span class="p">,</span> <span class="n">max_rotations</span><span class="p">)</span>
-        <span class="k">yield</span> <span class="n">_plot_current_fsc</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span>
-            <span class="n">result0</span><span class="o">.</span><span class="n">fsc</span><span class="p">,</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span><span class="p">,</span> <span class="n">result0</span><span class="o">.</span><span class="n">avg</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">with_desc</span><span class="p">(</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_tf_1</span><span class="p">(</span><span class="n">_alignment_state</span><span class="p">))</span>
+        <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Iteration </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="n">_plot_current_fsc</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="n">result0</span><span class="o">.</span><span class="n">fsc</span><span class="p">,</span> <span class="n">result0</span><span class="o">.</span><span class="n">avg</span><span class="p">)</span><span class="o">.</span><span class="n">with_desc</span><span class="p">(</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_tf_1</span><span class="p">(</span><span class="n">_alignment_state</span><span class="p">))</span>  <span class="c1"># fmt: skip</span>
         <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
             <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="n">_alignment_state</span><span class="o">.</span><span class="n">next_params</span><span class="p">(</span><span class="n">loader</span><span class="o">.</span><span class="n">scale</span><span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">())</span>
             <span class="n">_exceeded</span> <span class="o">=</span> <span class="n">max_num_iters</span> <span class="o">&lt;=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span>
@@ -6144,9 +6140,8 @@ imported from file outputs of a long-running job from other softwares.</p>
             <span class="n">loader</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">align_step</span><span class="p">(</span><span class="n">loader</span><span class="p">)</span>
             <span class="k">yield</span> <span class="n">thread_worker</span><span class="o">.</span><span class="n">description</span><span class="p">(</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_tf_0</span><span class="p">(</span><span class="n">_alignment_state</span><span class="p">))</span>
             <span class="n">result</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">fsc_step</span><span class="p">(</span><span class="n">loader</span><span class="p">)</span>
-            <span class="k">yield</span> <span class="n">_plot_current_fsc</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span>
-                <span class="n">result</span><span class="o">.</span><span class="n">fsc</span><span class="p">,</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">avg</span>
-            <span class="p">)</span><span class="o">.</span><span class="n">with_desc</span><span class="p">(</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_tf_1</span><span class="p">(</span><span class="n">_alignment_state</span><span class="p">))</span>
+            <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Iteration </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="k">yield</span> <span class="n">_plot_current_fsc</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">fsc</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">avg</span><span class="p">)</span><span class="o">.</span><span class="n">with_desc</span><span class="p">(</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_tf_1</span><span class="p">(</span><span class="n">_alignment_state</span><span class="p">))</span>  <span class="c1"># fmt: skip</span>
 
         <span class="n">loaderlist</span><span class="o">.</span><span class="n">add_loader</span><span class="p">(</span>
             <span class="n">loader</span><span class="o">.</span><span class="n">order_restore</span><span class="p">(),</span>
@@ -6320,9 +6315,8 @@ imported from file outputs of a long-running job from other softwares.</p>
         <span class="n">sub_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_group_loader_by_spline</span><span class="p">(</span><span class="n">loader_name</span><span class="p">))</span>
         <span class="n">num_splines</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sub_inputs</span><span class="p">)</span>
         <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-            <span class="k">yield</span> <span class="n">_plot_current_fsc</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span>
-                <span class="n">result0</span><span class="o">.</span><span class="n">fsc</span><span class="p">,</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span><span class="p">,</span> <span class="n">result0</span><span class="o">.</span><span class="n">avg</span>
-            <span class="p">)</span><span class="o">.</span><span class="n">with_desc</span><span class="p">(</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_tf_1</span><span class="p">(</span><span class="n">_alignment_state</span><span class="p">))</span>
+            <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Iteration </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="k">yield</span> <span class="n">_plot_current_fsc</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="n">result0</span><span class="o">.</span><span class="n">fsc</span><span class="p">,</span> <span class="n">result0</span><span class="o">.</span><span class="n">avg</span><span class="p">)</span><span class="o">.</span><span class="n">with_desc</span><span class="p">(</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_tf_1</span><span class="p">(</span><span class="n">_alignment_state</span><span class="p">))</span>  <span class="c1"># fmt: skip</span>
             <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="n">_alignment_state</span><span class="o">.</span><span class="n">next_params</span><span class="p">(</span><span class="n">loader</span><span class="o">.</span><span class="n">scale</span><span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">())</span>
             <span class="n">_exceeded</span> <span class="o">=</span> <span class="n">max_num_iters</span> <span class="o">&lt;=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span>
             <span class="k">if</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">is_converged</span><span class="p">()</span> <span class="ow">or</span> <span class="n">_exceeded</span><span class="p">:</span>
@@ -7174,7 +7168,9 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">466</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">464</span>
+<span class="normal">465</span>
+<span class="normal">466</span>
 <span class="normal">467</span>
 <span class="normal">468</span>
 <span class="normal">469</span>
@@ -7273,9 +7269,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">562</span>
 <span class="normal">563</span>
 <span class="normal">564</span>
-<span class="normal">565</span>
-<span class="normal">566</span>
-<span class="normal">567</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"RMA alignment"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
+<span class="normal">565</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"RMA alignment"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">"Simulated annealing (RMA)"</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">align_all_rma</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -7674,7 +7668,9 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">569</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">567</span>
+<span class="normal">568</span>
+<span class="normal">569</span>
 <span class="normal">570</span>
 <span class="normal">571</span>
 <span class="normal">572</span>
@@ -7776,10 +7772,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">668</span>
 <span class="normal">669</span>
 <span class="normal">670</span>
-<span class="normal">671</span>
-<span class="normal">672</span>
-<span class="normal">673</span>
-<span class="normal">674</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"RMA alignment (template-free)"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
+<span class="normal">671</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"RMA alignment (template-free)"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">"RMA alignment started"</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">align_all_rma_template_free</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -7837,9 +7830,8 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
     <span class="n">sub_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_group_loader_by_spline</span><span class="p">(</span><span class="n">loader_name</span><span class="p">))</span>
     <span class="n">num_splines</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sub_inputs</span><span class="p">)</span>
     <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-        <span class="k">yield</span> <span class="n">_plot_current_fsc</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span>
-            <span class="n">result0</span><span class="o">.</span><span class="n">fsc</span><span class="p">,</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span><span class="p">,</span> <span class="n">result0</span><span class="o">.</span><span class="n">avg</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">with_desc</span><span class="p">(</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_tf_1</span><span class="p">(</span><span class="n">_alignment_state</span><span class="p">))</span>
+        <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Iteration </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="n">_plot_current_fsc</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="n">result0</span><span class="o">.</span><span class="n">fsc</span><span class="p">,</span> <span class="n">result0</span><span class="o">.</span><span class="n">avg</span><span class="p">)</span><span class="o">.</span><span class="n">with_desc</span><span class="p">(</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_tf_1</span><span class="p">(</span><span class="n">_alignment_state</span><span class="p">))</span>  <span class="c1"># fmt: skip</span>
         <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="n">_alignment_state</span><span class="o">.</span><span class="n">next_params</span><span class="p">(</span><span class="n">loader</span><span class="o">.</span><span class="n">scale</span><span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">())</span>
         <span class="n">_exceeded</span> <span class="o">=</span> <span class="n">max_num_iters</span> <span class="o">&lt;=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span>
         <span class="k">if</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">is_converged</span><span class="p">()</span> <span class="ow">or</span> <span class="n">_exceeded</span><span class="p">:</span>
@@ -8153,9 +8145,7 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="normal">459</span>
 <span class="normal">460</span>
 <span class="normal">461</span>
-<span class="normal">462</span>
-<span class="normal">463</span>
-<span class="normal">464</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Align all (template-free)"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
+<span class="normal">462</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Align all (template-free)"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">"Align all started"</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">align_all_template_free</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -8200,9 +8190,8 @@ If a path is given, image must in the same shape as the template.</p>
     <span class="p">)</span>
     <span class="k">yield</span> <span class="n">thread_worker</span><span class="o">.</span><span class="n">description</span><span class="p">(</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_tf_0</span><span class="p">(</span><span class="n">_alignment_state</span><span class="p">))</span>
     <span class="n">result0</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">fsc_step_init</span><span class="p">(</span><span class="n">loader</span><span class="p">,</span> <span class="n">max_shifts</span><span class="p">,</span> <span class="n">max_rotations</span><span class="p">)</span>
-    <span class="k">yield</span> <span class="n">_plot_current_fsc</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span>
-        <span class="n">result0</span><span class="o">.</span><span class="n">fsc</span><span class="p">,</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span><span class="p">,</span> <span class="n">result0</span><span class="o">.</span><span class="n">avg</span>
-    <span class="p">)</span><span class="o">.</span><span class="n">with_desc</span><span class="p">(</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_tf_1</span><span class="p">(</span><span class="n">_alignment_state</span><span class="p">))</span>
+    <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Iteration </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">yield</span> <span class="n">_plot_current_fsc</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="n">result0</span><span class="o">.</span><span class="n">fsc</span><span class="p">,</span> <span class="n">result0</span><span class="o">.</span><span class="n">avg</span><span class="p">)</span><span class="o">.</span><span class="n">with_desc</span><span class="p">(</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_tf_1</span><span class="p">(</span><span class="n">_alignment_state</span><span class="p">))</span>  <span class="c1"># fmt: skip</span>
     <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
         <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="n">_alignment_state</span><span class="o">.</span><span class="n">next_params</span><span class="p">(</span><span class="n">loader</span><span class="o">.</span><span class="n">scale</span><span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">())</span>
         <span class="n">_exceeded</span> <span class="o">=</span> <span class="n">max_num_iters</span> <span class="o">&lt;=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span>
@@ -8212,9 +8201,8 @@ If a path is given, image must in the same shape as the template.</p>
         <span class="n">loader</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">align_step</span><span class="p">(</span><span class="n">loader</span><span class="p">)</span>
         <span class="k">yield</span> <span class="n">thread_worker</span><span class="o">.</span><span class="n">description</span><span class="p">(</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_tf_0</span><span class="p">(</span><span class="n">_alignment_state</span><span class="p">))</span>
         <span class="n">result</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">fsc_step</span><span class="p">(</span><span class="n">loader</span><span class="p">)</span>
-        <span class="k">yield</span> <span class="n">_plot_current_fsc</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span>
-            <span class="n">result</span><span class="o">.</span><span class="n">fsc</span><span class="p">,</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">avg</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">with_desc</span><span class="p">(</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_tf_1</span><span class="p">(</span><span class="n">_alignment_state</span><span class="p">))</span>
+        <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Iteration </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="n">_plot_current_fsc</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">fsc</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">avg</span><span class="p">)</span><span class="o">.</span><span class="n">with_desc</span><span class="p">(</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_tf_1</span><span class="p">(</span><span class="n">_alignment_state</span><span class="p">))</span>  <span class="c1"># fmt: skip</span>
 
     <span class="n">loaderlist</span><span class="o">.</span><span class="n">add_loader</span><span class="p">(</span>
         <span class="n">loader</span><span class="o">.</span><span class="n">order_restore</span><span class="p">(),</span>
@@ -8756,7 +8744,10 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">676</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">673</span>
+<span class="normal">674</span>
+<span class="normal">675</span>
+<span class="normal">676</span>
 <span class="normal">677</span>
 <span class="normal">678</span>
 <span class="normal">679</span>
@@ -8842,10 +8833,7 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 <span class="normal">759</span>
 <span class="normal">760</span>
 <span class="normal">761</span>
-<span class="normal">762</span>
-<span class="normal">763</span>
-<span class="normal">764</span>
-<span class="normal">765</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Calculate FSC"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchSubtomogramAnalysis</span><span class="p">)</span>
+<span class="normal">762</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Calculate FSC"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchSubtomogramAnalysis</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">"Calculating FSC"</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">calculate_fsc</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -9207,7 +9195,10 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">794</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">791</span>
+<span class="normal">792</span>
+<span class="normal">793</span>
+<span class="normal">794</span>
 <span class="normal">795</span>
 <span class="normal">796</span>
 <span class="normal">797</span>
@@ -9219,10 +9210,7 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 <span class="normal">803</span>
 <span class="normal">804</span>
 <span class="normal">805</span>
-<span class="normal">806</span>
-<span class="normal">807</span>
-<span class="normal">808</span>
-<span class="normal">809</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">"fluent:shape-organic-20-filled"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
+<span class="normal">806</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">"fluent:shape-organic-20-filled"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">show_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Load and show mask image in the scale of the tomogram."""</span>
@@ -9260,12 +9248,12 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">773</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">770</span>
+<span class="normal">771</span>
+<span class="normal">772</span>
+<span class="normal">773</span>
 <span class="normal">774</span>
-<span class="normal">775</span>
-<span class="normal">776</span>
-<span class="normal">777</span>
-<span class="normal">778</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">"ic:baseline-view-in-ar"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
+<span class="normal">775</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">"ic:baseline-view-in-ar"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">show_template</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Load and show template image in the scale of the tomogram."""</span>
@@ -9293,7 +9281,10 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">780</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">777</span>
+<span class="normal">778</span>
+<span class="normal">779</span>
+<span class="normal">780</span>
 <span class="normal">781</span>
 <span class="normal">782</span>
 <span class="normal">783</span>
@@ -9302,10 +9293,7 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 <span class="normal">786</span>
 <span class="normal">787</span>
 <span class="normal">788</span>
-<span class="normal">789</span>
-<span class="normal">790</span>
-<span class="normal">791</span>
-<span class="normal">792</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">"material-symbols:view-in-ar"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
+<span class="normal">789</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">"material-symbols:view-in-ar"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">show_template_original</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Load and show template image in the original scale."""</span>
