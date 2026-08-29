@@ -436,9 +436,8 @@ class BatchSubtomogramAveraging(MagicTemplate):
         )
         yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
         result0 = _alignment_state.fsc_step_init(loader, max_shifts, max_rotations)
-        yield _plot_current_fsc.with_args(
-            result0.fsc, _alignment_state.num_iter, result0.avg
-        ).with_desc(_pdesc.align_tf_1(_alignment_state))
+        _Logger.print(f"Iteration {int(_alignment_state.num_iter)}")
+        yield _plot_current_fsc.with_args(result0.fsc, result0.avg).with_desc(_pdesc.align_tf_1(_alignment_state))  # fmt: skip
         while True:
             _Logger.print(_alignment_state.next_params(loader.scale).format())
             _exceeded = max_num_iters <= _alignment_state.num_iter
@@ -448,9 +447,8 @@ class BatchSubtomogramAveraging(MagicTemplate):
             loader = _alignment_state.align_step(loader)
             yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
             result = _alignment_state.fsc_step(loader)
-            yield _plot_current_fsc.with_args(
-                result.fsc, _alignment_state.num_iter, result.avg
-            ).with_desc(_pdesc.align_tf_1(_alignment_state))
+            _Logger.print(f"Iteration {int(_alignment_state.num_iter)}")
+            yield _plot_current_fsc.with_args(result.fsc, result.avg).with_desc(_pdesc.align_tf_1(_alignment_state))  # fmt: skip
 
         loaderlist.add_loader(
             loader.order_restore(),
@@ -624,9 +622,8 @@ class BatchSubtomogramAveraging(MagicTemplate):
         sub_inputs = list(self._group_loader_by_spline(loader_name))
         num_splines = len(sub_inputs)
         while True:
-            yield _plot_current_fsc.with_args(
-                result0.fsc, _alignment_state.num_iter, result0.avg
-            ).with_desc(_pdesc.align_tf_1(_alignment_state))
+            _Logger.print(f"Iteration {int(_alignment_state.num_iter)}")
+            yield _plot_current_fsc.with_args(result0.fsc, result0.avg).with_desc(_pdesc.align_tf_1(_alignment_state))  # fmt: skip
             _Logger.print(_alignment_state.next_params(loader.scale).format())
             _exceeded = max_num_iters <= _alignment_state.num_iter
             if _alignment_state.is_converged() or _exceeded:

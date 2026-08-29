@@ -324,6 +324,8 @@ class STAnalysis(MagicTemplate):
     classify_em_template_free = abstractapi()
     sep0 = Separator
 
+    calculate_signal_noise_profiles = abstractapi()
+
     @magicmenu(name="Seam search")
     class SeamSearch(MagicTemplate):
         seam_search = abstractapi()
@@ -1133,9 +1135,8 @@ class SubtomogramAveraging(ChildWidget):
         _Logger.print(f"Starting template-free alignment ({loader.molecules.count()} molecules in total) ...")  # fmt: skip
         yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
         result = _alignment_state.fsc_step_init(loader, max_shifts, max_rotations)
-        yield _plot_current_fsc.with_args(
-            result.fsc, _alignment_state.num_iter, result.avg
-        ).with_desc(_pdesc.align_tf_1(_alignment_state))
+        _Logger.print(f"Iteration {int(_alignment_state.num_iter)}")
+        yield _plot_current_fsc.with_args(result.fsc, result.avg).with_desc(_pdesc.align_tf_1(_alignment_state))  # fmt: skip
         while True:
             _Logger.print(_alignment_state.next_params(loader.scale).format())
             _exceeded = max_num_iters <= _alignment_state.num_iter
@@ -1147,9 +1148,8 @@ class SubtomogramAveraging(ChildWidget):
             loader = _alignment_state.align_step(loader)
             yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
             result = _alignment_state.fsc_step(loader)
-            yield _plot_current_fsc.with_args(
-                result.fsc, _alignment_state.num_iter, result.avg
-            ).with_desc(_pdesc.align_tf_1(_alignment_state))
+            _Logger.print(f"Iteration {int(_alignment_state.num_iter)}")
+            yield _plot_current_fsc.with_args(result.fsc, result.avg).with_desc(_pdesc.align_tf_1(_alignment_state))  # fmt: skip
 
         yield self._show_rec.with_args(result.avg, f"[Aligned]{_avg_name(layers)}")
         loader = loader.order_restore()
@@ -1806,7 +1806,7 @@ class SubtomogramAveraging(ChildWidget):
         show_average: bool = True,
         dfreq: FSCFreq = None,
     ):
-        """Calculate Fourier Shell Correlation using the selected monomer layer.
+        """Calculate Fourier Shell Correlation using the selected layer.
 
         Parameters
         ----------
@@ -2058,6 +2058,98 @@ class SubtomogramAveraging(ChildWidget):
             for layer, each_mole in zip(layers, moles, strict=True):
                 layer.set_molecules_with_new_features(each_mole)
             self._show_rec(avgs, name="Classification results", store=False)
+
+        return _on_return
+
+    @set_design(text="Calculate S/N profiles", location=STAnalysis)
+    @dask_worker.with_progress(desc="Preparing averaged image")
+    def calculate_signal_noise_profiles(
+        self,
+        layer: MoleculesLayerType,
+        diameter: Annotated[nm, {"min": 0.1, "max": 100.0}] = 6.0,
+        max_shifts: tuple[nm, nm, nm] = (0.5, 0.5, 0.5),
+        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
+        cutoff: _CutoffFreq = 0.5,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        bin_size: BinSizeType = 1,
+        upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 2,
+        method: Annotated[str, {"choices": METHOD_CHOICES}] = "ncc",
+        shift_to_background: Annotated[
+            Optional[tuple[nm, nm, nm]], {"text": "Use half tomograms"}
+        ] = None,
+    ):
+        """Calculate the mean landscape energy of signal and noise.
+
+        Parameters
+        ----------
+        {layer}
+        diameter : float, default 6.0
+            Diameter of the monomer.
+        {max_shifts}{rotations}{cutoff}{interpolation}{bin_size}{upsample_factor}{method}
+        shift_to_background : tuple of float, optional
+            If given, the molecules will be internally shifted to get the background
+            region. If not given, the background will be calculated using half1 - half2.
+        """
+        main = self._get_main()
+        model = _get_alignment(method)
+        _layer = assert_layer(layer, main.parent_viewer)
+        mole = _layer.molecules
+
+        loader = main.tomogram.get_subtomogram_loader(
+            mole, binsize=bin_size, order=interpolation
+        )
+        _sigma = 0.8
+        shape = (main.tomogram.nm2pixel(diameter + _sigma * 3, bin_size),) * 3
+        _zeros = np.zeros(shape, dtype=np.float32)
+        mask = spherical_mask(diameter / 2, _sigma)(_zeros, loader.scale * bin_size)
+        fsc, (img_0, img_1), img_mask = (
+            loader.reshape(shape=shape)
+            .order_optimize()
+            .fsc_with_halfmaps(mask, seed=0, n_set=1, dfreq=None, squeeze=True)
+        )
+        avg = (img_0 + img_1) / 2
+        result = widget_utils.FscResult.from_dataframe(fsc, loader.scale)
+        yield _plot_current_fsc(result, avg)
+
+        kwargs = {
+            "template": avg,
+            "mask": mask,
+            "max_shifts": max_shifts,
+            "upsample_factor": upsample_factor,
+            "alignment_model": model.with_params(
+                rotations=rotations,
+                cutoff=cutoff,
+                tilt=main.tomogram.tilt_model,
+            ),
+        }
+        if shift_to_background is not None:
+            mole_bg = mole.translate_internal(shift_to_background)
+            loader_n = main.tomogram.get_subtomogram_loader(
+                mole_bg, binsize=bin_size, order=interpolation
+            )
+            yield thread_worker.description("Constructing signal landscapes")
+            landscape_s = Landscape.from_loader(loader, **kwargs)
+            yield thread_worker.description("Constructing noise landscapes")
+            landscape_n = Landscape.from_loader(loader_n, **kwargs)
+        else:
+            loaders = main.tomogram.get_subtomogram_and_noise_loader(
+                mole, binsize=bin_size, order=interpolation
+            )
+            yield thread_worker.description("Constructing signal and noise landscapes")
+            landscape_s, landscape_n = Landscape.diff_landscapes(*loaders, **kwargs)
+
+        val_s = landscape_s.energies.mean(axis=(1, 2, 3))
+        val_n = landscape_n.energies.mean(axis=(1, 2, 3))
+
+        @thread_worker.callback
+        def _on_return():
+            _layer.molecules = mole.with_features(
+                pl.Series("profile_signal", val_s, dtype=pl.Float32),
+                pl.Series("profile_noise", val_n, dtype=pl.Float32),
+            )
+            _Logger.print(f"Profile of {_layer.name!r} has been calculated.")
+            with _Logger.set_plt():
+                widget_utils.plot_signal_noise_profile(_layer.molecules.features)
 
         return _on_return
 
@@ -2495,9 +2587,8 @@ def _update_offset(spl: "CylSpline", dr: tuple[nm, nm, nm], radius: nm):
 
 
 @thread_worker.callback
-def _plot_current_fsc(result: widget_utils.FscResult, num: int, avg: ip.ImgArray):
+def _plot_current_fsc(result: widget_utils.FscResult, avg: ip.ImgArray):
     criteria = [0.5, 0.143]
-    _Logger.print(f"Iteration {int(num)}")
     with _Logger.set_plt():
         _, axes = plt.subplots(figsize=(8, 4), ncols=2)
         plt.sca(axes[0])
