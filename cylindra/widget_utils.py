@@ -282,6 +282,32 @@ def plot_seam_search_result(score: np.ndarray, npf: int):
     plt.show()
 
 
+def plot_signal_noise_profile(df: pl.DataFrame):
+    import matplotlib.pyplot as plt
+
+    fig, axes = plt.subplots(ncols=2, figsize=(8.4, 3.2))
+    axes[0].hist(df["profile_signal"], alpha=0.4, label="signal", color="blue")
+    axes[0].hist(df["profile_noise"], alpha=0.4, label="noise", color="gray")
+    axes[0].set_xlabel("Energy")
+    axes[0].set_title("Distribution")
+    axes[0].legend()
+
+    x = []
+    y_signal = []
+    y_noise = []
+    for (pf_id,), df_sub in df.sort(Mole.pf).group_by(Mole.pf, maintain_order=True):
+        x.append(pf_id)
+        y_signal.append(df_sub["profile_signal"].mean())
+        y_noise.append(df_sub["profile_noise"].mean())
+    axes[1].plot(x, y_signal, label="signal", color="blue")
+    axes[1].plot(x, y_noise, label="noise", color="gray")
+    axes[1].set_xlabel("PF")
+    axes[1].set_ylabel("Mean energy")
+    axes[1].set_title("Per-PF mean")
+    plt.tight_layout()
+    plt.show()
+
+
 def plot_projections(merge: np.ndarray):
     """Projection of the result of `align_averaged`."""
     import matplotlib.pyplot as plt

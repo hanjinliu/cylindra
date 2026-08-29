@@ -911,6 +911,11 @@ def test_sta(ui: CylindraMainWidget, bin_size: int, tmpdir):
         bin_size=bin_size,
         max_num_iters=2,
     )
+    ui.sta.calculate_signal_noise_profiles(
+        layer="Mole-0-ALN1",
+        bin_size=bin_size,
+        shift_to_background=(4.6, 2.0, 2.1)
+    )
 
 
 def test_seam_search(ui: CylindraMainWidget, tmpdir):

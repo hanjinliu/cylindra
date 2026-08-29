@@ -481,7 +481,9 @@ class SplineSlicer(ChildWidget):
     def _update_image_cb(self, img: ip.ImgArray):
         self.canvas.image = img
         self.canvas.text_overlay.visible = False
-        factor = self.params._old_binsize / self.params.binsize
+        if (binsize := self.params.binsize) is None:
+            return
+        factor = self.params._old_binsize / binsize
         if factor != 1:
             xlim = [(v + 0.5) * factor - 0.5 for v in self.canvas.xlim]
             ylim = [(v + 0.5) * factor - 0.5 for v in self.canvas.ylim]
@@ -491,7 +493,7 @@ class SplineSlicer(ChildWidget):
             if len(self.canvases) == 2:
                 self.canvases[1].xlim = xlim
                 self.canvases[1].ylim = ylim
-        self.params._old_binsize = self.params.binsize
+        self.params._old_binsize = binsize
         self._update_circles(self._get_radius())
 
     @thread_worker.callback
