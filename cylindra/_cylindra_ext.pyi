@@ -100,6 +100,43 @@ class CylindricAnnealingModelLJ(BaseCylindricAnnealingModel):
 class DefectiveCylindricAnnealingModel(BaseCylindricAnnealingModel):
     def with_null_energy(self, interanl: float, binding: float) -> Self: ...
 
+class MicrotubuleAnnealingModel(BaseCylindricAnnealingModel):
+    """Annealing model with an asymmetric protofilament bending potential.
+
+    Protofilaments are allowed to curl outward (away from the microtubule axis) but
+    not inward, which is enforced by `set_box_potential`'s `lon_ang_min`/`lon_ang_max`
+    (the allowed range, in radians, of the *signed* bending angle at each molecule).
+    """
+
+    def set_box_potential(
+        self,
+        lon_dist_min: float,
+        lon_dist_max: float,
+        lat_dist_min: float,
+        lat_dist_max: float,
+        lon_ang_min: float = 0.0,
+        lon_ang_max: float = -1.0,
+        cooling_rate: float = 1e-3,
+    ) -> Self: ...
+
+class MicrotubuleAnnealingModelLJ(BaseCylindricAnnealingModel):
+    """Microtubule annealing model with a Lennard-Jones-like distance potential,
+    combined with the same asymmetric protofilament bending potential as
+    `MicrotubuleAnnealingModel`.
+    """
+
+    def set_box_potential(
+        self,
+        lon_dist_min: float,
+        lon_dist_max: float,
+        lat_dist_min: float,
+        lat_dist_max: float,
+        lon_ang_min: float = 0.0,
+        lon_ang_max: float = -1.0,
+        cooling_rate: float = 1e-3,
+    ) -> Self: ...
+    def set_energy_inf(self, lon_energy_inf: float, lat_energy_inf: float) -> Self: ...
+
 class FilamentousAnnealingModel:
     def __init__(self, seed: int = 0) -> None: ...
     def simulate(self, niter: int = 10000) -> None: ...

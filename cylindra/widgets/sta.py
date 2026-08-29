@@ -159,6 +159,11 @@ _DistRangeLat = Annotated[
 _AngleMaxLon = Annotated[
     float, {"max": 90.0, "step": 0.5, "label": "maximum angle (deg)"}
 ]
+_AngleMinLon = Annotated[float, {"min": -90, "max": 0.0, "step": 0.5}]
+_AngleRange = Annotated[
+    tuple[_AngleMinLon, _AngleMaxLon],
+    {"label": "angle range (deg)"},
+]
 _MinNumMoleculesPerClass = Annotated[
     Optional[int],
     {
@@ -345,6 +350,7 @@ class Alignment(MagicTemplate):
     align_all_viterbi = abstractapi()
     align_all_rma = abstractapi()
     align_all_rfa = abstractapi()
+    align_all_mt_rma = abstractapi()
     save_annealing_scores = abstractapi()
     sep1 = Separator
     TemplateImage = TemplateImage
@@ -1266,6 +1272,80 @@ class SubtomogramAveraging(ChildWidget):
             range_long=range_long,
             range_lat=range_lat,
             angle_max=angle_max,
+            temperature_time_const=temperature_time_const,
+            lj_nstd=None if lj_const < 1e-3 else 1 / lj_const,
+            random_seeds=utils.create_random_seeds(num_trials, seed),
+        )
+        t0.toc()
+
+        @thread_worker.callback
+        def _on_return():
+            points = main.add_molecules(
+                mole,
+                name=_coerce_aligned_name(layer.name, self.parent_viewer),
+                source=layer.source_component,
+                metadata={ANNEALING_RESULT: results[0]},
+            )
+            layer.visible = False
+            with _Logger.set_plt():
+                _annealing.plot_annealing_result(results)
+            return self._undo_for_new_layer([layer.name], [points])
+
+        return _on_return
+
+    @set_design(text="MT-RMA alignment", location=Alignment)
+    @dask_worker.with_progress(descs=_pdesc.align_annealing_fmt)
+    def align_all_mt_rma(
+        self,
+        layer: MoleculesLayerType,
+        template_path: Annotated[_PathOrPathsOrNone, {"bind": _template_params}],
+        mask_params: Annotated[Any, {"bind": _get_mask_params}] = None,
+        max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
+        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
+        cutoff: _CutoffFreq = 0.5,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        range_long: _DistRangeLon = (4.0, 4.28),
+        range_lat: _DistRangeLat = ("d.mean() - 0.1", "d.mean() + 0.1"),
+        range_angle: _AngleRange = (-1.0, 5.0),
+        bin_size: BinSizeType = 1,
+        temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
+        lj_const: Annotated[float, {"min": 0.0, "max": 1000.0, "step": 0.1, "label": "LJ const"}] = 0.0,
+        upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
+        num_trials: Annotated[int, {"min": 1, "max": 100}] = 5,
+        seed: _SeedType = 0,
+    ):  # fmt: skip
+        """RMA with microtubule-specialized energy potential.
+
+        Parameters
+        ----------
+        {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}
+        {interpolation}{range_long}{range_lat}
+        range_angle : tuple[float, float], default: (-1.0, 5.0)
+            The allowed range of protofilament bending angles, in degrees.
+        {bin_size}{temperature_time_const}{lj_const}{upsample_factor}{num_trials}{seed}
+        """
+        t0 = timer()
+        layer = assert_layer(layer, self.parent_viewer)
+        if layer.source_spline is None:
+            raise ValueError(
+                "MT-RMA requires a spline but the input layer is not connected to any splines."
+            )
+        main = self._get_main()
+        _Logger.print(
+            f"Constructing correlation landscape on {layer.name} ({layer.molecules.count()} molecules) for MT-RMA ..."
+        )
+        landscape, _ = self._construct_landscape(
+            molecules=layer.molecules, template_path=template_path,
+            mask_params=mask_params, max_shifts=max_shifts, rotations=rotations,
+            cutoff=cutoff, order=interpolation, bin_size=bin_size,
+            upsample_factor=upsample_factor,
+        )  # fmt: skip
+        yield
+        mole, results = landscape.run_microtubule_annealing_along_spline(
+            layer.source_spline,
+            range_long=range_long,
+            range_lat=range_lat,
+            range_angle=range_angle,
             temperature_time_const=temperature_time_const,
             lj_nstd=None if lj_const < 1e-3 else 1 / lj_const,
             random_seeds=utils.create_random_seeds(num_trials, seed),

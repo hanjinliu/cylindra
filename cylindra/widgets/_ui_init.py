@@ -568,6 +568,7 @@ def _setup_delete_segments(self: CylindraMainWidget, gui: FunctionGui):
 @setup_function_gui(SubtomogramAveraging.classify_em_template_free)
 @setup_function_gui(SubtomogramAveraging.align_all_rfa)
 @setup_function_gui(SubtomogramAveraging.align_all_rma)
+@setup_function_gui(SubtomogramAveraging.align_all_mt_rma)
 @setup_function_gui(SubtomogramAveraging.run_rfa_on_landscape)
 @setup_function_gui(SubtomogramAveraging.run_rma_on_landscape)
 @setup_function_gui(SubtomogramAveraging.fit_spline_rfa)

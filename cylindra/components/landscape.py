@@ -36,6 +36,8 @@ if TYPE_CHECKING:
         BaseCylindricAnnealingModel,
         CylindricAnnealingModel,
         FilamentousAnnealingModel,
+        MicrotubuleAnnealingModel,
+        MicrotubuleAnnealingModelLJ,
     )
 
     _DistLike = nm | str
@@ -339,6 +341,7 @@ class Landscape:
         distance_range_long: tuple[_DistLike, _DistLike],
         distance_range_lat: tuple[_DistLike, _DistLike],
         angle_max: float | None = None,
+        angle_min: float | None = None,
         temperature_time_const: float = 1.0,
         temperature: float | None = None,
         cooling_rate: float | None = None,
@@ -358,6 +361,12 @@ class Landscape:
         ind[:, 0] -= ind[:, 0].min()
         ind[:, 1] -= ind[:, 1].min()
         model = cls().construct_graph(indices=ind, npf=_npf, nrise=_nrise)
+        # `angle_min` (asymmetric protofilament bending, only meaningful for
+        # `MicrotubuleAnnealingModel`) adds an extra angle argument before `cooling_rate`.
+        if angle_min is None:
+            angle_args = (float(np.deg2rad(angle_max)),)
+        else:
+            angle_args = (float(np.deg2rad(angle_min)), float(np.deg2rad(angle_max)))
         return (
             model.set_graph_coordinates(
                 origin=mole.pos,
@@ -373,7 +382,7 @@ class Landscape:
             .set_box_potential(
                 *self._norm_distance_range_long(distance_range_long, model),
                 *self._norm_distance_range_lat(distance_range_lat, model),
-                float(np.deg2rad(angle_max)),
+                *angle_args,
                 cooling_rate=cooling_rate,
             )
             .with_reject_limit(reject_limit)
@@ -442,12 +451,62 @@ class Landscape:
             return self._prep_annealing_model(
                 _cylindra_ext.CylindricAnnealingModel,
                 spl, distance_range_long, distance_range_lat, angle_max,
-                temperature_time_const, temperature, cooling_rate, reject_limit,
+                temperature_time_const=temperature_time_const, temperature=temperature,
+                cooling_rate=cooling_rate, reject_limit=reject_limit,
             )  # fmt: skip
         model = self._prep_annealing_model(
             _cylindra_ext.CylindricAnnealingModelLJ,
             spl, distance_range_long, distance_range_lat, angle_max,
-            temperature_time_const, temperature, cooling_rate, reject_limit,
+            temperature_time_const=temperature_time_const, temperature=temperature,
+            cooling_rate=cooling_rate, reject_limit=reject_limit,
+        )  # fmt: skip
+        energy_std = self.energies.std()
+        model.set_energy_inf(lj_nstd * energy_std, lj_nstd * energy_std)
+        return model
+
+    def microtubule_annealing_model(
+        self,
+        spl: CylSpline,
+        distance_range_long: tuple[_DistLike, _DistLike],
+        distance_range_lat: tuple[_DistLike, _DistLike],
+        angle_range: tuple[float, float],
+        temperature_time_const: float = 1.0,
+        temperature: float | None = None,
+        cooling_rate: float | None = None,
+        reject_limit: int | None = None,
+        lj_nstd: float | None = None,
+    ) -> MicrotubuleAnnealingModel | MicrotubuleAnnealingModelLJ:
+        """Get a microtubule annealing model using the landscape.
+
+        This is a distinct model from `cylindric_annealing_model`/`CylindricAnnealingModel`:
+        it uses an asymmetric protofilament bending potential, where molecules are
+        allowed to deviate from straight by up to `angle_max` degrees when curling
+        outward (away from the microtubule axis), but by only up to `angle_min`
+        degrees when curling inward. `angle_min` is normally left close to 0 so inward
+        curling is essentially forbidden, which mimics how real microtubule tips can
+        only curl outward.
+
+        Just like `cylindric_annealing_model`, passing `lj_nstd` switches the
+        longitudinal/lateral distance boundary from a hard trapezoid to a
+        Lennard-Jones-like one (`MicrotubuleAnnealingModelLJ`), which lets molecules
+        separate further apart than the cutoff distance when that is favorable
+        elsewhere.
+        """
+        from cylindra import _cylindra_ext
+
+        angle_min, angle_max = angle_range
+        if lj_nstd is None:
+            return self._prep_annealing_model(
+                _cylindra_ext.MicrotubuleAnnealingModel,
+                spl, distance_range_long, distance_range_lat, angle_max, angle_min,
+                temperature_time_const=temperature_time_const, temperature=temperature,
+                cooling_rate=cooling_rate, reject_limit=reject_limit,
+            )  # fmt: skip
+        model = self._prep_annealing_model(
+            _cylindra_ext.MicrotubuleAnnealingModelLJ,
+            spl, distance_range_long, distance_range_lat, angle_max, angle_min,
+            temperature_time_const=temperature_time_const, temperature=temperature,
+            cooling_rate=cooling_rate, reject_limit=reject_limit,
         )  # fmt: skip
         energy_std = self.energies.std()
         model.set_energy_inf(lj_nstd * energy_std, lj_nstd * energy_std)
@@ -519,6 +578,95 @@ class Landscape:
             range_long,
             range_lat,
             angle_max,
+            temperature_time_const=temperature_time_const,
+            lj_nstd=lj_nstd,
+            random_seeds=random_seeds,
+        )
+        if all(result.state == "failed" for result in results):
+            raise RuntimeError(
+                "Failed to optimize for all trials. You may check the distance range."
+            )
+        elif not any(result.state == "converged" for result in results):
+            _Logger.print("Optimization did not converge for any trial.")
+
+        _Logger.print_table(
+            {
+                "Iteration": [r.niter for r in results],
+                "Score": [f"{-float(r.energies[-1]):.5g}" for r in results],
+                "State": [r.state for r in results],
+            }
+        )
+        results = sorted(results, key=lambda r: r.energies[-1])
+        mole_opt = self.transform_molecules(self.molecules, results[0].indices)
+        mole_opt = _update_mole_pos(mole_opt, self.molecules, spl)
+        return mole_opt, results
+
+    def run_microtubule_annealing(
+        self,
+        spl: CylSpline,
+        distance_range_long: tuple[_DistLike, _DistLike],
+        distance_range_lat: tuple[_DistLike, _DistLike],
+        angle_range: tuple[float, float] | None = None,
+        temperature_time_const: float = 1.0,
+        temperature: float | None = None,
+        cooling_rate: float | None = None,
+        reject_limit: int | None = None,
+        lj_nstd: float | None = None,
+        random_seeds: list[int] = [0],
+    ) -> list[AnnealingResult]:
+        """Run simulated mesh annealing with an asymmetric microtubule bending potential."""
+
+        if angle_range is None:
+            angle_range = (-1.0, 90.0)
+        random_seeds = _normalize_random_seeds(random_seeds)
+        annealing = self.microtubule_annealing_model(
+            spl,
+            distance_range_long=distance_range_long,
+            distance_range_lat=distance_range_lat,
+            angle_range=angle_range,
+            temperature_time_const=temperature_time_const,
+            temperature=temperature,
+            cooling_rate=cooling_rate,
+            reject_limit=reject_limit,
+            lj_nstd=lj_nstd,
+        )
+        dist_arr_lon = annealing.longitudinal_distances()
+        dist_arr_lat = annealing.lateral_distances()
+
+        def _fmt(x: np.ndarray):
+            return f"mean={x.mean():.3f} nm, min={x.min():.3f} nm, max={x.max():.3f} nm"
+
+        _Logger.print(
+            f"Built microtubule annealing model with:\n"
+            f"longitudinal disntances: {_fmt(dist_arr_lon)}\n"
+            f"lateral disntances: {_fmt(dist_arr_lat)}"
+        )
+
+        epoch_size = _to_epoch_size(annealing.time_constant())
+        temp0 = annealing.temperature()
+        _Logger.info("Running annealing")
+        _Logger.info(f"  shape: {self.energies.shape[1:]!r}")
+        tasks = [
+            _run_annealing(annealing.with_seed(s), epoch_size, temp0)
+            for s in random_seeds
+        ]
+        return compute(*tasks)
+
+    def run_microtubule_annealing_along_spline(
+        self,
+        spl: CylSpline,
+        range_long: tuple[_DistLike, _DistLike],
+        range_lat: tuple[_DistLike, _DistLike],
+        range_angle: tuple[float, float],
+        temperature_time_const: float = 1.0,
+        lj_nstd: float | None = None,
+        random_seeds: Sequence[int] = (0, 1, 2, 3, 4),
+    ):
+        results = self.run_microtubule_annealing(
+            spl,
+            range_long,
+            range_lat,
+            angle_range=range_angle,
             temperature_time_const=temperature_time_const,
             lj_nstd=lj_nstd,
             random_seeds=random_seeds,

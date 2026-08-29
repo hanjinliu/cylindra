@@ -7,3 +7,4 @@ pub mod random;
 pub use self::models::basic::{CylindricAnnealingModel, CylindricAnnealingModelLJ};
 pub use self::models::defective::DefectiveCylindricAnnealingModel;
 pub use self::models::filamentous::FilamentousAnnealingModel;
+pub use self::models::microtubule::{MicrotubuleAnnealingModel, MicrotubuleAnnealingModelLJ};
