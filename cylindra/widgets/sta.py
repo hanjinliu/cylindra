@@ -2166,7 +2166,7 @@ class SubtomogramAveraging(ChildWidget):
         {layer}
         diameter : float, default 6.0
             Diameter of the monomer.
-        {max_shifts}{rotations}{cutoff}{interpolation}{bin_size}{upsample_factor}{method}
+        {max_shifts}{rotations}{interpolation}{bin_size}{upsample_factor}{method}
         shift_to_background : tuple of float, optional
             If given, the molecules will be internally shifted to get the background
             region. If not given, the background will be calculated using half1 - half2.
