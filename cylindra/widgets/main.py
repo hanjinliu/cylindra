@@ -2966,17 +2966,9 @@ class CylindraMainWidget(MagicTemplate):
     def extend_molecules(
         self,
         layer: MoleculesLayerType,
-        n_extend: Annotated[
-            dict[int, tuple[int, int]],
-            {"label": "prepend/append", "widget_type": ProtofilamentEdit},
-        ] = {},
-        n_to_fit: Annotated[
-            int,
-            {
-                "min": 2,
-            },
-        ] = 5,
-    ):
+        n_extend: Annotated[dict[int, tuple[int, int]], {"label": "prepend/append", "widget_type": ProtofilamentEdit}] = {},
+        n_to_fit: Annotated[int, {"min": 2}] = 5,
+    ):  # fmt: skip
         """Extend the tips of existing molecules layer.
 
         Parameters
