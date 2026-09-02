@@ -5,10 +5,12 @@ import impy as ip
 import numpy as np
 import polars as pl
 import pytest
-from numpy.testing import assert_allclose
+from acryo import Molecules
+from numpy.testing import assert_allclose, assert_array_equal
 
 from cylindra import utils, widget_utils
 from cylindra.components.seam_search import BooleanSeamSearcher
+from cylindra.const import MoleculesHeader as Mole
 
 
 def test_ints():
@@ -235,3 +237,35 @@ def test_fit_to_shape(shape_orig, shape_target):
     assert np.all(np.abs(out - out[::-1]) < 1e-6)
     assert np.all(np.abs(out - out[:, ::-1]) < 1e-6)
     assert np.all(np.abs(out - out[:, :, ::-1]) < 1e-6)
+
+def test_cluster_molecules():
+    mole = Molecules(
+        pos=np.zeros((9, 3)),
+        features=pl.DataFrame(
+            {Mole.nth: [0, 1, 2, 3, 4, 5, 1, 2, 3],
+             Mole.pf: [0, 0, 0, 0, 0, 0, 1, 1, 1]}
+        ),
+    )
+    out = utils.cluster_molecules(mole, npf=13, min_long_connections=1, min_lat_connections=2)
+    assert out.shape[0] == mole.pos.shape[0]
+    assert_array_equal(out, [0, 0, 0, 0, 0, 0, 0, 0, 0])
+
+    out = utils.cluster_molecules(mole, npf=13, min_long_connections=1, min_lat_connections=4)
+    assert out.shape[0] == mole.pos.shape[0]
+    assert_array_equal(out, [0, 0, 0, 0, 0, 0, 1, 1, 1])
+
+
+    mole = Molecules(
+        pos=np.zeros((9, 3)),
+        features=pl.DataFrame(
+            {Mole.nth: [0, 1, 2, 3, 4, 5, 4, 5, 6],
+             Mole.pf: [0, 0, 0, 0, 0, 0, 1, 1, 1]}
+        ),
+    )
+    out = utils.cluster_molecules(mole, npf=13, min_long_connections=1, min_lat_connections=2)
+    assert out.shape[0] == mole.pos.shape[0]
+    assert_array_equal(out, [0, 0, 0, 0, 0, 0, 0, 0, 0])
+
+    out = utils.cluster_molecules(mole, npf=13, min_long_connections=1, min_lat_connections=3)
+    assert out.shape[0] == mole.pos.shape[0]
+    assert_array_equal(out, [0, 0, 0, 0, 0, 0, 1, 1, 1])

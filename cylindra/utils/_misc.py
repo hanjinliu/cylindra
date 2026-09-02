@@ -432,6 +432,23 @@ def create_random_seeds(num_trials: int, seed: int):
     return list(rng.integers(0, 2**31 - 1, size=num_trials))
 
 
+def calc_post_probability(
+    x: NDArray[np.floating],
+    prior: float,
+    mean_s: float,
+    std_s: float,
+    mean_n: float,
+    std_n: float,
+) -> NDArray[np.floating]:
+    odds = (
+        np.log(prior / (1 - prior))
+        + np.log(std_n / std_s)
+        - (x - mean_s) ** 2 / (2 * std_s**2)
+        + (x - mean_n) ** 2 / (2 * std_n**2)
+    )
+    return 1 / (1 + np.exp(-odds))
+
+
 class Projections:
     """Class that stores projections of a 3D image, calculated lazily.
 

@@ -29,6 +29,7 @@ from magicclass.undo import undo_callback
 from magicclass.utils import thread_worker
 from magicclass.widgets import ToggleButtons
 from napari.layers import Labels, Layer
+from napari.utils.colormaps import label_colormap
 from napari.utils.notifications import show_info as _napari_show_info
 
 from cylindra import _config, _shared_doc, cylfilters, cylmeasure, utils, widget_utils
@@ -52,6 +53,7 @@ from cylindra.plugin.core import load_plugin
 from cylindra.project import CylindraProject, extract
 from cylindra.types import get_available_binsize
 from cylindra.widget_utils import (
+    ClusteringExprStr,
     PolarsExprStr,
     PolarsExprStrOrScalar,
     ValueExprStr,
@@ -127,6 +129,13 @@ _Interval = Annotated[
     {
         "text": "Use existing anchors",
         "options": {"min": 1.0, "step": 0.5, "value": 50.0},
+    },
+]
+
+_DistRange = Annotated[
+    tuple[nm, nm],
+    {
+        "options": {"min": 0.0, "step": 0.01, "max": 1000.0},
     },
 ]
 
@@ -2952,6 +2961,93 @@ class CylindraMainWidget(MagicTemplate):
 
         return _undo
 
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.FromToSpline)
+    @thread_worker.with_progress(desc="Extend molecules")
+    def extend_molecules(
+        self,
+        layer: MoleculesLayerType,
+        n_extend: Annotated[
+            dict[int, tuple[int, int]],
+            {"label": "prepend/append", "widget_type": ProtofilamentEdit},
+        ] = {},
+        n_to_fit: Annotated[
+            int,
+            {
+                "min": 2,
+            },
+        ] = 5,
+    ):
+        """Extend the tips of existing molecules layer.
+
+        Parameters
+        ----------
+        {layer}
+        n_extend : dict[int, (int, int)] or (int, int)
+            Number of molecules to extend. Should be mapping from the PF index to the (prepend,
+            append) number of molecules to add. Negative values are not allowed.
+        n_to_fit : int
+            Number of molecules at the tips of every protofilament used to calculate
+            linear extensions.
+        """
+        _layer = assert_layer(layer, self.parent_viewer)
+        # normalize n_extend
+        if isinstance(n_extend, tuple):
+            n_extend = dict.fromkeys(
+                _layer.molecules.features[Mole.pf].unique(), n_extend
+            )
+        extended_pf_moles: list[Molecules] = []
+        source_spl = _assert_source_spline_exists(_layer)
+        spacing = source_spl.props.get_glob(H.spacing)
+        for pf_id, pf_mole in _layer.molecules.group_by(Mole.pf):
+            n0, n1 = n_extend.get(pf_id, (0, 0))
+            if n0 + n1 > 0 and pf_mole.count() >= n_to_fit:
+                pf_mole = pf_mole.sort(by=Mole.nth)
+                if n0 > 0:
+                    spl = CylSpline(order=1).fit(pf_mole.pos[:n_to_fit])
+                    _u = -spacing / spl.length() * np.arange(-n0, 0)
+                    _nth_min = pf_mole.features[Mole.nth][0]
+                    coords = spl.map(_u)
+                    mole_ext = Molecules.from_quat(
+                        coords,
+                        np.repeat([pf_mole.quaternion()[0]], n0, axis=0),
+                        features={
+                            Mole.nth: np.arange(
+                                -n0 - _nth_min, -_nth_min, dtype=np.int32
+                            ),
+                            Mole.pf: np.full(n0, pf_id, dtype=np.int32),
+                        },
+                    )
+                    pf_mole = mole_ext.concat_with(pf_mole)
+                if n1 > 0:
+                    spl = CylSpline(order=1).fit(pf_mole.pos[-n_to_fit:])
+                    _u = 1 + spacing / spl.length() * np.arange(1, n1 + 1)
+                    _nth_max = pf_mole.features[Mole.nth][-1]
+                    coords = spl.map(_u)
+                    mole_ext = Molecules.from_quat(
+                        coords,
+                        np.repeat([pf_mole.quaternion()[-1]], n1, axis=0),
+                        features={
+                            Mole.nth: np.arange(
+                                _nth_max + 1, _nth_max + n1 + 1, dtype=np.int32
+                            ),
+                            Mole.pf: np.full(n1, pf_id, dtype=np.int32),
+                        },
+                    )
+                    pf_mole = pf_mole.concat_with(mole_ext)
+            extended_pf_moles.append(pf_mole)
+
+        mole = Molecules.concat(extended_pf_moles)
+
+        @thread_worker.callback
+        def _on_return():
+            layer_new = self.add_molecules(
+                mole, f"{_layer.name}-Extended", source=source_spl
+            )
+            _layer.visible = False
+            return self._undo_callback_for_layer(layer_new)
+
+        return _on_return
+
     @set_design(text=capitalize, location=_sw.MoleculesMenu.Combine)
     def concatenate_molecules(
         self,
@@ -3585,6 +3681,97 @@ class CylindraMainWidget(MagicTemplate):
         self.reset_choices()
         return undo_callback(layer.feature_setter(feat, cmap_info))
 
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.Clustering)
+    def cluster_molecules(
+        self,
+        layers: MoleculesLayersType = None,
+        expr_long: ClusteringExprStr = "(3.5 <= d <= 5) and (abs(x/d) < 0.3) and (-0.3 < z/d < 0.5)",
+        expr_lat: ClusteringExprStr = "(5.0 <= d <= 5.4) and (-0.5 < z/d < 0.2)",
+        min_long_connections: int = 1,
+        min_lat_connections: int = 2,
+    ):  # fmt: skip
+        """Geometrical clustering of molecules.
+
+        Parameters
+        ----------
+        {layers}{expr_long}{expr_lat}{min_long_connections}{min_lat_connections}
+        """
+        layers = assert_list_of_layers(layers, self.parent_viewer)
+        for layer in layers:
+            if (spl := layer.source_spline) is None:
+                raise ValueError(f"Layer {layer.name!r} has no source spline.")
+            cyl = spl.cylinder_model()
+            nrise = cyl.nrise
+            npf = spl.props.get_glob(H.npf)
+            labels = utils.cluster_molecules(
+                layer.molecules,
+                npf,
+                nrise,
+                expr_long,
+                expr_lat,
+                min_long_connections,
+                min_lat_connections,
+            )
+            layer.molecules = layer.molecules.with_features(
+                pl.Series("cluster_labels", labels)
+            )
+            label_max = np.unique(labels).size
+            cmap = label_colormap(label_max, seed=0.9414, background_value=-1)
+            layer.set_colormap("cluster_labels", (0, label_max - 1), cmap)
+
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.Clustering)
+    def split_clusters(
+        self,
+        layers: MoleculesLayersType = None,
+        expr_long: ClusteringExprStr = "(3.5 <= d <= 5) and (abs(x/d) < 0.3) and (-0.3 < z/d < 0.5)",
+        expr_lat: ClusteringExprStr = "(5.0 <= d <= 5.4) and (-0.5 < z/d < 0.2)",
+        min_long_connections: int = 1,
+        min_lat_connections: int = 2,
+        min_cluster_size: int = 40,
+        largest_only: bool = False,
+    ):  # fmt: skip
+        """Geometrical clustering and splitting of molecular clusters.
+
+        Parameters
+        ----------
+        {layers}{expr_long}{expr_lat}{min_long_connections}{min_lat_connections}
+        min_cluster_size : int, default 40
+            Minimum number of molecules required for a cluster to be considered.
+            Clusters with fewer molecules than this threshold will be removed from the
+            result.
+        largest_only : bool, default False
+            If True, only the largest cluster will be kept and the `min_cluster_size`
+            parameter will be ignored.
+        """
+        layers = assert_list_of_layers(layers, self.parent_viewer)
+        for layer in layers:
+            if (spl := layer.source_spline) is None:
+                raise ValueError(f"Layer {layer.name!r} has no source spline.")
+            cyl = spl.cylinder_model()
+            nrise = cyl.nrise
+            npf = spl.props.get_glob(H.npf)
+            labels = utils.cluster_molecules(
+                layer.molecules,
+                npf,
+                nrise,
+                expr_long,
+                expr_lat,
+                min_long_connections,
+                min_lat_connections,
+            )
+            arr_unique, counts = np.unique(labels, return_counts=True)
+            if largest_only:
+                idx = np.argmax(counts)
+                major_clusters = arr_unique[idx : idx + 1]
+            else:
+                major_clusters = arr_unique[counts >= min_cluster_size]
+            for i in major_clusters:
+                self.add_molecules(
+                    layer.molecules.subset(labels == i),
+                    name=f"{layer.name}-Cluster_{i}",
+                    source=layer.source_component,
+                )
+
     @set_design(text=capitalize, location=_sw.MoleculesMenu.Features)
     def distance_from_spline(
         self,
@@ -3701,8 +3888,6 @@ class CylindraMainWidget(MagicTemplate):
         suffix : str, default "_binarize"
             Suffix of the new feature column name.
         """
-        from napari.utils.colormaps import label_colormap
-
         layer = assert_layer(layer, self.parent_viewer)
         utils.assert_column_exists(feat := layer.molecules.features, target)
         if suffix == "":
@@ -3712,7 +3897,6 @@ class CylindraMainWidget(MagicTemplate):
         out = cylfilters.label(feat, target, nrise)
         feature_name = f"{target}{suffix}"
         layer.molecules = layer.molecules.with_features(out.alias(feature_name))
-        self.reset_choices()
         label_max = int(out.max())
         cmap = label_colormap(label_max, seed=0.9414)
         layer.set_colormap(feature_name, (0, label_max), cmap)

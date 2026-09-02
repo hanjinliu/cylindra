@@ -257,3 +257,16 @@ class RegionProfiler:
         nrise: int,
     ) -> RegionProfiler: ...
     def calculate(self, props: list[str]) -> dict[str, NDArray[np.float32]]: ...
+
+def activate_longitudinal(
+    edges: list[tuple[int, int, int, int]],
+    npf: int,
+    min_run: int,
+) -> list[int]: ...
+def activate_lateral(
+    lat_edges: list[tuple[int, int, int, int]],
+    long_edges: list[tuple[int, int, int, int]],
+    npf: int,
+    start: int,
+    min_run: int,
+) -> list[int]: ...

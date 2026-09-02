@@ -330,6 +330,7 @@ class STAnalysis(MagicTemplate):
     sep0 = Separator
 
     calculate_signal_noise_profiles = abstractapi()
+    detect_defects = abstractapi()
 
     @magicmenu(name="Seam search")
     class SeamSearch(MagicTemplate):
@@ -1234,6 +1235,7 @@ class SubtomogramAveraging(ChildWidget):
         bin_size: BinSizeType = 1,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
         lj_const: Annotated[float, {"min": 0.0, "max": 1000.0, "step": 0.1, "label": "LJ const"}] = 0.0,
+        method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         num_trials: Annotated[int, {"min": 1, "max": 100}] = 5,
         seed: _SeedType = 0,
@@ -1248,7 +1250,7 @@ class SubtomogramAveraging(ChildWidget):
         ----------
         {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}
         {interpolation}{range_long}{range_lat}{angle_max}{bin_size}
-        {temperature_time_const}{lj_const}{upsample_factor}{num_trials}{seed}
+        {temperature_time_const}{lj_const}{method}{upsample_factor}{num_trials}{seed}
         """
         t0 = timer()
         layer = assert_layer(layer, self.parent_viewer)
@@ -1264,7 +1266,7 @@ class SubtomogramAveraging(ChildWidget):
             molecules=layer.molecules, template_path=template_path,
             mask_params=mask_params, max_shifts=max_shifts, rotations=rotations,
             cutoff=cutoff, order=interpolation, bin_size=bin_size,
-            upsample_factor=upsample_factor,
+            upsample_factor=upsample_factor, method=method,
         )  # fmt: skip
         yield
         mole, results = landscape.run_annealing_along_spline(
@@ -1306,10 +1308,11 @@ class SubtomogramAveraging(ChildWidget):
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         range_long: _DistRangeLon = (4.0, 4.28),
         range_lat: _DistRangeLat = ("d.mean() - 0.1", "d.mean() + 0.1"),
-        range_angle: _AngleRange = (-1.0, 5.0),
+        range_angle: _AngleRange = (-1.5, 5.0),
         bin_size: BinSizeType = 1,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
         lj_const: Annotated[float, {"min": 0.0, "max": 1000.0, "step": 0.1, "label": "LJ const"}] = 0.0,
+        method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
         num_trials: Annotated[int, {"min": 1, "max": 100}] = 5,
         seed: _SeedType = 0,
@@ -1320,9 +1323,10 @@ class SubtomogramAveraging(ChildWidget):
         ----------
         {layer}{template_path}{mask_params}{max_shifts}{rotations}{cutoff}
         {interpolation}{range_long}{range_lat}
-        range_angle : tuple[float, float], default: (-1.0, 5.0)
+        range_angle : tuple[float, float], default: (-1.5, 5.0)
             The allowed range of protofilament bending angles, in degrees.
-        {bin_size}{temperature_time_const}{lj_const}{upsample_factor}{num_trials}{seed}
+        {bin_size}{temperature_time_const}{lj_const}{method}{upsample_factor}
+        {num_trials}{seed}
         """
         t0 = timer()
         layer = assert_layer(layer, self.parent_viewer)
@@ -1337,7 +1341,7 @@ class SubtomogramAveraging(ChildWidget):
         landscape, _ = self._construct_landscape(
             molecules=layer.molecules, template_path=template_path,
             mask_params=mask_params, max_shifts=max_shifts, rotations=rotations,
-            cutoff=cutoff, order=interpolation, bin_size=bin_size,
+            cutoff=cutoff, order=interpolation, bin_size=bin_size, method=method,
             upsample_factor=upsample_factor,
         )  # fmt: skip
         yield
@@ -2149,15 +2153,12 @@ class SubtomogramAveraging(ChildWidget):
         diameter: Annotated[nm, {"min": 0.1, "max": 100.0}] = 6.0,
         max_shifts: tuple[nm, nm, nm] = (0.5, 0.5, 0.5),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
-        cutoff: _CutoffFreq = 0.5,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         bin_size: BinSizeType = 1,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 2,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "ncc",
-        shift_to_background: Annotated[
-            Optional[tuple[nm, nm, nm]], {"text": "Use half tomograms"}
-        ] = None,
-    ):
+        shift_to_background: Annotated[Optional[tuple[nm, nm, nm]], {"text": "Use half tomograms"}] = None,
+    ):  # fmt: skip
         """Calculate the mean landscape energy of signal and noise.
 
         Parameters
@@ -2171,55 +2172,14 @@ class SubtomogramAveraging(ChildWidget):
             region. If not given, the background will be calculated using half1 - half2.
         """
         main = self._get_main()
-        model = _get_alignment(method)
         _layer = assert_layer(layer, main.parent_viewer)
         mole = _layer.molecules
-
-        loader = main.tomogram.get_subtomogram_loader(
-            mole, binsize=bin_size, order=interpolation
-        )
-        _sigma = 0.8
-        shape = (main.tomogram.nm2pixel(diameter + _sigma * 3, bin_size),) * 3
-        _zeros = np.zeros(shape, dtype=np.float32)
-        mask = spherical_mask(diameter / 2, _sigma)(_zeros, loader.scale * bin_size)
-        fsc, (img_0, img_1), img_mask = (
-            loader.reshape(shape=shape)
-            .order_optimize()
-            .fsc_with_halfmaps(mask, seed=0, n_set=1, dfreq=None, squeeze=True)
-        )
-        avg = (img_0 + img_1) / 2
-        result = widget_utils.FscResult.from_dataframe(fsc, loader.scale)
-        yield _plot_current_fsc(result, avg)
-
-        kwargs = {
-            "template": avg,
-            "mask": mask,
-            "max_shifts": max_shifts,
-            "upsample_factor": upsample_factor,
-            "alignment_model": model.with_params(
-                rotations=rotations,
-                cutoff=cutoff,
-                tilt=main.tomogram.tilt_model,
-            ),
-        }
-        if shift_to_background is not None:
-            mole_bg = mole.translate_internal(shift_to_background)
-            loader_n = main.tomogram.get_subtomogram_loader(
-                mole_bg, binsize=bin_size, order=interpolation
-            )
-            yield thread_worker.description("Constructing signal landscapes")
-            landscape_s = Landscape.from_loader(loader, **kwargs)
-            yield thread_worker.description("Constructing noise landscapes")
-            landscape_n = Landscape.from_loader(loader_n, **kwargs)
-        else:
-            loaders = main.tomogram.get_subtomogram_and_noise_loader(
-                mole, binsize=bin_size, order=interpolation
-            )
-            yield thread_worker.description("Constructing signal and noise landscapes")
-            landscape_s, landscape_n = Landscape.diff_landscapes(*loaders, **kwargs)
-
-        val_s = landscape_s.energies.mean(axis=(1, 2, 3))
-        val_n = landscape_n.energies.mean(axis=(1, 2, 3))
+        val_s, val_n = yield from self._calculate_signal_noise(
+            _layer, diameter, max_shifts, rotations, cutoff=1.0,
+            interpolation=interpolation, bin_size=bin_size,
+            upsample_factor=upsample_factor, method=method,
+            shift_to_background=shift_to_background,
+        )  # fmt: skip
 
         @thread_worker.callback
         def _on_return():
@@ -2230,6 +2190,65 @@ class SubtomogramAveraging(ChildWidget):
             _Logger.print(f"Profile of {_layer.name!r} has been calculated.")
             with _Logger.set_plt():
                 widget_utils.plot_signal_noise_profile(_layer.molecules.features)
+
+        return _on_return
+
+    @set_design(text="Detect defects", location=STAnalysis)
+    @dask_worker.with_progress(desc="Preparing averaged image")
+    def detect_defects(
+        self,
+        layer: MoleculesLayerType,
+        diameter: Annotated[nm, {"min": 0.1, "max": 100.0}] = 5.8,
+        prior_defect: Annotated[float, {"min": 0.001, "max": 0.999}] = 0.1,
+        max_shifts: tuple[nm, nm, nm] = (0.5, 0.5, 0.5),
+        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        bin_size: BinSizeType = 1,
+        upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 2,
+        method: Annotated[str, {"choices": METHOD_CHOICES}] = "ncc",
+        shift_to_background: Annotated[Optional[tuple[nm, nm, nm]], {"text": "Use half tomograms"}] = None,
+        # signal_mean_sd: Optional[tuple[float, float]] = None,
+        # noise_mean_sd: Optional[tuple[float, float]] = None,
+    ):  # fmt: skip
+        """Detect lattice defect by Bayesian metrics.
+
+        This method calculates the signal and noise distribution, and evaluate the
+        probability of being a defect site for individual molecules.
+        """
+        main = self._get_main()
+        _layer = assert_layer(layer, main.parent_viewer)
+        mole = _layer.molecules
+        val_s, val_n = yield from self._calculate_signal_noise(
+            _layer, diameter, max_shifts, rotations, cutoff=1.0,
+            interpolation=interpolation, bin_size=bin_size,
+            upsample_factor=upsample_factor, method=method,
+            shift_to_background=shift_to_background,
+        )  # fmt: skip
+
+        mean_s, std_s = val_s.mean(), val_s.std(ddof=0)
+        mean_n, std_n = val_n.mean(), val_n.std(ddof=0)
+        cohens_d = abs(mean_s - mean_n) / np.sqrt((std_s**2 + std_n**2) / 2)
+
+        _Logger.print(f"Signal = {mean_s:.3f} +/- {std_s:.3f}")
+        _Logger.print(f"Noise = {mean_n:.3f} +/- {std_n:.3f}")
+        _Logger.print(f"Cohen's d = {cohens_d:.3f}")
+
+        post_prob = utils.calc_post_probability(
+            val_s, 1 - prior_defect, mean_s, std_s, mean_n, std_n
+        )
+
+        prob_defect = 1 - post_prob
+
+        @thread_worker.callback
+        def _on_return():
+            _layer.molecules = mole.with_features(
+                pl.Series("profile_signal", val_s, dtype=pl.Float32),
+                pl.Series("profile_noise", val_n, dtype=pl.Float32),
+                pl.Series("prob_defect", prob_defect, dtype=pl.Float32),
+            )
+            if not isinstance(base_color := _layer.colormap_info, str):
+                base_color = "lime"
+            _layer.set_colormap("prob_defect", (0, 1), cmap={0: base_color, 1: "black"})
 
         return _on_return
 
@@ -2580,6 +2599,79 @@ class SubtomogramAveraging(ChildWidget):
             ),
         )
         return landscape.normed() if norm else landscape, loader
+
+    def _calculate_signal_noise(
+        self,
+        layer: MoleculesLayer,
+        diameter: Annotated[nm, {"min": 0.1, "max": 100.0}] = 6.0,
+        max_shifts: tuple[nm, nm, nm] = (0.5, 0.5, 0.5),
+        rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
+        cutoff: _CutoffFreq = 0.5,
+        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        bin_size: BinSizeType = 1,
+        upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 2,
+        method: Annotated[str, {"choices": METHOD_CHOICES}] = "ncc",
+        shift_to_background: Annotated[
+            Optional[tuple[nm, nm, nm]], {"text": "Use half tomograms"}
+        ] = None,
+    ):
+        main = self._get_main()
+        model = _get_alignment(method)
+        mole = layer.molecules
+        if shift_to_background is None and main.tomogram.image_halves is None:
+            raise ValueError(
+                "Tomogram does not have half tomograms. "
+                "Please provide shift_to_background parameter."
+            )
+
+        loader = main.tomogram.get_subtomogram_loader(
+            mole, binsize=bin_size, order=interpolation
+        )
+        _sigma = 0.8
+        shape = (main.tomogram.nm2pixel(diameter + _sigma * 3, bin_size),) * 3
+        _zeros = np.zeros(shape, dtype=np.float32)
+        mask = spherical_mask(diameter / 2, _sigma)(_zeros, loader.scale * bin_size)
+        fsc, (img_0, img_1), img_mask = (
+            loader.reshape(shape=shape)
+            .order_optimize()
+            .fsc_with_halfmaps(mask, seed=0, n_set=1, dfreq=None, squeeze=True)
+        )
+        avg = (img_0 + img_1) / 2
+        result = widget_utils.FscResult.from_dataframe(fsc, loader.scale)
+        yield _plot_current_fsc(result, avg)
+
+        kwargs = {
+            "template": avg,
+            "mask": mask,
+            "max_shifts": max_shifts,
+            "upsample_factor": upsample_factor,
+            "alignment_model": model.with_params(
+                rotations=rotations,
+                cutoff=cutoff,
+                tilt=main.tomogram.tilt_model,
+            ),
+        }
+        if shift_to_background is not None:
+            mole_bg = mole.translate_internal(shift_to_background)
+            loader_s_n = main.tomogram.get_subtomogram_loader(
+                mole.concat_with(mole_bg), binsize=bin_size, order=interpolation
+            )
+            # it is faster to load subtomograms at the same time
+            yield thread_worker.description("Constructing signal and noise landscapes")
+            landscape_s_n = Landscape.from_loader(loader_s_n, **kwargs)
+            val_s_n = landscape_s_n.energies.mean(axis=(1, 2, 3))
+            val_s = val_s_n[: mole.count()]
+            val_n = val_s_n[mole.count() :]
+        else:
+            loaders = main.tomogram.get_subtomogram_and_noise_loader(
+                mole, binsize=bin_size, order=interpolation
+            )
+            yield thread_worker.description("Constructing signal and noise landscapes")
+            landscape_s, landscape_n = Landscape.diff_landscapes(*loaders, **kwargs)
+
+            val_s = landscape_s.energies.mean(axis=(1, 2, 3))
+            val_n = landscape_n.energies.mean(axis=(1, 2, 3))
+        return val_s, val_n
 
 
 def _coerce_aligned_name(name: str, viewer: "napari.Viewer"):

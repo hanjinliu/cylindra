@@ -75,6 +75,11 @@ _PARAMETERS = [
     Parameter(name="eval_expr", type="str", desc="Expression to evaluate segment values. Variable `value` refers to the segment value.\nThe result of `eval_expr` will be assigned to molecules.\nIf empty, the original segment value is used."),
     Parameter(name="max_num_iters", type="int", desc="Maximum number of iterations to perform."),
     Parameter(name="lj_const", type="float", desc="If greater than 0, the annealing will use a Lennard-Jones-like potential to allow molecules to separate further apart than the cutoff distance.\nLarger value will prefer longer distances between molecules. 0.25 - 0.5 is usually a good choice."),
+    # clustering
+    Parameter(name="expr_long", type="str", desc="Python expression using `x`, `y`, `z` and `d` to define the restriction of two molecules being connected longitudinally.\n`x`, `y`, `z` is the vector pointing from i-th molecule to the neighbor viewed in the local coordinate system of the i-th molecule,\nand `d` is its norm."),
+    Parameter(name="expr_lat", type="str", desc="Python expression using `x`, `y`, `z` and `d` to define the restriction of two molecules being connected laterally.\n`x`, `y`, `z` is the vector pointing from i-th molecule to the neighbor viewed in the local coordinate system of the i-th molecule,\nand `d` is its norm."),
+    Parameter(name="min_long_connections", type="int", desc="Minimum number of longitudinal connections required for a molecule to be considered part of a cluster."),
+    Parameter(name="min_lat_connections", type="int", desc="Minimum number of lateral connections required for a molecule to be considered part of a cluster.")
 ]
 # fmt: on
 

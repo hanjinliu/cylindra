@@ -610,6 +610,13 @@ class MoleculesMenu(ChildWidget):
         correlation_heatmap_for_feature = abstractapi()
         regionprops_features = abstractapi()
 
+    @magicmenu(name="Clustering")
+    class Clustering(MagicTemplate):
+        """Molecule clustering"""
+
+        cluster_molecules = abstractapi()
+        split_clusters = abstractapi()
+
     @magicmenu(name="Visualize")
     class View(ChildWidget):
         """Visualize molecule features."""
