@@ -338,7 +338,7 @@ impl GraphTrait<Node1D<Shift>, EdgeType> for FilamentousGraph {
         state_old: &Node1D<Shift>,
         state_new: &Node1D<Shift>,
         other_state: &Node1D<Shift>,
-        _: &EdgeType,
+        _: usize,
     ) -> (f32, f32) {
         let vec_old = state_old.state;
         let vec_new = state_new.state;
@@ -369,7 +369,7 @@ impl GraphTrait<Node1D<Shift>, EdgeType> for FilamentousGraph {
             let ends = graph.edge_end(edge_id);
             let other_idx = if ends.0 == idx { ends.1 } else { ends.0 };
             let other_state = graph.node_state(other_idx);
-            let (e_old_diff, e_new_diff) = self.binding_old_new(&state_old, &state_new, &other_state, graph.edge_state(edge_id));
+            let (e_old_diff, e_new_diff) = self.binding_old_new(&state_old, &state_new, &other_state, edge_id);
             e_old += e_old_diff;
             e_new += e_new_diff;
         }

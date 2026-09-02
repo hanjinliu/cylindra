@@ -96,6 +96,16 @@ impl<Sn, Se> GraphComponents<Sn, Se> {
         self.edges[i].iter()
     }
 
+    /// Number of edges connected to node i.
+    pub fn connected_edge_count(&self, i: usize) -> usize {
+        self.edges[i].len()
+    }
+
+    /// The k-th edge ID connected to node i.
+    pub fn connected_edge_id(&self, i: usize, k: usize) -> usize {
+        self.edges[i][k]
+    }
+
     pub fn edge_end(&self, i: usize) -> (usize, usize) {
         self.edge_ends[i]
     }
@@ -129,15 +139,16 @@ pub trait GraphTrait<N: Clone, E: Clone> {
     /// Set the energy landscape array to the graph.
     fn set_energy_landscape(&mut self, energy: ArcArray<f32, Ix4>) -> PyResult<&Self>;
 
-    /// Return the old and new binding energies.
+    /// Return the old and new binding energies of the edge `edge_id`.
     /// Override this if a more efficient implementation is available.
     fn binding_old_new(
         &self,
         state_old: &N,
         state_new: &N,
         other_state: &N,
-        typ: &E,
+        edge_id: usize,
     ) -> (f32, f32) {
+        let typ = self.components().edge_state(edge_id);
         (
             self.binding(state_old, other_state, typ),
             self.binding(state_new, other_state, typ),

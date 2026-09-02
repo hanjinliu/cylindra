@@ -4,7 +4,7 @@ use numpy::{
 };
 use pyo3::PyResult;
 use super::traits::{
-    shape_for_indices, CylindricGraphTrait, GraphComponents, GraphTrait, Node2D
+    shape_for_indices, CylindricGraphTrait, GraphComponents, GraphTrait, Node2D, ShiftResult
 };
 
 use crate::{
@@ -17,7 +17,9 @@ use crate::{
             TrapezoidalPotential2D,
             LennardJonesLikePotential2D,
             BindingPotential2D,
+            EdgeScalars,
             EdgeType,
+            edge_scalars,
     },
         random::RandomNumberGenerator,
     }
@@ -26,9 +28,26 @@ use crate::{
 type Shift = Vector3D<isize>;
 
 #[derive(Clone)]
+/// Geometry of an edge that never changes once the coordinates are set.
+/// `ey` is the vector connecting the origins of the two local coordinate systems, and
+/// is required for the angle constraint. Because the angle energy only depends on
+/// `cos(dr, ey).abs()`, the sign of `ey` does not matter.
+pub struct EdgeGeometry {
+    pub ey: Vector3D<f32>,
+    pub ey_len: f32,
+}
+
+#[derive(Clone)]
 pub struct CylindricalGraph<T: BindingPotential2D> {
     components: GraphComponents<Node2D<Shift>, EdgeType>,
     coords: Arc<HashMap2D<CoordinateSystem<f32>>>,
+    edge_geometry: Arc<Vec<EdgeGeometry>>,
+    // Cached quantities of the *current* state of the graph. Because the binding
+    // potential is cooled at every iteration, the energies themselves cannot be cached,
+    // but these state-dependent scalars can, which makes re-evaluating the current
+    // energy of a node free of any coordinate arithmetic.
+    edge_scalars: Vec<EdgeScalars>,
+    internal_energies: Vec<f32>,
     energy: Arc<HashMap2D<Array<f32, Ix3>>>,
     pub binding_potential: T,
     pub local_shape: Shift,
@@ -109,7 +128,76 @@ impl<T> CylindricalGraph<T> where T: BindingPotential2D {
             );
         }
         self.coords = Arc::new(_coords);
+        self.update_edge_geometry();
         Ok(self)
+    }
+
+    /// Cache the coordinate-dependent, state-independent part of each edge.
+    fn update_edge_geometry(&mut self) {
+        let n_edges = self.components.edge_count();
+        let mut geometry = Vec::with_capacity(n_edges);
+        for i in 0..n_edges {
+            let (i0, i1) = self.components.edge_end(i);
+            let idx0 = &self.components.node_state(i0).index;
+            let idx1 = &self.components.node_state(i1).index;
+            let ey = self.coords[(idx1.y, idx1.a)].origin - self.coords[(idx0.y, idx0.a)].origin;
+            geometry.push(EdgeGeometry { ey, ey_len: ey.length() });
+        }
+        self.edge_geometry = Arc::new(geometry);
+        self.refresh_state_cache();
+    }
+
+    /// Calculate the scalars that describe the current geometry of the edge `edge_id`.
+    fn calc_edge_scalars(&self, edge_id: usize) -> EdgeScalars {
+        let (i0, i1) = self.components.edge_end(edge_id);
+        let node0 = self.components.node_state(i0);
+        let node1 = self.components.node_state(i1);
+        let coord0 = &self.coords[(node0.index.y, node0.index.a)];
+        let coord1 = &self.coords[(node1.index.y, node1.index.a)];
+        let dr = coord0.at_vec_fast(node0.state.into()) - coord1.at_vec_fast(node1.state.into());
+        let geom = &self.edge_geometry[edge_id];
+        edge_scalars(
+            &dr, dr.length(), &geom.ey, geom.ey_len, self.components.edge_state(edge_id),
+        )
+    }
+
+    /// Binding energy of the edge `edge_id` when one of its ends takes `node_state` and
+    /// the other one takes `other_state`.
+    fn binding_at(
+        &self,
+        node_state: &Node2D<Shift>,
+        other_state: &Node2D<Shift>,
+        edge_id: usize,
+    ) -> f32 {
+        let coord_self = &self.coords[(node_state.index.y, node_state.index.a)];
+        let coord_other = &self.coords[(other_state.index.y, other_state.index.a)];
+        let dr = coord_self.at_vec_fast(node_state.state.into())
+            - coord_other.at_vec_fast(other_state.state.into());
+        // `ey` only depends on the origins of the local coordinate systems, so that it
+        // is cached for each edge.
+        let geom = &self.edge_geometry[edge_id];
+        self.binding_potential.calculate_with_lengths(
+            &dr, dr.length(), &geom.ey, geom.ey_len, self.components.edge_state(edge_id),
+        )
+    }
+
+    /// Recalculate all the caches that depend on the current node states.
+    /// This method must be called whenever the node states, the coordinates or the
+    /// energy landscape are updated by anything other than `apply_shift`.
+    fn refresh_state_cache(&mut self) {
+        let n_nodes = self.components.node_count();
+        let n_edges = self.components.edge_count();
+        // The caches require the energy landscape, because the local coordinate caches
+        // used by `at_vec_fast` are only built in `set_energy_landscape`.
+        if self.energy.len() != n_nodes || n_nodes == 0 {
+            self.internal_energies = vec![0.0; n_nodes];
+            self.edge_scalars = vec![EdgeScalars::default(); n_edges];
+            return;
+        }
+        self.internal_energies = (0..n_nodes)
+            .map(|i| self.internal(self.components.node_state(i)))
+            .collect();
+        self.edge_scalars = (0..n_edges).map(|i| self.calc_edge_scalars(i)).collect();
     }
 
     /// Cool down the binding potential.
@@ -280,6 +368,7 @@ impl<T> CylindricalGraph<T> where T: BindingPotential2D {
             };
             self.components_mut().set_node_state(i, node);
         }
+        self.refresh_state_cache();
         Ok(self)
     }
 
@@ -295,6 +384,7 @@ impl<T> CylindricalGraph<T> where T: BindingPotential2D {
             };
             self.components_mut().set_node_state(i, node);
         }
+        self.refresh_state_cache();
         Ok(self)
     }
 
@@ -306,6 +396,9 @@ impl CylindricalGraph<TrapezoidalPotential2D> {
         Self {
             components: GraphComponents::empty(),
             coords: Arc::new(HashMap2D::new()),
+            edge_geometry: Arc::new(Vec::new()),
+            edge_scalars: Vec::new(),
+            internal_energies: Vec::new(),
             energy: Arc::new(HashMap2D::new()),
             binding_potential: TrapezoidalPotential2D::unbounded(),
             local_shape: Vector3D::new(0, 0, 0),
@@ -320,6 +413,9 @@ impl CylindricalGraph<LennardJonesLikePotential2D> {
         Self {
             components: GraphComponents::empty(),
             coords: Arc::new(HashMap2D::new()),
+            edge_geometry: Arc::new(Vec::new()),
+            edge_scalars: Vec::new(),
+            internal_energies: Vec::new(),
             energy: Arc::new(HashMap2D::new()),
             binding_potential: LennardJonesLikePotential2D::unbounded(),
             local_shape: Vector3D::new(0, 0, 0),
@@ -367,30 +463,6 @@ impl<T> GraphTrait<Node2D<Shift>, EdgeType> for CylindricalGraph<T> where T: Bin
         self.binding_potential.calculate(&dr, &ey, typ)
     }
 
-    fn binding_old_new(
-        &self,
-        state_old: &Node2D<Shift>,
-        state_new: &Node2D<Shift>,
-        other_state: &Node2D<Shift>,
-        typ: &EdgeType,
-    ) -> (f32, f32) {
-        let vec_old = state_old.state;
-        let vec_new = state_new.state;
-        let vec_other = other_state.state;
-        let coord_old = &self.coords[(state_old.index.y, state_old.index.a)];
-        let coord_new = &self.coords[(state_new.index.y, state_new.index.a)];
-        let coord_other = &self.coords[(other_state.index.y, other_state.index.a)];
-        let point_other = coord_other.at_vec_fast(vec_other.into());
-        let dr_old = coord_old.at_vec_fast(vec_old.into()) - point_other;
-        let dr_new = coord_new.at_vec_fast(vec_new.into()) - point_other;
-        // ey_* is required for the angle constraint.
-        let ey_old = coord_other.origin - coord_old.origin;
-        let ey_new = coord_other.origin - coord_new.origin;
-        let e_old = self.binding_potential.calculate(&dr_old, &ey_old, typ);
-        let e_new = self.binding_potential.calculate(&dr_new, &ey_new, typ);
-        (e_old, e_new)
-    }
-
     /// Return a random neighbor state of a given node state.
     fn random_local_neighbor_state(
         &self,
@@ -404,25 +476,42 @@ impl<T> GraphTrait<Node2D<Shift>, EdgeType> for CylindricalGraph<T> where T: Bin
     }
 
     /// Energy difference by shifting a state of node at idx.
+    /// `state_old` must be the current state of the node at `idx`, which is guaranteed
+    /// by every caller. Its energy is therefore taken from the caches instead of being
+    /// calculated again from the coordinates.
     fn energy_diff_by_shift(
         &self,
         idx: usize,
         state_old: &Node2D<Shift>,
         state_new: &Node2D<Shift>,
     ) -> f32 {
+        debug_assert_eq!(self.internal_energies[idx], self.internal(&state_old));
         let graph = self.components();
-        let mut e_old = self.internal(&state_old);
+        let mut e_old = self.internal_energies[idx];
         let mut e_new = self.internal(&state_new);
         for edge_id in graph.connected_edge_indices(idx) {
             let edge_id = *edge_id;
             let ends = graph.edge_end(edge_id);
             let other_idx = if ends.0 == idx { ends.1 } else { ends.0 };
             let other_state = graph.node_state(other_idx);
-            let (e_old_diff, e_new_diff) = self.binding_old_new(&state_old, &state_new, &other_state, graph.edge_state(edge_id));
-            e_old += e_old_diff;
-            e_new += e_new_diff;
+            let typ = graph.edge_state(edge_id);
+            e_old += self.binding_potential.energy_of(&self.edge_scalars[edge_id], typ);
+            e_new += self.binding_at(&state_new, &other_state, edge_id);
         }
         e_new - e_old
+    }
+
+    /// Update the node state and all the caches that depend on it.
+    fn apply_shift(&mut self, result: ShiftResult<Node2D<Shift>>) {
+        let idx = result.index;
+        self.components.set_node_state(idx, result.state);
+        let eng = self.internal(self.components.node_state(idx));
+        self.internal_energies[idx] = eng;
+        for k in 0..self.components.connected_edge_count(idx) {
+            let edge_id = self.components.connected_edge_id(idx, k);
+            let scalars = self.calc_edge_scalars(edge_id);
+            self.edge_scalars[edge_id] = scalars;
+        }
     }
 
     /// Initialize the node states to the center of each local coordinates.
@@ -433,6 +522,7 @@ impl<T> GraphTrait<Node2D<Shift>, EdgeType> for CylindricalGraph<T> where T: Bin
             let idx = node.index.clone();
             self.components.set_node_state(i, Node2D { index: idx, state: center.clone() });
         }
+        self.refresh_state_cache();
         self
     }
 
@@ -473,6 +563,7 @@ impl<T> GraphTrait<Node2D<Shift>, EdgeType> for CylindricalGraph<T> where T: Bin
             self.components.set_node_state(i, Node2D { index: idx.clone(), state: center.clone() })
         }
         self.energy = Arc::new(_energy);
+        self.refresh_state_cache();
         Ok(self)
     }
 }

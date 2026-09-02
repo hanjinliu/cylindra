@@ -113,11 +113,10 @@ impl<T: Real> Vector3D<T> {
         self.z * self.z + self.y * self.y + self.x * self.x
     }
 
-    /// Cosine between two vectors.
-    pub fn cos_angle(&self, other: &Vector3D<T>) -> T {
+    /// Cosine between two vectors, with the lengths of the vectors already known.
+    /// `a` and `b` must be `self.length()` and `other.length()` respectively.
+    pub fn cos_angle_with_lengths(&self, other: &Vector3D<T>, a: T, b: T) -> T {
         let dot_prd = self.dot(other);
-        let a = self.length();
-        let b = other.length();
         let cos = dot_prd / (a * b);
         if cos > T::one() {
             T::one()
@@ -126,6 +125,11 @@ impl<T: Real> Vector3D<T> {
         } else {
             cos
         }
+    }
+
+    /// Cosine between two vectors.
+    pub fn cos_angle(&self, other: &Vector3D<T>) -> T {
+        self.cos_angle_with_lengths(other, self.length(), other.length())
     }
 
     /// Radian between two vectors.

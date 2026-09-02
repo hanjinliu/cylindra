@@ -14,3 +14,10 @@ numpy = "0.29.0"
 rand = "0.8.3"
 mt19937 = "2.0.1"
 num = { version = "0.4.3", features = ["std"] }
+
+[profile.release]
+# The annealing hot loop spans several modules (potential/vector/coordinates), so
+# cross-module inlining matters a lot here. Note that `panic = "abort"` must NOT be
+# used because Rust panics have to unwind back into Python.
+lto = "fat"
+codegen-units = 1
