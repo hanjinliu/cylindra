@@ -85,11 +85,6 @@ impl RandomNumberGenerator {
         Self { rng, seed, neighbor_list: self.neighbor_list.clone() }
     }
 
-    /// Shape of the neighbor list.
-    pub fn shape(&self) -> &[usize] {
-        self.neighbor_list.neighbors.shape()
-    }
-
     /// Set the shape of the neighbor list.
     pub fn set_shape(&mut self, shape: (usize, usize, usize)) {
         let (z, y, x) = shape;
@@ -105,14 +100,6 @@ impl RandomNumberGenerator {
         let p_int = (ptrue * SCALE).floor() as u32;
         let v: u32 = self.rng.gen();
         (v >> (BUF + 8)) < p_int
-    }
-
-    pub fn bernoulli_multi(&mut self, ptrues: Vec<f32>) -> Vec<bool> {
-        let mut results = Vec::with_capacity(ptrues.len());
-        for ptrue in ptrues {
-            results.push(self.bernoulli(ptrue));
-        }
-        results
     }
 
     /// Sample a random positive integer from a uniform distribution.

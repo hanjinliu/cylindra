@@ -186,23 +186,6 @@ pub trait GraphTrait<N: Clone, E: Clone> {
         let de = self.energy_diff_by_shift(idx, &state_old, &state_new);
         ShiftResult { index: idx, state: state_new, energy_diff: de }
     }
-
-    fn try_random_shift_multi(
-        &self,
-        rng: &mut RandomNumberGenerator,
-        num: usize,
-    ) -> Vec<ShiftResult<N>> {
-        let graph = self.components();
-        let indices = rng.uniform_ints_no_overlap(graph.node_count(), num);
-        let mut results = Vec::with_capacity(num);
-        for idx in indices {
-            let state_old = graph.node_state(idx);
-            let state_new = self.random_local_neighbor_state(&state_old, rng);
-            let de = self.energy_diff_by_shift(idx, &state_old, &state_new);
-            results.push(ShiftResult { index: idx, state: state_new, energy_diff: de })
-        }
-        results
-    }
 }
 
 pub trait CylindricGraphTrait<S: Clone, E: Clone>: GraphTrait<Node2D<S>, E> {

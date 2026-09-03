@@ -153,7 +153,7 @@ impl<T> MicrotubuleGraph<T> where T: MicrotubuleBindingPotential {
 
             let coord0 = &self.coords[(pos0.index.y, pos0.index.a)];
             let coord1 = &self.coords[(pos1.index.y, pos1.index.a)];
-            let dr = coord0.at_vec(pos0.state.into()) - coord1.at_vec(pos1.state.into());
+            let dr = coord0.at_vec(pos0.state) - coord1.at_vec(pos1.state);
             distances.push(dr.length())
         }
         Array1::from(distances)
@@ -192,8 +192,8 @@ impl<T> MicrotubuleGraph<T> where T: MicrotubuleBindingPotential {
                 let coord_l = &self.coords[(pos_l.index.y, pos_l.index.a)];
                 let coord_r = &self.coords[(pos_r.index.y, pos_r.index.a)];
 
-                let dr_l = coord_c.at_vec(pos_c.state.into()) - coord_l.at_vec_fast(pos_l.state.into());
-                let dr_r = coord_c.at_vec(pos_c.state.into()) - coord_r.at_vec_fast(pos_r.state.into());
+                let dr_l = coord_c.at_vec(pos_c.state) - coord_l.at_vec(pos_l.state);
+                let dr_r = coord_c.at_vec(pos_c.state) - coord_r.at_vec(pos_r.state);
                 angles[i] = dr_l.angle(&dr_r);
             }
 
@@ -232,8 +232,8 @@ impl<T> MicrotubuleGraph<T> where T: MicrotubuleBindingPotential {
             let ends = self.components.edge_end(i);
             let node0 = self.components.node_state(ends.0);
             let node1 = self.components.node_state(ends.1);
-            let coord0 = self.coords[(node0.index.y, node0.index.a)].at_vec(node0.state.into());
-            let coord1 = self.coords[(node1.index.y, node1.index.a)].at_vec(node1.state.into());
+            let coord0 = self.coords[(node0.index.y, node0.index.a)].at_vec(node0.state);
+            let coord1 = self.coords[(node1.index.y, node1.index.a)].at_vec(node1.state);
             out0[[i, 0]] = coord0.z;
             out0[[i, 1]] = coord0.y;
             out0[[i, 2]] = coord0.x;
@@ -346,8 +346,8 @@ impl<T> MicrotubuleGraph<T> where T: MicrotubuleBindingPotential {
         let vec = node_state.state;
         let vec1 = node_state_prev.state;
         let vec2 = node_state_next.state;
-        let dr1 = coord.at_vec_fast(vec.into()) - coord1.at_vec_fast(vec1.into());
-        let dr2 = coord.at_vec_fast(vec.into()) - coord2.at_vec_fast(vec2.into());
+        let dr1 = coord.at_vec(vec) - coord1.at_vec(vec1);
+        let dr2 = coord.at_vec(vec) - coord2.at_vec(vec2);
         self.binding_potential.calculate_deform(&dr1, &dr2, &coord.ez)
     }
 
@@ -449,7 +449,7 @@ impl<T> GraphTrait<Node2D<Shift>, EdgeType> for MicrotubuleGraph<T> where T: Mic
         let vec2 = node_state1.state;
         let coord1 = &self.coords[(node_state0.index.y, node_state0.index.a)];
         let coord2 = &self.coords[(node_state1.index.y, node_state1.index.a)];
-        let dr = coord1.at_vec_fast(vec1.into()) - coord2.at_vec_fast(vec2.into());
+        let dr = coord1.at_vec(vec1) - coord2.at_vec(vec2);
         match typ {
             EdgeType::Longitudinal => self.binding_potential.calculate_bind(&dr),
             EdgeType::Lateral => self.binding_potential.calculate_lat_bind(&dr),
@@ -468,9 +468,9 @@ impl<T> GraphTrait<Node2D<Shift>, EdgeType> for MicrotubuleGraph<T> where T: Mic
         let vec_other = other_state.state;
         let coord_this = &self.coords[(state_old.index.y, state_old.index.a)];
         let coord_other = &self.coords[(other_state.index.y, other_state.index.a)];
-        let point_other = coord_other.at_vec_fast(vec_other);
-        let dr_old = coord_this.at_vec_fast(vec_old) - point_other;
-        let dr_new = coord_this.at_vec_fast(vec_new) - point_other;
+        let point_other = coord_other.at_vec(vec_other);
+        let dr_old = coord_this.at_vec(vec_old) - point_other;
+        let dr_new = coord_this.at_vec(vec_new) - point_other;
         let (e_old, e_new) = match typ {
             EdgeType::Longitudinal => (
                 self.binding_potential.calculate_bind(&dr_old),
@@ -631,6 +631,7 @@ impl<T> CylindricGraphTrait<Shift, EdgeType> for MicrotubuleGraph<T> where T: Mi
         eng_lon += &self.deform_energies();
         (eng_lon, eng_lat)
     }
+
     fn list_neighbors(&self, node_state: &Node2D<Shift>) -> Vec<Shift> {
         list_neighbors(&node_state.state, &self.local_shape)
     }
