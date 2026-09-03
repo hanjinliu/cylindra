@@ -466,12 +466,11 @@ impl<T> GraphTrait<Node2D<Shift>, EdgeType> for MicrotubuleGraph<T> where T: Mic
         let vec_old = state_old.state;
         let vec_new = state_new.state;
         let vec_other = other_state.state;
-        let coord_old = &self.coords[(state_old.index.y, state_old.index.a)];
-        let coord_new = &self.coords[(state_new.index.y, state_new.index.a)];
+        let coord_this = &self.coords[(state_old.index.y, state_old.index.a)];
         let coord_other = &self.coords[(other_state.index.y, other_state.index.a)];
-        let point_other = coord_other.at_vec_fast(vec_other.into());
-        let dr_old = coord_old.at_vec_fast(vec_old.into()) - point_other;
-        let dr_new = coord_new.at_vec_fast(vec_new.into()) - point_other;
+        let point_other = coord_other.at_vec_fast(vec_other);
+        let dr_old = coord_this.at_vec_fast(vec_old) - point_other;
+        let dr_new = coord_this.at_vec_fast(vec_new) - point_other;
         let (e_old, e_new) = match typ {
             EdgeType::Longitudinal => (
                 self.binding_potential.calculate_bind(&dr_old),
