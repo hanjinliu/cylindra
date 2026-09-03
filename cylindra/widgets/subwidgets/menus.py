@@ -579,6 +579,7 @@ class MoleculesMenu(ChildWidget):
         map_along_pf = abstractapi()
         map_monomers_arbitrary = abstractapi()
         sep0 = Separator
+        extend_molecules = abstractapi()
         set_source_spline = abstractapi()
         molecules_to_spline = abstractapi()
         filament_to_spline = abstractapi()
@@ -609,6 +610,13 @@ class MoleculesMenu(ChildWidget):
         label_feature_clusters = abstractapi()
         correlation_heatmap_for_feature = abstractapi()
         regionprops_features = abstractapi()
+
+    @magicmenu(name="Clustering")
+    class Clustering(MagicTemplate):
+        """Molecule clustering"""
+
+        cluster_molecules = abstractapi()
+        split_clusters = abstractapi()
 
     @magicmenu(name="Visualize")
     class View(ChildWidget):

@@ -495,6 +495,20 @@ def _setup_map_monomers_with_extensions(self: CylindraMainWidget, gui: FunctionG
     gui.spline.changed.emit(gui.spline.value)  # initialize
 
 
+@setup_function_gui(CylindraMainWidget.extend_molecules)
+def _setup_extend_molecules(self: CylindraMainWidget, gui: FunctionGui):
+    @gui.layer.changed.connect
+    def _on_layer_changed(layer: MoleculesLayer | None):
+        if not isinstance(layer, MoleculesLayer):
+            return None
+        ser = layer.molecules.features.get_column(Mole.pf, default=pl.Series())
+        value = {int(ipf): (0, 0) for ipf in ser.unique()}
+        if gui.n_extend.value.keys() != value.keys():
+            gui.n_extend.value = value
+
+    gui.layer.changed.emit(gui.layer.value)  # initialize
+
+
 @setup_function_gui(CylindraMainWidget.rename_molecules)
 def _setup_rename_molecules(self: CylindraMainWidget, gui: FunctionGui):
     label = Label(value="No change.")
@@ -568,6 +582,7 @@ def _setup_delete_segments(self: CylindraMainWidget, gui: FunctionGui):
 @setup_function_gui(SubtomogramAveraging.classify_em_template_free)
 @setup_function_gui(SubtomogramAveraging.align_all_rfa)
 @setup_function_gui(SubtomogramAveraging.align_all_rma)
+@setup_function_gui(SubtomogramAveraging.align_all_mt_rma)
 @setup_function_gui(SubtomogramAveraging.run_rfa_on_landscape)
 @setup_function_gui(SubtomogramAveraging.run_rma_on_landscape)
 @setup_function_gui(SubtomogramAveraging.fit_spline_rfa)
