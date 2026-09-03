@@ -13,7 +13,7 @@ pub struct CoordinateSystem<T> {
     pub ey: Vector3D<T>,
     pub ex: Vector3D<T>,
     // Because origin + ez * z + ey * y + ex * x is frequently used,
-    // we cache the results for origin + ez * z, origin + ey * y, origin + ex * x
+    // we cache the results for origin + ez * z, ey * y, ex * x
     pub cache_oz: Vec<Vector3D<T>>,
     pub cache_y: Vec<Vector3D<T>>,
     pub cache_x: Vec<Vector3D<T>>,
@@ -61,11 +61,6 @@ impl<T: Real> CoordinateSystem<T> {
         self.origin + self.ez * z + self.ey * y + self.ex * x
     }
 
-    /// Vector version of `at`.
-    pub fn at_vec(&self, vec: Vector3D<T>) -> Vector3D<T> {
-        self.origin + self.ez * vec.z + self.ey * vec.y + self.ex * vec.x
-    }
-
     /// Initialize the coordinate system.
     /// This method creates an invalid coordinate system. The `update` method must be called
     /// before using it.
@@ -85,7 +80,7 @@ impl<T: Real> CoordinateSystem<T> {
         oz + oy + ox
     }
 
-    pub fn at_vec_fast(&self, vec: Vector3D<isize>) -> Vector3D<T> {
+    pub fn at_vec(&self, vec: Vector3D<isize>) -> Vector3D<T> {
         let oz = self.cache_oz[vec.z as usize];
         let oy = self.cache_y[vec.y as usize];
         let ox = self.cache_x[vec.x as usize];
