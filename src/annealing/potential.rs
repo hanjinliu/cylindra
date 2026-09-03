@@ -25,6 +25,22 @@ pub trait BindingPotential2D : BindingPotential {
     }
 }
 
+/// Binding potential used by a microtubule lattice graph. Unlike `BindingPotential2D`,
+/// longitudinal binding does not carry an angle constraint: the angle (curvature)
+/// constraint is asymmetric and is instead applied separately, between a molecule and
+/// its two longitudinal neighbors, via `calculate_deform`.
+pub trait MicrotubuleBindingPotential : BindingPotential {
+    /// Energy coming from longitudinal distance.
+    fn calculate_bind(&self, dr: &Vector3D<f32>) -> f32;
+    /// Energy coming from lateral distance.
+    fn calculate_lat_bind(&self, dr: &Vector3D<f32>) -> f32;
+    /// Energy coming from deformation (curvature of the protofilament). `dz` is the
+    /// local outward-pointing normal of the coordinate system at the center molecule,
+    /// used to distinguish curling outward (away from the microtubule axis) from
+    /// curling inward (toward the axis).
+    fn calculate_deform(&self, dr1: &Vector3D<f32>, dr2: &Vector3D<f32>, dz: &Vector3D<f32>) -> f32;
+}
+
 #[derive(Clone, PartialEq, Eq)]
 pub enum EdgeType {
     Longitudinal,
@@ -107,6 +123,45 @@ impl TrapezoidalCosineBoundary {
         let ang = dr.cos_angle(vec).abs().acos();
         if ang > self.ang_max {
             self.slope * (ang - self.ang_max)
+        } else {
+            0.0
+        }
+    }
+}
+
+#[derive(Clone)]
+struct AsymmetricCosineBoundary {
+    ang_min: f32,
+    ang_max: f32,
+    slope: f32,
+}
+
+impl AsymmetricCosineBoundary {
+    pub fn new(ang_min: f32, ang_max: f32, slope: f32) -> PyResult<Self> {
+        if ang_min >= ang_max {
+            return value_error!("Minimum angle must be smaller than maximum angle");
+        }
+        Ok(Self { ang_min, ang_max, slope })
+    }
+
+    pub fn unbounded() -> Self {
+        Self { ang_min: 0.0, ang_max: f32::INFINITY, slope: 0.0, }
+    }
+
+    pub fn energy(
+        &self,
+        dr: &Vector3D<f32>,
+        vec: &Vector3D<f32>,
+        dz: &Vector3D<f32>,
+    ) -> f32 {
+        // NOTE: vec _|_ dz
+        let ang = dr.cos_angle(vec).abs().acos();
+        let sign = if dr.dot(dz) >= 0.0 { 1.0 } else { -1.0 };
+        let signed_ang = sign * ang;
+        if signed_ang < self.ang_min {
+            self.slope * (self.ang_min - signed_ang)
+        } else if self.ang_max < signed_ang {
+            self.slope * (signed_ang - self.ang_max)
         } else {
             0.0
         }
@@ -412,5 +467,198 @@ impl BindingPotential2D for LennardJonesLikePotential2D {
 
     fn lateral(&self, dr: &Vector3D<f32>, _vec: &Vector3D<f32>) -> f32 {
         self.lat.energy(&dr)
+    }
+}
+
+#[derive(Clone)]
+pub struct MicrotubulePotential {
+    lon: TrapezoidalBoundary,
+    lat: TrapezoidalBoundary,
+    angle: AsymmetricCosineBoundary,
+    cooling_rate: f32,
+}
+
+impl MicrotubulePotential {
+    pub fn new(
+        lon_dist_min: f32,
+        lon_dist_max: f32,
+        lat_dist_min: f32,
+        lat_dist_max: f32,
+        lon_ang_min: f32,
+        lon_ang_max: f32,
+        cooling_rate: f32,
+    ) -> PyResult<Self> {
+        if cooling_rate < 0.0 {
+            return value_error!("Cooling rate must be non-negative");
+        }
+
+        Ok(
+            Self {
+                lon: TrapezoidalBoundary::new(lon_dist_min, lon_dist_max, 0.0)?,
+                lat: TrapezoidalBoundary::new(lat_dist_min, lat_dist_max, 0.0)?,
+                angle: AsymmetricCosineBoundary::new(lon_ang_min, lon_ang_max, 0.0)?,
+                cooling_rate,
+            }
+        )
+    }
+
+    pub fn unbounded() -> Self {
+        Self {
+            lon: TrapezoidalBoundary::unbounded(),
+            lat: TrapezoidalBoundary::unbounded(),
+            angle: AsymmetricCosineBoundary::unbounded(),
+            cooling_rate: 0.0,
+        }
+    }
+
+
+    pub fn with_lon_dist(&self, min: f32, max: f32) -> PyResult<Self> {
+        let mut new = self.clone();
+        new.lon = TrapezoidalBoundary::new(min, max, self.lon.slope)?;
+        Ok(new)
+    }
+
+    pub fn with_lat_dist(&self, min: f32, max: f32) -> PyResult<Self> {
+        let mut new = self.clone();
+        new.lat = TrapezoidalBoundary::new(min, max, self.lat.slope)?;
+        Ok(new)
+    }
+
+    pub fn with_lon_ang(&self, min: f32, max: f32) -> PyResult<Self> {
+        let mut new = self.clone();
+        new.angle = AsymmetricCosineBoundary::new(min, max, self.angle.slope)?;
+        Ok(new)
+    }
+
+    pub fn with_cooling_rate(&self, cooling_rate: f32) -> Self {
+        let mut new = self.clone();
+        new.cooling_rate = cooling_rate;
+        new
+    }
+}
+
+impl BindingPotential for MicrotubulePotential {
+    /// Cool the potential by increasing the slope of the trapezoid.
+    fn cool(&mut self, n: usize) {
+        let slope = self.cooling_rate * n as f32;
+        self.lon.slope = slope;
+        self.lat.slope = slope;
+        self.angle.slope = slope;
+    }
+}
+
+impl MicrotubuleBindingPotential for MicrotubulePotential {
+    fn calculate_bind(&self, dr: &Vector3D<f32>) -> f32 {
+        self.lon.energy(dr)
+    }
+
+    fn calculate_lat_bind(&self, dr: &Vector3D<f32>) -> f32 {
+        self.lat.energy(dr)
+    }
+
+    fn calculate_deform(&self, dr1: &Vector3D<f32>, dr2: &Vector3D<f32>, dz: &Vector3D<f32>) -> f32 {
+        self.angle.energy(dr1, dr2, dz)
+    }
+}
+
+#[derive(Clone)]
+/// Microtubule binding potential with a Lennard-Jones-like longitudinal/lateral
+/// distance boundary: unlike `MicrotubulePotential`'s hard trapezoidal boundary, the
+/// energy softly saturates at `energy_inf` as the distance grows beyond `dist_max`,
+/// allowing molecules to separate further apart than the cutoff distance if that is
+/// favorable elsewhere.
+pub struct MicrotubulePotentialLJ {
+    lon: LennardJonesLikeBoundary,
+    lat: LennardJonesLikeBoundary,
+    angle: AsymmetricCosineBoundary,
+    cooling_rate: f32,
+}
+
+impl MicrotubulePotentialLJ {
+    pub fn new(
+        lon_dist_min: f32,
+        lon_dist_max: f32,
+        lat_dist_min: f32,
+        lat_dist_max: f32,
+        lon_ang_min: f32,
+        lon_ang_max: f32,
+        cooling_rate: f32,
+    ) -> PyResult<Self> {
+        if cooling_rate < 0.0 {
+            return value_error!("Cooling rate must be non-negative");
+        }
+
+        Ok(
+            Self {
+                lon: LennardJonesLikeBoundary::new(lon_dist_min, lon_dist_max, 0.0, 0.0)?,
+                lat: LennardJonesLikeBoundary::new(lat_dist_min, lat_dist_max, 0.0, 0.0)?,
+                angle: AsymmetricCosineBoundary::new(lon_ang_min, lon_ang_max, 0.0)?,
+                cooling_rate,
+            }
+        )
+    }
+
+    pub fn unbounded() -> Self {
+        Self {
+            lon: LennardJonesLikeBoundary::unbounded(),
+            lat: LennardJonesLikeBoundary::unbounded(),
+            angle: AsymmetricCosineBoundary::unbounded(),
+            cooling_rate: 0.0,
+        }
+    }
+
+    pub fn with_lon_dist(&self, min: f32, max: f32) -> PyResult<Self> {
+        let mut new = self.clone();
+        new.lon = LennardJonesLikeBoundary::new(min, max, self.lon.slope, self.lon.energy_inf)?;
+        Ok(new)
+    }
+
+    pub fn with_lat_dist(&self, min: f32, max: f32) -> PyResult<Self> {
+        let mut new = self.clone();
+        new.lat = LennardJonesLikeBoundary::new(min, max, self.lat.slope, self.lat.energy_inf)?;
+        Ok(new)
+    }
+
+    pub fn with_lon_ang(&self, min: f32, max: f32) -> PyResult<Self> {
+        let mut new = self.clone();
+        new.angle = AsymmetricCosineBoundary::new(min, max, self.angle.slope)?;
+        Ok(new)
+    }
+
+    pub fn with_cooling_rate(&self, cooling_rate: f32) -> Self {
+        let mut new = self.clone();
+        new.cooling_rate = cooling_rate;
+        new
+    }
+
+    pub fn with_energy_inf(&self, lon_energy_inf: f32, lat_energy_inf: f32) -> PyResult<Self> {
+        let mut new = self.clone();
+        new.lon = LennardJonesLikeBoundary::new(new.lon.dist_min, new.lon.dist_max, new.lon.slope, lon_energy_inf)?;
+        new.lat = LennardJonesLikeBoundary::new(new.lat.dist_min, new.lat.dist_max, new.lat.slope, lat_energy_inf)?;
+        Ok(new)
+    }
+}
+
+impl BindingPotential for MicrotubulePotentialLJ {
+    /// Cool the potential by increasing the slope of the trapezoid.
+    fn cool(&mut self, n: usize) {
+        let slope = self.cooling_rate * n as f32;
+        self.lon.slope = slope;
+        self.lat.slope = slope;
+        self.angle.slope = slope;
+    }
+}
+
+impl MicrotubuleBindingPotential for MicrotubulePotentialLJ {
+    fn calculate_bind(&self, dr: &Vector3D<f32>) -> f32 {
+        self.lon.energy(dr)
+    }
+
+    fn calculate_lat_bind(&self, dr: &Vector3D<f32>) -> f32 {
+        self.lat.energy(dr)
+    }
+
+    fn calculate_deform(&self, dr1: &Vector3D<f32>, dr2: &Vector3D<f32>, dz: &Vector3D<f32>) -> f32 {
+        self.angle.energy(dr1, dr2, dz)
     }
 }

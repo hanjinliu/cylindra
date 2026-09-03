@@ -379,7 +379,7 @@ def test_map_molecules(ui: CylindraMainWidget, tmpdir):
     )
     ui.correlation_heatmap_for_feature("Mole-0", "pf-id", max_offset_longitudinal=2, max_offset_lateral=1, is_binary_data=False)
     ui.correlation_heatmap_for_feature("Mole-0", "pf-id", max_offset_longitudinal=2, max_offset_lateral=1, is_binary_data=True, save_path=tmpdir / "heatmap.csv")
-
+    ui.extend_molecules(ui.mole_layers.last(), n_extend=(2, 5))
 
 def test_napari_operations(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=None)
@@ -1705,15 +1705,15 @@ def test_annealing(ui: CylindraMainWidget):
         range_long=(dist_lon - 0.1, dist_lon + 0.1),
         angle_max=20,
     )
-    # Test Lenard-Jones potential
-    ui.sta.align_all_rma(
+    # Test Lenard-Jones potential and MT-RMA
+    ui.sta.align_all_mt_rma(
         layer_filt,
         template_path=TEST_DIR / "beta-tubulin.mrc",
         mask_params=(0.3, 0.8),
         max_shifts=(1.2, 1.2, 1.2),
         range_long=(dist_lon - 0.1, dist_lon + 0.1),
         range_lat=(dist_lat - 0.1, dist_lat + 0.1),
-        angle_max=20,
+        range_angle=(-15, 20),
         num_trials=2,
         lj_const=0.5,
     )
@@ -2043,3 +2043,14 @@ def test_half_tomos(ui: CylindraMainWidget, tmpdir):
     assert img1.shape == img2.shape
     assert img1.dtype == img2.dtype
     assert ui.tomogram.image.mean().compute() == pytest.approx((img1.mean() + img2.mean()).compute(), rel=1e-5)
+
+
+def test_clustering(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_13PF, filter=None, read_image=False)
+    ui.filter_molecules("Mole-1", predicate="col('nth') != 6")
+    ui.cluster_molecules("Mole-1")
+    assert ui.mole_layers["Mole-1"].molecules.features["cluster_labels"].n_unique() == 1
+    ui.split_clusters("Mole-1", largest_only=False)
+
+    ui.filter_molecules("Mole-0", predicate="(col('nth') != 3) & (col('pf-id') != 0)")
+    ui.split_clusters("Mole-0", largest_only=True)

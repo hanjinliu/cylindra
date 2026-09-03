@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import glob
 import inspect
+import math
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -178,6 +179,34 @@ ValueExprStr = Annotated[
         "widget_type": EvalLineEdit,
         "namespace": SAFE_NAMESPACE | {"value": None},
         "tooltip": "Expression with `value`",
+    },
+]
+
+ClusteringExprStr = Annotated[
+    str,
+    {
+        "widget_type": EvalLineEdit,
+        "namespace": {
+            "np": np,
+            "math": math,
+            "bool": bool,
+            "int": int,
+            "float": float,
+            "abs": abs,
+            "min": min,
+            "max": max,
+            "round": round,
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0,
+            "d": 1.0,
+        },
+        "tooltip": (
+            "Expression for clustering connectivity.\n"
+            "Variables: z, y, x and d. Vector from i-th to j-th molecule is (z, y, x),\n"
+            "and d is the norm of the vector. `np`, `math` and the basic builtin\n"
+            "functions are available."
+        ),
     },
 ]
 

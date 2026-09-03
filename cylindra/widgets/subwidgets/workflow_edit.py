@@ -1,5 +1,4 @@
 import inspect
-from functools import partial
 from typing import TYPE_CHECKING, Annotated
 
 from macrokit import Head, Symbol, parse
@@ -174,11 +173,15 @@ class WorkflowEdit(ChildWidget):
         """Append workflow as a widget to the menu."""
         main = self._get_main()
         main_func = _config.get_main_function(path)
-        partial_func = partial(main_func, main)
+
+        @do_not_record
+        def partial_func(*args, **kwargs):
+            return main_func(main, *args, **kwargs)
+
         prms = list(inspect.signature(main_func).parameters.values())[1:]
         partial_func.__signature__ = inspect.Signature(prms)
 
-        fn = set_design(text=f"Run `{path.stem}`")(do_not_record(partial_func))
+        fn = set_design(text=f"Run `{path.stem}`")(partial_func)
         fn.__name__ = self._make_method_name(path)
         # Old menu should be removed
         try:

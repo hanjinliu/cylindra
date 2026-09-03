@@ -578,10 +578,11 @@ class SplineLayer(Points):
 
 def _normalize_colormap(cmap) -> Colormap:
     """Normalize the input to a napari Colormap object."""
+    from cmap import Colormap as Cmap
     from napari.utils.colormaps import Colormap, ensure_colormap
 
     if isinstance(cmap, Colormap):
-        return cmap
+        return Cmap(cmap.colors).to_napari()
     if isinstance(cmap, str):
         return ensure_colormap(cmap)
     if isinstance(cmap, list) and isinstance(cmap[0], str):
