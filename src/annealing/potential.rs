@@ -58,6 +58,8 @@ struct TrapezoidalBoundary {
     dist_min: f32,
     dist_max: f32,
     slope: f32,
+    _dist_min2: f32,
+    _dist_max2: f32,
 }
 
 impl TrapezoidalBoundary {
@@ -67,7 +69,7 @@ impl TrapezoidalBoundary {
         } else if dist_min >= dist_max {
             return value_error!("Minimum distance must be smaller than maximum distance");
         }
-        Ok(Self { dist_min, dist_max, slope })
+        Ok(Self { dist_min, dist_max, slope, _dist_min2: dist_min * dist_min, _dist_max2: dist_max * dist_max })
     }
 
     /// An unbounded version of the model.
@@ -76,18 +78,22 @@ impl TrapezoidalBoundary {
             dist_min: 0.0,
             dist_max: f32::INFINITY,
             slope: 0.0,
+            _dist_min2: 0.0,
+            _dist_max2: f32::INFINITY,
         }
     }
 
-    /// Calculated energy of given square of distance.
+    /// Calculated energy of given vector.
     pub fn energy(&self, dr: &Vector3D<f32>) -> f32 {
-        let dist = dr.length();
-        if dist < self.dist_min {
-            self.slope * (self.dist_min - dist)
-        } else if self.dist_max < dist {
-            self.slope * (dist - self.dist_max)
+        let dist2 = dr.length2();
+        if self._dist_min2 <= dist2 {
+            if dist2 <= self._dist_max2 {
+                0.0
+            } else {
+                self.slope * (dist2.sqrt() - self.dist_max)
+            }
         } else {
-            0.0
+            self.slope * (self.dist_min - dist2.sqrt())
         }
     }
 }
@@ -99,6 +105,7 @@ impl TrapezoidalBoundary {
 struct TrapezoidalCosineBoundary {
     ang_max: f32,
     slope: f32,
+    _cos_ang_min: f32,
 }
 
 impl TrapezoidalCosineBoundary {
@@ -107,12 +114,12 @@ impl TrapezoidalCosineBoundary {
             return value_error!("Maximum angle must be positive");
         }
         Ok(
-            Self { ang_max, slope }
+            Self { ang_max, slope, _cos_ang_min: (ang_max).cos(), }
         )
     }
 
     pub fn unbounded() -> Self {
-        Self { ang_max: f32::INFINITY, slope: 0.0, }
+        Self { ang_max: f32::INFINITY, slope: 0.0, _cos_ang_min: 0.0 }
     }
 
     ///           o         Cosine is calculated as the angle between the
@@ -120,11 +127,12 @@ impl TrapezoidalCosineBoundary {
     ///    i                of local coordinates is always parallel to the
     /// ---------------> y  y axis.
     pub fn energy(&self, dr: &Vector3D<f32>, vec: &Vector3D<f32>) -> f32 {
-        let ang = dr.cos_angle(vec).abs().acos();
-        if ang > self.ang_max {
-            self.slope * (ang - self.ang_max)
-        } else {
+        let cos_angle = dr.cos_angle(vec).abs();
+        if cos_angle >= self._cos_ang_min {
             0.0
+        } else {
+            let ang = cos_angle.acos();
+            self.slope * (ang - self.ang_max)
         }
     }
 }
@@ -337,6 +345,8 @@ struct LennardJonesLikeBoundary {
     dist_max: f32,
     slope: f32,
     energy_inf: f32,  // The energy when the distance is infinity.
+    _dist_min2: f32,
+    _dist_max2: f32,
 }
 
 impl LennardJonesLikeBoundary {
@@ -348,7 +358,7 @@ impl LennardJonesLikeBoundary {
         } else if energy_inf < 0.0 {
             return value_error!("Energy at infinity must be non-negative");
         }
-        Ok(Self { dist_min, dist_max, slope, energy_inf })
+        Ok(Self { dist_min, dist_max, slope, energy_inf, _dist_min2: dist_min * dist_min, _dist_max2: dist_max * dist_max })
     }
 
     /// An unbounded version of the model.
@@ -358,18 +368,22 @@ impl LennardJonesLikeBoundary {
             dist_max: f32::INFINITY,
             slope: 0.0,
             energy_inf: 0.0,
+            _dist_min2: 0.0,
+            _dist_max2: f32::INFINITY,
         }
     }
 
     /// Calculated energy of given square of distance.
     pub fn energy(&self, dr: &Vector3D<f32>) -> f32 {
-        let dist = dr.length();
-        if dist < self.dist_min {
-            self.slope * (self.dist_min - dist)
-        } else if self.dist_max < dist {
-            self.energy_inf * (1.0 - (-self.slope * (dist - self.dist_max)).exp())
+        let dist2 = dr.length2();
+        if self._dist_min2 <= dist2 {
+            if dist2 <= self._dist_max2 {
+                0.0
+            } else {
+                self.energy_inf * (1.0 - (-self.slope * (dist2.sqrt() - self.dist_max)).exp())
+            }
         } else {
-            0.0
+            self.slope * (self.dist_min - dist2.sqrt())
         }
     }
 }
