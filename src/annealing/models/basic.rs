@@ -37,7 +37,7 @@ impl CylindricAnnealingModel {
             rng,
             optimization_state,
             graph: CylindricalGraph::<TrapezoidalPotential2D>::empty(),
-            reservoir: Reservoir::new(1.0, 1.0, 0.0),
+            reservoir: Reservoir::new(1.0, 1.0),
             iteration: 0,
             reject_limit: 1000,
         }
@@ -73,15 +73,14 @@ impl CylindricAnnealingModel {
         Py::new(py, out).unwrap()
     }
 
-    #[pyo3(signature = (temperature, time_constant, min_temperature=0.0))]
+    #[pyo3(signature = (temperature, time_constant))]
     /// Set a standard reservoir.
     pub fn set_reservoir(
         mut slf: PyRefMut<Self>,
         temperature: f32,
         time_constant: f32,
-        min_temperature: f32,
     ) -> PyRefMut<Self> {
-        slf.reservoir = Reservoir::new(temperature, time_constant, min_temperature);
+        slf.reservoir = Reservoir::new(temperature, time_constant);
         slf
     }
 
@@ -358,7 +357,7 @@ impl CylindricAnnealingModelLJ {
             rng,
             optimization_state,
             graph: CylindricalGraph::<LennardJonesLikePotential2D>::empty(),
-            reservoir: Reservoir::new(1.0, 1.0, 0.0),
+            reservoir: Reservoir::new(1.0, 1.0),
             iteration: 0,
             reject_limit: 1000,
         }
@@ -394,15 +393,14 @@ impl CylindricAnnealingModelLJ {
         Py::new(py, out).unwrap()
     }
 
-    #[pyo3(signature = (temperature, time_constant, min_temperature=0.0))]
+    #[pyo3(signature = (temperature, time_constant))]
     /// Set a standard reservoir.
     pub fn set_reservoir(
         mut slf: PyRefMut<Self>,
         temperature: f32,
         time_constant: f32,
-        min_temperature: f32,
     ) -> PyRefMut<Self> {
-        slf.reservoir = Reservoir::new(temperature, time_constant, min_temperature);
+        slf.reservoir = Reservoir::new(temperature, time_constant);
         slf
     }
 

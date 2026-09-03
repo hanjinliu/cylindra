@@ -34,7 +34,7 @@ impl FilamentousAnnealingModel {
             rng,
             optimization_state,
             graph: FilamentousGraph::empty(),
-            reservoir: Reservoir::new(1.0, 1.0, 0.0),
+            reservoir: Reservoir::new(1.0, 1.0),
             iteration: 0,
             reject_limit: 1000,
         }
@@ -70,14 +70,13 @@ impl FilamentousAnnealingModel {
         out
     }
 
-    #[pyo3(signature = (temperature, time_constant, min_temperature=0.0))]
+    #[pyo3(signature = (temperature, time_constant))]
     pub fn set_reservoir(
         mut slf: PyRefMut<Self>,
         temperature: f32,
         time_constant: f32,
-        min_temperature: f32,
     ) -> PyRefMut<Self> {
-        slf.reservoir = Reservoir::new(temperature, time_constant, min_temperature);
+        slf.reservoir = Reservoir::new(temperature, time_constant);
         slf
     }
 

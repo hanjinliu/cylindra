@@ -42,7 +42,7 @@ impl MicrotubuleAnnealingModel {
             rng,
             optimization_state,
             graph: MicrotubuleGraph::<MicrotubulePotential>::empty(),
-            reservoir: Reservoir::new(1.0, 1.0, 0.0),
+            reservoir: Reservoir::new(1.0, 1.0),
             iteration: 0,
             reject_limit: 1000,
         }
@@ -78,15 +78,14 @@ impl MicrotubuleAnnealingModel {
         Py::new(py, out).unwrap()
     }
 
-    #[pyo3(signature = (temperature, time_constant, min_temperature=0.0))]
+    #[pyo3(signature = (temperature, time_constant))]
     /// Set a standard reservoir.
     pub fn set_reservoir(
         mut slf: PyRefMut<Self>,
         temperature: f32,
         time_constant: f32,
-        min_temperature: f32,
     ) -> PyRefMut<Self> {
-        slf.reservoir = Reservoir::new(temperature, time_constant, min_temperature);
+        slf.reservoir = Reservoir::new(temperature, time_constant);
         slf
     }
 
@@ -373,7 +372,7 @@ impl MicrotubuleAnnealingModelLJ {
             rng,
             optimization_state,
             graph: MicrotubuleGraph::<MicrotubulePotentialLJ>::empty(),
-            reservoir: Reservoir::new(1.0, 1.0, 0.0),
+            reservoir: Reservoir::new(1.0, 1.0),
             iteration: 0,
             reject_limit: 1000,
         }
@@ -409,15 +408,14 @@ impl MicrotubuleAnnealingModelLJ {
         Py::new(py, out).unwrap()
     }
 
-    #[pyo3(signature = (temperature, time_constant, min_temperature=0.0))]
+    #[pyo3(signature = (temperature, time_constant))]
     /// Set a standard reservoir.
     pub fn set_reservoir(
         mut slf: PyRefMut<Self>,
         temperature: f32,
         time_constant: f32,
-        min_temperature: f32,
     ) -> PyRefMut<Self> {
-        slf.reservoir = Reservoir::new(temperature, time_constant, min_temperature);
+        slf.reservoir = Reservoir::new(temperature, time_constant);
         slf
     }
 
