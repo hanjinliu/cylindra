@@ -1,3 +1,5 @@
+use std::ops::Index;
+
 use rand::SeedableRng;
 use rand::prelude::Distribution;
 use rand::seq::index::sample;
@@ -13,20 +15,63 @@ fn get_uniform(n: usize) -> rand::distributions::Uniform<usize> {
 }
 
 #[derive(Clone)]
+struct NeighborVec {
+    values: [Vector3D<isize>; 6],
+    len: usize,
+}
+
+#[derive(Clone)]
 struct NeighborList {
-    neighbors: Array3<Vec<Vector3D<isize>>>,
+    neighbors: Array3<NeighborVec>,
+}
+
+impl NeighborVec {
+    fn new() -> Self {
+        Self {
+            values: [Vector3D::new(0, 0, 0); 6],
+            len: 0,
+        }
+    }
+
+    fn from_vec(values: Vec<Vector3D<isize>>) -> Self {
+        if values.len() > 6 {
+            panic!("Too many neighbors");
+        }
+        let mut arr = [Vector3D::new(0, 0, 0); 6];
+        let mut len = 0;
+        for (i, v) in values.into_iter().enumerate() {
+            arr[i] = v;
+            len += 1;
+        }
+        Self {
+            values: arr,
+            len,
+        }
+    }
+
+    fn len(&self) -> usize {
+        self.len
+    }
+}
+
+impl Index<usize> for NeighborVec {
+    type Output = Vector3D<isize>;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.values[index]
+    }
 }
 
 impl NeighborList {
     fn new(shape: Vector3D<isize>) -> Self {
         let sh = (shape.z as usize, shape.y as usize, shape.x as usize);
-        let mut arr = Array3::from_elem(sh, Vec::new());
+        let mut arr = Array3::from_elem(sh, NeighborVec::new());
         for z in 0..shape.z {
             for y in 0..shape.y {
                 for x in 0..shape.x {
                     let src = Vector3D::new(z, y, x);
                     let neighbors = list_neighbors(&src, &shape);
-                    arr[[z as usize, y as usize, x as usize]] = neighbors;
+                    arr[[z as usize, y as usize, x as usize]] = NeighborVec::from_vec(neighbors);
                 }
             }
         }
@@ -34,10 +79,10 @@ impl NeighborList {
     }
 
     fn empty() -> Self {
-        Self { neighbors: Array3::from_elem((0, 0, 0), Vec::new()) }
+        Self { neighbors: Array3::from_elem((0, 0, 0), NeighborVec::new()) }
     }
 
-    fn at(&self, src: &Vector3D<isize>) -> &Vec<Vector3D<isize>> {
+    fn at(&self, src: &Vector3D<isize>) -> &NeighborVec {
         &self.neighbors[[src.z as usize, src.y as usize, src.x as usize]]
     }
 }
@@ -85,11 +130,6 @@ impl RandomNumberGenerator {
         Self { rng, seed, neighbor_list: self.neighbor_list.clone() }
     }
 
-    /// Shape of the neighbor list.
-    pub fn shape(&self) -> &[usize] {
-        self.neighbor_list.neighbors.shape()
-    }
-
     /// Set the shape of the neighbor list.
     pub fn set_shape(&mut self, shape: (usize, usize, usize)) {
         let (z, y, x) = shape;
@@ -105,14 +145,6 @@ impl RandomNumberGenerator {
         let p_int = (ptrue * SCALE).floor() as u32;
         let v: u32 = self.rng.gen();
         (v >> (BUF + 8)) < p_int
-    }
-
-    pub fn bernoulli_multi(&mut self, ptrues: Vec<f32>) -> Vec<bool> {
-        let mut results = Vec::with_capacity(ptrues.len());
-        for ptrue in ptrues {
-            results.push(self.bernoulli(ptrue));
-        }
-        results
     }
 
     /// Sample a random positive integer from a uniform distribution.

@@ -1,5 +1,6 @@
 use num::traits::real::Real;
 use super::vector::Vector3D;
+use crate::hash::HashMap2D;
 
 #[derive(Clone)]
 /// A local coordinate system around a molecule.
@@ -12,10 +13,9 @@ pub struct CoordinateSystem<T> {
     pub ez: Vector3D<T>,
     pub ey: Vector3D<T>,
     pub ex: Vector3D<T>,
-    // Because origin + ez * z + ey * y + ex * x is frequently used,
-    // we cache the results for origin + ez * z, origin + ey * y, origin + ex * x
-    pub cache_oz: Vec<Vector3D<T>>,
-    pub cache_y: Vec<Vector3D<T>>,
+    // Because `origin + ez * z + ey * y + ex * x` is frequently used,
+    // we cache the results for `origin + ez * z + ey * y` and `ex * x`
+    pub cache_ozy: HashMap2D<Vector3D<T>>,
     pub cache_x: Vec<Vector3D<T>>,
 }
 
@@ -26,8 +26,7 @@ impl<T: Default> Default for CoordinateSystem<T> {
             ez: Vector3D::default(),
             ey: Vector3D::default(),
             ex: Vector3D::default(),
-            cache_oz: Vec::new(),
-            cache_y: Vec::new(),
+            cache_ozy: HashMap2D::new(),
             cache_x: Vec::new(),
         }
     }
@@ -40,9 +39,8 @@ impl<T> CoordinateSystem<T> {
             ez,
             ey,
             ex,
-            cache_oz: Vec::new(),
-            cache_y: Vec::new(),
-            cache_x: Vec::new()
+            cache_ozy: HashMap2D::new(),
+            cache_x: Vec::new(),
         }
     }
 
@@ -79,29 +77,28 @@ impl<T: Real> CoordinateSystem<T> {
     }
 
     pub fn at_fast(&self, z: usize, y: usize, x: usize) -> Vector3D<T> {
-        let oz = self.cache_oz[z];
-        let oy = self.cache_y[y];
+        let ozy = self.cache_ozy[(z, y)];
         let ox = self.cache_x[x];
-        oz + oy + ox
+        ozy + ox
     }
 
+    /// Faster version of `at_vec` using cached vectors.
     pub fn at_vec_fast(&self, vec: Vector3D<isize>) -> Vector3D<T> {
-        let oz = self.cache_oz[vec.z as usize];
-        let oy = self.cache_y[vec.y as usize];
+        let ozy = self.cache_ozy[(vec.z, vec.y)];
         let ox = self.cache_x[vec.x as usize];
-        oz + oy + ox
+        ozy + ox
     }
 
     pub fn with_cache(&self, max_z: usize, max_y: usize, max_x: usize) -> Self {
-        let mut cache_oz = Vec::with_capacity(max_z);
-        let mut cache_y = Vec::with_capacity(max_y);
-        let mut cache_x = Vec::with_capacity(max_x);
+        let mut cache_ozy = HashMap2D::from_shape(max_y, max_x);
         for z in 0..max_z {
-            cache_oz.push(self.ez * T::from(z).unwrap() + self.origin);
+            for y in 0..max_y {
+                cache_ozy.insert(
+                    (z, y),
+                    self.ez * T::from(z).unwrap() + self.origin + self.ey * T::from(y).unwrap());
+            }
         }
-        for y in 0..max_y {
-            cache_y.push(self.ey * T::from(y).unwrap());
-        }
+        let mut cache_x = Vec::with_capacity(max_x);
         for x in 0..max_x {
             cache_x.push(self.ex * T::from(x).unwrap());
         }
@@ -110,8 +107,7 @@ impl<T: Real> CoordinateSystem<T> {
             ez: self.ez,
             ey: self.ey,
             ex: self.ex,
-            cache_oz,
-            cache_y,
+            cache_ozy,
             cache_x,
         }
     }

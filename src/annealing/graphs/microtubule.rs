@@ -192,8 +192,8 @@ impl<T> MicrotubuleGraph<T> where T: MicrotubuleBindingPotential {
                 let coord_l = &self.coords[(pos_l.index.y, pos_l.index.a)];
                 let coord_r = &self.coords[(pos_r.index.y, pos_r.index.a)];
 
-                let dr_l = coord_c.at_vec(pos_c.state.into()) - coord_l.at_vec_fast(pos_l.state.into());
-                let dr_r = coord_c.at_vec(pos_c.state.into()) - coord_r.at_vec_fast(pos_r.state.into());
+                let dr_l = coord_c.at_vec(pos_c.state.into()) - coord_l.at_vec(pos_l.state.into());
+                let dr_r = coord_c.at_vec(pos_c.state.into()) - coord_r.at_vec(pos_r.state.into());
                 angles[i] = dr_l.angle(&dr_r);
             }
 
@@ -346,8 +346,8 @@ impl<T> MicrotubuleGraph<T> where T: MicrotubuleBindingPotential {
         let vec = node_state.state;
         let vec1 = node_state_prev.state;
         let vec2 = node_state_next.state;
-        let dr1 = coord.at_vec_fast(vec.into()) - coord1.at_vec_fast(vec1.into());
-        let dr2 = coord.at_vec_fast(vec.into()) - coord2.at_vec_fast(vec2.into());
+        let dr1 = coord.at_vec_fast(vec) - coord1.at_vec_fast(vec1);
+        let dr2 = coord.at_vec_fast(vec) - coord2.at_vec_fast(vec2);
         self.binding_potential.calculate_deform(&dr1, &dr2, &coord.ez)
     }
 
@@ -449,7 +449,7 @@ impl<T> GraphTrait<Node2D<Shift>, EdgeType> for MicrotubuleGraph<T> where T: Mic
         let vec2 = node_state1.state;
         let coord1 = &self.coords[(node_state0.index.y, node_state0.index.a)];
         let coord2 = &self.coords[(node_state1.index.y, node_state1.index.a)];
-        let dr = coord1.at_vec_fast(vec1.into()) - coord2.at_vec_fast(vec2.into());
+        let dr = coord1.at_vec_fast(vec1) - coord2.at_vec_fast(vec2);
         match typ {
             EdgeType::Longitudinal => self.binding_potential.calculate_bind(&dr),
             EdgeType::Lateral => self.binding_potential.calculate_lat_bind(&dr),
@@ -631,6 +631,7 @@ impl<T> CylindricGraphTrait<Shift, EdgeType> for MicrotubuleGraph<T> where T: Mi
         eng_lon += &self.deform_energies();
         (eng_lon, eng_lat)
     }
+
     fn list_neighbors(&self, node_state: &Node2D<Shift>) -> Vec<Shift> {
         list_neighbors(&node_state.state, &self.local_shape)
     }

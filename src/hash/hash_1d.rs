@@ -1,22 +1,25 @@
 use std::ops;
-use numpy::ndarray::Array1;
 
 pub struct HashMap1D<V> {
-    arrays: Array1<Option<V>>,
+    arrays: Vec<Option<V>>,
     len: usize,
 }
 
 impl<V> HashMap1D<V> {
     pub fn new() -> Self {
         Self {
-            arrays: Array1::default(0),
+            arrays: Vec::new(),
             len: 0,
         }
     }
 
     pub fn from_shape(n: usize) -> Self {
+        let mut arrays = Vec::with_capacity(n);
+        for _ in 0..n {
+            arrays.push(None);
+        }
         Self {
-            arrays: Array1::default(n),
+            arrays,
             len: 0,
         }
     }
@@ -27,7 +30,7 @@ impl<V> HashMap1D<V> {
     }
 
     pub fn get(&self, index: isize) -> &Option<V> {
-        let n = self.arrays.shape()[0] as isize;
+        let n = self.arrays.len() as isize;
         if index < 0 || index >= n {
             return &None;
         }
@@ -35,17 +38,13 @@ impl<V> HashMap1D<V> {
     }
 
     pub fn iter(&self) -> impl Iterator<Item=(usize, &V)> {
-        self.arrays.indexed_iter().filter_map(|(index, value)| {
+        self.arrays.iter().enumerate().filter_map(|(index, value)| {
             value.as_ref().map(|v| (index, v))
         })
     }
 
     pub fn len(&self) -> usize {
         self.len
-    }
-
-    pub fn shape(&self) -> (usize, usize) {
-        (self.arrays.shape()[0], self.arrays.shape()[1])
     }
 }
 

@@ -188,8 +188,8 @@ impl<T> CylindricalGraph<T> where T: BindingPotential2D {
                 let coord_l = &self.coords[(pos_l.index.y, pos_l.index.a)];
                 let coord_r = &self.coords[(pos_r.index.y, pos_r.index.a)];
 
-                let dr_l = coord_c.at_vec(pos_c.state.into()) - coord_l.at_vec_fast(pos_l.state.into());
-                let dr_r = coord_c.at_vec(pos_c.state.into()) - coord_r.at_vec_fast(pos_r.state.into());
+                let dr_l = coord_c.at_vec(pos_c.state.into()) - coord_l.at_vec(pos_l.state.into());
+                let dr_r = coord_c.at_vec(pos_c.state.into()) - coord_r.at_vec(pos_r.state.into());
                 angles[i] = dr_l.angle(&dr_r);
             }
 
@@ -361,7 +361,7 @@ impl<T> GraphTrait<Node2D<Shift>, EdgeType> for CylindricalGraph<T> where T: Bin
         let vec2 = node_state1.state;
         let coord1 = &self.coords[(node_state0.index.y, node_state0.index.a)];
         let coord2 = &self.coords[(node_state1.index.y, node_state1.index.a)];
-        let dr = coord1.at_vec_fast(vec1.into()) - coord2.at_vec_fast(vec2.into());
+        let dr = coord1.at_vec_fast(vec1) - coord2.at_vec_fast(vec2);
         // ey is required for the angle constraint.
         let ey = coord2.origin - coord1.origin;
         self.binding_potential.calculate(&dr, &ey, typ)
@@ -374,20 +374,19 @@ impl<T> GraphTrait<Node2D<Shift>, EdgeType> for CylindricalGraph<T> where T: Bin
         other_state: &Node2D<Shift>,
         typ: &EdgeType,
     ) -> (f32, f32) {
+        // NOTE: state_old.index == state_new.index
         let vec_old = state_old.state;
         let vec_new = state_new.state;
         let vec_other = other_state.state;
-        let coord_old = &self.coords[(state_old.index.y, state_old.index.a)];
-        let coord_new = &self.coords[(state_new.index.y, state_new.index.a)];
+        let coord_this = &self.coords[(state_old.index.y, state_old.index.a)];
         let coord_other = &self.coords[(other_state.index.y, other_state.index.a)];
-        let point_other = coord_other.at_vec_fast(vec_other.into());
-        let dr_old = coord_old.at_vec_fast(vec_old.into()) - point_other;
-        let dr_new = coord_new.at_vec_fast(vec_new.into()) - point_other;
-        // ey_* is required for the angle constraint.
-        let ey_old = coord_other.origin - coord_old.origin;
-        let ey_new = coord_other.origin - coord_new.origin;
-        let e_old = self.binding_potential.calculate(&dr_old, &ey_old, typ);
-        let e_new = self.binding_potential.calculate(&dr_new, &ey_new, typ);
+        let point_other = coord_other.at_vec_fast(vec_other);
+        let dr_old = coord_this.at_vec_fast(vec_old) - point_other;
+        let dr_new = coord_this.at_vec_fast(vec_new) - point_other;
+        // ey is required for the angle constraint.
+        let ey = coord_other.origin - coord_this.origin;
+        let e_old = self.binding_potential.calculate(&dr_old, &ey, typ);
+        let e_new = self.binding_potential.calculate(&dr_new, &ey, typ);
         (e_old, e_new)
     }
 
