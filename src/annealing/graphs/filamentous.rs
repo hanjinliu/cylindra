@@ -150,7 +150,7 @@ impl FilamentousGraph {
 
             let coord0 = &self.coords[pos0.index as isize];
             let coord1 = &self.coords[pos1.index as isize];
-            let dr = coord0.at_vec(pos0.state) - coord1.at_vec(pos1.state);
+            let dr = coord0.at_vec(pos0.state.into()) - coord1.at_vec(pos1.state.into());
             distances.push(dr.length())
         }
         Array1::from(distances)
@@ -186,8 +186,8 @@ impl FilamentousGraph {
                 let coord_l = &self.coords[pos_l.index as isize];
                 let coord_r = &self.coords[pos_r.index as isize];
 
-                let dr_l = coord_c.at_vec(pos_c.state) - coord_l.at_vec(pos_l.state);
-                let dr_r = coord_c.at_vec(pos_c.state) - coord_r.at_vec(pos_r.state);
+                let dr_l = coord_c.at_vec(pos_c.state.into()) - coord_l.at_vec(pos_l.state.into());
+                let dr_r = coord_c.at_vec(pos_c.state.into()) - coord_r.at_vec(pos_r.state.into());
                 angles[i] = dr_l.angle(&dr_r);
             }
 
@@ -263,8 +263,8 @@ impl FilamentousGraph {
         let coord = &self.coords[node_state.index as isize];
         let coord1 = &self.coords[node_state_prev.index as isize];
         let coord2 = &self.coords[node_state_next.index as isize];
-        let dr1 = coord.at_vec(vec) - coord1.at_vec(vec1);
-        let dr2 = coord.at_vec(vec) - coord2.at_vec(vec2);
+        let dr1 = coord.at_vec_fast(vec) - coord1.at_vec_fast(vec1);
+        let dr2 = coord.at_vec_fast(vec) - coord2.at_vec_fast(vec2);
         self.binding_potential.calculate_deform(&dr1, &dr2)
     }
 
@@ -329,7 +329,7 @@ impl GraphTrait<Node1D<Shift>, EdgeType> for FilamentousGraph {
         let vec2 = node_state1.state;
         let coord1 = &self.coords[node_state0.index as isize];
         let coord2 = &self.coords[node_state1.index as isize];
-        let dr = coord1.at_vec(vec1) - coord2.at_vec(vec2);
+        let dr = coord1.at_vec_fast(vec1) - coord2.at_vec_fast(vec2);
         self.binding_potential.calculate_bind(&dr)
     }
 
@@ -347,9 +347,9 @@ impl GraphTrait<Node1D<Shift>, EdgeType> for FilamentousGraph {
         let coord_new = &self.coords[state_new.index as isize];
         let coord_other = &self.coords[other_state.index as isize];
 
-        let point_other = coord_other.at_vec(vec_other);
-        let dr_old = coord_old.at_vec(vec_old) - point_other;
-        let dr_new = coord_new.at_vec(vec_new) - point_other;
+        let point_other = coord_other.at_vec_fast(vec_other);
+        let dr_old = coord_old.at_vec_fast(vec_old) - point_other;
+        let dr_new = coord_new.at_vec_fast(vec_new) - point_other;
         let e_old = self.binding_potential.calculate_bind(&dr_old);
         let e_new = self.binding_potential.calculate_bind(&dr_new);
         (e_old, e_new)

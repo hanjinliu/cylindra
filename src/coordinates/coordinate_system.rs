@@ -61,6 +61,11 @@ impl<T: Real> CoordinateSystem<T> {
         self.origin + self.ez * z + self.ey * y + self.ex * x
     }
 
+    /// Vector version of `at`.
+    pub fn at_vec(&self, vec: Vector3D<T>) -> Vector3D<T> {
+        self.origin + self.ez * vec.z + self.ey * vec.y + self.ex * vec.x
+    }
+
     /// Initialize the coordinate system.
     /// This method creates an invalid coordinate system. The `update` method must be called
     /// before using it.
@@ -80,7 +85,8 @@ impl<T: Real> CoordinateSystem<T> {
         oz + oy + ox
     }
 
-    pub fn at_vec(&self, vec: Vector3D<isize>) -> Vector3D<T> {
+    /// Faster version of `at_vec` using cached vectors.
+    pub fn at_vec_fast(&self, vec: Vector3D<isize>) -> Vector3D<T> {
         let oz = self.cache_oz[vec.z as usize];
         let oy = self.cache_y[vec.y as usize];
         let ox = self.cache_x[vec.x as usize];

@@ -149,7 +149,7 @@ impl<T> CylindricalGraph<T> where T: BindingPotential2D {
 
             let coord0 = &self.coords[(pos0.index.y, pos0.index.a)];
             let coord1 = &self.coords[(pos1.index.y, pos1.index.a)];
-            let dr = coord0.at_vec(pos0.state) - coord1.at_vec(pos1.state);
+            let dr = coord0.at_vec(pos0.state.into()) - coord1.at_vec(pos1.state.into());
             distances.push(dr.length())
         }
         Array1::from(distances)
@@ -188,8 +188,8 @@ impl<T> CylindricalGraph<T> where T: BindingPotential2D {
                 let coord_l = &self.coords[(pos_l.index.y, pos_l.index.a)];
                 let coord_r = &self.coords[(pos_r.index.y, pos_r.index.a)];
 
-                let dr_l = coord_c.at_vec(pos_c.state) - coord_l.at_vec(pos_l.state);
-                let dr_r = coord_c.at_vec(pos_c.state) - coord_r.at_vec(pos_r.state);
+                let dr_l = coord_c.at_vec(pos_c.state.into()) - coord_l.at_vec(pos_l.state.into());
+                let dr_r = coord_c.at_vec(pos_c.state.into()) - coord_r.at_vec(pos_r.state.into());
                 angles[i] = dr_l.angle(&dr_r);
             }
 
@@ -228,8 +228,8 @@ impl<T> CylindricalGraph<T> where T: BindingPotential2D {
             let ends = self.components.edge_end(i);
             let node0 = self.components.node_state(ends.0);
             let node1 = self.components.node_state(ends.1);
-            let coord0 = self.coords[(node0.index.y, node0.index.a)].at_vec(node0.state);
-            let coord1 = self.coords[(node1.index.y, node1.index.a)].at_vec(node1.state);
+            let coord0 = self.coords[(node0.index.y, node0.index.a)].at_vec(node0.state.into());
+            let coord1 = self.coords[(node1.index.y, node1.index.a)].at_vec(node1.state.into());
             out0[[i, 0]] = coord0.z;
             out0[[i, 1]] = coord0.y;
             out0[[i, 2]] = coord0.x;
@@ -361,7 +361,7 @@ impl<T> GraphTrait<Node2D<Shift>, EdgeType> for CylindricalGraph<T> where T: Bin
         let vec2 = node_state1.state;
         let coord1 = &self.coords[(node_state0.index.y, node_state0.index.a)];
         let coord2 = &self.coords[(node_state1.index.y, node_state1.index.a)];
-        let dr = coord1.at_vec(vec1) - coord2.at_vec(vec2);
+        let dr = coord1.at_vec_fast(vec1) - coord2.at_vec_fast(vec2);
         // ey is required for the angle constraint.
         let ey = coord2.origin - coord1.origin;
         self.binding_potential.calculate(&dr, &ey, typ)
@@ -380,9 +380,9 @@ impl<T> GraphTrait<Node2D<Shift>, EdgeType> for CylindricalGraph<T> where T: Bin
         let vec_other = other_state.state;
         let coord_this = &self.coords[(state_old.index.y, state_old.index.a)];
         let coord_other = &self.coords[(other_state.index.y, other_state.index.a)];
-        let point_other = coord_other.at_vec(vec_other);
-        let dr_old = coord_this.at_vec(vec_old) - point_other;
-        let dr_new = coord_this.at_vec(vec_new) - point_other;
+        let point_other = coord_other.at_vec_fast(vec_other);
+        let dr_old = coord_this.at_vec_fast(vec_old) - point_other;
+        let dr_new = coord_this.at_vec_fast(vec_new) - point_other;
         // ey is required for the angle constraint.
         let ey = coord_other.origin - coord_this.origin;
         let e_old = self.binding_potential.calculate(&dr_old, &ey, typ);
