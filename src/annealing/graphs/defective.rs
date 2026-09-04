@@ -191,7 +191,7 @@ impl DefectiveCylindricGraph {
             let coord0 = &self.coords[(pos0.index.y, pos0.index.a)];
             let coord1 = &self.coords[(pos1.index.y, pos1.index.a)];
             let dr = match (pos0.state, pos1.state) {
-                (Some(shift0), Some(shift1)) => (coord0.at_vec(shift0.into()) - coord1.at_vec(shift1.into())).length(),
+                (Some(shift0), Some(shift1)) => (coord0.at_vec(shift0) - coord1.at_vec(shift1)).length(),
                 (_, _) => f32::NAN,
             };
             distances.push(dr)
@@ -234,8 +234,8 @@ impl DefectiveCylindricGraph {
 
                 let angle = match (pos_c.state, pos_l.state, pos_r.state) {
                     (Some(shiftc), Some(shiftl), Some(shiftr)) =>
-                        (coord_c.at_vec(shiftc.into()) - coord_l.at_vec(shiftl.into()))
-                        .angle(&(coord_c.at_vec(shiftc.into()) - coord_r.at_vec(shiftr.into()))),
+                        (coord_c.at_vec(shiftc.into()) - coord_l.at_vec(shiftl))
+                        .angle(&(coord_c.at_vec(shiftc) - coord_r.at_vec(shiftr))),
                     _ => f32::NAN,
                 };
                 angles[i] = angle;
@@ -278,8 +278,8 @@ impl DefectiveCylindricGraph {
             let node1 = self.components.node_state(ends.1);
             let (c0, c1) = match (node0.state, node1.state) {
                 (Some(shift0), Some(shift1)) => {
-                    let coord0 = self.coords[(node0.index.y, node0.index.a)].at_vec(shift0.into());
-                    let coord1 = self.coords[(node1.index.y, node1.index.a)].at_vec(shift1.into());
+                    let coord0 = self.coords[(node0.index.y, node0.index.a)].at_vec(shift0);
+                    let coord1 = self.coords[(node1.index.y, node1.index.a)].at_vec(shift1);
                     ([coord0.z, coord0.y, coord0.x], [coord1.z, coord1.y, coord1.x])
                 }
                 _ => ([f32::NAN, f32::NAN, f32::NAN], [f32::NAN, f32::NAN, f32::NAN]),
@@ -420,7 +420,7 @@ impl GraphTrait<Node2D<Option<Shift>>, EdgeType> for DefectiveCylindricGraph {
         let coord2 = &self.coords[(node_state1.index.y, node_state1.index.a)];
         match (vec1, vec2) {
             (Some(shift1), Some(shift2)) => {
-                let dr = coord1.at_vec(shift1.into()) - coord2.at_vec(shift2.into());
+                let dr = coord1.at_vec(shift1) - coord2.at_vec(shift2);
                 // ey is required for the angle constraint.
                 let ey = coord2.origin - coord1.origin;
                 self.binding_potential.calculate(&dr, &ey, typ)

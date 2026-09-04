@@ -149,7 +149,7 @@ impl<T> CylindricalGraph<T> where T: BindingPotential2D {
 
             let coord0 = &self.coords[(pos0.index.y, pos0.index.a)];
             let coord1 = &self.coords[(pos1.index.y, pos1.index.a)];
-            let dr = coord0.at_vec(pos0.state.into()) - coord1.at_vec(pos1.state.into());
+            let dr = coord0.at_vec(pos0.state) - coord1.at_vec(pos1.state);
             distances.push(dr.length())
         }
         Array1::from(distances)
@@ -188,8 +188,8 @@ impl<T> CylindricalGraph<T> where T: BindingPotential2D {
                 let coord_l = &self.coords[(pos_l.index.y, pos_l.index.a)];
                 let coord_r = &self.coords[(pos_r.index.y, pos_r.index.a)];
 
-                let dr_l = coord_c.at_vec(pos_c.state.into()) - coord_l.at_vec(pos_l.state.into());
-                let dr_r = coord_c.at_vec(pos_c.state.into()) - coord_r.at_vec(pos_r.state.into());
+                let dr_l = coord_c.at_vec(pos_c.state) - coord_l.at_vec(pos_l.state);
+                let dr_r = coord_c.at_vec(pos_c.state) - coord_r.at_vec(pos_r.state);
                 angles[i] = dr_l.angle(&dr_r);
             }
 
@@ -228,8 +228,8 @@ impl<T> CylindricalGraph<T> where T: BindingPotential2D {
             let ends = self.components.edge_end(i);
             let node0 = self.components.node_state(ends.0);
             let node1 = self.components.node_state(ends.1);
-            let coord0 = self.coords[(node0.index.y, node0.index.a)].at_vec(node0.state.into());
-            let coord1 = self.coords[(node1.index.y, node1.index.a)].at_vec(node1.state.into());
+            let coord0 = self.coords[(node0.index.y, node0.index.a)].at_vec(node0.state);
+            let coord1 = self.coords[(node1.index.y, node1.index.a)].at_vec(node1.state);
             out0[[i, 0]] = coord0.z;
             out0[[i, 1]] = coord0.y;
             out0[[i, 2]] = coord0.x;
