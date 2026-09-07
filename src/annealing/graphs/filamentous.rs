@@ -373,21 +373,30 @@ impl GraphTrait<Node1D<Shift>, EdgeType> for FilamentousGraph {
             e_old += e_old_diff;
             e_new += e_new_diff;
         }
-        if 0 < idx && idx < graph.node_count() - 1 {
+        let n = graph.node_count();
+        // Shifting `idx` can affect up to three deforming triplets: the one centered
+        // at `idx` itself (if it is not a tip node), and the ones centered at its
+        // prev/next neighbors (in which `idx` plays the role of the *other*
+        // endpoint). Note that `idx` need not have both a prev and a next for the
+        // latter two to apply -- e.g. if `idx` is a tip node, shifting it still
+        // changes the triplet centered at its one neighbor.
+        if 0 < idx && idx < n - 1 {
             let state_prev = graph.node_state(idx - 1);
             let state_next = graph.node_state(idx + 1);
             e_old += self.deforming(&state_prev, &state_old, &state_next);
             e_new += self.deforming(&state_prev, &state_new, &state_next);
-            if 1 < idx {
-                let state_prevprev = graph.node_state(idx - 2);
-                e_old += self.deforming(&state_prevprev, &state_prev, &state_old);
-                e_new += self.deforming(&state_prevprev, &state_prev, &state_new);
-            }
-            if idx < graph.node_count() - 2 {
-                let state_nextnext = graph.node_state(idx + 2);
-                e_old += self.deforming(&state_old, &state_next, &state_nextnext);
-                e_new += self.deforming(&state_new, &state_next, &state_nextnext);
-            }
+        }
+        if idx >= 2 {
+            let state_prevprev = graph.node_state(idx - 2);
+            let state_prev = graph.node_state(idx - 1);
+            e_old += self.deforming(&state_prevprev, &state_prev, &state_old);
+            e_new += self.deforming(&state_prevprev, &state_prev, &state_new);
+        }
+        if idx + 2 < n {
+            let state_next = graph.node_state(idx + 1);
+            let state_nextnext = graph.node_state(idx + 2);
+            e_old += self.deforming(&state_old, &state_next, &state_nextnext);
+            e_new += self.deforming(&state_new, &state_next, &state_nextnext);
         }
         e_new - e_old
     }
