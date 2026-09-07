@@ -151,6 +151,31 @@ def _preview_map_monomers_with_extensions(
         viewer.layers.remove(layer)
 
 
+@impl_preview(CylindraMainWidget.extend_laterally, auto_call=True)
+def _preview_extend_lateral(
+    self: CylindraMainWidget,
+    layer: MoleculesLayer,
+    pre_rotation: float,
+    translation: tuple[float, float, float],
+    n_extend_left: int = 1,
+    n_extend_right: int = 1,
+):
+    mole = layer.molecules
+    mole_out = utils.extend_laterally(
+        mole,
+        pre_rotation,
+        translation,
+        n_extend_left,
+        n_extend_right,
+    )
+    layer_out = _update_existing_layer(self, mole_out)
+    layer_out.face_color = "crimson"
+    is_active = yield
+    viewer = self.parent_viewer
+    if not is_active and layer_out in viewer.layers:
+        viewer.layers.remove(layer_out)
+
+
 @impl_preview(CylindraMainWidget.split_molecules, auto_call=True)
 def _preview_split_molecules(self: CylindraMainWidget, layer: MoleculesLayer, by: str):
     with _temp_layer_colors(layer):
@@ -495,8 +520,8 @@ def _setup_map_monomers_with_extensions(self: CylindraMainWidget, gui: FunctionG
     gui.spline.changed.emit(gui.spline.value)  # initialize
 
 
-@setup_function_gui(CylindraMainWidget.extend_molecules)
-def _setup_extend_molecules(self: CylindraMainWidget, gui: FunctionGui):
+@setup_function_gui(CylindraMainWidget.extend_longitudinally)
+def _setup_extend_longitudinally(self: CylindraMainWidget, gui: FunctionGui):
     @gui.layer.changed.connect
     def _on_layer_changed(layer: MoleculesLayer | None):
         if not isinstance(layer, MoleculesLayer):

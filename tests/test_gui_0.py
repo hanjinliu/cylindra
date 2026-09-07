@@ -379,7 +379,7 @@ def test_map_molecules(ui: CylindraMainWidget, tmpdir):
     )
     ui.correlation_heatmap_for_feature("Mole-0", "pf-id", max_offset_longitudinal=2, max_offset_lateral=1, is_binary_data=False)
     ui.correlation_heatmap_for_feature("Mole-0", "pf-id", max_offset_longitudinal=2, max_offset_lateral=1, is_binary_data=True, save_path=tmpdir / "heatmap.csv")
-    ui.extend_molecules(ui.mole_layers.last(), n_extend=(2, 5))
+    ui.extend_longitudinally(ui.mole_layers.last(), n_extend=(2, 5))
 
 def test_napari_operations(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=None)

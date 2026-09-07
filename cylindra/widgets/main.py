@@ -132,10 +132,11 @@ _Interval = Annotated[
     },
 ]
 
-_DistRange = Annotated[
-    tuple[nm, nm],
+_TranslateType = Annotated[
+    tuple[nm, nm, nm],
     {
-        "options": {"min": 0.0, "step": 0.01, "max": 1000.0},
+        "options": {"min": -1000, "max": 1000, "step": 0.1},
+        "label": "translation Z, Y, X (nm)",
     },
 ]
 
@@ -2961,9 +2962,9 @@ class CylindraMainWidget(MagicTemplate):
 
         return _undo
 
-    @set_design(text=capitalize, location=_sw.MoleculesMenu.FromToSpline)
-    @thread_worker.with_progress(desc="Extend molecules")
-    def extend_molecules(
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.Extend)
+    @thread_worker.with_progress(desc="Extend protofilaments")
+    def extend_longitudinally(
         self,
         layer: MoleculesLayerType,
         n_extend: Annotated[dict[int, tuple[int, int]], {"label": "prepend/append", "widget_type": ProtofilamentEdit}] = {},
@@ -2987,48 +2988,13 @@ class CylindraMainWidget(MagicTemplate):
             n_extend = dict.fromkeys(
                 _layer.molecules.features[Mole.pf].unique(), n_extend
             )
-        extended_pf_moles: list[Molecules] = []
         source_spl = _assert_source_spline_exists(_layer)
-        spacing = source_spl.props.get_glob(H.spacing)
-        for pf_id, pf_mole in _layer.molecules.group_by(Mole.pf):
-            n0, n1 = n_extend.get(pf_id, (0, 0))
-            if n0 + n1 > 0 and pf_mole.count() >= n_to_fit:
-                pf_mole = pf_mole.sort(by=Mole.nth)
-                if n0 > 0:
-                    spl = CylSpline(order=1).fit(pf_mole.pos[:n_to_fit])
-                    _u = -spacing / spl.length() * np.arange(-n0, 0)
-                    _nth_min = pf_mole.features[Mole.nth][0]
-                    coords = spl.map(_u)
-                    mole_ext = Molecules.from_quat(
-                        coords,
-                        np.repeat([pf_mole.quaternion()[0]], n0, axis=0),
-                        features={
-                            Mole.nth: np.arange(
-                                -n0 - _nth_min, -_nth_min, dtype=np.int32
-                            ),
-                            Mole.pf: np.full(n0, pf_id, dtype=np.int32),
-                        },
-                    )
-                    pf_mole = mole_ext.concat_with(pf_mole)
-                if n1 > 0:
-                    spl = CylSpline(order=1).fit(pf_mole.pos[-n_to_fit:])
-                    _u = 1 + spacing / spl.length() * np.arange(1, n1 + 1)
-                    _nth_max = pf_mole.features[Mole.nth][-1]
-                    coords = spl.map(_u)
-                    mole_ext = Molecules.from_quat(
-                        coords,
-                        np.repeat([pf_mole.quaternion()[-1]], n1, axis=0),
-                        features={
-                            Mole.nth: np.arange(
-                                _nth_max + 1, _nth_max + n1 + 1, dtype=np.int32
-                            ),
-                            Mole.pf: np.full(n1, pf_id, dtype=np.int32),
-                        },
-                    )
-                    pf_mole = pf_mole.concat_with(mole_ext)
-            extended_pf_moles.append(pf_mole)
-
-        mole = Molecules.concat(extended_pf_moles)
+        mole = utils.extend_longitudinally(
+            source_spl,
+            _layer.molecules,
+            n_extend,
+            n_to_fit,
+        )
 
         @thread_worker.callback
         def _on_return():
@@ -3039,6 +3005,48 @@ class CylindraMainWidget(MagicTemplate):
             return self._undo_callback_for_layer(layer_new)
 
         return _on_return
+
+    @set_design(text=capitalize, location=_sw.MoleculesMenu.Extend)
+    def extend_laterally(
+        self,
+        layer: MoleculesLayerType,
+        pre_rotation: Annotated[float, {"min": -180, "max": 180, "step": 1.0, "label": "pre-rotation (deg)"}] = 0.0,
+        translation: _TranslateType = (-1.1, -1.1, 4.7),
+        n_extend_left: int = 1,
+        n_extend_right: int = 1,
+    ):  # fmt: skip
+        """Extend molecules to create a sheet-like lattice.
+
+        Parameters
+        ----------
+        {layer}
+        pre_rotation : float
+            Angle of rotation around the y-axis (the spline tangent vector) in degree
+            that will be applied first.
+        translation : (float, float, float)
+            A unit of translation that will be applied to create the neighboring
+            protofilament. (z, y, x) is defined in the coordinate system of the
+            individual molecules.
+        n_extend_left : int
+            Number of extension toward the left side (opposite to the x-axis of each
+            molecule)
+        n_extend_right : int
+            Number of extension toward the right side (the x-axis side of each
+            molecule)
+        """
+        _layer = assert_layer(layer, self.parent_viewer)
+        mole = _layer.molecules
+        mole_out = utils.extend_laterally(
+            mole,
+            pre_rotation,
+            translation,
+            n_extend_left,
+            n_extend_right,
+        )
+
+        layer_new = self.add_molecules(mole_out, f"{_layer.name}-Extended")
+        _layer.visible = False
+        return self._undo_callback_for_layer(layer_new)
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu.Combine)
     def concatenate_molecules(
@@ -3209,7 +3217,7 @@ class CylindraMainWidget(MagicTemplate):
     def translate_molecules(
         self,
         layers: MoleculesLayersType,
-        translation: Annotated[tuple[nm, nm, nm], {"options": {"min": -1000, "max": 1000, "step": 0.1}, "label": "translation Z, Y, X (nm)"}],
+        translation: _TranslateType,
         internal: bool = True,
         inherit_source: Annotated[bool, {"label": "Inherit source spline"}] = True,
     ):  # fmt: skip

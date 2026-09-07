@@ -359,6 +359,12 @@ class CylSpline(Spline):
             )
         return mole
 
+    @classmethod
+    def _dummy_spline(cls) -> CylSpline:
+        spl = CylSpline().fit([[0, 0, 0], [1, 1, 1]])
+        spl.props.update_glob(pitch=4, start=0, npf=9999, twist=0, radius=10)
+        return spl
+
 
 def _get_globalprops(spl: CylSpline, kwargs: dict[str, Any], name: str):
     if name in kwargs:
