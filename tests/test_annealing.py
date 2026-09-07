@@ -33,7 +33,7 @@ def _build_model(
         .construct_graph(num)
         .set_graph_coordinates(origin=origin, zvec=zvec, yvec=yvec, xvec=xvec)
         .set_energy_landscape(energy)
-        .set_reservoir(temperature=1.0, time_constant=1.0, min_temperature=0.0)
+        .set_reservoir(temperature=1.0, time_constant=1.0)
         .set_box_potential(2.0, 6.0, ang_max=0.3, cooling_rate=0.005)
     )
     model.init_shift_random()
