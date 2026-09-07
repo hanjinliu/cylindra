@@ -547,77 +547,6 @@ class SplinesMenu(ChildWidget):
 class MoleculesMenu(ChildWidget):
     """Operations on molecules"""
 
-    register_molecules = abstractapi()
-    translate_molecules = abstractapi()
-    rotate_molecules = abstractapi()
-    rotate_molecule_toward_spline = abstractapi()
-    sep0 = Separator
-    filter_molecules = abstractapi()
-    split_molecules = abstractapi()
-    drop_molecules = abstractapi()
-    sep1 = Separator
-    rename_molecules = abstractapi()
-    delete_molecules = abstractapi()
-
-    @set_design(text=capitalize)
-    @do_not_record
-    def to_draw_layer(self, layer: MoleculesLayer):
-        """Duplicate the molecule positions to the drawing layer."""
-        main = self._get_main()
-        main._reserved_layers.work.data = layer.molecules.pos
-
-    sep2 = Separator
-
-    @magicmenu(name="From/To spline")
-    class FromToSpline(MagicTemplate):
-        """Interplay between molecules and splines."""
-
-        map_monomers = abstractapi()
-        map_monomers_with_extensions = abstractapi()
-        map_along_spline = abstractapi()
-        map_along_spline_helical_symmetry = abstractapi()
-        map_along_pf = abstractapi()
-        map_monomers_arbitrary = abstractapi()
-        sep0 = Separator
-        extend_molecules = abstractapi()
-        set_source_spline = abstractapi()
-        molecules_to_spline = abstractapi()
-        filament_to_spline = abstractapi()
-        protofilaments_to_spline = abstractapi()
-
-    @magicmenu(name="Combine")
-    class Combine(MagicTemplate):
-        """Combine existing molecules."""
-
-        concatenate_molecules = abstractapi()
-        merge_molecule_info = abstractapi()
-        copy_molecules_features = abstractapi()
-
-    @magicmenu(name="Features")
-    class Features(MagicTemplate):
-        """Analysis based on molecule features."""
-
-        calculate_molecule_features = abstractapi()
-        interpolate_spline_properties = abstractapi()
-        calculate_lattice_structure = abstractapi()
-        sep0 = Separator
-        distance_from_spline = abstractapi()
-        distance_from_closest_molecule = abstractapi()
-        sep1 = Separator
-        convolve_feature = abstractapi()
-        count_neighbors = abstractapi()
-        binarize_feature = abstractapi()
-        label_feature_clusters = abstractapi()
-        correlation_heatmap_for_feature = abstractapi()
-        regionprops_features = abstractapi()
-
-    @magicmenu(name="Clustering")
-    class Clustering(MagicTemplate):
-        """Molecule clustering"""
-
-        cluster_molecules = abstractapi()
-        split_clusters = abstractapi()
-
     @magicmenu(name="Visualize")
     class View(ChildWidget):
         """Visualize molecule features."""
@@ -795,6 +724,81 @@ class MoleculesMenu(ChildWidget):
                 shading="smooth",
                 name=f"Rendered {layer.name}",
             )
+
+    register_molecules = abstractapi()
+    translate_molecules = abstractapi()
+    rotate_molecules = abstractapi()
+    rotate_molecule_toward_spline = abstractapi()
+    sep0 = Separator
+    filter_molecules = abstractapi()
+    split_molecules = abstractapi()
+    drop_molecules = abstractapi()
+    sep1 = Separator
+    rename_molecules = abstractapi()
+    delete_molecules = abstractapi()
+
+    @set_design(text=capitalize)
+    @do_not_record
+    def to_draw_layer(self, layer: MoleculesLayer):
+        """Duplicate the molecule positions to the drawing layer."""
+        main = self._get_main()
+        main._reserved_layers.work.data = layer.molecules.pos
+
+    sep2 = Separator
+
+    @magicmenu(name="From/To spline")
+    class FromToSpline(MagicTemplate):
+        """Interplay between molecules and splines."""
+
+        map_monomers = abstractapi()
+        map_monomers_with_extensions = abstractapi()
+        map_along_spline = abstractapi()
+        map_along_spline_helical_symmetry = abstractapi()
+        map_along_pf = abstractapi()
+        map_monomers_arbitrary = abstractapi()
+        sep0 = Separator
+        set_source_spline = abstractapi()
+        molecules_to_spline = abstractapi()
+        filament_to_spline = abstractapi()
+        protofilaments_to_spline = abstractapi()
+
+    @magicmenu(name="Extend")
+    class Extend(MagicTemplate):
+        extend_longitudinally = abstractapi()
+        extend_laterally = abstractapi()
+
+    @magicmenu(name="Combine")
+    class Combine(MagicTemplate):
+        """Combine existing molecules."""
+
+        concatenate_molecules = abstractapi()
+        merge_molecule_info = abstractapi()
+        copy_molecules_features = abstractapi()
+
+    @magicmenu(name="Features")
+    class Features(MagicTemplate):
+        """Analysis based on molecule features."""
+
+        calculate_molecule_features = abstractapi()
+        interpolate_spline_properties = abstractapi()
+        calculate_lattice_structure = abstractapi()
+        sep0 = Separator
+        distance_from_spline = abstractapi()
+        distance_from_closest_molecule = abstractapi()
+        sep1 = Separator
+        convolve_feature = abstractapi()
+        count_neighbors = abstractapi()
+        binarize_feature = abstractapi()
+        label_feature_clusters = abstractapi()
+        correlation_heatmap_for_feature = abstractapi()
+        regionprops_features = abstractapi()
+
+    @magicmenu(name="Clustering")
+    class Clustering(MagicTemplate):
+        """Molecule clustering"""
+
+        cluster_molecules = abstractapi()
+        split_clusters = abstractapi()
 
 
 @magicmenu

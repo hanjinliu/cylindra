@@ -1167,6 +1167,12 @@ class CylTomogram(Tomogram):
         else:
             rotation = None
         mole = spl.anchors_to_molecules(u, rotation=rotation)
+        mole = mole.with_features(
+            pl.arange(0, pl.len(), dtype=pl.Int32).alias(Mole.nth),
+            pl.lit(0, dtype=pl.Int32).alias(Mole.pf),
+            pl.arange(0, pl.len()).cast(dtype=pl.Float32).alias(Mole.position)
+            * interval,
+        )
         if spl._need_rotation(orientation):
             mole = mole.rotate_by_rotvec_internal([np.pi, 0, 0])
         return mole

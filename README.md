@@ -19,7 +19,7 @@ structures such as microtubules.
 - Use `pip`
 
 ```shell
-pip install cylindra -U
+pip install cylindra[recommended] -U
 ```
 
 - From source

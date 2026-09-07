@@ -1254,9 +1254,10 @@ class SubtomogramAveraging(ChildWidget):
         """
         t0 = timer()
         layer = assert_layer(layer, self.parent_viewer)
-        if layer.source_spline is None:
-            raise ValueError(
-                "RMA requires a spline but the input layer is not connected to any splines."
+        if (spl := layer.source_spline) is None:
+            spl = CylSpline._dummy_spline()
+            _Logger.print(
+                "No source spline found, cylindrical boundary will not be considered."
             )
         main = self._get_main()
         _Logger.print(
@@ -1270,7 +1271,7 @@ class SubtomogramAveraging(ChildWidget):
         )  # fmt: skip
         yield
         mole, results = landscape.run_annealing_along_spline(
-            layer.source_spline,
+            spl,
             range_long=range_long,
             range_lat=range_lat,
             angle_max=angle_max,
@@ -1330,9 +1331,10 @@ class SubtomogramAveraging(ChildWidget):
         """
         t0 = timer()
         layer = assert_layer(layer, self.parent_viewer)
-        if layer.source_spline is None:
-            raise ValueError(
-                "MT-RMA requires a spline but the input layer is not connected to any splines."
+        if (spl := layer.source_spline) is None:
+            spl = CylSpline._dummy_spline()
+            _Logger.print(
+                "No source spline found, cylindrical boundary will not be considered."
             )
         main = self._get_main()
         _Logger.print(
@@ -1346,7 +1348,7 @@ class SubtomogramAveraging(ChildWidget):
         )  # fmt: skip
         yield
         mole, results = landscape.run_microtubule_annealing_along_spline(
-            layer.source_spline,
+            spl,
             range_long=range_long,
             range_lat=range_lat,
             range_angle=range_angle,
@@ -1667,9 +1669,12 @@ class SubtomogramAveraging(ChildWidget):
         """
         t0 = timer()
         landscape_layer = _assert_landscape_layer(landscape_layer, self.parent_viewer)
-        spl = landscape_layer.source_spline
-        if spl is None:
-            raise ValueError("RMA requires a spline.")
+        if (spl := landscape_layer.source_spline) is None:
+            spl = CylSpline._dummy_spline()
+            _Logger.print(
+                "No source spline found, cylindrical boundary will not be considered."
+            )
+
         mole, results = landscape_layer.landscape.run_annealing_along_spline(
             spl=spl,
             range_long=range_long,
@@ -2942,6 +2947,9 @@ def _make_cylindrical_mask(
 
 impl_preview(SubtomogramAveraging.align_all_rma, text="Preview molecule network")(
     _annealing.preview_single
+)
+impl_preview(SubtomogramAveraging.align_all_mt_rma, text="Preview molecule network")(
+    _annealing.preview_single_mt
 )
 impl_preview(
     SubtomogramAveraging.run_rma_on_landscape, text="Preview molecule network"

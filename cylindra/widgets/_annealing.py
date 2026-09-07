@@ -74,16 +74,32 @@ def preview_single(
     range_lat: tuple[str, str],
     upsample_factor: int,
 ):
-    fgui = get_function_gui(self.align_all_rma)
-    scale = self._get_main().tomogram.scale
     yield from _preview_function(
         widget=self,
-        fgui=fgui,
+        fgui=get_function_gui(self.align_all_rma),
         molecules=layer.molecules,
         spline=layer.source_spline,
         range_long=range_long,
         range_lat=range_lat,
-        scale_factor=scale / upsample_factor,
+        scale_factor=self._get_main().tomogram.scale / upsample_factor,
+    )
+
+
+def preview_single_mt(
+    self: SubtomogramAveraging,
+    layer: MoleculesLayer,
+    range_long: tuple[str, str],
+    range_lat: tuple[str, str],
+    upsample_factor: int,
+):
+    yield from _preview_function(
+        widget=self,
+        fgui=get_function_gui(self.align_all_mt_rma),
+        molecules=layer.molecules,
+        spline=layer.source_spline,
+        range_long=range_long,
+        range_lat=range_lat,
+        scale_factor=self._get_main().tomogram.scale / upsample_factor,
     )
 
 
@@ -109,12 +125,16 @@ def _preview_function(
     widget: SubtomogramAveraging,
     fgui: FunctionGui,
     molecules: Molecules,
-    spline: CylSpline,
+    spline: CylSpline | None,
     range_long: tuple[str, str],
     range_lat: tuple[str, str],
     scale_factor: nm,
 ):
+    from cylindra.components import CylSpline
+
     parent = widget._get_main()
+    if spline is None:
+        spline = CylSpline._dummy_spline()
     data_lon, data_lat = get_distances(molecules, spline, scale_factor)
 
     canvas = QtMultiPlotCanvas(ncols=2)
