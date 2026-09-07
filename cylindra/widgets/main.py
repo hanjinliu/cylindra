@@ -2963,7 +2963,6 @@ class CylindraMainWidget(MagicTemplate):
         return _undo
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu.Extend)
-    @thread_worker.with_progress(desc="Extend protofilaments")
     def extend_longitudinally(
         self,
         layer: MoleculesLayerType,
@@ -2996,22 +2995,18 @@ class CylindraMainWidget(MagicTemplate):
             n_to_fit,
         )
 
-        @thread_worker.callback
-        def _on_return():
-            layer_new = self.add_molecules(
-                mole, f"{_layer.name}-Extended", source=source_spl
-            )
-            _layer.visible = False
-            return self._undo_callback_for_layer(layer_new)
-
-        return _on_return
+        layer_new = self.add_molecules(
+            mole, f"{_layer.name}-Extended", source=source_spl
+        )
+        _layer.visible = False
+        return self._undo_callback_for_layer(layer_new)
 
     @set_design(text=capitalize, location=_sw.MoleculesMenu.Extend)
     def extend_laterally(
         self,
         layer: MoleculesLayerType,
         pre_rotation: Annotated[float, {"min": -180, "max": 180, "step": 1.0, "label": "pre-rotation (deg)"}] = 0.0,
-        translation: _TranslateType = (-1.1, -1.1, 4.7),
+        translation: _TranslateType = (-1.2, -1.2, 4.9),
         n_extend_left: int = 1,
         n_extend_right: int = 1,
     ):  # fmt: skip

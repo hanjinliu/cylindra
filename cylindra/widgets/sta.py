@@ -1669,7 +1669,7 @@ class SubtomogramAveraging(ChildWidget):
         """
         t0 = timer()
         landscape_layer = _assert_landscape_layer(landscape_layer, self.parent_viewer)
-        if (spl := landscape_layer.source_spline.source_spline) is None:
+        if (spl := landscape_layer.source_spline) is None:
             spl = CylSpline._dummy_spline()
             _Logger.print(
                 "No source spline found, cylindrical boundary will not be considered."
