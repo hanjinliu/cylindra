@@ -126,6 +126,8 @@ def test_chunked_straightening():
 
 @pytest.mark.parametrize("orientation", [None, "PlusToMinus", "MinusToPlus"])
 def test_mapping(orientation):
+    from cylindra.widgets._annealing import get_distances
+
     path = TEST_DIR / "13pf_MT.tif"
     tomo = CylTomogram.imread(path)
     tomo.add_spline(coords=[[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]])
@@ -133,7 +135,10 @@ def test_mapping(orientation):
     tomo.splines[0].radius = 9
     tomo.splines[0].orientation = "PlusToMinus"
     tomo.global_cft_params(nsamples=2)
-    tomo.map_monomers(orientation=orientation)
+    mole = tomo.map_monomers(i=None, orientation=orientation)[0]
+    dist_lon, dist_lat = get_distances(mole, tomo.splines[0], scale_factor=1)
+    assert dist_lon.max() - dist_lon.min() < 1e-3
+    assert dist_lat.max() - dist_lat.min() < 1e-3
     tomo.map_centers(orientation=orientation)
     tomo.map_pf_line(orientation=orientation)
 

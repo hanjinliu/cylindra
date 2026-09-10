@@ -172,23 +172,17 @@ class CylSpline(Spline):
         """
         length = self.length()
         cp = self.cylinder_params(**kwargs)
+        nrise = cp.start_raw
         ly = cp.spacing_proj
-        la = cp.lat_spacing_proj
-        factor = ly / la
+        la = (cp.perimeter + nrise * cp.radius * cp.twist_rad) / cp.npf
         ny = roundint(length / ly) + 1  # number of monomers in y-direction
-
-        if offsets is None:
-            offsets = (0.0, 0.0)
 
         return CylinderModel(
             shape=(ny, cp.npf),
-            tilts=(
-                cp.tan_skew * factor,
-                cp.tan_rise_raw / factor,
-            ),
-            intervals=(ly, la / cp.perimeter * 2 * np.pi),
+            tilts=(cp.tan_skew * ly / la, nrise / cp.npf),
+            intervals=(ly, la / cp.radius),
             radius=cp.radius,
-            offsets=offsets,
+            offsets=offsets or (0.0, 0.0),
         )
 
     def update_props(
