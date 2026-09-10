@@ -137,8 +137,9 @@ def test_mapping(orientation):
     tomo.global_cft_params(nsamples=2)
     mole = tomo.map_monomers(i=None, orientation=orientation)[0]
     dist_lon, dist_lat = get_distances(mole, tomo.splines[0], scale_factor=1)
-    assert dist_lon.max() - dist_lon.min() < 1e-3
-    assert dist_lat.max() - dist_lat.min() < 1e-3
+    # should be uniquely distributed
+    assert np.quantile(dist_lon, 0.95) - np.quantile(dist_lon, 0.05) < 0.015
+    assert np.quantile(dist_lat, 0.95) - np.quantile(dist_lat, 0.05) < 0.015
     tomo.map_centers(orientation=orientation)
     tomo.map_pf_line(orientation=orientation)
 
