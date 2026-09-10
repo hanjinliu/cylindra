@@ -6440,13 +6440,7 @@
 <span class="normal">357</span>
 <span class="normal">358</span>
 <span class="normal">359</span>
-<span class="normal">360</span>
-<span class="normal">361</span>
-<span class="normal">362</span>
-<span class="normal">363</span>
-<span class="normal">364</span>
-<span class="normal">365</span>
-<span class="normal">366</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylSpline</span><span class="p">(</span><span class="n">Spline</span><span class="p">):</span>
+<span class="normal">360</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylSpline</span><span class="p">(</span><span class="n">Spline</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""A spline object with cylindrical structure."""</span>
 
     <span class="nd">@property</span>
@@ -6601,23 +6595,17 @@
 <span class="sd">        """</span>
         <span class="n">length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">()</span>
         <span class="n">cp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cylinder_params</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">nrise</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">start_raw</span>
         <span class="n">ly</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">spacing_proj</span>
-        <span class="n">la</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">lat_spacing_proj</span>
-        <span class="n">factor</span> <span class="o">=</span> <span class="n">ly</span> <span class="o">/</span> <span class="n">la</span>
+        <span class="n">la</span> <span class="o">=</span> <span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">perimeter</span> <span class="o">+</span> <span class="n">nrise</span> <span class="o">*</span> <span class="n">cp</span><span class="o">.</span><span class="n">radius</span> <span class="o">*</span> <span class="n">cp</span><span class="o">.</span><span class="n">twist_rad</span><span class="p">)</span> <span class="o">/</span> <span class="n">cp</span><span class="o">.</span><span class="n">npf</span>
         <span class="n">ny</span> <span class="o">=</span> <span class="n">roundint</span><span class="p">(</span><span class="n">length</span> <span class="o">/</span> <span class="n">ly</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>  <span class="c1"># number of monomers in y-direction</span>
-
-        <span class="k">if</span> <span class="n">offsets</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">offsets</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">CylinderModel</span><span class="p">(</span>
             <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">ny</span><span class="p">,</span> <span class="n">cp</span><span class="o">.</span><span class="n">npf</span><span class="p">),</span>
-            <span class="n">tilts</span><span class="o">=</span><span class="p">(</span>
-                <span class="n">cp</span><span class="o">.</span><span class="n">tan_skew</span> <span class="o">*</span> <span class="n">factor</span><span class="p">,</span>
-                <span class="n">cp</span><span class="o">.</span><span class="n">tan_rise_raw</span> <span class="o">/</span> <span class="n">factor</span><span class="p">,</span>
-            <span class="p">),</span>
-            <span class="n">intervals</span><span class="o">=</span><span class="p">(</span><span class="n">ly</span><span class="p">,</span> <span class="n">la</span> <span class="o">/</span> <span class="n">cp</span><span class="o">.</span><span class="n">perimeter</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">),</span>
+            <span class="n">tilts</span><span class="o">=</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">tan_skew</span> <span class="o">*</span> <span class="n">ly</span> <span class="o">/</span> <span class="n">la</span><span class="p">,</span> <span class="n">nrise</span> <span class="o">/</span> <span class="n">cp</span><span class="o">.</span><span class="n">npf</span><span class="p">),</span>
+            <span class="n">intervals</span><span class="o">=</span><span class="p">(</span><span class="n">ly</span><span class="p">,</span> <span class="n">la</span> <span class="o">/</span> <span class="n">cp</span><span class="o">.</span><span class="n">radius</span><span class="p">),</span>
             <span class="n">radius</span><span class="o">=</span><span class="n">cp</span><span class="o">.</span><span class="n">radius</span><span class="p">,</span>
-            <span class="n">offsets</span><span class="o">=</span><span class="n">offsets</span><span class="p">,</span>
+            <span class="n">offsets</span><span class="o">=</span><span class="n">offsets</span> <span class="ow">or</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
         <span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">update_props</span><span class="p">(</span>
@@ -7108,13 +7096,7 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 <span class="normal">183</span>
 <span class="normal">184</span>
 <span class="normal">185</span>
-<span class="normal">186</span>
-<span class="normal">187</span>
-<span class="normal">188</span>
-<span class="normal">189</span>
-<span class="normal">190</span>
-<span class="normal">191</span>
-<span class="normal">192</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cylinder_model</span><span class="p">(</span>
+<span class="normal">186</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">cylinder_model</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">offsets</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
     <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
@@ -7133,23 +7115,17 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 <span class="sd">    """</span>
     <span class="n">length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">length</span><span class="p">()</span>
     <span class="n">cp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cylinder_params</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="n">nrise</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">start_raw</span>
     <span class="n">ly</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">spacing_proj</span>
-    <span class="n">la</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">lat_spacing_proj</span>
-    <span class="n">factor</span> <span class="o">=</span> <span class="n">ly</span> <span class="o">/</span> <span class="n">la</span>
+    <span class="n">la</span> <span class="o">=</span> <span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">perimeter</span> <span class="o">+</span> <span class="n">nrise</span> <span class="o">*</span> <span class="n">cp</span><span class="o">.</span><span class="n">radius</span> <span class="o">*</span> <span class="n">cp</span><span class="o">.</span><span class="n">twist_rad</span><span class="p">)</span> <span class="o">/</span> <span class="n">cp</span><span class="o">.</span><span class="n">npf</span>
     <span class="n">ny</span> <span class="o">=</span> <span class="n">roundint</span><span class="p">(</span><span class="n">length</span> <span class="o">/</span> <span class="n">ly</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>  <span class="c1"># number of monomers in y-direction</span>
-
-    <span class="k">if</span> <span class="n">offsets</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">offsets</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">CylinderModel</span><span class="p">(</span>
         <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">ny</span><span class="p">,</span> <span class="n">cp</span><span class="o">.</span><span class="n">npf</span><span class="p">),</span>
-        <span class="n">tilts</span><span class="o">=</span><span class="p">(</span>
-            <span class="n">cp</span><span class="o">.</span><span class="n">tan_skew</span> <span class="o">*</span> <span class="n">factor</span><span class="p">,</span>
-            <span class="n">cp</span><span class="o">.</span><span class="n">tan_rise_raw</span> <span class="o">/</span> <span class="n">factor</span><span class="p">,</span>
-        <span class="p">),</span>
-        <span class="n">intervals</span><span class="o">=</span><span class="p">(</span><span class="n">ly</span><span class="p">,</span> <span class="n">la</span> <span class="o">/</span> <span class="n">cp</span><span class="o">.</span><span class="n">perimeter</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">),</span>
+        <span class="n">tilts</span><span class="o">=</span><span class="p">(</span><span class="n">cp</span><span class="o">.</span><span class="n">tan_skew</span> <span class="o">*</span> <span class="n">ly</span> <span class="o">/</span> <span class="n">la</span><span class="p">,</span> <span class="n">nrise</span> <span class="o">/</span> <span class="n">cp</span><span class="o">.</span><span class="n">npf</span><span class="p">),</span>
+        <span class="n">intervals</span><span class="o">=</span><span class="p">(</span><span class="n">ly</span><span class="p">,</span> <span class="n">la</span> <span class="o">/</span> <span class="n">cp</span><span class="o">.</span><span class="n">radius</span><span class="p">),</span>
         <span class="n">radius</span><span class="o">=</span><span class="n">cp</span><span class="o">.</span><span class="n">radius</span><span class="p">,</span>
-        <span class="n">offsets</span><span class="o">=</span><span class="n">offsets</span><span class="p">,</span>
+        <span class="n">offsets</span><span class="o">=</span><span class="n">offsets</span> <span class="ow">or</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
     <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -7454,7 +7430,13 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/spline/_cyl_spline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">250</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">244</span>
+<span class="normal">245</span>
+<span class="normal">246</span>
+<span class="normal">247</span>
+<span class="normal">248</span>
+<span class="normal">249</span>
+<span class="normal">250</span>
 <span class="normal">251</span>
 <span class="normal">252</span>
 <span class="normal">253</span>
@@ -7462,13 +7444,7 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 <span class="normal">255</span>
 <span class="normal">256</span>
 <span class="normal">257</span>
-<span class="normal">258</span>
-<span class="normal">259</span>
-<span class="normal">260</span>
-<span class="normal">261</span>
-<span class="normal">262</span>
-<span class="normal">263</span>
-<span class="normal">264</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">update_glob_by_cylinder_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cparams</span><span class="p">:</span> <span class="n">CylinderParameters</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CylSpline</span><span class="p">:</span>
+<span class="normal">258</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">update_glob_by_cylinder_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cparams</span><span class="p">:</span> <span class="n">CylinderParameters</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CylSpline</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Update the global properties using a CylinderParameters object."""</span>
     <span class="n">props</span> <span class="o">=</span> <span class="p">{</span>
         <span class="n">H</span><span class="o">.</span><span class="n">rise</span><span class="p">:</span> <span class="n">cparams</span><span class="o">.</span><span class="n">rise_angle</span><span class="p">,</span>
@@ -7505,7 +7481,13 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/spline/_cyl_spline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">194</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">188</span>
+<span class="normal">189</span>
+<span class="normal">190</span>
+<span class="normal">191</span>
+<span class="normal">192</span>
+<span class="normal">193</span>
+<span class="normal">194</span>
 <span class="normal">195</span>
 <span class="normal">196</span>
 <span class="normal">197</span>
@@ -7553,13 +7535,7 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 <span class="normal">239</span>
 <span class="normal">240</span>
 <span class="normal">241</span>
-<span class="normal">242</span>
-<span class="normal">243</span>
-<span class="normal">244</span>
-<span class="normal">245</span>
-<span class="normal">246</span>
-<span class="normal">247</span>
-<span class="normal">248</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">update_props</span><span class="p">(</span>
+<span class="normal">242</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">update_props</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">npf</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -16657,7 +16633,11 @@ guaranteed to be larger than spline order.</p>
 <span class="normal">1392</span>
 <span class="normal">1393</span>
 <span class="normal">1394</span>
-<span class="normal">1395</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylTomogram</span><span class="p">(</span><span class="n">Tomogram</span><span class="p">):</span>
+<span class="normal">1395</span>
+<span class="normal">1396</span>
+<span class="normal">1397</span>
+<span class="normal">1398</span>
+<span class="normal">1399</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylTomogram</span><span class="p">(</span><span class="n">Tomogram</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Tomogram with cylindrical splines."""</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -17851,9 +17831,13 @@ guaranteed to be larger than spline order.</p>
             <span class="n">df_loc</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">loc</span>
             <span class="n">glob</span> <span class="o">=</span> <span class="n">df_loc</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">selectors</span><span class="o">.</span><span class="n">numeric</span><span class="p">())</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
             <span class="k">if</span> <span class="n">H</span><span class="o">.</span><span class="n">npf</span> <span class="ow">in</span> <span class="n">df_loc</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
-                <span class="n">glob</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">with_columns</span><span class="p">(</span><span class="n">df_loc</span><span class="p">[</span><span class="n">H</span><span class="o">.</span><span class="n">npf</span><span class="p">]</span><span class="o">.</span><span class="n">mode</span><span class="p">()</span><span class="o">.</span><span class="n">first</span><span class="p">())</span>
+                <span class="n">glob</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">with_columns</span><span class="p">(</span>
+                    <span class="n">pl</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="n">df_loc</span><span class="p">[</span><span class="n">H</span><span class="o">.</span><span class="n">npf</span><span class="p">]</span><span class="o">.</span><span class="n">mode</span><span class="p">()</span><span class="o">.</span><span class="n">first</span><span class="p">())</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">H</span><span class="o">.</span><span class="n">npf</span><span class="p">)</span>
+                <span class="p">)</span>
             <span class="k">if</span> <span class="n">H</span><span class="o">.</span><span class="n">start</span> <span class="ow">in</span> <span class="n">df_loc</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
-                <span class="n">glob</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">with_columns</span><span class="p">(</span><span class="n">df_loc</span><span class="p">[</span><span class="n">H</span><span class="o">.</span><span class="n">start</span><span class="p">]</span><span class="o">.</span><span class="n">mode</span><span class="p">()</span><span class="o">.</span><span class="n">first</span><span class="p">())</span>
+                <span class="n">glob</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">with_columns</span><span class="p">(</span>
+                    <span class="n">pl</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="n">df_loc</span><span class="p">[</span><span class="n">H</span><span class="o">.</span><span class="n">start</span><span class="p">]</span><span class="o">.</span><span class="n">mode</span><span class="p">()</span><span class="o">.</span><span class="n">first</span><span class="p">())</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">H</span><span class="o">.</span><span class="n">start</span><span class="p">)</span>
+                <span class="p">)</span>
             <span class="k">for</span> <span class="n">c</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">glob</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
                 <span class="n">kwargs</span><span class="p">[</span><span class="n">c</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">spl</span><span class="o">.</span><span class="n">cylinder_model</span><span class="p">(</span><span class="n">offsets</span><span class="o">=</span><span class="n">offsets</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
@@ -18873,7 +18857,11 @@ cross correlation.</p>
 <span class="normal">1241</span>
 <span class="normal">1242</span>
 <span class="normal">1243</span>
-<span class="normal">1244</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_cylinder_model</span><span class="p">(</span>
+<span class="normal">1244</span>
+<span class="normal">1245</span>
+<span class="normal">1246</span>
+<span class="normal">1247</span>
+<span class="normal">1248</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_cylinder_model</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="n">offsets</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
@@ -18899,9 +18887,13 @@ cross correlation.</p>
         <span class="n">df_loc</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">loc</span>
         <span class="n">glob</span> <span class="o">=</span> <span class="n">df_loc</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">selectors</span><span class="o">.</span><span class="n">numeric</span><span class="p">())</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">H</span><span class="o">.</span><span class="n">npf</span> <span class="ow">in</span> <span class="n">df_loc</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
-            <span class="n">glob</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">with_columns</span><span class="p">(</span><span class="n">df_loc</span><span class="p">[</span><span class="n">H</span><span class="o">.</span><span class="n">npf</span><span class="p">]</span><span class="o">.</span><span class="n">mode</span><span class="p">()</span><span class="o">.</span><span class="n">first</span><span class="p">())</span>
+            <span class="n">glob</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">with_columns</span><span class="p">(</span>
+                <span class="n">pl</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="n">df_loc</span><span class="p">[</span><span class="n">H</span><span class="o">.</span><span class="n">npf</span><span class="p">]</span><span class="o">.</span><span class="n">mode</span><span class="p">()</span><span class="o">.</span><span class="n">first</span><span class="p">())</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">H</span><span class="o">.</span><span class="n">npf</span><span class="p">)</span>
+            <span class="p">)</span>
         <span class="k">if</span> <span class="n">H</span><span class="o">.</span><span class="n">start</span> <span class="ow">in</span> <span class="n">df_loc</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
-            <span class="n">glob</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">with_columns</span><span class="p">(</span><span class="n">df_loc</span><span class="p">[</span><span class="n">H</span><span class="o">.</span><span class="n">start</span><span class="p">]</span><span class="o">.</span><span class="n">mode</span><span class="p">()</span><span class="o">.</span><span class="n">first</span><span class="p">())</span>
+            <span class="n">glob</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">with_columns</span><span class="p">(</span>
+                <span class="n">pl</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="n">df_loc</span><span class="p">[</span><span class="n">H</span><span class="o">.</span><span class="n">start</span><span class="p">]</span><span class="o">.</span><span class="n">mode</span><span class="p">()</span><span class="o">.</span><span class="n">first</span><span class="p">())</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">H</span><span class="o">.</span><span class="n">start</span><span class="p">)</span>
+            <span class="p">)</span>
         <span class="k">for</span> <span class="n">c</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">glob</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
             <span class="n">kwargs</span><span class="p">[</span><span class="n">c</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
     <span class="k">return</span> <span class="n">spl</span><span class="o">.</span><span class="n">cylinder_model</span><span class="p">(</span><span class="n">offsets</span><span class="o">=</span><span class="n">offsets</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
@@ -21645,11 +21637,7 @@ radii.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1246</span>
-<span class="normal">1247</span>
-<span class="normal">1248</span>
-<span class="normal">1249</span>
-<span class="normal">1250</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1250</span>
 <span class="normal">1251</span>
 <span class="normal">1252</span>
 <span class="normal">1253</span>
@@ -21693,7 +21681,11 @@ radii.</p>
 <span class="normal">1291</span>
 <span class="normal">1292</span>
 <span class="normal">1293</span>
-<span class="normal">1294</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
+<span class="normal">1294</span>
+<span class="normal">1295</span>
+<span class="normal">1296</span>
+<span class="normal">1297</span>
+<span class="normal">1298</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">map_monomers</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -21866,11 +21858,7 @@ radii.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1296</span>
-<span class="normal">1297</span>
-<span class="normal">1298</span>
-<span class="normal">1299</span>
-<span class="normal">1300</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1300</span>
 <span class="normal">1301</span>
 <span class="normal">1302</span>
 <span class="normal">1303</span>
@@ -21900,7 +21888,11 @@ radii.</p>
 <span class="normal">1327</span>
 <span class="normal">1328</span>
 <span class="normal">1329</span>
-<span class="normal">1330</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
+<span class="normal">1330</span>
+<span class="normal">1331</span>
+<span class="normal">1332</span>
+<span class="normal">1333</span>
+<span class="normal">1334</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">map_on_grid</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -22030,11 +22022,7 @@ microtubule.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1332</span>
-<span class="normal">1333</span>
-<span class="normal">1334</span>
-<span class="normal">1335</span>
-<span class="normal">1336</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1336</span>
 <span class="normal">1337</span>
 <span class="normal">1338</span>
 <span class="normal">1339</span>
@@ -22072,7 +22060,11 @@ microtubule.</p>
 <span class="normal">1371</span>
 <span class="normal">1372</span>
 <span class="normal">1373</span>
-<span class="normal">1374</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
+<span class="normal">1374</span>
+<span class="normal">1375</span>
+<span class="normal">1376</span>
+<span class="normal">1377</span>
+<span class="normal">1378</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">map_pf_line</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
