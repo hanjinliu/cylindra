@@ -121,6 +121,13 @@ def preview_landscape_function(
     )
 
 
+def _determine_bins(data: np.ndarray):
+    _min, _max = data.min(), data.max()
+    if _max - _min < 1e-3:
+        return 1
+    return min(48, data.size // 2)
+
+
 def _preview_function(
     widget: SubtomogramAveraging,
     fgui: FunctionGui,
@@ -143,7 +150,9 @@ def _preview_function(
     max_lon = _eval_dist_like(range_long[1], data_lon)
     min_lat = _eval_dist_like(range_lat[0], data_lat)
     max_lat = _eval_dist_like(range_lat[1], data_lat)
-    lon_hist = canvas[0].add_hist(data_lon, bins=24, density=False, name="Longitudinal")
+    lon_hist = canvas[0].add_hist(
+        data_lon, bins=_determine_bins(data_lon), density=False, name="Longitudinal"
+    )
     color_ok = "yellow"
     color_ng = "red"
     if min_lon is None:
@@ -158,7 +167,9 @@ def _preview_function(
     lon_high = canvas[0].add_infline((max_lon, 0), 90, color=color_ok, ls=":")
     canvas[0].add_infline((0, 0), 0, color="gray")
     canvas[0].title = "Longitudinal distances"
-    lat_hist = canvas[1].add_hist(data_lat, bins=24, density=False, name="Lateral")
+    lat_hist = canvas[1].add_hist(
+        data_lat, bins=_determine_bins(data_lat), density=False, name="Lateral"
+    )
     lat_low = canvas[1].add_infline((min_lat, 0), 90, color=color_ok, ls=":")
     lat_high = canvas[1].add_infline((max_lat, 0), 90, color=color_ok, ls=":")
     canvas[1].add_infline((0, 0), 0, color="gray")

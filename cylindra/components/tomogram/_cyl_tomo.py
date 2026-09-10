@@ -1236,9 +1236,13 @@ class CylTomogram(Tomogram):
             df_loc = spl.props.loc
             glob = df_loc.select(pl.selectors.numeric()).mean()
             if H.npf in df_loc.columns:
-                glob = glob.with_columns(df_loc[H.npf].mode().first())
+                glob = glob.with_columns(
+                    pl.lit(df_loc[H.npf].mode().first()).alias(H.npf)
+                )
             if H.start in df_loc.columns:
-                glob = glob.with_columns(df_loc[H.start].mode().first())
+                glob = glob.with_columns(
+                    pl.lit(df_loc[H.start].mode().first()).alias(H.start)
+                )
             for c, val in glob.to_dict().items():
                 kwargs[c] = val[0]
         return spl.cylinder_model(offsets=offsets, **kwargs)
