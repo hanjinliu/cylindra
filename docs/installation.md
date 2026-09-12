@@ -14,21 +14,18 @@ conda activate my-env  # enter the virtual environment
 ### Install Cylindra
 
 Now, it's ready to install `cylindra`. Following command will install `cylindra` and all
-the relevant dependencies in the current virtual environment. Note that if you don't
-install from [PyPI](https://pypi.org), you'll need [`git`](https://git-scm.com) and
-[`rustup`](https://www.rust-lang.org/learn/get-started) command.
-
+the relevant dependencies in the current virtual environment.
 
 === "From PyPI"
 
     ```shell
-    pip install cylindra[all] -U
+    pip install cylindra[recommended] -U
     ```
 
     If you are using `venv` from `uv`,
 
     ```shell
-    uv pip install cylindra[all] -U
+    uv pip install cylindra[recommended] -U
     ```
 
 === "From napari hub"
@@ -48,23 +45,30 @@ install from [PyPI](https://pypi.org), you'll need [`git`](https://git-scm.com) 
 
 === "Build from the source"
 
+    Clone the repository. Install [`git`](https://git-scm.com) and run:
+
     ```shell
     git clone https://github.com/hanjinliu/cylindra
-    cd cylindra
-    pip install .[all]
     ```
+
+    or manually download the repository as a ZIP file and extract it.
+
+    Compile Rust code. You will nedd to have [`Rust`](https://www.rust-lang.org/learn/get-started) installed.
+
+    ```shell
+    cd cylindra
+    pip install .[recommended]
+    ```
+
+    For Windows, you may need to install the [Visual Studio](https://visualstudio.microsoft.com/) with the "Desktop development with C++" workload.
 
 ??? info "Avoid installing optional dependencies"
 
-    The "all" option tells `pip` to install everything that will be used in `cylindra`.
-    If you don't want all of these, you can manually select the dependencies. The
-    optional dependencies are:
+    The "recommended" option tells `pip` to install packages that works well.
+    If you don't want all of these, you can manually select the dependencies.
 
-    - `pyqt6` ... This is the default GUI backend. You can also use `pyqt5` or
-      `pyside6`.
-    - `mrcfile` ... A library for reading and writing MRC files. This is needed if you
-      want to use MRC files.
-    - `tifffile` ... A library for reading and writing TIFF files. This is needed if you
-      want to use TIFF files.
+    - `pip install cylindra` ... minimum installation with only the essential dependencies.
+    - `pip install cylindra[all]` ... all optional dependencies for `cylindra`.
+    - `pip install cylindra[recommended]` ... all optional dependencies with recommended versions.
 
 You can check if the installation succeeded by running `cylindra -v`.

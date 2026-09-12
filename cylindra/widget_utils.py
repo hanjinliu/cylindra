@@ -276,6 +276,7 @@ def add_labels(
         translate=[tr, tr, tr],
         scale=list(label.scale.values()),
         opacity=0.4,
+        blending="translucent_no_depth",
         units=["nm"] * label.ndim,
     )
 
