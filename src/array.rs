@@ -64,7 +64,7 @@ pub fn displacement_array<'py>(
 
 fn reshape(arr: &PyReadonlyArray1<f32>, shape: (usize, usize)) -> Array2<f32> {
     let arr = arr.as_array();
-    arr.as_standard_layout().into_shape(shape).unwrap().to_owned()
+    arr.as_standard_layout().to_shape(shape).unwrap().to_owned()
 }
 
 #[pyfunction]

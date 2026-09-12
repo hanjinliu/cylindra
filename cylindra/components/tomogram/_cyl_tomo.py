@@ -1224,7 +1224,7 @@ class CylTomogram(Tomogram):
         i : int
             Spline ID from which model will be created.
         offsets : tuple of float, optional
-            Offset of the model. See :meth:`map_monomers` for details.
+            Offset of the model. See `map_monomers` for details.
 
         Returns
         -------

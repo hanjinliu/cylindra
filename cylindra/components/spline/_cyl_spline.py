@@ -163,7 +163,7 @@ class CylSpline(Spline):
         Parameters
         ----------
         offsets : tuple of float, optional
-            Offset of the model. See :meth:`map_monomers` for details.
+            Offset of the model. See `map_monomers` for details.
 
         Returns
         -------

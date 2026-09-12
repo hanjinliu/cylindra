@@ -21,6 +21,7 @@ _PICK_MODES = [
 
 @magicclass(record=False)
 class Spline3DInteractor(ChildWidget):
+    label0 = vfield('[3D interaction on "Drawing layer"]', widget_type="Label")
     pick_mode_left = vfield(DISABLED).with_choices(_PICK_MODES)
     pick_mode_right = vfield(DISABLED).with_choices(_PICK_MODES)
     pick_max_distance = vfield(10.0, label="Max pick distance (nm)")

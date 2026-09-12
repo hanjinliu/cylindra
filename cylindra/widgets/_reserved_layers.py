@@ -166,34 +166,42 @@ class ReservedLayers:
         spec = (layer.features[SPLINE_ID] == idx) & (~layer.features[IS_SEGMENT])
         symbol_arr = layer.symbol.copy()
         size_arr = layer.size.astype(np.float32)
+        bc_arr = layer.border_color.copy()
 
         symbol_of_interest = symbol_arr[spec]
         size_of_interest = size_arr[spec]
+        bc_of_interest = bc_arr[spec]
 
         _size_pol = layer._size_polarity_marker
         match orientation:
             case Ori.none:
                 symbol_a, symbol_b = "x", "x"
                 size_edge = 0.01
+                bc = [0, 0, 0, 0]
             case Ori.MinusToPlus:
                 symbol_a, symbol_b = "-", "+"
                 size_edge = _size_pol if layer.show_polarity else 0.01
+                bc = [0, 0, 0, 1]
             case Ori.PlusToMinus:
                 symbol_a, symbol_b = "+", "-"
                 size_edge = _size_pol if layer.show_polarity else 0.01
+                bc = [0, 0, 0, 1]
             case ori:  # pragma: no cover
                 raise RuntimeError(ori)
 
         symbol_of_interest[0], symbol_of_interest[-1] = symbol_a, symbol_b
         size_of_interest[0] = size_of_interest[-1] = size_edge
+        bc_of_interest[0] = bc_of_interest[-1] = bc
         if len(symbol_of_interest) > 2:
             symbol_of_interest[1:-1] = "o"
 
         # update
         symbol_arr[spec] = symbol_of_interest
         size_arr[spec] = size_of_interest
+        bc_arr[spec] = bc_of_interest
         layer.symbol = list(symbol_arr)
         layer.size = size_arr
+        layer.border_color = bc_arr
         layer.selected_data = []
         layer.refresh()
 
@@ -211,7 +219,7 @@ def _prof_layer() -> SplineLayer:
             IS_SEGMENT: np.zeros(0, dtype=bool),
         },
         opacity=0.4,
-        border_color="black",
+        border_color=[0, 0, 0, 1],
         face_color=SplineColor.DEFAULT,
         text={"color": "yellow"},
         units=["nm"] * 3,
