@@ -2721,16 +2721,14 @@ conda<span class="w"> </span>activate<span class="w"> </span>my-env<span class="
 </code></pre></div>
 <h3 id="install-cylindra">Install Cylindra</h3>
 <p>Now, it's ready to install <code>cylindra</code>. Following command will install <code>cylindra</code> and all
-the relevant dependencies in the current virtual environment. Note that if you don't
-install from <a href="https://pypi.org">PyPI</a>, you'll need <a href="https://git-scm.com"><code>git</code></a> and
-<a href="https://www.rust-lang.org/learn/get-started"><code>rustup</code></a> command.</p>
+the relevant dependencies in the current virtual environment.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:4"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><input id="__tabbed_1_4" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">From PyPI</label><label for="__tabbed_1_2">From napari hub</label><label for="__tabbed_1_3">From the GitHub main branch</label><label for="__tabbed_1_4">Build from the source</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>cylindra<span class="o">[</span>all<span class="o">]</span><span class="w"> </span>-U
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>cylindra<span class="o">[</span>recommended<span class="o">]</span><span class="w"> </span>-U
 </code></pre></div>
 <p>If you are using <code>venv</code> from <code>uv</code>,</p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>cylindra<span class="o">[</span>all<span class="o">]</span><span class="w"> </span>-U
+<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>cylindra<span class="o">[</span>recommended<span class="o">]</span><span class="w"> </span>-U
 </code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -2747,25 +2745,26 @@ You can install it from the napari plugin manager.</p>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
+<p>Clone the repository. Install <a href="https://git-scm.com"><code>git</code></a> and run:</p>
 <div class="highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/hanjinliu/cylindra
-<span class="nb">cd</span><span class="w"> </span>cylindra
-pip<span class="w"> </span>install<span class="w"> </span>.<span class="o">[</span>all<span class="o">]</span>
 </code></pre></div>
+<p>or manually download the repository as a ZIP file and extract it.</p>
+<p>Compile Rust code. You will nedd to have <a href="https://www.rust-lang.org/learn/get-started"><code>Rust</code></a> installed.</p>
+<div class="highlight"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>cylindra
+pip<span class="w"> </span>install<span class="w"> </span>.<span class="o">[</span>recommended<span class="o">]</span>
+</code></pre></div>
+<p>For Windows, you may need to install the <a href="https://visualstudio.microsoft.com/">Visual Studio</a> with the "Desktop development with C++" workload.</p>
 </div>
 </div>
 </div>
 <details class="info">
 <summary>Avoid installing optional dependencies</summary>
-<p>The "all" option tells <code>pip</code> to install everything that will be used in <code>cylindra</code>.
-If you don't want all of these, you can manually select the dependencies. The
-optional dependencies are:</p>
+<p>The "recommended" option tells <code>pip</code> to install packages that works well.
+If you don't want all of these, you can manually select the dependencies.</p>
 <ul>
-<li><code>pyqt6</code> ... This is the default GUI backend. You can also use <code>pyqt5</code> or
-  <code>pyside6</code>.</li>
-<li><code>mrcfile</code> ... A library for reading and writing MRC files. This is needed if you
-  want to use MRC files.</li>
-<li><code>tifffile</code> ... A library for reading and writing TIFF files. This is needed if you
-  want to use TIFF files.</li>
+<li><code>pip install cylindra</code> ... minimum installation with only the essential dependencies.</li>
+<li><code>pip install cylindra[all]</code> ... all optional dependencies for <code>cylindra</code>.</li>
+<li><code>pip install cylindra[recommended]</code> ... all optional dependencies with recommended versions.</li>
 </ul>
 </details>
 <p>You can check if the installation succeeded by running <code>cylindra -v</code>.</p>
