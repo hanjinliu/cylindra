@@ -10,7 +10,10 @@ from typing import TYPE_CHECKING, Callable, Generic, ParamSpec, TypeVar
 from macrokit import Expr, Symbol
 
 if TYPE_CHECKING:
+    from typing import TypeGuard
+
     from magicclass._gui.mgui_ext import Action
+    from magicclass.utils import thread_worker
 
     from cylindra.widgets import CylindraMainWidget
 
@@ -19,6 +22,8 @@ _R = TypeVar("_R")
 
 
 class CylindraPluginFunction(Generic[_P, _R]):
+    """The callable object for cylindra plugin function."""
+
     def __init__(
         self,
         func: Callable[_P, _R],
@@ -26,8 +31,6 @@ class CylindraPluginFunction(Generic[_P, _R]):
         module: str | None = None,
         record: bool = True,
     ):
-        from magicclass.utils import thread_worker
-
         if not callable(func):
             raise TypeError("func must be a callable")
         if not hasattr(func, "__name__"):
@@ -53,6 +56,10 @@ class CylindraPluginFunction(Generic[_P, _R]):
         self._func = func
         self._action_ref: Callable[[], Action | None] = lambda: None
         self.__signature__ = inspect.signature(func)
+
+        params = list(self.__signature__.parameters.values())
+        self._method_sig = inspect.Signature(params[1:])
+
         first_arg = next(iter(self.__signature__.parameters.values()))
         self._ui_arg_name = first_arg.name
         # check if the first argument is a CylindraMainWidget
@@ -67,7 +74,7 @@ class CylindraPluginFunction(Generic[_P, _R]):
                     stacklevel=2,
                 )
 
-        if isinstance(self._func, thread_worker):
+        if _is_thread_worker(self._func):
             if record:
                 self._func._set_recorder(self._record_macro)
             else:
@@ -98,9 +105,8 @@ class CylindraPluginFunction(Generic[_P, _R]):
         def _method(*args: _P.args, **kwargs: _P.kwargs) -> _R:
             return self(ui, *args, **kwargs)
 
-        params = list(self.__signature__.parameters.values())
         aopt = getattr(self.__signature__, "additional_options", None)
-        _method.__signature__ = inspect.Signature(params[1:])
+        _method.__signature__ = self._method_sig
         _method.__name__ = self._name
         _method.__doc__ = getattr(self._func, "__doc__", "")
         if qualname := getattr(self._func, "__qualname__", None):
@@ -109,8 +115,6 @@ class CylindraPluginFunction(Generic[_P, _R]):
         return _method
 
     def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _R:
-        from magicclass.utils import thread_worker
-
         from cylindra.widgets import CylindraMainWidget
 
         bound = self.__signature__.bind(*args, **kwargs)
@@ -123,7 +127,7 @@ class CylindraPluginFunction(Generic[_P, _R]):
             )
         first_arg, *args = bound.args
         assert first_arg is ui
-        if isinstance(self._func, thread_worker):
+        if _is_thread_worker(self._func):
             out = self._func.__get__(ui)(*args, **bound.kwargs)
         else:
             with ui.macro.blocked():
@@ -144,8 +148,9 @@ class CylindraPluginFunction(Generic[_P, _R]):
     ):
         from magicclass.undo import UndoCallback
 
+        bound = self._method_sig.bind(*args, **kwargs)
         fn_expr = Expr("getattr", [Symbol(self._module), self._func.__name__])
-        expr = Expr.parse_call(fn_expr, (ui,) + args, kwargs)
+        expr = Expr.parse_call(fn_expr, (ui,), bound.arguments)
         ui.macro.append(expr)
         ui.macro._last_setval = None
         if self not in ui._plugins_called:
@@ -161,3 +166,9 @@ class CylindraPluginFunction(Generic[_P, _R]):
         if action := self._action_ref():
             return action.running
         return False
+
+
+def _is_thread_worker(fn) -> TypeGuard[thread_worker]:
+    from magicclass.utils import thread_worker
+
+    return isinstance(fn, thread_worker)
