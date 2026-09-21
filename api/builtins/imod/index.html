@@ -2986,7 +2986,7 @@ directly used by PEET.</p>
                 <code>template_path</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -3018,7 +3018,7 @@ directly used by PEET.</p>
                 <code>project_name</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -3035,8 +3035,7 @@ directly used by PEET.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra_builtins/imod/io.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">310</span>
-<span class="normal">311</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">311</span>
 <span class="normal">312</span>
 <span class="normal">313</span>
 <span class="normal">314</span>
@@ -3106,7 +3105,8 @@ directly used by PEET.</p>
 <span class="normal">378</span>
 <span class="normal">379</span>
 <span class="normal">380</span>
-<span class="normal">381</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Export project"</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="normal">381</span>
+<span class="normal">382</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Export project"</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">export_project</span><span class="p">(</span>
     <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span>
     <span class="n">layer</span><span class="p">:</span> <span class="n">MoleculesLayerType</span><span class="p">,</span>
@@ -3247,7 +3247,7 @@ directly used by PEET.</p>
                 <code>project_name</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/stdtypes.html#str">str</a></code>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -3263,7 +3263,7 @@ directly used by PEET.</p>
                 <code>size</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#float">float</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -3280,8 +3280,7 @@ directly used by PEET.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra_builtins/imod/io.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">391</span>
-<span class="normal">392</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">392</span>
 <span class="normal">393</span>
 <span class="normal">394</span>
 <span class="normal">395</span>
@@ -3367,7 +3366,8 @@ directly used by PEET.</p>
 <span class="normal">475</span>
 <span class="normal">476</span>
 <span class="normal">477</span>
-<span class="normal">478</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Export project as batch"</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="normal">478</span>
+<span class="normal">479</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Export project as batch"</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">export_project_batch</span><span class="p">(</span>
     <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span>
     <span class="n">save_dir</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Dir</span><span class="p">,</span>
@@ -3524,7 +3524,7 @@ will be created under the same level as the first IMOD project.</p>
                 <code>scale_override</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#float">float</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -3540,7 +3540,7 @@ will be created under the same level as the first IMOD project.</p>
                 <code>invert</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#bool">bool</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -3573,8 +3573,7 @@ will be created under the same level as the first IMOD project.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra_builtins/imod/io.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">235</span>
-<span class="normal">236</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">236</span>
 <span class="normal">237</span>
 <span class="normal">238</span>
 <span class="normal">239</span>
@@ -3624,7 +3623,8 @@ will be created under the same level as the first IMOD project.</p>
 <span class="normal">283</span>
 <span class="normal">284</span>
 <span class="normal">285</span>
-<span class="normal">286</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Import IMOD projects"</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="normal">286</span>
+<span class="normal">287</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Import IMOD projects"</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">import_imod_projects</span><span class="p">(</span>
     <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span>
     <span class="n">edf_path</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Path</span><span class="o">.</span><span class="n">Read</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">EDF</span><span class="p">],</span> <span class="p">{</span><span class="s2">"label"</span><span class="p">:</span> <span class="s2">"IMOD edf file(s)"</span><span class="p">}],</span>
@@ -3744,7 +3744,7 @@ will be created under the same level as the first IMOD project.</p>
                 <code>shift_mol</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#bool">bool</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -3916,7 +3916,7 @@ be directly applied to the molecule coordinates.</p>
                 <code>scale_override</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#float">float</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -3964,7 +3964,7 @@ be directly applied to the molecule coordinates.</p>
                 <code>invert</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#bool">bool</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -3980,7 +3980,7 @@ be directly applied to the molecule coordinates.</p>
                 <code>eager</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#bool">bool</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -3997,7 +3997,7 @@ lazily.</p>
                 <code>cache_image</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#bool">bool</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -4015,8 +4015,7 @@ loading.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra_builtins/imod/io.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">184</span>
-<span class="normal">185</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">185</span>
 <span class="normal">186</span>
 <span class="normal">187</span>
 <span class="normal">188</span>
@@ -4063,7 +4062,8 @@ loading.</p>
 <span class="normal">229</span>
 <span class="normal">230</span>
 <span class="normal">231</span>
-<span class="normal">232</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Open image from an IMOD project"</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="normal">232</span>
+<span class="normal">233</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Open image from an IMOD project"</span><span class="p">,</span> <span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">open_image_from_imod_project</span><span class="p">(</span>
     <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span>
     <span class="n">edf_path</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Path</span><span class="o">.</span><span class="n">Read</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">EDF</span><span class="p">],</span> <span class="p">{</span><span class="s2">"label"</span><span class="p">:</span> <span class="s2">"IMOD edf file"</span><span class="p">}],</span>
@@ -4269,7 +4269,7 @@ where i is the index of the spline.</p>
                 <code>interval</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#float">float</a></code>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#float">float</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -4430,7 +4430,7 @@ length of a spline is 100.0, 11 points will be sampled.</p>
                 <code>update</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/library/functions.html#bool">bool</a></code>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#bool">bool</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -4491,7 +4491,8 @@ length of a spline is 100.0, 11 points will be sampled.</p>
 <span class="normal">170</span>
 <span class="normal">171</span>
 <span class="normal">172</span>
-<span class="normal">173</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Shift molecules"</span><span class="p">)</span>
+<span class="normal">173</span>
+<span class="normal">174</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Shift molecules"</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">shift_molecules</span><span class="p">(</span>
     <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span>
     <span class="n">ang_path</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Path</span><span class="o">.</span><span class="n">Read</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">CSV</span><span class="p">],</span> <span class="p">{</span><span class="s2">"label"</span><span class="p">:</span> <span class="s2">"Path to csv file"</span><span class="p">}],</span>
@@ -4532,6 +4533,7 @@ length of a spline is 100.0, 11 points will be sampled.</p>
                 <span class="n">edge_color</span><span class="o">=</span><span class="s2">"crimson"</span><span class="p">,</span>
                 <span class="n">length</span><span class="o">=</span><span class="mf">2.4</span><span class="p">,</span>
                 <span class="n">name</span><span class="o">=</span><span class="n">vector_layer_name</span><span class="p">,</span>
+                <span class="n">units</span><span class="o">=</span><span class="p">[</span><span class="s2">"nm"</span><span class="p">]</span> <span class="o">*</span> <span class="mi">3</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span> <span class="o">=</span> <span class="n">mol_shifted</span>
     <span class="k">else</span><span class="p">:</span>
