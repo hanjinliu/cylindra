@@ -167,6 +167,7 @@ def shift_molecules(
                 edge_color="crimson",
                 length=2.4,
                 name=vector_layer_name,
+                units=["nm"] * 3,
             )
         layer.molecules = mol_shifted
     else:

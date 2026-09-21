@@ -76,6 +76,7 @@ def _preview_clip_spline(
             edge_color="crimson",
             edge_width=3,
             name=_SPLINE_PREVIEW,
+            units=["nm"] * 2,
         )
     is_active = yield
     if not is_active and layer in viewer.layers:
@@ -273,6 +274,7 @@ def _preview_rotate_molecules(
             length=_config.get_config().point_size * 0.8,
             name=PREVIEW_LAYER_NAME,
             vector_style="arrow",
+            units=["nm"] * 3,
         )
     is_active = yield
     if not is_active and layer in viewer.layers:
@@ -338,6 +340,7 @@ def _split_spline_preview(
             edge_color=["crimson", "cyan"],
             edge_width=3,
             name=_SPLINE_PREVIEW,
+            units=["nm"] * 2,
         )
     is_active = yield
     if not is_active and layer in viewer.layers:

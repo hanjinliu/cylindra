@@ -2,6 +2,7 @@ import sys
 import warnings
 from itertools import product
 from pathlib import Path
+from typing import Annotated
 
 import impy as ip
 import matplotlib.pyplot as plt
@@ -1988,6 +1989,10 @@ def test_plugin(ui: CylindraMainWidget, tmpdir):
     def test_func_no_record(ui):
         pass
 
+    @register_function
+    def test_func_with_args(ui, a: int, b: Annotated[str, {"label": "B"}]):
+        pass
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=UserWarning)
 
@@ -1998,11 +2003,13 @@ def test_plugin(ui: CylindraMainWidget, tmpdir):
     repr(test_func)
     test_func(ui)
     test_func_no_record(ui)
+    test_func_with_args(ui, 3, b="test")
     with pytest.raises(TypeError):
         wrong_signature(3)
 
-    assert len(ui.macro) == 2
+    assert len(ui.macro) == 3
     assert str(ui.macro[1]) == "tests.test_gui_0.test_func(ui)"
+    assert str(ui.macro[2]) == "tests.test_gui_0.test_func_with_args(ui, a=3, b='test')"
     ui.save_project(Path(tmpdir) / "test-project.tar")
 
 
