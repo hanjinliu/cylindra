@@ -2814,7 +2814,7 @@ most of the cases, 21 tilts between -60 and 60 degrees are enough. You can even 
 <h2 id="plot-the-power-spectrum">Plot the power spectrum</h2>
 <p>To sample a short fragment from the tomogram, the <code>spline_slicer</code> widget is useful. It
 implements methods to get subtomograms and power spectra along the spline. Here we can
-use <a class="autorefs autorefs-internal" title="get_cylindric_power_spectrum(spline, pos, *, depth=50.0, binsize=1, order=3, use_orig_config=True)" href="../../api/widgets/subwidgets/#cylindra.widgets.subwidgets.SplineSlicer.get_cylindric_power_spectrum"><code>get_cylindric_power_spectrum</code></a> to get the CFT of the cylinder.</p>
+use <a class="autorefs autorefs-internal" title="get_cylindric_power_spectrum(spline, pos, *, depth=50.0, binsize=1, order=3, radius=None, use_orig_config=True)" href="../../api/widgets/subwidgets/#cylindra.widgets.subwidgets.SplineSlicer.get_cylindric_power_spectrum"><code>get_cylindric_power_spectrum</code></a> to get the CFT of the cylinder.</p>
 <p>To plot the power spectra, we can use the popular <a href="https://matplotlib.org/"><code>matplotlib</code></a>
 package.</p>
 <div class="highlight"><pre><span></span><code><span class="n">img</span> <span class="o">=</span> <span class="n">ui</span><span class="o">.</span><span class="n">spline_slicer</span><span class="o">.</span><span class="n">get_cylindric_power_spectrum</span><span class="p">(</span><span class="n">spline</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">pos</span><span class="o">=</span><span class="n">length</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
