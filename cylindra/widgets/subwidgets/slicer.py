@@ -431,21 +431,31 @@ class SplineSlicer(ChildWidget):
             yield
             spl = self._get_main().tomogram.splines[idx]
 
+            ny, na = result.shape.y, result.shape.a
             y0 = int(round(depth / spl.config.spacing_range.max * 1.2))
             a0 = int(round(spl.config.npf_range.max * 6))
-            pw = result.local_power_spectra(
-                f"y={-y0}:{y0 + 1};a={-a0}:{a0 + 1}",
-                dims="rya",
-                upsample_factor=[1, 5, 5],
-            ).mean(axis="r")
+            # frequency range must not exceed the image size, otherwise the power
+            # spectrum will be periodically repeated.
+            y_key = f"{-min(y0, ny // 2)}:{min(y0, (ny - 1) // 2) + 1}"
+            a_key = f"{-min(a0, na // 2)}:{min(a0, (na - 1) // 2) + 1}"
+            pw = (
+                (result - result.mean())
+                .local_power_spectra(
+                    f"y={y_key};a={a_key}",
+                    dims="rya",
+                    upsample_factor=[1, 5, 5],
+                )
+                .mean(axis="r")
+            )
             yield
             pw[:] = pw / pw.max()
             img = pw.value
         elif _type == RPROJ_FILT:
-            result = self.post_filter(self._current_cylindrical_img(idx, pos, depth))
+            result = self._current_cylindrical_img(idx, pos, depth)
             if isinstance(result, Exception):
                 return self._show_overlay_text_cb.with_args(result)
             yield
+            result = self.post_filter(result)
             ft = result.fft(shift=False, dims="rya")
             yield
             peaks = self._infer_peak_positions(ft)
@@ -565,6 +575,7 @@ class SplineSlicer(ChildWidget):
                 depth=depth,
                 binsize=binsize,
                 order=1,
+                radius=self._get_radius(),
                 use_orig_config=False,
             )
         except Exception as e:
@@ -709,6 +720,7 @@ class SplineSlicer(ChildWidget):
         depth: nm = 50.0,
         binsize: int = 1,
         order: int = 3,
+        radius: nm | None = None,
         use_orig_config: bool = True,
     ) -> ip.ImgArray:
         """Get cylindric power spectrum of given position.
@@ -727,6 +739,8 @@ class SplineSlicer(ChildWidget):
             Image bin size to use.
         order : int, default 3
             Interpolation order.
+        radius : nm, optional
+            Radius peak of the cylinder.
 
         Returns
         -------
@@ -739,6 +753,7 @@ class SplineSlicer(ChildWidget):
             depth=depth,
             binsize=binsize,
             order=order,
+            radius=radius,
             use_orig_config=use_orig_config,
         )
         pw = result.power_spectra(zero_norm=True, dims="rya").mean(axis="r")

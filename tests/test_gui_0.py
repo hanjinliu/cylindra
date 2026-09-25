@@ -645,6 +645,29 @@ def test_preview(ui: CylindraMainWidget):
     mcls_testing.FunctionGuiTester(ui.map_along_pf).click_preview()
 
 
+def test_slicer_radius_and_cft_up(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_13PF, filter=None)
+    ui.ImageMenu.open_slicer()
+    slicer = ui.spline_slicer
+    for spl in ui.tomogram.splines:
+        spl.radius = None
+    with thread_worker.blocking_mode():
+        slicer.refresh_widget_state()
+        slicer.radius = 11.0
+        # radius updated, image should show on the canvas
+        for kind in ["CFT", "CFT (5x upsampling)", "R-projection", "Y-projection"]:
+            slicer.show_what = kind
+            slicer._update_canvas()
+            assert not slicer.canvas.text_overlay.visible, kind
+        slicer.show_what = "CFT (5x upsampling)"
+        slicer._update_canvas()
+        img_cyl = slicer._current_cylindrical_img(
+            slicer.controller.spline_id, slicer.controller.pos.value, 50.0
+        )
+        # upsampled spectrum must not exceed the original frequency range
+        assert slicer.canvas.image.shape[1] <= img_cyl.shape.a * 5
+
+
 def test_sub_widgets(ui: CylindraMainWidget, tmpdir):
     ui.load_project(PROJECT_DIR_13PF, filter=None)
     ui.ImageMenu.open_slicer()
