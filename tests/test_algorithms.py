@@ -81,6 +81,15 @@ def test_run_all(coords, npf, rise, twist_range):
     tomo.local_radii()
     tomo.local_cft_params(radius="local")
     tomo.local_cft_params(radius=10.2, update_glob=True)
+    # global properties updated by the local ones must be self-consistent
+    spl = tomo.splines[0]
+    spacing_glob = spl.props.get_glob(H.spacing)
+    twist_glob = spl.props.get_glob(H.twist)
+    assert spacing_glob == pytest.approx(spl.props.loc[H.spacing].mean(), abs=1e-5)
+    assert twist_glob == pytest.approx(spl.props.loc[H.twist].mean(), abs=1e-5)
+    cp = spl.cylinder_params(radius=10.2)
+    assert cp.spacing == pytest.approx(spacing_glob, abs=1e-4)
+    assert cp.twist == pytest.approx(twist_glob, abs=1e-4)
 
     repr(tomo.splines[0].props)
     tomo.splines[0].props[H.spacing]
@@ -406,6 +415,47 @@ def test_cylinder_params():
             start=1,
             radius=6.6,
         )
+
+
+def test_mean_lattice_params():
+    from cylindra.components._cylinder_params import CylinderParameters
+    from cylindra.components._ftprops import LatticeParams, mean_lattice_params
+
+    # twist changes its sign, so that moire periods diverge in both directions
+    rows = [
+        LatticeParams.from_cylinder_params(
+            CylinderParameters.solve(spacing=sp, twist=tw, radius=11.5, npf=13, start=3)
+        )
+        for sp, tw in [(4.08, 0.08), (4.1, -0.02), (4.12, 0.03), (4.1, -0.05)]
+    ]
+    df = pl.DataFrame(rows, schema=LatticeParams.polars_schema())
+    assert df[H.moire_period].mean() < 0  # arithmetic mean is meaningless
+
+    lattice = mean_lattice_params(df, radius=11.5)
+    assert lattice.spacing == pytest.approx(4.1, abs=1e-5)
+    assert lattice.twist == pytest.approx(0.01, abs=1e-5)
+    assert lattice.moire_period > 0
+    assert lattice.npf == 13
+    assert lattice.start == 3
+
+    # parameters must be consistent with each other (same as `cylinder_params`, pitch
+    # and moire period are used in priority)
+    cp = CylinderParameters.solve(
+        pitch=lattice.pitch,
+        moire_period=lattice.moire_period,
+        skew=lattice.skew,
+        rise_angle=lattice.rise_angle,
+        radius=11.5,
+        npf=13,
+        allow_duplicate=True,
+    )
+    assert cp.spacing == pytest.approx(lattice.spacing, abs=1e-6)
+    assert cp.twist == pytest.approx(lattice.twist, abs=1e-6)
+    assert cp.skew == pytest.approx(lattice.skew, abs=1e-6)
+    assert cp.start == 3
+
+    with pytest.raises(ValueError):
+        mean_lattice_params(df.drop(H.twist), radius=11.5)
 
 
 def test_flat_view():

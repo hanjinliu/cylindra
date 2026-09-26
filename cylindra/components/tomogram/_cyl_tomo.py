@@ -17,6 +17,7 @@ from cylindra.components._ftprops import (
     LatticeParamsCartesian,
     get_polar_image,
     is_clockwise,
+    mean_lattice_params,
 )
 from cylindra.components._peak import find_centroid_peak
 from cylindra.components.spline import CylSpline
@@ -596,8 +597,8 @@ class CylTomogram(Tomogram):
         update : bool, default True
             If True, spline properties will be updated.
         update_glob : bool, default False
-            If True, global properties will be updated using the mean or mode of the local
-            properties.
+            If True, global properties will be updated using the mean of the local
+            properties (see `mean_lattice_params`).
 
         Returns
         -------
@@ -610,6 +611,7 @@ class CylTomogram(Tomogram):
         input_img = self._get_multiscale_or_original(binsize)
         _scale = input_img.scale.x
         tasks: list[Delayed[LatticeParams]] = []
+        rc_list: list[nm] = []
         spl_trans = spl.translate([-self.multiscale_translation(binsize)] * 3)
         _analyze_fn = LatticeAnalyzer(spl.config).estimate_lattice_params_task
         for anc, r0 in zip(spl_trans.anchors, radii, strict=True):
@@ -617,6 +619,7 @@ class CylTomogram(Tomogram):
             rc = (rmin + rmax) / 2
             coords = spl_trans.local_cylindrical((rmin, rmax), depth, anc, scale=_scale)
             tasks.append(_analyze_fn(input_img, coords, rc, nsamples=nsamples))
+            rc_list.append(rc)
 
         lprops = pl.DataFrame(
             compute(*tasks),
@@ -625,17 +628,10 @@ class CylTomogram(Tomogram):
         if update:
             spl.props.update_loc(lprops, depth, bin_size=binsize)
         if update_glob:
-            gprops = lprops.select(
-                pl.col(H.spacing).mean(),
-                pl.col(H.pitch).mean(),
-                pl.col(H.twist).mean(),
-                pl.col(H.skew).mean(),
-                pl.col(H.rise).mean(),
-                pl.col(H.rise_length).mean(),
-                pl.col(H.npf).mode().first(),
-                pl.col(H.start).mode().first(),
+            lattice = mean_lattice_params(
+                lprops, np.mean(rc_list), spl.config.rise_sign
             )
-            spl.props.update_glob(gprops, bin_size=binsize)
+            spl.props.update_glob(lattice.to_polars(), bin_size=binsize)
 
         return lprops
 
@@ -1235,24 +1231,14 @@ class CylTomogram(Tomogram):
         if not use_local:
             return spl.cylinder_model(offsets=offsets, **kwargs)
         df_loc = spl.props.loc
-        glob = df_loc.select(pl.selectors.numeric()).mean()
-        if H.npf in df_loc.columns:
-            glob = glob.with_columns(pl.lit(df_loc[H.npf].mode().first()).alias(H.npf))
-        if H.start in df_loc.columns:
-            glob = glob.with_columns(
-                pl.lit(df_loc[H.start].mode().first()).alias(H.start)
-            )
-        local_kwargs = {c: val[0] for c, val in glob.to_dict().items()}
-        # Pitch, skew and moire period are not linear to spacing and twist, and moire
-        # period even diverges and flips its sign around skew = 0. They must be
-        # recalculated from the mean spacing and twist, otherwise the model will be
-        # inconsistent with the local displacements.
-        if H.spacing in local_kwargs:
-            local_kwargs[H.pitch] = None
-        if H.twist in local_kwargs:
-            local_kwargs[H.skew] = None
-            local_kwargs[H.moire_period] = None
+        local_kwargs: dict[str, Any] = {}
+        if H.radius in df_loc.columns:
+            local_kwargs[H.radius] = df_loc[H.radius].mean()
         # explicitly given parameters (such as radius) have priority
+        radius = (local_kwargs | kwargs).get(H.radius, spl.radius)
+        rmin, rmax = spl.radius_range(radius)
+        lattice = mean_lattice_params(df_loc, (rmin + rmax) / 2, spl.config.rise_sign)
+        local_kwargs.update(lattice.to_polars().row(0, named=True))
         model = spl.cylinder_model(offsets=offsets, **(local_kwargs | kwargs))
         try:
             model_glob = spl.cylinder_model(offsets=offsets, **kwargs)
