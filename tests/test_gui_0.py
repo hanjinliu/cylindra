@@ -806,6 +806,10 @@ def test_sub_widgets(ui: CylindraMainWidget, tmpdir):
         ui.spline_3d_interactor.move_backward(10)
         ui.spline_3d_interactor.clip_spline()
 
+        ui.spline_slicer.controller.pos.value = 2.5
+        ui.spline_slicer.start_or_stop_clipping()
+        ui.spline_slicer.controller.pos.value = 32.3
+        ui.spline_slicer.start_or_stop_clipping()
 
 @pytest.mark.parametrize("bin_size", [1, 2])
 def test_sta(ui: CylindraMainWidget, bin_size: int, tmpdir):
