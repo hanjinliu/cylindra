@@ -1,5 +1,5 @@
 from contextlib import suppress
-from typing import Annotated, Callable
+from typing import Annotated, Callable, Literal
 
 import impy as ip
 import numpy as np
@@ -42,6 +42,12 @@ POST_FILTERS: list[tuple[str, Callable[[ip.ImgArray], ip.ImgArray]]] = [
 _Logger = getLogger("cylindra")
 
 
+class ClippingMode:
+    def __init__(self, mode: Literal["none", "start"], start: float | None = None):
+        self.mode = mode
+        self.start = start
+
+
 @magicclass(record=False)
 class SplineSlicer(ChildWidget):
     """Slicer along spline.
@@ -68,6 +74,7 @@ class SplineSlicer(ChildWidget):
 
     def __init__(self):
         self._current_cparams = None
+        self._clipping_mode = ClippingMode(mode="none")
 
     def __post_init__(self):
         self._circ_inner = self.canvas.add_curve(
@@ -116,16 +123,18 @@ class SplineSlicer(ChildWidget):
 
     @magicclass(layout="horizontal")
     class Row1(ChildWidget):
+        label0 = field("Thickness (nm):", widget_type="Label")
         thickness_inner = abstractapi()
         thickness_outer = abstractapi()
+        apply_radius_and_thickness = abstractapi()
 
     radius = vfield(Optional[nm], label="Radius (nm)", location=Row0).with_options(
         text="Use spline global radius",
         options={"min": 1.0, "max": 200.0, "step": 0.5, "value": 10.0},
     )
     post_filter = vfield(label="Filter", location=Row0).with_choices(POST_FILTERS)
-    thickness_inner = vfield(2.0, label="Inner thickness (nm)", location=Row1).with_options(min=0.1, max=10.0, step=0.1)  # fmt: skip
-    thickness_outer = vfield(2.0, label="Outer thickness (nm)", location=Row1).with_options(min=0.1, max=10.0, step=0.1)  # fmt: skip
+    thickness_inner = vfield(2.0, label="Inner", location=Row1).with_options(min=0.1, max=10.0, step=0.1)  # fmt: skip
+    thickness_outer = vfield(2.0, label="Outer", location=Row1).with_options(min=0.1, max=10.0, step=0.1)  # fmt: skip
     canvases = field(QtMultiImageCanvas)
 
     @property
@@ -186,7 +195,7 @@ class SplineSlicer(ChildWidget):
     @magicclass(layout="horizontal")
     class Row3(ChildWidget):
         fit_spline_manually = abstractapi()
-        apply_radius_and_thickness = abstractapi()
+        start_or_stop_clipping = abstractapi()
         refresh_widget_state = abstractapi()
 
     @magicclass(layout="horizontal", labels=False)
@@ -332,9 +341,10 @@ class SplineSlicer(ChildWidget):
     def refresh_widget_state(self):
         """Refresh widget state."""
         self._spline_changed(self.controller.spline_id, refer_config=False)
+        self._reset_clipping_mode()
         return self._update_canvas()
 
-    @set_design(text="Apply radius and thickness", location=Row3)
+    @set_design(text="Apply radius and thickness", location=Row1)
     def apply_radius_and_thickness(self):
         """Apply the current radius and thickness to the current spline."""
         idx = self.controller.spline_id
@@ -348,6 +358,24 @@ class SplineSlicer(ChildWidget):
             main.set_radius([idx], r0)
         self._spline_changed(idx, refer_config=False)
 
+    @set_design(text="Clip from here", location=Row3)
+    def start_or_stop_clipping(self):
+        pos = self.controller.pos.value
+        if self._clipping_mode.mode == "none":
+            self._clipping_mode = ClippingMode(mode="start", start=pos)
+            get_button(self.start_or_stop_clipping).text = "Clip to here"
+        else:
+            ui = self._get_main()
+            idx = self.controller.spline_id
+            clip_0 = self._clipping_mode.start
+            clip_1 = ui.splines[idx].length() - pos
+            ui.clip_spline(idx, (clip_0, clip_1))
+            self.refresh_widget_state()
+
+    def _reset_clipping_mode(self):
+        self._clipping_mode = ClippingMode(mode="none")
+        get_button(self.start_or_stop_clipping).text = "Clip from here"
+
     def _get_cropping_params(self) -> tuple[int, nm, nm]:
         idx = self.controller.spline_id
         if idx is None:
@@ -359,6 +387,7 @@ class SplineSlicer(ChildWidget):
     @controller.spline_id.connect
     def _spline_changed(self, idx: int, refer_config: bool = True):
         tomo = self._get_main().tomogram
+        self._reset_clipping_mode()
         try:
             spl = tomo.splines[idx]
             self.controller.pos.max = max(spl.length(), 0)
