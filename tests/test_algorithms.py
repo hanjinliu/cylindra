@@ -81,6 +81,15 @@ def test_run_all(coords, npf, rise, twist_range):
     tomo.local_radii()
     tomo.local_cft_params(radius="local")
     tomo.local_cft_params(radius=10.2, update_glob=True)
+    # global properties updated by the local ones must be self-consistent
+    spl = tomo.splines[0]
+    spacing_glob = spl.props.get_glob(H.spacing)
+    twist_glob = spl.props.get_glob(H.twist)
+    assert spacing_glob == pytest.approx(spl.props.loc[H.spacing].mean(), abs=1e-5)
+    assert twist_glob == pytest.approx(spl.props.loc[H.twist].mean(), abs=1e-5)
+    cp = spl.cylinder_params(radius=10.2)
+    assert cp.spacing == pytest.approx(spacing_glob, abs=1e-4)
+    assert cp.twist == pytest.approx(twist_glob, abs=1e-4)
 
     repr(tomo.splines[0].props)
     tomo.splines[0].props[H.spacing]
@@ -142,6 +151,59 @@ def test_mapping(orientation):
     assert np.quantile(dist_lat, 0.95) - np.quantile(dist_lat, 0.05) < 0.015
     tomo.map_centers(orientation=orientation)
     tomo.map_pf_line(orientation=orientation)
+
+
+@pytest.mark.parametrize("prop_to_use", ["local", "both"])
+def test_map_monomers_heterogeneous(prop_to_use):
+    from cylindra.components._cylinder_params import CylinderParameters
+
+    tomo = CylTomogram.dummy(scale=1.0, shape=(10, 10, 10))
+    tomo.add_spline([[5.0, y, 5.0] for y in np.linspace(0, 300, 40)])
+    spl = tomo.splines[0]
+    spl.make_anchors(interval=10.0)
+    # compacted (4.0 nm) and expanded (4.2 nm) halves, and the twist changes its sign
+    # between the halves, so that the local moire periods diverge.
+    is_second_half = spl.anchors > 0.5
+    rows = []
+    spacings = np.where(is_second_half, 4.2, 4.0)
+    twists = np.where(is_second_half, 0.1, -0.1)
+    for sp, tw in zip(spacings, twists, strict=True):
+        cp = CylinderParameters.solve(
+            spacing=sp, twist=tw, radius=11.5, npf=13, start=3, rise_sign=-1
+        )
+        rows.append(
+            {H.spacing: cp.spacing, H.twist: cp.twist, H.skew: cp.skew,
+             H.pitch: cp.pitch, H.moire_period: cp.moire_period, H.npf: 13,
+             H.start: 3, H.rise: cp.rise_angle}
+        )  # fmt: skip
+    spl.props.update_loc(pl.DataFrame(rows), 50.0)
+    spl.props.update_glob(
+        {H.spacing: 4.1, H.twist: 0.0, H.npf: 13, H.start: 3, H.radius: 11.0}
+    )
+    mole_glob = tomo.map_monomers(i=0, radius=11.0, prop_to_use="global")
+    mole = tomo.map_monomers(i=0, radius=11.0, prop_to_use=prop_to_use)
+
+    # longitudinal intervals should follow the local spacing
+    df = mole.features.with_columns(pl.Series("i", np.arange(mole.count())))
+    for pf in range(13):
+        sub = df.filter(pl.col("pf-id") == pf).sort("nth")
+        pos = mole.pos[sub["i"].to_numpy()]
+        dist = np.linalg.norm(np.diff(pos, axis=0), axis=1)
+        y = sub["position-nm"].to_numpy()[:-1]
+        assert_allclose(dist[y < 120], 4.0, atol=0.01)
+        assert_allclose(dist[y > 180], 4.2, atol=0.01)
+
+    # the lattice phase determined by the offsets should be kept
+    assert np.abs(np.mean(mole.pos - mole_glob.pos, axis=0)).max() < 0.05
+
+    # the result should not depend on the extensions
+    mole_ext = tomo.map_monomers(
+        i=0, radius=11.0, prop_to_use=prop_to_use, extensions=(3, 2)
+    )
+    sl = (mole_ext.features["nth"] >= 0) & (
+        mole_ext.features["nth"] < mole.features["nth"].max() + 1
+    )
+    assert_allclose(mole_ext.pos[sl.to_numpy()], mole.pos, atol=0.02)
 
 
 def test_local_cft():
@@ -353,6 +415,47 @@ def test_cylinder_params():
             start=1,
             radius=6.6,
         )
+
+
+def test_mean_lattice_params():
+    from cylindra.components._cylinder_params import CylinderParameters
+    from cylindra.components._ftprops import LatticeParams, mean_lattice_params
+
+    # twist changes its sign, so that moire periods diverge in both directions
+    rows = [
+        LatticeParams.from_cylinder_params(
+            CylinderParameters.solve(spacing=sp, twist=tw, radius=11.5, npf=13, start=3)
+        )
+        for sp, tw in [(4.08, 0.08), (4.1, -0.02), (4.12, 0.03), (4.1, -0.05)]
+    ]
+    df = pl.DataFrame(rows, schema=LatticeParams.polars_schema())
+    assert df[H.moire_period].mean() < 0  # arithmetic mean is meaningless
+
+    lattice = mean_lattice_params(df, radius=11.5)
+    assert lattice.spacing == pytest.approx(4.1, abs=1e-5)
+    assert lattice.twist == pytest.approx(0.01, abs=1e-5)
+    assert lattice.moire_period > 0
+    assert lattice.npf == 13
+    assert lattice.start == 3
+
+    # parameters must be consistent with each other (same as `cylinder_params`, pitch
+    # and moire period are used in priority)
+    cp = CylinderParameters.solve(
+        pitch=lattice.pitch,
+        moire_period=lattice.moire_period,
+        skew=lattice.skew,
+        rise_angle=lattice.rise_angle,
+        radius=11.5,
+        npf=13,
+        allow_duplicate=True,
+    )
+    assert cp.spacing == pytest.approx(lattice.spacing, abs=1e-6)
+    assert cp.twist == pytest.approx(lattice.twist, abs=1e-6)
+    assert cp.skew == pytest.approx(lattice.skew, abs=1e-6)
+    assert cp.start == 3
+
+    with pytest.raises(ValueError):
+        mean_lattice_params(df.drop(H.twist), radius=11.5)
 
 
 def test_flat_view():

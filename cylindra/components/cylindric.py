@@ -8,7 +8,7 @@ from acryo import Molecules
 from numpy.typing import ArrayLike, NDArray
 
 from cylindra import utils
-from cylindra._cylindra_ext import cylinder_faces, displacement_array
+from cylindra._cylindra_ext import cylinder_faces
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import PropertyNames as H
 
@@ -316,34 +316,85 @@ class CylinderModel:
         coords: NDArray[np.int32],
         interpolation: int = 1,
     ) -> NDArray[np.float32]:
-        """Calculate local displacements based on the spline local properties."""
-        shifted = self._get_mesh(coords)
-        shifted_2d = shifted.reshape(-1, 3)
-        shape = (shifted_2d.shape[0] // self.shape[1], self.shape[1])
-        u_sample = spl.y_to_position(shifted_2d[:, 1])
+        """Calculate local displacements based on the spline local properties.
+
+        The deviations of the local properties from their mean values are added to
+        the spacing, twist and radius of this model. The local spacing and twist are
+        integrated along the spline to get the axial and angular positions of the
+        molecules. The returned displacements are relative to the regular lattice and
+        their mean over the molecules on the spline is zero, so that the lattice phase
+        (offsets, which are usually determined by aligning the average of all the
+        molecules) is kept unchanged.
+        """
+        mesh = self._get_mesh(coords).astype(np.float64)
+        y_reg = mesh[:, 1]
         df_loc = spl.props.loc
         if H.radius not in df_loc.columns:
             # local radius may not be measured yet.
             df_loc = df_loc.with_columns(pl.lit(0.0).alias(H.radius))
-        anc = spl.anchors
-        values = df_loc.select(H.radius, H.spacing, H.twist).to_numpy()
-        values = values - values.mean(axis=0)[np.newaxis, :]
-        interp = utils.interp(
-            anc,
-            values,
-            order=interpolation,
-            axis=0,
+        spacing = df_loc[H.spacing].to_numpy()
+        if H.skew in df_loc.columns:
+            # the y-projection of the spacing is the axial interval of the lattice
+            spacing = spacing * np.cos(np.deg2rad(df_loc[H.skew].to_numpy()))
+        values = np.stack(
+            [
+                df_loc[H.radius].to_numpy(),
+                spacing,
+                np.deg2rad(df_loc[H.twist].to_numpy()),
+            ],
+            axis=1,
         )
-        values_sample = interp(u_sample.clip(anc.min(), anc.max())).astype(np.float32)
-        dilate = values_sample[:, 0]
-        expand = values_sample[:, 1]
-        twist = np.deg2rad(values_sample[:, 2])
-        if not dilate.size == expand.size == twist.size == shape[0] * shape[1]:
-            raise RuntimeError(
-                f"Size mismatch: {dilate.size=}, {expand.size=}, {twist.size=}, {shape=}"
-            )
-        displace = displacement_array(shape, dilate, expand, twist)
-        return displace
+        values = values - values.mean(axis=0)[np.newaxis, :]
+        anc = spl.anchors
+        interp = utils.interp(anc, values, order=interpolation, axis=0)
+
+        # local properties on a fine grid along the spline
+        ly = self._intervals[0]  # axial interval of the regular lattice
+        twist = self._tilts[0] * self._intervals[1]  # twist (rad) of each step
+        length = spl.length()
+        y_min = min(y_reg.min(), 0.0)
+        y_max = max(y_reg.max(), length)
+        pad = (y_max - y_min) / 2 + ly * 10  # molecules may be displaced outward
+        ngrid = int(np.ceil((y_max - y_min + pad * 2) / ly * 16)) + 1
+        y_grid = np.linspace(y_min - pad, y_max + pad, ngrid)
+        u_grid = spl.y_to_position(y_grid).clip(anc.min(), anc.max())
+        dev_grid = interp(u_grid)
+        spacing_grid = ly + dev_grid[:, 1]
+        if np.any(spacing_grid <= 0):
+            raise ValueError("Local spacing must be positive.")
+        twist_grid = twist + dev_grid[:, 2]
+
+        # Integrate the monomer density (1 / spacing) and the twist density
+        # (twist / spacing) to get the lattice index and the rotation angle.
+        dy = np.diff(y_grid)
+        idx_grid = _cumtrapz(1 / spacing_grid, dy)
+        idx_grid -= np.interp(0.0, y_grid, idx_grid)  # index is 0 at y = 0
+        ang_grid = _cumtrapz(twist_grid / spacing_grid, dy)
+
+        # Molecule at `y_reg` of the regular lattice is the `y_reg / ly`-th one. Adjust
+        # the phase so that the mean axial displacement is zero.
+        is_inside = (0 <= y_reg) & (y_reg <= length)
+        if not np.any(is_inside):
+            is_inside = np.ones_like(is_inside)
+        idx_reg = y_reg / ly
+        phase = 0.0
+        for _ in range(3):
+            y_loc = np.interp(idx_reg + phase, idx_grid, y_grid)
+            dy_mean = np.mean(y_loc[is_inside] - y_reg[is_inside])
+            s_mean = np.mean(np.interp(y_loc[is_inside], y_grid, spacing_grid))
+            phase -= dy_mean / s_mean
+        y_loc = np.interp(idx_reg + phase, idx_grid, y_grid)
+
+        displace = np.stack(
+            [
+                np.interp(y_loc, y_grid, dev_grid[:, 0]),
+                y_loc - y_reg,
+                np.interp(y_loc, y_grid, ang_grid) - twist * idx_reg,
+            ],
+            axis=1,
+        )
+        displace -= displace[is_inside].mean(axis=0, keepdims=True)
+        return displace.astype(np.float32)
 
     def _in_plane_displace(self, by: float, sl: _Slicer, axis: int):
         sl = indexer.norm(sl)
@@ -441,6 +492,11 @@ class CylinderModel:
         )
         r_arr = np.full(mesh2d.shape[:1] + (1,), self._radius, dtype=np.float32)
         return np.concatenate([r_arr, mesh2d], axis=1)
+
+
+def _cumtrapz(f: NDArray[np.floating], dx: NDArray[np.floating]) -> NDArray[np.float64]:
+    """Cumulative trapezoidal integration starting from 0."""
+    return np.concatenate([[0.0], np.cumsum((f[1:] + f[:-1]) / 2 * dx)])
 
 
 class CylindricSliceConstructor:
