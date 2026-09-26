@@ -1232,20 +1232,36 @@ class CylTomogram(Tomogram):
             The cylinder model.
         """
         spl = self.splines[i]
-        if use_local:
-            df_loc = spl.props.loc
-            glob = df_loc.select(pl.selectors.numeric()).mean()
-            if H.npf in df_loc.columns:
-                glob = glob.with_columns(
-                    pl.lit(df_loc[H.npf].mode().first()).alias(H.npf)
-                )
-            if H.start in df_loc.columns:
-                glob = glob.with_columns(
-                    pl.lit(df_loc[H.start].mode().first()).alias(H.start)
-                )
-            for c, val in glob.to_dict().items():
-                kwargs[c] = val[0]
-        return spl.cylinder_model(offsets=offsets, **kwargs)
+        if not use_local:
+            return spl.cylinder_model(offsets=offsets, **kwargs)
+        df_loc = spl.props.loc
+        glob = df_loc.select(pl.selectors.numeric()).mean()
+        if H.npf in df_loc.columns:
+            glob = glob.with_columns(pl.lit(df_loc[H.npf].mode().first()).alias(H.npf))
+        if H.start in df_loc.columns:
+            glob = glob.with_columns(
+                pl.lit(df_loc[H.start].mode().first()).alias(H.start)
+            )
+        local_kwargs = {c: val[0] for c, val in glob.to_dict().items()}
+        # Pitch, skew and moire period are not linear to spacing and twist, and moire
+        # period even diverges and flips its sign around skew = 0. They must be
+        # recalculated from the mean spacing and twist, otherwise the model will be
+        # inconsistent with the local displacements.
+        if H.spacing in local_kwargs:
+            local_kwargs[H.pitch] = None
+        if H.twist in local_kwargs:
+            local_kwargs[H.skew] = None
+            local_kwargs[H.moire_period] = None
+        # explicitly given parameters (such as radius) have priority
+        model = spl.cylinder_model(offsets=offsets, **(local_kwargs | kwargs))
+        try:
+            model_glob = spl.cylinder_model(offsets=offsets, **kwargs)
+        except ValueError:  # global properties are not available
+            return model
+        # Offsets are usually determined for the global lattice. Because the mean local
+        # spacing and twist are slightly different from the global ones, the phase of
+        # the lattice must be matched at the center of the spline, not at the origin.
+        return _match_lattice_phase(model, model_glob, spl.length() / 2)
 
     @_misc.batch_process
     def map_monomers(
@@ -1409,6 +1425,21 @@ def _filter_by_corr(imgs_aligned: ip.ImgArray, corr_allowed: float) -> ip.ImgArr
     imgs_aligned = imgs_aligned[indices.tolist()]
     LOGGER.info(f" >> Correlation: {np.mean(corrs):.3f} ± {np.std(corrs):.3f}")
     return imgs_aligned
+
+
+def _match_lattice_phase(
+    model: CylinderModel, ref: CylinderModel, y: nm
+) -> CylinderModel:
+    """Update offsets of `model` so that its lattice phase matches `ref` at `y`."""
+    # lattice index at y (see CylinderModel._get_mesh)
+    ly_ref = ref.intervals[0]
+    k = (y - ref.offsets[0]) / ly_ref + ref.tilts[1] * ref.shape[1] / 2
+    ly = model.intervals[0]
+    offset_y = y - (k - model.tilts[1] * model.shape[1] / 2) * ly
+    twist_ref = ref.tilts[0] * ref.intervals[1]
+    twist = model.tilts[0] * model.intervals[1]
+    offset_a = ref.offsets[1] + (twist_ref - twist) * k
+    return model.replace(offsets=(offset_y, offset_a))
 
 
 class CylindricalMaskFactory:

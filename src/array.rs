@@ -1,7 +1,7 @@
 use pyo3::{prelude::*, Python};
 use numpy::{
-    IntoPyArray, PyArray2, PyArray3, PyReadonlyArray1, PyReadonlyArray2,
-    PyUntypedArrayMethods, ndarray::{Array2, Array3, s}
+    IntoPyArray, PyArray2, PyReadonlyArray1, PyReadonlyArray2,
+    PyUntypedArrayMethods, ndarray::{Array2, s}
 };
 use crate::value_error;
 
@@ -33,39 +33,6 @@ pub fn oblique_coordinates<'py>(
     Ok(out.into_pyarray(py).into())
 }
 
-
-#[pyfunction]
-pub fn displacement_array<'py>(
-    py: Python<'py>,
-    mesh_shape: (usize, usize),  // (ny, npf)
-    dilate: PyReadonlyArray1<f32>,  // N
-    expand: PyReadonlyArray1<f32>,  // N
-    twist: PyReadonlyArray1<f32>,  // N
-) -> PyResult<Py<PyArray3<f32>>> {
-    let (ny, npf) = mesh_shape;
-    let dilate = reshape(&dilate, (ny, npf));
-    let expand = reshape(&expand, (ny, npf));
-    let twist = reshape(&twist, (ny, npf));
-
-    let mut out = Array3::<f32>::zeros((ny, npf, 3));
-    for iy in 0..ny {
-        for ipf in 0..npf {
-            out[[iy, ipf, 0]] += dilate[[iy, ipf]];
-            let exp0 = expand[[iy, ipf]];
-            let twist0 = twist[[iy, ipf]];
-            for jy in iy..ny {
-                out[[jy, ipf, 1]] += exp0;
-                out[[jy, ipf, 2]] += twist0;
-            }
-        }
-    }
-    Ok(out.into_pyarray(py).into())
-}
-
-fn reshape(arr: &PyReadonlyArray1<f32>, shape: (usize, usize)) -> Array2<f32> {
-    let arr = arr.as_array();
-    arr.as_standard_layout().to_shape(shape).unwrap().to_owned()
-}
 
 #[pyfunction]
 /// build vertices and the corresponding coordinate for a cylinder

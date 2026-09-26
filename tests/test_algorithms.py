@@ -144,6 +144,59 @@ def test_mapping(orientation):
     tomo.map_pf_line(orientation=orientation)
 
 
+@pytest.mark.parametrize("prop_to_use", ["local", "both"])
+def test_map_monomers_heterogeneous(prop_to_use):
+    from cylindra.components._cylinder_params import CylinderParameters
+
+    tomo = CylTomogram.dummy(scale=1.0, shape=(10, 10, 10))
+    tomo.add_spline([[5.0, y, 5.0] for y in np.linspace(0, 300, 40)])
+    spl = tomo.splines[0]
+    spl.make_anchors(interval=10.0)
+    # compacted (4.0 nm) and expanded (4.2 nm) halves, and the twist changes its sign
+    # between the halves, so that the local moire periods diverge.
+    is_second_half = spl.anchors > 0.5
+    rows = []
+    spacings = np.where(is_second_half, 4.2, 4.0)
+    twists = np.where(is_second_half, 0.1, -0.1)
+    for sp, tw in zip(spacings, twists, strict=True):
+        cp = CylinderParameters.solve(
+            spacing=sp, twist=tw, radius=11.5, npf=13, start=3, rise_sign=-1
+        )
+        rows.append(
+            {H.spacing: cp.spacing, H.twist: cp.twist, H.skew: cp.skew,
+             H.pitch: cp.pitch, H.moire_period: cp.moire_period, H.npf: 13,
+             H.start: 3, H.rise: cp.rise_angle}
+        )  # fmt: skip
+    spl.props.update_loc(pl.DataFrame(rows), 50.0)
+    spl.props.update_glob(
+        {H.spacing: 4.1, H.twist: 0.0, H.npf: 13, H.start: 3, H.radius: 11.0}
+    )
+    mole_glob = tomo.map_monomers(i=0, radius=11.0, prop_to_use="global")
+    mole = tomo.map_monomers(i=0, radius=11.0, prop_to_use=prop_to_use)
+
+    # longitudinal intervals should follow the local spacing
+    df = mole.features.with_columns(pl.Series("i", np.arange(mole.count())))
+    for pf in range(13):
+        sub = df.filter(pl.col("pf-id") == pf).sort("nth")
+        pos = mole.pos[sub["i"].to_numpy()]
+        dist = np.linalg.norm(np.diff(pos, axis=0), axis=1)
+        y = sub["position-nm"].to_numpy()[:-1]
+        assert_allclose(dist[y < 120], 4.0, atol=0.01)
+        assert_allclose(dist[y > 180], 4.2, atol=0.01)
+
+    # the lattice phase determined by the offsets should be kept
+    assert np.abs(np.mean(mole.pos - mole_glob.pos, axis=0)).max() < 0.05
+
+    # the result should not depend on the extensions
+    mole_ext = tomo.map_monomers(
+        i=0, radius=11.0, prop_to_use=prop_to_use, extensions=(3, 2)
+    )
+    sl = (mole_ext.features["nth"] >= 0) & (
+        mole_ext.features["nth"] < mole.features["nth"].max() + 1
+    )
+    assert_allclose(mole_ext.pos[sl.to_numpy()], mole.pos, atol=0.02)
+
+
 def test_local_cft():
     path = TEST_DIR / "13pf_MT.tif"
     tomo = CylTomogram.imread(path, binsize=[1, 2])
