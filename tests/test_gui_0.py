@@ -2040,6 +2040,30 @@ def test_plugin(ui: CylindraMainWidget, tmpdir):
     ui.save_project(Path(tmpdir) / "test-project.tar")
 
 
+def test_plugin_separator(ui: CylindraMainWidget, monkeypatch):
+    from types import ModuleType
+
+    from magicgui.types import Separator
+
+    from cylindra.plugin import register_function
+    from cylindra.plugin._find import load_plugin
+
+    @register_function
+    def func_0(ui):
+        pass
+
+    @register_function
+    def func_1(ui):
+        pass
+
+    mod = ModuleType("_cylindra_test_plugin_separator")
+    mod.__cylindra_methods__ = [func_0, Separator, func_1]
+    monkeypatch.setitem(sys.modules, mod.__name__, mod)
+    load_plugin(ui, mod.__name__, "Test Separator", raises=True)
+    actions = ui.PluginsMenu["Test Separator"].native.actions()
+    assert [a.isSeparator() for a in actions] == [False, True, False]
+
+
 def test_split_splines(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None, read_image=False)
     ui.split_spline(0, at=40)

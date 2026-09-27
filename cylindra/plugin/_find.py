@@ -122,9 +122,22 @@ def _dir_or_all(mod: ModuleType) -> Iterator[Any]:
 
 
 def _update_menu_gui(mod: ModuleType, ui: CylindraMainWidget, menu: MenuGui):
+    from magicclass.widgets import Separator as SeparatorWidget
+
+    # only warn if the plugin explicitly lists the objects to be added
+    explicit = hasattr(mod, "__cylindra_methods__")
     for obj in _dir_or_all(mod):
         if isinstance(obj, CylindraPluginFunction):
             menu.append(obj.update_module(mod).as_method(ui))
             obj._action_ref = weakref.ref(menu[obj._name])
         elif obj is Separator:
-            menu.native.addSeparator()
+            # separator must be added via magicclass so that the insertion index
+            # of the subsequent actions is correct.
+            menu.append(SeparatorWidget())
+        elif explicit:
+            warnings.warn(
+                f"Object {obj!r} in module {mod.__name__!r} is not recognized as a "
+                "plugin function or separator.",
+                UserWarning,
+                stacklevel=1,
+            )
