@@ -23,7 +23,7 @@ license = { file = "LICENSE" }
 dynamic = ["version"]
 dependencies = [
     "impy-array>=2.5.1",
-    "acryo>=0.6.1",
+    "acryo>=0.7.0",
     "macro-kit>=0.4.6",
     "magicgui>=0.8.1",
     "magic-class>=0.7.23",
@@ -62,7 +62,6 @@ testing = [
     "imodmodel>=0.1.0",
     "cookiecutter",
     "maturin>=1.14.1,<2.0.0",
-    "dask<2025",
 ]
 all = [
     "pyqt6",
@@ -74,7 +73,6 @@ all = [
 ]
 recommended = [
     "cylindra[all]",
-    "dask<2025",
 ]
 docs = [
     "pyqt6",
