@@ -174,7 +174,7 @@ def test_map_monomers_heterogeneous(prop_to_use):
         rows.append(
             {H.spacing: cp.spacing, H.twist: cp.twist, H.skew: cp.skew,
              H.pitch: cp.pitch, H.moire_period: cp.moire_period, H.npf: 13,
-             H.start: 3, H.rise: cp.rise_angle}
+             H.start: 3, H.rise: cp.rise_angle, H.radius: 11.0}
         )  # fmt: skip
     spl.props.update_loc(pl.DataFrame(rows), 50.0)
     spl.props.update_glob(
@@ -204,6 +204,22 @@ def test_map_monomers_heterogeneous(prop_to_use):
         mole_ext.features["nth"] < mole.features["nth"].max() + 1
     )
     assert_allclose(mole_ext.pos[sl.to_numpy()], mole.pos, atol=0.02)
+
+    if prop_to_use == "both":
+        # skew is used if twist is not available
+        spl.props.drop_loc(H.twist)
+        mole_skew = tomo.map_monomers(i=0, radius=11.0, prop_to_use=prop_to_use)
+        assert_allclose(mole_skew.pos, mole.pos, atol=1e-3)
+
+    # global radius is used if local radius is not available
+    spl.props.drop_loc(H.radius)
+    mole_no_local_radius = tomo.map_monomers(i=0, radius=11.0, prop_to_use=prop_to_use)
+    assert_allclose(mole_no_local_radius.pos, mole.pos, atol=1e-3)
+
+    # either local or global radius is required
+    spl.props.drop_glob(H.radius)
+    with pytest.raises(ValueError, match="Neither local nor global radius"):
+        tomo.map_monomers(i=0, radius=11.0, prop_to_use=prop_to_use)
 
 
 def test_local_cft():

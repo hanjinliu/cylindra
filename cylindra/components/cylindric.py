@@ -325,23 +325,23 @@ class CylinderModel:
         their mean over the molecules on the spline is zero, so that the lattice phase
         (offsets, which are usually determined by aligning the average of all the
         molecules) is kept unchanged.
+
+        Local spacing and twist (or skew, if twist is not available) must be measured.
+        If local radius is not measured, global radius is used instead.
         """
         mesh = self._get_mesh(coords).astype(np.float64)
         y_reg = mesh[:, 1]
         df_loc = spl.props.loc
         if H.radius not in df_loc.columns:
-            # local radius may not be measured yet.
-            df_loc = df_loc.with_columns(pl.lit(0.0).alias(H.radius))
-        spacing = df_loc[H.spacing].to_numpy()
-        if H.skew in df_loc.columns:
-            # the y-projection of the spacing is the axial interval of the lattice
-            spacing = spacing * np.cos(np.deg2rad(df_loc[H.skew].to_numpy()))
+            if (radius_glob := spl.props.get_glob(H.radius, None)) is None:
+                raise ValueError(
+                    "Neither local nor global radius is measured yet. Please measure "
+                    "the radius first from `Analysis > Radius`."
+                )
+            df_loc = df_loc.with_columns(pl.lit(radius_glob).alias(H.radius))
+        spacing_proj, twist_loc = _local_spacing_proj_and_twist(df_loc, self._radius)
         values = np.stack(
-            [
-                df_loc[H.radius].to_numpy(),
-                spacing,
-                np.deg2rad(df_loc[H.twist].to_numpy()),
-            ],
+            [df_loc[H.radius].to_numpy(), spacing_proj, twist_loc],
             axis=1,
         )
         values = values - values.mean(axis=0)[np.newaxis, :]
@@ -492,6 +492,27 @@ class CylinderModel:
         )
         r_arr = np.full(mesh2d.shape[:1] + (1,), self._radius, dtype=np.float32)
         return np.concatenate([r_arr, mesh2d], axis=1)
+
+
+def _local_spacing_proj_and_twist(
+    df: pl.DataFrame, radius: float
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """Return the y-projected spacing and the twist (radian) of the local properties.
+
+    Twist is used in priority to be consistent with `mean_lattice_params`, and skew is
+    used only if twist is not available. They are related by
+    `twist = spacing * sin(skew) / radius` (see `CylinderParameters`).
+    """
+    spacing = df[H.spacing].to_numpy().astype(np.float64)
+    if H.twist in df.columns:
+        twist = np.deg2rad(df[H.twist].to_numpy().astype(np.float64))
+        sin_skew = twist * radius / spacing
+    elif H.skew in df.columns:
+        sin_skew = np.sin(np.deg2rad(df[H.skew].to_numpy().astype(np.float64)))
+        twist = spacing * sin_skew / radius
+    else:
+        raise ValueError("Neither local twist nor skew is measured yet.")
+    return spacing * np.sqrt(1 - sin_skew**2), twist
 
 
 def _cumtrapz(f: NDArray[np.floating], dx: NDArray[np.floating]) -> NDArray[np.float64]:
