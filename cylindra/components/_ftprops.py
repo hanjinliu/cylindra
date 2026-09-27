@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from logging import Logger
-from typing import NamedTuple
+from typing import Literal, NamedTuple
 
 import impy as ip
 import numpy as np
@@ -32,6 +32,21 @@ class LatticeParams(NamedTuple):
     rise_angle: float
     rise_length: nm
 
+    @classmethod
+    def from_cylinder_params(cls, cparams: CylinderParameters) -> LatticeParams:
+        """Construct lattice parameters from a CylinderParameters object."""
+        return cls(
+            rise_angle=cparams.rise_angle,
+            rise_length=cparams.rise_length,
+            pitch=cparams.pitch,
+            spacing=cparams.spacing,
+            skew=cparams.skew,
+            twist=cparams.twist,
+            npf=cparams.npf,
+            start=cparams.start,
+            moire_period=cparams.moire_period,
+        )
+
     def to_polars(self) -> pl.DataFrame:
         """Convert named tuple into a polars DataFrame."""
         return pl.DataFrame([self], schema=self.polars_schema())
@@ -50,6 +65,43 @@ class LatticeParams(NamedTuple):
             (H.rise, pl.Float32),
             (H.rise_length, pl.Float32),
         ]
+
+
+def mean_lattice_params(
+    df: pl.DataFrame,
+    radius: nm,
+    rise_sign: Literal[1, -1] = -1,
+) -> LatticeParams:
+    """Calculate the mean of the local lattice parameters.
+
+    Lattice parameters are mutually dependent and some of them are not linear to the
+    others (moire period even diverges and flips its sign around skew = 0), so they
+    cannot be averaged independently. Only spacing and twist are averaged, npf and
+    start are represented by their modes, and the other parameters are recalculated
+    from them.
+
+    Parameters
+    ----------
+    df : pl.DataFrame
+        Local properties with columns of spacing, twist, npf and start.
+    radius : nm
+        Radius of the cylindric coordinate used for the lattice analysis. Spacing and
+        twist do not depend on it, while skew, pitch, moire period and rise do.
+    rise_sign : 1 or -1, default -1
+        Sign of the rise angle.
+    """
+    required = [H.spacing, H.twist, H.npf, H.start]
+    if missing := [c for c in required if c not in df.columns]:
+        raise ValueError(f"Local properties {missing} are not measured yet.")
+    cparams = CylinderParameters.solve(
+        spacing=df[H.spacing].mean(),
+        twist=df[H.twist].mean(),
+        npf=df[H.npf].mode().first(),
+        start=df[H.start].mode().first(),
+        radius=radius,
+        rise_sign=rise_sign,
+    )
+    return LatticeParams.from_cylinder_params(cparams)
 
 
 class LatticeParamsCartesian(NamedTuple):
@@ -121,17 +173,7 @@ class LatticeAnalyzer:
         peakv = self.get_peak_v(peak_det, img, peakh.a)
 
         cparams = self.get_params(img, peakh, peakv, radius)
-        return LatticeParams(
-            rise_angle=cparams.rise_angle,
-            rise_length=cparams.rise_length,
-            pitch=cparams.pitch,
-            spacing=cparams.spacing,
-            skew=cparams.skew,
-            twist=cparams.twist,
-            npf=cparams.npf,
-            start=cparams.start,
-            moire_period=cparams.moire_period,
-        )
+        return LatticeParams.from_cylinder_params(cparams)
 
     estimate_lattice_params_polar_delayed = delayed(estimate_lattice_params_polar)
 
