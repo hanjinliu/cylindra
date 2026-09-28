@@ -2040,6 +2040,32 @@ def test_plugin(ui: CylindraMainWidget, tmpdir):
     ui.save_project(Path(tmpdir) / "test-project.tar")
 
 
+def test_plugin_using_thread_worker(ui: CylindraMainWidget):
+    import time
+
+    from magicclass.utils import thread_worker
+
+    from cylindra.plugin import register_function
+
+    ui.PluginsMenu.reload_plugins()
+
+    @register_function
+    @thread_worker
+    def test_func(ui, niters: int = 4):
+        for _ in range(niters):
+            yield
+            time.sleep(0.1)
+
+    @register_function
+    def test_func_2(ui):
+        yield from test_func.arun(ui, niters=6)
+
+    test_func(ui)
+    test_func_2(ui)
+    assert len(ui.macro) == 3
+    assert str(ui.macro[1]) == "tests.test_gui_0.test_func(ui, niters=4)"
+    assert str(ui.macro[2]) == "tests.test_gui_0.test_func_2(ui)"
+
 def test_plugin_separator(ui: CylindraMainWidget, monkeypatch):
     from types import ModuleType
 

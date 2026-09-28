@@ -59,7 +59,7 @@ testing = [
     "mrcfile>=1.5.4",
     "tifffile>=2023.2.28",
     "starfile>=0.5.11",
-    "imodmodel>=0.1.0",
+    "imodmodel",
     "cookiecutter",
     "maturin>=1.14.1,<2.0.0",
 ]

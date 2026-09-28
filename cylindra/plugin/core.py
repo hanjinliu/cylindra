@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, Literal, ParamSpec, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Callable, Literal, ParamSpec, TypeVar, overload
 
 from cylindra.plugin.function import CylindraPluginFunction
 
@@ -26,7 +26,7 @@ def register_function(
     *,
     record: bool = True,
     name: str | None = None,
-) -> Callable[..., CylindraPluginFunction[_P, _R]]: ...
+) -> Callable[[Any], CylindraPluginFunction]: ...
 
 
 def register_function(func=None, *, record=True, name=None):

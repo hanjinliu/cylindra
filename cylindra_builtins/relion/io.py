@@ -8,6 +8,7 @@ import polars as pl
 from acryo import Molecules
 from magicclass import impl_preview
 from magicclass.types import Optional, Path
+from magicclass.utils import thread_worker
 from magicclass.widgets import ConsoleTextEdit
 
 from cylindra.const import FileFilter, nm
@@ -149,6 +150,7 @@ def _get_loader_paths(*_):
 
 
 @register_function(name="Save molecules for import", record=False)
+@thread_worker.with_progress(desc="Saving molecules for import", total="len(path_sets)")
 def save_molecules_for_import(
     ui: CylindraMainWidget,
     coordinates_path: Path.Save[FileFilter.STAR],
@@ -198,6 +200,7 @@ def save_molecules_for_import(
         particles_paths.append(particles_path)
         tomo_names.append(tomo_name)
         starfile.write(df, particles_path)
+        yield
 
     df_opt = pd.DataFrame(
         {
@@ -209,6 +212,9 @@ def save_molecules_for_import(
 
 
 @register_function(name="Save molecules for extract", record=False)
+@thread_worker.with_progress(
+    desc="Saving molecules for extract", total="len(path_sets)"
+)
 def save_molecules_for_extract(
     ui: CylindraMainWidget,
     coordinates_path: Path.Save[FileFilter.STAR],
@@ -251,6 +257,7 @@ def save_molecules_for_extract(
         relion_scale=relion_scale,
     ):
         particles_dfs.append(df)
+        yield
     particles_df = pd.concat(particles_dfs)
     coordinates_path = Path(coordinates_path)
     if coordinates_path.suffix == "":

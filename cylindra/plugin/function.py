@@ -139,6 +139,35 @@ class CylindraPluginFunction(Generic[_P, _R]):
 
         return out
 
+    def arun(self, *args, **kwargs):
+        """Run the `arun` method of the thread worker.
+
+        If the plugin function is a `thread_worker`, use this method to run it in
+        another `thread_worker` function.
+
+        Examples
+        --------
+        >>> @register_function
+        >>> @thread_worker
+        >>> def my_plugin_function_1(ui):
+        ...     yield
+        >>> @register_function
+        >>> @thread_worker
+        >>> def my_plugin_function_2(ui):
+        ...     yield from my_plugin_function_1.arun(ui)  # <--- use `arun` here
+        """
+        if not _is_thread_worker(self._func):
+            raise RuntimeError("The plugin function is not a thread worker.")
+
+        bound = self.__signature__.bind(*args, **kwargs)
+        bound.apply_defaults()
+        ui = bound.arguments[self._ui_arg_name]
+        first_arg, *args = bound.args
+        assert first_arg is ui
+
+        _method = self._func.__get__(ui)
+        return _method.arun(*args, **bound.kwargs)
+
     def _record_macro(
         self,
         ui: CylindraMainWidget,
