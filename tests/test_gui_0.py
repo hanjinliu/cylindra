@@ -2040,12 +2040,13 @@ def test_plugin(ui: CylindraMainWidget, tmpdir):
     ui.save_project(Path(tmpdir) / "test-project.tar")
 
 
-def test_plugin_using_thread_worker(ui: CylindraMainWidget, tmpdir):
+def test_plugin_using_thread_worker(ui: CylindraMainWidget):
     import time
 
     from magicclass.utils import thread_worker
 
     from cylindra.plugin import register_function
+
     ui.PluginsMenu.reload_plugins()
 
     @register_function
