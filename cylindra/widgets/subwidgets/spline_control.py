@@ -119,7 +119,7 @@ class SplineControl(ChildWidget):
     @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)}, record=False)
     class footer(MagicTemplate):
         highlight_subvolume = vfield(False).with_options(text="Highlight subvolume")
-        edit_projection_setting = abstractapi()
+        edit_projection_settings = abstractapi()
         auto_contrast = abstractapi()
         copy_screenshot = abstractapi()
         save_screenshot = abstractapi()
