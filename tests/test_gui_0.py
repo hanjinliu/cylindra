@@ -472,6 +472,10 @@ def test_spline_control(ui: CylindraMainWidget, tmpdir):
         assert_orientation(ui, "PlusToMinus")
         ui.macro.undo()
         ui.macro.redo()
+        ui.SplineControl.edit_projection_settings(
+            use_original_contrast=True,
+            bin_size=1,
+        )
         assert_orientation(ui, "PlusToMinus")
         ui.SplineControl.num = 1
         ui.set_spline_props(spline=1, orientation="MinusToPlus")
