@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 import impy as ip
 import numpy as np
@@ -18,6 +18,7 @@ from magicclass.types import Path
 
 from cylindra.const import FileFilter, Mode
 from cylindra.const import PropertyNames as H
+from cylindra.types import get_available_binsize
 from cylindra.utils import Projections, map_coordinates_task
 from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
@@ -59,6 +60,8 @@ class SplineControl(ChildWidget):
 
     def __post_init__(self):
         self._projections: list[Projections] = None
+        self._use_original_contrast = False
+        self._bin_size: int | None = None
 
         self.canvas.min_height = 200
         self.canvas.max_height = 230
@@ -80,6 +83,10 @@ class SplineControl(ChildWidget):
         if tomo is None:
             return []
         return [(f"({i}) {spl}", i) for i, spl in enumerate(tomo.splines)]
+
+    def _get_bin_size_choices(self, gui) -> list[int | None]:
+        bin_size_choices = get_available_binsize(gui)
+        return [("Use the coarsest one", None)] + bin_size_choices
 
     @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)}, record=False)
     class SplineId(ChildWidget):
@@ -112,10 +119,25 @@ class SplineControl(ChildWidget):
     @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)}, record=False)
     class footer(MagicTemplate):
         highlight_subvolume = vfield(False).with_options(text="Highlight subvolume")
+        edit_projection_setting = abstractapi()
         auto_contrast = abstractapi()
         copy_screenshot = abstractapi()
         save_screenshot = abstractapi()
         log_screenshot = abstractapi()
+
+    @set_design(max_width=56, text="Setting", location=footer)
+    def edit_projection_settings(
+        self,
+        use_original_contrast: bool,
+        bin_size: Annotated[int, {"choices": _get_bin_size_choices}],
+    ):
+        """Edit the projection settings."""
+        self._use_original_contrast = use_original_contrast
+        self._bin_size = bin_size
+        self._num_changed()
+        self.canvas[0].auto_range()
+        self.canvas[1].auto_range()
+        self.canvas[2].auto_range()
 
     @set_design(max_width=40, text="Auto", location=footer)
     def auto_contrast(self):
@@ -132,9 +154,9 @@ class SplineControl(ChildWidget):
         """Copy a screenshot of the projections to clipboard."""
         return self.canvas.to_clipboard()
 
-    @set_design(max_width=40, text="Scr", location=footer)
+    @set_design(max_width=40, text="Save", location=footer)
     def save_screenshot(self, path: Path.Save[FileFilter.PNG]):
-        """Take a screenshot of the projections."""
+        """Take a screenshot of the projections and save it."""
         from skimage.io import imsave
 
         img = self.canvas.render()
@@ -187,14 +209,14 @@ class SplineControl(ChildWidget):
         num = self.num
         if num is None:
             return
-        parent = self._get_main()
-        tomo = parent.tomogram
+        main = self._get_main()
+        tomo = main.tomogram
         if num >= len(tomo.splines):
             return
         spl = tomo.splines[num]
         if len(spl.props.loc) == 0:
-            parent.LocalProperties._init_text()
-            parent.LocalProperties._init_plot()
+            main.LocalProperties._init_text()
+            main.LocalProperties._init_plot()
         if len(spl.props.loc) > 0:
             self["pos"].max = len(spl.props.loc) - 1
         elif spl.has_anchors:
@@ -207,11 +229,11 @@ class SplineControl(ChildWidget):
             self._update_canvas(num=num)
 
     def _load_projection(self, spl: "CylSpline"):
-        parent = self._get_main()
-        tomo = parent.tomogram
+        main = self._get_main()
+        tomo = main.tomogram
 
         # update plots in pyqtgraph, if properties exist
-        parent.LocalProperties._plot_properties(spl)
+        main.LocalProperties._plot_properties(spl)
 
         if tomo.is_dummy:
             return
@@ -224,15 +246,13 @@ class SplineControl(ChildWidget):
             npf_list = [npf] * anc.size
         else:
             npf_list = [0] * anc.size
-        binsize = parent._current_binsize
-        imgb = parent.tomogram.get_multiscale(binsize)
-
+        binsize, imgb = self._get_bin_size_and_image()
         length_px = tomo.nm2pixel(spl.config.fit_depth, binsize=binsize)
         width_px = tomo.nm2pixel(spl.config.fit_width, binsize=binsize)
 
         mole = spl.anchors_to_molecules(anc)
         if binsize > 1:
-            mole = mole.translate(-parent.tomogram.multiscale_translation(binsize))
+            mole = mole.translate(-main.tomogram.multiscale_translation(binsize))
         loc_shape = (width_px, length_px, width_px)
         coords = mole.local_coordinates(
             shape=loc_shape,
@@ -240,6 +260,8 @@ class SplineControl(ChildWidget):
             squeeze=False,
         )
         projections = list[Projections]()
+        if tomo.is_inverted and self._use_original_contrast:
+            imgb = -imgb
         for crds, npf in zip(coords, npf_list, strict=True):
             mapped = delayed_map_coordinates(imgb, crds)
             dsk = da.from_delayed(mapped, shape=loc_shape, dtype=imgb.dtype)
@@ -251,7 +273,7 @@ class SplineControl(ChildWidget):
     def _update_canvas(self, pos: int | None = None, num: int | None = None):
         parent = self._get_main()
         tomo = parent.tomogram
-        binsize = parent._current_binsize
+        binsize, _ = self._get_bin_size_and_image()
         if num is None:
             num = self.num
         if pos is None:
@@ -378,6 +400,17 @@ class SplineControl(ChildWidget):
     def _update_local_properties(self, _=None):
         main = self._get_main()
         return main._update_local_properties_in_widget()
+
+    def _get_bin_size_and_image(self) -> tuple[int, ip.ImgArray | ip.LazyImgArray]:
+        main = self._get_main()
+        binsize = self._bin_size or main._current_binsize
+        try:
+            imgb = main.tomogram._get_multiscale_or_original(binsize)
+        except ValueError:
+            binsize = main._current_binsize
+            imgb = main.tomogram._get_multiscale_or_original(binsize)
+
+        return binsize, imgb
 
 
 def _circle(

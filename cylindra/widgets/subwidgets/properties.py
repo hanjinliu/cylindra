@@ -177,7 +177,7 @@ class LocalPropertiesWidget(ChildWidget):
         """Copy the screenshot of the plots to clipboard."""
         return self.plot.to_clipboard()
 
-    @set_design(max_width=40, text="Scr", location=footer)
+    @set_design(max_width=40, text="Save", location=footer)
     def save_screenshot(self, path: Path.Save[FileFilter.PNG]):
         """Take a screenshot of the plots."""
         from skimage.io import imsave

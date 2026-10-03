@@ -184,7 +184,11 @@ class Project(MagicTemplate):
         from cylindra.core import instance
 
         if ui := instance():
-            yield from ui.load_project.arun(self.path, filter=None)
+            if ui.batch.constructor.File.lowpass_when_open:
+                filt = "Lowpass"
+            else:
+                filt = None
+            yield from ui.load_project.arun(self.path, filter=filt)
         else:
             raise ValueError("No Cylindra widget found!")
 
@@ -334,6 +338,7 @@ class ProjectSequenceEdit(MagicTemplate):
         save_batch_project = abstractapi()
         sep1 = Separator
         construct_loader_by_list = abstractapi()
+        lowpass_when_open = vfield(False, label="Run low-pass when open")
 
     @magicmenu
     class Select(MagicTemplate):
