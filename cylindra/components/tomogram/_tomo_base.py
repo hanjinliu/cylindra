@@ -316,6 +316,52 @@ class Tomogram:
         self.metadata["orig_scale"] = orig_scale
         return self
 
+    @classmethod
+    def from_multiscale(
+        cls,
+        images: list[tuple[int, ip.ImgArray | ip.LazyImgArray]],
+        *,
+        scale: float | None = None,
+        tilt: tuple[float, float] | None = None,
+        compute_coarsest: bool = True,
+    ):
+        """Construct a Tomogram object from a list of multi-scale images.
+
+        Parameters
+        ----------
+        images : list[tuple[int, ip.ImgArray | ip.LazyImgArray]]
+            List of multi-scale images with their corresponding bin sizes.
+        scale : float, optional
+            Scale of the bin-1 image.
+        tilt : tuple[float, float], optional
+            Tilt angles of the image.
+        compute_coarsest : bool, default True
+            Whether to compute the coarsest image immediately.
+
+        Returns
+        -------
+        Self
+            Tomogram object constructed from the multi-scale images.
+        """
+        if len(images) == 1:
+            # no multiscales available; the coarsest one is the original image itself
+            _, img = images[0]
+            self = cls.from_image(
+                _compute_if_needed(img, compute_coarsest),
+                scale=scale,
+                binsize=[1],
+                tilt=tilt,
+            )
+        else:
+            _, img = images[0]
+            self = cls.from_image(img, scale=scale, tilt=tilt)
+            binsize_max, img_max = images[-1]
+            self._multiscaled = [
+                *images[1:-1],
+                (binsize_max, _compute_if_needed(img_max, compute_coarsest)),
+            ]
+        return self
+
     def with_cache_info(self, orig_path: Path, cached: bool = False) -> Self:
         """Set cache path."""
         orig_path = Path(orig_path)
@@ -512,6 +558,14 @@ def _read_halves(path1, path2, chunks):
     img1 = lazy_imread(path1, chunks=chunks)
     img2 = lazy_imread(path2, chunks=chunks)
     return _norm_dtype(img1), _norm_dtype(img2)
+
+
+def _compute_if_needed(
+    img: ip.ImgArray | ip.LazyImgArray, compute: bool
+) -> ip.ImgArray:
+    if compute and isinstance(img, ip.LazyImgArray):
+        return img.compute()
+    return img
 
 
 class OriginTuple(NamedTuple):

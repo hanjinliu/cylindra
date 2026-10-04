@@ -495,3 +495,14 @@ def test_imscale():
     res = opt.fit(img, img_ref, freq_min=0.1, freq_max=100)
     assert res.score_optimal > 0.99
     assert res.scale_optimal == pytest.approx(0.33 * 2 / 2.03, abs=1e-3)
+
+def test_multiscale():
+    img_orig = ip.lazy.random.random((48, 48, 48), axes="zyx")
+    img_b2 = ip.lazy.random.random((24, 24, 24), axes="zyx")
+    img_b4 = ip.lazy.random.random((12, 12, 12), axes="zyx")
+
+    tomo = CylTomogram.from_multiscale([(1, img_orig), (2, img_b2), (4, img_b4)], scale=0.5)
+    tomo.get_multiscale(2)
+    tomo.get_multiscale(4)
+    with pytest.raises(ValueError):
+        tomo.get_multiscale(6)
