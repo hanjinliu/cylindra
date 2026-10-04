@@ -288,15 +288,17 @@ class BatchSubtomogramAveraging(MagicTemplate):
         {loader_name}{size}{interpolation}{bin_size}
         """
         t0 = timer()
-        loader = self._get_parent().loader_infos[loader_name].loader
+        loader = (
+            self._get_parent()
+            .loader_infos[loader_name]
+            .loader.replace(order=interpolation)
+            .binning(bin_size, compute=False)
+        )
         shape = self._get_shape_in_px(size, loader)
         img = ip.asarray(
-            loader.replace(output_shape=shape, order=interpolation)
-            .binning(bin_size, compute=False)
-            .order_optimize()
-            .average(),
+            loader.replace(output_shape=shape).order_optimize().average(),
             axes="zyx",
-        ).set_scale(zyx=loader.scale * bin_size, unit="nm")
+        ).set_scale(zyx=loader.scale, unit="nm")
         t0.toc()
         return self._show_rec.with_args(img, f"[AVG]{loader_name}")
 
@@ -324,17 +326,21 @@ class BatchSubtomogramAveraging(MagicTemplate):
         {interpolation}{bin_size}
         """
         t0 = timer()
-        loader = self._get_parent().loader_infos[loader_name].loader
+        loader = (
+            self._get_parent()
+            .loader_infos[loader_name]
+            .loader.replace(order=interpolation)
+            .binning(bin_size, compute=False)
+        )
         shape = self._get_shape_in_px(size, loader)
         img = ip.asarray(
-            loader.replace(output_shape=shape, order=interpolation)
-            .binning(bin_size, compute=False)
+            loader.replace(output_shape=shape)
             .order_optimize()
             .groupby(norm_polars_expr(by))
             .average()
             .value_stack(axis=0),
             axes="pzyx",
-        ).set_scale(zyx=loader.scale * bin_size, unit="nm")
+        ).set_scale(zyx=loader.scale, unit="nm")
         t0.toc()
         return self._show_rec.with_args(img, f"[AVG]{loader_name}", store=False)
 
@@ -363,15 +369,16 @@ class BatchSubtomogramAveraging(MagicTemplate):
         t0 = timer()
         loaderlist = self._get_parent()._loaders
         info = loaderlist[loader_name]
-        loader = info.loader
+        loader = info.loader.replace(order=interpolation).binning(
+            bin_size, compute=False
+        )
         template, mask = loader.normalize_input(
             template=self.params._norm_template_param(template_path),
             mask=self.params._get_mask(params=mask_params),
         )
         _Logger.print(f"Aligning {loader.molecules.count()} molecules ...")
         aligned = (
-            loader.replace(output_shape=template.shape, order=interpolation)
-            .binning(bin_size, compute=False)
+            loader.replace(output_shape=template.shape)
             .order_optimize()
             .align(
                 template=template,
@@ -421,12 +428,11 @@ class BatchSubtomogramAveraging(MagicTemplate):
         loaderlist = self._get_parent()._loaders
         info = loaderlist[loader_name]
         mask = self.params._get_mask(params=mask_params)
-        shape = self._get_shape_in_px(size, info.loader)
-        loader = (
-            info.loader.replace(output_shape=shape, order=interpolation)
-            .binning(bin_size, compute=False)
-            .order_optimize()
+        loader = info.loader.replace(order=interpolation).binning(
+            bin_size, compute=False
         )
+        shape = self._get_shape_in_px(size, loader)
+        loader = loader.replace(output_shape=shape).order_optimize()
         _Logger.print(f"Aligning {loader.molecules.count()} molecules ...")
         _alignment_state = template_free.AlignmentState(
             rng=rng,
@@ -495,13 +501,16 @@ class BatchSubtomogramAveraging(MagicTemplate):
         batch = self._get_parent()
         loaderlist = batch._loaders
         info = loaderlist[loader_name]
-        loader = info.loader
+        loader = info.loader.replace(order=interpolation).binning(
+            bin_size, compute=False
+        )
         template, mask = loader.normalize_input(
             template=self.params._norm_template_param(template_path),
             mask=self.params._get_mask(params=mask_params),
         )
+        loader = loader.replace(output_shape=template.shape)
         aln = _get_alignment(method)
-        sub_inputs = list(self._group_loader_by_spline(loader_name))
+        sub_inputs = list(self._group_loader_by_spline(loader_name, loader))
         num_splines = len(sub_inputs)
         _Logger.print(f"{num_splines} splines found for RMA alignment.")
 
@@ -514,9 +523,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
             _p_ind = f"({ith + 1}/{num_splines})"
             yield thread_worker.description(f"Landscape construction {_p_ind}")
             landscape = Landscape.from_loader(
-                loader=inputs.loader.replace(
-                    order=interpolation, output_shape=template.shape
-                ).binning(bin_size, compute=False),
+                loader=inputs.loader,
                 template=template,
                 mask=mask,
                 max_shifts=max_shifts,
@@ -544,20 +551,8 @@ class BatchSubtomogramAveraging(MagicTemplate):
             )
             inputs.loader = inputs.loader.replace(molecules=mole)
 
-        loader_batch = BatchLoader(
-            order=loader.order,
-            scale=loader.scale,
-            output_shape=loader.output_shape,
-        )
-        for inputs in sub_inputs:
-            loader_batch.add_tomogram(
-                loader.images[inputs.image_id],
-                inputs.loader.molecules,
-                inputs.image_id,
-                loader._tilt_models[inputs.image_id],
-            )
         loaderlist.add_loader(
-            loader_batch,
+            join_loaders(loader, sub_inputs),
             name=_coerce_aligned_name(info.name, loaderlist),
             image_paths=info.image_paths,
             invert=info.invert,
@@ -601,12 +596,12 @@ class BatchSubtomogramAveraging(MagicTemplate):
         batch = self._get_parent()
         loaderlist = batch._loaders
         info = loaderlist[loader_name]
-        loader = info.loader
         mask = self.params._get_mask(params=mask_params)
-        shape = self._get_shape_in_px(size, loader)
-        loader = loader.replace(output_shape=shape, order=interpolation).binning(
+        loader = info.loader.replace(order=interpolation).binning(
             bin_size, compute=False
         )
+        shape = self._get_shape_in_px(size, loader)
+        loader = loader.replace(output_shape=shape)
 
         _alignment_state = template_free.RMAAlignmentState(
             rng=rng,
@@ -619,7 +614,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
             loader, max_shifts, max_rotations, upsample_factor, temperature_time_const
         )
 
-        sub_inputs = list(self._group_loader_by_spline(loader_name))
+        sub_inputs = list(self._group_loader_by_spline(loader_name, loader))
         num_splines = len(sub_inputs)
         while True:
             _Logger.print(f"Iteration {int(_alignment_state.num_iter)}")
@@ -815,13 +810,14 @@ class BatchSubtomogramAveraging(MagicTemplate):
         self, default: "nm | None", loader: BatchLoader
     ) -> tuple[int, ...]:
         if default is None:
-            tmp = self._get_template_image()
+            tmp = self._get_template_image(loader.scale)
             return tmp.sizesof("zyx")
         else:
             return (roundint(default / loader.scale),) * 3
 
-    def _get_template_image(self) -> ip.ImgArray:
-        scale = self.get_loader(self.loader_name).scale
+    def _get_template_image(self, scale: nm | None = None) -> ip.ImgArray:
+        if scale is None:
+            scale = self.get_loader(self.loader_name).scale
 
         template = self.params._norm_template_param(
             self.params._get_template_input(allow_multiple=True),
@@ -834,10 +830,16 @@ class BatchSubtomogramAveraging(MagicTemplate):
             template = ip.asarray(template, axes="zyx")
         return template.set_scale(zyx=scale, unit="nm")
 
-    def _group_loader_by_spline(self, loader_name: str) -> Iterator["LoaderOnSpline"]:
+    def _group_loader_by_spline(
+        self, loader_name: str, loader: BatchLoader
+    ) -> Iterator["LoaderOnSpline"]:
+        """Split `loader` (derived from the loader `loader_name`) by source splines.
+
+        `loader` may be binned. Molecules of the yielded loaders are in the same
+        coordinates as `loader`, so they can be joined back by `join_loaders`.
+        """
         batch = self._get_parent()
         info = batch.loader_infos[loader_name]
-        loader = info.loader
         # TODO: batch.iter_projects() does not properly work if no batch project is
         # loaded beforehand.
         img_project_map = {Path(prj.image): prj for prj in batch.iter_projects()}
