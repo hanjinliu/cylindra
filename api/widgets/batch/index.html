@@ -5805,7 +5805,9 @@ imported from file outputs of a long-running job from other softwares.</p>
 <span class="normal">867</span>
 <span class="normal">868</span>
 <span class="normal">869</span>
-<span class="normal">870</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Batch Subtomogram Analysis"</span><span class="p">)</span>
+<span class="normal">870</span>
+<span class="normal">871</span>
+<span class="normal">872</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Batch Subtomogram Analysis"</span><span class="p">)</span>
 <span class="nd">@_shared_doc</span><span class="o">.</span><span class="n">update_cls</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">BatchSubtomogramAveraging</span><span class="p">(</span><span class="n">MagicTemplate</span><span class="p">):</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_get_parent</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -5981,15 +5983,17 @@ imported from file outputs of a long-running job from other softwares.</p>
 <span class="sd">        {loader_name}{size}{interpolation}{bin_size}</span>
 <span class="sd">        """</span>
         <span class="n">t0</span> <span class="o">=</span> <span class="n">timer</span><span class="p">()</span>
-        <span class="n">loader</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_parent</span><span class="p">()</span><span class="o">.</span><span class="n">loader_infos</span><span class="p">[</span><span class="n">loader_name</span><span class="p">]</span><span class="o">.</span><span class="n">loader</span>
+        <span class="n">loader</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_get_parent</span><span class="p">()</span>
+            <span class="o">.</span><span class="n">loader_infos</span><span class="p">[</span><span class="n">loader_name</span><span class="p">]</span>
+            <span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">binning</span><span class="p">(</span><span class="n">bin_size</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="p">)</span>
         <span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_shape_in_px</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">loader</span><span class="p">)</span>
         <span class="n">img</span> <span class="o">=</span> <span class="n">ip</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span>
-            <span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">output_shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">)</span>
-            <span class="o">.</span><span class="n">binning</span><span class="p">(</span><span class="n">bin_size</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-            <span class="o">.</span><span class="n">order_optimize</span><span class="p">()</span>
-            <span class="o">.</span><span class="n">average</span><span class="p">(),</span>
+            <span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">output_shape</span><span class="o">=</span><span class="n">shape</span><span class="p">)</span><span class="o">.</span><span class="n">order_optimize</span><span class="p">()</span><span class="o">.</span><span class="n">average</span><span class="p">(),</span>
             <span class="n">axes</span><span class="o">=</span><span class="s2">"zyx"</span><span class="p">,</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">set_scale</span><span class="p">(</span><span class="n">zyx</span><span class="o">=</span><span class="n">loader</span><span class="o">.</span><span class="n">scale</span> <span class="o">*</span> <span class="n">bin_size</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">"nm"</span><span class="p">)</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">set_scale</span><span class="p">(</span><span class="n">zyx</span><span class="o">=</span><span class="n">loader</span><span class="o">.</span><span class="n">scale</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">"nm"</span><span class="p">)</span>
         <span class="n">t0</span><span class="o">.</span><span class="n">toc</span><span class="p">()</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_rec</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"[AVG]</span><span class="si">{</span><span class="n">loader_name</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 
@@ -6017,17 +6021,21 @@ imported from file outputs of a long-running job from other softwares.</p>
 <span class="sd">        {interpolation}{bin_size}</span>
 <span class="sd">        """</span>
         <span class="n">t0</span> <span class="o">=</span> <span class="n">timer</span><span class="p">()</span>
-        <span class="n">loader</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_parent</span><span class="p">()</span><span class="o">.</span><span class="n">loader_infos</span><span class="p">[</span><span class="n">loader_name</span><span class="p">]</span><span class="o">.</span><span class="n">loader</span>
+        <span class="n">loader</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_get_parent</span><span class="p">()</span>
+            <span class="o">.</span><span class="n">loader_infos</span><span class="p">[</span><span class="n">loader_name</span><span class="p">]</span>
+            <span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">binning</span><span class="p">(</span><span class="n">bin_size</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="p">)</span>
         <span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_shape_in_px</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">loader</span><span class="p">)</span>
         <span class="n">img</span> <span class="o">=</span> <span class="n">ip</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span>
-            <span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">output_shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">)</span>
-            <span class="o">.</span><span class="n">binning</span><span class="p">(</span><span class="n">bin_size</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">output_shape</span><span class="o">=</span><span class="n">shape</span><span class="p">)</span>
             <span class="o">.</span><span class="n">order_optimize</span><span class="p">()</span>
             <span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">norm_polars_expr</span><span class="p">(</span><span class="n">by</span><span class="p">))</span>
             <span class="o">.</span><span class="n">average</span><span class="p">()</span>
             <span class="o">.</span><span class="n">value_stack</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
             <span class="n">axes</span><span class="o">=</span><span class="s2">"pzyx"</span><span class="p">,</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">set_scale</span><span class="p">(</span><span class="n">zyx</span><span class="o">=</span><span class="n">loader</span><span class="o">.</span><span class="n">scale</span> <span class="o">*</span> <span class="n">bin_size</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">"nm"</span><span class="p">)</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">set_scale</span><span class="p">(</span><span class="n">zyx</span><span class="o">=</span><span class="n">loader</span><span class="o">.</span><span class="n">scale</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">"nm"</span><span class="p">)</span>
         <span class="n">t0</span><span class="o">.</span><span class="n">toc</span><span class="p">()</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_rec</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"[AVG]</span><span class="si">{</span><span class="n">loader_name</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="n">store</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
@@ -6056,15 +6064,16 @@ imported from file outputs of a long-running job from other softwares.</p>
         <span class="n">t0</span> <span class="o">=</span> <span class="n">timer</span><span class="p">()</span>
         <span class="n">loaderlist</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_parent</span><span class="p">()</span><span class="o">.</span><span class="n">_loaders</span>
         <span class="n">info</span> <span class="o">=</span> <span class="n">loaderlist</span><span class="p">[</span><span class="n">loader_name</span><span class="p">]</span>
-        <span class="n">loader</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">loader</span>
+        <span class="n">loader</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">)</span><span class="o">.</span><span class="n">binning</span><span class="p">(</span>
+            <span class="n">bin_size</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="kc">False</span>
+        <span class="p">)</span>
         <span class="n">template</span><span class="p">,</span> <span class="n">mask</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">normalize_input</span><span class="p">(</span>
             <span class="n">template</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">_norm_template_param</span><span class="p">(</span><span class="n">template_path</span><span class="p">),</span>
             <span class="n">mask</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">_get_mask</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="n">mask_params</span><span class="p">),</span>
         <span class="p">)</span>
         <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Aligning </span><span class="si">{</span><span class="n">loader</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">count</span><span class="p">()</span><span class="si">}</span><span class="s2"> molecules ..."</span><span class="p">)</span>
         <span class="n">aligned</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">output_shape</span><span class="o">=</span><span class="n">template</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">)</span>
-            <span class="o">.</span><span class="n">binning</span><span class="p">(</span><span class="n">bin_size</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">output_shape</span><span class="o">=</span><span class="n">template</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
             <span class="o">.</span><span class="n">order_optimize</span><span class="p">()</span>
             <span class="o">.</span><span class="n">align</span><span class="p">(</span>
                 <span class="n">template</span><span class="o">=</span><span class="n">template</span><span class="p">,</span>
@@ -6114,12 +6123,11 @@ imported from file outputs of a long-running job from other softwares.</p>
         <span class="n">loaderlist</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_parent</span><span class="p">()</span><span class="o">.</span><span class="n">_loaders</span>
         <span class="n">info</span> <span class="o">=</span> <span class="n">loaderlist</span><span class="p">[</span><span class="n">loader_name</span><span class="p">]</span>
         <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">_get_mask</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="n">mask_params</span><span class="p">)</span>
-        <span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_shape_in_px</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">info</span><span class="o">.</span><span class="n">loader</span><span class="p">)</span>
-        <span class="n">loader</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">info</span><span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">output_shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">)</span>
-            <span class="o">.</span><span class="n">binning</span><span class="p">(</span><span class="n">bin_size</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-            <span class="o">.</span><span class="n">order_optimize</span><span class="p">()</span>
+        <span class="n">loader</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">)</span><span class="o">.</span><span class="n">binning</span><span class="p">(</span>
+            <span class="n">bin_size</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="kc">False</span>
         <span class="p">)</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_shape_in_px</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">loader</span><span class="p">)</span>
+        <span class="n">loader</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">output_shape</span><span class="o">=</span><span class="n">shape</span><span class="p">)</span><span class="o">.</span><span class="n">order_optimize</span><span class="p">()</span>
         <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Aligning </span><span class="si">{</span><span class="n">loader</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">count</span><span class="p">()</span><span class="si">}</span><span class="s2"> molecules ..."</span><span class="p">)</span>
         <span class="n">_alignment_state</span> <span class="o">=</span> <span class="n">template_free</span><span class="o">.</span><span class="n">AlignmentState</span><span class="p">(</span>
             <span class="n">rng</span><span class="o">=</span><span class="n">rng</span><span class="p">,</span>
@@ -6188,13 +6196,16 @@ imported from file outputs of a long-running job from other softwares.</p>
         <span class="n">batch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_parent</span><span class="p">()</span>
         <span class="n">loaderlist</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">_loaders</span>
         <span class="n">info</span> <span class="o">=</span> <span class="n">loaderlist</span><span class="p">[</span><span class="n">loader_name</span><span class="p">]</span>
-        <span class="n">loader</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">loader</span>
+        <span class="n">loader</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">)</span><span class="o">.</span><span class="n">binning</span><span class="p">(</span>
+            <span class="n">bin_size</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="kc">False</span>
+        <span class="p">)</span>
         <span class="n">template</span><span class="p">,</span> <span class="n">mask</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">normalize_input</span><span class="p">(</span>
             <span class="n">template</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">_norm_template_param</span><span class="p">(</span><span class="n">template_path</span><span class="p">),</span>
             <span class="n">mask</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">_get_mask</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="n">mask_params</span><span class="p">),</span>
         <span class="p">)</span>
+        <span class="n">loader</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">output_shape</span><span class="o">=</span><span class="n">template</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
         <span class="n">aln</span> <span class="o">=</span> <span class="n">_get_alignment</span><span class="p">(</span><span class="n">method</span><span class="p">)</span>
-        <span class="n">sub_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_group_loader_by_spline</span><span class="p">(</span><span class="n">loader_name</span><span class="p">))</span>
+        <span class="n">sub_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_group_loader_by_spline</span><span class="p">(</span><span class="n">loader_name</span><span class="p">,</span> <span class="n">loader</span><span class="p">))</span>
         <span class="n">num_splines</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sub_inputs</span><span class="p">)</span>
         <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">num_splines</span><span class="si">}</span><span class="s2"> splines found for RMA alignment."</span><span class="p">)</span>
 
@@ -6207,9 +6218,7 @@ imported from file outputs of a long-running job from other softwares.</p>
             <span class="n">_p_ind</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="n">ith</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">num_splines</span><span class="si">}</span><span class="s2">)"</span>
             <span class="k">yield</span> <span class="n">thread_worker</span><span class="o">.</span><span class="n">description</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Landscape construction </span><span class="si">{</span><span class="n">_p_ind</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
             <span class="n">landscape</span> <span class="o">=</span> <span class="n">Landscape</span><span class="o">.</span><span class="n">from_loader</span><span class="p">(</span>
-                <span class="n">loader</span><span class="o">=</span><span class="n">inputs</span><span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
-                    <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">,</span> <span class="n">output_shape</span><span class="o">=</span><span class="n">template</span><span class="o">.</span><span class="n">shape</span>
-                <span class="p">)</span><span class="o">.</span><span class="n">binning</span><span class="p">(</span><span class="n">bin_size</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
+                <span class="n">loader</span><span class="o">=</span><span class="n">inputs</span><span class="o">.</span><span class="n">loader</span><span class="p">,</span>
                 <span class="n">template</span><span class="o">=</span><span class="n">template</span><span class="p">,</span>
                 <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span>
                 <span class="n">max_shifts</span><span class="o">=</span><span class="n">max_shifts</span><span class="p">,</span>
@@ -6237,20 +6246,8 @@ imported from file outputs of a long-running job from other softwares.</p>
             <span class="p">)</span>
             <span class="n">inputs</span><span class="o">.</span><span class="n">loader</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">molecules</span><span class="o">=</span><span class="n">mole</span><span class="p">)</span>
 
-        <span class="n">loader_batch</span> <span class="o">=</span> <span class="n">BatchLoader</span><span class="p">(</span>
-            <span class="n">order</span><span class="o">=</span><span class="n">loader</span><span class="o">.</span><span class="n">order</span><span class="p">,</span>
-            <span class="n">scale</span><span class="o">=</span><span class="n">loader</span><span class="o">.</span><span class="n">scale</span><span class="p">,</span>
-            <span class="n">output_shape</span><span class="o">=</span><span class="n">loader</span><span class="o">.</span><span class="n">output_shape</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="k">for</span> <span class="n">inputs</span> <span class="ow">in</span> <span class="n">sub_inputs</span><span class="p">:</span>
-            <span class="n">loader_batch</span><span class="o">.</span><span class="n">add_tomogram</span><span class="p">(</span>
-                <span class="n">loader</span><span class="o">.</span><span class="n">images</span><span class="p">[</span><span class="n">inputs</span><span class="o">.</span><span class="n">image_id</span><span class="p">],</span>
-                <span class="n">inputs</span><span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">molecules</span><span class="p">,</span>
-                <span class="n">inputs</span><span class="o">.</span><span class="n">image_id</span><span class="p">,</span>
-                <span class="n">loader</span><span class="o">.</span><span class="n">_tilt_models</span><span class="p">[</span><span class="n">inputs</span><span class="o">.</span><span class="n">image_id</span><span class="p">],</span>
-            <span class="p">)</span>
         <span class="n">loaderlist</span><span class="o">.</span><span class="n">add_loader</span><span class="p">(</span>
-            <span class="n">loader_batch</span><span class="p">,</span>
+            <span class="n">join_loaders</span><span class="p">(</span><span class="n">loader</span><span class="p">,</span> <span class="n">sub_inputs</span><span class="p">),</span>
             <span class="n">name</span><span class="o">=</span><span class="n">_coerce_aligned_name</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">loaderlist</span><span class="p">),</span>
             <span class="n">image_paths</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">image_paths</span><span class="p">,</span>
             <span class="n">invert</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">invert</span><span class="p">,</span>
@@ -6294,12 +6291,12 @@ imported from file outputs of a long-running job from other softwares.</p>
         <span class="n">batch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_parent</span><span class="p">()</span>
         <span class="n">loaderlist</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">_loaders</span>
         <span class="n">info</span> <span class="o">=</span> <span class="n">loaderlist</span><span class="p">[</span><span class="n">loader_name</span><span class="p">]</span>
-        <span class="n">loader</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">loader</span>
         <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">_get_mask</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="n">mask_params</span><span class="p">)</span>
-        <span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_shape_in_px</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">loader</span><span class="p">)</span>
-        <span class="n">loader</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">output_shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">)</span><span class="o">.</span><span class="n">binning</span><span class="p">(</span>
+        <span class="n">loader</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">)</span><span class="o">.</span><span class="n">binning</span><span class="p">(</span>
             <span class="n">bin_size</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="kc">False</span>
         <span class="p">)</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_shape_in_px</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">loader</span><span class="p">)</span>
+        <span class="n">loader</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">output_shape</span><span class="o">=</span><span class="n">shape</span><span class="p">)</span>
 
         <span class="n">_alignment_state</span> <span class="o">=</span> <span class="n">template_free</span><span class="o">.</span><span class="n">RMAAlignmentState</span><span class="p">(</span>
             <span class="n">rng</span><span class="o">=</span><span class="n">rng</span><span class="p">,</span>
@@ -6312,7 +6309,7 @@ imported from file outputs of a long-running job from other softwares.</p>
             <span class="n">loader</span><span class="p">,</span> <span class="n">max_shifts</span><span class="p">,</span> <span class="n">max_rotations</span><span class="p">,</span> <span class="n">upsample_factor</span><span class="p">,</span> <span class="n">temperature_time_const</span>
         <span class="p">)</span>
 
-        <span class="n">sub_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_group_loader_by_spline</span><span class="p">(</span><span class="n">loader_name</span><span class="p">))</span>
+        <span class="n">sub_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_group_loader_by_spline</span><span class="p">(</span><span class="n">loader_name</span><span class="p">,</span> <span class="n">loader</span><span class="p">))</span>
         <span class="n">num_splines</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sub_inputs</span><span class="p">)</span>
         <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
             <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Iteration </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
@@ -6508,13 +6505,14 @@ imported from file outputs of a long-running job from other softwares.</p>
         <span class="bp">self</span><span class="p">,</span> <span class="n">default</span><span class="p">:</span> <span class="s2">"nm | None"</span><span class="p">,</span> <span class="n">loader</span><span class="p">:</span> <span class="n">BatchLoader</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]:</span>
         <span class="k">if</span> <span class="n">default</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">tmp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_template_image</span><span class="p">()</span>
+            <span class="n">tmp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_template_image</span><span class="p">(</span><span class="n">loader</span><span class="o">.</span><span class="n">scale</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">tmp</span><span class="o">.</span><span class="n">sizesof</span><span class="p">(</span><span class="s2">"zyx"</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">roundint</span><span class="p">(</span><span class="n">default</span> <span class="o">/</span> <span class="n">loader</span><span class="o">.</span><span class="n">scale</span><span class="p">),)</span> <span class="o">*</span> <span class="mi">3</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_get_template_image</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ip</span><span class="o">.</span><span class="n">ImgArray</span><span class="p">:</span>
-        <span class="n">scale</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_loader</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loader_name</span><span class="p">)</span><span class="o">.</span><span class="n">scale</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_template_image</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scale</span><span class="p">:</span> <span class="n">nm</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ip</span><span class="o">.</span><span class="n">ImgArray</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">scale</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">scale</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_loader</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loader_name</span><span class="p">)</span><span class="o">.</span><span class="n">scale</span>
 
         <span class="n">template</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">_norm_template_param</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">_get_template_input</span><span class="p">(</span><span class="n">allow_multiple</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
@@ -6527,10 +6525,16 @@ imported from file outputs of a long-running job from other softwares.</p>
             <span class="n">template</span> <span class="o">=</span> <span class="n">ip</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">template</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="s2">"zyx"</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">template</span><span class="o">.</span><span class="n">set_scale</span><span class="p">(</span><span class="n">zyx</span><span class="o">=</span><span class="n">scale</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">"nm"</span><span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_group_loader_by_spline</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">loader_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="s2">"LoaderOnSpline"</span><span class="p">]:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_group_loader_by_spline</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">loader_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">loader</span><span class="p">:</span> <span class="n">BatchLoader</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="s2">"LoaderOnSpline"</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Split `loader` (derived from the loader `loader_name`) by source splines.</span>
+
+<span class="sd">        `loader` may be binned. Molecules of the yielded loaders are in the same</span>
+<span class="sd">        coordinates as `loader`, so they can be joined back by `join_loaders`.</span>
+<span class="sd">        """</span>
         <span class="n">batch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_parent</span><span class="p">()</span>
         <span class="n">info</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">loader_infos</span><span class="p">[</span><span class="n">loader_name</span><span class="p">]</span>
-        <span class="n">loader</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">loader</span>
         <span class="c1"># TODO: batch.iter_projects() does not properly work if no batch project is</span>
         <span class="c1"># loaded beforehand.</span>
         <span class="n">img_project_map</span> <span class="o">=</span> <span class="p">{</span><span class="n">Path</span><span class="p">(</span><span class="n">prj</span><span class="o">.</span><span class="n">image</span><span class="p">):</span> <span class="n">prj</span> <span class="k">for</span> <span class="n">prj</span> <span class="ow">in</span> <span class="n">batch</span><span class="o">.</span><span class="n">iter_projects</span><span class="p">()}</span>
@@ -6753,13 +6757,7 @@ If a path is given, image must in the same shape as the template.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">341</span>
-<span class="normal">342</span>
-<span class="normal">343</span>
-<span class="normal">344</span>
-<span class="normal">345</span>
-<span class="normal">346</span>
-<span class="normal">347</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">347</span>
 <span class="normal">348</span>
 <span class="normal">349</span>
 <span class="normal">350</span>
@@ -6804,7 +6802,14 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="normal">389</span>
 <span class="normal">390</span>
 <span class="normal">391</span>
-<span class="normal">392</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Align all molecules"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
+<span class="normal">392</span>
+<span class="normal">393</span>
+<span class="normal">394</span>
+<span class="normal">395</span>
+<span class="normal">396</span>
+<span class="normal">397</span>
+<span class="normal">398</span>
+<span class="normal">399</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Align all molecules"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">"Aligning all molecules"</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">align_all</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -6829,15 +6834,16 @@ If a path is given, image must in the same shape as the template.</p>
     <span class="n">t0</span> <span class="o">=</span> <span class="n">timer</span><span class="p">()</span>
     <span class="n">loaderlist</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_parent</span><span class="p">()</span><span class="o">.</span><span class="n">_loaders</span>
     <span class="n">info</span> <span class="o">=</span> <span class="n">loaderlist</span><span class="p">[</span><span class="n">loader_name</span><span class="p">]</span>
-    <span class="n">loader</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">loader</span>
+    <span class="n">loader</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">)</span><span class="o">.</span><span class="n">binning</span><span class="p">(</span>
+        <span class="n">bin_size</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="kc">False</span>
+    <span class="p">)</span>
     <span class="n">template</span><span class="p">,</span> <span class="n">mask</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">normalize_input</span><span class="p">(</span>
         <span class="n">template</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">_norm_template_param</span><span class="p">(</span><span class="n">template_path</span><span class="p">),</span>
         <span class="n">mask</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">_get_mask</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="n">mask_params</span><span class="p">),</span>
     <span class="p">)</span>
     <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Aligning </span><span class="si">{</span><span class="n">loader</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">count</span><span class="p">()</span><span class="si">}</span><span class="s2"> molecules ..."</span><span class="p">)</span>
     <span class="n">aligned</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">output_shape</span><span class="o">=</span><span class="n">template</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">)</span>
-        <span class="o">.</span><span class="n">binning</span><span class="p">(</span><span class="n">bin_size</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">output_shape</span><span class="o">=</span><span class="n">template</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
         <span class="o">.</span><span class="n">order_optimize</span><span class="p">()</span>
         <span class="o">.</span><span class="n">align</span><span class="p">(</span>
             <span class="n">template</span><span class="o">=</span><span class="n">template</span><span class="p">,</span>
@@ -7168,13 +7174,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">464</span>
-<span class="normal">465</span>
-<span class="normal">466</span>
-<span class="normal">467</span>
-<span class="normal">468</span>
-<span class="normal">469</span>
-<span class="normal">470</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">470</span>
 <span class="normal">471</span>
 <span class="normal">472</span>
 <span class="normal">473</span>
@@ -7264,12 +7264,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">557</span>
 <span class="normal">558</span>
 <span class="normal">559</span>
-<span class="normal">560</span>
-<span class="normal">561</span>
-<span class="normal">562</span>
-<span class="normal">563</span>
-<span class="normal">564</span>
-<span class="normal">565</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"RMA alignment"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
+<span class="normal">560</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"RMA alignment"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">"Simulated annealing (RMA)"</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">align_all_rma</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -7303,13 +7298,16 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
     <span class="n">batch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_parent</span><span class="p">()</span>
     <span class="n">loaderlist</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">_loaders</span>
     <span class="n">info</span> <span class="o">=</span> <span class="n">loaderlist</span><span class="p">[</span><span class="n">loader_name</span><span class="p">]</span>
-    <span class="n">loader</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">loader</span>
+    <span class="n">loader</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">)</span><span class="o">.</span><span class="n">binning</span><span class="p">(</span>
+        <span class="n">bin_size</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="kc">False</span>
+    <span class="p">)</span>
     <span class="n">template</span><span class="p">,</span> <span class="n">mask</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">normalize_input</span><span class="p">(</span>
         <span class="n">template</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">_norm_template_param</span><span class="p">(</span><span class="n">template_path</span><span class="p">),</span>
         <span class="n">mask</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">_get_mask</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="n">mask_params</span><span class="p">),</span>
     <span class="p">)</span>
+    <span class="n">loader</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">output_shape</span><span class="o">=</span><span class="n">template</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
     <span class="n">aln</span> <span class="o">=</span> <span class="n">_get_alignment</span><span class="p">(</span><span class="n">method</span><span class="p">)</span>
-    <span class="n">sub_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_group_loader_by_spline</span><span class="p">(</span><span class="n">loader_name</span><span class="p">))</span>
+    <span class="n">sub_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_group_loader_by_spline</span><span class="p">(</span><span class="n">loader_name</span><span class="p">,</span> <span class="n">loader</span><span class="p">))</span>
     <span class="n">num_splines</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sub_inputs</span><span class="p">)</span>
     <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">num_splines</span><span class="si">}</span><span class="s2"> splines found for RMA alignment."</span><span class="p">)</span>
 
@@ -7322,9 +7320,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
         <span class="n">_p_ind</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="n">ith</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">num_splines</span><span class="si">}</span><span class="s2">)"</span>
         <span class="k">yield</span> <span class="n">thread_worker</span><span class="o">.</span><span class="n">description</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Landscape construction </span><span class="si">{</span><span class="n">_p_ind</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
         <span class="n">landscape</span> <span class="o">=</span> <span class="n">Landscape</span><span class="o">.</span><span class="n">from_loader</span><span class="p">(</span>
-            <span class="n">loader</span><span class="o">=</span><span class="n">inputs</span><span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
-                <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">,</span> <span class="n">output_shape</span><span class="o">=</span><span class="n">template</span><span class="o">.</span><span class="n">shape</span>
-            <span class="p">)</span><span class="o">.</span><span class="n">binning</span><span class="p">(</span><span class="n">bin_size</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
+            <span class="n">loader</span><span class="o">=</span><span class="n">inputs</span><span class="o">.</span><span class="n">loader</span><span class="p">,</span>
             <span class="n">template</span><span class="o">=</span><span class="n">template</span><span class="p">,</span>
             <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span>
             <span class="n">max_shifts</span><span class="o">=</span><span class="n">max_shifts</span><span class="p">,</span>
@@ -7352,20 +7348,8 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
         <span class="p">)</span>
         <span class="n">inputs</span><span class="o">.</span><span class="n">loader</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">molecules</span><span class="o">=</span><span class="n">mole</span><span class="p">)</span>
 
-    <span class="n">loader_batch</span> <span class="o">=</span> <span class="n">BatchLoader</span><span class="p">(</span>
-        <span class="n">order</span><span class="o">=</span><span class="n">loader</span><span class="o">.</span><span class="n">order</span><span class="p">,</span>
-        <span class="n">scale</span><span class="o">=</span><span class="n">loader</span><span class="o">.</span><span class="n">scale</span><span class="p">,</span>
-        <span class="n">output_shape</span><span class="o">=</span><span class="n">loader</span><span class="o">.</span><span class="n">output_shape</span><span class="p">,</span>
-    <span class="p">)</span>
-    <span class="k">for</span> <span class="n">inputs</span> <span class="ow">in</span> <span class="n">sub_inputs</span><span class="p">:</span>
-        <span class="n">loader_batch</span><span class="o">.</span><span class="n">add_tomogram</span><span class="p">(</span>
-            <span class="n">loader</span><span class="o">.</span><span class="n">images</span><span class="p">[</span><span class="n">inputs</span><span class="o">.</span><span class="n">image_id</span><span class="p">],</span>
-            <span class="n">inputs</span><span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">molecules</span><span class="p">,</span>
-            <span class="n">inputs</span><span class="o">.</span><span class="n">image_id</span><span class="p">,</span>
-            <span class="n">loader</span><span class="o">.</span><span class="n">_tilt_models</span><span class="p">[</span><span class="n">inputs</span><span class="o">.</span><span class="n">image_id</span><span class="p">],</span>
-        <span class="p">)</span>
     <span class="n">loaderlist</span><span class="o">.</span><span class="n">add_loader</span><span class="p">(</span>
-        <span class="n">loader_batch</span><span class="p">,</span>
+        <span class="n">join_loaders</span><span class="p">(</span><span class="n">loader</span><span class="p">,</span> <span class="n">sub_inputs</span><span class="p">),</span>
         <span class="n">name</span><span class="o">=</span><span class="n">_coerce_aligned_name</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">loaderlist</span><span class="p">),</span>
         <span class="n">image_paths</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">image_paths</span><span class="p">,</span>
         <span class="n">invert</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">invert</span><span class="p">,</span>
@@ -7668,7 +7652,12 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">567</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">562</span>
+<span class="normal">563</span>
+<span class="normal">564</span>
+<span class="normal">565</span>
+<span class="normal">566</span>
+<span class="normal">567</span>
 <span class="normal">568</span>
 <span class="normal">569</span>
 <span class="normal">570</span>
@@ -7767,12 +7756,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">663</span>
 <span class="normal">664</span>
 <span class="normal">665</span>
-<span class="normal">666</span>
-<span class="normal">667</span>
-<span class="normal">668</span>
-<span class="normal">669</span>
-<span class="normal">670</span>
-<span class="normal">671</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"RMA alignment (template-free)"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
+<span class="normal">666</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"RMA alignment (template-free)"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">"RMA alignment started"</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">align_all_rma_template_free</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -7809,12 +7793,12 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
     <span class="n">batch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_parent</span><span class="p">()</span>
     <span class="n">loaderlist</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">_loaders</span>
     <span class="n">info</span> <span class="o">=</span> <span class="n">loaderlist</span><span class="p">[</span><span class="n">loader_name</span><span class="p">]</span>
-    <span class="n">loader</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">loader</span>
     <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">_get_mask</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="n">mask_params</span><span class="p">)</span>
-    <span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_shape_in_px</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">loader</span><span class="p">)</span>
-    <span class="n">loader</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">output_shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">)</span><span class="o">.</span><span class="n">binning</span><span class="p">(</span>
+    <span class="n">loader</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">)</span><span class="o">.</span><span class="n">binning</span><span class="p">(</span>
         <span class="n">bin_size</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="kc">False</span>
     <span class="p">)</span>
+    <span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_shape_in_px</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">loader</span><span class="p">)</span>
+    <span class="n">loader</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">output_shape</span><span class="o">=</span><span class="n">shape</span><span class="p">)</span>
 
     <span class="n">_alignment_state</span> <span class="o">=</span> <span class="n">template_free</span><span class="o">.</span><span class="n">RMAAlignmentState</span><span class="p">(</span>
         <span class="n">rng</span><span class="o">=</span><span class="n">rng</span><span class="p">,</span>
@@ -7827,7 +7811,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
         <span class="n">loader</span><span class="p">,</span> <span class="n">max_shifts</span><span class="p">,</span> <span class="n">max_rotations</span><span class="p">,</span> <span class="n">upsample_factor</span><span class="p">,</span> <span class="n">temperature_time_const</span>
     <span class="p">)</span>
 
-    <span class="n">sub_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_group_loader_by_spline</span><span class="p">(</span><span class="n">loader_name</span><span class="p">))</span>
+    <span class="n">sub_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_group_loader_by_spline</span><span class="p">(</span><span class="n">loader_name</span><span class="p">,</span> <span class="n">loader</span><span class="p">))</span>
     <span class="n">num_splines</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sub_inputs</span><span class="p">)</span>
     <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
         <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Iteration </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
@@ -8077,14 +8061,7 @@ If a path is given, image must in the same shape as the template.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">394</span>
-<span class="normal">395</span>
-<span class="normal">396</span>
-<span class="normal">397</span>
-<span class="normal">398</span>
-<span class="normal">399</span>
-<span class="normal">400</span>
-<span class="normal">401</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">401</span>
 <span class="normal">402</span>
 <span class="normal">403</span>
 <span class="normal">404</span>
@@ -8145,7 +8122,13 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="normal">459</span>
 <span class="normal">460</span>
 <span class="normal">461</span>
-<span class="normal">462</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Align all (template-free)"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
+<span class="normal">462</span>
+<span class="normal">463</span>
+<span class="normal">464</span>
+<span class="normal">465</span>
+<span class="normal">466</span>
+<span class="normal">467</span>
+<span class="normal">468</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Align all (template-free)"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">"Align all started"</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">align_all_template_free</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -8175,12 +8158,11 @@ If a path is given, image must in the same shape as the template.</p>
     <span class="n">loaderlist</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_parent</span><span class="p">()</span><span class="o">.</span><span class="n">_loaders</span>
     <span class="n">info</span> <span class="o">=</span> <span class="n">loaderlist</span><span class="p">[</span><span class="n">loader_name</span><span class="p">]</span>
     <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">_get_mask</span><span class="p">(</span><span class="n">params</span><span class="o">=</span><span class="n">mask_params</span><span class="p">)</span>
-    <span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_shape_in_px</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">info</span><span class="o">.</span><span class="n">loader</span><span class="p">)</span>
-    <span class="n">loader</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="n">info</span><span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">output_shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">)</span>
-        <span class="o">.</span><span class="n">binning</span><span class="p">(</span><span class="n">bin_size</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-        <span class="o">.</span><span class="n">order_optimize</span><span class="p">()</span>
+    <span class="n">loader</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">)</span><span class="o">.</span><span class="n">binning</span><span class="p">(</span>
+        <span class="n">bin_size</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="kc">False</span>
     <span class="p">)</span>
+    <span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_shape_in_px</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">loader</span><span class="p">)</span>
+    <span class="n">loader</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">output_shape</span><span class="o">=</span><span class="n">shape</span><span class="p">)</span><span class="o">.</span><span class="n">order_optimize</span><span class="p">()</span>
     <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Aligning </span><span class="si">{</span><span class="n">loader</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">count</span><span class="p">()</span><span class="si">}</span><span class="s2"> molecules ..."</span><span class="p">)</span>
     <span class="n">_alignment_state</span> <span class="o">=</span> <span class="n">template_free</span><span class="o">.</span><span class="n">AlignmentState</span><span class="p">(</span>
         <span class="n">rng</span><span class="o">=</span><span class="n">rng</span><span class="p">,</span>
@@ -8341,7 +8323,9 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="normal">298</span>
 <span class="normal">299</span>
 <span class="normal">300</span>
-<span class="normal">301</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Average all molecules"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchSubtomogramAnalysis</span><span class="p">)</span>
+<span class="normal">301</span>
+<span class="normal">302</span>
+<span class="normal">303</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Average all molecules"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchSubtomogramAnalysis</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">"Averaging all molecules in projects"</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">average_all</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -8357,15 +8341,17 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="sd">    {loader_name}{size}{interpolation}{bin_size}</span>
 <span class="sd">    """</span>
     <span class="n">t0</span> <span class="o">=</span> <span class="n">timer</span><span class="p">()</span>
-    <span class="n">loader</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_parent</span><span class="p">()</span><span class="o">.</span><span class="n">loader_infos</span><span class="p">[</span><span class="n">loader_name</span><span class="p">]</span><span class="o">.</span><span class="n">loader</span>
+    <span class="n">loader</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_get_parent</span><span class="p">()</span>
+        <span class="o">.</span><span class="n">loader_infos</span><span class="p">[</span><span class="n">loader_name</span><span class="p">]</span>
+        <span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">binning</span><span class="p">(</span><span class="n">bin_size</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="p">)</span>
     <span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_shape_in_px</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">loader</span><span class="p">)</span>
     <span class="n">img</span> <span class="o">=</span> <span class="n">ip</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span>
-        <span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">output_shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">)</span>
-        <span class="o">.</span><span class="n">binning</span><span class="p">(</span><span class="n">bin_size</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-        <span class="o">.</span><span class="n">order_optimize</span><span class="p">()</span>
-        <span class="o">.</span><span class="n">average</span><span class="p">(),</span>
+        <span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">output_shape</span><span class="o">=</span><span class="n">shape</span><span class="p">)</span><span class="o">.</span><span class="n">order_optimize</span><span class="p">()</span><span class="o">.</span><span class="n">average</span><span class="p">(),</span>
         <span class="n">axes</span><span class="o">=</span><span class="s2">"zyx"</span><span class="p">,</span>
-    <span class="p">)</span><span class="o">.</span><span class="n">set_scale</span><span class="p">(</span><span class="n">zyx</span><span class="o">=</span><span class="n">loader</span><span class="o">.</span><span class="n">scale</span> <span class="o">*</span> <span class="n">bin_size</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">"nm"</span><span class="p">)</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">set_scale</span><span class="p">(</span><span class="n">zyx</span><span class="o">=</span><span class="n">loader</span><span class="o">.</span><span class="n">scale</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">"nm"</span><span class="p">)</span>
     <span class="n">t0</span><span class="o">.</span><span class="n">toc</span><span class="p">()</span>
     <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_rec</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"[AVG]</span><span class="si">{</span><span class="n">loader_name</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
@@ -8488,9 +8474,7 @@ segmented subtomogram averaging.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">303</span>
-<span class="normal">304</span>
-<span class="normal">305</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">305</span>
 <span class="normal">306</span>
 <span class="normal">307</span>
 <span class="normal">308</span>
@@ -8524,7 +8508,13 @@ segmented subtomogram averaging.</p>
 <span class="normal">336</span>
 <span class="normal">337</span>
 <span class="normal">338</span>
-<span class="normal">339</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Average group-wise"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchSubtomogramAnalysis</span><span class="p">)</span>
+<span class="normal">339</span>
+<span class="normal">340</span>
+<span class="normal">341</span>
+<span class="normal">342</span>
+<span class="normal">343</span>
+<span class="normal">344</span>
+<span class="normal">345</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Average group-wise"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchSubtomogramAnalysis</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">"Grouped subtomogram averaging"</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">average_groups</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -8548,17 +8538,21 @@ segmented subtomogram averaging.</p>
 <span class="sd">    {interpolation}{bin_size}</span>
 <span class="sd">    """</span>
     <span class="n">t0</span> <span class="o">=</span> <span class="n">timer</span><span class="p">()</span>
-    <span class="n">loader</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_parent</span><span class="p">()</span><span class="o">.</span><span class="n">loader_infos</span><span class="p">[</span><span class="n">loader_name</span><span class="p">]</span><span class="o">.</span><span class="n">loader</span>
+    <span class="n">loader</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_get_parent</span><span class="p">()</span>
+        <span class="o">.</span><span class="n">loader_infos</span><span class="p">[</span><span class="n">loader_name</span><span class="p">]</span>
+        <span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">binning</span><span class="p">(</span><span class="n">bin_size</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="p">)</span>
     <span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_shape_in_px</span><span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">loader</span><span class="p">)</span>
     <span class="n">img</span> <span class="o">=</span> <span class="n">ip</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span>
-        <span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">output_shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">interpolation</span><span class="p">)</span>
-        <span class="o">.</span><span class="n">binning</span><span class="p">(</span><span class="n">bin_size</span><span class="p">,</span> <span class="n">compute</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">output_shape</span><span class="o">=</span><span class="n">shape</span><span class="p">)</span>
         <span class="o">.</span><span class="n">order_optimize</span><span class="p">()</span>
         <span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">norm_polars_expr</span><span class="p">(</span><span class="n">by</span><span class="p">))</span>
         <span class="o">.</span><span class="n">average</span><span class="p">()</span>
         <span class="o">.</span><span class="n">value_stack</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
         <span class="n">axes</span><span class="o">=</span><span class="s2">"pzyx"</span><span class="p">,</span>
-    <span class="p">)</span><span class="o">.</span><span class="n">set_scale</span><span class="p">(</span><span class="n">zyx</span><span class="o">=</span><span class="n">loader</span><span class="o">.</span><span class="n">scale</span> <span class="o">*</span> <span class="n">bin_size</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">"nm"</span><span class="p">)</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">set_scale</span><span class="p">(</span><span class="n">zyx</span><span class="o">=</span><span class="n">loader</span><span class="o">.</span><span class="n">scale</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">"nm"</span><span class="p">)</span>
     <span class="n">t0</span><span class="o">.</span><span class="n">toc</span><span class="p">()</span>
     <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_rec</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"[AVG]</span><span class="si">{</span><span class="n">loader_name</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="n">store</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
@@ -8744,7 +8738,12 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">673</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">668</span>
+<span class="normal">669</span>
+<span class="normal">670</span>
+<span class="normal">671</span>
+<span class="normal">672</span>
+<span class="normal">673</span>
 <span class="normal">674</span>
 <span class="normal">675</span>
 <span class="normal">676</span>
@@ -8828,12 +8827,7 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 <span class="normal">754</span>
 <span class="normal">755</span>
 <span class="normal">756</span>
-<span class="normal">757</span>
-<span class="normal">758</span>
-<span class="normal">759</span>
-<span class="normal">760</span>
-<span class="normal">761</span>
-<span class="normal">762</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Calculate FSC"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchSubtomogramAnalysis</span><span class="p">)</span>
+<span class="normal">757</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Calculate FSC"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchSubtomogramAnalysis</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">"Calculating FSC"</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">calculate_fsc</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -9195,7 +9189,12 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">791</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">786</span>
+<span class="normal">787</span>
+<span class="normal">788</span>
+<span class="normal">789</span>
+<span class="normal">790</span>
+<span class="normal">791</span>
 <span class="normal">792</span>
 <span class="normal">793</span>
 <span class="normal">794</span>
@@ -9205,12 +9204,7 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 <span class="normal">798</span>
 <span class="normal">799</span>
 <span class="normal">800</span>
-<span class="normal">801</span>
-<span class="normal">802</span>
-<span class="normal">803</span>
-<span class="normal">804</span>
-<span class="normal">805</span>
-<span class="normal">806</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">"fluent:shape-organic-20-filled"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
+<span class="normal">801</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">"fluent:shape-organic-20-filled"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">show_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Load and show mask image in the scale of the tomogram."""</span>
@@ -9248,12 +9242,12 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">770</span>
-<span class="normal">771</span>
-<span class="normal">772</span>
-<span class="normal">773</span>
-<span class="normal">774</span>
-<span class="normal">775</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">"ic:baseline-view-in-ar"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">765</span>
+<span class="normal">766</span>
+<span class="normal">767</span>
+<span class="normal">768</span>
+<span class="normal">769</span>
+<span class="normal">770</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">"ic:baseline-view-in-ar"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">show_template</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Load and show template image in the scale of the tomogram."""</span>
@@ -9281,19 +9275,19 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">777</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">772</span>
+<span class="normal">773</span>
+<span class="normal">774</span>
+<span class="normal">775</span>
+<span class="normal">776</span>
+<span class="normal">777</span>
 <span class="normal">778</span>
 <span class="normal">779</span>
 <span class="normal">780</span>
 <span class="normal">781</span>
 <span class="normal">782</span>
 <span class="normal">783</span>
-<span class="normal">784</span>
-<span class="normal">785</span>
-<span class="normal">786</span>
-<span class="normal">787</span>
-<span class="normal">788</span>
-<span class="normal">789</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">"material-symbols:view-in-ar"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
+<span class="normal">784</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">"material-symbols:view-in-ar"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">show_template_original</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Load and show template image in the original scale."""</span>
