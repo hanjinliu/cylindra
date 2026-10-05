@@ -20,7 +20,8 @@ def on_ctf_finished(ctf_model: CTFModel | None = None, scale: float = 1.0):
         _Logger.print_html(
             f"CTF was simulated with parameters:<br>"
             f"Spherical aberration = {ctf_model.spherical_aberration:.2f} mm<br>"
-            f"Defocus = {ctf_model.defocus:.2f} μm"
+            f"Defocus = {ctf_model.defocus:.2f} μm<br>"
+            f"Amplitude contrast = {ctf_model.amplitude:.2f}"
         )
         plt.figure()
         plt.imshow(np.fft.fftshift(ctf_image), cmap="gray")

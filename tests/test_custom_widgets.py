@@ -56,6 +56,7 @@ def test_ctf_params(qtbot: QtBot):
         "spherical_aberration": 2.0,
         "defocus": -3.2,
         "bfactor": 0.1,
+        "amplitude": 0.1,
         "correct": "none",
     }
     assert widget.value == pytest.approx(
@@ -64,9 +65,13 @@ def test_ctf_params(qtbot: QtBot):
             "spherical_aberration": 2.0,
             "defocus": -3.2,
             "bfactor": 0.1,
+            "amplitude": 0.1,
             "correct": "none",
         }
     )
+    widget.value = {"kv": 300, "spherical_aberration": 2.7, "defocus": -3.0}
+    assert widget.value["amplitude"] == pytest.approx(0.07)
+    assert widget.value["correct"] == "phaseflip"
     widget._has_input.value = False
     widget._has_input.value = True
 

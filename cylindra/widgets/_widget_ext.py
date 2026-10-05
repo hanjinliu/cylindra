@@ -32,6 +32,7 @@ class CTFDict(TypedDict):
     spherical_aberration: float
     defocus: float
     bfactor: float
+    amplitude: float
     correct: Literal["none", "phaseflip"]
 
 
@@ -47,12 +48,24 @@ class CTFParams(ValuedContainerWidget[CTFDict]):
             value=2.7, label="Cs", tooltip="Spherical aberration in mm"
         )
         self._defocus = FloatSpinBox(
-            value=-2.0, min=-100, max=100, label="Defocus", tooltip="Defocus in μm"
+            value=-2.0,
+            min=-100,
+            max=100,
+            label="Defocus",
+            tooltip="Defocus in μm. Negative value means underfocus.",
         )
         self._bfactor = FloatSpinBox(
             value=0.0,
             label="B-factor",
-            tooltip="B-factor of CTF (the decay of amplitude",
+            tooltip="B-factor of CTF (the decay of amplitude) in nm²",
+        )
+        self._amplitude = FloatSpinBox(
+            value=0.07,
+            min=0.0,
+            max=1.0,
+            step=0.01,
+            label="Amplitude",
+            tooltip="Fraction of amplitude contrast (0 to 1)",
         )
         self._correct = ComboBox(
             choices=["none", "phaseflip"], label="correct", tooltip="How to correct CTF"
@@ -66,6 +79,7 @@ class CTFParams(ValuedContainerWidget[CTFDict]):
                 self._cs,
                 self._defocus,
                 self._bfactor,
+                self._amplitude,
                 self._correct,
             ],
             **kwargs,
@@ -78,6 +92,7 @@ class CTFParams(ValuedContainerWidget[CTFDict]):
         @self._cs.changed.connect
         @self._defocus.changed.connect
         @self._bfactor.changed.connect
+        @self._amplitude.changed.connect
         @self._correct.changed.connect
         def _on_value_change():
             self.changed.emit(self.get_value())
@@ -94,6 +109,7 @@ class CTFParams(ValuedContainerWidget[CTFDict]):
             "spherical_aberration": self._cs.value,
             "defocus": self._defocus.value,
             "bfactor": self._bfactor.value,
+            "amplitude": self._amplitude.value,
             "correct": self._correct.value,
         }
 
@@ -106,12 +122,19 @@ class CTFParams(ValuedContainerWidget[CTFDict]):
             self._cs.value = value.get("spherical_aberration", 2.7)
             self._defocus.value = value.get("defocus", -2.0)
             self._bfactor.value = value.get("bfactor", 0.0)
-            self._correct.value = value.get("correct", "phase")
+            self._amplitude.value = value.get("amplitude", 0.07)
+            self._correct.value = value.get("correct", "phaseflip")
 
     def _on_has_input_change(self, dont: bool):
-        self._kv.enabled = self._cs.enabled = self._defocus.enabled = (
-            self._bfactor.enabled
-        ) = self._correct.enabled = dont
+        for widget in [
+            self._kv,
+            self._cs,
+            self._defocus,
+            self._bfactor,
+            self._amplitude,
+            self._correct,
+        ]:
+            widget.enabled = dont
 
 
 class ProtofilamentEdit(ScrollableContainer[Container[SpinBox]]):
