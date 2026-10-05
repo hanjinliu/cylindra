@@ -5050,9 +5050,7 @@ imported from file outputs of a long-running job from other softwares.</p>
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">115</span>
-<span class="normal">116</span>
-<span class="normal">117</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">117</span>
 <span class="normal">118</span>
 <span class="normal">119</span>
 <span class="normal">120</span>
@@ -5807,7 +5805,32 @@ imported from file outputs of a long-running job from other softwares.</p>
 <span class="normal">869</span>
 <span class="normal">870</span>
 <span class="normal">871</span>
-<span class="normal">872</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Batch Subtomogram Analysis"</span><span class="p">)</span>
+<span class="normal">872</span>
+<span class="normal">873</span>
+<span class="normal">874</span>
+<span class="normal">875</span>
+<span class="normal">876</span>
+<span class="normal">877</span>
+<span class="normal">878</span>
+<span class="normal">879</span>
+<span class="normal">880</span>
+<span class="normal">881</span>
+<span class="normal">882</span>
+<span class="normal">883</span>
+<span class="normal">884</span>
+<span class="normal">885</span>
+<span class="normal">886</span>
+<span class="normal">887</span>
+<span class="normal">888</span>
+<span class="normal">889</span>
+<span class="normal">890</span>
+<span class="normal">891</span>
+<span class="normal">892</span>
+<span class="normal">893</span>
+<span class="normal">894</span>
+<span class="normal">895</span>
+<span class="normal">896</span>
+<span class="normal">897</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Batch Subtomogram Analysis"</span><span class="p">)</span>
 <span class="nd">@_shared_doc</span><span class="o">.</span><span class="n">update_cls</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">BatchSubtomogramAveraging</span><span class="p">(</span><span class="n">MagicTemplate</span><span class="p">):</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_get_parent</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -6272,19 +6295,23 @@ imported from file outputs of a long-running job from other softwares.</p>
         <span class="n">bin_size</span><span class="p">:</span> <span class="n">_BINSIZE</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
         <span class="n">temperature_time_const</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="p">{</span><span class="s2">"min"</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s2">"max"</span><span class="p">:</span> <span class="mf">10.0</span><span class="p">}]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
         <span class="n">upsample_factor</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">"min"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">"max"</span><span class="p">:</span> <span class="mi">20</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+        <span class="n">num_trials</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">"min"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">"max"</span><span class="p">:</span> <span class="mi">100</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
         <span class="n">max_num_iters</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">"min"</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s2">"max"</span><span class="p">:</span> <span class="mi">100</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
         <span class="n">seed</span><span class="p">:</span> <span class="n">_SeedType</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">"""Create initial model by iteratively aligning molecules by RMA without template.</span>
 
-<span class="sd">        This method iteratively calculate average, evaluate using FSC, and align</span>
-<span class="sd">        molecules using RMA to the current average.</span>
+<span class="sd">        The annealing schedule of RMA is split into `max_num_iters` iterations. In</span>
+<span class="sd">        each iteration, annealing is resumed from the last state and temperature of</span>
+<span class="sd">        the previous iteration using the current average as the template, and then the</span>
+<span class="sd">        average is updated and evaluated using FSC. If FSC converged, the rest of the</span>
+<span class="sd">        annealing will be finished in the next iteration.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        {loader_name}{mask_params}{size}{max_shifts}{max_rotations}{min_rotation_step}</span>
 <span class="sd">        {interpolation}{method}{range_long}{range_lat}{angle_max}{bin_size}</span>
-<span class="sd">        {temperature_time_const}{upsample_factor}{max_num_iters}{seed}</span>
+<span class="sd">        {temperature_time_const}{upsample_factor}{num_trials}{max_num_iters}{seed}</span>
 <span class="sd">        """</span>
         <span class="n">t0</span> <span class="o">=</span> <span class="n">timer</span><span class="p">()</span>
         <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
@@ -6303,51 +6330,70 @@ imported from file outputs of a long-running job from other softwares.</p>
             <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span>
             <span class="n">alignment_model</span><span class="o">=</span><span class="n">_get_alignment</span><span class="p">(</span><span class="n">method</span><span class="p">),</span>
             <span class="n">min_rotation_step</span><span class="o">=</span><span class="n">min_rotation_step</span><span class="p">,</span>
+            <span class="n">max_num_iters</span><span class="o">=</span><span class="n">max_num_iters</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="k">yield</span> <span class="n">thread_worker</span><span class="o">.</span><span class="n">description</span><span class="p">(</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_tf_0</span><span class="p">(</span><span class="n">_alignment_state</span><span class="p">))</span>
-        <span class="n">result0</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">fsc_step_init</span><span class="p">(</span>
-            <span class="n">loader</span><span class="p">,</span> <span class="n">max_shifts</span><span class="p">,</span> <span class="n">max_rotations</span><span class="p">,</span> <span class="n">upsample_factor</span><span class="p">,</span> <span class="n">temperature_time_const</span>
-        <span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">fsc_step_init</span><span class="p">(</span>
+            <span class="n">loader</span><span class="p">,</span> <span class="n">max_shifts</span><span class="p">,</span> <span class="n">max_rotations</span><span class="p">,</span> <span class="n">upsample_factor</span><span class="p">,</span>
+            <span class="n">temperature_time_const</span><span class="p">,</span> <span class="n">num_trials</span><span class="p">,</span>
+        <span class="p">)</span>  <span class="c1"># fmt: skip</span>
 
         <span class="n">sub_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_group_loader_by_spline</span><span class="p">(</span><span class="n">loader_name</span><span class="p">,</span> <span class="n">loader</span><span class="p">))</span>
         <span class="n">num_splines</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sub_inputs</span><span class="p">)</span>
-        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-            <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Iteration </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-            <span class="k">yield</span> <span class="n">_plot_current_fsc</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="n">result0</span><span class="o">.</span><span class="n">fsc</span><span class="p">,</span> <span class="n">result0</span><span class="o">.</span><span class="n">avg</span><span class="p">)</span><span class="o">.</span><span class="n">with_desc</span><span class="p">(</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_tf_1</span><span class="p">(</span><span class="n">_alignment_state</span><span class="p">))</span>  <span class="c1"># fmt: skip</span>
-            <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="n">_alignment_state</span><span class="o">.</span><span class="n">next_params</span><span class="p">(</span><span class="n">loader</span><span class="o">.</span><span class="n">scale</span><span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">())</span>
-            <span class="n">_exceeded</span> <span class="o">=</span> <span class="n">max_num_iters</span> <span class="o">&lt;=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span>
-            <span class="k">if</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">is_converged</span><span class="p">()</span> <span class="ow">or</span> <span class="n">_exceeded</span><span class="p">:</span>
-                <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span>
-                    <span class="s2">"Maximum iteration exceeded"</span> <span class="k">if</span> <span class="n">_exceeded</span> <span class="k">else</span> <span class="s2">"FSC converged."</span>
-                <span class="p">)</span>
-                <span class="k">break</span>
-            <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">num_splines</span><span class="si">}</span><span class="s2"> splines found for RMA alignment."</span><span class="p">)</span>
+        <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">num_splines</span><span class="si">}</span><span class="s2"> splines found for RMA alignment."</span><span class="p">)</span>
+        <span class="n">annealings</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">template_free</span><span class="o">.</span><span class="n">ResumableAnnealing</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">num_splines</span>
+        <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">(</span><span class="n">ignore_cleanup_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">tmpdir</span><span class="p">:</span>
+            <span class="c1"># Landscapes are always constructed around the initial molecules, so that</span>
+            <span class="c1"># the annealing can be resumed in the next iteration. Subtomograms are</span>
+            <span class="c1"># extracted to files to avoid cropping the same ones in every iteration.</span>
             <span class="k">for</span> <span class="n">ith</span><span class="p">,</span> <span class="n">inputs</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sub_inputs</span><span class="p">):</span>
-                <span class="n">_p_ind</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="n">ith</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">num_splines</span><span class="si">}</span><span class="s2">)"</span>
                 <span class="k">yield</span> <span class="n">thread_worker</span><span class="o">.</span><span class="n">description</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">"Landscape construction </span><span class="si">{</span><span class="n">_p_ind</span><span class="si">}</span><span class="s2"> of iteration </span><span class="si">{</span><span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">"</span>
+                    <span class="sa">f</span><span class="s2">"Extracting subtomograms (</span><span class="si">{</span><span class="n">ith</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">num_splines</span><span class="si">}</span><span class="s2">)"</span>
                 <span class="p">)</span>
-                <span class="n">landscape</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">built_landscape_step</span><span class="p">(</span><span class="n">inputs</span><span class="o">.</span><span class="n">loader</span><span class="p">)</span>
-                <span class="k">yield</span> <span class="n">thread_worker</span><span class="o">.</span><span class="n">description</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">"RMA step </span><span class="si">{</span><span class="n">_p_ind</span><span class="si">}</span><span class="s2"> of iteration </span><span class="si">{</span><span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">"</span>
+                <span class="n">inputs</span><span class="o">.</span><span class="n">loader</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">extract_subtomograms</span><span class="p">(</span>
+                    <span class="n">Path</span><span class="p">(</span><span class="n">tmpdir</span><span class="p">)</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">"spline-</span><span class="si">{</span><span class="n">ith</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="n">chunksize</span><span class="o">=</span><span class="mi">64</span>
                 <span class="p">)</span>
-                <span class="n">inputs</span><span class="o">.</span><span class="n">loader</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">rma_step</span><span class="p">(</span>
-                    <span class="n">landscape</span><span class="p">,</span>
-                    <span class="n">inputs</span><span class="o">.</span><span class="n">loader</span><span class="p">,</span>
-                    <span class="n">inputs</span><span class="o">.</span><span class="n">spline</span><span class="p">,</span>
-                    <span class="n">range_long</span><span class="p">,</span>
-                    <span class="n">range_lat</span><span class="p">,</span>
-                    <span class="n">angle_max</span><span class="p">,</span>
-                <span class="p">)</span>
-                <span class="n">inputs</span><span class="o">.</span><span class="n">loader</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
-                    <span class="n">molecules</span><span class="o">=</span><span class="n">inputs</span><span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">with_features</span><span class="p">(</span>
-                        <span class="n">pl</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="n">inputs</span><span class="o">.</span><span class="n">image_id</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">Mole</span><span class="o">.</span><span class="n">image</span><span class="p">),</span>
-                        <span class="n">pl</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="n">inputs</span><span class="o">.</span><span class="n">molecule_id</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">Mole</span><span class="o">.</span><span class="n">id</span><span class="p">),</span>
+            <span class="n">_final</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Iteration </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+                <span class="k">yield</span> <span class="n">_plot_current_fsc</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">fsc</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">avg</span><span class="p">)</span><span class="o">.</span><span class="n">with_desc</span><span class="p">(</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_tf_1</span><span class="p">(</span><span class="n">_alignment_state</span><span class="p">))</span>  <span class="c1"># fmt: skip</span>
+                <span class="k">if</span> <span class="n">_final</span><span class="p">:</span>
+                    <span class="k">break</span>
+                <span class="k">if</span> <span class="n">_final</span> <span class="o">:=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">is_final_iteration</span><span class="p">():</span>
+                    <span class="n">_converged</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">is_converged</span><span class="p">()</span>
+                    <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="s2">"FSC converged."</span> <span class="k">if</span> <span class="n">_converged</span> <span class="k">else</span> <span class="s2">"Last iteration."</span><span class="p">)</span>
+                <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="n">_alignment_state</span><span class="o">.</span><span class="n">next_params</span><span class="p">(</span><span class="n">loader</span><span class="o">.</span><span class="n">scale</span><span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">())</span>
+                <span class="n">_ratio</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">temperature_ratio</span><span class="p">(</span><span class="n">_final</span><span class="p">)</span>
+                <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Annealing until temperature reaches </span><span class="si">{</span><span class="n">_ratio</span><span class="si">:</span><span class="s2">.2e</span><span class="si">}</span><span class="s2"> of T0"</span><span class="p">)</span>
+                <span class="n">_iter</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span> <span class="o">+</span> <span class="mi">1</span>
+                <span class="n">molecules</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Molecules</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">ith</span><span class="p">,</span> <span class="n">inputs</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sub_inputs</span><span class="p">):</span>
+                    <span class="n">_p_ind</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="n">ith</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">num_splines</span><span class="si">}</span><span class="s2">)"</span>
+                    <span class="k">yield</span> <span class="n">thread_worker</span><span class="o">.</span><span class="n">description</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">"Landscape construction </span><span class="si">{</span><span class="n">_p_ind</span><span class="si">}</span><span class="s2"> of iteration </span><span class="si">{</span><span class="n">_iter</span><span class="si">}</span><span class="s2">"</span>
                     <span class="p">)</span>
-                <span class="p">)</span>
-            <span class="n">loader_batch</span> <span class="o">=</span> <span class="n">join_loaders</span><span class="p">(</span><span class="n">loader</span><span class="p">,</span> <span class="n">sub_inputs</span><span class="p">)</span>
-            <span class="n">result0</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">fsc_step</span><span class="p">(</span><span class="n">loader_batch</span><span class="p">)</span>
-            <span class="k">yield</span> <span class="n">thread_worker</span><span class="o">.</span><span class="n">description</span><span class="p">(</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_tf_0</span><span class="p">(</span><span class="n">_alignment_state</span><span class="p">))</span>
+                    <span class="n">landscape</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">built_landscape_step</span><span class="p">(</span><span class="n">inputs</span><span class="o">.</span><span class="n">loader</span><span class="p">)</span>
+                    <span class="n">annealing</span> <span class="o">=</span> <span class="n">annealings</span><span class="p">[</span><span class="n">ith</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="n">annealing</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">annealing</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">prep_annealing_step</span><span class="p">(</span>
+                            <span class="n">landscape</span><span class="p">,</span> <span class="n">inputs</span><span class="o">.</span><span class="n">spline</span><span class="p">,</span> <span class="n">range_long</span><span class="p">,</span> <span class="n">range_lat</span><span class="p">,</span> <span class="n">angle_max</span>
+                        <span class="p">)</span>
+                        <span class="n">annealings</span><span class="p">[</span><span class="n">ith</span><span class="p">]</span> <span class="o">=</span> <span class="n">annealing</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">annealing</span><span class="o">.</span><span class="n">update_landscape</span><span class="p">(</span><span class="n">landscape</span><span class="p">)</span>
+                    <span class="k">yield</span> <span class="n">thread_worker</span><span class="o">.</span><span class="n">description</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">"RMA step </span><span class="si">{</span><span class="n">_p_ind</span><span class="si">}</span><span class="s2"> of iteration </span><span class="si">{</span><span class="n">_iter</span><span class="si">}</span><span class="s2">"</span>
+                    <span class="p">)</span>
+                    <span class="n">mole</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">rma_step</span><span class="p">(</span><span class="n">annealing</span><span class="p">,</span> <span class="n">final</span><span class="o">=</span><span class="n">_final</span><span class="p">)</span>
+                    <span class="n">molecules</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="n">mole</span><span class="o">.</span><span class="n">with_features</span><span class="p">(</span>
+                            <span class="n">pl</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="n">inputs</span><span class="o">.</span><span class="n">image_id</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">Mole</span><span class="o">.</span><span class="n">image</span><span class="p">),</span>
+                            <span class="n">pl</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="n">inputs</span><span class="o">.</span><span class="n">molecule_id</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">Mole</span><span class="o">.</span><span class="n">id</span><span class="p">),</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+                <span class="n">loader_batch</span> <span class="o">=</span> <span class="n">join_loaders</span><span class="p">(</span><span class="n">loader</span><span class="p">,</span> <span class="n">sub_inputs</span><span class="p">,</span> <span class="n">molecules</span><span class="p">)</span>
+                <span class="k">yield</span> <span class="n">thread_worker</span><span class="o">.</span><span class="n">description</span><span class="p">(</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_tf_0</span><span class="p">(</span><span class="n">_alignment_state</span><span class="p">))</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">fsc_step</span><span class="p">(</span><span class="n">loader_batch</span><span class="p">)</span>
 
         <span class="n">loaderlist</span><span class="o">.</span><span class="n">add_loader</span><span class="p">(</span>
             <span class="n">loader_batch</span><span class="p">,</span>
@@ -6757,9 +6803,7 @@ If a path is given, image must in the same shape as the template.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">347</span>
-<span class="normal">348</span>
-<span class="normal">349</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">349</span>
 <span class="normal">350</span>
 <span class="normal">351</span>
 <span class="normal">352</span>
@@ -6809,7 +6853,9 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="normal">396</span>
 <span class="normal">397</span>
 <span class="normal">398</span>
-<span class="normal">399</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Align all molecules"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
+<span class="normal">399</span>
+<span class="normal">400</span>
+<span class="normal">401</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Align all molecules"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">"Aligning all molecules"</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">align_all</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -7174,9 +7220,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">470</span>
-<span class="normal">471</span>
-<span class="normal">472</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">472</span>
 <span class="normal">473</span>
 <span class="normal">474</span>
 <span class="normal">475</span>
@@ -7264,7 +7308,9 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">557</span>
 <span class="normal">558</span>
 <span class="normal">559</span>
-<span class="normal">560</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"RMA alignment"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
+<span class="normal">560</span>
+<span class="normal">561</span>
+<span class="normal">562</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"RMA alignment"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">"Simulated annealing (RMA)"</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">align_all_rma</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -7365,7 +7411,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
 
 <h3 id="cylindra.widgets.batch.sta.BatchSubtomogramAveraging.align_all_rma_template_free" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">align_all_rma_template_free</span><span class="p">(</span><span class="n">loader_name</span><span class="p">,</span> <span class="n">mask_params</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mf">12.0</span><span class="p">,</span> <span class="n">max_shifts</span><span class="o">=</span><span class="p">(</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">),</span> <span class="n">max_rotations</span><span class="o">=</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="n">min_rotation_step</span><span class="o">=</span><span class="mf">0.4</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">'zncc'</span><span class="p">,</span> <span class="n">range_long</span><span class="o">=</span><span class="p">(</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">4.28</span><span class="p">),</span> <span class="n">range_lat</span><span class="o">=</span><span class="p">(</span><span class="s1">'d.mean() - 0.1'</span><span class="p">,</span> <span class="s1">'d.mean() + 0.1'</span><span class="p">),</span> <span class="n">angle_max</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">temperature_time_const</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">upsample_factor</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">max_num_iters</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">align_all_rma_template_free</span><span class="p">(</span><span class="n">loader_name</span><span class="p">,</span> <span class="n">mask_params</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mf">12.0</span><span class="p">,</span> <span class="n">max_shifts</span><span class="o">=</span><span class="p">(</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">),</span> <span class="n">max_rotations</span><span class="o">=</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="n">min_rotation_step</span><span class="o">=</span><span class="mf">0.4</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">'zncc'</span><span class="p">,</span> <span class="n">range_long</span><span class="o">=</span><span class="p">(</span><span class="mf">4.0</span><span class="p">,</span> <span class="mf">4.28</span><span class="p">),</span> <span class="n">range_lat</span><span class="o">=</span><span class="p">(</span><span class="s1">'d.mean() - 0.1'</span><span class="p">,</span> <span class="s1">'d.mean() + 0.1'</span><span class="p">),</span> <span class="n">angle_max</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">temperature_time_const</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">upsample_factor</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">num_trials</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">max_num_iters</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></code>
 
 </h3>
 
@@ -7373,8 +7419,11 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
     <div class="doc doc-contents ">
 
         <p>Create initial model by iteratively aligning molecules by RMA without template.</p>
-<p>This method iteratively calculate average, evaluate using FSC, and align
-molecules using RMA to the current average.</p>
+<p>The annealing schedule of RMA is split into <code>max_num_iters</code> iterations. In
+each iteration, annealing is resumed from the last state and temperature of
+the previous iteration using the current average as the template, and then the
+average is updated and evaluated using FSC. If FSC converged, the rest of the
+annealing will be finished in the next iteration.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -7616,6 +7665,22 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
+                <code>num_trials</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#int">int</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of independent trials to perform. The best result among all trials will be returned.</p>
+              </div>
+            </td>
+            <td>
+                  <code>5</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
                 <code>max_num_iters</code>
             </td>
             <td>
@@ -7652,9 +7717,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">562</span>
-<span class="normal">563</span>
-<span class="normal">564</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">564</span>
 <span class="normal">565</span>
 <span class="normal">566</span>
 <span class="normal">567</span>
@@ -7756,7 +7819,32 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
 <span class="normal">663</span>
 <span class="normal">664</span>
 <span class="normal">665</span>
-<span class="normal">666</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"RMA alignment (template-free)"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
+<span class="normal">666</span>
+<span class="normal">667</span>
+<span class="normal">668</span>
+<span class="normal">669</span>
+<span class="normal">670</span>
+<span class="normal">671</span>
+<span class="normal">672</span>
+<span class="normal">673</span>
+<span class="normal">674</span>
+<span class="normal">675</span>
+<span class="normal">676</span>
+<span class="normal">677</span>
+<span class="normal">678</span>
+<span class="normal">679</span>
+<span class="normal">680</span>
+<span class="normal">681</span>
+<span class="normal">682</span>
+<span class="normal">683</span>
+<span class="normal">684</span>
+<span class="normal">685</span>
+<span class="normal">686</span>
+<span class="normal">687</span>
+<span class="normal">688</span>
+<span class="normal">689</span>
+<span class="normal">690</span>
+<span class="normal">691</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"RMA alignment (template-free)"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">"RMA alignment started"</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">align_all_rma_template_free</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -7774,19 +7862,23 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
     <span class="n">bin_size</span><span class="p">:</span> <span class="n">_BINSIZE</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
     <span class="n">temperature_time_const</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="p">{</span><span class="s2">"min"</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s2">"max"</span><span class="p">:</span> <span class="mf">10.0</span><span class="p">}]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
     <span class="n">upsample_factor</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">"min"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">"max"</span><span class="p">:</span> <span class="mi">20</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="n">num_trials</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">"min"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">"max"</span><span class="p">:</span> <span class="mi">100</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
     <span class="n">max_num_iters</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">"min"</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s2">"max"</span><span class="p">:</span> <span class="mi">100</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
     <span class="n">seed</span><span class="p">:</span> <span class="n">_SeedType</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Create initial model by iteratively aligning molecules by RMA without template.</span>
 
-<span class="sd">    This method iteratively calculate average, evaluate using FSC, and align</span>
-<span class="sd">    molecules using RMA to the current average.</span>
+<span class="sd">    The annealing schedule of RMA is split into `max_num_iters` iterations. In</span>
+<span class="sd">    each iteration, annealing is resumed from the last state and temperature of</span>
+<span class="sd">    the previous iteration using the current average as the template, and then the</span>
+<span class="sd">    average is updated and evaluated using FSC. If FSC converged, the rest of the</span>
+<span class="sd">    annealing will be finished in the next iteration.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
 <span class="sd">    {loader_name}{mask_params}{size}{max_shifts}{max_rotations}{min_rotation_step}</span>
 <span class="sd">    {interpolation}{method}{range_long}{range_lat}{angle_max}{bin_size}</span>
-<span class="sd">    {temperature_time_const}{upsample_factor}{max_num_iters}{seed}</span>
+<span class="sd">    {temperature_time_const}{upsample_factor}{num_trials}{max_num_iters}{seed}</span>
 <span class="sd">    """</span>
     <span class="n">t0</span> <span class="o">=</span> <span class="n">timer</span><span class="p">()</span>
     <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
@@ -7805,51 +7897,70 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
         <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span>
         <span class="n">alignment_model</span><span class="o">=</span><span class="n">_get_alignment</span><span class="p">(</span><span class="n">method</span><span class="p">),</span>
         <span class="n">min_rotation_step</span><span class="o">=</span><span class="n">min_rotation_step</span><span class="p">,</span>
+        <span class="n">max_num_iters</span><span class="o">=</span><span class="n">max_num_iters</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="k">yield</span> <span class="n">thread_worker</span><span class="o">.</span><span class="n">description</span><span class="p">(</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_tf_0</span><span class="p">(</span><span class="n">_alignment_state</span><span class="p">))</span>
-    <span class="n">result0</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">fsc_step_init</span><span class="p">(</span>
-        <span class="n">loader</span><span class="p">,</span> <span class="n">max_shifts</span><span class="p">,</span> <span class="n">max_rotations</span><span class="p">,</span> <span class="n">upsample_factor</span><span class="p">,</span> <span class="n">temperature_time_const</span>
-    <span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">fsc_step_init</span><span class="p">(</span>
+        <span class="n">loader</span><span class="p">,</span> <span class="n">max_shifts</span><span class="p">,</span> <span class="n">max_rotations</span><span class="p">,</span> <span class="n">upsample_factor</span><span class="p">,</span>
+        <span class="n">temperature_time_const</span><span class="p">,</span> <span class="n">num_trials</span><span class="p">,</span>
+    <span class="p">)</span>  <span class="c1"># fmt: skip</span>
 
     <span class="n">sub_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_group_loader_by_spline</span><span class="p">(</span><span class="n">loader_name</span><span class="p">,</span> <span class="n">loader</span><span class="p">))</span>
     <span class="n">num_splines</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sub_inputs</span><span class="p">)</span>
-    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-        <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Iteration </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-        <span class="k">yield</span> <span class="n">_plot_current_fsc</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="n">result0</span><span class="o">.</span><span class="n">fsc</span><span class="p">,</span> <span class="n">result0</span><span class="o">.</span><span class="n">avg</span><span class="p">)</span><span class="o">.</span><span class="n">with_desc</span><span class="p">(</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_tf_1</span><span class="p">(</span><span class="n">_alignment_state</span><span class="p">))</span>  <span class="c1"># fmt: skip</span>
-        <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="n">_alignment_state</span><span class="o">.</span><span class="n">next_params</span><span class="p">(</span><span class="n">loader</span><span class="o">.</span><span class="n">scale</span><span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">())</span>
-        <span class="n">_exceeded</span> <span class="o">=</span> <span class="n">max_num_iters</span> <span class="o">&lt;=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span>
-        <span class="k">if</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">is_converged</span><span class="p">()</span> <span class="ow">or</span> <span class="n">_exceeded</span><span class="p">:</span>
-            <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span>
-                <span class="s2">"Maximum iteration exceeded"</span> <span class="k">if</span> <span class="n">_exceeded</span> <span class="k">else</span> <span class="s2">"FSC converged."</span>
-            <span class="p">)</span>
-            <span class="k">break</span>
-        <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">num_splines</span><span class="si">}</span><span class="s2"> splines found for RMA alignment."</span><span class="p">)</span>
+    <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">num_splines</span><span class="si">}</span><span class="s2"> splines found for RMA alignment."</span><span class="p">)</span>
+    <span class="n">annealings</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">template_free</span><span class="o">.</span><span class="n">ResumableAnnealing</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">num_splines</span>
+    <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">(</span><span class="n">ignore_cleanup_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">tmpdir</span><span class="p">:</span>
+        <span class="c1"># Landscapes are always constructed around the initial molecules, so that</span>
+        <span class="c1"># the annealing can be resumed in the next iteration. Subtomograms are</span>
+        <span class="c1"># extracted to files to avoid cropping the same ones in every iteration.</span>
         <span class="k">for</span> <span class="n">ith</span><span class="p">,</span> <span class="n">inputs</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sub_inputs</span><span class="p">):</span>
-            <span class="n">_p_ind</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="n">ith</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">num_splines</span><span class="si">}</span><span class="s2">)"</span>
             <span class="k">yield</span> <span class="n">thread_worker</span><span class="o">.</span><span class="n">description</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">"Landscape construction </span><span class="si">{</span><span class="n">_p_ind</span><span class="si">}</span><span class="s2"> of iteration </span><span class="si">{</span><span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">"</span>
+                <span class="sa">f</span><span class="s2">"Extracting subtomograms (</span><span class="si">{</span><span class="n">ith</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">num_splines</span><span class="si">}</span><span class="s2">)"</span>
             <span class="p">)</span>
-            <span class="n">landscape</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">built_landscape_step</span><span class="p">(</span><span class="n">inputs</span><span class="o">.</span><span class="n">loader</span><span class="p">)</span>
-            <span class="k">yield</span> <span class="n">thread_worker</span><span class="o">.</span><span class="n">description</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">"RMA step </span><span class="si">{</span><span class="n">_p_ind</span><span class="si">}</span><span class="s2"> of iteration </span><span class="si">{</span><span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">"</span>
+            <span class="n">inputs</span><span class="o">.</span><span class="n">loader</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">extract_subtomograms</span><span class="p">(</span>
+                <span class="n">Path</span><span class="p">(</span><span class="n">tmpdir</span><span class="p">)</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">"spline-</span><span class="si">{</span><span class="n">ith</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="n">chunksize</span><span class="o">=</span><span class="mi">64</span>
             <span class="p">)</span>
-            <span class="n">inputs</span><span class="o">.</span><span class="n">loader</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">rma_step</span><span class="p">(</span>
-                <span class="n">landscape</span><span class="p">,</span>
-                <span class="n">inputs</span><span class="o">.</span><span class="n">loader</span><span class="p">,</span>
-                <span class="n">inputs</span><span class="o">.</span><span class="n">spline</span><span class="p">,</span>
-                <span class="n">range_long</span><span class="p">,</span>
-                <span class="n">range_lat</span><span class="p">,</span>
-                <span class="n">angle_max</span><span class="p">,</span>
-            <span class="p">)</span>
-            <span class="n">inputs</span><span class="o">.</span><span class="n">loader</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
-                <span class="n">molecules</span><span class="o">=</span><span class="n">inputs</span><span class="o">.</span><span class="n">loader</span><span class="o">.</span><span class="n">molecules</span><span class="o">.</span><span class="n">with_features</span><span class="p">(</span>
-                    <span class="n">pl</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="n">inputs</span><span class="o">.</span><span class="n">image_id</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">Mole</span><span class="o">.</span><span class="n">image</span><span class="p">),</span>
-                    <span class="n">pl</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="n">inputs</span><span class="o">.</span><span class="n">molecule_id</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">Mole</span><span class="o">.</span><span class="n">id</span><span class="p">),</span>
+        <span class="n">_final</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Iteration </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="k">yield</span> <span class="n">_plot_current_fsc</span><span class="o">.</span><span class="n">with_args</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">fsc</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">avg</span><span class="p">)</span><span class="o">.</span><span class="n">with_desc</span><span class="p">(</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_tf_1</span><span class="p">(</span><span class="n">_alignment_state</span><span class="p">))</span>  <span class="c1"># fmt: skip</span>
+            <span class="k">if</span> <span class="n">_final</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="k">if</span> <span class="n">_final</span> <span class="o">:=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">is_final_iteration</span><span class="p">():</span>
+                <span class="n">_converged</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">is_converged</span><span class="p">()</span>
+                <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="s2">"FSC converged."</span> <span class="k">if</span> <span class="n">_converged</span> <span class="k">else</span> <span class="s2">"Last iteration."</span><span class="p">)</span>
+            <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="n">_alignment_state</span><span class="o">.</span><span class="n">next_params</span><span class="p">(</span><span class="n">loader</span><span class="o">.</span><span class="n">scale</span><span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">())</span>
+            <span class="n">_ratio</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">temperature_ratio</span><span class="p">(</span><span class="n">_final</span><span class="p">)</span>
+            <span class="n">_Logger</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Annealing until temperature reaches </span><span class="si">{</span><span class="n">_ratio</span><span class="si">:</span><span class="s2">.2e</span><span class="si">}</span><span class="s2"> of T0"</span><span class="p">)</span>
+            <span class="n">_iter</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">num_iter</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="n">molecules</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Molecules</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">ith</span><span class="p">,</span> <span class="n">inputs</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sub_inputs</span><span class="p">):</span>
+                <span class="n">_p_ind</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="n">ith</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">num_splines</span><span class="si">}</span><span class="s2">)"</span>
+                <span class="k">yield</span> <span class="n">thread_worker</span><span class="o">.</span><span class="n">description</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"Landscape construction </span><span class="si">{</span><span class="n">_p_ind</span><span class="si">}</span><span class="s2"> of iteration </span><span class="si">{</span><span class="n">_iter</span><span class="si">}</span><span class="s2">"</span>
                 <span class="p">)</span>
-            <span class="p">)</span>
-        <span class="n">loader_batch</span> <span class="o">=</span> <span class="n">join_loaders</span><span class="p">(</span><span class="n">loader</span><span class="p">,</span> <span class="n">sub_inputs</span><span class="p">)</span>
-        <span class="n">result0</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">fsc_step</span><span class="p">(</span><span class="n">loader_batch</span><span class="p">)</span>
-        <span class="k">yield</span> <span class="n">thread_worker</span><span class="o">.</span><span class="n">description</span><span class="p">(</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_tf_0</span><span class="p">(</span><span class="n">_alignment_state</span><span class="p">))</span>
+                <span class="n">landscape</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">built_landscape_step</span><span class="p">(</span><span class="n">inputs</span><span class="o">.</span><span class="n">loader</span><span class="p">)</span>
+                <span class="n">annealing</span> <span class="o">=</span> <span class="n">annealings</span><span class="p">[</span><span class="n">ith</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">annealing</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">annealing</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">prep_annealing_step</span><span class="p">(</span>
+                        <span class="n">landscape</span><span class="p">,</span> <span class="n">inputs</span><span class="o">.</span><span class="n">spline</span><span class="p">,</span> <span class="n">range_long</span><span class="p">,</span> <span class="n">range_lat</span><span class="p">,</span> <span class="n">angle_max</span>
+                    <span class="p">)</span>
+                    <span class="n">annealings</span><span class="p">[</span><span class="n">ith</span><span class="p">]</span> <span class="o">=</span> <span class="n">annealing</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">annealing</span><span class="o">.</span><span class="n">update_landscape</span><span class="p">(</span><span class="n">landscape</span><span class="p">)</span>
+                <span class="k">yield</span> <span class="n">thread_worker</span><span class="o">.</span><span class="n">description</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"RMA step </span><span class="si">{</span><span class="n">_p_ind</span><span class="si">}</span><span class="s2"> of iteration </span><span class="si">{</span><span class="n">_iter</span><span class="si">}</span><span class="s2">"</span>
+                <span class="p">)</span>
+                <span class="n">mole</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">rma_step</span><span class="p">(</span><span class="n">annealing</span><span class="p">,</span> <span class="n">final</span><span class="o">=</span><span class="n">_final</span><span class="p">)</span>
+                <span class="n">molecules</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">mole</span><span class="o">.</span><span class="n">with_features</span><span class="p">(</span>
+                        <span class="n">pl</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="n">inputs</span><span class="o">.</span><span class="n">image_id</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">Mole</span><span class="o">.</span><span class="n">image</span><span class="p">),</span>
+                        <span class="n">pl</span><span class="o">.</span><span class="n">lit</span><span class="p">(</span><span class="n">inputs</span><span class="o">.</span><span class="n">molecule_id</span><span class="p">)</span><span class="o">.</span><span class="n">alias</span><span class="p">(</span><span class="n">Mole</span><span class="o">.</span><span class="n">id</span><span class="p">),</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+            <span class="n">loader_batch</span> <span class="o">=</span> <span class="n">join_loaders</span><span class="p">(</span><span class="n">loader</span><span class="p">,</span> <span class="n">sub_inputs</span><span class="p">,</span> <span class="n">molecules</span><span class="p">)</span>
+            <span class="k">yield</span> <span class="n">thread_worker</span><span class="o">.</span><span class="n">description</span><span class="p">(</span><span class="n">_pdesc</span><span class="o">.</span><span class="n">align_tf_0</span><span class="p">(</span><span class="n">_alignment_state</span><span class="p">))</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">_alignment_state</span><span class="o">.</span><span class="n">fsc_step</span><span class="p">(</span><span class="n">loader_batch</span><span class="p">)</span>
 
     <span class="n">loaderlist</span><span class="o">.</span><span class="n">add_loader</span><span class="p">(</span>
         <span class="n">loader_batch</span><span class="p">,</span>
@@ -8061,9 +8172,7 @@ If a path is given, image must in the same shape as the template.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">401</span>
-<span class="normal">402</span>
-<span class="normal">403</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">403</span>
 <span class="normal">404</span>
 <span class="normal">405</span>
 <span class="normal">406</span>
@@ -8128,7 +8237,9 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="normal">465</span>
 <span class="normal">466</span>
 <span class="normal">467</span>
-<span class="normal">468</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Align all (template-free)"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
+<span class="normal">468</span>
+<span class="normal">469</span>
+<span class="normal">470</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Align all (template-free)"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchRefinement</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">"Align all started"</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">align_all_template_free</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -8297,9 +8408,7 @@ If a path is given, image must in the same shape as the template.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">275</span>
-<span class="normal">276</span>
-<span class="normal">277</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">277</span>
 <span class="normal">278</span>
 <span class="normal">279</span>
 <span class="normal">280</span>
@@ -8325,7 +8434,9 @@ If a path is given, image must in the same shape as the template.</p>
 <span class="normal">300</span>
 <span class="normal">301</span>
 <span class="normal">302</span>
-<span class="normal">303</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Average all molecules"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchSubtomogramAnalysis</span><span class="p">)</span>
+<span class="normal">303</span>
+<span class="normal">304</span>
+<span class="normal">305</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Average all molecules"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchSubtomogramAnalysis</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">"Averaging all molecules in projects"</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">average_all</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -8474,9 +8585,7 @@ segmented subtomogram averaging.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">305</span>
-<span class="normal">306</span>
-<span class="normal">307</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">307</span>
 <span class="normal">308</span>
 <span class="normal">309</span>
 <span class="normal">310</span>
@@ -8514,7 +8623,9 @@ segmented subtomogram averaging.</p>
 <span class="normal">342</span>
 <span class="normal">343</span>
 <span class="normal">344</span>
-<span class="normal">345</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Average group-wise"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchSubtomogramAnalysis</span><span class="p">)</span>
+<span class="normal">345</span>
+<span class="normal">346</span>
+<span class="normal">347</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Average group-wise"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchSubtomogramAnalysis</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">"Grouped subtomogram averaging"</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">average_groups</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -8738,32 +8849,7 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">668</span>
-<span class="normal">669</span>
-<span class="normal">670</span>
-<span class="normal">671</span>
-<span class="normal">672</span>
-<span class="normal">673</span>
-<span class="normal">674</span>
-<span class="normal">675</span>
-<span class="normal">676</span>
-<span class="normal">677</span>
-<span class="normal">678</span>
-<span class="normal">679</span>
-<span class="normal">680</span>
-<span class="normal">681</span>
-<span class="normal">682</span>
-<span class="normal">683</span>
-<span class="normal">684</span>
-<span class="normal">685</span>
-<span class="normal">686</span>
-<span class="normal">687</span>
-<span class="normal">688</span>
-<span class="normal">689</span>
-<span class="normal">690</span>
-<span class="normal">691</span>
-<span class="normal">692</span>
-<span class="normal">693</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">693</span>
 <span class="normal">694</span>
 <span class="normal">695</span>
 <span class="normal">696</span>
@@ -8827,7 +8913,32 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 <span class="normal">754</span>
 <span class="normal">755</span>
 <span class="normal">756</span>
-<span class="normal">757</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Calculate FSC"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchSubtomogramAnalysis</span><span class="p">)</span>
+<span class="normal">757</span>
+<span class="normal">758</span>
+<span class="normal">759</span>
+<span class="normal">760</span>
+<span class="normal">761</span>
+<span class="normal">762</span>
+<span class="normal">763</span>
+<span class="normal">764</span>
+<span class="normal">765</span>
+<span class="normal">766</span>
+<span class="normal">767</span>
+<span class="normal">768</span>
+<span class="normal">769</span>
+<span class="normal">770</span>
+<span class="normal">771</span>
+<span class="normal">772</span>
+<span class="normal">773</span>
+<span class="normal">774</span>
+<span class="normal">775</span>
+<span class="normal">776</span>
+<span class="normal">777</span>
+<span class="normal">778</span>
+<span class="normal">779</span>
+<span class="normal">780</span>
+<span class="normal">781</span>
+<span class="normal">782</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Calculate FSC"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchSubtomogramAnalysis</span><span class="p">)</span>
 <span class="nd">@dask_thread_worker</span><span class="o">.</span><span class="n">with_progress</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">"Calculating FSC"</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">calculate_fsc</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
@@ -8987,9 +9098,7 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">239</span>
-<span class="normal">240</span>
-<span class="normal">241</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">241</span>
 <span class="normal">242</span>
 <span class="normal">243</span>
 <span class="normal">244</span>
@@ -9014,7 +9123,9 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 <span class="normal">263</span>
 <span class="normal">264</span>
 <span class="normal">265</span>
-<span class="normal">266</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Filter loader"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchLoaderMenu</span><span class="p">)</span>
+<span class="normal">266</span>
+<span class="normal">267</span>
+<span class="normal">268</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Filter loader"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchLoaderMenu</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">filter_loader</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">loader_name</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="p">{</span><span class="s2">"bind"</span><span class="p">:</span> <span class="n">_get_current_loader_name</span><span class="p">}],</span>
@@ -9064,12 +9175,12 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">268</span>
-<span class="normal">269</span>
-<span class="normal">270</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">270</span>
 <span class="normal">271</span>
 <span class="normal">272</span>
-<span class="normal">273</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+<span class="normal">273</span>
+<span class="normal">274</span>
+<span class="normal">275</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">get_loader</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BatchLoader</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Return the acryo.BatchLoader object with the given name"""</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
@@ -9097,12 +9208,12 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">170</span>
-<span class="normal">171</span>
-<span class="normal">172</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">172</span>
 <span class="normal">173</span>
 <span class="normal">174</span>
-<span class="normal">175</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"✕"</span><span class="p">,</span> <span class="n">max_width</span><span class="o">=</span><span class="mi">36</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Header</span><span class="p">)</span>
+<span class="normal">175</span>
+<span class="normal">176</span>
+<span class="normal">177</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"✕"</span><span class="p">,</span> <span class="n">max_width</span><span class="o">=</span><span class="mi">36</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Header</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">remove_loader</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">loader_name</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="p">{</span><span class="s2">"bind"</span><span class="p">:</span> <span class="n">_get_current_loader_name</span><span class="p">}]</span>
 <span class="p">):</span>
@@ -9130,9 +9241,7 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">150</span>
-<span class="normal">151</span>
-<span class="normal">152</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">152</span>
 <span class="normal">153</span>
 <span class="normal">154</span>
 <span class="normal">155</span>
@@ -9148,7 +9257,9 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 <span class="normal">165</span>
 <span class="normal">166</span>
 <span class="normal">167</span>
-<span class="normal">168</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"??"</span><span class="p">,</span> <span class="n">max_width</span><span class="o">=</span><span class="mi">36</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Header</span><span class="p">)</span>
+<span class="normal">168</span>
+<span class="normal">169</span>
+<span class="normal">170</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"??"</span><span class="p">,</span> <span class="n">max_width</span><span class="o">=</span><span class="mi">36</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Header</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">show_loader_info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Show information about this loader"""</span>
@@ -9189,22 +9300,22 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">786</span>
-<span class="normal">787</span>
-<span class="normal">788</span>
-<span class="normal">789</span>
-<span class="normal">790</span>
-<span class="normal">791</span>
-<span class="normal">792</span>
-<span class="normal">793</span>
-<span class="normal">794</span>
-<span class="normal">795</span>
-<span class="normal">796</span>
-<span class="normal">797</span>
-<span class="normal">798</span>
-<span class="normal">799</span>
-<span class="normal">800</span>
-<span class="normal">801</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">"fluent:shape-organic-20-filled"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">811</span>
+<span class="normal">812</span>
+<span class="normal">813</span>
+<span class="normal">814</span>
+<span class="normal">815</span>
+<span class="normal">816</span>
+<span class="normal">817</span>
+<span class="normal">818</span>
+<span class="normal">819</span>
+<span class="normal">820</span>
+<span class="normal">821</span>
+<span class="normal">822</span>
+<span class="normal">823</span>
+<span class="normal">824</span>
+<span class="normal">825</span>
+<span class="normal">826</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">"fluent:shape-organic-20-filled"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">show_mask</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Load and show mask image in the scale of the tomogram."""</span>
@@ -9242,12 +9353,12 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">765</span>
-<span class="normal">766</span>
-<span class="normal">767</span>
-<span class="normal">768</span>
-<span class="normal">769</span>
-<span class="normal">770</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">"ic:baseline-view-in-ar"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">790</span>
+<span class="normal">791</span>
+<span class="normal">792</span>
+<span class="normal">793</span>
+<span class="normal">794</span>
+<span class="normal">795</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">"ic:baseline-view-in-ar"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">show_template</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Load and show template image in the scale of the tomogram."""</span>
@@ -9275,19 +9386,19 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">772</span>
-<span class="normal">773</span>
-<span class="normal">774</span>
-<span class="normal">775</span>
-<span class="normal">776</span>
-<span class="normal">777</span>
-<span class="normal">778</span>
-<span class="normal">779</span>
-<span class="normal">780</span>
-<span class="normal">781</span>
-<span class="normal">782</span>
-<span class="normal">783</span>
-<span class="normal">784</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">"material-symbols:view-in-ar"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">797</span>
+<span class="normal">798</span>
+<span class="normal">799</span>
+<span class="normal">800</span>
+<span class="normal">801</span>
+<span class="normal">802</span>
+<span class="normal">803</span>
+<span class="normal">804</span>
+<span class="normal">805</span>
+<span class="normal">806</span>
+<span class="normal">807</span>
+<span class="normal">808</span>
+<span class="normal">809</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">icon</span><span class="o">=</span><span class="s2">"material-symbols:view-in-ar"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">STATools</span><span class="p">)</span>
 <span class="nd">@do_not_record</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">show_template_original</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Load and show template image in the original scale."""</span>
@@ -9385,9 +9496,7 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/batch/sta.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">192</span>
-<span class="normal">193</span>
-<span class="normal">194</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">194</span>
 <span class="normal">195</span>
 <span class="normal">196</span>
 <span class="normal">197</span>
@@ -9430,7 +9539,9 @@ calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.</p>
 <span class="normal">234</span>
 <span class="normal">235</span>
 <span class="normal">236</span>
-<span class="normal">237</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Split loader"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchLoaderMenu</span><span class="p">)</span>
+<span class="normal">237</span>
+<span class="normal">238</span>
+<span class="normal">239</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Split loader"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">BatchLoaderMenu</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">split_loader</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">loader_name</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="p">{</span><span class="s2">"bind"</span><span class="p">:</span> <span class="n">_get_current_loader_name</span><span class="p">}],</span>
