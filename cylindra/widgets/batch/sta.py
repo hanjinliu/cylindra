@@ -1,4 +1,5 @@
 import re
+import tempfile
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Annotated, Any, Iterator
 
@@ -6,7 +7,8 @@ import impy as ip
 import matplotlib.pyplot as plt
 import numpy as np
 import polars as pl
-from acryo import BatchLoader, SubtomogramLoader
+from acryo import BatchLoader, Molecules, SubtomogramLoader
+from acryo.loader import ExtractedSubvolumeLoader
 from magicclass import (
     MagicTemplate,
     abstractapi,
@@ -577,19 +579,23 @@ class BatchSubtomogramAveraging(MagicTemplate):
         bin_size: _BINSIZE = 1,
         temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 5,
+        num_trials: Annotated[int, {"min": 1, "max": 100}] = 5,
         max_num_iters: Annotated[int, {"min": 3, "max": 100}] = 20,
         seed: _SeedType = 0,
     ):
         """Create initial model by iteratively aligning molecules by RMA without template.
 
-        This method iteratively calculate average, evaluate using FSC, and align
-        molecules using RMA to the current average.
+        The annealing schedule of RMA is split into `max_num_iters` iterations. In
+        each iteration, annealing is resumed from the last state and temperature of
+        the previous iteration using the current average as the template, and then the
+        average is updated and evaluated using FSC. If FSC converged, the rest of the
+        annealing will be finished in the next iteration.
 
         Parameters
         ----------
         {loader_name}{mask_params}{size}{max_shifts}{max_rotations}{min_rotation_step}
         {interpolation}{method}{range_long}{range_lat}{angle_max}{bin_size}
-        {temperature_time_const}{upsample_factor}{max_num_iters}{seed}
+        {temperature_time_const}{upsample_factor}{num_trials}{max_num_iters}{seed}
         """
         t0 = timer()
         rng = np.random.default_rng(seed)
@@ -608,51 +614,72 @@ class BatchSubtomogramAveraging(MagicTemplate):
             mask=mask,
             alignment_model=_get_alignment(method),
             min_rotation_step=min_rotation_step,
+            max_num_iters=max_num_iters,
         )
         yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
-        result0 = _alignment_state.fsc_step_init(
-            loader, max_shifts, max_rotations, upsample_factor, temperature_time_const
-        )
+        result = _alignment_state.fsc_step_init(
+            loader, max_shifts, max_rotations, upsample_factor,
+            temperature_time_const, num_trials,
+        )  # fmt: skip
 
         sub_inputs = list(self._group_loader_by_spline(loader_name, loader))
         num_splines = len(sub_inputs)
-        while True:
-            _Logger.print(f"Iteration {int(_alignment_state.num_iter)}")
-            yield _plot_current_fsc.with_args(result0.fsc, result0.avg).with_desc(_pdesc.align_tf_1(_alignment_state))  # fmt: skip
-            _Logger.print(_alignment_state.next_params(loader.scale).format())
-            _exceeded = max_num_iters <= _alignment_state.num_iter
-            if _alignment_state.is_converged() or _exceeded:
-                _Logger.print(
-                    "Maximum iteration exceeded" if _exceeded else "FSC converged."
-                )
-                break
-            _Logger.print(f"{num_splines} splines found for RMA alignment.")
+        _Logger.print(f"{num_splines} splines found for RMA alignment.")
+        annealings: list[template_free.ResumableAnnealing | None] = [None] * num_splines
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmpdir:
+            # Landscapes are always constructed around the initial molecules, so that
+            # the annealing can be resumed in the next iteration. Subtomograms are
+            # extracted to files to avoid cropping the same ones in every iteration.
             for ith, inputs in enumerate(sub_inputs):
-                _p_ind = f"({ith + 1}/{num_splines})"
                 yield thread_worker.description(
-                    f"Landscape construction {_p_ind} of iteration {_alignment_state.num_iter + 1}"
+                    f"Extracting subtomograms ({ith + 1}/{num_splines})"
                 )
-                landscape = _alignment_state.built_landscape_step(inputs.loader)
-                yield thread_worker.description(
-                    f"RMA step {_p_ind} of iteration {_alignment_state.num_iter + 1}"
+                inputs.loader = (
+                    inputs.loader.replace(output_shape=shape, order=interpolation)
+                    .binning(bin_size, compute=False)
+                    .extract_subtomograms(Path(tmpdir) / f"spline-{ith}", chunksize=64)
                 )
-                inputs.loader = _alignment_state.rma_step(
-                    landscape,
-                    inputs.loader,
-                    inputs.spline,
-                    range_long,
-                    range_lat,
-                    angle_max,
-                )
-                inputs.loader = inputs.loader.replace(
-                    molecules=inputs.loader.molecules.with_features(
-                        pl.lit(inputs.image_id).alias(Mole.image),
-                        pl.lit(inputs.molecule_id).alias(Mole.id),
+            _final = False
+            while True:
+                _Logger.print(f"Iteration {int(_alignment_state.num_iter)}")
+                yield _plot_current_fsc.with_args(result.fsc, result.avg).with_desc(_pdesc.align_tf_1(_alignment_state))  # fmt: skip
+                if _final:
+                    break
+                if _final := _alignment_state.is_final_iteration():
+                    _converged = _alignment_state.is_converged()
+                    _Logger.print("FSC converged." if _converged else "Last iteration.")
+                _Logger.print(_alignment_state.next_params(loader.scale).format())
+                _ratio = _alignment_state.temperature_ratio(_final)
+                _Logger.print(f"Annealing until temperature reaches {_ratio:.2e} of T0")
+                _iter = _alignment_state.num_iter + 1
+                molecules: list[Molecules] = []
+                for ith, inputs in enumerate(sub_inputs):
+                    _p_ind = f"({ith + 1}/{num_splines})"
+                    yield thread_worker.description(
+                        f"Landscape construction {_p_ind} of iteration {_iter}"
                     )
-                )
-            loader_batch = join_loaders(loader, sub_inputs)
-            result0 = _alignment_state.fsc_step(loader_batch)
-            yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
+                    landscape = _alignment_state.built_landscape_step(inputs.loader)
+                    annealing = annealings[ith]
+                    if annealing is None:
+                        annealing = _alignment_state.prep_annealing_step(
+                            landscape, inputs.spline, range_long, range_lat, angle_max
+                        )
+                        annealings[ith] = annealing
+                    else:
+                        annealing.update_landscape(landscape)
+                    yield thread_worker.description(
+                        f"RMA step {_p_ind} of iteration {_iter}"
+                    )
+                    mole = _alignment_state.rma_step(annealing, final=_final)
+                    molecules.append(
+                        mole.with_features(
+                            pl.lit(inputs.image_id).alias(Mole.image),
+                            pl.lit(inputs.molecule_id).alias(Mole.id),
+                        )
+                    )
+                loader_batch = join_loaders(loader, sub_inputs, molecules)
+                yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
+                result = _alignment_state.fsc_step(loader_batch)
 
         loaderlist.add_loader(
             loader_batch,
@@ -902,22 +929,26 @@ def _coerce_aligned_name(name: str, loaders: LoaderList):
 
 @dataclass
 class LoaderOnSpline:
-    loader: SubtomogramLoader
+    loader: SubtomogramLoader | ExtractedSubvolumeLoader
     image_id: int
     molecule_id: str
     spline: CylSpline
 
 
-def join_loaders(loader: BatchLoader, sub_inputs: list[LoaderOnSpline]) -> BatchLoader:
+def join_loaders(
+    loader: BatchLoader,
+    sub_inputs: list[LoaderOnSpline],
+    molecules: list[Molecules],
+) -> BatchLoader:
     loader_batch = BatchLoader(
         order=loader.order,
         scale=loader.scale,
         output_shape=loader.output_shape,
     )
-    for inputs in sub_inputs:
+    for inputs, mole in zip(sub_inputs, molecules, strict=True):
         loader_batch.add_tomogram(
             loader.images[inputs.image_id],
-            inputs.loader.molecules,
+            mole,
             inputs.image_id,
             loader._tilt_models[inputs.image_id],
         )
