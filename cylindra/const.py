@@ -143,7 +143,7 @@ class MoleculesHeader(SimpleNamespace):
     lateral_interval = "lateral-interval"  # lateral interval between two molecules
     radius = "radius"  # distance between the molecule and the spline
     curve_index = "curve-index"  # curve index (1 is the inside of curve)
-    lateral_angle = "lateral-angle"  # lateral angle between molecules
+    inter_pf_angle = "inter-pf-angle"  # inter-protofilament angle
     elev_angle = "elevation-angle"  # elevation angle between molecules
     position = "position-nm"  # position of the molecule along the spline
     id = "molecules-id"

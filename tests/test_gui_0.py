@@ -1473,7 +1473,8 @@ def test_calc_misc(ui: CylindraMainWidget, tmpdir):
     layer = ui.mole_layers.last()
     all_props = cylmeasure.LatticeParameters.choices()
     ui.calculate_lattice_structure(layer=layer, props=all_props)
-    assert layer.features[Mole.radius].std() < 0.1
+    assert layer.molecules.features[Mole.radius].std() < 0.1
+    assert 152 < layer.molecules.features[Mole.inter_pf_angle] < 159
     # check null values
     assert layer.molecules.features[Mole.spacing].is_finite().not_().sum() == 13
     assert layer.molecules.features[Mole.twist].is_finite().not_().sum() == 13
