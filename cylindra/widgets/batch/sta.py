@@ -634,10 +634,8 @@ class BatchSubtomogramAveraging(MagicTemplate):
                 yield thread_worker.description(
                     f"Extracting subtomograms ({ith + 1}/{num_splines})"
                 )
-                inputs.loader = (
-                    inputs.loader.replace(output_shape=shape, order=interpolation)
-                    .binning(bin_size, compute=False)
-                    .extract_subtomograms(Path(tmpdir) / f"spline-{ith}", chunksize=64)
+                inputs.loader = inputs.loader.extract_subtomograms(
+                    Path(tmpdir) / f"spline-{ith}", chunksize=64
                 )
             _final = False
             while True:
@@ -938,8 +936,14 @@ class LoaderOnSpline:
 def join_loaders(
     loader: BatchLoader,
     sub_inputs: list[LoaderOnSpline],
-    molecules: list[Molecules],
+    molecules: list[Molecules] | None = None,
 ) -> BatchLoader:
+    """Join the loaders on splines into a batch loader.
+
+    If `molecules` is given, they are used instead of the molecules of `sub_inputs`.
+    """
+    if molecules is None:
+        molecules = [inputs.loader.molecules for inputs in sub_inputs]
     loader_batch = BatchLoader(
         order=loader.order,
         scale=loader.scale,
