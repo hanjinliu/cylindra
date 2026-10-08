@@ -115,8 +115,7 @@ def calc_lateral_interval(mole: Molecules, spl: CylSpline) -> pl.Series:
 
 
 def _pad_molecules_at_seam(mole: Molecules, spl: CylSpline) -> tuple[Molecules, int]:
-    """
-    Molecules at the seam boundary.
+    """Molecules at the seam boundary.
 
     If the molecules are N-pf, molecules corresponding to the (N+1)-th pf will be
     returned. This is useful for calculating the structures that need the lateral
@@ -138,8 +137,7 @@ def _pad_molecules_at_seam(mole: Molecules, spl: CylSpline) -> tuple[Molecules, 
 
 
 def calc_curve_index(mole: Molecules, spl: CylSpline):
-    """
-    The curve orientation index.
+    """The curve orientation index.
 
     The curve orientation is defined as the cosine of the angle between the
     second derivative and the relative molecule vector. That is, the inside
@@ -247,8 +245,7 @@ class CylinderSurface:
         self,
         coords: NDArray[np.float32],
     ) -> NDArray[np.float32]:
-        """
-        Get the surface vector at the given coordinates.
+        """Get the surface vector at the given coordinates.
 
         Parameters
         ----------
@@ -296,8 +293,7 @@ class RegionProfiler:
         target: str = "nth",
         label: str = "pf-id",
     ) -> RegionProfiler:
-        """
-        Construct a region profiler from molecules and splines.
+        """Construct a region profiler from molecules and splines.
 
         Parameters
         ----------
@@ -329,8 +325,7 @@ class RegionProfiler:
         return cls(reg)
 
     def calculate(self, props: Iterable[str], *more_props: str) -> pl.DataFrame:
-        """
-        Calculate properties for each region.
+        """Calculate properties for each region.
 
         Parameters
         ----------
@@ -458,8 +453,7 @@ _INDEX_KEY = "._index_column"
 
 
 def _groupby_with_index(mole: Molecules, by: str):
-    """
-    Call groupby with an additional index column.
+    """Call groupby with an additional index column.
 
     This groupby function adds an index column for the later ordered concatenation.
     """
