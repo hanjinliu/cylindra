@@ -117,7 +117,11 @@ def _polars_expr_to_str(expr: pl.Expr) -> str:
             expr_str = expr_str[1:-1]
     try:
         ns = dict(**POLARS_NAMESPACE)
-        ExprStr(expr_str, ns).eval()
+        out = ExprStr(expr_str, ns).eval()
+        # Some arguments are not shown in the str of polars.Expr (e.g. the decimals of
+        # `round`), so the restored expression must be checked.
+        if not (isinstance(out, pl.Expr) and out.meta.eq(expr)):
+            raise ValueError("Expression is not restored correctly.")
     except Exception:
         raise ValueError(
             f"Expression {expr_str!r} cannot be safely parsed. Please use "

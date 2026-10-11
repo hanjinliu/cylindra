@@ -37,7 +37,9 @@ class InterMoleculeNet:
             raise ValueError("indices must be integer array.")
         if not isinstance(features, pl.DataFrame):
             features = pl.DataFrame(features)
-        if features.shape[1] > 0 and features.shape[0] != indices_origin.shape[0]:
+        if features.shape[1] == 0:
+            features = _empty_features(indices_origin.shape[0])
+        elif features.shape[0] != indices_origin.shape[0]:
             raise ValueError(
                 "features must have the same length as the number of interactions."
             )
@@ -53,7 +55,10 @@ class InterMoleculeNet:
 
     @features.setter
     def features(self, df):
-        self._features = pl.DataFrame(df)
+        df = pl.DataFrame(df)
+        if df.shape[1] == 0:
+            df = _empty_features(self.count())
+        self._features = df
 
     @property
     def origin(self) -> NDArray[np.float32]:
@@ -241,6 +246,16 @@ def _check_low_high(low, high):
     if low < 0:
         raise ValueError("lower bound must be greater than or equal to 0.")
     return low, high
+
+
+def _empty_features(n: int) -> pl.DataFrame:
+    """Return a DataFrame without any column for `n` interactions."""
+    # In polars>=2, a DataFrame without columns keeps its height, so the height must
+    # be the number of interactions to add feature columns later.
+    try:
+        return pl.DataFrame(height=n)
+    except TypeError:  # old polars does not support `height`
+        return pl.DataFrame()
 
 
 def closest_positions(

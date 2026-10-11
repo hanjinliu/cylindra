@@ -212,9 +212,9 @@ class CylinderModel:
         pf = arange % self._shape[1]
         mole.features = pl.DataFrame({Mole.nth: nth, Mole.pf: pf, Mole.position: pos})
         if features is not None:
-            for col in [Mole.nth, Mole.pf, Mole.position]:
-                if col in features.columns:
-                    features.drop(col)
+            # these features are updated by the model, so drop the old ones
+            to_drop = [Mole.nth, Mole.pf, Mole.position]
+            features = features.drop(to_drop, strict=False)
             mole.features = mole.features.with_columns(features)
         return mole
 
