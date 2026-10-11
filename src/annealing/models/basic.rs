@@ -3,11 +3,12 @@ use pyo3::{
     Python, Py, PyRefMut
 };
 use numpy::{
-    IntoPyArray, PyReadonlyArray2, PyReadonlyArray4, PyArray1, PyArray2,
-    ndarray::Array2, PyUntypedArrayMethods
+    IntoPyArray, PyReadonlyArray2, PyArray1, PyArray2,
+    ndarray::Array2,
 };
 
 use crate::annealing::{
+    landscape::EnergyLandscapeInput,
     graphs::{CylindricGraphTrait, CylindricalGraph, GraphTrait},
     potential::{TrapezoidalPotential2D, LennardJonesLikePotential2D},
     random::RandomNumberGenerator, reservoir::Reservoir
@@ -163,13 +164,15 @@ impl CylindricAnnealingModel {
     }
 
     #[pyo3(signature = (energy))]
+    /// Set the energy landscape. If an `EnergyLandscape` is given, the array is
+    /// shared with other models without copying.
     pub fn set_energy_landscape<'py>(
         mut slf: PyRefMut<'py, Self>,
-        energy: PyReadonlyArray4<f32>,
+        energy: EnergyLandscapeInput<'py>,
     ) -> PyResult<PyRefMut<'py, Self>> {
+        let energy = energy.into_shared();
         let shape = energy.shape();
         slf.rng.set_shape((shape[1], shape[2], shape[3]));
-        let energy = energy.as_array().to_shared();
         slf.graph.set_energy_landscape(energy)?;
         Ok(slf)
     }
@@ -483,13 +486,15 @@ impl CylindricAnnealingModelLJ {
     }
 
     #[pyo3(signature = (energy))]
+    /// Set the energy landscape. If an `EnergyLandscape` is given, the array is
+    /// shared with other models without copying.
     pub fn set_energy_landscape<'py>(
         mut slf: PyRefMut<'py, Self>,
-        energy: PyReadonlyArray4<f32>,
+        energy: EnergyLandscapeInput<'py>,
     ) -> PyResult<PyRefMut<'py, Self>> {
+        let energy = energy.into_shared();
         let shape = energy.shape();
         slf.rng.set_shape((shape[1], shape[2], shape[3]));
-        let energy = energy.as_array().to_shared();
         slf.graph.set_energy_landscape(energy)?;
         Ok(slf)
     }

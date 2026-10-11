@@ -506,3 +506,21 @@ def test_multiscale():
     tomo.get_multiscale(4)
     with pytest.raises(ValueError):
         tomo.get_multiscale(6)
+
+
+def test_interaction_net_features():
+    from acryo import Molecules
+
+    from cylindra.components.interaction import InterMoleculeNet
+
+    mole0 = Molecules(np.array([[0, 0, 0], [0, 4, 0], [0, 8, 0]], dtype=np.float32))
+    mole1 = Molecules(np.array([[0, 2, 0], [0, 6, 0]], dtype=np.float32))
+    net = InterMoleculeNet.from_molecules(mole0, mole1, 0.0, 3.0)
+    assert net.count() == 4
+    # features can be added to the net without any feature
+    net = net.with_standard_features()
+    assert net.features.shape == (4, 7)
+    assert_allclose(net.features["distance"], 2.0)
+    filt = net.filter(pl.col("projection-origin-y") > 0)
+    assert filt.count() == 2
+    assert filt.features.shape == (2, 7)

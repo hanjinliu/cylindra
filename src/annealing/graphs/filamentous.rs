@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use numpy::{
-    ndarray::{Array1, Array2, Array, s, ArcArray, ArcArray2}, Ix3, Ix4
+    ndarray::{Array1, Array2, s, ArcArray, ArcArray2}, Ix4
 };
 use pyo3::PyResult;
 use super::traits::{
@@ -22,7 +22,7 @@ type Shift = Vector3D<isize>;
 pub struct FilamentousGraph {
     components: GraphComponents<Node1D<Shift>, EdgeType>,
     coords: Arc<HashMap1D<CoordinateSystem<f32>>>,
-    energy: Arc<HashMap1D<Array<f32, Ix3>>>,
+    energy: ArcArray<f32, Ix4>,  // energy landscape shared without copying
     pub binding_potential: StiffFilamentPotential,
     pub local_shape: Vector3D<isize>,
 }
@@ -33,7 +33,7 @@ impl FilamentousGraph {
         Self {
             components: GraphComponents::empty(),
             coords: Arc::new(HashMap1D::new()),
-            energy: Arc::new(HashMap1D::new()),
+            energy: ArcArray::zeros((0, 0, 0, 0)),
             binding_potential: StiffFilamentPotential::unbounded(),
             local_shape: Vector3D::new(0, 0, 0),
         }
@@ -312,7 +312,8 @@ impl GraphTrait<Node1D<Shift>, EdgeType> for FilamentousGraph {
     fn internal(&self, node_state: &Node1D<Shift>) -> f32 {
         let idx = node_state.index;
         let vec = node_state.state;
-        self.energy[idx as isize][[vec.z as usize, vec.y as usize, vec.x as usize]]
+        // Node index is the same as the row of the energy landscape.
+        self.energy[[idx, vec.z as usize, vec.y as usize, vec.x as usize]]
     }
 
     /// Calculate the binding energy between two nodes.
@@ -447,12 +448,11 @@ impl GraphTrait<Node1D<Shift>, EdgeType> for FilamentousGraph {
 
         self.local_shape = Vector3D::new(_nz, _ny, _nx).into();
         let center: Vector3D<isize> = Vector3D::new(_nz / 2, _ny / 2, _nx / 2).into();
-        let mut _energy: HashMap1D<Array<f32, Ix3>> = HashMap1D::from_shape(n_nodes);
         for i in 0..n_nodes {
-            _energy.insert(i, energy.slice(s![i, .., .., ..]).to_owned());
             self.components.set_node_state(i, Node1D { index: i, state: center.clone() })
         }
-        self.energy = Arc::new(_energy);
+        // The array is not copied; models with the same landscape share the memory.
+        self.energy = energy;
         Ok(self)
     }
 

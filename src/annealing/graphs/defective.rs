@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use numpy::{
-    ndarray::{Array1, Array2, Array, s, ArcArray, ArcArray2}, Ix3, Ix4
+    ndarray::{Array1, Array2, s, ArcArray, ArcArray2}, Ix4
 };
 use pyo3::PyResult;
 use super::traits::{
@@ -36,7 +36,8 @@ impl Default for NullEnergyConst {
 pub struct DefectiveCylindricGraph {
     components: GraphComponents<Node2D<Option<Shift>>, EdgeType>,
     coords: Arc<HashMap2D<CoordinateSystem<f32>>>,
-    energy: Arc<HashMap2D<Array<f32, Ix3>>>,
+    energy: ArcArray<f32, Ix4>,  // energy landscape shared without copying
+    energy_row: Arc<HashMap2D<usize>>,  // node index -> row of the energy landscape
     pub binding_potential: TrapezoidalPotential2D,
     pub local_shape: Vector3D<isize>,
     null_energy: NullEnergyConst,
@@ -48,7 +49,8 @@ impl DefectiveCylindricGraph {
         Self {
             components: GraphComponents::empty(),
             coords: Arc::new(HashMap2D::new()),
-            energy: Arc::new(HashMap2D::new()),
+            energy: ArcArray::zeros((0, 0, 0, 0)),
+            energy_row: Arc::new(HashMap2D::new()),
             binding_potential: TrapezoidalPotential2D::unbounded(),
             local_shape: Vector3D::new(0, 0, 0),
             null_energy: NullEnergyConst::default(),
@@ -58,7 +60,8 @@ impl DefectiveCylindricGraph {
     pub fn new(
         components: GraphComponents<Node2D<Option<Shift>>, EdgeType>,
         coords: Arc<HashMap2D<CoordinateSystem<f32>>>,
-        energy: Arc<HashMap2D<Array<f32, Ix3>>>,
+        energy: ArcArray<f32, Ix4>,
+        energy_row: Arc<HashMap2D<usize>>,
         binding_potential: TrapezoidalPotential2D,
         local_shape: Vector3D<isize>,
     ) -> Self {
@@ -66,6 +69,7 @@ impl DefectiveCylindricGraph {
             components,
             coords,
             energy,
+            energy_row,
             binding_potential,
             local_shape,
             null_energy: NullEnergyConst::default(),
@@ -400,7 +404,10 @@ impl GraphTrait<Node2D<Option<Shift>>, EdgeType> for DefectiveCylindricGraph {
         let idx = &node_state.index;
         let vec = node_state.state;
         match vec {
-            Some(shift) => self.energy[(idx.y, idx.a)][[shift.z as usize, shift.y as usize, shift.x as usize]],
+            Some(shift) => {
+                let row = self.energy_row[(idx.y, idx.a)];
+                self.energy[[row, shift.z as usize, shift.y as usize, shift.x as usize]]
+            }
             None => self.null_energy.internal,
         }
     }
@@ -475,14 +482,16 @@ impl GraphTrait<Node2D<Option<Shift>>, EdgeType> for DefectiveCylindricGraph {
         self.local_shape = Vector3D::new(_nz, _ny, _nx).into();
         let center: Vector3D<isize> = Vector3D::new(_nz / 2, _ny / 2, _nx / 2).into();
         let (ny_out, na_out) = self.outer_shape();
-        let mut _energy: HashMap2D<Array<f32, Ix3>> = HashMap2D::from_shape(ny_out, na_out);
+        let mut _energy_row: HashMap2D<usize> = HashMap2D::from_shape(ny_out, na_out);
         for i in 0..n_nodes {
             let node_state = self.components.node_state(i);
             let idx = &node_state.index;
-            _energy.insert(idx.as_tuple_usize(), energy.slice(s![i, .., .., ..]).to_owned());
+            _energy_row.insert(idx.as_tuple_usize(), i);
             self.components.set_node_state(i, Node2D { index: idx.clone(), state: Some(center.clone()) })
         }
-        self.energy = Arc::new(_energy);
+        // The array is not copied; models with the same landscape share the memory.
+        self.energy = energy;
+        self.energy_row = Arc::new(_energy_row);
         Ok(self)
     }
 

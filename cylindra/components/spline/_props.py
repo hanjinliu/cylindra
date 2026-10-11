@@ -45,7 +45,7 @@ class SplineProps:
     def loc(self, df: pl.DataFrame):
         if not isinstance(df, pl.DataFrame):
             df = pl.DataFrame(df)
-        self._loc = df
+        self._loc = _empty_if_no_column(df)
 
     @property
     def glob(self) -> pl.DataFrame:
@@ -58,7 +58,7 @@ class SplineProps:
             df = pl.DataFrame(df)
         if df.shape[0] > 1:
             raise ValueError("Global properties must be a single row.")
-        self._glob = df
+        self._glob = _empty_if_no_column(df)
 
     @property
     def window_size(self) -> MappingProxyType[str, nm]:
@@ -187,7 +187,7 @@ class SplineProps:
         """Drop local properties."""
         if isinstance(keys, str):
             keys = [keys]
-        self._loc = self._loc.drop(keys, strict=strict)
+        self._loc = _empty_if_no_column(self._loc.drop(keys, strict=strict))
         for key in keys:
             self._window_size.pop(key, None)
         return self
@@ -196,7 +196,7 @@ class SplineProps:
         """Drop global propperties."""
         if isinstance(keys, str):
             keys = [keys]
-        self._glob = self._glob.drop(keys, strict=strict)
+        self._glob = _empty_if_no_column(self._glob.drop(keys, strict=strict))
         return self
 
     def clear_loc(self) -> Self:
@@ -267,6 +267,18 @@ class SplineProps:
         if isinstance(keys, str):
             keys = [keys]
         return all(key in self.glob.columns for key in keys)
+
+
+def _empty_if_no_column(df: pl.DataFrame) -> pl.DataFrame:
+    """Return an empty DataFrame if the input has no column.
+
+    In polars>=2, a DataFrame keeps its height even if all the columns are dropped.
+    Properties without any column must be treated as missing, so they are always
+    represented by a DataFrame with zero height.
+    """
+    if df.width == 0:
+        return pl.DataFrame([])
+    return df
 
 
 def _pos_float(x: Any) -> float:

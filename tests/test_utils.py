@@ -179,6 +179,9 @@ def test_rust_expressions():
     assert widget_utils._polars_expr_to_str(pl.col("a") == 3) == "col('a') == 3"
     assert widget_utils._polars_expr_to_str(pl.col("f") == -4.2) == "col('f') == (-4.2)"
     assert widget_utils._polars_expr_to_str(pl.col("b") == "ts") == "col('b') == 'ts'"
+    # the decimals of round are not shown in the str of polars.Expr
+    with pytest.raises(ValueError):
+        widget_utils._polars_expr_to_str(pl.col("a").round(2) > 1)
 
 
 def test_validate():

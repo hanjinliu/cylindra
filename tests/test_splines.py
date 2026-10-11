@@ -368,3 +368,47 @@ def test_segments_to_series_with_eval():
         rtol=1e-6,
         atol=1e-6,
     )
+
+
+def test_props_without_columns():
+    # In polars>=2, dropping all the columns does not reset the height of a DataFrame.
+    # Properties without any column must still be treated as missing.
+    spl = CylSpline.line([0, 0, 0], [0, 0, 30])
+    spl.props.update_loc({"a": [1.0, 2.0, 3.0]}, window_size=10.0)
+    spl.radius = 10.0
+    spl.props.drop_loc("a")
+    spl.radius = None  # drop the only global property
+    assert spl.props.loc.shape == (0, 0)
+    assert spl.props.glob.shape == (0, 0)
+    # local properties of a different length can be added after dropping
+    spl.props.update_loc({"b": [1.0, 2.0]}, window_size=10.0)
+    assert spl.props.loc.shape == (2, 1)
+    spl.props.loc = pl.DataFrame({"a": [1, 2]}).drop("a")
+    assert spl.props.loc.shape == (0, 0)
+
+
+def test_collect_props_without_columns():
+    from cylindra.components.tomogram._spline_list import SplineList
+    from cylindra.const import PropertyNames as H
+
+    spl0 = CylSpline.line([0, 0, 0], [0, 0, 30])
+    spl0.radius = 10.0
+    spl1 = CylSpline.line([0, 0, 0], [0, 30, 0])
+    spl1.radius = 11.0
+    spl1.radius = None
+    splines = SplineList([spl0, spl1])
+    assert splines.collect_globalprops()[H.spline_id].to_list() == [0]
+    with pytest.raises(ValueError, match="missing"):
+        splines.collect_globalprops(allow_none=False)
+
+
+def test_update_props_without_localprops():
+    spl = CylSpline.line([0, 0, 0], [0, 0, 30])
+    spl.update_props(npf=13, start=3, orientation="PlusToMinus")
+    assert spl.props.loc.shape == (0, 0)
+    assert spl.props.get_glob("npf") == 13
+    assert spl.props.get_glob("start") == 3
+    spl.props.update_loc({"a": [1.0, 2.0, 3.0]}, window_size=10.0)
+    spl.update_props(npf=14, start=2)
+    assert spl.props.loc["npf"].to_list() == [14, 14, 14]
+    assert spl.props.loc["start"].to_list() == [2, 2, 2]
