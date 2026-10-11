@@ -144,7 +144,6 @@ class Landscape:
         """
         template, num_templates = _norm_template_input(template)
 
-        _Logger.print(f"Using {num_templates} template(s) for landscape construction.")
         score_dsk = loader.construct_landscape(
             template,
             mask=mask,
@@ -155,11 +154,6 @@ class Landscape:
         score, argmax = _calc_landscape(
             alignment_model, [score_dsk], multi_templates=num_templates > 1
         )[0]
-        _Logger.print(
-            f"{loader.molecules.count()} cross-correlation landscapes with precision "
-            f"{loader.scale / upsample_factor:.3f} nm and local shape {score.shape[1:]} "
-            "were constructed."
-        )
         mole = loader.molecules
         to_drop = set(mole.features.columns) - {Mole.nth, Mole.pf, Mole.position}
         if to_drop:

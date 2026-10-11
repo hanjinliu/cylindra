@@ -3,7 +3,9 @@ pub mod potential;
 pub mod graphs;
 pub mod reservoir;
 pub mod random;
+pub mod landscape;
 
+pub use self::landscape::EnergyLandscape;
 pub use self::models::basic::{CylindricAnnealingModel, CylindricAnnealingModelLJ};
 pub use self::models::defective::DefectiveCylindricAnnealingModel;
 pub use self::models::filamentous::FilamentousAnnealingModel;

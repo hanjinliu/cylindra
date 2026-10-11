@@ -23,6 +23,7 @@ fn _cylindra_ext(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<viterbi::ViterbiGrid>()?;
     m.add_class::<cylindric::CylinderGeometry>()?;
     m.add_class::<cylindric::Index>()?;
+    m.add_class::<annealing::EnergyLandscape>()?;
     m.add_class::<annealing::CylindricAnnealingModel>()?;
     m.add_class::<annealing::CylindricAnnealingModelLJ>()?;
     m.add_class::<annealing::FilamentousAnnealingModel>()?;

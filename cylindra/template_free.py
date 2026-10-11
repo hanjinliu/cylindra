@@ -5,8 +5,10 @@ from typing import TYPE_CHECKING, Generic, Sequence, TypeVar
 
 import impy as ip
 import numpy as np
+import polars as pl
 from acryo import Molecules, SubtomogramLoader, alignment, pipe
-from acryo.loader import LoaderBase
+from acryo.loader import ExtractedSubvolumeLoader, LoaderBase
+from acryo.loader._extracted import SUBVOLUME_INDEX
 from magicclass.logging import getLogger
 from numpy.typing import NDArray
 
@@ -244,7 +246,7 @@ class AlignmentState(BaseAlignmentState[AlignmentResult]):
 
     def fsc_step_init(
         self,
-        loader: SubtomogramLoader,
+        loader: LoaderBase,
         max_shifts: tuple[nm, nm, nm],
         max_rotations: tuple[float, float, float],
     ) -> AlignmentResult:
@@ -266,7 +268,7 @@ class AlignmentState(BaseAlignmentState[AlignmentResult]):
             scale, last_result, self.min_rotation_step
         )
 
-    def fsc_step(self, loader: SubtomogramLoader) -> AlignmentResult:
+    def fsc_step(self, loader: LoaderBase) -> AlignmentResult:
         """Run a FSC step and return the result."""
         last_result = self.results[-1]
         mask = self._prep_mask(last_result.avg.value, loader.scale)
@@ -284,7 +286,7 @@ class AlignmentState(BaseAlignmentState[AlignmentResult]):
 
     def _fsc_step_impl(
         self,
-        loader: SubtomogramLoader,
+        loader: LoaderBase,
         mask: NDArray[np.float32] | None,
         params: AlignmentParams,
     ) -> AlignmentResult:
@@ -311,11 +313,12 @@ class RMAAlignmentState(BaseAlignmentState[RMAAlignmentResult]):
     """
 
     max_num_iters: int = 20
+    cooling_fraction: float = 0.2
     final_temperature_ratio: float = 1e-5
 
     def fsc_step_init(
         self,
-        loader: SubtomogramLoader,
+        loader: LoaderBase,
         max_shifts: tuple[nm, nm, nm],
         max_rotations: tuple[float, float, float],
         upsample_factor: int,
@@ -345,8 +348,8 @@ class RMAAlignmentState(BaseAlignmentState[RMAAlignmentResult]):
         """Temperature (relative to the initial one) to be reached in the next step."""
         if final:
             return self.final_temperature_ratio
-        frac = min((self.num_iter + 1) / self.max_num_iters, 1.0)
-        return self.final_temperature_ratio**frac
+        frac = self.cooling_fraction ** (self.num_iter + 1)
+        return self.final_temperature_ratio * frac
 
     def next_params(self, scale: float) -> RMAAlignmentParams:
         last_result = self.results[-1]
@@ -354,7 +357,7 @@ class RMAAlignmentState(BaseAlignmentState[RMAAlignmentResult]):
             scale, last_result, self.min_rotation_step
         )
 
-    def fsc_step(self, loader: SubtomogramLoader) -> RMAAlignmentResult:
+    def fsc_step(self, loader: LoaderBase) -> RMAAlignmentResult:
         """Run a FSC step and return the result."""
         last_result = self.results[-1]
         mask = self._prep_mask(last_result.avg.value, loader.scale)
@@ -413,20 +416,12 @@ class RMAAlignmentState(BaseAlignmentState[RMAAlignmentResult]):
             raise RuntimeError(
                 "Failed to optimize for all trials. You may check the distance range."
             )
-        if final:
-            _Logger.print_table(
-                {
-                    "Iteration": [r.niter for r in results],
-                    "Score": [f"{-float(r.energies[-1]):.5g}" for r in results],
-                    "State": [r.state for r in results],
-                }
-            )
         best = min(results, key=lambda r: r.energies[-1])
         return annealing.transform_molecules(best.indices)
 
     def _fsc_step_impl(
         self,
-        loader: SubtomogramLoader,
+        loader: LoaderBase,
         mask: NDArray[np.float32] | None,
         params: RMAAlignmentParams,
     ) -> RMAAlignmentResult:
@@ -491,10 +486,14 @@ class ResumableAnnealing:
                 f"Shape of the new landscape {landscape.energies.shape} does not match "
                 f"the current one {self.landscape.energies.shape}."
             )
+        from cylindra._cylindra_ext import EnergyLandscape
+
+        # Copy the energies only once and share them by all the models.
+        energies = EnergyLandscape(landscape.energies)
         for model in self.models:
             shifts = model.shifts()
             # NOTE: set_energy_landscape resets the shifts to the center.
-            model.set_energy_landscape(landscape.energies)
+            model.set_energy_landscape(energies)
             model.set_shifts(shifts)
         self.landscape = landscape
 
@@ -545,3 +544,32 @@ def _resume_annealing(
         niter=model.iteration(),
         state=state,
     )
+
+
+def resample_extracted(
+    loader: ExtractedSubvolumeLoader,
+    molecules: Molecules,
+) -> ExtractedSubvolumeLoader:
+    """Resample the extracted subvolumes at the given molecules.
+
+    `molecules` must correspond one by one to the molecules of `loader`. The relative
+    transformation from the extracted molecules is set as the alignment features, so
+    that the subvolumes are resampled from the extracted ones without cropping the
+    tomogram again.
+    """
+    ref = loader.molecules
+    if molecules.count() != ref.count():
+        raise ValueError(
+            f"Number of molecules {molecules.count()} does not match the number of "
+            f"extracted subvolumes {ref.count()}."
+        )
+    local_shifts = ref.rotator.apply(molecules.pos - ref.pos, inverse=True)
+    local_rot = ref.rotator.inv() * molecules.rotator
+    # ExtractedSubvolumeLoader rotates the shifts before translation, the same as
+    # `Molecules.linear_transform`.
+    shifts = local_rot.apply(local_shifts, inverse=True)
+    rotvec = local_rot.as_rotvec()
+    features = [pl.Series(f"align-d{c}", shifts[:, i]) for i, c in enumerate("zyx")]
+    features += [pl.Series(f"align-d{c}rot", rotvec[:, i]) for i, c in enumerate("zyx")]
+    mole = molecules.with_features(ref.features[SUBVOLUME_INDEX], *features)
+    return loader.replace(molecules=mole)

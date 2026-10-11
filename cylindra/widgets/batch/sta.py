@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import polars as pl
 from acryo import BatchLoader, Molecules, SubtomogramLoader
-from acryo.loader import ExtractedSubvolumeLoader
+from acryo.loader import ConcatenatedLoader, ExtractedSubvolumeLoader
+from acryo.loader._extracted import SUBVOLUME_INDEX
 from magicclass import (
     MagicTemplate,
     abstractapi,
@@ -442,24 +443,55 @@ class BatchSubtomogramAveraging(MagicTemplate):
             alignment_model=_get_alignment(method),
             min_rotation_step=min_rotation_step,
         )
-        yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
-        result0 = _alignment_state.fsc_step_init(loader, max_shifts, max_rotations)
-        _Logger.print(f"Iteration {int(_alignment_state.num_iter)}")
-        yield _plot_current_fsc.with_args(result0.fsc, result0.avg).with_desc(_pdesc.align_tf_1(_alignment_state))  # fmt: skip
-        while True:
-            _Logger.print(_alignment_state.next_params(loader.scale).format())
-            _exceeded = max_num_iters <= _alignment_state.num_iter
-            if _alignment_state.is_converged() or _exceeded:
-                _Logger.print("Maximum iteration exceeded" if _exceeded else "FSC converged.")  # fmt: skip
-                break
-            loader = _alignment_state.align_step(loader)
+        # loaders of each tomogram, which have their own tilt models
+        sub_loaders = list(loader.loaders)
+        num_images = len(sub_loaders)
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmpdir:
+            # Subtomograms are extracted to files only once, as spline coefficients so
+            # that they can be resampled without the prefilter. In each iteration, the
+            # extracted subtomograms are resampled at the aligned molecules for both
+            # alignment and FSC calculation.
+            extracted: list[ExtractedSubvolumeLoader] = []
+            for ith, sub in enumerate(sub_loaders):
+                yield thread_worker.description(
+                    f"Extracting subtomograms ({ith + 1}/{num_images})"
+                )
+                extracted.append(
+                    sub.extract_subtomograms(
+                        Path(tmpdir) / f"image-{ith}",
+                        chunksize=64,
+                        apply_prefilter=True,
+                    )
+                )
+            molecules = [ext.molecules for ext in extracted]
             yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
-            result = _alignment_state.fsc_step(loader)
+            result0 = _alignment_state.fsc_step_init(
+                join_extracted_loaders(extracted), max_shifts, max_rotations
+            )
             _Logger.print(f"Iteration {int(_alignment_state.num_iter)}")
-            yield _plot_current_fsc.with_args(result.fsc, result.avg).with_desc(_pdesc.align_tf_1(_alignment_state))  # fmt: skip
+            yield _plot_current_fsc.with_args(result0.fsc, result0.avg).with_desc(_pdesc.align_tf_1(_alignment_state))  # fmt: skip
+            while True:
+                _Logger.print(_alignment_state.next_params(loader.scale).format())
+                _exceeded = max_num_iters <= _alignment_state.num_iter
+                if _alignment_state.is_converged() or _exceeded:
+                    _Logger.print("Maximum iteration exceeded" if _exceeded else "FSC converged.")  # fmt: skip
+                    break
+                molecules = [
+                    _alignment_state.align_step(
+                        template_free.resample_extracted(ext, mole)
+                    ).molecules
+                    for ext, mole in zip(extracted, molecules, strict=True)
+                ]
+                yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
+                result = _alignment_state.fsc_step(
+                    join_extracted_loaders(extracted, molecules)
+                )
+                _Logger.print(f"Iteration {int(_alignment_state.num_iter)}")
+                yield _plot_current_fsc.with_args(result.fsc, result.avg).with_desc(_pdesc.align_tf_1(_alignment_state))  # fmt: skip
 
+        mole_aligned = _as_alignment_output(loader.molecules, molecules)
         loaderlist.add_loader(
-            loader.order_restore(),
+            loader.replace(molecules=mole_aligned).order_restore(),
             name=_coerce_aligned_name(info.name, loaderlist),
             image_paths=info.image_paths,
             invert=info.invert,
@@ -616,27 +648,29 @@ class BatchSubtomogramAveraging(MagicTemplate):
             min_rotation_step=min_rotation_step,
             max_num_iters=max_num_iters,
         )
-        yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
-        result = _alignment_state.fsc_step_init(
-            loader, max_shifts, max_rotations, upsample_factor,
-            temperature_time_const, num_trials,
-        )  # fmt: skip
-
         sub_inputs = list(self._group_loader_by_spline(loader_name, loader))
         num_splines = len(sub_inputs)
         _Logger.print(f"{num_splines} splines found for RMA alignment.")
         annealings: list[template_free.ResumableAnnealing | None] = [None] * num_splines
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmpdir:
-            # Landscapes are always constructed around the initial molecules, so that
-            # the annealing can be resumed in the next iteration. Subtomograms are
-            # extracted to files to avoid cropping the same ones in every iteration.
+            # Subtomograms are extracted to files only once, as spline coefficients so
+            # that they can be resampled without the prefilter. Landscapes are always
+            # constructed around the initial molecules so that the annealing can be
+            # resumed in the next iteration, and the averages for FSC are resampled
+            # from the extracted subtomograms at the aligned molecules.
             for ith, inputs in enumerate(sub_inputs):
                 yield thread_worker.description(
                     f"Extracting subtomograms ({ith + 1}/{num_splines})"
                 )
                 inputs.loader = inputs.loader.extract_subtomograms(
-                    Path(tmpdir) / f"spline-{ith}", chunksize=64
+                    Path(tmpdir) / f"spline-{ith}", chunksize=64, apply_prefilter=True
                 )
+            extracted = [inputs.loader for inputs in sub_inputs]
+            yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
+            result = _alignment_state.fsc_step_init(
+                join_extracted_loaders(extracted), max_shifts, max_rotations,
+                upsample_factor, temperature_time_const, num_trials,
+            )  # fmt: skip
             _final = False
             while True:
                 _Logger.print(f"Iteration {int(_alignment_state.num_iter)}")
@@ -675,12 +709,13 @@ class BatchSubtomogramAveraging(MagicTemplate):
                             pl.lit(inputs.molecule_id).alias(Mole.id),
                         )
                     )
-                loader_batch = join_loaders(loader, sub_inputs, molecules)
                 yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
-                result = _alignment_state.fsc_step(loader_batch)
+                result = _alignment_state.fsc_step(
+                    join_extracted_loaders(extracted, molecules)
+                )
 
         loaderlist.add_loader(
-            loader_batch,
+            join_loaders(loader, sub_inputs, molecules),
             name=_coerce_aligned_name(info.name, loaderlist),
             image_paths=info.image_paths,
             invert=info.invert,
@@ -957,3 +992,40 @@ def join_loaders(
             loader._tilt_models[inputs.image_id],
         )
     return loader_batch
+
+
+def join_extracted_loaders(
+    loaders: list[ExtractedSubvolumeLoader],
+    molecules: list[Molecules] | None = None,
+) -> ConcatenatedLoader:
+    """Join the extracted loaders for averaging and FSC calculation.
+
+    If `molecules` is given, the extracted subvolumes are resampled at these molecules
+    instead of cropping the tomograms again.
+    """
+    if molecules is not None:
+        loaders = [
+            template_free.resample_extracted(loader, mole)
+            for loader, mole in zip(loaders, molecules, strict=True)
+        ]
+    return ConcatenatedLoader(loaders)
+
+
+# features added by the alignment of acryo loaders, in the same order
+_ALIGN_FEATURES = [Mole.score] + [f"align-d{c}" for c in "zyx"]
+_ALIGN_FEATURES += [f"align-d{c}rot" for c in "zyx"]
+
+
+def _as_alignment_output(original: Molecules, aligned: list[Molecules]) -> Molecules:
+    """Concatenate molecules aligned using the extracted subtomograms.
+
+    The feature columns are ordered in the same way as aligning the original loader
+    directly.
+    """
+    mole = Molecules.concat(aligned).drop_features(SUBVOLUME_INDEX)
+    columns = mole.features.columns
+    order = [c for c in original.features.columns if c in columns]
+    order += [c for c in _ALIGN_FEATURES if c in columns and c not in order]
+    order += [c for c in columns if c not in order]
+    mole.features = mole.features.select(order)
+    return mole

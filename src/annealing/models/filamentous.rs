@@ -3,10 +3,11 @@ use pyo3::{
     Python, Py, PyRefMut
 };
 use numpy::{
-    ndarray::Array2, IntoPyArray, PyArray1, PyArray2, PyReadonlyArray2, PyReadonlyArray4, PyUntypedArrayMethods
+    ndarray::Array2, IntoPyArray, PyArray1, PyArray2, PyReadonlyArray2
 };
 
 use crate::annealing::{
+    landscape::EnergyLandscapeInput,
     graphs::{FilamentousGraph, GraphTrait}, random::RandomNumberGenerator, reservoir::Reservoir
 };
 use crate::value_error;
@@ -136,13 +137,15 @@ impl FilamentousAnnealingModel {
     }
 
     #[pyo3(signature = (energy))]
+    /// Set the energy landscape. If an `EnergyLandscape` is given, the array is
+    /// shared with other models without copying.
     pub fn set_energy_landscape<'py>(
         mut slf: PyRefMut<'py, Self>,
-        energy: PyReadonlyArray4<f32>,
+        energy: EnergyLandscapeInput<'py>,
     ) -> PyResult<PyRefMut<'py, Self>> {
+        let energy = energy.into_shared();
         let shape = energy.shape();
         slf.rng.set_shape((shape[1], shape[2], shape[3]));
-        let energy = energy.as_array().to_shared();
         slf.graph.set_energy_landscape(energy)?;
         Ok(slf)
     }
