@@ -38,12 +38,15 @@ def get_annealing_model(
     _max_shifts = np.asarray(max_shifts, dtype=np.float32)
     _max_shifts_clipped = (_max_shifts / scale_factor).astype(np.int32) * scale_factor
     m0 = molecules.translate_internal(-_max_shifts_clipped)
+    # indices can be negative (e.g. mapped with extensions or flat edge), but the
+    # graph requires non-negative indices.
+    ind = molecules.features.select([Mole.nth, Mole.pf]).to_numpy().astype(np.int32)
+    ind[:, 0] -= ind[:, 0].min()
+    ind[:, 1] -= ind[:, 1].min()
     return (
         CylindricAnnealingModel()
         .construct_graph(
-            indices=molecules.features.select([Mole.nth, Mole.pf])
-            .to_numpy()
-            .astype(np.int32),
+            indices=ind,
             npf=_npf,
             nrise=_nrise,
         )
