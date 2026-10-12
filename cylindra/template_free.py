@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING, Generic, Sequence, TypeVar
+from typing import TYPE_CHECKING, Sequence
 
 import impy as ip
 import numpy as np
@@ -9,7 +9,6 @@ import polars as pl
 from acryo import Molecules, SubtomogramLoader, alignment, pipe
 from acryo.loader import ExtractedSubvolumeLoader, LoaderBase
 from acryo.loader._extracted import SUBVOLUME_INDEX
-from magicclass.logging import getLogger
 from numpy.typing import NDArray
 
 from cylindra._dask import compute, delayed
@@ -26,8 +25,6 @@ if TYPE_CHECKING:
     from cylindra._cylindra_ext import CylindricAnnealingModel
     from cylindra.components.spline import CylSpline
 
-_Logger = getLogger("cylindra")
-
 
 def adjust_down(
     a: float, a_min: float, num_iter: int, num_iter_offset: int = 3
@@ -36,9 +33,6 @@ def adjust_down(
         return a
     diff = a - a_min
     return diff / (num_iter - num_iter_offset + 2) + a_min
-
-
-_L = TypeVar("_L", bound=LoaderBase)
 
 
 @dataclass
@@ -186,11 +180,8 @@ class RMAAlignmentResult(AlignmentResult):
     params: RMAAlignmentParams
 
 
-_R = TypeVar("_R", bound="AlignmentResult")
-
-
 @dataclass
-class BaseAlignmentState(Generic[_R]):
+class BaseAlignmentState[R: "AlignmentResult"]:
     """State of the template-free alignment."""
 
     rng: np.random.Generator = field(default_factory=np.random.default_rng)
@@ -199,7 +190,7 @@ class BaseAlignmentState(Generic[_R]):
         default=alignment.ZNCCAlignment
     )
     min_rotation_step: float = 0.5
-    results: list[_R] = field(default_factory=list)
+    results: list[R] = field(default_factory=list)
 
     @property
     def num_iter(self) -> int:
@@ -275,7 +266,7 @@ class AlignmentState(BaseAlignmentState[AlignmentResult]):
         params = self.next_params(loader.scale)
         return self._fsc_step_impl(loader, mask, params)
 
-    def align_step(self, loader: _L) -> _L:
+    def align_step[L: LoaderBase](self, loader: L) -> L:
         """Run an alignment step and return updated loader."""
         result = self.results[-1]
         return loader.align(

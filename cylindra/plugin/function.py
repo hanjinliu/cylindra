@@ -5,7 +5,7 @@ import inspect
 import warnings
 from functools import wraps
 from types import ModuleType
-from typing import TYPE_CHECKING, Callable, Generic, ParamSpec, TypeVar
+from typing import TYPE_CHECKING, Callable, Concatenate
 
 from macrokit import Expr, Symbol
 
@@ -17,16 +17,17 @@ if TYPE_CHECKING:
 
     from cylindra.widgets import CylindraMainWidget
 
-_P = ParamSpec("_P")
-_R = TypeVar("_R")
 
+class CylindraPluginFunction[**P, R]:
+    """The callable object for cylindra plugin function.
 
-class CylindraPluginFunction(Generic[_P, _R]):
-    """The callable object for cylindra plugin function."""
+    `P` is the parameters of the plugin function excluding the first argument (the
+    `CylindraMainWidget` instance).
+    """
 
     def __init__(
         self,
-        func: Callable[_P, _R],
+        func: Callable[Concatenate[CylindraMainWidget, P], R],
         name: str | None = None,
         module: str | None = None,
         record: bool = True,
@@ -98,15 +99,15 @@ class CylindraPluginFunction(Generic[_P, _R]):
         self._module = mod.__name__
         return self
 
-    def as_method(self, ui):
+    def as_method(self, ui: CylindraMainWidget) -> Callable[P, R]:
         """As a method bound to the given CylindraMainWidget instance."""
         from magicclass.signature import upgrade_signature
 
-        def _method(*args: _P.args, **kwargs: _P.kwargs) -> _R:
+        def _method(*args: P.args, **kwargs: P.kwargs) -> R:
             return self(ui, *args, **kwargs)
 
         aopt = getattr(self.__signature__, "additional_options", None)
-        _method.__signature__ = self._method_sig
+        _method.__signature__ = self._method_sig  # type: ignore[attr-defined]
         _method.__name__ = self._name
         _method.__doc__ = getattr(self._func, "__doc__", "")
         if qualname := getattr(self._func, "__qualname__", None):
@@ -114,32 +115,32 @@ class CylindraPluginFunction(Generic[_P, _R]):
         upgrade_signature(_method, additional_options=aopt)
         return _method
 
-    def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _R:
+    def __call__(
+        self, ui: CylindraMainWidget, /, *args: P.args, **kwargs: P.kwargs
+    ) -> R:
         from cylindra.widgets import CylindraMainWidget
 
-        bound = self.__signature__.bind(*args, **kwargs)
+        bound = self.__signature__.bind(ui, *args, **kwargs)
         bound.apply_defaults()
-        ui = bound.arguments[self._ui_arg_name]
         if not isinstance(ui, CylindraMainWidget):
             raise TypeError(
                 f"Expected a CylindraMainWidget instance as the first argument "
                 f"{self._ui_arg_name!r} but got {ui!r}"
             )
-        first_arg, *args = bound.args
-        assert first_arg is ui
+        rest_args = bound.args[1:]
         if _is_thread_worker(self._func):
-            out = self._func.__get__(ui)(*args, **bound.kwargs)
+            out = self._func.__get__(ui)(*rest_args, **bound.kwargs)
         else:
             with ui.macro.blocked():
                 out = self._func(*bound.args, **bound.kwargs)
 
             # macro recording
             if self._is_recordable:
-                out = self._record_macro(ui, out, *args, **bound.kwargs)
+                out = self._record_macro(ui, out, *rest_args, **bound.kwargs)
 
         return out
 
-    def arun(self, *args, **kwargs):
+    def arun(self, ui: CylindraMainWidget, /, *args: P.args, **kwargs: P.kwargs):
         """Run the `arun` method of the thread worker.
 
         If the plugin function is a `thread_worker`, use this method to run it in
@@ -159,14 +160,10 @@ class CylindraPluginFunction(Generic[_P, _R]):
         if not _is_thread_worker(self._func):
             raise RuntimeError("The plugin function is not a thread worker.")
 
-        bound = self.__signature__.bind(*args, **kwargs)
+        bound = self.__signature__.bind(ui, *args, **kwargs)
         bound.apply_defaults()
-        ui = bound.arguments[self._ui_arg_name]
-        first_arg, *args = bound.args
-        assert first_arg is ui
-
         _method = self._func.__get__(ui)
-        return _method.arun(*args, **bound.kwargs)
+        return _method.arun(*bound.args[1:], **bound.kwargs)
 
     def _record_macro(
         self,

@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-from typing import Callable, NamedTuple, TypeVar
+from typing import Callable, NamedTuple
 
 # This file is for documentation and tooltip purposes only.
 
-_T = TypeVar("_T", bound=type)
-
 
 class Parameter(NamedTuple):
-    """
-    Structure for a parameter description. A Parameter tuple is equivalent to the following.
+    """Structure for a parameter description.
+
+    A Parameter tuple is equivalent to the following.
 
     _name_ : _type_
         _desc_
@@ -109,7 +108,7 @@ def update_func(f: Callable):
     return f
 
 
-def update_cls(cls: _T) -> _T:
+def update_cls[T: type](cls: T) -> T:
     """Update the __doc__ of all methods in a class."""
     for attr in cls.__dict__.values():
         if callable(attr) and hasattr(attr, "__doc__"):

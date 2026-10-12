@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import warnings
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, Literal, Sequence, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, Sequence
 
 import numpy as np
 
@@ -12,40 +12,38 @@ from cylindra.const import nm
 if TYPE_CHECKING:
     from IPython.lib.pretty import RepresentationPrinter
 
-_T = TypeVar("_T")
-
 
 @dataclass(frozen=True)
-class Range(Generic[_T]):
+class Range[T]:
     """Class for range."""
 
-    min: _T
-    max: _T
+    min: T
+    max: T
 
     def __post_init__(self):
         if self.min > self.max:
             raise ValueError("min must be less than or equal to max")
 
-    def contains(self, value: _T):
+    def contains(self, value: T):
         """Check if the value is in the range."""
         return self.min <= value <= self.max
 
     __contains__ = contains
 
-    def copy(self) -> Range[_T]:
+    def copy(self) -> Range[T]:
         return Range(self.min, self.max)
 
-    def astuple(self) -> tuple[_T, _T]:
+    def astuple(self) -> tuple[T, T]:
         return (self.min, self.max)
 
     def astuple_rounded(self, ndigits: int = 4):
         return (round(self.min, ndigits), round(self.max, ndigits))
 
     @property
-    def center(self) -> _T:
+    def center(self) -> T:
         return (self.min + self.max) / 2
 
-    def aslist(self) -> list[_T]:
+    def aslist(self) -> list[T]:
         return [self.min, self.max]
 
     def asarray(self):
@@ -55,7 +53,7 @@ class Range(Generic[_T]):
         return slice(self.min, self.max + 1)
 
 
-def _norm_range(x: Range[_T] | Sequence[_T] | tuple[_T, _T]) -> Range[_T]:
+def _norm_range[T](x: Range[T] | Sequence[T] | tuple[T, T]) -> Range[T]:
     if isinstance(x, Range):
         return x
     return Range(*x)

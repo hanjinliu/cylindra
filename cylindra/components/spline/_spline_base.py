@@ -9,7 +9,6 @@ from typing import (
     Callable,
     Self,
     Sequence,
-    TypeVar,
     overload,
 )
 
@@ -1222,11 +1221,10 @@ class Spline(BaseComponent):
 
 
 # fmt: off
-_T = TypeVar("_T", bound=np.generic)
 @overload
 def _linear_conversion(u: float, start: float, stop: float) -> float: ...
 @overload
-def _linear_conversion(u: NDArray[_T], start: float, stop: float) -> NDArray[_T]: ...
+def _linear_conversion[T: np.generic](u: NDArray[T], start: float, stop: float) -> NDArray[T]: ...
 # fmt: on
 
 
@@ -1239,9 +1237,9 @@ def _assert_fitted(spl: Spline):
         raise ValueError("Spline is not fitted yet.")
 
 
-def _rot_with_vector(
-    maps: NDArray[_T], ax_coords: NDArray[_T], vectors: NDArray[_T]
-) -> NDArray[_T]:
+def _rot_with_vector[T: np.generic](
+    maps: NDArray[T], ax_coords: NDArray[T], vectors: NDArray[T]
+) -> NDArray[T]:
     rot = axes_to_rotator(None, vectors)
     mat = rot.as_matrix()
     out = np.einsum("nij,vhj->vnhi", mat, maps)
@@ -1257,7 +1255,7 @@ def _cartesian_coords_2d(lenv: int, lenh: int):
     return np.stack([v, h], axis=2)  # V, H, 2
 
 
-def _stack_coords(coords: NDArray[_T]) -> NDArray[_T]:  # V, H, D
+def _stack_coords[T: np.generic](coords: NDArray[T]) -> NDArray[T]:  # shape: V, H, D
     shape = coords.shape[:-1]
     zeros = np.zeros(shape, dtype=np.float32)
     stacked = np.stack(
