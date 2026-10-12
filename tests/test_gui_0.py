@@ -1687,6 +1687,10 @@ def test_annealing(ui: CylindraMainWidget):
     tester.update_parameters(range_lat=("4.05", "d.mean() + 0.1"))
     tester.update_parameters(range_lat=("4.05", "4.3"))
     tester.update_parameters(range_lat=("d.mean() - ", "4.3"))  # syntax error
+    # molecules mapped with flat edges have negative `nth`
+    ui.map_monomers(0, edge_processing="flat")
+    assert ui.mole_layers.last().molecules.features["nth"].min() < 0
+    tester.update_parameters(layer=ui.mole_layers.last())
     tester.click_preview()
 
     # test return same results with same random seeds
