@@ -1,32 +1,31 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Literal, ParamSpec, TypeVar, overload
+from typing import TYPE_CHECKING, Callable, Concatenate, overload
 
 from cylindra.plugin.function import CylindraPluginFunction
 
 if TYPE_CHECKING:
     from cylindra.widgets import CylindraMainWidget
 
-_P = ParamSpec("_P")
-_R = TypeVar("_R")
+type _PluginFunc[**P, R] = Callable[Concatenate[CylindraMainWidget, P], R]
 
 
 @overload
-def register_function(
-    func: Callable[_P, _R],
+def register_function[**P, R](
+    func: _PluginFunc[P, R],
     *,
     record: bool = True,
     name: str | None = None,
-) -> CylindraPluginFunction[_P, _R]: ...
+) -> CylindraPluginFunction[P, R]: ...
 
 
 @overload
-def register_function(
-    func: Literal[None],
+def register_function[**P, R](
+    func: None = None,
     *,
     record: bool = True,
     name: str | None = None,
-) -> Callable[[Any], CylindraPluginFunction]: ...
+) -> Callable[[_PluginFunc[P, R]], CylindraPluginFunction[P, R]]: ...
 
 
 def register_function(func=None, *, record=True, name=None):
@@ -51,7 +50,7 @@ def register_function(func=None, *, record=True, name=None):
         used.
     """
 
-    def _inner(fn: Callable[_P, _R]) -> CylindraPluginFunction[_P, _R]:
+    def _inner[**P, R](fn: _PluginFunc[P, R]) -> CylindraPluginFunction[P, R]:
         return CylindraPluginFunction(fn, name=name, record=record)
 
     return _inner if func is None else _inner(func)
