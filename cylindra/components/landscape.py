@@ -9,7 +9,6 @@ from typing import (
     Sequence,
     SupportsIndex,
     SupportsInt,
-    TypeVar,
 )
 
 import impy as ip
@@ -41,7 +40,6 @@ if TYPE_CHECKING:
     )
 
     _DistLike = nm | str
-    _ANN = TypeVar("_ANN", bound=BaseCylindricAnnealingModel)
 
 _Logger = getLogger("cylindra")
 
@@ -361,9 +359,9 @@ class Landscape:
         molecules_opt = self.transform_molecules(mole, inds)
         return molecules_opt
 
-    def _prep_annealing_model(
+    def _prep_annealing_model[ANN: "BaseCylindricAnnealingModel"](
         self,
-        cls: type[_ANN],
+        cls: type[ANN],
         spl: CylSpline,
         distance_range_long: tuple[_DistLike, _DistLike],
         distance_range_lat: tuple[_DistLike, _DistLike],
@@ -373,7 +371,7 @@ class Landscape:
         temperature: float | None = None,
         cooling_rate: float | None = None,
         reject_limit: int | None = None,
-    ) -> _ANN:
+    ) -> ANN:
         cyl = spl.cylinder_model()
         _nrise, _npf = cyl.nrise, cyl.shape[1]
         molecules = self.molecules

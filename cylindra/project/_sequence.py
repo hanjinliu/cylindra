@@ -7,7 +7,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Generic,
     Iterable,
     Iterator,
     Literal,
@@ -16,7 +15,6 @@ from typing import (
     Self,
     Sequence,
     SupportsIndex,
-    TypeVar,
     overload,
 )
 
@@ -37,24 +35,23 @@ if TYPE_CHECKING:
 
     from cylindra.components import CylSpline
 
-_V = TypeVar("_V")
 _Null = object()
 _IDTYPE = Literal["int", "path"]
 
 
-class Validator(ABC, Generic[_V]):
+class Validator[V](ABC):
     def __init__(self, check: bool = True):
         self._value = _Null
         self._check = check
 
     @property
-    def value(self) -> _V:
+    def value(self) -> V:
         if self._value is _Null:
             raise AttributeError("Value cannot be determined yet.")
         return self._value
 
     @value.setter
-    def value(self, val: _V):
+    def value(self, val: V):
         if self._value is _Null:
             self._value = val
         else:
@@ -66,7 +63,7 @@ class Validator(ABC, Generic[_V]):
         self._value = _Null
 
     @abstractmethod
-    def check_value(self, val: Any) -> _V:
+    def check_value(self, val: Any) -> V:
         """Assert input has the same value. Raise an error otherwise."""
 
 

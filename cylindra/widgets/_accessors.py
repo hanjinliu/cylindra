@@ -6,11 +6,9 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Generic,
     Iterator,
     MutableSequence,
     Self,
-    TypeVar,
 )
 
 import napari
@@ -26,19 +24,16 @@ if TYPE_CHECKING:
     from cylindra.widgets.batch._utils import LoaderInfo
     from cylindra.widgets.main import CylindraMainWidget  # noqa: F401
 
-_V = TypeVar("_V")
-_W = TypeVar("_W", bound="MagicTemplate")
 
-
-class Accessor(MutableSequence[_V], Generic[_V, _W]):
-    def __init__(self, widget: _W | None = None):
+class Accessor[V, W: MagicTemplate](MutableSequence[V]):
+    def __init__(self, widget: W | None = None):
         if widget is not None:
             self._widget = weakref.ref(widget)
         else:
             self._widget = lambda: None
         self._instances = dict[int, "Self"]()
 
-    def widget(self) -> _W:
+    def widget(self) -> W:
         widget = self._widget()
         if widget is None:
             raise RuntimeError("Widget is already deleted.")
@@ -121,7 +116,7 @@ class MoleculesLayerAccessor(Accessor[MoleculesLayer, "CylindraMainWidget"]):
 
     _void = object()
 
-    def get(self, name: str, default: _V = _void) -> MoleculesLayer | _V:
+    def get[V](self, name: str, default: V = _void) -> MoleculesLayer | V:
         """Get a layer by name, return default if not exist."""
         try:
             return self[name]
