@@ -21,6 +21,8 @@ from cylindra_builtins.relion import _relion_utils
 from cylindra_builtins.relion._relion_utils import starfile
 
 if TYPE_CHECKING:
+    from scipy.spatial.transform import Rotation
+
     from cylindra.components import CylSpline, CylTomogram
 
 TOMO_NAME = "rlnTomoName"
@@ -36,6 +38,11 @@ POS_CENTERED = [
     "rlnCenteredCoordinateXAngst",
 ]
 ROT_COLUMNS = ["rlnAngleRot", "rlnAngleTilt", "rlnAnglePsi"]
+SUBTOMO_ROT_COLUMNS = [
+    "rlnTomoSubtomogramRot",
+    "rlnTomoSubtomogramTilt",
+    "rlnTomoSubtomogramPsi",
+]
 POS_ORIGIN_COLUMNS = ["rlnOriginZAngst", "rlnOriginYAngst", "rlnOriginXAngst"]
 RELION_TUBE_ID = "rlnHelicalTubeID"
 MOLE_ID = "MoleculeGroupID"
@@ -744,36 +751,60 @@ def _particles_to_molecules(
     default_key: str = "Mole-0",
     scale: nm = 1.0,
 ) -> dict[str, Molecules]:
+    """Convert RELION particles into molecules.
+
+    This conversion follows the RELION 5 python scripts (`view/particles.py` and
+    `get_particle_poses/particles.py`). The particle orientation (rlnAngle*) is
+    relative to the subtomogram orientation (rlnTomoSubtomogram*), and the origin
+    shift (rlnOrigin*Angst) is defined in the subtomogram frame and is subtracted
+    from the coordinates.
+    """
     center_zyx = np.asarray(center_zyx, dtype=np.float32)
     if all(c in particles.columns for c in POS_CENTERED):
         pos = particles[POS_CENTERED].to_numpy() / 10 + center_zyx[np.newaxis, :]
         particles = particles.drop(columns=POS_CENTERED)
     elif all(c in particles.columns for c in POS):
-        pos = particles[POS] * scale + center_zyx[np.newaxis, :]
+        # not centered coordinates in pixels
+        pos = particles[POS].to_numpy() * scale
         particles = particles.drop(columns=POS)
     else:
         raise ValueError("No position columns found in the DataFrame.")
 
-    if all(c in particles.columns for c in POS_ORIGIN_COLUMNS):
-        for target, source in enumerate(POS_ORIGIN_COLUMNS):
-            pos[:, target] += particles[source] / 10
-        particles.drop(columns=POS_ORIGIN_COLUMNS, inplace=True)
-
     if all(c in particles.columns for c in ROT_COLUMNS):
         euler = particles[ROT_COLUMNS].to_numpy()
-        features = particles.drop(columns=ROT_COLUMNS)
+        particles = particles.drop(columns=ROT_COLUMNS)
     else:
         euler = np.zeros((particles.shape[0], 3), dtype=np.float32)
-        features = particles
-    mole = Molecules.from_euler(
-        pos, euler, seq="ZYZ", degrees=True, order="xyz", features=features
-    )
+    rotator = _euler_to_rotator(euler)
+
+    if all(c in particles.columns for c in SUBTOMO_ROT_COLUMNS):
+        rot_subtomo = _euler_to_rotator(particles[SUBTOMO_ROT_COLUMNS].to_numpy())
+        rotator = rot_subtomo * rotator
+        particles = particles.drop(columns=SUBTOMO_ROT_COLUMNS)
+    else:
+        rot_subtomo = None
+
+    if all(c in particles.columns for c in POS_ORIGIN_COLUMNS):
+        origin = particles[POS_ORIGIN_COLUMNS].to_numpy() / 10  # nm
+        if rot_subtomo is not None:
+            origin = rot_subtomo.apply(origin)
+        pos = pos - origin
+        particles = particles.drop(columns=POS_ORIGIN_COLUMNS)
+
+    mole = Molecules(pos, rotator, features=particles)
     if MOLE_ID in mole.features.columns:
         return {
             _norm_mole_id(mole_id): m.drop_features(MOLE_ID)
             for mole_id, m in mole.group_by(MOLE_ID)
         }
     return {default_key: mole}
+
+
+def _euler_to_rotator(euler: np.ndarray) -> "Rotation":
+    """RELION Euler angles (degrees) to a rotator in the zyx coordinates."""
+    return Molecules.from_euler(
+        np.zeros((euler.shape[0], 3)), euler, seq="ZYZ", degrees=True, order="xyz"
+    ).rotator
 
 
 def _norm_mole_id(mole_id) -> str:
