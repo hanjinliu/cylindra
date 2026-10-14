@@ -85,6 +85,7 @@ class Volume(MagicTemplate):
                 "translate": translate,
                 "name": layer.name + "-binning",
                 "rendering": layer.rendering,
+                "units": layer.units,
             },
             "image",
         )
@@ -146,6 +147,7 @@ class Volume(MagicTemplate):
                 "translate": layer_1.translate,
                 "name": f"{layer_1.name}-binary_op",
                 "rendering": layer_1.rendering,
+                "units": layer_1.units,
             },
             "image",
         )
@@ -382,6 +384,7 @@ class Volume(MagicTemplate):
                 "rendering": layer.rendering,
                 "blending": layer.blending,
                 "iso_threshold": layer.iso_threshold,
+                "units": layer.units,
             },
             "image",
         )
