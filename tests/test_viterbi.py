@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
-from numpy.testing import assert_array_less, assert_equal
+from numpy.testing import assert_allclose, assert_array_less, assert_equal
+from scipy.spatial.transform import Rotation
 
 from cylindra._cylindra_ext import ViterbiGrid
 
@@ -123,3 +124,20 @@ def test_viterbi_1d_distance(seed: int, angle_max):
 
     assert_array_less(dist_min, dist, "dist_min < dist not satisfied")
     assert_array_less(dist, dist_max, "dist_max > dist not satisfied")
+
+
+@pytest.mark.parametrize(
+    "local_shape", [(3, 5, 5), (7, 3, 3), (3, 7, 3), (3, 3, 7), (5, 3, 7)]
+)
+def test_world_pos_non_cubic(local_shape: tuple[int, int, int]):
+    n = 4
+    rng = np.random.default_rng(0)
+    score = rng.random((n, *local_shape)).astype(np.float32)
+    mtx = Rotation.random(n, random_state=0).as_matrix().astype(np.float32)
+    zvec, yvec, xvec = (mtx[:, :, i] * 0.5 for i in range(3))
+    origin = rng.uniform(0, 10, size=(n, 3)).astype(np.float32)
+    grid = ViterbiGrid(score, origin, zvec, yvec, xvec)
+    for i in range(n):
+        for z, y, x in np.ndindex(*local_shape):
+            expected = origin[i] + z * zvec[i] + y * yvec[i] + x * xvec[i]
+            assert_allclose(grid.world_pos(i, z, y, x), expected, atol=1e-5)

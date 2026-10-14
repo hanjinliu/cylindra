@@ -135,7 +135,7 @@ _MaxShifts = Annotated[
 _MaxRotations = Annotated[
     tuple[float, float, float],
     {
-        "options": {"max": 20.0, "step": 0.1},
+        "options": {"max": 180.0, "step": 0.1},
         "label": "max rotations (ZYX deg)",
     },
 ]
@@ -985,7 +985,7 @@ class SubtomogramAveraging(ChildWidget):
 
             rotator = Rotation.from_quat(result.quat)
             svec = result.shift * _scale
-            _mole_trans = mole.linear_transform(result.shift * _scale, rotator)
+            _mole_trans = mole.spatial_transform(svec, rotator)
 
             # write offsets to spline globalprops if available
             if spl := layer.source_spline:
@@ -998,7 +998,7 @@ class SubtomogramAveraging(ChildWidget):
                 else:
                     _radius = spl.radius
                 _glob_old = spl.props.glob.clone()
-                _glob_new = _update_offset(spl, rotator.apply(svec), _radius)
+                _glob_new = _update_offset(spl, svec, _radius)
                 spl.props.glob = _glob_new
                 _spl_globs.append((weakref.ref(spl), _glob_old, _glob_new))
 
@@ -1492,7 +1492,7 @@ class SubtomogramAveraging(ChildWidget):
             interval=spl_old.props.get_glob(interv_expr),
             rotate_molecules=False,
         )
-        mole_rv = mole_fw.rotate_by_rotvec([np.pi, 0, 0])  # invert
+        mole_rv = mole_fw.rotate_by_rotvec_internal([np.pi, 0, 0])  # invert
 
         @thread_worker.callback
         def _on_yield(results):

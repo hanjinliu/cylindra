@@ -2,6 +2,7 @@ from pathlib import Path
 
 import impy as ip
 import numpy as np
+import polars as pl
 import pytest
 from magicclass import testing as mcls_testing
 from magicgui.application import use_app
@@ -263,6 +264,76 @@ def test_align_rma(
     ]:
         loader = ui.batch.sta.get_loader(name)
         _assert_box_size(loader.output_shape, loader.scale, size)
+
+
+@pytest_group("batch.align")
+@pytest.mark.parametrize(
+    "binsize, optimize_polarity, randomize_roll_angle",
+    [(1, True, False), (2, False, True)],
+)
+def test_align_rfa_template_free(
+    ui: CylindraMainWidget,
+    binsize: int,
+    optimize_polarity: bool,
+    randomize_roll_angle: bool,
+):
+    # RFA needs the source splines, which are looked up from the batch projects.
+    ui.batch.constructor.add_projects([PROJECT_DIR_13PF])
+    ui.batch.construct_loader(
+        paths=[
+            (
+                TEST_DIR / "13pf_MT.tif",
+                ["Mole-0.csv", "Mole-1.csv"],
+                PROJECT_DIR_13PF,
+            )
+        ],
+        # molecules of a protofilament are aligned as a filament
+        predicate="pl.col('pf-id') == 4",
+        name="Loader",
+    )
+    ui.batch.sta.align_all_rfa_template_free(
+        "Loader",
+        mask_params=(2.0, 2.0),
+        size=12.0,
+        max_shifts=(1.2, 1.2, 1.2),
+        max_rotations=(0.0, 60.0, 0.0),
+        range_long=(3.8, "np.inf"),
+        angle_max=20.0,
+        optimize_polarity=optimize_polarity,
+        randomize_roll_angle=randomize_roll_angle,
+        bin_size=binsize,
+        upsample_factor=2,
+        temperature_time_const=0.2,
+        num_trials=2,
+        max_num_iters=3,
+    )
+    loader_in = ui.batch.sta.get_loader("Loader")
+    loader = ui.batch.sta.get_loader("Loader-ALN1")
+    _assert_box_size(loader.output_shape, loader.scale, 12.0)
+    assert loader.molecules.count() == loader_in.molecules.count()
+    # intermediate results are stored in the metadata of the average
+    history = ui.sta.sub_viewer.layers[-1].metadata["template_free_history"]
+    assert len(history) == 4  # initial average and 3 iterations
+    for entry in history:
+        assert entry["average"].shape == loader.output_shape
+        assert entry["molecules"].count() == loader_in.molecules.count()
+    num_orientations = 2 if optimize_polarity else 1
+    for entry in history[1:]:
+        assert len(entry["references"]) == num_orientations
+    # landscapes are sampled at the pixels of the binned loader
+    max_shift = np.ceil(1.2 / loader.scale) * loader.scale
+    for (mole_id,), sub in loader.molecules.group_by(["molecules-id"]):
+        sub_in = loader_in.molecules.filter(pl.col("molecules-id") == mole_id)
+        # molecules are not reordered
+        dist = np.linalg.norm(sub.pos - sub_in.pos, axis=1)
+        assert dist.max() < np.sqrt(3) * max_shift + 1e-3
+        # all the molecules of a filament are in the same orientation
+        polarity = np.sign(np.sum(sub.y * sub_in.y, axis=1))
+        if optimize_polarity:
+            assert abs(polarity.sum()) == sub.count()
+        else:
+            # rotation around the y-axis does not change the polarity
+            assert np.all(polarity == 1)
 
 
 def test_filter(ui: CylindraMainWidget):

@@ -31,7 +31,7 @@ from cylindra.widgets.subwidgets.measure import (
 )
 
 from ._const import PROJECT_DIR_13PF, PROJECT_DIR_14PF, TEST_DIR
-from .utils import ExceptionGroup, pytest_group
+from .utils import ExceptionGroupManager, pytest_group
 
 coords_13pf = [[18.97, 190.0, 28.99], [18.97, 107.8, 51.48]]
 coords_14pf = [[21.97, 123.1, 32.98], [21.97, 83.3, 40.5]]
@@ -174,7 +174,7 @@ def test_io_with_different_data(ui: CylindraMainWidget, tmpdir):
         {"local_props": True, "global_props": False},
         {"local_props": True, "global_props": True, "map_monomers": True},
     ]
-    exc_group = ExceptionGroup()
+    exc_group = ExceptionGroupManager()
     tmpdir = Path(tmpdir)
     for param in params:
         with exc_group.merging():
@@ -272,7 +272,7 @@ def test_serialize(ui: CylindraMainWidget):
 
 def test_workflow_with_many_input(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_14PF, filter=None)
-    exc_group = ExceptionGroup()
+    exc_group = ExceptionGroupManager()
     with exc_group.merging():
         ui._runner.run([0], max_shift=-1)  # no fit
     with exc_group.merging():
@@ -814,6 +814,45 @@ def test_sub_widgets(ui: CylindraMainWidget, tmpdir):
         ui.spline_slicer.start_or_stop_clipping()
         ui.spline_slicer.controller.pos.value = 32.3
         ui.spline_slicer.start_or_stop_clipping()
+
+def test_align_averaged_transform(ui: CylindraMainWidget, tmpdir):
+    # smooth random tomogram, so that the average is not symmetric
+    from scipy import ndimage as ndi
+    from scipy.spatial.transform import Rotation
+
+    rng = np.random.default_rng(0)
+    img = ndi.gaussian_filter(rng.normal(size=(96, 96, 96)), 2.0).astype(np.float32)
+    img_path = Path(tmpdir) / "image.mrc"
+    ip.asarray(img, axes="zyx").set_scale(zyx=1.0, unit="nm").imsave(img_path)
+    ui.open_image(img_path, scale=1.0, tilt_range=None, bin_size=[1], filter=None)
+    rot = Rotation.from_rotvec([[0.4, -0.9, 0.7]])
+    mole = Molecules(np.array([[48.0, 47.0, 49.0]]), rot)
+    ui.add_molecules(mole, name="mole")
+    # transform of the average: shift (in the coordinates before rotation) and then
+    # rotation around the y-axis
+    shift = np.array([0.0, 1.0, 2.0])
+    rotvec = np.array([0.0, np.deg2rad(20), 0.0])
+    mole_true = mole.translate_internal(shift).rotate_by_rotvec_internal(rotvec)
+    loader = ui.tomogram.get_subtomogram_loader(mole_true, binsize=1, order=1)
+    template_path = Path(tmpdir) / "template.mrc"
+    ip.asarray(loader.average((25, 25, 25)), axes="zyx").set_scale(
+        zyx=1.0, unit="nm"
+    ).imsave(template_path)
+    ui.sta.align_averaged(
+        layers=["mole"],
+        template_path=template_path,
+        mask_params=None,
+        max_shifts=(3.0, 3.0, 3.0),
+        rotations=((0.0, 0.0), (20.0, 20.0), (0.0, 0.0)),
+        bin_size=1,
+    )
+    mole_aln = ui.mole_layers.last().molecules
+    assert_allclose(
+        mole_aln.rotator.as_matrix(), mole_true.rotator.as_matrix(), atol=1e-4
+    )
+    # tolerance for the sub-pixel peak detection
+    assert_allclose(mole_aln.pos, mole_true.pos, atol=0.25)
+
 
 @pytest.mark.parametrize("bin_size", [1, 2])
 def test_sta(ui: CylindraMainWidget, bin_size: int, tmpdir):
@@ -1411,7 +1450,7 @@ def test_molecules_to_spline(ui: CylindraMainWidget):
 
 
 def test_calc_lattice_structures(ui: CylindraMainWidget):
-    exc_group = ExceptionGroup()
+    exc_group = ExceptionGroupManager()
     for orientation, path, invert in product(
         ["PlusToMinus", "MinusToPlus"],
         [PROJECT_DIR_13PF, PROJECT_DIR_14PF],

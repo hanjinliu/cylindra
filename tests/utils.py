@@ -23,7 +23,7 @@ class pytest_group:
 
     _all = {}
 
-    def __new__(cls, id: str, maxfail: int = 1):  # noqa: ARG003
+    def __new__(cls, id: str, maxfail: int = 1):  # noqa: ARG004
         if self := cls._all.get(id):
             return self
         cls._all[id] = self = super().__new__(cls)
@@ -48,7 +48,7 @@ class pytest_group:
         return wrapper
 
 
-class ExceptionGroup:
+class ExceptionGroupManager:
     """Custom exception group to test many cases without launching the viewer many times."""
 
     def __init__(self, max_fail: int = 9999) -> None:
