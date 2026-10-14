@@ -6106,7 +6106,7 @@
 
             <span class="n">rotator</span> <span class="o">=</span> <span class="n">Rotation</span><span class="o">.</span><span class="n">from_quat</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">quat</span><span class="p">)</span>
             <span class="n">svec</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">shift</span> <span class="o">*</span> <span class="n">_scale</span>
-            <span class="n">_mole_trans</span> <span class="o">=</span> <span class="n">mole</span><span class="o">.</span><span class="n">linear_transform</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">shift</span> <span class="o">*</span> <span class="n">_scale</span><span class="p">,</span> <span class="n">rotator</span><span class="p">)</span>
+            <span class="n">_mole_trans</span> <span class="o">=</span> <span class="n">mole</span><span class="o">.</span><span class="n">spatial_transform</span><span class="p">(</span><span class="n">svec</span><span class="p">,</span> <span class="n">rotator</span><span class="p">)</span>
 
             <span class="c1"># write offsets to spline globalprops if available</span>
             <span class="k">if</span> <span class="n">spl</span> <span class="o">:=</span> <span class="n">layer</span><span class="o">.</span><span class="n">source_spline</span><span class="p">:</span>
@@ -6119,7 +6119,7 @@
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">_radius</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">radius</span>
                 <span class="n">_glob_old</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">glob</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
-                <span class="n">_glob_new</span> <span class="o">=</span> <span class="n">_update_offset</span><span class="p">(</span><span class="n">spl</span><span class="p">,</span> <span class="n">rotator</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">svec</span><span class="p">),</span> <span class="n">_radius</span><span class="p">)</span>
+                <span class="n">_glob_new</span> <span class="o">=</span> <span class="n">_update_offset</span><span class="p">(</span><span class="n">spl</span><span class="p">,</span> <span class="n">svec</span><span class="p">,</span> <span class="n">_radius</span><span class="p">)</span>
                 <span class="n">spl</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">glob</span> <span class="o">=</span> <span class="n">_glob_new</span>
                 <span class="n">_spl_globs</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">weakref</span><span class="o">.</span><span class="n">ref</span><span class="p">(</span><span class="n">spl</span><span class="p">),</span> <span class="n">_glob_old</span><span class="p">,</span> <span class="n">_glob_new</span><span class="p">))</span>
 
@@ -6613,7 +6613,7 @@
             <span class="n">interval</span><span class="o">=</span><span class="n">spl_old</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get_glob</span><span class="p">(</span><span class="n">interv_expr</span><span class="p">),</span>
             <span class="n">rotate_molecules</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="n">mole_rv</span> <span class="o">=</span> <span class="n">mole_fw</span><span class="o">.</span><span class="n">rotate_by_rotvec</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>  <span class="c1"># invert</span>
+        <span class="n">mole_rv</span> <span class="o">=</span> <span class="n">mole_fw</span><span class="o">.</span><span class="n">rotate_by_rotvec_internal</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>  <span class="c1"># invert</span>
 
         <span class="nd">@thread_worker</span><span class="o">.</span><span class="n">callback</span>
         <span class="k">def</span><span class="w"> </span><span class="nf">_on_yield</span><span class="p">(</span><span class="n">results</span><span class="p">):</span>
@@ -9571,7 +9571,8 @@ If a path is given, image must in the same shape as the template.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Maximum rotation in degree around Z, Y, X axis.</p>
+                <p>Maximum rotation in degree around Z, Y, X axis. Rotations are searched with steps
+of at most 30 degrees.</p>
               </div>
             </td>
             <td>
@@ -10546,7 +10547,7 @@ situ data, etc).</p>
 
         <span class="n">rotator</span> <span class="o">=</span> <span class="n">Rotation</span><span class="o">.</span><span class="n">from_quat</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">quat</span><span class="p">)</span>
         <span class="n">svec</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">shift</span> <span class="o">*</span> <span class="n">_scale</span>
-        <span class="n">_mole_trans</span> <span class="o">=</span> <span class="n">mole</span><span class="o">.</span><span class="n">linear_transform</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">shift</span> <span class="o">*</span> <span class="n">_scale</span><span class="p">,</span> <span class="n">rotator</span><span class="p">)</span>
+        <span class="n">_mole_trans</span> <span class="o">=</span> <span class="n">mole</span><span class="o">.</span><span class="n">spatial_transform</span><span class="p">(</span><span class="n">svec</span><span class="p">,</span> <span class="n">rotator</span><span class="p">)</span>
 
         <span class="c1"># write offsets to spline globalprops if available</span>
         <span class="k">if</span> <span class="n">spl</span> <span class="o">:=</span> <span class="n">layer</span><span class="o">.</span><span class="n">source_spline</span><span class="p">:</span>
@@ -10559,7 +10560,7 @@ situ data, etc).</p>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">_radius</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">radius</span>
             <span class="n">_glob_old</span> <span class="o">=</span> <span class="n">spl</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">glob</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
-            <span class="n">_glob_new</span> <span class="o">=</span> <span class="n">_update_offset</span><span class="p">(</span><span class="n">spl</span><span class="p">,</span> <span class="n">rotator</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">svec</span><span class="p">),</span> <span class="n">_radius</span><span class="p">)</span>
+            <span class="n">_glob_new</span> <span class="o">=</span> <span class="n">_update_offset</span><span class="p">(</span><span class="n">spl</span><span class="p">,</span> <span class="n">svec</span><span class="p">,</span> <span class="n">_radius</span><span class="p">)</span>
             <span class="n">spl</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">glob</span> <span class="o">=</span> <span class="n">_glob_new</span>
             <span class="n">_spl_globs</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">weakref</span><span class="o">.</span><span class="n">ref</span><span class="p">(</span><span class="n">spl</span><span class="p">),</span> <span class="n">_glob_old</span><span class="p">,</span> <span class="n">_glob_new</span><span class="p">))</span>
 
@@ -14140,7 +14141,7 @@ Calculation will take much longer for larger <code>upsample_factor</code>.</p>
         <span class="n">interval</span><span class="o">=</span><span class="n">spl_old</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">get_glob</span><span class="p">(</span><span class="n">interv_expr</span><span class="p">),</span>
         <span class="n">rotate_molecules</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="n">mole_rv</span> <span class="o">=</span> <span class="n">mole_fw</span><span class="o">.</span><span class="n">rotate_by_rotvec</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>  <span class="c1"># invert</span>
+    <span class="n">mole_rv</span> <span class="o">=</span> <span class="n">mole_fw</span><span class="o">.</span><span class="n">rotate_by_rotvec_internal</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>  <span class="c1"># invert</span>
 
     <span class="nd">@thread_worker</span><span class="o">.</span><span class="n">callback</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_on_yield</span><span class="p">(</span><span class="n">results</span><span class="p">):</span>
