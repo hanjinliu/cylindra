@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+from scipy.spatial.transform import Rotation
 
 from cylindra._cylindra_ext import FilamentousAnnealingModel
 
@@ -40,7 +41,9 @@ def _build_model(
     return model
 
 
-def _lattice_neighbors(state: list[int], shape: tuple[int, int, int]) -> list[list[int]]:
+def _lattice_neighbors(
+    state: list[int], shape: tuple[int, int, int]
+) -> list[list[int]]:
     """Single-step face-adjacent moves, mirroring `list_neighbors` (Rust)."""
     neighbors = []
     for axis in range(3):
@@ -94,3 +97,49 @@ def test_filamentous_cool_completely_reaches_local_optimum(seed: int):
 
     best_diff = _best_improving_shift(model)
     assert best_diff == pytest.approx(0.0, abs=1e-4)
+
+
+@pytest.mark.parametrize(
+    "local_shape", [(3, 5, 5), (7, 3, 3), (3, 7, 3), (3, 3, 7), (5, 3, 7)]
+)
+def test_filamentous_energy_non_cubic(local_shape: tuple[int, int, int]):
+    num = 6
+    dist_min, dist_max, ang_max, cooling_rate = 3.6, 4.4, 0.2, 0.01
+    rng = np.random.default_rng(0)
+    mtx = Rotation.random(num, random_state=0).as_matrix().astype(np.float32)
+    zvec, yvec, xvec = (mtx[:, :, i] * 0.5 for i in range(3))
+    origin = np.zeros((num, 3), dtype=np.float32)
+    origin[:, 1] = np.arange(num) * 4.0
+    energy = rng.uniform(0.0, 2.0, size=(num, *local_shape)).astype(np.float32)
+    model = (
+        FilamentousAnnealingModel(seed=0)
+        .construct_graph(num)
+        .set_graph_coordinates(origin=origin, zvec=zvec, yvec=yvec, xvec=xvec)
+        .set_energy_landscape(energy)
+        .set_reservoir(temperature=1.0, time_constant=1.0)
+        .set_box_potential(dist_min, dist_max, ang_max, cooling_rate=cooling_rate)
+    )
+    model.simulate(50)  # potentials are effective only after cooling
+    slope = cooling_rate * model.iteration()
+    for _ in range(10):
+        shifts = np.stack(
+            [rng.integers(0, s, size=num) for s in local_shape], axis=1
+        ).astype(model.shifts().dtype)
+        model.set_shifts(shifts)
+        # energy calculated from the world coordinates of the nodes
+        pos = origin + sum(
+            shifts[:, i : i + 1] * v for i, v in enumerate([zvec, yvec, xvec])
+        )
+        expected = energy[
+            np.arange(num), shifts[:, 0], shifts[:, 1], shifts[:, 2]
+        ].sum()
+        dist = np.linalg.norm(np.diff(pos, axis=0), axis=1)
+        expected += slope * np.sum(
+            np.clip(dist_min - dist, 0, None) + np.clip(dist - dist_max, 0, None)
+        )
+        for i in range(1, num - 1):
+            dr1, dr2 = pos[i] - pos[i - 1], pos[i] - pos[i + 1]
+            cos = abs(np.dot(dr1, dr2)) / np.linalg.norm(dr1) / np.linalg.norm(dr2)
+            ang = np.arccos(min(cos, 1.0))
+            expected += slope * max(ang - ang_max, 0.0)
+        assert model.energy() == pytest.approx(expected, rel=1e-4, abs=1e-3)
