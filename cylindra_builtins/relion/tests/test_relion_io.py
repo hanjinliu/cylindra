@@ -1,7 +1,11 @@
 from pathlib import Path
 
 import impy as ip
+import numpy as np
+import pandas as pd
 import pytest
+from numpy.testing import assert_allclose
+from scipy.spatial.transform import Rotation
 
 from cylindra.utils._test_utils import (
     PROJECT_DIR_14PF,
@@ -11,7 +15,11 @@ from cylindra.utils._test_utils import (
 )
 from cylindra.widgets import CylindraMainWidget
 from cylindra_builtins import relion
-from cylindra_builtins.relion.io import _preview_open_relion_job
+from cylindra_builtins.relion.io import (
+    _mole_to_star_df,
+    _particles_to_molecules,
+    _preview_open_relion_job,
+)
 
 TEST_JOB_DIR = Path(__file__).parent / "test_jobs"
 JOB_TOMO_DIR = TEST_JOB_DIR / "Tomograms" / "job_tomo"
@@ -38,6 +46,66 @@ def test_load_and_save_starfiles(ui: CylindraMainWidget, tmpdir):
     assert len(ui.splines) == len(all_spl)
     for spl, spl_new in zip(ui.splines, all_spl, strict=True):
         assert_splines_close(spl, spl_new)
+
+
+@pytest.mark.parametrize("has_subtomo_angles", [False, True])
+def test_particles_to_molecules_follows_relion(has_subtomo_angles: bool):
+    rng = np.random.default_rng(0)
+    n = 10
+    center_zyx = np.array([20.0, 30.0, 40.0])
+    df = pd.DataFrame(
+        {
+            "rlnTomoName": ["TS_01"] * n,
+            "rlnCenteredCoordinateXAngst": rng.uniform(-300, 300, n),
+            "rlnCenteredCoordinateYAngst": rng.uniform(-300, 300, n),
+            "rlnCenteredCoordinateZAngst": rng.uniform(-100, 100, n),
+            "rlnAngleRot": rng.uniform(-180, 180, n),
+            "rlnAngleTilt": rng.uniform(0, 180, n),
+            "rlnAnglePsi": rng.uniform(-180, 180, n),
+            "rlnOriginXAngst": rng.uniform(-10, 10, n),
+            "rlnOriginYAngst": rng.uniform(-10, 10, n),
+            "rlnOriginZAngst": rng.uniform(-10, 10, n),
+        }
+    )
+    if has_subtomo_angles:
+        df["rlnTomoSubtomogramRot"] = rng.uniform(-180, 180, n)
+        df["rlnTomoSubtomogramTilt"] = rng.uniform(0, 180, n)
+        df["rlnTomoSubtomogramPsi"] = rng.uniform(-180, 180, n)
+
+    mole = _particles_to_molecules(df.copy(), center_zyx)["Mole-0"]
+
+    # same as relion/src/tomography_python_programs/view/particles.py
+    xyz = df[[f"rlnCenteredCoordinate{a}Angst" for a in "XYZ"]].to_numpy()
+    origin_xyz = df[[f"rlnOrigin{a}Angst" for a in "XYZ"]].to_numpy()
+    rot_particle = Rotation.from_euler(
+        "ZYZ", df[["rlnAngleRot", "rlnAngleTilt", "rlnAnglePsi"]], degrees=True
+    ).inv()
+    if has_subtomo_angles:
+        cols = ["rlnTomoSubtomogramRot", "rlnTomoSubtomogramTilt", "rlnTomoSubtomogramPsi"]  # fmt: skip
+        rot_subtomo = Rotation.from_euler("ZYZ", df[cols], degrees=True).inv()
+    else:
+        rot_subtomo = Rotation.identity(n)
+    xyz = xyz - rot_subtomo.apply(origin_xyz)
+    mat = rot_subtomo.as_matrix() @ rot_particle.as_matrix()
+
+    assert_allclose(mole.pos, xyz[:, ::-1] / 10 + center_zyx, atol=1e-6)
+    assert_allclose(mole.z, mat[:, ::-1, 2], atol=1e-6)
+    assert_allclose(mole.y, mat[:, ::-1, 1], atol=1e-6)
+    assert_allclose(mole.x, mat[:, ::-1, 0], atol=1e-6)
+    assert mole.features.columns == ["rlnTomoName"]
+
+
+def test_particles_to_molecules_not_centered(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_14PF)
+    mole = ui.mole_layers.nth(0).molecules
+    df = _mole_to_star_df(
+        [mole], ui.tomogram, "TS_01", shift_by_origin=False, centered=False
+    )
+    mole_new = _particles_to_molecules(
+        df, center_zyx=(10.0, 10.0, 10.0), scale=ui.tomogram.scale
+    )["Mole-0"]
+    assert_allclose(mole_new.pos, mole.pos, atol=1e-5)
+    assert_allclose(mole_new.rotator.as_matrix(), mole.rotator.as_matrix(), atol=1e-5)
 
 
 def test_opening_jobs(ui: CylindraMainWidget, tmpdir):

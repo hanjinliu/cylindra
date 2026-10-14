@@ -20,6 +20,7 @@ class BatchRefinement(MagicTemplate):
     sep0 = Separator
     align_all_rma = abstractapi()
     align_all_rma_template_free = abstractapi()
+    align_all_rfa_template_free = abstractapi()
 
 
 @magicmenu

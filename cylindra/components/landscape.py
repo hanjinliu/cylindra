@@ -9,7 +9,6 @@ from typing import (
     Sequence,
     SupportsIndex,
     SupportsInt,
-    TypeVar,
 )
 
 import impy as ip
@@ -41,7 +40,6 @@ if TYPE_CHECKING:
     )
 
     _DistLike = nm | str
-    _ANN = TypeVar("_ANN", bound=BaseCylindricAnnealingModel)
 
 _Logger = getLogger("cylindra")
 
@@ -142,36 +140,62 @@ class Landscape:
         alignment_model : alignment model object
             Alignment model to be used to evaluate correlation score.
         """
-        template, num_templates = _norm_template_input(template)
-
-        _Logger.print(f"Using {num_templates} template(s) for landscape construction.")
-        score_dsk = loader.construct_landscape(
+        return cls.from_loaders(
+            [loader],
             template,
             mask=mask,
             max_shifts=max_shifts,
-            upsample=upsample_factor,
+            upsample_factor=upsample_factor,
             alignment_model=alignment_model,
-        )
-        score, argmax = _calc_landscape(
-            alignment_model, [score_dsk], multi_templates=num_templates > 1
         )[0]
-        _Logger.print(
-            f"{loader.molecules.count()} cross-correlation landscapes with precision "
-            f"{loader.scale / upsample_factor:.3f} nm and local shape {score.shape[1:]} "
-            "were constructed."
+
+    @classmethod
+    def from_loaders(
+        cls,
+        loaders: Sequence[LoaderBase],
+        template: TemplateInputType,
+        mask: MaskInputType = None,
+        max_shifts: tuple[nm, nm, nm] = (0.8, 0.8, 0.8),
+        upsample_factor: int = 5,
+        alignment_model: alignment.TomographyInput = alignment.ZNCCAlignment,
+    ) -> list[Landscape]:
+        """Construct landscapes from loader objects in parallel.
+
+        Landscapes of all the loaders are computed at once, which is more efficient
+        than calling `from_loader` for each loader. Parameters are the same as
+        `from_loader`.
+        """
+        template, num_templates = _norm_template_input(template)
+
+        score_dsk = [
+            loader.construct_landscape(
+                template,
+                mask=mask,
+                max_shifts=max_shifts,
+                upsample=upsample_factor,
+                alignment_model=alignment_model,
+            )
+            for loader in loaders
+        ]
+        results = _calc_landscape(
+            alignment_model, score_dsk, multi_templates=num_templates > 1
         )
-        mole = loader.molecules
-        to_drop = set(mole.features.columns) - {Mole.nth, Mole.pf, Mole.position}
-        if to_drop:
-            mole = mole.drop_features(*to_drop)
-        return cls(
-            energies=-np.ascontiguousarray(score),
-            molecules=mole,
-            argmax=argmax,
-            quaternions=alignment_model.quaternions,
-            scale_factor=loader.scale / upsample_factor,
-            num_templates=num_templates,
-        )
+        out = list[Landscape]()
+        for loader, (score, argmax) in zip(loaders, results, strict=True):
+            mole = loader.molecules
+            to_drop = set(mole.features.columns) - {Mole.nth, Mole.pf, Mole.position}
+            if to_drop:
+                mole = mole.drop_features(*to_drop)
+            landscape = cls(
+                energies=-np.ascontiguousarray(score),
+                molecules=mole,
+                argmax=argmax,
+                quaternions=alignment_model.quaternions,
+                scale_factor=loader.scale / upsample_factor,
+                num_templates=num_templates,
+            )
+            out.append(landscape)
+        return out
 
     @classmethod
     def diff_landscapes(
@@ -256,7 +280,6 @@ class Landscape:
             indices_sub[i], opt_energy[i] = find_peak(eng, indices[i], nrepeat=nrepeat)
         opt_score = -opt_energy
         shifts = ((indices_sub - offset) * self.scale_factor).astype(np.float32)
-        molecules_opt = molecules.translate_internal(shifts)
         dr_feat = _as_n_series("align-d{}", shifts)
         if (nrots := self.quaternions.shape[0]) > 1:
             quats = np.stack(
@@ -266,11 +289,14 @@ class Landscape:
                 ],
                 axis=0,
             )
-            rotator = Rotation.from_quat(quats).inv()
-            molecules_opt = molecules_opt.rotate_by(rotator)
-            rotvec = rotator.as_rotvec().astype(np.float32)
-            rotvec_feat = _as_n_series("align-d{}rot", rotvec)
+            rotator = Rotation.from_quat(quats)
+            molecules_opt = molecules.spatial_transform(shifts, rotator)
+            rotvec_feat = _as_n_series(
+                "align-d{}rot", rotator.as_rotvec().astype(np.float32)
+            )
             molecules_opt = molecules_opt.with_features(*rotvec_feat)
+        else:
+            molecules_opt = molecules.translate_internal(shifts)
         if self.num_templates > 1:
             template_id = np.stack(
                 [self.argmax[(i, *ind)] // nrots for i, ind in enumerate(indices)]
@@ -367,9 +393,9 @@ class Landscape:
         molecules_opt = self.transform_molecules(mole, inds)
         return molecules_opt
 
-    def _prep_annealing_model(
+    def _prep_annealing_model[ANN: "BaseCylindricAnnealingModel"](
         self,
-        cls: type[_ANN],
+        cls: type[ANN],
         spl: CylSpline,
         distance_range_long: tuple[_DistLike, _DistLike],
         distance_range_lat: tuple[_DistLike, _DistLike],
@@ -379,11 +405,10 @@ class Landscape:
         temperature: float | None = None,
         cooling_rate: float | None = None,
         reject_limit: int | None = None,
-    ) -> _ANN:
+    ) -> ANN:
         cyl = spl.cylinder_model()
         _nrise, _npf = cyl.nrise, cyl.shape[1]
         molecules = self.molecules
-        mole = molecules.translate_internal(-self.offset_nm)
         if angle_max is None:
             angle_max = 90.0
 
@@ -401,12 +426,7 @@ class Landscape:
         else:
             angle_args = (float(np.deg2rad(angle_min)), float(np.deg2rad(angle_max)))
         return (
-            model.set_graph_coordinates(
-                origin=mole.pos,
-                zvec=(mole.z * self.scale_factor).astype(np.float32),
-                yvec=(mole.y * self.scale_factor).astype(np.float32),
-                xvec=(mole.x * self.scale_factor).astype(np.float32),
-            )
+            model.set_graph_coordinates(*self.graph_coordinates())
             .set_energy_landscape(self.energies)
             .set_reservoir(
                 temperature=temperature,
@@ -435,7 +455,6 @@ class Landscape:
         molecules = self.molecules
         if molecules.count() < 3:
             raise ValueError("At least 3 molecules are required for RFA.")
-        mole = molecules.translate_internal(-self.offset_nm)
         if angle_max is None:
             angle_max = 90.0
 
@@ -443,15 +462,10 @@ class Landscape:
             temperature_time_const, temperature, cooling_rate, reject_limit
         )
 
-        model = FilamentousAnnealingModel().construct_graph(mole.count())
+        model = FilamentousAnnealingModel().construct_graph(molecules.count())
 
         return (
-            model.set_graph_coordinates(
-                origin=mole.pos,
-                zvec=(mole.z * self.scale_factor).astype(np.float32),
-                yvec=(mole.y * self.scale_factor).astype(np.float32),
-                xvec=(mole.x * self.scale_factor).astype(np.float32),
-            )
+            model.set_graph_coordinates(*self.graph_coordinates())
             .set_energy_landscape(self.energies)
             .set_reservoir(
                 temperature=temperature,
@@ -766,6 +780,40 @@ class Landscape:
         results = sorted(results, key=lambda r: r.energies[-1])
         mole_opt = self.transform_molecules(mole, results[0].indices)
         return mole_opt, results
+
+    def graph_coordinates(self) -> tuple[NDArray[np.float32], ...]:
+        """Return the origins and the axes of the local coordinates of the molecules.
+
+        The world coordinates of the landscape index (z, y, x) of the i-th molecule are
+        ``origin[i] + z * zvec[i] + y * yvec[i] + x * xvec[i]``.
+        """
+        mole = self.molecules.translate_internal(-self.offset_nm)
+        return (
+            mole.pos.astype(np.float32),
+            (mole.z * self.scale_factor).astype(np.float32),
+            (mole.y * self.scale_factor).astype(np.float32),
+            (mole.x * self.scale_factor).astype(np.float32),
+        )
+
+    def world_positions(self, indices: NDArray[np.integer]) -> NDArray[np.float32]:
+        """World coordinates of the landscape indices of each molecule."""
+        origin, zvec, yvec, xvec = self.graph_coordinates()
+        idx = np.asarray(indices, dtype=np.float32)
+        return origin + idx[:, 0:1] * zvec + idx[:, 1:2] * yvec + idx[:, 2:3] * xvec
+
+    def nearest_indices(self, positions: NDArray[np.floating]) -> NDArray[np.intp]:
+        """Landscape indices of each molecule nearest to the world coordinates.
+
+        Indices are clipped to the landscape if the positions are out of it.
+        """
+        origin, zvec, yvec, xvec = self.graph_coordinates()
+        dr = np.asarray(positions, dtype=np.float32) - origin
+        # axes are orthogonal and their lengths are `scale_factor`
+        idx = np.stack(
+            [np.sum(dr * vec, axis=1) for vec in (zvec, yvec, xvec)], axis=1
+        ) / (self.scale_factor**2)
+        upper = np.array(self.energies.shape[1:]) - 1
+        return np.clip(np.round(idx).astype(np.intp), 0, upper)
 
     def normed(self, sd: bool = True) -> Landscape:
         """Return a landscape with normalized mean energy."""

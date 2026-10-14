@@ -5,7 +5,7 @@ import math
 import re
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable, Iterable, Sequence, TypeVar
+from typing import Any, Callable, Iterable, Sequence
 
 import impy as ip
 import numpy as np
@@ -209,10 +209,7 @@ def interval_divmod(value: float, interval: float) -> tuple[float, int]:
     return value - res, int(n_segs)
 
 
-_A = TypeVar("_A", bound=np.ndarray)
-
-
-def normalize_image(img: _A, outlier: float = (0.01, 0.01)) -> _A:
+def normalize_image[A](img: A, outlier: float = (0.01, 0.01)) -> A:
     min, max = np.quantile(img, [outlier[0], 1 - outlier[1]])
     return (img - min) / (max - min)
 

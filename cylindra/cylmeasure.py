@@ -277,8 +277,7 @@ class CylinderSurface:
         self,
         coords: NDArray[np.float32],
     ) -> NDArray[np.float32]:
-        """
-        Get the surface vector at the given coordinates.
+        """Get the surface vector at the given coordinates.
 
         Parameters
         ----------
@@ -326,8 +325,7 @@ class RegionProfiler:
         target: str = "nth",
         label: str = "pf-id",
     ) -> RegionProfiler:
-        """
-        Construct a region profiler from molecules and splines.
+        """Construct a region profiler from molecules and splines.
 
         Parameters
         ----------
@@ -359,8 +357,7 @@ class RegionProfiler:
         return cls(reg)
 
     def calculate(self, props: Iterable[str], *more_props: str) -> pl.DataFrame:
-        """
-        Calculate properties for each region.
+        """Calculate properties for each region.
 
         Parameters
         ----------

@@ -8,10 +8,8 @@ from typing import (
     Concatenate,
     Iterable,
     Literal,
-    ParamSpec,
     Protocol,
     Sequence,
-    TypeVar,
     overload,
 )
 
@@ -37,11 +35,8 @@ if TYPE_CHECKING:
     from cylindra.components.spline import CylSpline
     from cylindra.components.tomogram._cyl_tomo import CylTomogram
 
-_P = ParamSpec("_P")
-_R = TypeVar("_R")
 
-
-class BatchCallable(Protocol[_P, _R]):
+class BatchCallable[**P, R](Protocol):
     """Protocol for batch process decorator.
 
     This protocol enables static type checking of methods decorated with
@@ -49,24 +44,19 @@ class BatchCallable(Protocol[_P, _R]):
     """
 
     @overload
-    def __call__(
-        self, i: Literal[None], *args: _P.args, **kwargs: _P.kwargs
-    ) -> list[_R]: ...
-
-    @overload
-    def __call__(self, i: int, *args: _P.args, **kwargs: _P.kwargs) -> _R: ...
+    def __call__(self, i: int, *args: P.args, **kwargs: P.kwargs) -> R: ...
 
     @overload
     def __call__(
-        self, i: Iterable[int] | None, *args: _P.args, **kwargs: _P.kwargs
-    ) -> list[_R]: ...
+        self, i: Iterable[int] | None = None, *args: P.args, **kwargs: P.kwargs
+    ) -> list[R]: ...
 
-    def __call__(self, i, *args, **kwargs): ...  # pragma: no cover
+    def __call__(self, i=None, *args, **kwargs): ...  # pragma: no cover
 
 
-def batch_process(
-    func: Callable[Concatenate[CylTomogram, Any, _P], _R],
-) -> BatchCallable[_P, _R]:
+def batch_process[**P, R](
+    func: Callable[Concatenate[CylTomogram, Any, P], R],
+) -> BatchCallable[P, R]:
     """Enable running function for every splines."""
 
     @wraps(func)

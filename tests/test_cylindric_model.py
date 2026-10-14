@@ -1,4 +1,5 @@
 import numpy as np
+import polars as pl
 import pytest
 from numpy.testing import assert_allclose
 
@@ -108,3 +109,22 @@ def test_alleviate_works(idx):
     shifted[idx] = True
 
     model.alleviate(shifted)
+
+
+def test_to_molecules_with_features():
+    model = CylinderModel(
+        shape=(10, 8),
+        tilts=(0.1, 0.1),
+        intervals=(2.0, 1.0),
+        radius=1.2,
+    )
+    spl = Spline.line([0, 0, 0], [0, 25, 0])
+    old = model.to_molecules(spl)
+    features = old.features.with_columns(pl.Series("extra", np.arange(80)))
+    expanded = model.expand(0.5, Idx[4:7, :])
+    mole = expanded.to_molecules(spl, features)
+    # features calculated from the model must be updated
+    expected = expanded.to_molecules(spl).features
+    assert mole.features.columns == ["nth", "pf-id", "position-nm", "extra"]
+    assert_allclose(mole.features["position-nm"], expected["position-nm"])
+    assert_allclose(mole.features["extra"], np.arange(80))

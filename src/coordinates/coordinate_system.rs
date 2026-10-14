@@ -90,7 +90,7 @@ impl<T: Real> CoordinateSystem<T> {
     }
 
     pub fn with_cache(&self, max_z: usize, max_y: usize, max_x: usize) -> Self {
-        let mut cache_ozy = HashMap2D::from_shape(max_y, max_x);
+        let mut cache_ozy = HashMap2D::from_shape(max_z, max_y);
         for z in 0..max_z {
             for y in 0..max_y {
                 cache_ozy.insert(

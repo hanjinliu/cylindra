@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-from typing import Callable, NamedTuple, TypeVar
+from typing import Callable, NamedTuple
 
 # This file is for documentation and tooltip purposes only.
 
-_T = TypeVar("_T", bound=type)
-
 
 class Parameter(NamedTuple):
-    """
-    Structure for a parameter description. A Parameter tuple is equivalent to the following.
+    """Structure for a parameter description.
+
+    A Parameter tuple is equivalent to the following.
 
     _name_ : _type_
         _desc_
@@ -36,7 +35,7 @@ _PARAMETERS = [
     Parameter(name="tilt_range", type="(float, float), optional", desc="Tilt range of tomogram tilt series in degree."),
     Parameter(name="max_shifts", type="int or tuple of int", desc="Maximum shift between subtomograms and template in nm. ZYX order."),
     Parameter(name="rotations", type="((float, float), (float, float), (float, float))", desc="Rotation in external degree around each axis."),
-    Parameter(name="max_rotations", type="(float, float, float)", desc="Maximum rotation in degree around Z, Y, X axis."),
+    Parameter(name="max_rotations", type="(float, float, float)", desc="Maximum rotation in degree around Z, Y, X axis. Rotations are searched with steps\nof at most 30 degrees."),
     Parameter(name="min_rotation_step", type="float", desc="Minimum rotation search precision in degree."),
     Parameter(name="cutoff", type="float", desc="Cutoff frequency of low-pass filter applied in each subtomogram."),
     Parameter(name="interpolation", type="int", desc="Interpolation order."),
@@ -109,7 +108,7 @@ def update_func(f: Callable):
     return f
 
 
-def update_cls(cls: _T) -> _T:
+def update_cls[T: type](cls: T) -> T:
     """Update the __doc__ of all methods in a class."""
     for attr in cls.__dict__.values():
         if callable(attr) and hasattr(attr, "__doc__"):

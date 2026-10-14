@@ -7,23 +7,23 @@ name = "cylindra"
 description = "Spectral analysis, simulation and subtomogram averaging of heterogenic cylindrical structures"
 keywords = ["gui", "napari", "cryo-ET", "tomography"]
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Framework :: napari",
 ]
 license = { file = "LICENSE" }
 dynamic = ["version"]
 dependencies = [
     "impy-array>=2.5.1",
-    "acryo>=0.7.0",
+    "acryo>=0.8.0",
     "macro-kit>=0.4.6",
     "magicgui>=0.8.1",
     "magic-class>=0.7.23",
@@ -161,7 +161,7 @@ exclude_lines = [
 ]
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py312"
 line-length = 88
 
 lint.select = [

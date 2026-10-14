@@ -1006,7 +1006,8 @@ class CylindraMainWidget(MagicTemplate):
         kv: Annotated[float, {"label": "Voltage [kV]"}] = 300.0,
         cs: Annotated[float, {"label": "Cs [mm]"}] = 2.7,
         defocus: Annotated[float, {"label": "Defocus [um]", "min": -100, "max": 100}] = -3.0,
-        bfactor: Annotated[float, {"label": "B-factor"}] = 0.0,
+        bfactor: Annotated[float, {"label": "B-factor [nm^2]"}] = 0.0,
+        amplitude: Annotated[float, {"label": "Amplitude contrast", "max": 1.0, "step": 0.01}] = 0.07,
         snr_falloff: Annotated[float, {"label": "SNR fall-off", "max": 10.0}] = 0.7,
         phase_flipped: Annotated[bool, {"text": "Phase flipped"}] = True,
     ):  # fmt: skip
@@ -1022,7 +1023,9 @@ class CylindraMainWidget(MagicTemplate):
             Defocus value in micrometers. For the standard image acquisition method,
             this value should be negative.
         bfactor : float, default 0.0
-            B-factor for the decay of the CTF amplitude.
+            B-factor for the decay of the CTF amplitude in nm².
+        amplitude : float, default 0.07
+            Fraction of amplitude contrast, between 0 and 1.
         snr_falloff : float, default 0.7
             SNR fall-off factor, for the Wiener filter. Larger value means more
             smoothing.
@@ -1032,7 +1035,9 @@ class CylindraMainWidget(MagicTemplate):
         if _is_dummy_tomogram(self):
             return
         t0 = timer()
-        ctf = CTFModel.from_kv(kv, cs, defocus=defocus, bfactor=bfactor)
+        ctf = CTFModel.from_kv(
+            kv, cs, defocus=defocus, bfactor=bfactor, amplitude=amplitude
+        )
         scale = self._reserved_layers.scale
         yield on_ctf_finished.with_args(ctf, scale)
         img_deconv = ctf.deconvolve(

@@ -550,7 +550,7 @@ class ProjectSequenceEdit(MagicTemplate):
     def add_projects(
         self,
         paths: Path.Multiple[FileFilter.PROJECT],
-        clear: bool = False,
+        clear: Annotated[bool, {"label": "Clear existing projects"}] = False,
     ):
         """Add project json files as the child projects.
 
@@ -559,7 +559,7 @@ class ProjectSequenceEdit(MagicTemplate):
         paths : list of str or Path
             A list of paths or wildcard patterns, such as "path/to/*.json".
         clear : bool, default True
-            Whether to clear the existing projects added to the list.
+            Whether to clear the existing projects that has already added to the list.
         """
         _paths = unwrap_wildcard(paths)
         if clear:

@@ -194,6 +194,11 @@ class CylSpline(Spline):
     ) -> CylSpline:
         """Update the npf or orientation parameters in place."""
 
+        def _update_loc(exprs: list[pl.Expr]):
+            # local properties may not be calculated yet
+            if self.props.loc.shape[0] > 0:
+                self.props.loc = with_columns(self.props.loc, exprs)
+
         loc = list[pl.Expr]()
         glob = list[pl.Series]()
         if npf is not None:
@@ -207,7 +212,7 @@ class CylSpline(Spline):
                 pl.Series([str(orientation)]).cast(pl.String).alias(H.orientation)
             )
 
-        self.props.loc = with_columns(self.props.loc, loc)
+        _update_loc(loc)
         self.props.glob = with_columns(self.props.glob, glob)
 
         if start is not None:
@@ -219,21 +224,19 @@ class CylSpline(Spline):
             except ValueError:
                 pass  # not enouph properties to calculate cylinder parameters
             else:
-                self.props.loc = with_columns(
-                    self.props.loc,
-                    [pl.repeat(cp.rise_angle, pl.len()).cast(pl.Float32).alias(H.rise)],
+                _update_loc(
+                    [pl.repeat(cp.rise_angle, pl.len()).cast(pl.Float32).alias(H.rise)]
                 )
                 self.props.glob = with_columns(
                     self.props.glob,
                     [pl.Series([cp.rise_angle]).cast(pl.Float32).alias(H.rise)],
                 )
-                self.props.loc = with_columns(
-                    self.props.loc,
+                _update_loc(
                     [
                         pl.repeat(cp.rise_length, pl.len())
                         .cast(pl.Float32)
                         .alias(H.rise_length)
-                    ],
+                    ]
                 )
                 self.props.glob = with_columns(
                     self.props.glob,
