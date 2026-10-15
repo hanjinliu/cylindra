@@ -152,6 +152,38 @@ def calc_curve_index(mole: Molecules, spl: CylSpline):
     return pl.Series(Mole.curve_index, _cos).cast(pl.Float32)
 
 
+def calc_inter_pf_angle(mole: Molecules, spl: CylSpline) -> pl.Series:
+    """Calculate the inter-protofilament angle."""
+    subsets = list["Molecules"]()
+    mole_ext, new_pf_id = _pad_molecules_at_seam(mole, spl)
+    for _, sub in _groupby_with_index(mole.concat_with(mole_ext), Mole.nth):
+        sub0 = sub.sort(Mole.pf)
+        z_left = sub0.z[:-1]
+        z_right = sub0.z[1:]
+        _pos_mid = (
+            sub0.features[Mole.position][:-1] + sub0.features[Mole.position][1:]
+        ) / 2
+        _spl_tangent = _norm(spl.map(_pos_mid.to_numpy() / spl.length(), der=1))
+        z_left_proj = z_left - _dot(z_left, _spl_tangent)[:, np.newaxis] * _spl_tangent
+        z_right_proj = (
+            z_right - _dot(z_right, _spl_tangent)[:, np.newaxis] * _spl_tangent
+        )
+        _inter_pf_angle = 180 - np.rad2deg(
+            np.arccos(np.clip(_dot(_norm(z_left_proj), _norm(z_right_proj)), -1.0, 1.0))
+        )
+
+        if sub0.features[Mole.pf][-1] == new_pf_id:
+            sub0 = sub0.subset(slice(None, -1))
+        else:
+            _inter_pf_angle = np.concatenate([_inter_pf_angle, [np.nan]])
+        subsets.append(
+            sub0.with_features(
+                pl.Series(Mole.inter_pf_angle, _inter_pf_angle, dtype=pl.Float32),
+            )
+        )
+    return _concat_groups(subsets).features[Mole.inter_pf_angle]
+
+
 def calc_localvec_long(
     mole: Molecules, spl: CylSpline, fill: float = 0.0
 ) -> pl.DataFrame:
@@ -374,6 +406,7 @@ class LatticeParameters(Enum):
     rise_angle = "rise_angle"
     lat_interv = "lat_interv"
     curve_index = "curve_index"
+    inter_pf_angle = "inter_pf_angle"
 
     @overload
     def calculate(self, mole: Molecules, spl: CylSpline) -> pl.Series: ...
@@ -407,6 +440,8 @@ class LatticeParameters(Enum):
                 return calc_lateral_interval(mole, spl)
             case LatticeParameters.curve_index:
                 return calc_curve_index(mole, spl)
+            case LatticeParameters.inter_pf_angle:
+                return calc_inter_pf_angle(mole, spl)
             case _:  # pragma: no cover
                 raise ValueError(f"Unknown lattice parameter {self!r}.")
 
