@@ -807,6 +807,7 @@ class SubtomogramAveraging(ChildWidget):
         size: _SubVolumeSize = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
         bin_size: BinSizeType = 1,
+        wedge_weighting: bool = True,
     ):
         """Subtomogram averaging using all the molecules in the selected layer(s).
 
@@ -815,7 +816,7 @@ class SubtomogramAveraging(ChildWidget):
 
         Parameters
         ----------
-        {layers}{size}{interpolation}{bin_size}
+        {layers}{size}{interpolation}{bin_size}{wedge_weighting}
         """
         t0 = timer()
         layers = assert_list_of_layers(layers, self.parent_viewer)
@@ -842,6 +843,7 @@ class SubtomogramAveraging(ChildWidget):
         method: Literal["steps", "first", "last", "random"] = "steps",
         number: int = 64,
         bin_size: BinSizeType = 1,
+        wedge_weighting: bool = True,
     ):
         """Subtomogram averaging using a subset of subvolumes.
 
@@ -859,7 +861,7 @@ class SubtomogramAveraging(ChildWidget):
             (4) random: choose randomly.
         number : int, default
             Number of subtomograms to use.
-        {bin_size}
+        {bin_size}{wedge_weighting}
         """
         t0 = timer()
         layers = assert_list_of_layers(layers, self.parent_viewer)
@@ -885,6 +887,7 @@ class SubtomogramAveraging(ChildWidget):
         by: PolarsExprStr = "col('pf-id')",
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
         bin_size: BinSizeType = 1,
+        wedge_weighting: bool = True,
     ):
         """Group-wise subtomogram averaging.
 
@@ -897,7 +900,7 @@ class SubtomogramAveraging(ChildWidget):
         {layers}{size}
         by : str or polars expression
             Expression to group molecules.
-        {interpolation}{bin_size}
+        {interpolation}{bin_size}{wedge_weighting}
         """
         t0 = timer()
         layers = assert_list_of_layers(layers, self.parent_viewer)
@@ -930,6 +933,7 @@ class SubtomogramAveraging(ChildWidget):
         predicate: PolarsExprStr = "col('pf-id') == 0",
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
         bin_size: BinSizeType = 1,
+        wedge_weighting: bool = True,
     ):
         """Subtomogram averaging using molecules filtered by the given expression.
 
@@ -941,7 +945,7 @@ class SubtomogramAveraging(ChildWidget):
         {layers}{size}
         predicate : str or polars expression
             Filter expression to select molecules.
-        {interpolation}{bin_size}
+        {interpolation}{bin_size}{wedge_weighting}
         """
         t0 = timer()
         layers = assert_list_of_layers(layers, self.parent_viewer)
@@ -1967,6 +1971,7 @@ class SubtomogramAveraging(ChildWidget):
         n_pairs: Annotated[int, {"min": 1, "label": "number of image pairs"}] = 1,
         show_average: bool = True,
         dfreq: FSCFreq = None,
+        wedge_weighting: bool = True,
     ):
         """Calculate Fourier Shell Correlation using the selected layer.
 
@@ -1986,6 +1991,7 @@ class SubtomogramAveraging(ChildWidget):
         dfreq : float, default 0.02
             Precision of frequency to calculate FSC. "0.02" means that FSC will be
             calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.
+        {wedge_weighting}
         """
         t0 = timer()
         layers = assert_list_of_layers(layers, self.parent_viewer)
@@ -2005,7 +2011,12 @@ class SubtomogramAveraging(ChildWidget):
             )
             .order_optimize()
             .fsc_with_halfmaps(
-                mask, seed=seed, n_set=n_pairs, dfreq=dfreq, squeeze=False
+                mask,
+                seed=seed,
+                n_set=n_pairs,
+                dfreq=dfreq,
+                squeeze=False,
+                wedge_weighting=wedge_weighting,
             )
         )
 
@@ -2337,13 +2348,11 @@ class SubtomogramAveraging(ChildWidget):
         layer: MoleculesLayerType,
         template_path: Path.Read[FileFilter.IMAGE],
         mask_params: Annotated[Any, {"bind": _get_mask_params}],
-        anti_template_path: Annotated[Optional[Path.Read[FileFilter.IMAGE]], {"text": "Do not use anti-template", "label": "anti-template path"}] = None,
+        anti_template_path: Annotated[Path.Read[FileFilter.IMAGE] | None, {"label": "anti-template path"}] = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         npf: Annotated[Optional[int], {"text": "use global properties"}] = None,
         show_average: Annotated[str, {"label": "show averages as", "choices": [None, "Raw", "Filtered"]}] = "Filtered",
         cutoff: _CutoffFreq = 0.25,
-        subtract_noise_by: Literal["none", "halves", "shift"] = "none",
-        shift_to_background: Annotated[tuple[nm, nm, nm], {"options": {"min": -100.0}, "label": "shift to background (Z, Y, X nm)"}] = (0, 0, 0),
     ):  # fmt: skip
         """Search for the best seam position.
 
@@ -2360,33 +2369,25 @@ class SubtomogramAveraging(ChildWidget):
         npf : int, optional
             Number of protofilaments. By default the global properties stored in the
             corresponding spline will be used.
-        show_average : bool, default True
-            If true, all the subtomogram averages will be shown.
+        show_average : str, default "Filtered"
+            If "Raw", all the raw subtomogram averages will be shown.
+            If "Filtered", all the filtered subtomogram averages will be shown.
+            If None, no subtomogram averages will be shown.
         {cutoff}
-        subtract_noise_by : str, default "none"
-            Method to subtract the noise component from the correlation. Noise of
-            tomograms is colored by CTF, missing wedge, or other factors, which usually
-            causes false correlations. "halves" will subtract the noise estimated from
-            the two tomogram halves (requires tomogram halves but is more accurate).
-            "shift" will shift molecules to the background region using the shift vector
-            `shift_to_background` (tomogram halves not required).
-        shift_to_background : tuple[nm, nm, nm], default (0, 0, 0)
-            The shift vector used when `subtract_noise_by` is "shift".
         """
         t0 = timer()
         layer = assert_layer(layer, self.parent_viewer)
-        loader_s, loader_n, npf = prep_seam_search_input(
+        loader_s, npf = prep_seam_search_input(
+            self._get_main().tomogram,
             layer.molecules,
-            npf,
-            interpolation,
-            subtract_noise_by,
-            shift_to_background,
+            npf=npf,
+            order=interpolation,
         )
         template, mask = loader_s.normalize_input(
             template=self.params._norm_template_param(template_path),
             mask=self.params._get_mask(params=mask_params),
         )
-        if anti_template_path is not None:
+        if anti_template_path is not None and str(anti_template_path) not in ("", "."):
             anti_template = ip.asarray(
                 pipe.from_file(anti_template_path).provide(loader_s.scale),
                 axes="zyx",
@@ -2401,7 +2402,6 @@ class SubtomogramAveraging(ChildWidget):
             anti_template=anti_template,
             mask=mask,
             cutoff=cutoff,
-            loader_noise=loader_n,
         )
 
         t0.toc()

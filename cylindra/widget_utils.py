@@ -305,9 +305,10 @@ def plot_seam_search_result(score: np.ndarray, npf: int):
     imax = np.argmax(score)
     # plot the score
     plt.figure(figsize=(6, 2.4))
-    plt.axvline(imax, color="gray", alpha=0.6)
-    plt.axhline(score[imax], color="gray", alpha=0.6)
-    plt.plot(score)
+    plt.axvline(imax, color="crimson", alpha=0.6)
+    plt.axhline(score[imax], color="crimson", alpha=0.6)
+    plt.axvline(npf, color="gray", ls=":")
+    plt.plot(score, marker="o")
     plt.xlabel("PF position")
     plt.ylabel("ΔCorr")
     npf_vals = np.arange(0, npf + 1, 4)

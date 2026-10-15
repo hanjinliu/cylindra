@@ -2,17 +2,18 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 import impy as ip
 import numpy as np
 import polars as pl
 from acryo import Molecules, SubtomogramLoader
+from acryo.backend import Backend
+from acryo.loader._misc import lazy_average
 from dask import array as da
 from numpy.typing import NDArray
 
 from cylindra.const import MoleculesHeader as Mole
-from cylindra.const import nm
 
 if TYPE_CHECKING:
     from cylindra.components.tomogram import CylTomogram
@@ -45,13 +46,20 @@ class SeamSearcher(ABC):
         labels = self.label_with_seam(loader.molecules.count())
 
         # here, dask_array is (N, Z, Y, X) array where dask_array[i] is i-th subtomogram.
-        dask_array = loader.construct_dask()
+        dask_array = loader.construct_wedge_weighted_ft()
         averaged_images = da.compute(
-            [da.mean(dask_array[sl], axis=0) for sl in labels]
+            [
+                lazy_average(
+                    dask_array[sl],
+                    output_shape=loader.output_shape,
+                    backend=Backend(),
+                    wedge_weighting=True,
+                )
+                for sl in labels
+            ]
         )[0]
-        return ip.asarray(np.stack(averaged_images, axis=0), axes="pzyx").set_scale(
-            zyx=loader.scale
-        )
+        averaged_images = ip.asarray(np.stack(averaged_images, axis=0), axes="pzyx")
+        return averaged_images.set_scale(zyx=loader.scale, unit="nm")
 
 
 @dataclass
@@ -114,22 +122,14 @@ class CorrelationSeamSearcher(SeamSearcher):
         anti_template: ip.ImgArray | None = None,
         mask: NDArray[np.float32] | None = None,
         cutoff: float = 0.5,
-        loader_noise: SubtomogramLoader | None = None,
     ) -> CorrelationSeamSearchResult:
         if mask is None:
             mask = 1
 
         masked_template = self._lowpass_filter(template, mask, cutoff)
         has_anti_template = anti_template is not None
-        has_noise_loader = loader_noise is not None
         loader = loader.replace(output_shape=template.shape)
         averaged_images = self.calc_averages(loader)
-
-        if has_noise_loader:
-            loader_noise = loader_noise.replace(output_shape=template.shape)
-            noise_average_images = self.calc_averages(loader_noise)
-        else:
-            noise_average_images = None
 
         if has_anti_template:
             if anti_template.shape != template.shape:
@@ -150,14 +150,6 @@ class CorrelationSeamSearcher(SeamSearcher):
             corrs[_i] = ip.zncc(masked_avg, masked_template)
             if has_anti_template:
                 anti_corrs[_i] = ip.zncc(masked_avg, masked_anti_template)
-
-        if has_noise_loader:
-            for _i, avg_noise in enumerate(noise_average_images):
-                avg_noise: ip.ImgArray
-                masked_avg_noise = self._lowpass_filter(avg_noise, mask, cutoff)
-                corrs[_i] -= ip.zncc(masked_avg_noise, masked_template)
-                if has_anti_template:
-                    anti_corrs[_i] -= ip.zncc(masked_avg_noise, masked_anti_template)
 
         if has_anti_template:
             score = corrs - anti_corrs
@@ -206,19 +198,15 @@ def prep_seam_search_input(
     mole: Molecules,
     npf: int | None,
     order: int,
-    subtract_noise_by: Literal["none", "halves", "shift"] = "none",
-    shift_to_background: tuple[nm, nm, nm] = (0, 0, 0),
-) -> tuple[SubtomogramLoader, SubtomogramLoader | None, int]:
-    if subtract_noise_by == "halves":
-        loader_s, loader_n = tomo.get_subtomogram_and_noise_loader(mole, order=order)
-    else:
-        loader_s = tomo.get_subtomogram_loader(mole, order=order)
-        if subtract_noise_by == "none":
-            loader_n = None
-        else:
-            loader_n = loader_s.replace(
-                molecules=mole.translate_internal(shift_to_background)
-            )
+) -> tuple[SubtomogramLoader, int]:
+    """Prepare the subtomogram loaders for seam search.
+
+    Returns
+    -------
+    tuple[SubtomogramLoader, int]
+        The subtomogram loader for signal and the number of protofilaments.
+    """
+    loader_s = tomo.get_subtomogram_loader(mole, order=order)
     if npf is None:
         npf = mole.features[Mole.pf].unique().len()
-    return loader_s, loader_n, npf
+    return loader_s, npf
