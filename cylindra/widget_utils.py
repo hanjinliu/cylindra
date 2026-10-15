@@ -310,8 +310,11 @@ def plot_seam_search_result(score: np.ndarray, npf: int):
     plt.plot(score)
     plt.xlabel("PF position")
     plt.ylabel("ΔCorr")
-    plt.xticks(np.arange(0, 2 * npf + 1, 4))
+    npf_vals = np.arange(0, npf + 1, 4)
+    xticks = np.concatenate([npf_vals, npf + npf_vals])
+    plt.xticks(xticks)
     plt.title("Score")
+    plt.xlim(-0.1, len(score) - 0.9)
     plt.tight_layout()
     plt.show()
 

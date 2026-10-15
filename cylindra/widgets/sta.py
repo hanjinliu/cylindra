@@ -48,6 +48,7 @@ from cylindra.components.seam_search import (
     BooleanSeamSearcher,
     CorrelationSeamSearcher,
     ManualSeamSearcher,
+    prep_seam_search_input,
 )
 from cylindra.const import (
     ALN_SUFFIX,
@@ -2334,13 +2335,15 @@ class SubtomogramAveraging(ChildWidget):
     def seam_search(
         self,
         layer: MoleculesLayerType,
-        template_path: Annotated[_PathOrNone, {"bind": _template_param}],
+        template_path: Path.Read[FileFilter.IMAGE],
         mask_params: Annotated[Any, {"bind": _get_mask_params}],
         anti_template_path: Annotated[Optional[Path.Read[FileFilter.IMAGE]], {"text": "Do not use anti-template", "label": "anti-template path"}] = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         npf: Annotated[Optional[int], {"text": "use global properties"}] = None,
         show_average: Annotated[str, {"label": "show averages as", "choices": [None, "Raw", "Filtered"]}] = "Filtered",
         cutoff: _CutoffFreq = 0.25,
+        subtract_noise_by: Literal["none", "halves", "shift"] = "none",
+        shift_to_background: Annotated[tuple[nm, nm, nm], {"options": {"min": -100.0}, "label": "shift to background (Z, Y, X nm)"}] = (0, 0, 0),
     ):  # fmt: skip
         """Search for the best seam position.
 
@@ -2360,17 +2363,32 @@ class SubtomogramAveraging(ChildWidget):
         show_average : bool, default True
             If true, all the subtomogram averages will be shown.
         {cutoff}
+        subtract_noise_by : str, default "none"
+            Method to subtract the noise component from the correlation. Noise of
+            tomograms is colored by CTF, missing wedge, or other factors, which usually
+            causes false correlations. "halves" will subtract the noise estimated from
+            the two tomogram halves (requires tomogram halves but is more accurate).
+            "shift" will shift molecules to the background region using the shift vector
+            `shift_to_background` (tomogram halves not required).
+        shift_to_background : tuple[nm, nm, nm], default (0, 0, 0)
+            The shift vector used when `subtract_noise_by` is "shift".
         """
         t0 = timer()
         layer = assert_layer(layer, self.parent_viewer)
-        loader, npf = self._seam_search_input(layer, npf, interpolation)
-        template, mask = loader.normalize_input(
+        loader_s, loader_n, npf = prep_seam_search_input(
+            layer.molecules,
+            npf,
+            interpolation,
+            subtract_noise_by,
+            shift_to_background,
+        )
+        template, mask = loader_s.normalize_input(
             template=self.params._norm_template_param(template_path),
             mask=self.params._get_mask(params=mask_params),
         )
         if anti_template_path is not None:
             anti_template = ip.asarray(
-                pipe.from_file(anti_template_path).provide(loader.scale),
+                pipe.from_file(anti_template_path).provide(loader_s.scale),
                 axes="zyx",
             )
         else:
@@ -2378,23 +2396,24 @@ class SubtomogramAveraging(ChildWidget):
 
         seam_searcher = CorrelationSeamSearcher(npf)
         result = seam_searcher.search(
-            loader=loader,
+            loader=loader_s,
             template=ip.asarray(template, axes="zyx"),
             anti_template=anti_template,
             mask=mask,
             cutoff=cutoff,
+            loader_noise=loader_n,
         )
 
         t0.toc()
 
         @thread_worker.callback
         def _seam_search_on_return():
-            new_feat = result.as_series(loader.molecules.count())
+            new_feat = result.as_series(loader_s.molecules.count())
             layer.features = layer.molecules.features.with_columns(new_feat)
             layer.metadata[SEAM_SEARCH_RESULT] = result
             if show_average is not None:
                 if show_average == "Filtered":
-                    sigma = 0.25 / loader.scale
+                    sigma = 0.25 / loader_s.scale
                     result.averages.gaussian_filter(sigma=sigma, update=True)
                 _imlayer: Image = self._show_rec(
                     result.averages, layer.name, store=False
@@ -2467,16 +2486,6 @@ class SubtomogramAveraging(ChildWidget):
         layer.features = layer.molecules.features.with_columns(new_feat)
         ui.reset_choices()  # choices regarding of features need update
         return undo_callback(layer.feature_setter(feat, layer.colormap_info))
-
-    def _seam_search_input(
-        self, layer: MoleculesLayer, npf: int | None, order: int
-    ) -> tuple[SubtomogramLoader, int]:
-        parent = self._get_main()
-        mole = layer.molecules
-        loader = parent.tomogram.get_subtomogram_loader(mole, order=order)
-        if npf is None:
-            npf = mole.features[Mole.pf].unique().len()
-        return loader, npf
 
     @set_design(text="Save last average", location=STAnalysis)
     def save_last_average(self, path: Path.Save[FileFilter.IMAGE]):
@@ -2680,17 +2689,15 @@ class SubtomogramAveraging(ChildWidget):
     def _calculate_signal_noise(
         self,
         layer: MoleculesLayer,
-        diameter: Annotated[nm, {"min": 0.1, "max": 100.0}] = 6.0,
+        diameter: nm = 6.0,
         max_shifts: tuple[nm, nm, nm] = (0.5, 0.5, 0.5),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
-        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        interpolation: int = 3,
         bin_size: BinSizeType = 1,
-        upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 2,
-        method: Annotated[str, {"choices": METHOD_CHOICES}] = "ncc",
-        shift_to_background: Annotated[
-            Optional[tuple[nm, nm, nm]], {"text": "Use half tomograms"}
-        ] = None,
+        upsample_factor: int = 2,
+        method: str = "ncc",
+        shift_to_background: tuple[nm, nm, nm] | None = None,
     ):
         main = self._get_main()
         model = _get_alignment(method)
