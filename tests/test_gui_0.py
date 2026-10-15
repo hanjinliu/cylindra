@@ -979,7 +979,7 @@ def test_sta(ui: CylindraMainWidget, bin_size: int, tmpdir):
     ui.sta.classify_em(
         layers=["Mole-0-ALN1"],
         templates=[template_path, template_path],
-        mask_params={"kind": "spherical", "radius": 2.3, "sigma": 0.9},
+        mask_params={"kind": "cylinder", "radius_min": 0.5, "radius_max": 1.5, "length": 3, "sigma": 0.9},
         bin_size=bin_size,
         max_num_iters=2,
     )

@@ -4211,6 +4211,15 @@ class CylindraMainWidget(MagicTemplate):
         self.GeneralInfo.project_desc.value = ""  # clear the project description
         self._need_save = False
         self._macro_image_load_offset = len(self.macro)
+
+        _spacing_range = self.default_config.spacing_range
+        if tomo.scale >= _spacing_range.center / 2:
+            _napari_show_info(
+                f"Tomogram scale ({tomo.scale:.3f} nm/pixel) is too large to measure "
+                f"lattice spacing of range {_spacing_range.astuple_rounded()}. Please "
+                "use finer tomogram (or modify spline config if appropriate)."
+            )
+
         self.events.tomogram_initialized.emit()
 
     def _update_reference_image(

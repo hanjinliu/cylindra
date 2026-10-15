@@ -214,6 +214,16 @@ class MaskChoice(Enum):
     blur_template = "blur template"
     from_file = "from file"
     spherical = "spherical"
+    cylinder = "cylinder"
+
+
+def _prep_mask_coords(shape):
+    lz, ly, lx = shape
+    zz, yy, xx = np.indices((lz, ly, lx), dtype=np.float32)
+    zz -= (lz - 1) / 2
+    yy -= (ly - 1) / 2
+    xx -= (lx - 1) / 2
+    return zz, yy, xx
 
 
 @pipe.converter_function
@@ -224,12 +234,28 @@ def spherical_mask(
     sigma: nm = 0.8,
 ) -> "NDArray[np.float32]":
     """Generate a spherical soft mask that matches the input image shape."""
-    lz, ly, lx = img.shape
-    zz, yy, xx = np.indices((lz, ly, lx), dtype=np.float32)
-    zz -= (lz - 1) / 2
-    yy -= (ly - 1) / 2
-    xx -= (lx - 1) / 2
+    zz, yy, xx = _prep_mask_coords(img.shape)
     binary = zz**2 + yy**2 + xx**2 <= (radius / scale) ** 2
+    return pipe.gaussian_smooth(sigma).convert(binary, scale)
+
+
+@pipe.converter_function
+def cylinder_mask(
+    img: "NDArray[np.float32]",
+    scale: nm,
+    radius_min: nm,
+    radius_max: nm,
+    length: nm,
+    sigma: nm = 0.8,
+) -> "NDArray[np.float32]":
+    """Generate a cylindrical soft mask that matches the input image shape."""
+    zz, yy, xx = _prep_mask_coords(img.shape)
+    rr2 = yy**2 + xx**2
+    binary = (
+        (zz**2 <= (length / scale / 2) ** 2)
+        & (rr2 >= (radius_min / scale) ** 2)
+        & (rr2 <= (radius_max / scale) ** 2)
+    )
     return pipe.gaussian_smooth(sigma).convert(binary, scale)
 
 
@@ -305,6 +331,42 @@ class SphericalParameters(MagicTemplate):
 
     def _to_params(self) -> dict[str, Any]:
         return {"kind": "spherical", "radius": self.radius, "sigma": self.sigma}
+
+
+@magicclass(widget_type="groupbox", visible=False, record=False)
+class CylinderParameters(MagicTemplate):
+    """Parameters for cylindrical mask creation.
+
+    Attributes
+    ----------
+    radius : tuple[nm, nm]
+        Minimum and maximum radius of the cylinder (nm).
+    length : nm
+        Axial length of the cylinder (nm).
+    sigma : nm
+        Standard deviation (nm) of Gaussian blur applied to the edge of the cylinder.
+    """
+
+    radius = vfield((0.0, 15.0)).with_options(
+        options={"min": 0, "max": 100, "step": 0.1}
+    )
+
+    @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)})
+    class OtherParams(MagicTemplate):
+        length = abstractapi()
+        sigma = abstractapi()
+
+    length = vfield(12.0, location=OtherParams).with_options(min=0.1, max=200, step=0.1)
+    sigma = vfield(0.8, location=OtherParams).with_options(max=20, step=0.1)
+
+    def _to_params(self) -> dict[str, Any]:
+        return {
+            "kind": "cylinder",
+            "radius_min": self.radius[0],
+            "radius_max": self.radius[1],
+            "length": self.length,
+            "sigma": self.sigma,
+        }
 
 
 @magicmenu
@@ -402,6 +464,7 @@ class StaParameters(MagicTemplate):
     params = field(MaskParameters, name="blur parameters")
     mask_path = field(mask_path)
     params_spherical = field(SphericalParameters, name="sphere parameters")
+    params_cylinder = field(CylinderParameters, name="cylinder parameters")
 
     _last_average: ip.ImgArray | None = None  # the global average result
     _viewer: "napari.Viewer | None" = None
@@ -430,6 +493,7 @@ class StaParameters(MagicTemplate):
         self.params.visible = v is MaskChoice.blur_template
         self.mask_path.visible = v is MaskChoice.from_file
         self.params_spherical.visible = v is MaskChoice.spherical
+        self.params_cylinder.visible = v is MaskChoice.cylinder
 
     def _set_last_average(self, img: ip.ImgArray):
         assert img.ndim in (3, 4)
@@ -508,6 +572,8 @@ class StaParameters(MagicTemplate):
                 params = self.mask_path._to_params()
             case MaskChoice.spherical:
                 params = self.params_spherical._to_params()
+            case MaskChoice.cylinder:
+                params = self.params_cylinder._to_params()
             case v:  # pragma: no cover
                 raise ValueError(f"Unknown mask choice: {v!r}")
         return params
@@ -522,8 +588,14 @@ class StaParameters(MagicTemplate):
         elif isinstance(params, tuple):
             radius, sigma = params
             return pipe.soft_otsu(radius=radius, sigma=sigma)
-        elif isinstance(params, dict) and params.get("kind") == "spherical":
-            return spherical_mask(**_drop_kind(params))
+        elif isinstance(params, dict):
+            match params.get("kind"):
+                case "spherical":
+                    return spherical_mask(**_drop_kind(params))
+                case "cylinder":
+                    return cylinder_mask(**_drop_kind(params))
+                case _:  # pragma: no cover
+                    raise ValueError(f"Unknown mask kind: {params.get('kind')!r}")
         else:
             return pipe.from_file(params)
 
