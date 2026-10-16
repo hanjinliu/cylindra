@@ -826,7 +826,9 @@ class SubtomogramAveraging(ChildWidget):
         loader = tomo.get_subtomogram_loader(
             _concat_molecules(layers), shape, binsize=bin_size, order=interpolation
         )
-        img = ip.asarray(loader.order_optimize().average(), axes="zyx")
+        img = ip.asarray(
+            loader.order_optimize().average(wedge_weighting=wedge_weighting), axes="zyx"
+        )
         img.set_scale(zyx=loader.scale, unit="nm")
         t0.toc()
         _Logger.print_html(
@@ -874,7 +876,9 @@ class SubtomogramAveraging(ChildWidget):
         loader = parent.tomogram.get_subtomogram_loader(
             mole, shape, binsize=bin_size, order=1
         ).order_optimize()
-        img = ip.asarray(loader.average(), axes="zyx").set_scale(zyx=loader.scale)
+        img = ip.asarray(
+            loader.average(wedge_weighting=wedge_weighting), axes="zyx"
+        ).set_scale(zyx=loader.scale)
         t0.toc()
         return self._show_rec.with_args(img, f"[AVG(n={number})]{_avg_name(layers)}")
 
@@ -912,7 +916,7 @@ class SubtomogramAveraging(ChildWidget):
         )
         expr = widget_utils.norm_polars_expr(by)
         groups = loader.order_optimize().groupby(expr)
-        avg_dict = groups.average()
+        avg_dict = groups.average(wedge_weighting=wedge_weighting)
         avgs = np.stack([avg_dict[k] for k in sorted(avg_dict.keys())], axis=0)
         img = ip.asarray(avgs, axes="pzyx")
         img.set_scale(zyx=loader.scale, unit="nm")
@@ -955,7 +959,7 @@ class SubtomogramAveraging(ChildWidget):
         loader = tomo.get_subtomogram_loader(
             _concat_molecules(layers), shape, binsize=bin_size, order=interpolation
         ).filter(widget_utils.norm_polars_expr(predicate))
-        avg = loader.order_optimize().average()
+        avg = loader.order_optimize().average(wedge_weighting=wedge_weighting)
         img = ip.asarray(avg, axes="zyx")
         img.set_scale(zyx=loader.scale, unit="nm")
         t0.toc()
@@ -2356,8 +2360,9 @@ class SubtomogramAveraging(ChildWidget):
     ):  # fmt: skip
         """Search for the best seam position.
 
-        Try all patterns of seam positions and compare cross correlation values. If
-        molecule assembly has 13 protofilaments, this method will try 26 patterns.
+        Try all patterns of seam positions and compare cross correlation between
+        template(s) and averages. If molecule assembly has 13 protofilaments, this
+        method will try 26 patterns of averages.
 
         Parameters
         ----------
@@ -2377,27 +2382,30 @@ class SubtomogramAveraging(ChildWidget):
         """
         t0 = timer()
         layer = assert_layer(layer, self.parent_viewer)
-        loader_s, npf = prep_seam_search_input(
+        loader, npf = prep_seam_search_input(
             self._get_main().tomogram,
             layer.molecules,
             npf=npf,
             order=interpolation,
         )
-        template, mask = loader_s.normalize_input(
+        template, mask = loader.normalize_input(
             template=self.params._norm_template_param(template_path),
             mask=self.params._get_mask(params=mask_params),
         )
         if anti_template_path is not None and str(anti_template_path) not in ("", "."):
-            anti_template = ip.asarray(
-                pipe.from_file(anti_template_path).provide(loader_s.scale),
-                axes="zyx",
+            anti_template, anti_mask = loader.normalize_input(
+                template=self.params._norm_template_param(anti_template_path),
+                mask=self.params._get_mask(params=mask_params),
             )
+            anti_template = ip.asarray(anti_template, axes="zyx")
+            if mask is not None and anti_mask is not None:
+                mask = np.maximum(mask, anti_mask)
         else:
             anti_template = None
 
         seam_searcher = CorrelationSeamSearcher(npf)
         result = seam_searcher.search(
-            loader=loader_s,
+            loader=loader,
             template=ip.asarray(template, axes="zyx"),
             anti_template=anti_template,
             mask=mask,
@@ -2408,12 +2416,12 @@ class SubtomogramAveraging(ChildWidget):
 
         @thread_worker.callback
         def _seam_search_on_return():
-            new_feat = result.as_series(loader_s.molecules.count())
+            new_feat = result.as_series(loader.molecules.count())
             layer.features = layer.molecules.features.with_columns(new_feat)
             layer.metadata[SEAM_SEARCH_RESULT] = result
             if show_average is not None:
                 if show_average == "Filtered":
-                    sigma = 0.25 / loader_s.scale
+                    sigma = 0.25 / loader.scale
                     result.averages.gaussian_filter(sigma=sigma, update=True)
                 _imlayer: Image = self._show_rec(
                     result.averages, layer.name, store=False

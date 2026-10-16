@@ -152,12 +152,12 @@ class CorrelationSeamSearcher(SeamSearcher):
                 anti_corrs[_i] = ip.zncc(masked_avg, masked_anti_template)
 
         if has_anti_template:
-            score = corrs - anti_corrs
+            diff = corrs - anti_corrs
         else:
-            corr1, corr2 = corrs[: self.npf], corrs[self.npf :]
-            score = np.empty_like(corrs, dtype=np.float32)
-            score[: self.npf] = corr1 - corr2
-            score[self.npf :] = corr2 - corr1
+            diff = corrs
+        # averaged_images[i] and averaged_images[i + npf] are averages of the
+        # complementary sets of molecules, so both of them should be considered.
+        score = diff - np.roll(diff, self.npf)
 
         return CorrelationSeamSearchResult(score, averaged_images, corrs, anti_corrs)
 

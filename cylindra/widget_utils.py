@@ -315,7 +315,7 @@ def plot_seam_search_result(score: np.ndarray, npf: int):
     xticks = np.concatenate([npf_vals, npf + npf_vals])
     plt.xticks(xticks)
     plt.title("Score")
-    plt.xlim(-0.1, len(score) - 0.9)
+    plt.xlim(-0.5, len(score) - 0.5)
     plt.tight_layout()
     plt.show()
 
