@@ -2300,13 +2300,25 @@ class SubtomogramAveraging(ChildWidget):
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 2,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "ncc",
         shift_to_background: Annotated[Optional[tuple[nm, nm, nm]], {"text": "Use half tomograms"}] = None,
-        # signal_mean_sd: Optional[tuple[float, float]] = None,
-        # noise_mean_sd: Optional[tuple[float, float]] = None,
     ):  # fmt: skip
         """Detect lattice defect by Bayesian metrics.
 
         This method calculates the signal and noise distribution, and evaluate the
         probability of being a defect site for individual molecules.
+
+        Parameters
+        ----------
+        {layer}
+        diameter : float
+            Diameter of monomer in nanometers.
+        prior_defect : float
+            Prior probability of a site being a defect. This value does not necessarily
+            reflect the actual defect rate. Changing this value only rescales the output
+            probability.
+        {max_shifts}{rotations}{interpolation}{bin_size}{upsample_factor}{method}
+        shift_to_background : tuple of float, optional
+            Shift vector to move molecules to background. For example, use (7, 0, 0) for
+            tubulin subunits.
         """
         main = self._get_main()
         _layer = assert_layer(layer, main.parent_viewer)
@@ -2320,11 +2332,7 @@ class SubtomogramAveraging(ChildWidget):
 
         mean_s, std_s = val_s.mean(), val_s.std(ddof=0)
         mean_n, std_n = val_n.mean(), val_n.std(ddof=0)
-        cohens_d = abs(mean_s - mean_n) / np.sqrt((std_s**2 + std_n**2) / 2)
-
-        _Logger.print(f"Signal = {mean_s:.3f} +/- {std_s:.3f}")
-        _Logger.print(f"Noise = {mean_n:.3f} +/- {std_n:.3f}")
-        _Logger.print(f"Cohen's d = {cohens_d:.3f}")
+        _log_mean_sd_for_detect_defect(mean_s, std_s, mean_n, std_n)
 
         post_prob = utils.calc_post_probability(
             val_s, 1 - prior_defect, mean_s, std_s, mean_n, std_n
@@ -2420,7 +2428,7 @@ class SubtomogramAveraging(ChildWidget):
             layer.features = layer.molecules.features.with_columns(new_feat)
             layer.metadata[SEAM_SEARCH_RESULT] = result
             if show_average is not None:
-                if show_average == "Filtered":
+                if show_average.lower() == "filtered":
                     sigma = 0.25 / loader.scale
                     result.averages.gaussian_filter(sigma=sigma, update=True)
                 _imlayer: Image = self._show_rec(
@@ -3030,6 +3038,14 @@ def _make_cylindrical_mask(
         .smooth_mask(sigma=1 / scale, dilate_radius=0.5 / scale)
         .value
     )
+
+
+def _log_mean_sd_for_detect_defect(mean_s, std_s, mean_n, std_n):
+    cohens_d = abs(mean_s - mean_n) / np.sqrt((std_s**2 + std_n**2) / 2)
+
+    _Logger.print(f"Signal = {mean_s:.3f} +/- {std_s:.3f}")
+    _Logger.print(f"Noise = {mean_n:.3f} +/- {std_n:.3f}")
+    _Logger.print(f"Cohen's d = {cohens_d:.3f}")
 
 
 impl_preview(SubtomogramAveraging.align_all_rma, text="Preview molecule network")(
