@@ -95,7 +95,7 @@ class CylindraProject(BaseProject):
     @classmethod
     def new(
         cls,
-        image: PathLike,
+        image: PathLike | None,
         scale: float | None,
         image_reference: PathLike | None = None,
         multiscales: list[int] = [1],
@@ -103,14 +103,21 @@ class CylindraProject(BaseProject):
         invert: bool = False,
         project_path: Path | None = None,
         invert_reference: bool = False,
+        tilt_series: TiltSeriesInfo | None = None,
     ):
-        """Create a new project."""
+        """Create a new project.
+
+        If `tilt_series` is given, the tomogram is opened from the tilt series, and
+        `image` can be None.
+        """
         from cylindra import _io
 
         _versions = get_versions()
-        if image is None:
+        if image is None and tilt_series is None:
             raise ValueError("image must not be None.")
         if scale is None:
+            if image is None:
+                raise ValueError("scale must be given for a tilt series.")
             header = _io.read_header(image)
             scale = header.scale["x"]
         return CylindraProject(
@@ -121,6 +128,7 @@ class CylindraProject(BaseProject):
             image_reference=image_reference,
             scale=scale,
             multiscales=list(multiscales),
+            tilt_series=tilt_series,
             missing_wedge=MissingWedge.parse(missing_wedge),
             invert=invert,
             invert_reference=invert_reference,
@@ -139,15 +147,8 @@ class CylindraProject(BaseProject):
 
         from cylindra.components.tomogram._spline_list import SplineList
 
-        path = Path(self.image).as_posix()
-        scale = self.scale
-        bin_size = self.multiscales
-        tilt_range = self.missing_wedge.as_param()
         with _prep_save_dir(project_dir) as results_dir:
-            expr_open = parse(
-                f"ui.open_image({path=}, {scale=:.4f}, {bin_size=}, {tilt_range=})",
-                squeeze=False,
-            )
+            expr_open = parse(self._open_image_script(), squeeze=False)
             # TODO: consider half tomos
             expr = as_main_function(expr_open)
             self._script_py_path(results_dir).write_text(expr)
@@ -169,6 +170,31 @@ class CylindraProject(BaseProject):
                 )
                 mole.to_file(save_path)
             self_copy.to_json(self._project_json_path(results_dir))
+
+    def _open_image_script(self) -> str:
+        """The script that opens the tomogram of this new project."""
+        scale = self.scale
+        if (ts := self.tilt_series) is None:
+            path = Path(self.image).as_posix()
+            bin_size = self.multiscales
+            tilt_range = self.missing_wedge.as_param()
+            return f"ui.open_image({path=}, {scale=:.4f}, {bin_size=}, {tilt_range=})"
+        path = Path(ts.path).as_posix()
+        tomo_hand = ts.tomo_hand
+        bin_size = ts.binsizes
+        if ts.reference is not None:
+            reference_path = Path(ts.reference).as_posix()
+            invert_reference = self.invert_reference
+            return (
+                f"ui.open_tilt_series_with_reference({path=}, {scale=:.4f}, "
+                f"{reference_path=}, {tomo_hand=}, {bin_size=}, {invert_reference=})"
+            )
+        reference_bin_size = ts.reference_binsize
+        tomo_height = ts.reference_shape[0] if ts.reference_shape else 200
+        return (
+            f"ui.open_tilt_series({path=}, {scale=:.4f}, {reference_bin_size=}, "
+            f"{tomo_hand=}, {tomo_height=}, {bin_size=}, save_coarse_tomogram=False)"
+        )
 
     @classmethod
     def from_gui(

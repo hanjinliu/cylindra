@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from scipy.spatial.transform import Rotation
 
     from cylindra.components import CylSpline, CylTomogram
+    from cylindra.project import CylindraProject
 
 TOMO_NAME = "rlnTomoName"
 IMPORT_PARTICLE_FILE = "rlnTomoImportParticleFile"
@@ -53,6 +54,8 @@ REC_TOMO_HALF1_PATH = "rlnTomoReconstructedTomogramHalf1"
 REC_TOMO_DENOISED_PATH = "rlnTomoReconstructedTomogramDenoised"
 TILT_STAR = "rlnTomoTiltSeriesStarFile"
 TILT_ANGLE = "rlnTomoNominalStageTiltAngle"
+TOMO_SIZE = ["rlnTomoSizeZ", "rlnTomoSizeY", "rlnTomoSizeX"]
+ALIGNED_TILT_SERIES_STAR = "aligned_tilt_series.star"
 
 _RELION_SCALE_TYPE = Annotated[
     Optional[float],
@@ -288,14 +291,24 @@ def _iter_dataframe_from_path_sets(
     for path_info in path_sets:
         path_info = PathInfo(*path_info)
         prj = path_info.project_instance(missing_ok=False)
-        tomo_name = _relion_utils.strip_relion5_prefix(path_info.image.stem)
-        img = path_info.lazy_imread()
-        tomo = CylTomogram.from_image(
-            img,
-            scale=prj.scale,
-            tilt=prj.missing_wedge.as_param(),
-            compute=False,
-        )
+        if (ts_info := prj.tilt_series) is not None:
+            # Tomograms of tilt series are not needed, as the centered coordinates
+            # are relative to the tomogram center of the tilt series.
+            tomo_name = _tilt_series_tomo_name(prj)
+            tomo = CylTomogram.dummy(
+                scale=prj.scale, tilt=prj.missing_wedge.as_param(), binsize=[1]
+            )
+            center_zyx = ts_info.tomogram_center
+        else:
+            tomo_name = _relion_utils.strip_relion5_prefix(path_info.image.stem)
+            img = path_info.lazy_imread()
+            tomo = CylTomogram.from_image(
+                img,
+                scale=prj.scale,
+                tilt=prj.missing_wedge.as_param(),
+                compute=False,
+            )
+            center_zyx = None
         moles = list(path_info.iter_molecules(_temp_feat, prj.scale))
         if len(moles) > 0:
             with warnings.catch_warnings():
@@ -307,6 +320,7 @@ def _iter_dataframe_from_path_sets(
                     save_features,
                     shift_by_origin,
                     centered=centered,
+                    center_zyx=center_zyx,
                 )
             if centered and relion_scale is not None:
                 scale_factor = relion_scale / tomo.scale
@@ -347,8 +361,7 @@ def save_splines(
     if not shift_by_origin:
         orig = type(orig)(0.0, 0.0, 0.0)
     tomo_name = tomo_name_override or ui.tomogram.image.name
-    scale = ui.tomogram.scale
-    centerz, centery, centerx = (np.array(ui.tomogram.shape) / 2 - 1) * scale
+    centerz, centery, centerx = _relion_center_zyx(ui.tomogram)
     for i, spl in enumerate(ui.splines):
         num = int(spl.length() / interval)
         coords = spl.partition(num)
@@ -386,9 +399,23 @@ def open_relion_job(
         },
     ] = None,
     join_molecules_by_id: Annotated[bool, {"text": "Join RELION particles to the current batch project"}] = False,
+    use_tilt_series: Annotated[bool, {"label": "Create projects from tilt series"}] = False,
+    reference_bin_size: Annotated[
+        Optional[int],
+        {
+            "label": "Coarse tomogram bin size",
+            "text": "Use RELION tomograms",
+            "options": {"min": 1, "max": 64, "value": 6},
+        },
+    ] = 12,
+    tomo_height: Annotated[int, {"label": "Coarse tomogram height (pixels)", "min": 1, "max": 10000}] = 200,
     path_sets: Annotated[Any, {"bind": _get_loader_paths}] = None,
 ):  # fmt: skip
     """Open a RELION tomogram reconstruction/refinement job as a cylindra batch project.
+
+    Tomogram reconstruction, denoising, particle picking, initial model, 3D
+    classification and 3D refinement jobs are supported. Tilt series alignment jobs
+    are also supported, which always create projects from the tilt series.
 
     Parameters
     ----------
@@ -400,22 +427,61 @@ def open_relion_job(
     invert : bool, default True
         Set to True if the tomograms are light backgroud.
     bin_size : list[int], default [1]
-        The multiscale binning size for the tomograms.
+        The multiscale binning size for the tomograms. If the projects are created
+        from the tilt series, the bin sizes available for analysis.
     scale_override : float, optional
         If provided, the pixel size in the tomogram.star file will be ignored and
-        this value will be used in cylindra.
+        this value will be used in cylindra. If the projects are created from the tilt
+        series, this is the pixel size of the tilt series.
     join_molecules_by_id : bool, default False
         If True, particle will be joined to the cylindra particles assuming that the
         current Batch Analysis widget state is the same as the state when you exported
         cylindra particles for RELION. This option is useful when you want to import
         particles back to cylindra and fill the missing geometrical features (e.g. `nth`
         and `pf-id` used for lattice structure analysis).
+    use_tilt_series : bool, default False
+        If True, the projects are created from the tilt series (the
+        "rlnTomoTiltSeriesStarFile" column) instead of the reconstructed tomograms.
+        Subtomograms are reconstructed directly from the tilt series, and the image
+        regions needed for analysis are reconstructed on demand. Always True for tilt
+        series alignment jobs, which have no tomograms.
+    reference_bin_size : int, default 12
+        Bin size of the coarse tomograms for visualization, if the projects are
+        created from the tilt series. The coarse tomogram is reconstructed from the tilt
+        series when the project is opened, and saved when the project is saved. If
+        None, the RELION tomograms are used as the coarse tomograms if their binning
+        is an integer. Otherwise, the coarse tomograms are reconstructed with
+        the nearest integer binning, or bin size 6 for jobs without tomograms.
+    tomo_height : int, default 200
+        Height (number of z slices) of the coarse tomograms reconstructed from the tilt
+        series, used only for jobs without the tomogram size (such as tilt series
+        alignment jobs).
     """
-    project_root, paths, scales, moles, tilt_models = _parse_relion_job(
-        path, project_root
-    )
-    if scale_override is not None:
-        scales = [scale_override] * len(scales)
+    job = _parse_relion_job(path, project_root)
+    use_tilt_series = use_tilt_series or not job.has_tomograms
+    if use_tilt_series:
+        projects = [
+            _new_tilt_series_project(
+                tomo, scale_override, bin_size, invert, reference_bin_size, tomo_height
+            )
+            for tomo in job.tomograms
+        ]
+    else:
+        projects = None
+    moles = None
+    if job.has_particles:
+        moles = list[dict[str, Molecules]]()
+        for i, (tomo, particles) in enumerate(
+            zip(job.tomograms, job.particles, strict=True)
+        ):
+            if projects is not None:
+                # centered coordinates are in the tomogram space of the tilt series
+                prj = projects[i]
+                center, scale = prj.tilt_series.tomogram_center, prj.scale
+            else:
+                scale = tomo.scale
+                center = _relion_utils.shape_to_center_zyx(tomo.shape, scale)
+            moles.append(_particles_to_molecules(particles, center, scale=scale))
     splines = None
     molecule_sources = None
     if join_molecules_by_id:
@@ -424,17 +490,36 @@ def open_relion_job(
                 "No molecules to join. Please add projects in the batch analysis "
                 "widget first to join RELION particles."
             )
+        if moles is None:
+            raise ValueError(f"Job {path} has no particles to join.")
         moles, splines, molecule_sources = _match_molecules(moles, path_sets)
+    if projects is not None:
+        ui.batch._add_new_projects(
+            [
+                (prj, tomo.name)
+                for prj, tomo in zip(projects, job.tomograms, strict=True)
+            ],
+            save_root=job.project_root,
+            splines=splines,
+            molecules=moles,
+            molecule_sources=molecule_sources,
+        )
+        return
+    paths = [tomo.require_tomo_path() for tomo in job.tomograms]
+    if scale_override is not None:
+        scales = [scale_override] * len(paths)
+    else:
+        scales = [tomo.scale for tomo in job.tomograms]
     ui.batch._new_projects_from_table(
         paths,
-        save_root=project_root,
+        save_root=job.project_root,
         splines=splines,
         scale=scales,
         invert=[invert] * len(paths),
         molecules=moles,
         molecule_sources=molecule_sources,
         bin_size=[bin_size] * len(paths),
-        tilt_model=tilt_models,
+        tilt_model=[tomo.tilt_model for tomo in job.tomograms],
     )
 
 
@@ -443,15 +528,42 @@ def _preview_open_relion_job(
     ui: CylindraMainWidget,
     path: Path,
     project_root: Path | None = None,
+    invert: bool = True,
     bin_size: list[int] = [1],
+    scale_override: float | None = None,
+    use_tilt_series: bool = False,
+    reference_bin_size: int | None = 12,
+    tomo_height: int = 200,
 ):
-    _, paths, scales, _, _ = _parse_relion_job(path, project_root)
+    job = _parse_relion_job(path, project_root)
+    use_tilt_series = use_tilt_series or not job.has_tomograms
     lines: list[str] = []
-    for i, path, scale in zip(range(len(paths)), paths, scales, strict=False):
+    for i, tomo in enumerate(job.tomograms):
         _num = f"{i}: "
         _indent = " " * len(_num)
-        lines.append(f"{_num}{path.name}")
-        lines.append(f"{_indent}at: {path.as_posix()}")
+        if use_tilt_series:
+            prj = _new_tilt_series_project(
+                tomo, scale_override, bin_size, invert, reference_bin_size, tomo_height
+            )
+            ts_info = prj.tilt_series
+            scale = prj.scale
+            ts_path = Path(ts_info.path)
+            lines.append(f"{_num}{tomo.name} (tilt series)")
+            lines.append(f"{_indent}at: {ts_path.as_posix()}")
+            if ts_info.reference is None:
+                _ref = "reconstructed from the tilt series"
+            else:
+                _ref = Path(ts_info.reference).as_posix()
+            ref_scale = scale * ts_info.reference_binsize
+            lines.append(
+                f"{_indent}coarse tomogram: {_ref} (bin {ts_info.reference_binsize}, "
+                f"{ref_scale:.4f} nm/px, shape {ts_info.reference_shape})"
+            )
+        else:
+            tomo_path = tomo.require_tomo_path()
+            scale = scale_override if scale_override is not None else tomo.scale
+            lines.append(f"{_num}{tomo_path.name}")
+            lines.append(f"{_indent}at: {tomo_path.as_posix()}")
         binned_scales = ", ".join(f"{scale * b:.4f}" for b in bin_size)
         lines.append(
             f"{_indent}scale: {scale:.4f} nm/px -> {binned_scales} nm/px (binned)"
@@ -461,11 +573,119 @@ def _preview_open_relion_job(
     widget.native.setParent(ui.native, widget.native.windowFlags())
     widget.read_only = True
     widget.show()
-    widget.native.setWindowTitle("Incoming tomograms")
+    if use_tilt_series:
+        widget.native.setWindowTitle("Incoming tilt series")
+    else:
+        widget.native.setWindowTitle("Incoming tomograms")
     ACTIVE_WIDGETS.add(widget)
 
 
-def _parse_relion_job(path, project_root):
+# Bin size of the coarse tomograms for the jobs without tomograms, same as the default
+# of `open_tilt_series`.
+_DEFAULT_REFERENCE_BIN_SIZE = 6
+
+
+def _new_tilt_series_project(
+    tomo: "RelionTomogram",
+    scale_override: nm | None,
+    bin_size: list[int],
+    invert: bool,
+    reference_bin_size: int | None,
+    tomo_height: int,
+) -> "CylindraProject":
+    """Create a new project of the tilt series of a RELION tomogram."""
+    from cylindra._io import lazy_imread
+    from cylindra.components.tomogram import _tilt_series as _ts
+    from cylindra.project import CylindraProject
+    from cylindra.project._base import TiltSeriesInfo
+
+    if tomo.tilt_series_path is None:
+        raise ValueError(
+            f"Tilt series of {tomo.name!r} is not found. The STAR file of the "
+            f"tomograms must have the {TILT_STAR!r} column."
+        )
+    scale = scale_override if scale_override is not None else tomo.pixel_size
+    ref_binsize = tomo.integer_binning() if reference_bin_size is None else None
+    if (
+        ref_binsize is not None
+        and tomo.tomo_path is not None
+        and tomo.tomo_path.exists()
+    ):
+        # The RELION tomogram is used as the coarse tomogram. RELION reconstructs the
+        # tomogram from the tilt series in the same way as `TiltSeriesSource`.
+        reference = tomo.tomo_path
+        ref_shape = tuple(lazy_imread(reference).shape)
+        invert_reference = invert
+    else:
+        if reference_bin_size is not None:
+            ref_binsize = reference_bin_size
+        elif tomo.binning is not None:
+            ref_binsize = max(round(tomo.binning), 1)
+        else:
+            ref_binsize = _DEFAULT_REFERENCE_BIN_SIZE
+        if tomo.size is not None:
+            ref_shape = tuple(max(s // ref_binsize, 1) for s in tomo.size)
+        else:
+            ny, nx = _tilt_image_shape(tomo.tilt_series_path, scale)
+            ref_shape = (tomo_height, ny // ref_binsize, nx // ref_binsize)
+        # reconstructed when the project is opened (light background)
+        reference = None
+        invert_reference = True
+    ts_info = TiltSeriesInfo(
+        path=tomo.tilt_series_path,
+        reference=reference,
+        reference_binsize=ref_binsize,
+        reference_shape=ref_shape,
+        tomogram_center=_ts.default_tomogram_center(ref_shape, ref_binsize, scale),
+        # The centered coordinates of RELION are those of the tilt series, without
+        # mirroring the tomogram.
+        tomo_hand=1,
+        binsizes=list(bin_size),
+    )
+    return CylindraProject.new(
+        None,
+        scale=scale,
+        # images are reconstructed from the tilt series on demand
+        multiscales=[],
+        missing_wedge=tomo.tilt_model,
+        invert=False,
+        invert_reference=invert_reference,
+        tilt_series=ts_info,
+    )
+
+
+def _tilt_image_shape(ts_path: Path, scale: nm) -> tuple[int, int]:
+    """Shape (y, x) of the tilt images of a tilt series."""
+    from acryo.projection._io import MrcImageStack
+
+    from cylindra.components.tomogram import _tilt_series as _ts
+
+    image_path = _ts.read_tilt_series(ts_path, scale).image_path
+    if isinstance(image_path, tuple):
+        image_path = image_path[0]
+    _, ny, nx = MrcImageStack(image_path).shape
+    return ny, nx
+
+
+@dataclass
+class RelionJob:
+    """Tomograms (and their particles) of a RELION job."""
+
+    project_root: Path
+    tomograms: "list[RelionTomogram]"
+    particles: list[pl.DataFrame | None]
+
+    @property
+    def has_tomograms(self) -> bool:
+        """True if the tomograms are reconstructed in RELION."""
+        return all(tomo.tomo_path is not None for tomo in self.tomograms)
+
+    @property
+    def has_particles(self) -> bool:
+        return all(p is not None for p in self.particles)
+
+
+def _parse_relion_job(path, project_root) -> RelionJob:
     path = Path(path)
     if path.name != "job.star" or not path.is_file() or not path.exists():
         raise ValueError(f"Path must be an existing RELION job.star file, got {path}")
@@ -473,10 +693,11 @@ def _parse_relion_job(path, project_root):
     jobtype = _relion_utils.get_job_type(job_dir_path)
     if project_root is None:
         project_root = job_dir_path / "cylindra"
-    return _parse_relion_job_by_type(path, jobtype, project_root)
+    tomograms, particles = _parse_relion_job_by_type(path, jobtype)
+    return RelionJob(Path(project_root), tomograms, particles)
 
 
-def _parse_relion_job_by_type(path: Path, jobtype: str, project_root: Path):
+def _parse_relion_job_by_type(path: Path, jobtype: str):
     job_dir_path = Path(path).parent
     rln_project_path = _relion_utils.relion_project_path(job_dir_path)
     if jobtype in ("relion.reconstructtomograms", "relion.denoisetomo"):
@@ -487,20 +708,27 @@ def _parse_relion_job_by_type(path: Path, jobtype: str, project_root: Path):
                 f"tomogram.star file {tomogram_star_path} does not exist. Make sure "
                 "the input job has an tomogram output."
             )
-        tomostar = TomogramStar(tomogram_star_path)
-        paths = list(tomostar.iter_tomo_paths(rln_project_path))
-        scales = [float(s) for s in tomostar.scale_nm]
-        tilt_models = list(tomostar.iter_tilt_models(rln_project_path))
-        moles = None
+        tomograms = TomogramStar(tomogram_star_path).list_tomograms(rln_project_path)
+        particles = [None] * len(tomograms)
+    elif jobtype.startswith("relion.aligntiltseries"):
+        # Align Tilt Series job, which has no tomograms
+        star_path = job_dir_path / ALIGNED_TILT_SERIES_STAR
+        if not star_path.exists():
+            raise FileNotFoundError(
+                f"{star_path} does not exist. Make sure the tilt series alignment has "
+                "finished."
+            )
+        tomograms = TomogramStar(star_path).list_tomograms(rln_project_path)
+        for tomo in tomograms:
+            tomo.tomo_path = None
+        particles = [None] * len(tomograms)
     elif jobtype in ("relion.picktomo", "relion.pseudosubtomo"):
         if not (opt_star_path := job_dir_path / "optimisation_set.star").exists():
             raise ValueError(
                 f"Optimisation set star file not found in {job_dir_path}. "
                 "Please ensure the job is a RELION 5.0 pick-particles job."
             )
-        paths, scales, moles, tilt_models = _parse_optimisation_star(
-            opt_star_path, rln_project_path
-        )
+        tomograms, particles = _parse_optimisation_star(opt_star_path, rln_project_path)
     elif jobtype in (
         "relion.initialmodel.tomo",
         "relion.class3d",
@@ -508,16 +736,16 @@ def _parse_relion_job_by_type(path: Path, jobtype: str, project_root: Path):
     ):
         opt_star_path = _relion_utils.get_optimisation_set_star(job_dir_path)
         run_data_path = _relion_utils.get_run_data_star(job_dir_path)
-        paths, scales, moles, tilt_models = _parse_optimisation_star(
+        tomograms, particles = _parse_optimisation_star(
             opt_star_path, rln_project_path, run_data_path
         )
     elif (job_dir_path / "tomograms.star").exists():
         # some External jobs may implement the same protocol as Reconstruct Tomo job.
         jobtype = "relion.reconstructtomograms"
-        return _parse_relion_job_by_type(path, jobtype, project_root)
+        return _parse_relion_job_by_type(path, jobtype)
     else:
         raise ValueError(f"Job {job_dir_path.name} is not a supported RELION job.")
-    return project_root, paths, scales, moles, tilt_models
+    return tomograms, particles
 
 
 def _match_molecules(
@@ -558,7 +786,10 @@ def _match_molecules(
         path_info = PathInfo(*path_info)
         prj = path_info.project_instance(missing_ok=False)
         splines = list(prj.iter_load_splines())
-        tomo_name = _relion_utils.strip_relion5_prefix(prj.image.stem)
+        if prj.tilt_series is not None:
+            tomo_name = _tilt_series_tomo_name(prj)
+        else:
+            tomo_name = _relion_utils.strip_relion5_prefix(prj.image.stem)
         mole_dict = {}
         mole_source = {}
         for molecule_id, mole in enumerate(
@@ -593,6 +824,59 @@ def _match_molecules(
     return moles_matched, all_splines, all_sources
 
 
+@dataclass
+class RelionTomogram:
+    """A tomogram (and its tilt series) listed in a STAR file of RELION."""
+
+    name: str
+    """Name of the tomogram (rlnTomoName)."""
+    tomo_path: Path | None
+    """Path to the reconstructed tomogram, if any."""
+    tilt_series_path: Path | None
+    """Path to the STAR file of the tilt series, if any."""
+    pixel_size: nm
+    """Pixel size of the tilt series."""
+    binning: float | None
+    """Binning of the tomogram relative to the tilt series, if any."""
+    size: tuple[int, int, int] | None
+    """Unbinned (z, y, x) size of the tomogram in pixels of the tilt series, if any."""
+    tilt_model: dict[str, Any] | None
+    """The tilt model of the tilt series."""
+
+    @property
+    def scale(self) -> nm:
+        """Pixel size of the tomogram."""
+        return self.pixel_size * (self.binning or 1.0)
+
+    @property
+    def shape(self) -> tuple[float, float, float]:
+        """Shape of the tomogram (can be non-integer)."""
+        if self.size is None:
+            raise ValueError(f"Size of the tomogram {self.name!r} is unknown.")
+        binning = self.binning or 1.0
+        return tuple(s / binning for s in self.size)
+
+    def require_tomo_path(self) -> Path:
+        """Path to the reconstructed tomogram, or raise an error if not available."""
+        if self.tomo_path is None:
+            raise ValueError(
+                f"Tomogram {self.name!r} is not reconstructed. Expected either "
+                f"{REC_TOMO_DENOISED_PATH!r}, {REC_TOMO_PATH!r} or "
+                f"{REC_TOMO_HALF1_PATH!r} column in the STAR file. Create the projects "
+                "from the tilt series instead."
+            )
+        return self.tomo_path
+
+    def integer_binning(self, tol: float = 1e-3) -> int | None:
+        """The binning as an integer, or None if it is not an integer."""
+        if self.binning is None:
+            return None
+        binning = round(self.binning)
+        if binning < 1 or abs(self.binning / binning - 1) > tol:
+            return None
+        return binning
+
+
 class TomogramStar:
     """Object to parse tomograms.star file."""
 
@@ -603,127 +887,122 @@ class TomogramStar:
     def tomo_names(self) -> pl.Series:
         return self.df[TOMO_NAME]
 
-    def iter_tomo_paths(self, project_dir: Path) -> Iterator[Path]:
-        candidates = [REC_TOMO_DENOISED_PATH, REC_TOMO_PATH, REC_TOMO_HALF1_PATH]
-        for col in candidates:
+    def _tomo_path_column(self) -> str | None:
+        for col in [REC_TOMO_DENOISED_PATH, REC_TOMO_PATH, REC_TOMO_HALF1_PATH]:
             if col in self.df.columns:
-                rel_paths = self.df[col]
-                break
-        else:
-            raise ValueError(
-                "No tomogram paths found in the tomograms.star file. Expected either "
-                f"{REC_TOMO_DENOISED_PATH!r}, {REC_TOMO_PATH!r} or "
-                f"{REC_TOMO_HALF1_PATH!r} column."
-            )
-        for p in rel_paths:
-            yield project_dir / p
-
-    @property
-    def scale_nm(self) -> np.ndarray:
-        tomo_orig_scale = self.df[PIXEL_SIZE]
-        tomo_bin = self.df[BINNING]
-        return (tomo_orig_scale / 10 * tomo_bin).to_numpy()
+                return col
+        return None
 
     def iter_tilt_models(self, project_dir: Path) -> Iterator[dict | None]:
         if TILT_STAR not in self.df.columns:
-            for _ in range(1000):
+            for _ in range(self.df.height):
                 yield None
-            raise StopIteration
+            return
         tilt_paths = [project_dir / str(p) for p in self.df[TILT_STAR]]
         for tilt_path in tilt_paths:
             if not tilt_path.exists():
                 yield None
+                continue
             tilt_star = starfile_rs.read_star(tilt_path).first().to_polars()
             _range = tilt_star[TILT_ANGLE].min(), tilt_star[TILT_ANGLE].max()
             yield {"kind": "y", "range": _range}
 
-    def iter_tomo_shapes(self) -> Iterator[tuple[float, float, float]]:
-        bin_size = self.df[BINNING]
-        nzs = self.df["rlnTomoSizeZ"] / bin_size
-        nys = self.df["rlnTomoSizeY"] / bin_size
-        nxs = self.df["rlnTomoSizeX"] / bin_size
-        yield from zip(nzs, nys, nxs, strict=False)
+    def list_tomograms(self, project_dir: Path) -> list[RelionTomogram]:
+        """List all the tomograms. Relative paths are resolved in `project_dir`."""
+        columns = self.df.columns
+        tomo_col = self._tomo_path_column()
+        has_size = all(c in columns for c in TOMO_SIZE)
+        out = list[RelionTomogram]()
+        for row, tilt_model in zip(
+            self.df.iter_rows(named=True),
+            self.iter_tilt_models(project_dir),
+            strict=True,
+        ):
+            if tomo_col is not None and row[tomo_col] is not None:
+                tomo_path = project_dir / str(row[tomo_col])
+            else:
+                tomo_path = None
+            if TILT_STAR in columns and row[TILT_STAR] is not None:
+                ts_path = project_dir / str(row[TILT_STAR])
+            else:
+                ts_path = None
+            binning = row.get(BINNING)
+            if has_size:
+                size = tuple(int(row[c]) for c in TOMO_SIZE)
+            else:
+                size = None
+            out.append(
+                RelionTomogram(
+                    name=str(row[TOMO_NAME]),
+                    tomo_path=tomo_path,
+                    tilt_series_path=ts_path,
+                    pixel_size=float(row[PIXEL_SIZE]) / 10,
+                    binning=float(binning) if binning is not None else None,
+                    size=size,
+                    tilt_model=tilt_model,
+                )
+            )
+        return out
 
 
 def _parse_optimisation_star(
     opt_star_path: Path,
     rln_project_path: Path,
     run_data_path: Path | None = None,
-):
-    paths: list[Path] = []
-    scales: list[float] = []
-    molecules: list[dict[str, Molecules]] = []
-    tilt_models: list[dict[str, Any]] = []
-    for item in _iter_from_optimisation_star(
-        opt_star_path, rln_project_path, run_data_path
-    ):
-        paths.append(rln_project_path / item.tomo_path)
-        scales.append(item.scale)
-        molecules.append(item.molecules)
-        tilt_models.append(item.tilt_model)
-    return paths, scales, molecules, tilt_models
-
-
-@dataclass
-class OptimizationSetItem:
-    tomo_id: str
-    tomo_path: Path
-    scale: nm
-    molecules: dict[str, Molecules]
-    tilt_model: dict[str, Any]
-
-
-def _iter_from_optimisation_star(
-    path: Path,
-    rln_project_path: Path,
-    run_data_path: Path | None = None,
-) -> "Iterator[OptimizationSetItem]":
-    opt_star = starfile_rs.read_star(path).first().trust_single()
+) -> tuple[list[RelionTomogram], list[pl.DataFrame]]:
+    """Parse the optimisation set into tomograms and the particles of each."""
+    opt_star = starfile_rs.read_star(opt_star_path).first().trust_single()
     tomo_star_path: str = opt_star["rlnTomoTomogramsFile"]
     particles_path: str = opt_star["rlnTomoParticlesFile"]
     tomostar = TomogramStar(rln_project_path / tomo_star_path)
-    tomo_names = tomostar.tomo_names
-    scale_nm = tomostar.scale_nm
-    tomo_paths = list(tomostar.iter_tomo_paths(rln_project_path))
-    tomo_shapes = list(tomostar.iter_tomo_shapes())
+    # NOTE: rlnTomoName values may be parsed as numbers, so the values are used as keys
+    name_to_tomo = dict(
+        zip(
+            tomostar.tomo_names,
+            tomostar.list_tomograms(rln_project_path),
+            strict=True,
+        )
+    )
     if run_data_path is None:
         run_data_path = rln_project_path / particles_path
     particles_df = _relion_utils.read_loop_block(run_data_path, "particles")
-    name_to_center_map = {
-        tomo_name: _relion_utils.shape_to_center_zyx(tomo_shape, sc_nm)
-        for tomo_name, tomo_shape, sc_nm in zip(
-            tomo_names, tomo_shapes, scale_nm, strict=False
-        )
-    }
-    name_to_path_map = dict(zip(tomo_names, tomo_paths, strict=False))
-    name_to_scale_map = dict(zip(tomo_names, scale_nm, strict=False))
-    name_to_tilt_model_map = dict(
-        zip(tomo_names, tomostar.iter_tilt_models(rln_project_path), strict=False)
-    )
+    tomograms = list[RelionTomogram]()
+    particles_list = list[pl.DataFrame]()
     for (tomo_id,), particles in particles_df.sort(
         TOMO_NAME, maintain_order=True
     ).group_by(TOMO_NAME, maintain_order=True):
-        center_zyx = name_to_center_map.get(tomo_id)
-        if center_zyx is None:
+        if (tomo := name_to_tomo.get(tomo_id)) is None:
             warnings.warn(
                 f"Tomogram {tomo_id} not found in the tomograms.star file. Skipping.",
                 UserWarning,
                 stacklevel=2,
             )
             continue
-        scale = name_to_scale_map[tomo_id]
-        yield OptimizationSetItem(
-            tomo_id=tomo_id,
-            tomo_path=Path(name_to_path_map[tomo_id]),
-            scale=scale,
-            molecules=_particles_to_molecules(particles, center_zyx, scale=scale),
-            tilt_model=name_to_tilt_model_map[tomo_id],
-        )
+        tomograms.append(tomo)
+        particles_list.append(particles)
+    return tomograms, particles_list
+
+
+def _relion_center_zyx(tomo: "CylTomogram") -> np.ndarray:
+    """Position of the origin of the RELION centered coordinates in the tomogram."""
+    if (ts := tomo.tilt_series) is not None:
+        # centered coordinates of RELION are those of the tilt series
+        return np.asarray(ts.tomogram_center)
+    return _relion_utils.shape_to_center_zyx(tomo.shape, tomo.scale)
+
+
+def _tilt_series_tomo_name(prj: "CylindraProject") -> str:
+    """The tomogram name (rlnTomoName) of a project opened from a tilt series."""
+    ts_path = Path(prj.tilt_series.path)
+    if not ts_path.is_absolute() and prj.project_path is not None:
+        # the tilt series saved in the project, such as the refined one
+        ts_path = Path(prj.project_path)
+    return _relion_utils.strip_relion5_prefix(ts_path.stem)
 
 
 def _read_star(path: str, tomo: "CylTomogram") -> dict[str, Molecules]:
     fpath = Path(path)
-    center_zyx = _relion_utils.shape_to_center_zyx(tomo.shape, tomo.scale)
+    center_zyx = _relion_center_zyx(tomo)
     particles = _relion_utils.read_loop_block(fpath, "particles")  # angstrom
     return _particles_to_molecules(particles, center_zyx, fpath.stem, tomo.scale)
 
@@ -805,7 +1084,13 @@ def _mole_to_star_df(
     save_features: bool = False,
     shift_by_origin: bool = True,
     centered: bool = True,
+    center_zyx: "tuple[float, float, float] | None" = None,
 ) -> pl.DataFrame:
+    """Convert molecules into RELION particles.
+
+    `center_zyx` is the position of the origin of the centered coordinates. By
+    default, it is determined by the tomogram.
+    """
     mole = Molecules.concat(moles)
     euler_angle = mole.euler_angle(seq="ZYZ", degrees=True)
     scale = tomo.scale
@@ -819,7 +1104,9 @@ def _mole_to_star_df(
         ROT_COLUMNS[2]: euler_angle[:, 2],
     }
     if centered:
-        c_z, c_y, c_x = _relion_utils.shape_to_center_zyx(tomo.shape, scale)
+        if center_zyx is None:
+            center_zyx = _relion_center_zyx(tomo)
+        c_z, c_y, c_x = center_zyx
         # Angstrom
         _pos_dict = {
             POS_CENTERED[2]: (mole.pos[:, 2] - c_x + orig.x) * 10,

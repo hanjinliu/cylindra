@@ -168,8 +168,35 @@ class CylindraBatchWidget(MagicTemplate):
             )
             prj_name = img_path.stem
             projects.append((each_project, prj_name))
-        if len(projects) == 0:
+        self._add_new_projects(
+            projects,
+            save_root=save_root,
+            splines=splines,
+            molecules=molecules,
+            molecule_sources=molecule_sources,
+            extension=extension,
+            strip_prefix=strip_prefix,
+            strip_suffix=strip_suffix,
+            overwrite=overwrite,
+        )
+
+    def _add_new_projects(
+        self,
+        projects: list[tuple[CylindraProject, str]],
+        save_root: Path,
+        splines: list[list["CylSpline"]] | None = None,
+        molecules: list[dict[str, Molecules]] | None = None,
+        molecule_sources: list[dict[str, int | None]] | None = None,
+        extension: Literal["", ".zip", ".tar"] = "",
+        strip_prefix: str = "",
+        strip_suffix: str = "",
+        overwrite: bool = True,
+    ):
+        """Save the new (project, name) pairs under `save_root` and add them."""
+        num_projects = len(projects)
+        if num_projects == 0:
             raise ValueError("No projects created.")
+        save_root = Path(save_root)
         save_root.mkdir(parents=True, exist_ok=True)
         self.constructor.projects.clear()
         for (prj, prj_name), spl, mole, mole_src in zip(
@@ -191,7 +218,9 @@ class CylindraBatchWidget(MagicTemplate):
                     save_path, splines=spl, molecules=mole, molecule_sources=mole_src
                 )
                 prj.project_path = save_path
-            self.constructor.projects._add(prj.project_path)
+            wdt = self.constructor.projects._add(prj.project_path)
+            # same as `add_projects`
+            self.constructor.scale.value = wdt.project.scale
         self.save_batch_project(save_path=save_root)
         self.show()
 
