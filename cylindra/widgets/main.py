@@ -700,6 +700,7 @@ class CylindraMainWidget(MagicTemplate):
     ):  # fmt: skip
         from cylindra.components.tomogram import _tilt_series as _ts
 
+        path = Path(path)
         ref = _ts.prep_reference_tomogram(
             path,
             scale,
@@ -708,7 +709,19 @@ class CylindraMainWidget(MagicTemplate):
             tomo_height,
             save_coarse_tomogram=save_coarse_tomogram,
         )
-        # TODO: prep default
+        if save_coarse_tomogram:
+            # prepare cylindra-default
+            path.with_name(".cylindra-defaults.toml").write_text(
+                f"scale = {ref.scale.x / reference_bin_size:.4f}\n"
+                'image_reference = "{}_rec_bin*.mrc"\n'
+                "invert_reference = true\n"
+                "\n"
+                "[tilt_series]\n"
+                f"tomo_hand = {tomo_hand}\n"
+                f"tomo_height = {tomo_height}\n"
+                f"reference_bin_size = {reference_bin_size}\n"
+            )
+
         yield thread_worker.description("Reading tilt series")
         tomo = CylTomogram.from_tilt_series(
             path,

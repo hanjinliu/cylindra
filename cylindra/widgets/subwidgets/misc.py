@@ -327,6 +327,8 @@ class TiltSeriesLoader(MagicTemplate):
         path = _resolve_path_str(self.path)
         if not path.exists() or not path.is_file():
             return
+        if scale_ := _infer_scale_for_tilt_series(path):
+            self.scale.scale_value = f"{scale_:.4f}"
         ref_found = False
         if default_setting := TomogramDefaults.from_dir(path.parent):
             if (_tomo_hand := default_setting.tilt_series.tomo_hand) is not None:
@@ -338,7 +340,7 @@ class TiltSeriesLoader(MagicTemplate):
             if (
                 _bin_size := default_setting.tilt_series.reference_bin_size
             ) is not None:
-                self.bin_size = _bin_size
+                self.reference_bin_size = _bin_size
             if (_filter := default_setting.filter) is not None:
                 self.filter = _filter
             if _img_ref := default_setting.resolve_reference_path(path):
@@ -353,8 +355,45 @@ class TiltSeriesLoader(MagicTemplate):
     def __post_init__(self):
         self._on_create_reference_change(self.create_reference)
 
+    @set_design(text="Preview")
+    def preview_image(self):
+        """Preview image at the path."""
+        return view_image(
+            _get_tilt_series_image_path(self.path),
+            parent=self,
+            default_bin_size=4,
+        )
+
     open_tilt_series = abstractapi()
     open_tilt_series_with_reference = abstractapi()
+
+
+def _get_tilt_series_image_path(path) -> str | list[str] | None:
+    """Get the tilt series image path(s) from the given tilt series info path."""
+    path = Path(path)
+    if path.suffix == ".edf":
+        return path.with_name(f"{path.stem}.mrc").as_posix()
+    elif path.suffix == ".star":
+        import starfile_rs
+
+        df = starfile_rs.read_star(path).first().to_polars()
+        # TODO: to absolute path
+        return df.sort("rlnTomoNominalStageTiltAngle")["rlnMicrographName"].to_list()
+    return None
+
+
+def _infer_scale_for_tilt_series(path) -> float | None:
+    """Infer the scale from the given tilt series info path."""
+    path = _get_tilt_series_image_path(path)
+    if path is None:
+        return None
+    if isinstance(path, list):
+        path = path[0]
+    path = Path(path)
+
+    header = _io.read_header(path)
+    scale = header.scale["x"]
+    return scale
 
 
 def _resolve_path_str(path_input):

@@ -164,7 +164,11 @@ def view_tables(
     return container
 
 
-def view_image(path: str | list[str], parent: MagicTemplate = None) -> ImagePreview:
+def view_image(
+    path: str | list[str],
+    parent: MagicTemplate = None,
+    default_bin_size: int = 2,
+) -> ImagePreview:
     """Preview an image."""
     prev = ImagePreview()
     if isinstance(path, list):
@@ -173,6 +177,7 @@ def view_image(path: str | list[str], parent: MagicTemplate = None) -> ImagePrev
         prev._load_image(path)
     if parent is not None:
         prev.native.setParent(parent.native, prev.native.windowFlags())
+    prev.Filter.bin_size = default_bin_size
     prev.show()
     prev.width, prev.height = 320, 440
     ACTIVE_WIDGETS.add(prev)
