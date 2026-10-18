@@ -850,6 +850,7 @@ class AnalysisMenu(ChildWidget):
         @thread_worker.with_progress(
             desc="Checking handedness", total="self._get_main().splines.count()"
         )
+        @do_not_record
         def check_handedness(
             self,
             bin_size: Annotated[int, {"choices": get_available_binsize}] = 1,
