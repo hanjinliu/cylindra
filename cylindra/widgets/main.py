@@ -51,7 +51,7 @@ from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import PropertyNames as H
 from cylindra.plugin.core import load_plugin
 from cylindra.project import CylindraProject, extract
-from cylindra.types import get_available_binsize
+from cylindra.types import binsize_choices, get_available_binsize
 from cylindra.widget_utils import (
     ClusteringExprStr,
     PolarsExprStr,
@@ -451,6 +451,14 @@ class CylindraMainWidget(MagicTemplate):
     def _get_available_binsize(self, w=None) -> list[tuple[str, int]]:
         return get_available_binsize(w)
 
+    def _get_displayable_binsize(self, w=None) -> list[tuple[str, int]]:
+        """Bin sizes of the images that can be shown in the viewer."""
+        tomo = self.tomogram
+        binsizes = {b for b, _ in tomo.multiscaled}
+        if (ts := tomo.tilt_series) is not None and ts.reference is not None:
+            binsizes.add(ts.reference_binsize)
+        return binsize_choices(tomo.scale, binsizes)
+
     def _get_default_config(self, config):
         if config is None:
             config = self.default_config.asdict()
@@ -687,7 +695,7 @@ class CylindraMainWidget(MagicTemplate):
         tomo_hand: Annotated[Literal[-1, 1], {"bind": _ts_loader.tomo_hand}] = -1,
         tomo_height: Annotated[int, {"bind": _ts_loader.tomo_height}] = 200,
         bin_size: Annotated[list[int], {"bind": _ts_loader.bin_size}] = [2, 4],
-        filter: Annotated[ImageFilter | None, {"bind": _ts_loader.filter}] = ImageFilter.Lowpass,
+        filter: Annotated[ImageFilter | None, {"bind": _ts_loader.filter}] = None,
         save_coarse_tomogram: Annotated[bool, {"bind": _ts_loader.save_reference}] = True,
     ):  # fmt: skip
         from cylindra.components.tomogram import _tilt_series as _ts
@@ -732,7 +740,7 @@ class CylindraMainWidget(MagicTemplate):
         reference_path: Annotated[Path, {"bind": _ts_loader.reference_path}],
         tomo_hand: Annotated[Literal[-1, 1], {"bind": _ts_loader.tomo_hand}] = -1,
         bin_size: Annotated[list[int], {"bind": _ts_loader.bin_size}] = [2, 4],
-        filter: Annotated[ImageFilter | None, {"bind": _ts_loader.filter}] = ImageFilter.Lowpass,
+        filter: Annotated[ImageFilter | None, {"bind": _ts_loader.filter}] = None,
         invert_reference: Annotated[bool, {"bind": _ts_loader.invert_reference}] = True,
     ):  # fmt: skip
         """Open a tilt series with its coarse tomogram.
@@ -861,6 +869,7 @@ class CylindraMainWidget(MagicTemplate):
         path: Path.Save,
         molecules_ext: Annotated[Literal[".csv", ".parquet"], {"widget_type": ToggleButtons}] = ".csv",
         save_landscape: Annotated[bool, {"label": "Save landscape layers"}] = False,
+        save_coarse_tomogram: bool = True,
     ):  # fmt: skip
         """Save current project state and the results in a directory.
 
@@ -880,11 +889,18 @@ class CylindraMainWidget(MagicTemplate):
         save_landscape : bool, default False
             Save landscape layers if any. False by default because landscape layers are
             usually large.
+        save_coarse_tomogram : bool, default True
+            If the tomogram is opened from a tilt series and its coarse tomogram was
+            reconstructed from the tilt series (not read from a file), save the coarse
+            tomogram in the project. Otherwise, it will be reconstructed again when the
+            project is opened.
         """
         path = Path(path)
         if path.name == "project.json":
             path = path.parent
-        CylindraProject.save_gui(self, path, molecules_ext, save_landscape)
+        CylindraProject.save_gui(
+            self, path, molecules_ext, save_landscape, save_coarse_tomogram
+        )
         _Logger.print(f"Project saved: {path.as_posix()}")
         self._need_save = False
         self._project_dir = path
@@ -919,7 +935,12 @@ class CylindraMainWidget(MagicTemplate):
             ext = Path(project.molecules_info[0].name).suffix
         else:
             ext = ".csv"
-        return self.save_project(self._project_dir, ext)
+        # keep whether the coarse tomogram of the tilt series is saved
+        ts_info = project.tilt_series
+        save_coarse = ts_info is None or ts_info.reference is not None
+        return self.save_project(
+            self._project_dir, ext, save_coarse_tomogram=save_coarse
+        )
 
     @set_design(text=capitalize, location=_sw.FileMenu)
     def save_reference_image(self, path: Path.Save[FileFilter.IMAGE]):
@@ -1373,8 +1394,11 @@ class CylindraMainWidget(MagicTemplate):
         return thread_worker.callback(self.set_multiscale).with_args(bin_size)
 
     @set_design(text="Set multi-scale", location=_sw.ImageMenu)
-    def set_multiscale(self, bin_size: BinSizeType):  # fmt: skip
+    def set_multiscale(self, bin_size: Annotated[int, {"choices": _get_displayable_binsize}]):  # fmt: skip
         """Set multiscale used for image display.
+
+        If the tomogram is opened from a tilt series, its coarse tomogram can also be
+        shown.
 
         Parameters
         ----------
@@ -1383,7 +1407,15 @@ class CylindraMainWidget(MagicTemplate):
         """
         tomo = self.tomogram
         _old_bin_size = self._current_binsize
-        imgb = tomo.get_multiscale(bin_size)
+        ts = tomo.tilt_series
+        if any(b == bin_size for b, _ in tomo.multiscaled):
+            imgb = tomo.get_multiscale(bin_size)
+        elif ts is not None and ts.reference is not None and bin_size == ts.reference_binsize:  # fmt: skip
+            # the coarse tomogram of the tilt series, shown with the same contrast
+            inverted = self._reserved_layers.ref_inverted
+            imgb = -ts.reference if inverted else ts.reference
+        else:
+            imgb = tomo.get_multiscale(bin_size)  # raise an error
         factor = self._reserved_layers.scale / imgb.scale.x
         self._reserved_layers.update_image(imgb, tomo.multiscale_translation(bin_size))
         current_z = self.parent_viewer.dims.current_step[0]
@@ -4276,17 +4308,25 @@ class CylindraMainWidget(MagicTemplate):
         invert: bool = False,
     ):
         viewer = self.parent_viewer
-        old_tomo = self._tomogram
-        self._tomogram = tomo
-        self.GeneralInfo._refer_tomogram(tomo)
-
         if (ts := tomo.tilt_series) is not None and ts.reference is not None:
             # the coarse tomogram is only for visualization
             bin_size = ts.reference_binsize
             imgb = ts.reference
-        else:
+        elif tomo.multiscaled:
             bin_size = max(x[0] for x in tomo.multiscaled)
             imgb = tomo.get_multiscale(bin_size)
+        elif ts is None:
+            # no multi-scale image, such as a tomogram created by the API
+            bin_size = 1
+            imgb = tomo.image
+        else:
+            raise ValueError(
+                "Tomogram from a tilt series needs a coarse tomogram to be shown."
+            )
+        old_tomo = self._tomogram
+        self._tomogram = tomo
+        self.GeneralInfo._refer_tomogram(tomo)
+
         self._current_binsize = bin_size
         self._update_reference_image(imgb)
         if old_tomo.metadata.get("cache_image", False):

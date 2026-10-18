@@ -369,6 +369,12 @@ def _resolve_path_str(path_input):
     return path
 
 
+def _format_nbytes(nbytes: int) -> str:
+    if nbytes < 1024**3:
+        return f"{nbytes / 1024**2:.2f} MB"
+    return f"{nbytes / 1024**3:.2f} GB"
+
+
 @magicclass(record=False, widget_type="collapsible", labels=False)
 class GeneralInfo(MagicTemplate):
     """General information of the current project.
@@ -403,15 +409,19 @@ class GeneralInfo(MagicTemplate):
             tilt_range = f"{deg0:.1f}° — {deg1:.1f}° (axis: {axis})"
         else:
             tilt_range = repr(tomo.tilt_model)
-        if (nbytes := img.value.nbytes) < 1024**3:
-            size = f"{nbytes / 1024**2:.2f} MB"
-        else:
-            size = f"{nbytes / 1024**3:.2f} GB"
-        if tomo.tilt_series is not None:
+        if (ts := tomo.tilt_series) is not None:
             # the bin-1 image is not in memory nor on disk
-            size += " (reconstructed from the tilt series on demand)"
-            if ref_path := tomo.metadata.get("reference", None):
+            if (nbytes := ts.nbytes) is None:
+                size = "Unknown (tilt series)"
+            else:
+                size = f"{_format_nbytes(nbytes)} (tilt series)"
+            ref_path = tomo.metadata.get("display_reference", None) or (
+                tomo.metadata.get("reference", None)
+            )
+            if ref_path:
                 fpath += f'<br><span style="color: gray;">Reference:</span> {Path(ref_path).as_posix()}'  # fmt: skip
+        else:
+            size = _format_nbytes(img.value.nbytes)
 
         self.image_info.value = (
             f'<span style="color: gray;">File:</span> {fpath}<br>'

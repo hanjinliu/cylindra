@@ -88,8 +88,8 @@ class CylindraProject(BaseProject):
                 resolve_path(self.image_halves[0], file_dir),
                 resolve_path(self.image_halves[1], file_dir),
             )
-        if self.tilt_series is not None:
-            self.tilt_series.resolve_path(file_dir)
+        # NOTE: relative paths of the tilt series are resolved when opened, as they
+        # may be in a tar or zip file (`file_dir` is a temporary directory for zip).
         return self
 
     @classmethod
@@ -177,6 +177,7 @@ class CylindraProject(BaseProject):
         project_dir: Path,
         mole_ext: str = ".csv",
         save_landscape: bool = False,
+        save_coarse_tomogram: bool = True,
     ) -> "CylindraProject":
         """Construct a project from a widget state."""
         from cylindra._napari import InteractionVector, LandscapeSurface
@@ -210,10 +211,14 @@ class CylindraProject(BaseProject):
         img_ref_path = gui._reserved_layers.image_data.source
         if tomo.metadata.get("source", None) == img_ref_path:
             img_ref_path = None
-        tilt_series_info = _tilt_series_info(tomo)
-        if tilt_series_info is not None and img_ref_path is not None:
-            if Path(img_ref_path) == Path(tilt_series_info.reference):
-                img_ref_path = None  # the reference is loaded with the tilt series
+        tilt_series_info = _tilt_series_info(tomo, save_coarse_tomogram)
+        if (
+            tilt_series_info is not None
+            and img_ref_path is not None
+            and tilt_series_info.reference is not None
+            and Path(img_ref_path) == Path(tilt_series_info.reference)
+        ):
+            img_ref_path = None  # the reference is loaded with the tilt series
         return cls(
             datetime=datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
             version=_versions.pop("cylindra", "unknown"),
@@ -242,6 +247,7 @@ class CylindraProject(BaseProject):
         project_dir: Path,
         mole_ext: str = ".csv",
         save_landscape: bool = False,
+        save_coarse_tomogram: bool = True,
     ) -> None:
         """Serialize the GUI state to a json file.
 
@@ -251,8 +257,14 @@ class CylindraProject(BaseProject):
             The main widget from which project model will be constructed.
         project_dir : Path
             The path to the project json file.
+        save_coarse_tomogram : bool, default True
+            If the tomogram is opened from a tilt series, save its coarse tomogram that
+            was reconstructed from the tilt series (not read from a file) in the
+            project. Otherwise, it is reconstructed again when the project is opened.
         """
-        self = cls.from_gui(gui, project_dir, mole_ext, save_landscape)
+        self = cls.from_gui(
+            gui, project_dir, mole_ext, save_landscape, save_coarse_tomogram
+        )
 
         tomo = gui.tomogram
         localprops = tomo.splines.collect_localprops(allow_none=True)
@@ -270,7 +282,7 @@ class CylindraProject(BaseProject):
             ):
                 info.save_layer(gui, results_dir)
             if self.tilt_series is not None:
-                _save_tilt_series(tomo, results_dir)
+                _save_tilt_series(tomo, results_dir, save_coarse_tomogram)
 
             _cfg_json = gui.default_config.json_dumps()
             self._default_spline_config_path(results_dir).write_text(_cfg_json)
@@ -608,28 +620,39 @@ class CylindraProject(BaseProject):
         import impy as ip
 
         from cylindra.components import CylTomogram
+        from cylindra.components.tomogram import _tilt_series as _ts
 
         kwargs = {
             "scale": self.scale,
             "tilt": self.missing_wedge.as_param(),
-            "binsize": self.multiscales,
+            # The reference of a tilt series is not a multi-scale image, so this may be
+            # empty. Tomograms (and dummies) need a multi-scale image to be shown.
+            "binsize": self.multiscales or [1],
         }
         if (ts_info := self.tilt_series) is not None:
-            if dir is None and not (
-                Path(ts_info.path).is_absolute()
-                and Path(ts_info.reference).is_absolute()
-            ):
-                # files saved in a tar or zip project
+            _paths = [p for p in (ts_info.path, ts_info.reference) if p is not None]
+            if dir is None and not all(Path(p).is_absolute() for p in _paths):
+                # files saved in the project, which may be a tar or zip file
                 with self.open_project() as _dir:
                     return self.load_tomogram(_dir, compute=compute)
-            if dir is None and self.project_path is not None:
-                dir = self.project_path
             ts_path = _resolve_in(ts_info.path, dir)
-            ref_path = _resolve_in(ts_info.reference, dir)
-            if ts_path.exists() and ref_path.exists():
+            if ts_info.reference is None:
+                ref_path = None  # reconstructed from the tilt series
+            else:
+                ref_path = _resolve_in(ts_info.reference, dir)
+            if ts_path.exists() and (ref_path is None or ref_path.exists()):
+                if ref_path is None:
+                    reference = _ts.reconstruct_coarse_tomogram(
+                        _ts.read_tilt_series(ts_path, self.scale),
+                        binsize=ts_info.reference_binsize,
+                        shape=ts_info.reference_shape,
+                        tomo_hand=ts_info.tomo_hand,
+                    )
+                else:
+                    reference = ip.imread(ref_path)
                 tomo = CylTomogram.from_tilt_series(
                     ts_path,
-                    ip.imread(ref_path),
+                    reference,
                     scale=self.scale,
                     reference_binsize=ts_info.reference_binsize,
                     tomo_hand=ts_info.tomo_hand,
@@ -640,17 +663,21 @@ class CylindraProject(BaseProject):
                 # saved again when the project is saved.
                 tomo.tilt_series.mark_unsaved(
                     tilt_series=_is_in_dir(ts_path, dir),
-                    reference=_is_in_dir(ref_path, dir),
+                    reference=ref_path is None or _is_in_dir(ref_path, dir),
                 )
+                # files in a tar or zip project are shown as the files in the project
+                for key, path in [("source", ts_path), ("reference", ref_path)]:
+                    if (_disp := self._archive_member_name(path, dir)) is not None:
+                        tomo.metadata[f"display_{key}"] = _disp
                 if compute:  # multi-scale images reconstructed from the tilt series
                     for b in self.multiscales:
                         if b not in (x[0] for x in tomo.multiscaled):
                             tomo.add_multiscale(b)
             else:
+                missing = ts_path if not ts_path.exists() else ref_path
                 LOGGER.warning(
-                    f"Cannot find tilt series {Path(ts_info.path).as_posix()} or its "
-                    f"reference {Path(ts_info.reference).as_posix()}. Load other "
-                    "components only.",
+                    f"Cannot find {Path(missing).as_posix()} of the tilt series. Load "
+                    "other components only.",
                 )
                 tomo = CylTomogram.dummy(**kwargs, name="<Tilt series not found>")
         elif self.image is not None:
@@ -695,7 +722,7 @@ class CylindraProject(BaseProject):
                 tomo = CylTomogram.dummy(
                     scale=self.scale,
                     tilt=self.missing_wedge.as_param(),
-                    binsize=self.multiscales,
+                    binsize=kwargs["binsize"],
                     name="<Half tomograms not found>",
                 )
         else:
@@ -707,6 +734,23 @@ class CylindraProject(BaseProject):
         if self.image_relative is None or self.project_path is None:
             return None
         return resolve_relative_paths(self.image_relative, self.project_path.parent)
+
+    def _archive_member_name(self, path: Path | None, dir: Path | None) -> str | None:
+        """Name of a file in a tar or zip project, such as "path/to/project.zip:x.json".
+
+        The files in the archive are read from a temporary directory `dir`, so their
+        paths are not meaningful.
+        """
+        if (
+            path is None
+            or dir is None
+            or self.project_path is None
+            or Path(self.project_path).suffix not in (".tar", ".zip")
+            or not _is_in_dir(path, dir)
+        ):
+            return None
+        member = Path(path).resolve().relative_to(Path(dir).resolve()).as_posix()
+        return f"{Path(self.project_path).as_posix()}:{member}"
 
     def make_project_viewer(self):
         """Build a project viewer widget from this project."""
@@ -825,7 +869,9 @@ TILT_SERIES_FILE = "tilt_series.json"
 COARSE_TOMOGRAM_FILE = "coarse_tomogram.mrc"
 
 
-def _tilt_series_info(tomo: "CylTomogram") -> TiltSeriesInfo | None:
+def _tilt_series_info(
+    tomo: "CylTomogram", save_coarse_tomogram: bool = True
+) -> TiltSeriesInfo | None:
     if (ts := tomo.tilt_series) is None:
         return None
     # the tilt series and the reference that are not saved in any file (such as the
@@ -834,14 +880,16 @@ def _tilt_series_info(tomo: "CylTomogram") -> TiltSeriesInfo | None:
         path = TILT_SERIES_FILE
     else:
         path = tomo.metadata.get("source", None)
-    if ts.has_unsaved_reference:
+    if not ts.has_unsaved_reference:
+        reference = tomo.metadata.get("reference", None)
+    elif save_coarse_tomogram:
         reference = COARSE_TOMOGRAM_FILE
     else:
-        reference = tomo.metadata.get("reference", None)
-    if path is None or reference is None or ts.reference is None:
+        reference = None  # reconstructed again when the project is opened
+    if path is None or ts.reference is None:
         warnings.warn(
-            "Tilt series or its reference tomogram is not a file. The tomogram cannot "
-            "be saved in the project.",
+            "Tilt series or its reference tomogram is not available. The tomogram "
+            "cannot be saved in the project.",
             UserWarning,
             stacklevel=2,
         )
@@ -850,13 +898,16 @@ def _tilt_series_info(tomo: "CylTomogram") -> TiltSeriesInfo | None:
         path=path,
         reference=reference,
         reference_binsize=ts.reference_binsize,
+        reference_shape=ts.reference.shape,
         tomogram_center=tuple(float(c) for c in ts.tomogram_center),
         tomo_hand=ts.loader.tomo_hand,
         binsizes=ts.binsizes,
     )
 
 
-def _save_tilt_series(tomo: "CylTomogram", results_dir: Path) -> None:
+def _save_tilt_series(
+    tomo: "CylTomogram", results_dir: Path, save_coarse_tomogram: bool = True
+) -> None:
     """Save the tilt series and the reference that are not saved in any file."""
     if (ts := tomo.tilt_series) is None:
         return None
@@ -870,7 +921,7 @@ def _save_tilt_series(tomo: "CylTomogram", results_dir: Path) -> None:
                 image_path = Path(image_path).resolve()
             tilt_series = tilt_series.replace(image_path=image_path)
         (results_dir / TILT_SERIES_FILE).write_text(tilt_series.dump_json())
-    if ts.has_unsaved_reference and ts.reference is not None:
+    if save_coarse_tomogram and ts.has_unsaved_reference and ts.reference is not None:
         ts.reference.imsave(results_dir / COARSE_TOMOGRAM_FILE)
     return None
 

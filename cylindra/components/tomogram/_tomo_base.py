@@ -101,6 +101,9 @@ class Tomogram:
         return Path(source)
 
     def _orig_or_read_path(self) -> str | None:
+        # such as a file in a tar or zip project, which is read from a temporary file
+        if path := self.metadata.get("display_source", None):
+            return str(path)
         if self._image_halves is not None:
             img1, img2 = self._image_halves
             return img1.source.as_posix() + ";" + img2.source.as_posix()
@@ -467,7 +470,8 @@ class Tomogram:
         scale = ts.scale
 
         img_ref = reference
-        ref_path = img_ref.source
+        # the source may be relative to the current directory
+        ref_path = Path(img_ref.source).resolve() if img_ref.source else None
         if isinstance(img_ref, ip.LazyImgArray):
             img_ref = img_ref.compute()
         if img_ref.ndim != 3:

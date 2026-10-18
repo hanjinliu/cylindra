@@ -10,6 +10,8 @@ from cylindra._napari import LandscapeSurface, MoleculesLayer
 from cylindra.const import PREVIEW_LAYER_NAME
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from magicgui.widgets.bases import CategoricalWidget
 
 
@@ -63,13 +65,15 @@ def get_available_binsize(gui: "CategoricalWidget") -> list[tuple[str, int]]:
             return []
         case ui:
             tomo = ui.tomogram
-            return [
-                (
-                    f"{b} pixel{'s' if b > 1 else ''} ({tomo.scale * b:.2f} nm/pixel)",
-                    b,
-                )
-                for b in tomo.available_binsizes()
-            ]
+            return binsize_choices(tomo.scale, tomo.available_binsizes())
+
+
+def binsize_choices(scale: float, binsizes: "Iterable[int]") -> list[tuple[str, int]]:
+    """Choices of bin sizes labeled with the pixel sizes."""
+    return [
+        (f"{b} pixel{'s' if b > 1 else ''} ({scale * b:.2f} nm/pixel)", b)
+        for b in sorted(binsizes)
+    ]
 
 
 if TYPE_CHECKING:

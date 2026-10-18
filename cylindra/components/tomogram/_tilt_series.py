@@ -139,6 +139,11 @@ class TiltSeriesSource:
         return list(self._binsizes)
 
     @property
+    def nbytes(self) -> int | None:
+        """Total size of the tilt images in bytes, or None if unknown."""
+        return tilt_images_nbytes(self.tilt_series)
+
+    @property
     def has_unsaved_tilt_series(self) -> bool:
         """True if the tilt series is not the same as the file it was read from."""
         return self._unsaved_tilt_series
@@ -356,6 +361,42 @@ def _resolve_image_path(image_path, directory: Path):
     if isinstance(image_path, tuple):
         return tuple(directory / p for p in image_path)
     return directory / image_path
+
+
+def tilt_images_nbytes(tilt_series: TiltSeries) -> int | None:
+    """Total size of the tilt images in bytes, or None if unknown."""
+    from acryo.projection._io import MrcImageStack
+
+    paths = tilt_series.image_path
+    if paths is None:
+        return None
+    try:
+        if isinstance(paths, tuple):  # a file for each tilt
+            stacks = [MrcImageStack(p) for p in paths]
+        else:
+            stacks = [MrcImageStack(paths)] * tilt_series.ntilts
+    except Exception:
+        return None
+    return sum(s.shape[1] * s.shape[2] * s.dtype.itemsize for s in stacks)
+
+
+def reconstruct_coarse_tomogram(
+    tilt_series: TiltSeries,
+    binsize: int,
+    shape: tuple[int, int, int] | None,
+    tomo_hand: int,
+) -> ip.ImgArray:
+    """Reconstruct a coarse tomogram as `TiltSeriesSource.reconstruct_reference`."""
+    from acryo import BackProjectionLoader
+
+    if shape is None:
+        raise ValueError("Shape of the coarse tomogram is unknown.")
+    if tilt_series.scale is None:
+        raise ValueError("Pixel size of the tilt series is not set.")
+    loader = BackProjectionLoader(tilt_series, tomo_hand=tomo_hand).binning(binsize)
+    img = loader.reconstruct_tomogram(tuple(shape), dtype=np.float32)
+    img = ip.asarray(img, axes="zyx")
+    return img.set_scale(zyx=tilt_series.scale * binsize, unit="nm")
 
 
 def prep_reference_tomogram(

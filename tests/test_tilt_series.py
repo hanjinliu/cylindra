@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import NamedTuple
 
@@ -198,6 +199,16 @@ def test_from_tilt_series_reference(tilt_series_files: TiltSeriesFiles):
     assert ref_wrong_scale.scale.x == pytest.approx(SCALE * 2.5)  # not updated
 
 
+def test_relative_reference_path(
+    tilt_series_files: TiltSeriesFiles, monkeypatch: pytest.MonkeyPatch
+):
+    # the path of the reference is saved in projects, so it must be absolute
+    monkeypatch.chdir(tilt_series_files.reference.parent)
+    ref = ip.imread(tilt_series_files.reference.name)
+    tomo = CylTomogram.from_tilt_series(tilt_series_files.json, ref)
+    assert tomo.metadata["reference"] == tilt_series_files.reference.resolve()
+
+
 @pytest.mark.parametrize("binsize", [2, 3])
 @pytest.mark.parametrize("tomo_hand", [1, -1])
 def test_reference_aligned_with_tilt_series(
@@ -329,6 +340,17 @@ def test_open_tilt_series(
     assert ui.splines[0].close_to(old_spline)
     assert "Mole-0" in ui.mole_layers
 
+    # the coarse tomogram can be shown again after showing a multi-scale image
+    assert [b for _, b in ui._get_displayable_binsize()] == [2]
+    ui.add_multiscale(4)
+    assert ui._current_binsize == 4
+    assert [b for _, b in ui._get_displayable_binsize()] == [2, 4]
+    ui.set_multiscale(2)
+    assert ui._current_binsize == 2
+    np.testing.assert_allclose(ui._reserved_layers.image_data, -ref)
+    with pytest.raises(ValueError):
+        ui.set_multiscale(1)  # not shown in the viewer
+
     # opening another tomogram releases the tilt series
     src = tomo.tilt_series
     ui.sta.average_all("Mole-0", size=12.0, bin_size=1)
@@ -336,6 +358,15 @@ def test_open_tilt_series(
     ui.open_image(TEST_DIR / "13pf_MT.tif", scale=SCALE, bin_size=[2], filter=None)
     assert ui.tomogram.tilt_series is None
     assert not src.is_cache_enabled
+
+    # a project of a missing tilt series is opened with a dummy tomogram
+    project_json = tmp_path / "project" / "project.json"
+    js = json.loads(project_json.read_text())
+    js["tilt_series"]["reference"] = str(tmp_path / "missing.mrc")
+    project_json.write_text(json.dumps(js))
+    ui.load_project(tmp_path / "project", filter=None)
+    assert ui.tomogram.is_dummy
+    assert ui.splines[0].close_to(old_spline)
 
 
 def test_refine_tilt_series(
@@ -440,3 +471,87 @@ def test_refine_tilt_series(
     assert (tmp_path / "project" / "tilt_series.json").exists()
     assert (tmp_path / "project" / "coarse_tomogram.mrc").exists()
     src.release_cache()
+
+
+def _project_files(path: Path) -> set[str]:
+    """Names of the files in a project directory, tar or zip file."""
+    import tarfile
+    import zipfile
+
+    if path.suffix == ".tar":
+        with tarfile.open(path) as tar:
+            return set(tar.getnames())
+    elif path.suffix == ".zip":
+        with zipfile.ZipFile(path) as zf:
+            return set(zf.namelist())
+    return {p.name for p in path.iterdir()}
+
+
+def test_save_project_with_tilt_series(
+    ui: CylindraMainWidget,
+    tilt_series_files: TiltSeriesFiles,
+    tmp_path: Path,
+):
+    from cylindra.project import CylindraProject
+    from cylindra.project._single import COARSE_TOMOGRAM_FILE, TILT_SERIES_FILE
+
+    ui.open_tilt_series_with_reference(
+        tilt_series_files.json,
+        scale=SCALE,
+        reference_path=tilt_series_files.reference,
+        tomo_hand=TOMO_HAND,
+        bin_size=[1],
+        filter=None,
+        invert_reference=True,
+    )
+    ui.register_path(COORDS_13PF + tilt_series_files.offset)
+    old_spline = ui.splines[0].copy()
+    src = ui.tomogram.tilt_series
+    # the tilt series and the coarse tomogram that are not saved in any file
+    src.set_reference(src.reconstruct_reference())
+    src.mark_unsaved(tilt_series=True, reference=False)
+    expected = np.asarray(src.reference)
+    with mrcfile.mmap(tilt_series_files.json.parent / "ts.mrc", mode="r") as mrc:
+        tilt_series_size = f"{mrc.data.nbytes / 1024**2:.2f} MB"
+
+    for name in ["project", "project.tar", "project.zip"]:
+        for save_coarse in [True, False]:
+            path = tmp_path / f"coarse-{save_coarse}" / name
+            path.parent.mkdir(exist_ok=True)
+            ui.save_project(path, save_coarse_tomogram=save_coarse)
+            files = _project_files(path)
+            assert TILT_SERIES_FILE in files
+            assert (COARSE_TOMOGRAM_FILE in files) == save_coarse
+
+            # the coarse tomogram is reconstructed if not saved
+            ui.load_project(path, filter=None)
+            src = ui.tomogram.tilt_series
+            assert src is not None, f"{name}, {save_coarse=}"
+            assert src.has_unsaved_tilt_series and src.has_unsaved_reference
+            np.testing.assert_allclose(src.reference, expected, rtol=1e-4, atol=1e-4)
+            np.testing.assert_allclose(
+                ui._reserved_layers.image_data, -expected, rtol=1e-4, atol=1e-4
+            )
+            assert ui.splines[0].close_to(old_spline)
+
+            # files in the project are shown as such, not as the temporary files
+            info = ui.GeneralInfo.image_info.value
+            if path.suffix in (".tar", ".zip"):
+                prefix = f"{path.as_posix()}:"
+            else:
+                prefix = f"{path.resolve().as_posix()}/"
+            assert f"{prefix}{TILT_SERIES_FILE}" in info
+            assert (f"{prefix}{COARSE_TOMOGRAM_FILE}" in info) == save_coarse
+            assert ("Reference:" in info) == save_coarse  # not if reconstructed
+            assert f"Data size: {tilt_series_size} (tilt series)" in info
+
+            # also without GUI
+            tomo = CylindraProject.from_file(path).load_tomogram()
+            assert tomo.tilt_series is not None
+            assert tomo.tilt_series.reference.shape == expected.shape
+            assert len(tomo.splines) == 1
+            tomo.tilt_series.release_cache()
+
+    # overwriting keeps whether the coarse tomogram is saved
+    ui.overwrite_project()
+    assert COARSE_TOMOGRAM_FILE not in _project_files(path)
