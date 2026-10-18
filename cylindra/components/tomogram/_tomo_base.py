@@ -454,7 +454,6 @@ class Tomogram:
         Tomogram
             Tomogram object backed by the tilt series.
         """
-        from acryo import BackProjectionLoader
         from acryo.projection import TiltSeries
 
         from cylindra.components.tomogram import _tilt_series as _ts
@@ -484,9 +483,7 @@ class Tomogram:
             tomogram_center = _ts.default_tomogram_center(
                 img_ref.shape, reference_binsize, scale
             )
-        loader = BackProjectionLoader(
-            ts, tomogram_center=tomogram_center, tomo_hand=tomo_hand
-        )
+        loader = _ts.make_loader(ts, tomogram_center, tomo_hand)
         shape = tuple(s * reference_binsize for s in img_ref.shape)
         if isinstance(binsize, int):
             binsize = [binsize]

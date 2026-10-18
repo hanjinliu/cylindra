@@ -14,6 +14,8 @@ from cylindra.const import PropertyNames as H
 from cylindra.project import CylindraProject
 
 if TYPE_CHECKING:
+    from acryo import BackProjectionLoader
+
     from cylindra.components import CylSpline
 
 _SPLINE_FEATURES = [
@@ -87,6 +89,13 @@ class PathInfo:
         if self.need_invert:
             img = -img
         return img.as_float()
+
+    def tilt_series_loader(self) -> BackProjectionLoader | None:
+        """The loader of the tilt series, if the project is opened from one."""
+        prj = self.project_instance()
+        if prj is None or prj.tilt_series is None:
+            return None
+        return prj.load_tilt_series_loader()
 
     def iter_molecules(
         self, temp_features: TempFeatures, target_scale: float

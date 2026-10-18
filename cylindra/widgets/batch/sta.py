@@ -8,7 +8,7 @@ import impy as ip
 import matplotlib.pyplot as plt
 import numpy as np
 import polars as pl
-from acryo import BatchLoader, Molecules, SubtomogramLoader
+from acryo import BackProjectionLoader, BatchLoader, Molecules, SubtomogramLoader
 from acryo.loader import ExtractedSubvolumeLoader
 from acryo.loader._extracted import SUBVOLUME_INDEX
 from magicclass import (
@@ -1088,7 +1088,11 @@ class BatchSubtomogramAveraging(MagicTemplate):
         info = batch.loader_infos[loader_name]
         # TODO: batch.iter_projects() does not properly work if no batch project is
         # loaded beforehand.
-        img_project_map = {Path(prj.image): prj for prj in batch.iter_projects()}
+        img_project_map = {
+            path: prj
+            for prj in batch.iter_projects()
+            if (path := prj._batch_image_path()) is not None
+        }
         for (mole_id, img_id), each in loader.group_by(["molecules-id", "image-id"]):
             img_path = info.image_paths[img_id]
             prj = img_project_map[img_path]
@@ -1102,16 +1106,12 @@ class BatchSubtomogramAveraging(MagicTemplate):
                     break
             else:
                 raise ValueError(f"Spline for molecule {mole_id} not found.")
-            loader_single = SubtomogramLoader(
-                image=loader.images[img_id],
+            # the loader of the tomogram, or of the tilt series, of the image
+            loader_single = loader.loaders[img_id].replace(
                 molecules=each.molecules.with_features(
                     pl.lit(img_id).alias(Mole.image),
                     pl.lit(mole_id).alias(Mole.id),
                 ),
-                order=loader.order,
-                scale=loader.scale,
-                output_shape=loader.output_shape,
-                tilt_model=loader._tilt_models[img_id],
             )
             yield LoaderOnSpline(
                 loader=loader_single, image_id=img_id, molecule_id=mole_id, spline=spl
@@ -1185,7 +1185,7 @@ def _coerce_aligned_name(name: str, loaders: LoaderList):
 
 @dataclass
 class LoaderOnSpline:
-    loader: SubtomogramLoader | ExtractedSubvolumeLoader
+    loader: SubtomogramLoader | BackProjectionLoader | ExtractedSubvolumeLoader
     image_id: int
     molecule_id: str
     spline: CylSpline

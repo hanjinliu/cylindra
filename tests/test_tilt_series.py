@@ -5,6 +5,7 @@ from typing import NamedTuple
 import acryo
 import impy as ip
 import numpy as np
+import polars as pl
 import pytest
 from acryo import Molecules, SubtomogramLoader
 from scipy import ndimage as ndi
@@ -555,3 +556,69 @@ def test_save_project_with_tilt_series(
     # overwriting keeps whether the coarse tomogram is saved
     ui.overwrite_project()
     assert COARSE_TOMOGRAM_FILE not in _project_files(path)
+
+
+def test_batch_with_tilt_series(
+    ui: CylindraMainWidget,
+    tilt_series_files: TiltSeriesFiles,
+    tmp_path: Path,
+):
+    from acryo import BackProjectionLoader
+
+    ui.open_tilt_series_with_reference(
+        tilt_series_files.json,
+        scale=SCALE,
+        reference_path=tilt_series_files.reference,
+        tomo_hand=TOMO_HAND,
+        bin_size=[1, 2],
+        filter=None,
+        invert_reference=True,
+    )
+    mole = Molecules.from_csv(TEST_DIR / "test_project_13pf" / "Mole-0.csv")
+    ui.add_molecules(mole.translate(tilt_series_files.offset), name="Mole-0")
+    # projects of the tilt series in a directory and in a zip file
+    paths = [tmp_path / "project-0", tmp_path / "project-1.zip"]
+    for path in paths:
+        ui.save_project(path)
+
+    ui.batch.constructor.add_projects(paths, clear=True)
+    assert len(ui.batch.constructor.projects) == 2
+
+    # open a project in the viewer
+    ui.batch.constructor.projects[1].send_to_viewer()
+    assert ui.tomogram.tilt_series is not None
+    assert "Mole-0" in ui.mole_layers
+
+    # subtomograms are reconstructed from the tilt series
+    ui.batch.construct_loader(
+        ui.batch._get_loader_paths(), predicate="pl.col('nth') < 3", name="Loader"
+    )
+    loader = ui.batch.sta.get_loader("Loader")
+    nmole = mole.filter(pl.col("nth") < 3).count()
+    assert loader.molecules.count() == 2 * nmole
+    sub_loaders = list(loader.loaders)
+    assert len(sub_loaders) == 2
+    assert all(isinstance(ldr, BackProjectionLoader) for ldr in sub_loaders)
+    np.testing.assert_allclose(
+        sub_loaders[0].tomogram_center, ui.tomogram.tilt_series.tomogram_center
+    )
+    # subtomograms are reconstructed at the binned scale, so the molecules are not
+    # translated by binning
+    binned = loader.binning(2)
+    np.testing.assert_allclose(binned.molecules.pos, loader.molecules.pos)
+    ui.batch.sta.average_all("Loader", size=6.0, bin_size=1)
+    for binsize in [1, 2]:
+        ui.batch.sta.align_all(
+            "Loader",
+            template_path=TEST_DIR / "beta-tubulin.mrc",
+            mask_params=(2.0, 2.0),
+            max_shifts=(1.0, 1.0, 1.0),
+            bin_size=binsize,
+        )
+        aligned = ui.batch.sta.get_loader(ui.batch.loader_infos[-1].name)
+        assert aligned.molecules.count() == 2 * nmole
+
+    # loader of a single project
+    single = ui.batch.constructor.projects[0].get_loader(order=1)
+    assert isinstance(single, BackProjectionLoader)
+    assert single.molecules.count() == mole.count()

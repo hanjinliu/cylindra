@@ -698,6 +698,36 @@ class CylindraMainWidget(MagicTemplate):
         filter: Annotated[ImageFilter | None, {"bind": _ts_loader.filter}] = None,
         save_coarse_tomogram: Annotated[bool, {"bind": _ts_loader.save_reference}] = True,
     ):  # fmt: skip
+        """Open a tilt series and reconstruct its coarse tomogram.
+
+        The bin-1 tomogram is not reconstructed as a whole. Subtomograms are directly
+        reconstructed from the tilt series, and the image regions needed for analysis
+        are reconstructed on demand. The coarse tomogram is reconstructed from the tilt
+        series only for visualization, and shown with inverted intensity. Tilt images
+        are preprocessed for each bin size when it is first needed, and cached until
+        another tomogram or tilt series is opened.
+
+        Parameters
+        ----------
+        path : Path
+            Path to the tilt series. A JSON file of `acryo.projection.TiltSeries`, an
+            IMOD directive file (.edf) or a STAR file of RELION 5 tilt series.
+        scale : float, optional
+            Pixel size of the tilt images in nm. Required for IMOD, which does not store
+            the pixel size.
+        reference_bin_size : int, default 6
+            Bin size of the coarse tomogram.
+        tomo_hand : Literal[-1, 1], default -1
+            Handedness of the tomogram.
+        tomo_height : int, default 200
+            Height (number of z slices) of the coarse tomogram.
+        bin_size : list of int, default [2, 4]
+            Bin sizes available for analysis.
+        {filter}
+        save_coarse_tomogram : bool, default True
+            If true, the coarse tomogram is saved next to the tilt series file, together
+            with the default settings (".cylindra-defaults.toml") to open it later.
+        """
         from cylindra.components.tomogram import _tilt_series as _ts
 
         path = Path(path)

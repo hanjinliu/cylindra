@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     import tarfile
 
     import macrokit
-    from acryo import Molecules
+    from acryo import BackProjectionLoader, Molecules
 
     from cylindra.components import CylSpline, CylTomogram
     from cylindra.widgets.main import CylindraMainWidget
@@ -734,6 +734,33 @@ class CylindraProject(BaseProject):
         if self.image_relative is None or self.project_path is None:
             return None
         return resolve_relative_paths(self.image_relative, self.project_path.parent)
+
+    def _batch_image_path(self) -> Path | None:
+        """Path that identifies the tomogram of this project in batch analysis.
+
+        For a tomogram opened from a tilt series, it is the path of the tilt series,
+        which may be a file in the project (or in the tar or zip file of the project).
+        """
+        if (ts_info := self.tilt_series) is None:
+            return None if self.image is None else Path(self.image)
+        path = Path(ts_info.path)
+        if not path.is_absolute() and self.project_path is not None:
+            path = Path(self.project_path) / path
+        return path
+
+    def load_tilt_series_loader(self) -> "BackProjectionLoader":
+        """Create the loader that reconstructs subtomograms from the tilt series."""
+        from cylindra.components.tomogram import _tilt_series as _ts
+
+        if (ts_info := self.tilt_series) is None:
+            raise ValueError("The project is not opened from a tilt series.")
+        if Path(ts_info.path).is_absolute():
+            tilt_series = _ts.read_tilt_series(ts_info.path, self.scale)
+        else:  # in the project, which may be a tar or zip file
+            with self.open_project() as dir:
+                path = _resolve_in(ts_info.path, dir)
+                tilt_series = _ts.read_tilt_series(path, self.scale)
+        return _ts.make_loader(tilt_series, ts_info.tomogram_center, ts_info.tomo_hand)
 
     def _archive_member_name(self, path: Path | None, dir: Path | None) -> str | None:
         """Name of a file in a tar or zip project, such as "path/to/project.zip:x.json".

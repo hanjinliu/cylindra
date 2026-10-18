@@ -226,7 +226,10 @@ class CylindraBatchWidget(MagicTemplate):
         _temp_feat = TempFeatures()
         for img_id, path_info in enumerate(paths):
             path_info = PathInfo(*path_info)
-            img = path_info.lazy_imread()
+            # subtomograms of a tilt-series project are reconstructed from the tilt
+            # series, while the others are loaded from the tomograms.
+            ts_loader = path_info.tilt_series_loader()
+            img = path_info.lazy_imread() if ts_loader is None else None
             image_paths[img_id] = Path(path_info.image)
             invert[img_id] = path_info.need_invert
             if scale is None:
@@ -240,10 +243,16 @@ class CylindraBatchWidget(MagicTemplate):
                     tilt = parse_tilt_model(tilt)
             else:
                 tilt = None
+            # molecules of a tilt series are in nm of the tilt series, so they are
+            # not rescaled
+            mole_scale = scale if ts_loader is None else ts_loader.scale
             for molecule_id, mole in enumerate(
-                path_info.iter_molecules(_temp_feat, scale)
+                path_info.iter_molecules(_temp_feat, mole_scale)
             ):
-                loader.add_tomogram(img.value, mole, img_id, tilt_model=tilt)
+                if ts_loader is None:
+                    loader.add_tomogram(img.value, mole, img_id, tilt_model=tilt)
+                else:
+                    loader.add_loader(ts_loader.replace(molecules=mole), img_id)
                 yield img_id / len(paths), molecule_id / len(path_info.molecules)
             yield (img_id + 1) / len(paths), 0.0
         yield 1.0, 1.0

@@ -320,6 +320,19 @@ class TiltSeriesSource:
         )
 
 
+def make_loader(
+    tilt_series: TiltSeries,
+    tomogram_center: Sequence[float],
+    tomo_hand: int,
+) -> BackProjectionLoader:
+    """Create the loader of a tomogram reconstructed from the tilt series."""
+    from acryo import BackProjectionLoader
+
+    return BackProjectionLoader(
+        tilt_series, tomogram_center=tuple(tomogram_center), tomo_hand=tomo_hand
+    )
+
+
 def read_tilt_series(path: str | Path, scale: nm | None = None) -> TiltSeries:
     """Read a tilt series.
 
