@@ -88,6 +88,7 @@ nav:
       - case_studies/custom_config.md
       - case_studies/learning_cft.md
       - case_studies/make_figure.md
+      - case_studies/check_handedness.md
   - API References:
     - api/index.md
     - api/components.md

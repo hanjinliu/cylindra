@@ -175,6 +175,10 @@ class LatticeAnalyzer:
         cparams = self.get_params(img, peakh, peakv, radius)
         return LatticeParams.from_cylinder_params(cparams)
 
+    def get_peak_detector(self, img: ip.ImgArray, nsamples: int = 8) -> PeakDetector:
+        img = img - float(img.mean())  # normalize.
+        return PeakDetector(img, nsamples=nsamples)
+
     estimate_lattice_params_polar_delayed = delayed(estimate_lattice_params_polar)
 
     def estimate_lattice_params_cartesian(

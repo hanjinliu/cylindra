@@ -1041,6 +1041,37 @@ class CylTomogram(Tomogram):
         return ori
 
     @_misc.batch_process
+    def check_handedness(
+        self,
+        *,
+        i: int = None,
+        binsize: int = 1,
+        nsamples: int = 8,
+    ) -> bool:
+        """Check if tomogram handedness is correct.
+
+        Parameters
+        ----------
+        i : int or iterable of int, optional
+            Spline ID that you want to analyze.
+        binsize : int, default 1
+            Multiscale bin size used for calculation.
+        nsamples : int, default 8
+            Number of cylindrical coordinate samplings for Fourier transformation.
+            Multiple samplings are needed because up-sampled discrete Fourier
+            transformation does not return exactly the same power spectra with shifted
+            inputs, unlike FFT. Larger `nsamples` reduces the error but is slower.
+        """
+        spl = self.splines[i]
+        rmin, rmax = spl.radius_range()
+        img_st = self.straighten_cylindric(i, radii=(rmin, rmax), binsize=binsize)
+        config = spl.config
+        config_inv = config.updated(rise_sign=-config.rise_sign)
+        power = _peak_power(config, img_st, nsamples)
+        power_inv = _peak_power(config_inv, img_st, nsamples)
+        return power > power_inv
+
+    @_misc.batch_process
     def straighten(
         self,
         i: int = None,
@@ -1420,6 +1451,14 @@ def _match_lattice_phase(
     twist = model.tilts[0] * model.intervals[1]
     offset_a = ref.offsets[1] + (twist_ref - twist) * k
     return model.replace(offsets=(offset_y, offset_a))
+
+
+def _peak_power(cfg: SplineConfig, img_st: ip.ImgArray, nsamples: int) -> float:
+    analyzer = LatticeAnalyzer(cfg)
+    npf = cfg.npf_range.center
+    peak_det = analyzer.get_peak_detector(img_st, nsamples=nsamples)
+    ps = analyzer.get_ps_v(peak_det, img_st, npf)
+    return ps.max()
 
 
 class CylindricalMaskFactory:

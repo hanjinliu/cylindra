@@ -2194,3 +2194,7 @@ def test_clustering(ui: CylindraMainWidget):
 
     ui.filter_molecules("Mole-0", predicate="(col('nth') != 3) & (col('pf-id') != 0)")
     ui.split_clusters("Mole-0", largest_only=True)
+
+def test_utilities(ui: CylindraMainWidget):
+    ui.load_project(PROJECT_DIR_13PF, filter=None, read_image=False)
+    ui.AnalysisMenu.Utilities.check_handedness(bin_size=1)

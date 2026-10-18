@@ -37,7 +37,7 @@ from cylindra.const import (
 )
 from cylindra.core import ACTIVE_WIDGETS
 from cylindra.project import CylindraProject, extract
-from cylindra.types import ColoredLayer
+from cylindra.types import ColoredLayer, get_available_binsize
 from cylindra.utils import str_color
 from cylindra.widget_utils import capitalize, get_code_theme, show_widget
 from cylindra.widgets._annotated import (
@@ -841,6 +841,46 @@ class AnalysisMenu(ChildWidget):
         filter_molecule_interaction = abstractapi()
         interaction_to_molecules = abstractapi()
         label_molecules_by_interaction = abstractapi()
+
+    @magicmenu(name="Utilities")
+    class Utilities(ChildWidget):
+        """Utilities for tomogram analysis."""
+
+        @set_design(text=capitalize)
+        @thread_worker.with_progress(
+            desc="Checking handedness", total="self._get_main().splines.count()"
+        )
+        def check_handedness(
+            self,
+            bin_size: Annotated[int, {"choices": get_available_binsize}] = 1,
+        ):
+            """Quick check of tomogram handedness by the lattice periodicity.
+
+            For each spline, use `rise_sign = 1` and `rise_sign = -1` to run global CFT
+            and compare the axial peak intensity of power spectra. If the current spline
+            config won, the handedness is considered correct. This check is valid only
+            if (1) splines are well fitted, (2) spline config is accurate, and (3) the
+            lattice has rise (start is non-zero) and its sign does not change.
+
+            Parameters
+            ----------
+            bin_size : int
+                Bin size used for the analysis.
+            """
+            main = self._get_main()
+            # determine radius is not set
+            for i in range(main.splines.count()):
+                if main.splines[i].radius is None:
+                    main.tomogram.measure_radius(i, binsize=bin_size)
+            _Logger.print("Checking handedness for each spline ...")
+            for i in range(main.splines.count()):
+                correct = main.tomogram.check_handedness(i=i, binsize=bin_size)
+                if correct:
+                    _is_correct = "<b>correct ✓</b>"
+                else:
+                    _is_correct = '<b><span style="color: red;">incorrect</span></b>'
+                _Logger.print_html(f"Spline {i}: Handedness {_is_correct}")
+                yield
 
     sep3 = Separator
 
