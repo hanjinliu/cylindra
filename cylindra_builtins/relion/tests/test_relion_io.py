@@ -1,12 +1,15 @@
 from pathlib import Path
+from typing import NamedTuple
 
 import impy as ip
 import numpy as np
 import polars as pl
 import pytest
 from numpy.testing import assert_allclose
+from scipy import ndimage as ndi
 from scipy.spatial.transform import Rotation
 
+from cylindra.project import CylindraProject
 from cylindra.utils._test_utils import (
     PROJECT_DIR_14PF,
     TEST_DIR,
@@ -15,7 +18,9 @@ from cylindra.utils._test_utils import (
 )
 from cylindra.widgets import CylindraMainWidget
 from cylindra_builtins import relion
+from cylindra_builtins.relion._relion_utils import read_loop_block
 from cylindra_builtins.relion.io import (
+    POS_CENTERED,
     _mole_to_star_df,
     _particles_to_molecules,
     _preview_open_relion_job,
@@ -166,6 +171,8 @@ def test_opening_jobs(ui: CylindraMainWidget, tmpdir):
 
     # Refine3D
     relion.open_relion_job(ui, JOB_REFINE_DIR / "job.star")
+    # scale of the batch analyzer is determined by the tomograms.star file
+    assert ui.batch.constructor.scale.value == pytest.approx(1.052)
 
     relion.save_molecules_for_extract(
         ui,
@@ -182,3 +189,293 @@ def test_opening_jobs(ui: CylindraMainWidget, tmpdir):
         path_sets=ui.batch._get_loader_paths(),
     )
     _preview_open_relion_job(ui, JOB_REFINE_DIR / "job.star")
+
+
+TS_SCALE = 1.052  # nm/pixel of the tilt series
+
+
+class RelionTiltSeriesJobs(NamedTuple):
+    align: Path  # Align tilt series job directory
+    tomo: Path  # Reconstruct tomograms job directory
+    pick: Path  # Pick job directory
+    tilt_series_star: Path
+    tomogram: Path  # bin-2 tomogram reconstructed from the tilt series
+    particles_zyx: np.ndarray  # centered coordinates of the particles in Angstrom
+
+
+def _write_star(path: Path, name: str, columns: dict[str, list], loop: bool = True):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = ["# version 50001", "", f"data_{name}", ""]
+    if loop:
+        lines.append("loop_")
+        lines.extend(f"_{col} #{i + 1}" for i, col in enumerate(columns))
+        rows = zip(*columns.values(), strict=True)
+        lines.extend(" ".join(map(str, row)) for row in rows)
+    else:
+        lines.extend(f"_{col} {values[0]}" for col, values in columns.items())
+    path.write_text("\n".join(lines) + "\n")
+
+
+def _write_job_star(job_dir: Path, job_type: str):
+    _write_star(job_dir / "job.star", "job", {"rlnJobTypeLabel": [job_type]}, False)
+
+
+def _project_around_y(vol: np.ndarray, degrees: np.ndarray, width: int) -> np.ndarray:
+    """Projections of the volume around the y axis (same as tests/test_tilt_series)."""
+    nz, ny, nx = vol.shape
+    nt = int(np.ceil(np.hypot(nz, nx))) + 2
+    jj, uu, tt = np.meshgrid(
+        np.arange(ny),
+        np.arange(width) - width // 2,
+        np.arange(nt) - nt // 2,
+        indexing="ij",
+    )
+    out = np.empty((degrees.size, ny, width), dtype=np.float32)
+    for k, rad in enumerate(np.deg2rad(degrees)):
+        zz = uu * np.sin(rad) + tt * np.cos(rad) + nz // 2
+        xx = uu * np.cos(rad) - tt * np.sin(rad) + nx // 2
+        out[k] = ndi.map_coordinates(vol, [zz, jj, xx], order=1).sum(axis=-1)
+    return out
+
+
+@pytest.fixture(scope="module")
+def relion_tilt_series_jobs(tmp_path_factory: pytest.TempPathFactory):
+    """A RELION project of a tilt series simulated from the test tomogram."""
+    mrcfile = pytest.importorskip("mrcfile")
+    acryo = pytest.importorskip("acryo")
+    if not hasattr(acryo, "BackProjectionLoader"):
+        pytest.skip("BackProjectionLoader is not available")
+    from acryo.projection import TiltSeries
+
+    rln_dir = tmp_path_factory.mktemp("relion")
+    vol = np.asarray(ip.imread(TEST_DIR / "13pf_MT.tif"), dtype=np.float32)
+    vol -= vol.mean()
+    degrees = np.arange(-60.0, 61.0, 6.0)
+    stack_path = rln_dir / "MotionCorr" / "job002" / "TS_01.mrc"
+    stack_path.parent.mkdir(parents=True)
+    # dark density on a light background, as in cryo-EM images
+    with mrcfile.new(stack_path) as f:
+        f.set_data(-_project_around_y(vol, degrees, width=104))
+        f.voxel_size = TS_SCALE * 10
+
+    # Align tilt series job
+    align_dir = rln_dir / "AlignTiltSeries" / "job005"
+    ts_star = align_dir / "tilt_series" / "TS_01.star"
+    ntilts = degrees.size
+    _write_star(
+        ts_star,
+        "TS_01",
+        {
+            "rlnMicrographName": [
+                f"{i + 1}@MotionCorr/job002/TS_01.mrc" for i in range(ntilts)
+            ],
+            "rlnTomoNominalStageTiltAngle": degrees.tolist(),
+            "rlnTomoXTilt": [0.0] * ntilts,
+            "rlnTomoYTilt": degrees.tolist(),
+            "rlnTomoZRot": [0.0] * ntilts,
+            "rlnTomoXShiftAngst": [0.0] * ntilts,
+            "rlnTomoYShiftAngst": [0.0] * ntilts,
+        },
+    )
+    global_columns = {
+        "rlnTomoName": ["TS_01"],
+        "rlnTomoTiltSeriesStarFile": ["AlignTiltSeries/job005/tilt_series/TS_01.star"],
+        "rlnTomoTiltSeriesPixelSize": [TS_SCALE * 10],
+        "rlnTomoHand": [-1.0],
+    }
+    _write_star(align_dir / "aligned_tilt_series.star", "global", global_columns)
+    _write_job_star(align_dir, "relion.aligntiltseries")
+
+    # Reconstruct tomograms job (bin 2)
+    tomo_dir = rln_dir / "Tomograms" / "job006"
+    tomo_path = tomo_dir / "tomograms" / "rec_TS_01.mrc"
+    tomo_path.parent.mkdir(parents=True)
+    loader = acryo.BackProjectionLoader(
+        TiltSeries.from_relion_tilt_series_star(ts_star), binsize=2
+    )
+    with mrcfile.new(tomo_path) as f:
+        f.set_data(loader.reconstruct_tomogram((18, 103, 47), dtype=np.float32))
+        f.voxel_size = TS_SCALE * 2 * 10
+    nz, ny, nx = vol.shape
+    tomo_columns = global_columns | {
+        "rlnTomoTomogramBinning": [2.0],
+        "rlnTomoSizeX": [nx],
+        "rlnTomoSizeY": [ny],
+        "rlnTomoSizeZ": [nz],
+        "rlnTomoReconstructedTomogram": ["Tomograms/job006/tomograms/rec_TS_01.mrc"],
+    }
+    _write_star(tomo_dir / "tomograms.star", "global", tomo_columns)
+    _write_job_star(tomo_dir, "relion.reconstructtomograms")
+
+    # Pick job
+    pick_dir = rln_dir / "Picks" / "job007"
+    particles_zyx = np.array([[0.0, 0.0, 0.0], [52.0, -310.0, 105.0]])
+    _write_star(
+        pick_dir / "particles.star",
+        "particles",
+        {
+            "rlnTomoName": ["TS_01"] * 2,
+            "rlnTomoParticleName": ["TS_01/1", "TS_01/2"],
+            "rlnCenteredCoordinateXAngst": particles_zyx[:, 2].tolist(),
+            "rlnCenteredCoordinateYAngst": particles_zyx[:, 1].tolist(),
+            "rlnCenteredCoordinateZAngst": particles_zyx[:, 0].tolist(),
+        },
+    )
+    _write_star(
+        pick_dir / "optimisation_set.star",
+        "optimisation_set",
+        {
+            "rlnTomoTomogramsFile": ["Tomograms/job006/tomograms.star"],
+            "rlnTomoParticlesFile": ["Picks/job007/particles.star"],
+        },
+        loop=False,
+    )
+    _write_job_star(pick_dir, "relion.picktomo")
+    return RelionTiltSeriesJobs(
+        align_dir, tomo_dir, pick_dir, ts_star, tomo_path, particles_zyx
+    )
+
+
+def _corr(a, b) -> float:
+    a = np.asarray(a) - np.mean(a)
+    b = np.asarray(b) - np.mean(b)
+    return float(np.sum(a * b) / np.sqrt(np.sum(a**2) * np.sum(b**2)))
+
+
+def _batch_project(ui: CylindraMainWidget, idx: int = 0) -> CylindraProject:
+    return CylindraProject.from_file(ui.batch.constructor.projects[idx].path)
+
+
+def test_open_relion_job_from_tilt_series(
+    ui: CylindraMainWidget,
+    relion_tilt_series_jobs: RelionTiltSeriesJobs,
+    tmp_path: Path,
+):
+    jobs = relion_tilt_series_jobs
+
+    # Align tilt series job has no tomograms, so the coarse tomograms are
+    # reconstructed from the tilt series
+    relion.open_relion_job(
+        ui,
+        jobs.align / "job.star",
+        project_root=tmp_path / "align",
+        reference_bin_size=2,
+        tomo_height=20,
+    )
+    assert len(ui.batch.constructor.projects) == 1
+    # scale of the batch analyzer is the pixel size of the tilt series
+    assert ui.batch.constructor.scale.value == pytest.approx(TS_SCALE)
+    prj = _batch_project(ui)
+    assert prj.image is None
+    assert prj.scale == pytest.approx(TS_SCALE)
+    assert prj.multiscales == []
+    assert not prj.invert
+    assert prj.invert_reference  # reconstructed tomogram is light-background
+    assert prj.missing_wedge.as_param() == {"kind": "y", "range": (-60.0, 60.0)}
+    ts_info = prj.tilt_series
+    assert Path(ts_info.path) == jobs.tilt_series_star
+    assert ts_info.reference is None
+    assert ts_info.reference_binsize == 2
+    assert ts_info.reference_shape == (20, 103, 52)  # tilt images are (206, 104)
+    assert ts_info.tomo_hand == 1
+    ui.batch.constructor.projects[0].send_to_viewer()
+    assert ui.tomogram.tilt_series is not None
+    assert ui.tomogram.tilt_series.reference.shape == (20, 103, 52)
+    assert ui.tomogram.scale == pytest.approx(TS_SCALE)
+    assert str(ui.macro[-1]).startswith("ui.open_tilt_series(")
+
+    # Reconstruct job: the RELION tomograms of an integer binning are the coarse
+    # tomograms
+    relion.open_relion_job(
+        ui,
+        jobs.tomo / "job.star",
+        project_root=tmp_path / "tomo",
+        use_tilt_series=True,
+        bin_size=[1, 2],
+        reference_bin_size=None,
+    )
+    prj = _batch_project(ui)
+    ts_info = prj.tilt_series
+    assert Path(ts_info.reference) == jobs.tomogram
+    assert ts_info.reference_binsize == 2
+    assert ts_info.reference_shape == (18, 103, 47)
+    assert ts_info.binsizes == [1, 2]
+    assert prj.invert_reference  # `invert` is True by default
+    ui.batch.constructor.projects[0].send_to_viewer()
+    tomo = ui.tomogram
+    assert tomo.tilt_series.reference_binsize == 2
+    assert tomo.shape == (36, 206, 94)
+    assert_allclose(
+        tomo.tilt_series.tomogram_center, np.array([9, 51, 23]) * 2 * TS_SCALE
+    )
+    # the coarse tomogram is aligned with the images reconstructed from the tilt series
+    sl = (slice(4, 14), slice(20, 80), slice(10, 40))
+    region = tomo.get_multiscale_or_original(2)[sl].compute()
+    assert _corr(region, -np.asarray(tomo.tilt_series.reference)[sl]) > 0.8
+
+    # coarse tomograms of a different bin size are reconstructed
+    relion.open_relion_job(
+        ui,
+        jobs.tomo / "job.star",
+        project_root=tmp_path / "tomo-bin3",
+        use_tilt_series=True,
+        reference_bin_size=3,
+    )
+    ts_info = _batch_project(ui).tilt_series
+    assert ts_info.reference is None
+    assert ts_info.reference_binsize == 3
+    assert ts_info.reference_shape == (12, 68, 31)
+
+    # tomograms are still available
+    relion.open_relion_job(ui, jobs.tomo / "job.star", project_root=tmp_path / "rec")
+    prj = _batch_project(ui)
+    assert prj.tilt_series is None
+    assert Path(prj.image) == jobs.tomogram
+    # scale of the batch analyzer is the pixel size of the tomograms (bin 2)
+    assert ui.batch.constructor.scale.value == pytest.approx(TS_SCALE * 2)
+
+    # particles are in the tomogram space of the tilt series
+    relion.open_relion_job(
+        ui, jobs.pick / "job.star", project_root=tmp_path / "pick", use_tilt_series=True
+    )
+    prj = _batch_project(ui)
+    mole = prj.load_molecules("Mole-0")
+    assert_allclose(
+        mole.pos - np.array(prj.tilt_series.tomogram_center),
+        jobs.particles_zyx / 10,
+        atol=1e-4,
+    )
+
+    # particles are saved back in the tomogram space of the tilt series
+    path_sets = ui.batch._get_loader_paths()
+    relion.save_molecules_for_import(ui, tmp_path / "import.star", path_sets)
+    df = read_loop_block(tmp_path / "import_particles" / "TS_01_particles.star")
+    assert_allclose(df.select(POS_CENTERED).to_numpy(), jobs.particles_zyx, atol=1e-3)
+    relion.save_molecules_for_extract(ui, tmp_path / "extract.star", path_sets)
+    df = read_loop_block(tmp_path / "extract.star")
+    assert df["rlnTomoName"].to_list() == ["TS_01"] * 2
+    assert_allclose(df.select(POS_CENTERED).to_numpy(), jobs.particles_zyx, atol=1e-3)
+
+    # join RELION particles to the batch of tilt-series projects
+    relion.open_relion_job(
+        ui,
+        jobs.pick / "job.star",
+        project_root=tmp_path / "pick-joined",
+        use_tilt_series=True,
+        join_molecules_by_id=True,
+        path_sets=path_sets,
+    )
+    mole_joined = _batch_project(ui).load_molecules("Mole-0")
+    assert_allclose(mole_joined.pos, mole.pos, atol=1e-4)
+
+    # save and load molecules of the tilt series in the viewer
+    ui.batch.constructor.projects[0].send_to_viewer()
+    relion.save_molecules(ui, tmp_path / "mole.star", list(ui.mole_layers))
+    relion.load_molecules(ui, tmp_path / "mole.star")
+    assert_allclose(ui.mole_layers.last().molecules.pos, mole.pos, atol=1e-4)
+
+    # preview
+    _preview_open_relion_job(
+        ui, jobs.align / "job.star", reference_bin_size=2, tomo_height=20
+    )
+    _preview_open_relion_job(ui, jobs.tomo / "job.star", use_tilt_series=True)
