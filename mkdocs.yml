@@ -65,6 +65,7 @@ nav:
       - alignment/landscape.md
       - alignment/viterbi.md
       - alignment/rma.md
+      - alignment/tilt_series.md
     - Working with Many Projects:
       - Working with Many Projects: batch/index.md
       - batch/prep.md

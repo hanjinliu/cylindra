@@ -104,7 +104,7 @@ class FileFilter(SimpleNamespace):
 
     IMAGE = "Tomograms (*.mrc *.rec *.tif *.tiff *.map);;All files (*)"
     PNG = "PNG (*.png *.jpg);;All files (*)"
-    JSON = "JSON(*.json *.txt);;All files (*)"
+    JSON = "JSON (*.json *.txt);;All files (*)"
     PROJECT = "Project file (project.json *.tar *.zip);;All files (*)"
     CSV = "CSV (*.csv *.txt *.dat);;All files (*)"
     DIRECTORY = "New directory (*)"
@@ -115,6 +115,7 @@ class FileFilter(SimpleNamespace):
     STAR_JOB = "RELION job files (job.star);;All files (*)"
     PDB = "PDB files (*.pdb);;All files (*)"
     EDF = "IMOD project file (*.edf);;All files (*)"
+    TILT_SERIES = "Tilt series (*.json *.edf *.xml *.star);;All files (*)"
 
 
 class Mode(SimpleNamespace):

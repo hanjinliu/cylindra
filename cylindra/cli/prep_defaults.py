@@ -87,4 +87,12 @@ filter = "Lowpass"
 # [missing_wedge]
 # kind = "y"
 # range = [-57, 57]
+
+### If you plan to open tilt series directly
+### default settings for tilt series
+
+# [tilt_series]
+# tomo_hand = 1
+# tomo_height = 200
+# reference_bin_size = 6
 """

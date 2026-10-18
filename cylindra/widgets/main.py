@@ -187,7 +187,12 @@ _InteractionNetType = Annotated[
     },
 ]
 
-_OPEN_IMAGE_PREFIXES = ("ui.open_image(", "ui.open_image_with_reference(")
+_OPEN_IMAGE_PREFIXES = (
+    "ui.open_image(",
+    "ui.open_image_with_reference(",
+    "ui.open_tilt_series(",
+    "ui.open_tilt_series_with_reference(",
+)
 
 # stylesheet
 _WIDGETS_PATH = Path(__file__).parent
@@ -504,6 +509,7 @@ class CylindraMainWidget(MagicTemplate):
 
     _runner = field(_sw.Runner)
     _image_loader = _sw.ImageLoader
+    _ts_loader = _sw.TiltSeriesLoader
 
     def _confirm_delete(self):
         if self._reserved_layers.work.data.size > 0:
@@ -670,10 +676,115 @@ class CylindraMainWidget(MagicTemplate):
 
         return _on_return
 
+    @set_design(text="Open tilt series", location=_ts_loader)
+    @thread_worker.with_progress(desc="Preparing reference tomogram")
+    @confirm(text="You may have unsaved data. Open a new tilt series?", condition="self._need_save")  # fmt: skip
+    def open_tilt_series(
+        self,
+        path: Annotated[Path, {"bind": _ts_loader.path}],
+        scale: Annotated[nm, {"bind": _ts_loader.scale.scale_value}] = None,
+        reference_bin_size: Annotated[int, {"bind": _ts_loader.reference_bin_size}] = 6,
+        tomo_hand: Annotated[Literal[-1, 1], {"bind": _ts_loader.tomo_hand}] = -1,
+        tomo_height: Annotated[int, {"bind": _ts_loader.tomo_height}] = 200,
+        bin_size: Annotated[list[int], {"bind": _ts_loader.bin_size}] = [2, 4],
+        filter: Annotated[ImageFilter | None, {"bind": _ts_loader.filter}] = ImageFilter.Lowpass,
+    ):  # fmt: skip
+        from cylindra.components.tomogram import _tilt_series as _ts
+
+        ref = _ts.prep_reference_tomogram(
+            path, scale, reference_bin_size, tomo_hand, tomo_height
+        )
+        # TODO: prep default
+        yield thread_worker.description("Reading tilt series")
+        tomo = CylTomogram.from_tilt_series(
+            path,
+            ref,
+            scale=scale,
+            tomo_hand=tomo_hand,
+            binsize=bin_size,
+        )
+        self._init_macro_state()
+        cb = self._send_tomogram_to_viewer.with_args(tomo, filter)
+        yield cb
+        cb.await_call()
+        self._project_dir = None
+        self._reserved_layers.ref_inverted = False  # initialize
+
+        @thread_worker.callback
+        def _on_return():
+            self.invert_image(reference_only=True)
+
+        return _on_return
+
+    @set_design(text="Open tilt series with reference", location=_ts_loader)
+    @thread_worker.with_progress(desc="Reading tilt series")
+    @confirm(text="You may have unsaved data. Open a new tilt series?", condition="self._need_save")  # fmt: skip
+    def open_tilt_series_with_reference(
+        self,
+        path: Annotated[Path, {"bind": _ts_loader.path}],
+        scale: Annotated[nm, {"bind": _ts_loader.scale.scale_value}],
+        reference_path: Annotated[Path, {"bind": _ts_loader.reference_path}],
+        tomo_hand: Annotated[Literal[-1, 1], {"bind": _ts_loader.tomo_hand}] = -1,
+        bin_size: Annotated[list[int], {"bind": _ts_loader.bin_size}] = [2, 4],
+        filter: Annotated[ImageFilter | None, {"bind": _ts_loader.filter}] = ImageFilter.Lowpass,
+        invert_reference: Annotated[bool, {"bind": _ts_loader.invert_reference}] = True,
+    ):  # fmt: skip
+        """Open a tilt series with its coarse tomogram.
+
+        Tomogram is not reconstructed as a whole. Subtomograms are directly
+        reconstructed from the tilt series, and the image regions needed for analysis
+        are reconstructed on demand. The reference tomogram is only used for
+        visualization. Tilt images are preprocessed for each bin size when it is first
+        needed, and cached until another tomogram or tilt series is opened.
+
+        Parameters
+        ----------
+        path : Path
+            Path to the tilt series json file.
+        reference_path : Path
+            Path to the coarse (binned) tomogram reconstructed from the tilt series,
+            such as the one created by `BackProjectionLoader.reconstruct_tomogram`.
+            Its pixel size must be an integer multiple of that of the tilt series.
+        scale : nm, required
+            Scale of the tilt series in nm/pixel.
+        tomo_hand : Literal[-1, 1], default -1
+            Handedness of the tomogram.
+        bin_size : list of int, default [2, 4]
+            Bin sizes available for analysis.
+        {filter}
+        invert_reference : bool, default True
+            If true, invert the intensity of the reference tomogram. Images
+            reconstructed from the tilt series are always dark-background, so check this
+            if the reference tomogram is light-background.
+        """
+        tomo = CylTomogram.from_tilt_series(
+            path,
+            ip.imread(reference_path),
+            scale=scale,
+            tomo_hand=tomo_hand,
+            binsize=bin_size,
+        )
+        self._init_macro_state()
+        cb = self._send_tomogram_to_viewer.with_args(tomo, filter)
+        yield cb
+        cb.await_call()
+        self._project_dir = None
+        self._reserved_layers.ref_inverted = False  # initialize
+
+        @thread_worker.callback
+        def _on_return():
+            if invert_reference:
+                self.invert_image(reference_only=True)
+
+        return _on_return
+
     @open_image.started.connect
     @open_image_with_reference.started.connect
+    @open_tilt_series.started.connect
+    @open_tilt_series_with_reference.started.connect
     def _open_image_on_start(self):
-        return self._image_loader.close()
+        self._image_loader.close()
+        self._ts_loader.close()
 
     @set_design(text=capitalize, location=_sw.FileMenu)
     @thread_worker.with_progress(desc="Reading project", total=0)
@@ -683,13 +794,11 @@ class CylindraMainWidget(MagicTemplate):
     def load_project(
         self,
         path: Path.Read[FileFilter.PROJECT],
-        filter: Annotated[
-            ImageFilter | None, {"widget_type": ToggleButtons}
-        ] = ImageFilter.Lowpass,
+        filter: Annotated[ImageFilter | None, {"widget_type": ToggleButtons}] = ImageFilter.Lowpass,
         read_image: Annotated[bool, {"label": "read image data"}] = True,
         read_reference: Annotated[bool, {"label": "read reference image"}] = True,
         update_config: bool = False,
-    ):
+    ):  # fmt: skip
         """Load a project file (project.json, tar file or zip file).
 
         Parameters
@@ -947,6 +1056,7 @@ class CylindraMainWidget(MagicTemplate):
                     raise ValueError(f"No method matches {method!r}")
 
         t0.toc()
+        self._reserved_layers.ref_filter = (method, resolution)
         return self._reference_updated_callback.with_args(img_filt)
 
     @set_design(text="Z-project reference image", location=_sw.ImageMenu)
@@ -1091,7 +1201,7 @@ class CylindraMainWidget(MagicTemplate):
         bin_size: BinSizeType = 1,
     ):
         """Create an empty labels layer."""
-        shape = tuple(np.array(self.tomogram.image.shape) // bin_size)
+        shape = tuple(np.array(self.tomogram.shape) // bin_size)
         labels_data = ip.aslabel(np.zeros(shape, dtype=np.int8), axes="zyx", name=name)
         new_layer = widget_utils.add_labels(
             self.parent_viewer,
@@ -4164,13 +4274,21 @@ class CylindraMainWidget(MagicTemplate):
         self._tomogram = tomo
         self.GeneralInfo._refer_tomogram(tomo)
 
-        bin_size = max(x[0] for x in tomo.multiscaled)
+        if (ts := tomo.tilt_series) is not None and ts.reference is not None:
+            # the coarse tomogram is only for visualization
+            bin_size = ts.reference_binsize
+            imgb = ts.reference
+        else:
+            bin_size = max(x[0] for x in tomo.multiscaled)
+            imgb = tomo.get_multiscale(bin_size)
         self._current_binsize = bin_size
-        imgb = tomo.get_multiscale(bin_size)
         self._update_reference_image(imgb)
         if old_tomo.metadata.get("cache_image", False):
             # delete old cache, because it will not be used anymore.
             _config.uncache_tomogram(old_tomo.source)
+        if old_tomo is not tomo and (old_ts := old_tomo.tilt_series) is not None:
+            # release the preprocessed tilt images of the old tilt series
+            old_ts.release_cache()
 
         # update viewer dimensions
         viewer.dims.axis_labels = ("z", "y", "x")
@@ -4232,6 +4350,7 @@ class CylindraMainWidget(MagicTemplate):
             bin_size = img.scale.x / self.tomogram.scale
         _is_lazy = isinstance(img, ip.LazyImgArray)
         self._reserved_layers.is_lazy = _is_lazy
+        self._reserved_layers.ref_filter = None
         if _is_lazy:
             img = ip.zeros(img.shape, dtype=np.int8, like=img)
             img[0, [0, 0, 1, 1], [0, 1, 0, 1]] = 1
@@ -4447,6 +4566,8 @@ def _filter_macro_for_reanalysis(macro_expr: mk.Expr, ui_sym: mk.Symbol):
     _manual_operations = {
         "open_image",
         "open_image_with_reference",
+        "open_tilt_series",
+        "open_tilt_series_with_reference",
         "register_path",
         "load_splines",
         "load_molecules",
@@ -4475,6 +4596,8 @@ def _filter_macro_for_reanalysis(macro_expr: mk.Expr, ui_sym: mk.Symbol):
         if line_id == 0 and func_full_name not in (
             "open_image",
             "open_image_with_reference",
+            "open_tilt_series",
+            "open_tilt_series_with_reference",
         ):
             raise ValueError("The first line of macro must be `ui.open_image`.")
         if func_full_name not in _manual_operations:

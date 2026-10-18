@@ -63,15 +63,12 @@ def get_available_binsize(gui: "CategoricalWidget") -> list[tuple[str, int]]:
             return []
         case ui:
             tomo = ui.tomogram
-            bins = [x[0] for x in tomo.multiscaled]
-            if 1 not in bins:
-                bins = [1, *bins]
             return [
                 (
                     f"{b} pixel{'s' if b > 1 else ''} ({tomo.scale * b:.2f} nm/pixel)",
                     b,
                 )
-                for b in sorted(bins)
+                for b in tomo.available_binsizes()
             ]
 
 

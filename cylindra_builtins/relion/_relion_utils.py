@@ -3,19 +3,20 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
+import polars as pl
 
 try:
-    import starfile
+    import starfile_rs
 except ImportError:
 
-    class _starfile_module:
+    class _starfile_rs_module:
         def __getattr__(self, name):
             raise ImportError(
-                "The 'starfile' package is required for RELION I/O functions. "
-                "Please install it via 'pip install starfile'."
+                "The 'starfile-rs' package is required for RELION I/O functions. "
+                "Please install it via 'pip install starfile-rs'."
             )
 
-    starfile = _starfile_module()
+    starfile_rs = _starfile_rs_module()
 
 
 def get_optimisation_set_star(job_dir_path: Path) -> Path:
@@ -45,8 +46,17 @@ def relion_project_path(path: Path) -> Path:
 def get_job_type(job_dir: Path) -> str:
     """Determine the type of RELION job based on the directory structure."""
     if (job_star_path := job_dir / "job.star").exists():
-        return starfile.read(job_star_path, always_dict=True)["job"]["rlnJobTypeLabel"]
+        star = starfile_rs.read_star(job_star_path)
+        return star["job"].trust_single()["rlnJobTypeLabel"]
     raise ValueError(f"{job_dir} is not a RELION job folder.")
+
+
+def read_loop_block(path: Path, block_name: str = "particles") -> pl.DataFrame:
+    """Read a loop block as a DataFrame (the only block, or `block_name` if many)."""
+    star = starfile_rs.read_star(path)
+    if len(star) == 1:
+        return star.first().to_polars()
+    return star[block_name].to_polars()
 
 
 def shape_to_center_zyx(shape: tuple[int, int, int], scale: float) -> np.ndarray:

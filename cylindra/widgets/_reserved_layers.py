@@ -12,6 +12,7 @@ from cylindra.const import (
     SELECTION_LAYER_NAME,
     SPLINE_ID,
     WORKING_LAYER_NAME,
+    ImageFilter,
     Ori,
     SplineColor,
 )
@@ -54,6 +55,8 @@ class ReservedLayers:
         self.to_be_removed = WeakSet[Layer]()
         self.is_lazy = False
         self.ref_inverted = False
+        # (method, resolution) of the filter applied to the reference image
+        self.ref_filter: tuple[ImageFilter, float] | None = None
 
     def update_image(self, img: ip.ImgArray, tr: float):
         """Update the reserved image layer"""

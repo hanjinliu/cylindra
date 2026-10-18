@@ -1011,13 +1011,7 @@ class CylTomogram(Tomogram):
         LOGGER.info(f"Running: {self.__class__.__name__}.infer_polarity, i={i}")
         current_scale = self.scale * binsize
 
-        if binsize > 1:
-            imgb = self.get_multiscale(binsize)
-        else:
-            try:
-                imgb = self.get_multiscale(1)
-            except ValueError:
-                imgb = self.image
+        imgb = self.get_multiscale_or_original(binsize)
 
         spl = self.splines[i]
         cfg = spl.config

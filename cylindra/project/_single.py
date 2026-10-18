@@ -13,7 +13,13 @@ from pydantic import ConfigDict, Field
 from cylindra import _config
 from cylindra.const import ImageFilter, cast_dataframe, get_versions
 from cylindra.const import PropertyNames as H
-from cylindra.project._base import BaseProject, MissingWedge, PathLike, resolve_path
+from cylindra.project._base import (
+    BaseProject,
+    MissingWedge,
+    PathLike,
+    TiltSeriesInfo,
+    resolve_path,
+)
 from cylindra.project._json import project_json_encoder
 from cylindra.project._layer_info import InteractionInfo, LandscapeInfo, MoleculesInfo
 from cylindra.project._utils import (
@@ -62,6 +68,8 @@ class CylindraProject(BaseProject):
     """Whether to invert the reference image when loaded from `image_reference`."""
     multiscales: list[int]
     """List of bin factors for multiscale tomogram."""
+    tilt_series: TiltSeriesInfo | None = None
+    """The tilt series, if the tomogram is opened from a tilt series."""
     molecules_info: list[MoleculesInfo] = Field(default_factory=list)
     landscape_info: list[LandscapeInfo] = Field(default_factory=list)
     interaction_info: list[InteractionInfo] = Field(default_factory=list)
@@ -80,6 +88,8 @@ class CylindraProject(BaseProject):
                 resolve_path(self.image_halves[0], file_dir),
                 resolve_path(self.image_halves[1], file_dir),
             )
+        if self.tilt_series is not None:
+            self.tilt_series.resolve_path(file_dir)
         return self
 
     @classmethod
@@ -200,6 +210,10 @@ class CylindraProject(BaseProject):
         img_ref_path = gui._reserved_layers.image_data.source
         if tomo.metadata.get("source", None) == img_ref_path:
             img_ref_path = None
+        tilt_series_info = _tilt_series_info(tomo)
+        if tilt_series_info is not None and img_ref_path is not None:
+            if Path(img_ref_path) == Path(tilt_series_info.reference):
+                img_ref_path = None  # the reference is loaded with the tilt series
         return cls(
             datetime=datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
             version=_versions.pop("cylindra", "unknown"),
@@ -213,6 +227,7 @@ class CylindraProject(BaseProject):
             invert=tomo.is_inverted,
             invert_reference=gui._reserved_layers.ref_inverted,
             multiscales=[x[0] for x in tomo.multiscaled],
+            tilt_series=tilt_series_info,
             molecules_info=mole_infos,
             landscape_info=landscape_infos,
             interaction_info=interaction_infos,
@@ -254,6 +269,8 @@ class CylindraProject(BaseProject):
                 self.molecules_info + self.landscape_info + self.interaction_info
             ):
                 info.save_layer(gui, results_dir)
+            if self.tilt_series is not None:
+                _save_tilt_series(tomo, results_dir)
 
             _cfg_json = gui.default_config.json_dumps()
             self._default_spline_config_path(results_dir).write_text(_cfg_json)
@@ -351,6 +368,9 @@ class CylindraProject(BaseProject):
                         yield from gui.filter_reference_image.arun(filter)
                     if self.invert_reference:
                         yield from gui.invert_image.arun(reference_only=True)
+            elif tomogram.tilt_series is not None and self.invert_reference:
+                # the reference of the tilt series is already shown and filtered
+                yield from gui.invert_image.arun(reference_only=True)
 
             @thread_worker.callback
             def _update_widget():
@@ -585,6 +605,8 @@ class CylindraProject(BaseProject):
         compute : bool, optional
             Whether to compute the binned tomograms.
         """
+        import impy as ip
+
         from cylindra.components import CylTomogram
 
         kwargs = {
@@ -592,7 +614,46 @@ class CylindraProject(BaseProject):
             "tilt": self.missing_wedge.as_param(),
             "binsize": self.multiscales,
         }
-        if self.image is not None:
+        if (ts_info := self.tilt_series) is not None:
+            if dir is None and not (
+                Path(ts_info.path).is_absolute()
+                and Path(ts_info.reference).is_absolute()
+            ):
+                # files saved in a tar or zip project
+                with self.open_project() as _dir:
+                    return self.load_tomogram(_dir, compute=compute)
+            if dir is None and self.project_path is not None:
+                dir = self.project_path
+            ts_path = _resolve_in(ts_info.path, dir)
+            ref_path = _resolve_in(ts_info.reference, dir)
+            if ts_path.exists() and ref_path.exists():
+                tomo = CylTomogram.from_tilt_series(
+                    ts_path,
+                    ip.imread(ref_path),
+                    scale=self.scale,
+                    reference_binsize=ts_info.reference_binsize,
+                    tomo_hand=ts_info.tomo_hand,
+                    binsize=ts_info.binsizes,
+                    tomogram_center=ts_info.tomogram_center,
+                )
+                # The files in the project may be temporary (tar or zip). They are
+                # saved again when the project is saved.
+                tomo.tilt_series.mark_unsaved(
+                    tilt_series=_is_in_dir(ts_path, dir),
+                    reference=_is_in_dir(ref_path, dir),
+                )
+                if compute:  # multi-scale images reconstructed from the tilt series
+                    for b in self.multiscales:
+                        if b not in (x[0] for x in tomo.multiscaled):
+                            tomo.add_multiscale(b)
+            else:
+                LOGGER.warning(
+                    f"Cannot find tilt series {Path(ts_info.path).as_posix()} or its "
+                    f"reference {Path(ts_info.reference).as_posix()}. Load other "
+                    "components only.",
+                )
+                tomo = CylTomogram.dummy(**kwargs, name="<Tilt series not found>")
+        elif self.image is not None:
             if self.cache_image:
                 read_path = _config.cache_tomogram(self.image)
             else:
@@ -758,6 +819,75 @@ def _get_instance(gui: "CylindraMainWidget | None" = None):
     if ui is None:
         raise RuntimeError("No CylindraMainWidget GUI found.")
     return ui
+
+
+TILT_SERIES_FILE = "tilt_series.json"
+COARSE_TOMOGRAM_FILE = "coarse_tomogram.mrc"
+
+
+def _tilt_series_info(tomo: "CylTomogram") -> TiltSeriesInfo | None:
+    if (ts := tomo.tilt_series) is None:
+        return None
+    # the tilt series and the reference that are not saved in any file (such as the
+    # refined ones) are saved in the project directory
+    if ts.has_unsaved_tilt_series:
+        path = TILT_SERIES_FILE
+    else:
+        path = tomo.metadata.get("source", None)
+    if ts.has_unsaved_reference:
+        reference = COARSE_TOMOGRAM_FILE
+    else:
+        reference = tomo.metadata.get("reference", None)
+    if path is None or reference is None or ts.reference is None:
+        warnings.warn(
+            "Tilt series or its reference tomogram is not a file. The tomogram cannot "
+            "be saved in the project.",
+            UserWarning,
+            stacklevel=2,
+        )
+        return None
+    return TiltSeriesInfo(
+        path=path,
+        reference=reference,
+        reference_binsize=ts.reference_binsize,
+        tomogram_center=tuple(float(c) for c in ts.tomogram_center),
+        tomo_hand=ts.loader.tomo_hand,
+        binsizes=ts.binsizes,
+    )
+
+
+def _save_tilt_series(tomo: "CylTomogram", results_dir: Path) -> None:
+    """Save the tilt series and the reference that are not saved in any file."""
+    if (ts := tomo.tilt_series) is None:
+        return None
+    if ts.has_unsaved_tilt_series:
+        tilt_series = ts.tilt_series
+        if (image_path := tilt_series.image_path) is not None:
+            # paths of the tilt images are absolute, as the JSON is in the project
+            if isinstance(image_path, tuple):
+                image_path = tuple(Path(p).resolve() for p in image_path)
+            else:
+                image_path = Path(image_path).resolve()
+            tilt_series = tilt_series.replace(image_path=image_path)
+        (results_dir / TILT_SERIES_FILE).write_text(tilt_series.dump_json())
+    if ts.has_unsaved_reference and ts.reference is not None:
+        ts.reference.imsave(results_dir / COARSE_TOMOGRAM_FILE)
+    return None
+
+
+def _resolve_in(path: "str | Path", dir: Path | None) -> Path:
+    """Resolve a path relative to the project directory."""
+    path = Path(path)
+    if path.is_absolute() or dir is None:
+        return path
+    return Path(dir) / path
+
+
+def _is_in_dir(path: Path, dir: Path | None) -> bool:
+    """Whether the path is in the directory."""
+    if dir is None:
+        return False
+    return Path(path).resolve().is_relative_to(Path(dir).resolve())
 
 
 def _drop_null_columns(df: pl.DataFrame) -> pl.DataFrame:

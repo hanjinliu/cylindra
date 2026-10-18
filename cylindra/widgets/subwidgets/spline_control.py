@@ -404,6 +404,10 @@ class SplineControl(ChildWidget):
     def _get_bin_size_and_image(self) -> tuple[int, ip.ImgArray | ip.LazyImgArray]:
         main = self._get_main()
         binsize = self._bin_size or main._current_binsize
+        ts = main.tomogram.tilt_series
+        if ts is not None and binsize == ts.reference_binsize:
+            # the coarse tomogram of the tilt series is only for visualization
+            return binsize, main._reserved_layers.image_data
         try:
             imgb = main.tomogram._get_multiscale_or_original(binsize)
         except ValueError:

@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from typing import Any, Self
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from cylindra.project._json import project_json_encoder
 from cylindra.project._utils import get_project_file
@@ -130,6 +130,37 @@ def resolve_path(
             f"Path {path} was resolved to be {path_joined} but does not exist."
         )
     return default
+
+
+class TiltSeriesInfo(BaseModel):
+    """The tilt series from which the tomogram is reconstructed."""
+
+    path: PathLike
+    """Path to the tilt series file (JSON, IMOD .edf or RELION .star), or a path
+    relative to the project directory if saved in the project."""
+    reference: PathLike
+    """Path to the coarse tomogram for visualization, or a path relative to the
+    project directory if saved in the project."""
+    reference_binsize: int
+    """Bin size of the reference tomogram."""
+    tomogram_center: tuple[float, float, float]
+    """Origin of the tomogram space of the tilt series in nm."""
+    tomo_hand: int = -1
+    """Handedness of the tomogram (1 or -1)."""
+    binsizes: list[int] = Field(default_factory=lambda: [1])
+    """Bin sizes available for analysis."""
+
+    def resolve_path(self, file_dir: PathLike):
+        """Resolve the paths relative to the project file.
+
+        Paths of the files in a tar or zip project are kept relative, and resolved
+        when the project is opened.
+        """
+        self.path = resolve_path(self.path, Path(file_dir), default=Path(self.path))
+        self.reference = resolve_path(
+            self.reference, Path(file_dir), default=Path(self.reference)
+        )
+        return self
 
 
 class MissingWedge(BaseModel):

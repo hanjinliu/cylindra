@@ -188,14 +188,7 @@ class ImageLoader(MagicTemplate):
     @set_design(text="Scan", max_width=60, location=scale)
     def scan_header_or_defaults(self):
         """Scan header or the default setting to update this GUI."""
-        path_str = str(self.path)
-        if ";" in path_str:
-            path = Path(path_str.split(";")[0])  # only use the first path
-        elif "*" in path_str or "?" in path_str or "[" in path_str:
-            # use glob to find the first file
-            path = Path(sorted(glob.glob(path_str, recursive=True))[0])
-        else:
-            path = Path(path_str)
+        path = _resolve_path_str(self.path)
         if not path.exists() or not path.is_file():
             return
         # try to read header
@@ -245,6 +238,109 @@ class ImageLoader(MagicTemplate):
     open_image_with_reference = abstractapi()
 
 
+@magicclass(name="_Open tilt series", record=False)
+class TiltSeriesLoader(MagicTemplate):
+    """Widget for opening a tilt series."""
+
+    path = vfield(Path).with_options(filter=FileFilter.TILT_SERIES)
+
+    @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)})
+    class create_ref(MagicTemplate):
+        """Create reference image now."""
+
+        create_reference = abstractapi()
+        reference_bin_size = abstractapi()
+
+    create_reference = vfield(True, label="Create coarse tomogram", location=create_ref)
+    reference_bin_size = vfield(
+        6, label="... with bin size", location=create_ref
+    ).with_options(min=2, max=32)
+    reference_path = vfield(Path).with_options(filter=FileFilter.IMAGE)
+
+    @magicclass(layout="horizontal", labels=False)
+    class scale(MagicTemplate):
+        """Scale of the tilt series.
+
+        Attributes
+        ----------
+        scale_value : float
+            Scale of the tilt series in nm/pixel.
+        """
+
+        scale_label = vfield("scale (nm)", widget_type="Label")
+        scale_value = vfield(1.0).with_options(min=1e-3, step=1e-4, max=10.0)
+        scan_header_or_defaults = abstractapi()
+
+    tomo_hand = vfield(
+        int, label="Tomogram handedness", widget_type=ToggleButtons
+    ).with_choices([-1, 1])
+    tomo_height = vfield(200, label="Tomogram height (pixels)")
+    bin_size = vfield([2, 4]).with_options(options={"min": 1, "max": 32})
+    filter = vfield(ImageFilter | None, widget_type=ToggleButtons).with_options(
+        value=ImageFilter.Lowpass
+    )
+
+    invert_reference = vfield(True, label="Invert reference intensity")
+    cache_image = vfield(False, label="Cache image on SSD")
+
+    @create_reference.connect
+    def _on_create_reference_change(self, create_ref: bool):
+        """Show or hide the reference path field based on the create_reference value."""
+        self["reference_path"].visible = not create_ref
+        self["reference_bin_size"].visible = create_ref
+        self["tomo_height"].visible = create_ref
+        self["invert_reference"].visible = not create_ref
+        self["open_tilt_series"].visible = create_ref
+        self["open_tilt_series_with_reference"].visible = not create_ref
+
+    @set_design(text="Scan", max_width=60, location=scale)
+    def scan_header_or_defaults(self):
+        """Scan header or the default setting to update this GUI."""
+        path = _resolve_path_str(self.path)
+        if not path.exists() or not path.is_file():
+            return
+        ref_found = False
+        if default_setting := TomogramDefaults.from_dir(path.parent):
+            if (_tomo_hand := default_setting.tilt_series.tomo_hand) is not None:
+                self.tomo_hand = _tomo_hand
+            if (_tomo_height := default_setting.tilt_series.tomo_height) is not None:
+                self.tomo_height = _tomo_height
+            if (_scale := default_setting.scale) is not None:
+                self.scale.scale_value = f"{_scale:.4f}"
+            if (
+                _bin_size := default_setting.tilt_series.reference_bin_size
+            ) is not None:
+                self.bin_size = _bin_size
+            if (_filter := default_setting.filter) is not None:
+                self.filter = _filter
+            if _img_ref := default_setting.resolve_reference_path(path):
+                self.create_reference = False
+                self.reference_path = _img_ref
+                ref_found = True
+                if (_inv_ref := default_setting.invert_reference) is not None:
+                    self.invert_reference = _inv_ref
+        if not ref_found:
+            self.create_reference = True
+
+    def __post_init__(self):
+        self._on_create_reference_change(self.create_reference)
+
+    open_tilt_series = abstractapi()
+    open_tilt_series_with_reference = abstractapi()
+
+
+def _resolve_path_str(path_input):
+    path_str = str(path_input)
+    if ";" in path_str:
+        path = Path(path_str.split(";")[0])  # only use the first path
+    elif "*" in path_str or "?" in path_str or "[" in path_str:
+        # use glob to find the first file
+        path = Path(sorted(glob.glob(path_str, recursive=True))[0])
+    else:
+        path = Path(path_str)
+    return path
+
+
 @magicclass(record=False, widget_type="collapsible", labels=False)
 class GeneralInfo(MagicTemplate):
     """General information of the current project.
@@ -268,8 +364,8 @@ class GeneralInfo(MagicTemplate):
         img = tomo.image
         fpath = (tomo._orig_or_read_path() or "Unknown").replace(";", " + ")
         scale = tomo.scale
-        shape_px = ", ".join(f"{s} px" for s in img.shape)
-        shape_nm = ", ".join(f"{s * scale:.2f} nm" for s in img.shape)
+        shape_px = ", ".join(f"{s} px" for s in tomo.shape)
+        shape_nm = ", ".join(f"{s * scale:.2f} nm" for s in tomo.shape)
         orig_nm = ", ".join(f"{o:.2f} nm" for o in tomo.origin)
         if isinstance(tomo.tilt_model, NoWedge):
             tilt_range = "No missing wedge"
@@ -283,6 +379,11 @@ class GeneralInfo(MagicTemplate):
             size = f"{nbytes / 1024**2:.2f} MB"
         else:
             size = f"{nbytes / 1024**3:.2f} GB"
+        if tomo.tilt_series is not None:
+            # the bin-1 image is not in memory nor on disk
+            size += " (reconstructed from the tilt series on demand)"
+            if ref_path := tomo.metadata.get("reference", None):
+                fpath += f'<br><span style="color: gray;">Reference:</span> {Path(ref_path).as_posix()}'  # fmt: skip
 
         self.image_info.value = (
             f'<span style="color: gray;">File:</span> {fpath}<br>'

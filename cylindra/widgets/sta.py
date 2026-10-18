@@ -422,6 +422,7 @@ class Alignment(MagicTemplate):
     TemplateImage = TemplateImage
     sep2 = Separator
     fit_spline_rfa = abstractapi()
+    refine_tilt_series = abstractapi()
 
 
 @magicmenu
@@ -2503,6 +2504,99 @@ class SubtomogramAveraging(ChildWidget):
         ui.reset_choices()  # choices regarding of features need update
         return undo_callback(layer.feature_setter(feat, layer.colormap_info))
 
+    @set_design(text=capitalize, location=Alignment)
+    @thread_worker.with_progress(desc="Refining the tilt series")
+    def refine_tilt_series(
+        self,
+        layers: MoleculesLayersType,
+        size: _SubVolumeSize = None,
+        max_shift: Annotated[nm, {"label": "max shift (nm)", "min": 0.1, "max": 50.0, "step": 0.1}] = 2.0,
+        grid_shape: Annotated[tuple[int, int], {"label": "grid shape (y, x)", "options": {"min": 1, "max": 20}}] = (1, 1),
+        smoothness: Annotated[float, {"min": 0.0, "max": 100.0, "step": 0.001}] = 0.01,
+        bin_size: BinSizeType = 1,
+        update_coarse_tomogram: bool = True,
+    ):  # fmt: skip
+        """Refine the alignment of the tilt series using the molecules.
+
+        The subtomograms of each layer are averaged as the reference of the molecules
+        of the layer. Similar to Bayesian polishing, the projections of the averages
+        placed at the molecules are compared with the tilt images, and the shifts of
+        each tilt image are refined. The subtomograms and the images for analysis are
+        reconstructed from the refined tilt series afterwards. The refined tilt series
+        (and the coarse tomogram) is saved in the project directory when the project
+        is saved.
+
+        Parameters
+        ----------
+        {layers}{size}
+        max_shift : nm
+            Maximum shift of the tilt images in nm.
+        grid_shape : (int, int)
+            Number of control points of the local shifts along y and x of the tilt
+            images. (1, 1) means a uniform shift of each tilt image. Otherwise, the
+            shifts are refined as a smooth field over each tilt image.
+        smoothness : float
+            Weight of the smoothness prior of the local shifts. Larger value is more
+            robust against noise and fewer molecules.
+        {bin_size}
+        update_coarse_tomogram : bool, default True
+            If true, the coarse tomogram for visualization is also reconstructed from
+            the refined tilt series.
+        """
+        t0 = timer()
+        layers = assert_list_of_layers(layers, self.parent_viewer)
+        main = self._get_main()
+        tomo = main.tomogram
+        if (src := tomo.tilt_series) is None:
+            raise ValueError("The tomogram is not opened from a tilt series.")
+        shape = self._get_shape_in_nm(size)
+        refs = list[tuple[Molecules, "NDArray[np.float32]"]]()
+        for layer in layers:
+            # the average of the current tilt series is the reference of each layer
+            mole = layer.molecules
+            loader = tomo.get_subtomogram_loader(mole, shape, binsize=bin_size)
+            refs.append((mole, loader.average(wedge_weighting=True)))
+        nmole = sum(mole.count() for mole, _ in refs)
+        _Logger.print(f"Refining the tilt series using {nmole} molecules ...")
+        old = src.tilt_series
+        loader = src.get_loader(Molecules.empty(), binsize=bin_size)
+        new = loader.refine_tilt_series(
+            refs, max_shift=max_shift, grid_shape=grid_shape, smoothness=smoothness
+        ).tilt_series
+        if update_coarse_tomogram:
+            new_ref = src.reconstruct_reference(new)
+        else:
+            new_ref = None
+        t0.toc()
+
+        @thread_worker.callback
+        def _on_return():
+            removed = tomo.update_tilt_series(new)
+            if new_ref is not None:
+                src.set_reference(new_ref)
+                self._show_coarse_tomogram(new_ref)
+            _log_tilt_series_shifts(old, new)
+            if removed:
+                _Logger.print(
+                    f"Multi-scale images of bin size {removed} are removed. They are "
+                    "reconstructed from the refined tilt series on demand."
+                )
+
+            if main.SplineControl.need_resample:
+                main.sample_subtomograms()
+
+        return _on_return
+
+    def _show_coarse_tomogram(self, img: ip.ImgArray):
+        """Show the coarse tomogram with the current filter and inversion."""
+        main = self._get_main()
+        filt = main._reserved_layers.ref_filter
+        inverted = main._reserved_layers.ref_inverted
+        main._update_reference_image(-img if inverted else img)
+        main._reserved_layers.ref_inverted = inverted
+        if filt is not None:
+            main.filter_reference_image(*filt)
+
     @set_design(text="Save last average", location=STAnalysis)
     def save_last_average(self, path: Path.Save[FileFilter.IMAGE]):
         """Save the lastly generated average image."""
@@ -3002,6 +3096,25 @@ def _post_classify_em(result, loader: SubtomogramLoader, all_moles: Molecules):
         new_features.append(pl.Series(f"class_{i:03}_prob", probs_i))
     all_moles_updated = all_moles.with_features(new_features)
     return avgs, all_moles_updated
+
+
+def _log_tilt_series_shifts(old, new):
+    """Log the refined shifts of each tilt image."""
+    shifts = new.sample_translations - old.sample_translations
+    dist = np.linalg.norm(shifts, axis=1)
+    _Logger.print_html(
+        f"Shifts of the tilt images: mean <b>{dist.mean():.3f} nm</b>, max "
+        f"<b>{dist.max():.3f} nm</b>"
+    )
+    with _Logger.set_plt():
+        plt.figure(figsize=(6, 2.4))
+        plt.plot(new.tilt_angles, shifts[:, 1], ".-", label="x")
+        plt.plot(new.tilt_angles, shifts[:, 0], ".-", label="y")
+        plt.xlabel("tilt angle (deg)")
+        plt.ylabel("shift (nm)")
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
 
 
 def _align_averages_table(svec, rvec):

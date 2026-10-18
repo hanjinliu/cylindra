@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import polars as pl
 from acryo import BatchLoader, Molecules, SubtomogramLoader
-from acryo.loader import ConcatenatedLoader, ExtractedSubvolumeLoader
+from acryo.loader import ExtractedSubvolumeLoader
 from acryo.loader._extracted import SUBVOLUME_INDEX
 from magicclass import (
     MagicTemplate,
@@ -1228,7 +1228,7 @@ def join_loaders(
 def join_extracted_loaders(
     loaders: list[ExtractedSubvolumeLoader],
     molecules: list[Molecules] | None = None,
-) -> ConcatenatedLoader:
+) -> BatchLoader:
     """Join the extracted loaders for averaging and FSC calculation.
 
     If `molecules` is given, the extracted subvolumes are resampled at these molecules
@@ -1239,7 +1239,10 @@ def join_extracted_loaders(
             template_free.resample_extracted(loader, mole)
             for loader, mole in zip(loaders, molecules, strict=True)
         ]
-    return ConcatenatedLoader(loaders)
+    first = loaders[0]
+    return BatchLoader.from_loaders(
+        loaders, order=first.order, scale=first.scale, output_shape=first.output_shape
+    )
 
 
 # features added by the alignment of acryo loaders, in the same order

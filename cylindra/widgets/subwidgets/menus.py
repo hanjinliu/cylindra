@@ -79,6 +79,15 @@ class FileMenu(ChildWidget):
         loader.show()
         return loader
 
+    @set_design(text="Open tilt series")
+    @do_not_record
+    @bind_key("Ctrl+K, Ctrl+T")
+    def open_tilt_series_loader(self):
+        """Load tilt series."""
+        loader = self._get_main()._ts_loader
+        loader.show()
+        return loader
+
     open_reference_image = abstractapi()
     open_label_image = abstractapi()
     sep0 = Separator

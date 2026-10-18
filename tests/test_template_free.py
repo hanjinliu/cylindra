@@ -3,8 +3,7 @@ from types import SimpleNamespace
 import impy as ip
 import numpy as np
 import pytest
-from acryo import Molecules, SubtomogramLoader, alignment
-from acryo.loader import ConcatenatedLoader
+from acryo import BatchLoader, Molecules, SubtomogramLoader, alignment
 from acryo.tilt import no_wedge, single_axis
 from dask import array as da
 from numpy.testing import assert_allclose
@@ -54,15 +53,18 @@ def test_resample_extracted(tmp_path, prefilter: bool, rotate: bool):
     assert_allclose(resampled[sl], direct[sl], atol=2e-3)
 
 
-def test_concatenated_loader(tmp_path):
+def test_batch_loader_of_extracted(tmp_path):
     loader = _smooth_loader(n=8)
     ext0 = loader.replace(molecules=loader.molecules[:3])
     ext1 = loader.replace(molecules=loader.molecules[3:])
-    concat = ConcatenatedLoader(
+    concat = BatchLoader.from_loaders(
         [
             ext0.extract_subtomograms(tmp_path / "0"),
             ext1.extract_subtomograms(tmp_path / "1"),
-        ]
+        ],
+        order=loader.order,
+        scale=loader.scale,
+        output_shape=loader.output_shape,
     )
     assert concat.molecules.count() == 8
     assert concat.output_shape == loader.output_shape
