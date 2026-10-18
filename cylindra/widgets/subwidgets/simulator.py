@@ -176,12 +176,11 @@ class Simulator(ChildWidget):
         main = self._get_main()
         tomo = main.tomogram
         scale = tomo.scale
-        shape = tomo.image.shape
         simulator = TomogramSimulator(order=order, scale=scale)
         for layer_name, temp_path in components:
             mole = main.mole_layers[layer_name].molecules
             simulator.add_molecules(mole, pipe.from_file(temp_path))
-        tilt_series = simulator.simulate_tilt_series(degrees=degrees, shape=shape)
+        tilt_series = simulator.simulate_tilt_series(degrees=degrees, shape=tomo.shape)
         tilt_series = ip.asarray(
             tilt_series, axes=["degree", "y", "x"], name="Simulated"
         )
@@ -488,7 +487,7 @@ class Simulator(ChildWidget):
                 .iradon(
                     degrees,
                     central_axis="y",
-                    height=main.tomogram.image.shape[0],
+                    height=main.tomogram.shape[0],
                     order=interpolation,
                 )
                 .set_scale(zyx=main.tomogram.scale, unit="nm")
@@ -648,7 +647,7 @@ class Simulator(ChildWidget):
             .iradon(
                 degrees,
                 central_axis="y",
-                height=main.tomogram.image.shape[0],
+                height=main.tomogram.shape[0],
                 order=interpolation,
             )
             .set_scale(zyx=ts.scale.x, unit="nm")

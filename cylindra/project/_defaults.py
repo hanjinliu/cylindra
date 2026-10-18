@@ -1,9 +1,9 @@
 import glob
-from pathlib import Path
-from typing import Self
-
 import tomllib
-from pydantic import BaseModel, field_validator
+from pathlib import Path
+from typing import Literal, Self
+
+from pydantic import BaseModel, Field, field_validator
 
 from cylindra.const import ImageFilter
 from cylindra.project._base import MissingWedge
@@ -12,6 +12,12 @@ TOMOGRAM_DEFAULTS_PATH_NAME = ".cylindra-defaults.toml"
 
 # If file ".cylindra-defaults.toml" exists in the same directory as the tomogram, this
 # file is used to load default settings for reading this tomogram.
+
+
+class TiltSeriesDefaults(BaseModel):
+    tomo_hand: Literal[-1, 1] | None = None
+    tomo_height: int | None = None
+    reference_bin_size: int | None = None
 
 
 class TomogramDefaults(BaseModel):
@@ -24,6 +30,8 @@ class TomogramDefaults(BaseModel):
     missing_wedge: MissingWedge | None = None
     bin_size: list[int] | None = None
     filter: ImageFilter | None = None
+
+    tilt_series: TiltSeriesDefaults = Field(default_factory=TiltSeriesDefaults)
 
     @classmethod
     def from_dir(cls, dirpath: str | Path, parent_ok: bool = True) -> Self | None:

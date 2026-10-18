@@ -14,7 +14,7 @@ from cylindra.widgets.subwidgets.menus import (
     PluginsMenu,
     SplinesMenu,
 )
-from cylindra.widgets.subwidgets.misc import GeneralInfo, ImageLoader
+from cylindra.widgets.subwidgets.misc import GeneralInfo, ImageLoader, TiltSeriesLoader
 from cylindra.widgets.subwidgets.properties import (
     GlobalPropertiesWidget,
     LocalPropertiesWidget,
@@ -55,4 +55,5 @@ __all__ = [
     "ConfigEdit",
     "WorkflowEdit",
     "Spline3DInteractor",
+    "TiltSeriesLoader",
 ]

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import impy as ip
 import numpy as np
-import pandas as pd
+import polars as pl
 import pytest
 from numpy.testing import assert_allclose
 from scipy.spatial.transform import Rotation
@@ -53,7 +53,7 @@ def test_particles_to_molecules_follows_relion(has_subtomo_angles: bool):
     rng = np.random.default_rng(0)
     n = 10
     center_zyx = np.array([20.0, 30.0, 40.0])
-    df = pd.DataFrame(
+    df = pl.DataFrame(
         {
             "rlnTomoName": ["TS_01"] * n,
             "rlnCenteredCoordinateXAngst": rng.uniform(-300, 300, n),
@@ -68,21 +68,27 @@ def test_particles_to_molecules_follows_relion(has_subtomo_angles: bool):
         }
     )
     if has_subtomo_angles:
-        df["rlnTomoSubtomogramRot"] = rng.uniform(-180, 180, n)
-        df["rlnTomoSubtomogramTilt"] = rng.uniform(0, 180, n)
-        df["rlnTomoSubtomogramPsi"] = rng.uniform(-180, 180, n)
+        df = df.with_columns(
+            rlnTomoSubtomogramRot=rng.uniform(-180, 180, n),
+            rlnTomoSubtomogramTilt=rng.uniform(0, 180, n),
+            rlnTomoSubtomogramPsi=rng.uniform(-180, 180, n),
+        )
 
-    mole = _particles_to_molecules(df.copy(), center_zyx)["Mole-0"]
+    mole = _particles_to_molecules(df, center_zyx)["Mole-0"]
 
     # same as relion/src/tomography_python_programs/view/particles.py
-    xyz = df[[f"rlnCenteredCoordinate{a}Angst" for a in "XYZ"]].to_numpy()
-    origin_xyz = df[[f"rlnOrigin{a}Angst" for a in "XYZ"]].to_numpy()
+    xyz = df.select([f"rlnCenteredCoordinate{a}Angst" for a in "XYZ"]).to_numpy()
+    origin_xyz = df.select([f"rlnOrigin{a}Angst" for a in "XYZ"]).to_numpy()
     rot_particle = Rotation.from_euler(
-        "ZYZ", df[["rlnAngleRot", "rlnAngleTilt", "rlnAnglePsi"]], degrees=True
+        "ZYZ",
+        df.select(["rlnAngleRot", "rlnAngleTilt", "rlnAnglePsi"]).to_numpy(),
+        degrees=True,
     ).inv()
     if has_subtomo_angles:
         cols = ["rlnTomoSubtomogramRot", "rlnTomoSubtomogramTilt", "rlnTomoSubtomogramPsi"]  # fmt: skip
-        rot_subtomo = Rotation.from_euler("ZYZ", df[cols], degrees=True).inv()
+        rot_subtomo = Rotation.from_euler(
+            "ZYZ", df.select(cols).to_numpy(), degrees=True
+        ).inv()
     else:
         rot_subtomo = Rotation.identity(n)
     xyz = xyz - rot_subtomo.apply(origin_xyz)

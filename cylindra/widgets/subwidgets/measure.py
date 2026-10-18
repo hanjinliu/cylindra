@@ -413,10 +413,7 @@ class SpectraInspector(ChildWidget):
 
             def _get_binsize_choices(self, *_) -> list[int]:
                 parent = self._get_main()
-                binsizes = [k for k, _ in parent.tomogram.multiscaled]
-                if 1 not in binsizes:
-                    binsizes.append(1)
-                return sorted(binsizes)
+                return parent.tomogram.available_binsizes()
 
             @set_design(text="Set ...")
             def set_bin_size(

@@ -40,6 +40,7 @@ _PARAMETERS = [
     Parameter(name="cutoff", type="float", desc="Cutoff frequency of low-pass filter applied in each subtomogram."),
     Parameter(name="interpolation", type="int", desc="Interpolation order."),
     Parameter(name="size", type="nm", desc="Size of the template in nm. Use the size of template image by default."),
+    Parameter(name="wedge_weighting", type="bool", desc="Whether to apply wedge weighting by Wiener filtering to the average(s)."),
     Parameter(name="method", type="str", desc="Correlation metrics for alignment."),
     Parameter(name="spline", type="int", desc="Index of splines to be used."),
     Parameter(name="splines", type="list of int", desc="Indices of splines to be used."),

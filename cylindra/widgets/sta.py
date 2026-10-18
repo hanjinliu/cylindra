@@ -48,6 +48,7 @@ from cylindra.components.seam_search import (
     BooleanSeamSearcher,
     CorrelationSeamSearcher,
     ManualSeamSearcher,
+    prep_seam_search_input,
 )
 from cylindra.const import (
     ALN_SUFFIX,
@@ -88,6 +89,7 @@ from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 if TYPE_CHECKING:
     from acryo.loader import ExtractedSubvolumeLoader
+    from acryo.projection import TiltSeries
     from dask.array.core import Array
     from napari.layers import Image
     from numpy.typing import NDArray
@@ -214,6 +216,16 @@ class MaskChoice(Enum):
     blur_template = "blur template"
     from_file = "from file"
     spherical = "spherical"
+    cylinder = "cylinder"
+
+
+def _prep_mask_coords(shape):
+    lz, ly, lx = shape
+    zz, yy, xx = np.indices((lz, ly, lx), dtype=np.float32)
+    zz -= (lz - 1) / 2
+    yy -= (ly - 1) / 2
+    xx -= (lx - 1) / 2
+    return zz, yy, xx
 
 
 @pipe.converter_function
@@ -224,12 +236,28 @@ def spherical_mask(
     sigma: nm = 0.8,
 ) -> "NDArray[np.float32]":
     """Generate a spherical soft mask that matches the input image shape."""
-    lz, ly, lx = img.shape
-    zz, yy, xx = np.indices((lz, ly, lx), dtype=np.float32)
-    zz -= (lz - 1) / 2
-    yy -= (ly - 1) / 2
-    xx -= (lx - 1) / 2
+    zz, yy, xx = _prep_mask_coords(img.shape)
     binary = zz**2 + yy**2 + xx**2 <= (radius / scale) ** 2
+    return pipe.gaussian_smooth(sigma).convert(binary, scale)
+
+
+@pipe.converter_function
+def cylinder_mask(
+    img: "NDArray[np.float32]",
+    scale: nm,
+    radius_min: nm,
+    radius_max: nm,
+    length: nm,
+    sigma: nm = 0.8,
+) -> "NDArray[np.float32]":
+    """Generate a cylindrical soft mask that matches the input image shape."""
+    zz, yy, xx = _prep_mask_coords(img.shape)
+    rr2 = yy**2 + xx**2
+    binary = (
+        (zz**2 <= (length / scale / 2) ** 2)
+        & (rr2 >= (radius_min / scale) ** 2)
+        & (rr2 <= (radius_max / scale) ** 2)
+    )
     return pipe.gaussian_smooth(sigma).convert(binary, scale)
 
 
@@ -307,6 +335,42 @@ class SphericalParameters(MagicTemplate):
         return {"kind": "spherical", "radius": self.radius, "sigma": self.sigma}
 
 
+@magicclass(widget_type="groupbox", visible=False, record=False)
+class CylinderParameters(MagicTemplate):
+    """Parameters for cylindrical mask creation.
+
+    Attributes
+    ----------
+    radius : tuple[nm, nm]
+        Minimum and maximum radius of the cylinder (nm).
+    length : nm
+        Axial length of the cylinder (nm).
+    sigma : nm
+        Standard deviation (nm) of Gaussian blur applied to the edge of the cylinder.
+    """
+
+    radius = vfield((0.0, 15.0)).with_options(
+        options={"min": 0, "max": 100, "step": 0.1}
+    )
+
+    @magicclass(layout="horizontal", properties={"margins": (0, 0, 0, 0)})
+    class OtherParams(MagicTemplate):
+        length = abstractapi()
+        sigma = abstractapi()
+
+    length = vfield(12.0, location=OtherParams).with_options(min=0.1, max=200, step=0.1)
+    sigma = vfield(0.8, location=OtherParams).with_options(max=20, step=0.1)
+
+    def _to_params(self) -> dict[str, Any]:
+        return {
+            "kind": "cylinder",
+            "radius_min": self.radius[0],
+            "radius_max": self.radius[1],
+            "length": self.length,
+            "sigma": self.sigma,
+        }
+
+
 @magicmenu
 class Averaging(MagicTemplate):
     """Average subtomograms."""
@@ -359,6 +423,7 @@ class Alignment(MagicTemplate):
     TemplateImage = TemplateImage
     sep2 = Separator
     fit_spline_rfa = abstractapi()
+    refine_tilt_series = abstractapi()
 
 
 @magicmenu
@@ -402,6 +467,7 @@ class StaParameters(MagicTemplate):
     params = field(MaskParameters, name="blur parameters")
     mask_path = field(mask_path)
     params_spherical = field(SphericalParameters, name="sphere parameters")
+    params_cylinder = field(CylinderParameters, name="cylinder parameters")
 
     _last_average: ip.ImgArray | None = None  # the global average result
     _viewer: "napari.Viewer | None" = None
@@ -430,6 +496,7 @@ class StaParameters(MagicTemplate):
         self.params.visible = v is MaskChoice.blur_template
         self.mask_path.visible = v is MaskChoice.from_file
         self.params_spherical.visible = v is MaskChoice.spherical
+        self.params_cylinder.visible = v is MaskChoice.cylinder
 
     def _set_last_average(self, img: ip.ImgArray):
         assert img.ndim in (3, 4)
@@ -508,6 +575,8 @@ class StaParameters(MagicTemplate):
                 params = self.mask_path._to_params()
             case MaskChoice.spherical:
                 params = self.params_spherical._to_params()
+            case MaskChoice.cylinder:
+                params = self.params_cylinder._to_params()
             case v:  # pragma: no cover
                 raise ValueError(f"Unknown mask choice: {v!r}")
         return params
@@ -522,8 +591,14 @@ class StaParameters(MagicTemplate):
         elif isinstance(params, tuple):
             radius, sigma = params
             return pipe.soft_otsu(radius=radius, sigma=sigma)
-        elif isinstance(params, dict) and params.get("kind") == "spherical":
-            return spherical_mask(**_drop_kind(params))
+        elif isinstance(params, dict):
+            match params.get("kind"):
+                case "spherical":
+                    return spherical_mask(**_drop_kind(params))
+                case "cylinder":
+                    return cylinder_mask(**_drop_kind(params))
+                case _:  # pragma: no cover
+                    raise ValueError(f"Unknown mask kind: {params.get('kind')!r}")
         else:
             return pipe.from_file(params)
 
@@ -734,6 +809,7 @@ class SubtomogramAveraging(ChildWidget):
         size: _SubVolumeSize = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
         bin_size: BinSizeType = 1,
+        wedge_weighting: bool = True,
     ):
         """Subtomogram averaging using all the molecules in the selected layer(s).
 
@@ -742,7 +818,7 @@ class SubtomogramAveraging(ChildWidget):
 
         Parameters
         ----------
-        {layers}{size}{interpolation}{bin_size}
+        {layers}{size}{interpolation}{bin_size}{wedge_weighting}
         """
         t0 = timer()
         layers = assert_list_of_layers(layers, self.parent_viewer)
@@ -752,7 +828,9 @@ class SubtomogramAveraging(ChildWidget):
         loader = tomo.get_subtomogram_loader(
             _concat_molecules(layers), shape, binsize=bin_size, order=interpolation
         )
-        img = ip.asarray(loader.order_optimize().average(), axes="zyx")
+        img = ip.asarray(
+            loader.order_optimize().average(wedge_weighting=wedge_weighting), axes="zyx"
+        )
         img.set_scale(zyx=loader.scale, unit="nm")
         t0.toc()
         _Logger.print_html(
@@ -769,6 +847,7 @@ class SubtomogramAveraging(ChildWidget):
         method: Literal["steps", "first", "last", "random"] = "steps",
         number: int = 64,
         bin_size: BinSizeType = 1,
+        wedge_weighting: bool = True,
     ):
         """Subtomogram averaging using a subset of subvolumes.
 
@@ -786,7 +865,7 @@ class SubtomogramAveraging(ChildWidget):
             (4) random: choose randomly.
         number : int, default
             Number of subtomograms to use.
-        {bin_size}
+        {bin_size}{wedge_weighting}
         """
         t0 = timer()
         layers = assert_list_of_layers(layers, self.parent_viewer)
@@ -799,7 +878,9 @@ class SubtomogramAveraging(ChildWidget):
         loader = parent.tomogram.get_subtomogram_loader(
             mole, shape, binsize=bin_size, order=1
         ).order_optimize()
-        img = ip.asarray(loader.average(), axes="zyx").set_scale(zyx=loader.scale)
+        img = ip.asarray(
+            loader.average(wedge_weighting=wedge_weighting), axes="zyx"
+        ).set_scale(zyx=loader.scale)
         t0.toc()
         return self._show_rec.with_args(img, f"[AVG(n={number})]{_avg_name(layers)}")
 
@@ -812,6 +893,7 @@ class SubtomogramAveraging(ChildWidget):
         by: PolarsExprStr = "col('pf-id')",
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
         bin_size: BinSizeType = 1,
+        wedge_weighting: bool = True,
     ):
         """Group-wise subtomogram averaging.
 
@@ -824,7 +906,7 @@ class SubtomogramAveraging(ChildWidget):
         {layers}{size}
         by : str or polars expression
             Expression to group molecules.
-        {interpolation}{bin_size}
+        {interpolation}{bin_size}{wedge_weighting}
         """
         t0 = timer()
         layers = assert_list_of_layers(layers, self.parent_viewer)
@@ -836,7 +918,7 @@ class SubtomogramAveraging(ChildWidget):
         )
         expr = widget_utils.norm_polars_expr(by)
         groups = loader.order_optimize().groupby(expr)
-        avg_dict = groups.average()
+        avg_dict = groups.average(wedge_weighting=wedge_weighting)
         avgs = np.stack([avg_dict[k] for k in sorted(avg_dict.keys())], axis=0)
         img = ip.asarray(avgs, axes="pzyx")
         img.set_scale(zyx=loader.scale, unit="nm")
@@ -857,6 +939,7 @@ class SubtomogramAveraging(ChildWidget):
         predicate: PolarsExprStr = "col('pf-id') == 0",
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 1,
         bin_size: BinSizeType = 1,
+        wedge_weighting: bool = True,
     ):
         """Subtomogram averaging using molecules filtered by the given expression.
 
@@ -868,7 +951,7 @@ class SubtomogramAveraging(ChildWidget):
         {layers}{size}
         predicate : str or polars expression
             Filter expression to select molecules.
-        {interpolation}{bin_size}
+        {interpolation}{bin_size}{wedge_weighting}
         """
         t0 = timer()
         layers = assert_list_of_layers(layers, self.parent_viewer)
@@ -878,7 +961,7 @@ class SubtomogramAveraging(ChildWidget):
         loader = tomo.get_subtomogram_loader(
             _concat_molecules(layers), shape, binsize=bin_size, order=interpolation
         ).filter(widget_utils.norm_polars_expr(predicate))
-        avg = loader.order_optimize().average()
+        avg = loader.order_optimize().average(wedge_weighting=wedge_weighting)
         img = ip.asarray(avg, axes="zyx")
         img.set_scale(zyx=loader.scale, unit="nm")
         t0.toc()
@@ -1894,6 +1977,7 @@ class SubtomogramAveraging(ChildWidget):
         n_pairs: Annotated[int, {"min": 1, "label": "number of image pairs"}] = 1,
         show_average: bool = True,
         dfreq: FSCFreq = None,
+        wedge_weighting: bool = True,
     ):
         """Calculate Fourier Shell Correlation using the selected layer.
 
@@ -1913,6 +1997,7 @@ class SubtomogramAveraging(ChildWidget):
         dfreq : float, default 0.02
             Precision of frequency to calculate FSC. "0.02" means that FSC will be
             calculated at frequency 0.01, 0.03, 0.05, ..., 0.45.
+        {wedge_weighting}
         """
         t0 = timer()
         layers = assert_list_of_layers(layers, self.parent_viewer)
@@ -1932,7 +2017,12 @@ class SubtomogramAveraging(ChildWidget):
             )
             .order_optimize()
             .fsc_with_halfmaps(
-                mask, seed=seed, n_set=n_pairs, dfreq=dfreq, squeeze=False
+                mask,
+                seed=seed,
+                n_set=n_pairs,
+                dfreq=dfreq,
+                squeeze=False,
+                wedge_weighting=wedge_weighting,
             )
         )
 
@@ -2212,13 +2302,25 @@ class SubtomogramAveraging(ChildWidget):
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 2,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "ncc",
         shift_to_background: Annotated[Optional[tuple[nm, nm, nm]], {"text": "Use half tomograms"}] = None,
-        # signal_mean_sd: Optional[tuple[float, float]] = None,
-        # noise_mean_sd: Optional[tuple[float, float]] = None,
     ):  # fmt: skip
         """Detect lattice defect by Bayesian metrics.
 
         This method calculates the signal and noise distribution, and evaluate the
         probability of being a defect site for individual molecules.
+
+        Parameters
+        ----------
+        {layer}
+        diameter : float
+            Diameter of monomer in nanometers.
+        prior_defect : float
+            Prior probability of a site being a defect. This value does not necessarily
+            reflect the actual defect rate. Changing this value only rescales the output
+            probability.
+        {max_shifts}{rotations}{interpolation}{bin_size}{upsample_factor}{method}
+        shift_to_background : tuple of float, optional
+            Shift vector to move molecules to background. For example, use (7, 0, 0) for
+            tubulin subunits.
         """
         main = self._get_main()
         _layer = assert_layer(layer, main.parent_viewer)
@@ -2232,11 +2334,7 @@ class SubtomogramAveraging(ChildWidget):
 
         mean_s, std_s = val_s.mean(), val_s.std(ddof=0)
         mean_n, std_n = val_n.mean(), val_n.std(ddof=0)
-        cohens_d = abs(mean_s - mean_n) / np.sqrt((std_s**2 + std_n**2) / 2)
-
-        _Logger.print(f"Signal = {mean_s:.3f} +/- {std_s:.3f}")
-        _Logger.print(f"Noise = {mean_n:.3f} +/- {std_n:.3f}")
-        _Logger.print(f"Cohen's d = {cohens_d:.3f}")
+        _log_mean_sd_for_detect_defect(mean_s, std_s, mean_n, std_n)
 
         post_prob = utils.calc_post_probability(
             val_s, 1 - prior_defect, mean_s, std_s, mean_n, std_n
@@ -2262,9 +2360,9 @@ class SubtomogramAveraging(ChildWidget):
     def seam_search(
         self,
         layer: MoleculesLayerType,
-        template_path: Annotated[_PathOrNone, {"bind": _template_param}],
+        template_path: Path.Read[FileFilter.IMAGE],
         mask_params: Annotated[Any, {"bind": _get_mask_params}],
-        anti_template_path: Annotated[Optional[Path.Read[FileFilter.IMAGE]], {"text": "Do not use anti-template", "label": "anti-template path"}] = None,
+        anti_template_path: Annotated[Path.Read[FileFilter.IMAGE] | None, {"label": "anti-template path"}] = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         npf: Annotated[Optional[int], {"text": "use global properties"}] = None,
         show_average: Annotated[str, {"label": "show averages as", "choices": [None, "Raw", "Filtered"]}] = "Filtered",
@@ -2272,8 +2370,9 @@ class SubtomogramAveraging(ChildWidget):
     ):  # fmt: skip
         """Search for the best seam position.
 
-        Try all patterns of seam positions and compare cross correlation values. If
-        molecule assembly has 13 protofilaments, this method will try 26 patterns.
+        Try all patterns of seam positions and compare cross correlation between
+        template(s) and averages. If molecule assembly has 13 protofilaments, this
+        method will try 26 patterns of averages.
 
         Parameters
         ----------
@@ -2285,22 +2384,32 @@ class SubtomogramAveraging(ChildWidget):
         npf : int, optional
             Number of protofilaments. By default the global properties stored in the
             corresponding spline will be used.
-        show_average : bool, default True
-            If true, all the subtomogram averages will be shown.
+        show_average : str, default "Filtered"
+            If "Raw", all the raw subtomogram averages will be shown.
+            If "Filtered", all the filtered subtomogram averages will be shown.
+            If None, no subtomogram averages will be shown.
         {cutoff}
         """
         t0 = timer()
         layer = assert_layer(layer, self.parent_viewer)
-        loader, npf = self._seam_search_input(layer, npf, interpolation)
+        loader, npf = prep_seam_search_input(
+            self._get_main().tomogram,
+            layer.molecules,
+            npf=npf,
+            order=interpolation,
+        )
         template, mask = loader.normalize_input(
             template=self.params._norm_template_param(template_path),
             mask=self.params._get_mask(params=mask_params),
         )
-        if anti_template_path is not None:
-            anti_template = ip.asarray(
-                pipe.from_file(anti_template_path).provide(loader.scale),
-                axes="zyx",
+        if anti_template_path is not None and str(anti_template_path) not in ("", "."):
+            anti_template, anti_mask = loader.normalize_input(
+                template=self.params._norm_template_param(anti_template_path),
+                mask=self.params._get_mask(params=mask_params),
             )
+            anti_template = ip.asarray(anti_template, axes="zyx")
+            if mask is not None and anti_mask is not None:
+                mask = np.maximum(mask, anti_mask)
         else:
             anti_template = None
 
@@ -2321,7 +2430,7 @@ class SubtomogramAveraging(ChildWidget):
             layer.features = layer.molecules.features.with_columns(new_feat)
             layer.metadata[SEAM_SEARCH_RESULT] = result
             if show_average is not None:
-                if show_average == "Filtered":
+                if show_average.lower() == "filtered":
                     sigma = 0.25 / loader.scale
                     result.averages.gaussian_filter(sigma=sigma, update=True)
                 _imlayer: Image = self._show_rec(
@@ -2396,15 +2505,109 @@ class SubtomogramAveraging(ChildWidget):
         ui.reset_choices()  # choices regarding of features need update
         return undo_callback(layer.feature_setter(feat, layer.colormap_info))
 
-    def _seam_search_input(
-        self, layer: MoleculesLayer, npf: int | None, order: int
-    ) -> tuple[SubtomogramLoader, int]:
-        parent = self._get_main()
-        mole = layer.molecules
-        loader = parent.tomogram.get_subtomogram_loader(mole, order=order)
-        if npf is None:
-            npf = mole.features[Mole.pf].unique().len()
-        return loader, npf
+    @set_design(text=capitalize, location=Alignment)
+    @thread_worker.with_progress(desc="Refining the tilt series")
+    def refine_tilt_series(
+        self,
+        layers: MoleculesLayersType,
+        size: _SubVolumeSize = None,
+        max_shift: Annotated[nm, {"label": "max shift (nm)", "min": 0.1, "max": 50.0, "step": 0.1}] = 2.0,
+        grid_shape: Annotated[tuple[int, int], {"label": "grid shape (y, x)", "options": {"min": 1, "max": 20}}] = (1, 1),
+        smoothness: Annotated[float, {"min": 0.0, "max": 100.0, "step": 0.001}] = 0.01,
+        bin_size: BinSizeType = 1,
+        update_coarse_tomogram: bool = True,
+    ):  # fmt: skip
+        """Refine the alignment of the tilt series using the molecules.
+
+        The subtomograms of each layer are averaged as the reference of the molecules
+        of the layer. Similar to Bayesian polishing, the projections of the averages
+        placed at the molecules are compared with the tilt images, and the shifts of
+        each tilt image are refined. The subtomograms and the images for analysis are
+        reconstructed from the refined tilt series afterwards. The refined tilt series
+        (and the coarse tomogram) is saved in the project directory when the project
+        is saved.
+
+        Parameters
+        ----------
+        {layers}{size}
+        max_shift : nm
+            Maximum shift of the tilt images in nm.
+        grid_shape : (int, int)
+            Number of control points of the local shifts along y and x of the tilt
+            images. (1, 1) means a uniform shift of each tilt image. Otherwise, the
+            shifts are refined as a smooth field over each tilt image.
+        smoothness : float
+            Weight of the smoothness prior of the local shifts. Larger value is more
+            robust against noise and fewer molecules.
+        {bin_size}
+        update_coarse_tomogram : bool, default True
+            If true, the coarse tomogram for visualization is also reconstructed from
+            the refined tilt series.
+        """
+        t0 = timer()
+        layers = assert_list_of_layers(layers, self.parent_viewer)
+        main = self._get_main()
+        tomo = main.tomogram
+        if (src := tomo.tilt_series) is None:
+            raise ValueError("The tomogram is not opened from a tilt series.")
+        shape = self._get_shape_in_nm(size)
+        refs = list[tuple[Molecules, "NDArray[np.float32]"]]()
+        for layer in layers:
+            # the average of the current tilt series is the reference of each layer
+            mole = layer.molecules
+            loader = tomo.get_subtomogram_loader(mole, shape, binsize=bin_size)
+            refs.append((mole, loader.average(wedge_weighting=True)))
+        nmole = sum(mole.count() for mole, _ in refs)
+        _Logger.print(f"Refining the tilt series using {nmole} molecules ...")
+        old = src.tilt_series
+        loader = src.get_loader(Molecules.empty(), binsize=bin_size)
+        new = loader.refine_tilt_series(
+            refs, max_shift=max_shift, grid_shape=grid_shape, smoothness=smoothness
+        ).tilt_series
+        if update_coarse_tomogram:
+            new_ref = src.reconstruct_reference(new)
+        else:
+            new_ref = None
+        t0.toc()
+
+        old_ref = src.reference
+
+        def _apply(tilt_series: "TiltSeries", reference: "ip.ImgArray | None"):
+            removed = tomo.update_tilt_series(tilt_series)
+            if new_ref is not None and reference is not None:
+                src.set_reference(reference)
+                self._show_coarse_tomogram(reference)
+            if main.SplineControl.need_resample:
+                main.sample_subtomograms()
+            return removed
+
+        @thread_worker.callback
+        def _on_return():
+            removed = _apply(new, new_ref)
+            _log_tilt_series_shifts(old, new)
+            if removed:
+                _Logger.print(
+                    f"Multi-scale images of bin size {removed} are removed. They are "
+                    "reconstructed from the refined tilt series on demand."
+                )
+            # the tilt series and the coarse tomogram are restored by undo
+            return (
+                undo_callback(_apply)
+                .with_args(old, old_ref)
+                .with_redo(lambda: _apply(new, new_ref))
+            )
+
+        return _on_return
+
+    def _show_coarse_tomogram(self, img: ip.ImgArray):
+        """Show the coarse tomogram with the current filter and inversion."""
+        main = self._get_main()
+        filt = main._reserved_layers.ref_filter
+        inverted = main._reserved_layers.ref_inverted
+        main._update_reference_image(-img if inverted else img)
+        main._reserved_layers.ref_inverted = inverted
+        if filt is not None:
+            main.filter_reference_image(*filt)
 
     @set_design(text="Save last average", location=STAnalysis)
     def save_last_average(self, path: Path.Save[FileFilter.IMAGE]):
@@ -2608,17 +2811,15 @@ class SubtomogramAveraging(ChildWidget):
     def _calculate_signal_noise(
         self,
         layer: MoleculesLayer,
-        diameter: Annotated[nm, {"min": 0.1, "max": 100.0}] = 6.0,
+        diameter: nm = 6.0,
         max_shifts: tuple[nm, nm, nm] = (0.5, 0.5, 0.5),
         rotations: _Rotations = ((0.0, 0.0), (0.0, 0.0), (0.0, 0.0)),
         cutoff: _CutoffFreq = 0.5,
-        interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
+        interpolation: int = 3,
         bin_size: BinSizeType = 1,
-        upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 2,
-        method: Annotated[str, {"choices": METHOD_CHOICES}] = "ncc",
-        shift_to_background: Annotated[
-            Optional[tuple[nm, nm, nm]], {"text": "Use half tomograms"}
-        ] = None,
+        upsample_factor: int = 2,
+        method: str = "ncc",
+        shift_to_background: tuple[nm, nm, nm] | None = None,
     ):
         main = self._get_main()
         model = _get_alignment(method)
@@ -2909,6 +3110,25 @@ def _post_classify_em(result, loader: SubtomogramLoader, all_moles: Molecules):
     return avgs, all_moles_updated
 
 
+def _log_tilt_series_shifts(old, new):
+    """Log the refined shifts of each tilt image."""
+    shifts = new.sample_translations - old.sample_translations
+    dist = np.linalg.norm(shifts, axis=1)
+    _Logger.print_html(
+        f"Shifts of the tilt images: mean <b>{dist.mean():.3f} nm</b>, max "
+        f"<b>{dist.max():.3f} nm</b>"
+    )
+    with _Logger.set_plt():
+        plt.figure(figsize=(6, 2.4))
+        plt.plot(new.tilt_angles, shifts[:, 1], ".-", label="x")
+        plt.plot(new.tilt_angles, shifts[:, 0], ".-", label="y")
+        plt.xlabel("tilt angle (deg)")
+        plt.ylabel("shift (nm)")
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
+
+
 def _align_averages_table(svec, rvec):
     _fmt = "  {:.2f}  ".format
     return [
@@ -2943,6 +3163,14 @@ def _make_cylindrical_mask(
         .smooth_mask(sigma=1 / scale, dilate_radius=0.5 / scale)
         .value
     )
+
+
+def _log_mean_sd_for_detect_defect(mean_s, std_s, mean_n, std_n):
+    cohens_d = abs(mean_s - mean_n) / np.sqrt((std_s**2 + std_n**2) / 2)
+
+    _Logger.print(f"Signal = {mean_s:.3f} +/- {std_s:.3f}")
+    _Logger.print(f"Noise = {mean_n:.3f} +/- {std_n:.3f}")
+    _Logger.print(f"Cohen's d = {cohens_d:.3f}")
 
 
 impl_preview(SubtomogramAveraging.align_all_rma, text="Preview molecule network")(

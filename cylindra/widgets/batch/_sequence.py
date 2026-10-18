@@ -32,6 +32,9 @@ from cylindra.utils import unwrap_wildcard
 from cylindra.widget_utils import POLARS_NAMESPACE, capitalize, norm_polars_expr
 from cylindra.widgets.batch._utils import PathInfo, TempFeatures
 
+if TYPE_CHECKING:
+    from acryo import BackProjectionLoader
+
 
 class SelectionOperations(StrEnum):
     IGNORE = "ignore"
@@ -253,7 +256,7 @@ class Project(MagicTemplate):
 
     @nogui
     @do_not_record
-    def get_loader(self, order: int = 3) -> SubtomogramLoader:
+    def get_loader(self, order: int = 3) -> "SubtomogramLoader | BackProjectionLoader":
         """Get the subtomogram loader of this project"""
         project = CylindraProject.from_file(self.path)
         with project.open_project() as dir:
@@ -262,6 +265,11 @@ class Project(MagicTemplate):
                 for mole in self.molecules
                 if mole.check
             ]
+        if project.tilt_series is not None:
+            # subtomograms are reconstructed from the tilt series
+            return project.load_tilt_series_loader().replace(
+                molecules=Molecules.concat(molecules), order=order
+            )
         img = lazy_imread(project.image, chunks=get_config().dask_chunk).value
         if project.invert:
             img = -img
@@ -276,7 +284,10 @@ class Project(MagicTemplate):
         """Return (image, molecules, project) paths."""
         prj_path = Path(self.path)
         project = CylindraProject.from_file(self.path)
-        if project.image is None or not Path(project.image).exists():
+        if project.tilt_series is not None:
+            # the tilt series is read from the project when the loader is created
+            img_path = project._batch_image_path()
+        elif project.image is None or not Path(project.image).exists():
             if rpath := project._try_resolve_image_relative():
                 img_path = rpath
             else:
@@ -451,7 +462,8 @@ class ProjectSequenceEdit(MagicTemplate):
             if not prj_wdt.check:
                 continue
             path_info = PathInfo(*prj_wdt._get_loader_paths())
-            img = path_info.lazy_imread()
+            ts_loader = path_info.tilt_series_loader()
+            img = path_info.lazy_imread() if ts_loader is None else None
             image_paths[img_id] = Path(path_info.image)
             prj = CylindraProject.from_file(path_info.project)
             with prj.open_project() as dir:
@@ -459,7 +471,12 @@ class ProjectSequenceEdit(MagicTemplate):
                     if not mole_wdt.check:
                         continue
                     mole = _temp_features.read_molecules(dir / mole_wdt.line.value, prj)
-                    batch_loader.add_tomogram(img.value, mole, img_id)
+                    if ts_loader is None:
+                        batch_loader.add_tomogram(img.value, mole, img_id)
+                    else:
+                        # reconstructed from the tilt series
+                        sub = ts_loader.replace(molecules=mole)
+                        batch_loader.add_loader(sub, img_id)
 
         if predicate is not None:
             if isinstance(predicate, str):

@@ -2,15 +2,21 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import impy as ip
 import numpy as np
 import polars as pl
-from acryo import SubtomogramLoader
+from acryo import Molecules, SubtomogramLoader
+from acryo.backend import Backend
+from acryo.loader._misc import lazy_average
 from dask import array as da
 from numpy.typing import NDArray
 
 from cylindra.const import MoleculesHeader as Mole
+
+if TYPE_CHECKING:
+    from cylindra.components.tomogram import CylTomogram
 
 
 class SeamSearcher(ABC):
@@ -40,13 +46,20 @@ class SeamSearcher(ABC):
         labels = self.label_with_seam(loader.molecules.count())
 
         # here, dask_array is (N, Z, Y, X) array where dask_array[i] is i-th subtomogram.
-        dask_array = loader.construct_dask()
+        dask_array = loader.construct_wedge_weighted_ft()
         averaged_images = da.compute(
-            [da.mean(dask_array[sl], axis=0) for sl in labels]
+            [
+                lazy_average(
+                    dask_array[sl],
+                    output_shape=loader.output_shape,
+                    backend=Backend(),
+                    wedge_weighting=True,
+                )
+                for sl in labels
+            ]
         )[0]
-        return ip.asarray(np.stack(averaged_images, axis=0), axes="pzyx").set_scale(
-            zyx=loader.scale
-        )
+        averaged_images = ip.asarray(np.stack(averaged_images, axis=0), axes="pzyx")
+        return averaged_images.set_scale(zyx=loader.scale, unit="nm")
 
 
 @dataclass
@@ -110,24 +123,21 @@ class CorrelationSeamSearcher(SeamSearcher):
         mask: NDArray[np.float32] | None = None,
         cutoff: float = 0.5,
     ) -> CorrelationSeamSearchResult:
-        corrs = list[float]()
-
         if mask is None:
             mask = 1
 
-        masked_template = (template * mask).lowpass_filter(cutoff, dims="zyx")
+        masked_template = self._lowpass_filter(template, mask, cutoff)
         has_anti_template = anti_template is not None
         loader = loader.replace(output_shape=template.shape)
         averaged_images = self.calc_averages(loader)
+
         if has_anti_template:
             if anti_template.shape != template.shape:
                 raise ValueError(
                     f"The shape of anti-template ({anti_template.shape}) must be the "
                     f"same as the shape of template ({template.shape})."
                 )
-            masked_anti_template = (anti_template * mask).lowpass_filter(
-                cutoff, dims="zyx"
-            )
+            masked_anti_template = self._lowpass_filter(anti_template, mask, cutoff)
             anti_corrs = np.empty(averaged_images.shape[0], dtype=np.float32)
         else:
             masked_anti_template = None
@@ -136,20 +146,26 @@ class CorrelationSeamSearcher(SeamSearcher):
         corrs = np.empty(averaged_images.shape[0], dtype=np.float32)
         for _i, avg in enumerate(averaged_images):
             avg: ip.ImgArray
-            masked_avg = (avg * mask).lowpass_filter(cutoff=cutoff, dims="zyx")
+            masked_avg = self._lowpass_filter(avg, mask, cutoff)
             corrs[_i] = ip.zncc(masked_avg, masked_template)
             if has_anti_template:
                 anti_corrs[_i] = ip.zncc(masked_avg, masked_anti_template)
 
         if has_anti_template:
-            score = corrs - anti_corrs
+            diff = corrs - anti_corrs
         else:
-            corr1, corr2 = corrs[: self.npf], corrs[self.npf :]
-            score = np.empty_like(corrs, dtype=np.float32)
-            score[: self.npf] = corr1 - corr2
-            score[self.npf :] = corr2 - corr1
+            diff = corrs
+        # averaged_images[i] and averaged_images[i + npf] are averages of the
+        # complementary sets of molecules, so both of them should be considered.
+        score = diff - np.roll(diff, self.npf)
 
         return CorrelationSeamSearchResult(score, averaged_images, corrs, anti_corrs)
+
+    @staticmethod
+    def _lowpass_filter(
+        img: ip.ImgArray, mask: NDArray[np.float32], cutoff: float
+    ) -> ip.ImgArray:
+        return (img * mask).lowpass_filter(cutoff, dims="zyx")
 
 
 class BooleanSeamSearcher(SeamSearcher):
@@ -175,3 +191,22 @@ class BooleanSeamSearcher(SeamSearcher):
     @staticmethod
     def _binarize(x: NDArray[np.bool_]) -> NDArray[np.int8]:
         return np.where(x, 1, -1)
+
+
+def prep_seam_search_input(
+    tomo: CylTomogram,
+    mole: Molecules,
+    npf: int | None,
+    order: int,
+) -> tuple[SubtomogramLoader, int]:
+    """Prepare the subtomogram loaders for seam search.
+
+    Returns
+    -------
+    tuple[SubtomogramLoader, int]
+        The subtomogram loader for signal and the number of protofilaments.
+    """
+    loader_s = tomo.get_subtomogram_loader(mole, order=order)
+    if npf is None:
+        npf = mole.features[Mole.pf].unique().len()
+    return loader_s, npf

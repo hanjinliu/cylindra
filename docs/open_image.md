@@ -42,62 +42,94 @@ variables are pushed to the console global namespace:
 - `plt`: `matplotlib.pyplot` module.
 - `Path`: `pathlib.Path` class.
 
-
 ### Open an Image
 
-:material-arrow-right-thin-circle-outline: API: [`open_image`][cylindra.widgets.main.CylindraMainWidget.open_image].
+=== "Open a Tomogram"
 
-:material-arrow-right-thin-circle-outline: GUI: `File > Open image` or ++ctrl+k++ &rarr; ++ctrl+o++.
+    :material-arrow-right-thin-circle-outline: API: [`open_image`][cylindra.widgets.main.CylindraMainWidget.open_image] or [`open_image_with_reference`][cylindra.widgets.main.CylindraMainWidget.open_image_with_reference].
 
-In GUI, an open-image dialog is shown.
+    :material-arrow-right-thin-circle-outline: GUI: `File > Open image` or ++ctrl+k++ &rarr; ++ctrl+o++.
 
-![open image dialog](images/open_image_dialog.png){ loading=lazy, width=400px }
+    In GUI, an open-image dialog is shown.
 
-In this dialog, you can configure how to open the image. Note that the image opened in
-the viewer is **NOT the original image**. `cylindra` uses a binned and optionally
-filtered image for visualization.
+    ![open image dialog](images/open_image_dialog.png){ loading=lazy, width=400px }
 
-??? info "Open an image from IMOD or RELION project"
+    In this dialog, you can configure how to open the image. Note that the image opened in
+    the viewer is **NOT the original image**. `cylindra` uses a binned and optionally
+    filtered image for visualization.
 
-    If tomograms are reconstructed using IMOD or RELION, the built-in plugins can
-    directly read it. See [here](extern/index.md) for more details.
+    ??? info "Open an image from IMOD or RELION project"
 
-??? info "If you have multiple tomograms to analyze"
+        If tomograms are reconstructed using IMOD or RELION, the built-in plugins can
+        directly read it. See [here](extern/index.md) for more details.
 
-    If you have multiple tomograms to analyze, you can create a batch project and use
-    the batch analyzer to manage them. See [Prepare Batch Projects](batch/prep.md) for
-    more details.
+    ??? info "If you have multiple tomograms to analyze"
 
-!!! danger "Important: Use dark background images"
+        If you have multiple tomograms to analyze, you can create a batch project and use
+        the batch analyzer to manage them. See [Prepare Batch Projects](batch/prep.md) for
+        more details.
 
-    Most of the methods require dark-background images, while most of the raw images of
-    electron microscopy are light-background. You have to manually prepare an inverted
-    image file, or check the "Invert intensity" option in the open-image dialog. The
-    loaded image can also be inverted from the menu (see [Invert Images](#invert-images)).
+    !!! danger "Important: Use dark background images"
 
-1. Click "Select file" to select the image file to open. tiff and mrc files are
-   supported.
-2. Set the appropriate pixel scale and the tilt range/axis used for calculating missing
-   wedges. You can click "Scan" to fill these field automatically. To make the "Scan"
-   button more clever, [prepare a `.cylindra-defaults.toml` file](#directory-specific-defaults).
-3. Set the bin sizes used during your analysis. For example, setting to `[2, 4]` will
-   start calculation of 2&times; and 4&times; binned images, which will be loaded into
-   the memory, and leave the original image in the memory-mapped state (ready to be read
-   in the future). The 4&times; binned image will be shown in the viewer as a
-   reference. In the later analysis, you can switch between the original, 2&times;
-   binned and 4&times; binned images. See [Use Multi-scaled Images](#use-multi-scaled-images)
-   for more details.
-4. Set the filter to apply to the image. The filter is applied to the reference image
-   shown in the viewer, not to the original image.
-5. If you want to invert the image, check "Invert intensity".
-6. If you want to load the original image into the memory, check "Load the entire image
-   into memory".
-7. If the tomogram is stored in HDD, check "Cache image on SSD". Tomogram will be copied
-   to the cache directory in SSD and automatically deleted at exit. This option will
-   improve the performance a lot during your analysis.
-8. You can preview the selected image by clicking "Preview". A preview window will be
-   shown, which only loads separate image slices to accelerate the image loading.
-9. Click "Open" to calculate the binning/filtering and show the reference image.
+        Most of the methods require dark-background images, while most of the raw images of
+        electron microscopy are light-background. You have to manually prepare an inverted
+        image file, or check the "Invert intensity" option in the open-image dialog. The
+        loaded image can also be inverted from the menu (see [Invert Images](#invert-images)).
+
+    1. Click "Select file" to select the image file to open. tiff and mrc files are
+       supported.
+    2. Set the appropriate pixel scale and the tilt range/axis used for calculating missing
+       wedges. You can click "Scan" to fill these fields automatically. To make the "Scan"
+       button more clever, [prepare a `.cylindra-defaults.toml` file](#directory-specific-defaults).
+    3. Set the bin sizes used during your analysis. For example, setting to `[2, 4]` will
+       start calculation of 2&times; and 4&times; binned images, which will be loaded into
+       the memory, and leave the original image in the memory-mapped state (ready to be read
+       in the future). The 4&times; binned image will be shown in the viewer as a
+       reference. In the later analysis, you can switch between the original, 2&times;
+       binned and 4&times; binned images. See [Use Multi-scaled Images](#use-multi-scaled-images) for more details.
+    4. Set the filter to apply to the image. The filter is applied to the reference image
+       shown in the viewer, not to the original image.
+    5. If you want to invert the image, check "Invert intensity".
+    6. If you want to load the original image into the memory, check "Load the entire
+       image into memory".
+    7. If the tomogram is stored in HDD, check "Cache image on SSD". Tomogram will be copied
+       to the cache directory in SSD and automatically deleted at exit. This option will
+       improve the performance a lot during your analysis.
+    8. You can preview the selected image by clicking "Preview". A preview window will be
+       shown, which only loads separate image slices to accelerate the image loading.
+    9.  Click "Open" to calculate the binning/filtering and show the reference image.
+
+=== "Open a Tilt Series"
+
+    :sparkles: *New in v1.3.0*
+
+    :material-arrow-right-thin-circle-outline: API: [`open_tilt_series`][cylindra.widgets.main.CylindraMainWidget.open_tilt_series] or [`open_tilt_series_with_reference`][cylindra.widgets.main.CylindraMainWidget.open_tilt_series_with_reference].
+
+    :material-arrow-right-thin-circle-outline: GUI: `File > Open tilt series`
+
+    ![open tilt series dialog](images/open_tilt_series_dialog.png){ loading=lazy, width=400px }
+
+    Bin-1 tomograms usually take up a lot of storage space and time to reconstruct.
+    Since v1.3.0, `cylindra` can now analyze tilt series directly by reconstructing the
+    subvolumes on demand. For visualization, a coarse tomogram will be generated.
+
+    1. Click "Select file" to select a file that describes the tilt series. Currently,
+       IMOD directive file (`*.edf`), or a STAR file of RELION 5 tilt series (`tilt_series/*.star`) are supported.
+    2. If a coarse tomogram is not generated yet, check "Create coarse tomogram" and
+       provide the bin size you want (usually >1.5 nm/pixel is enough, but do not exceed
+       half of the periodicity you want to analyze!).
+    3. Set the appropriate pixel scale and tomogram handedness (and tomogram height for
+       the coarse tomogram reconstruction). You can click "Scan" to fill scale and other these fields automatically. To make the "Scan" button more
+       clever, [prepare a `.cylindra-defaults.toml` file](#directory-specific-defaults).
+    4. Click "Open tilt series" or "Open tilt series with reference" to start analysis.
+
+    Tilt series requires preprocessing when any subvolumes are to be cropped. The
+    preprocessed tilt series images of each bin size will be cached in memory until next
+    tomogram or tilt series is opened. This means that the first time you use a data of
+    a particular bin size, it takes longer to load as the images are being preprocessed
+    and cached.
+
+---
 
 ![](images/viewer_00_open_image.png){ loading=lazy }
 
@@ -109,16 +141,6 @@ After opening an image, you'll find three layers added to the viewer:
 
 The `"Drawing Layer"` will be selected, with the "add points" mode activated by default.
 
-??? warning "Handedness since napari v0.6"
-
-    Since v0.6, napari introduced full accessivility to the
-    [axis directionality](https://napari.org/stable/guides/handedness.html), and the
-    default handedness was changed from "left-handed" to "right-handed". This means that
-    if you set the axis directionality to wrong parameters, tomograms and the average
-    images will be flipped.
-    `cylindra` will automatically change the viewer handedness to "left-handed" on
-    startup, so you don't have to worry about it. However, if you find the 3D images
-    flipped, you may want to [check the handedness](https://napari.org/stable/guides/handedness.html#d-data-3d-axis-orientation-and-handedness).
 
 ### Use Multi-scaled Images
 

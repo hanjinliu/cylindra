@@ -164,8 +164,14 @@ class AutoSaver:
             return
         try:
             path = _config.autosave_path()
+            # the coarse tomogram of a tilt series is large, and is reconstructed when
+            # the project is recovered
             CylindraProject.save_gui(
-                ui, path, mole_ext=".parquet", save_landscape=False
+                ui,
+                path,
+                mole_ext=".parquet",
+                save_landscape=False,
+                save_coarse_tomogram=False,
             )
             if viewer := ui.parent_viewer:
                 viewer.status = "Project autosaved."

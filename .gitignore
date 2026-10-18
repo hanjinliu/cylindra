@@ -4,6 +4,7 @@ scripts/user_consts.py
 **/test_jobs/**/*.mrc
 **/test_jobs/**/cylindra
 *.pdb
+CLAUDE.md
 
 # Project files and results
 tests/**/*.txt

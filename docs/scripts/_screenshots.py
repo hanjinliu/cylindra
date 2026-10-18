@@ -54,6 +54,7 @@ def main():
 
     # Image loader
     _imsave(ui.FileMenu.open_image_loader().native, "open_image_dialog")
+    _imsave(ui.FileMenu.open_tilt_series_loader().native, "open_tilt_series_dialog")
 
     # Tool buttons
     for action in ui.Toolbar:

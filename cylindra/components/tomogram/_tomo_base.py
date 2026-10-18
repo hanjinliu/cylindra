@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import Any, Iterable, NamedTuple, Self, overload
+from typing import TYPE_CHECKING, Any, Iterable, Literal, NamedTuple, Self, overload
 
 import impy as ip
 import numpy as np
@@ -15,6 +15,12 @@ from cylindra._config import get_config
 from cylindra._io import lazy_imread
 from cylindra.const import nm
 from cylindra.utils import parse_tilt_model
+
+if TYPE_CHECKING:
+    from acryo import BackProjectionLoader
+    from acryo.projection import TiltSeries
+
+    from cylindra.components.tomogram._tilt_series import TiltSeriesSource
 
 _ImageType = ip.ImgArray | ip.LazyImgArray
 
@@ -35,6 +41,7 @@ class Tomogram:
         self._multiscaled = list[tuple[int, ip.ImgArray]]()
         self._tilt_model: TiltSeriesModel = single_axis(None)
         self._scale = 1.0
+        self._tilt_series: TiltSeriesSource | None = None
 
     def __hash__(self) -> int:
         """Use unsafe hash."""
@@ -65,6 +72,10 @@ class Tomogram:
         return OriginTuple(*self._image.metadata.get("origin_nm", [0, 0, 0]))
 
     def update_scale(self, new_scale: nm) -> None:
+        if self._tilt_series is not None:
+            raise ValueError(
+                "Scale of a tomogram from a tilt series is determined by the tilt series."
+            )
         self._scale = new_scale
         self._image.set_scale(xyz=new_scale)
         for _b, _img in self._multiscaled:
@@ -90,6 +101,9 @@ class Tomogram:
         return Path(source)
 
     def _orig_or_read_path(self) -> str | None:
+        # such as a file in a tar or zip project, which is read from a temporary file
+        if path := self.metadata.get("display_source", None):
+            return str(path)
         if self._image_halves is not None:
             img1, img2 = self._image_halves
             return img1.source.as_posix() + ";" + img2.source.as_posix()
@@ -126,6 +140,30 @@ class Tomogram:
     def is_inverted(self) -> bool:
         """True if this image is inverted"""
         return self.metadata.get("is_inverted", False)
+
+    @property
+    def tilt_series(self) -> TiltSeriesSource | None:
+        """The tilt series of this tomogram, if it is opened from a tilt series."""
+        return self._tilt_series
+
+    def update_tilt_series(self, tilt_series: TiltSeries) -> list[int]:
+        """Update the tilt series of this tomogram, such as its refined alignment.
+
+        The multi-scale images reconstructed from the old tilt series are removed, so
+        the images of these bin sizes are reconstructed from the new tilt series on
+        demand. The reference tomogram for visualization is not updated.
+
+        Returns
+        -------
+        list of int
+            Bin sizes of the removed multi-scale images.
+        """
+        if self._tilt_series is None:
+            raise ValueError("The tomogram is not opened from a tilt series.")
+        self._tilt_series.set_tilt_series(tilt_series)
+        removed = [b for b, _ in self._multiscaled]
+        self._multiscaled.clear()
+        return removed
 
     @classmethod
     def dummy(
@@ -362,6 +400,108 @@ class Tomogram:
             ]
         return self
 
+    @classmethod
+    def from_tilt_series(
+        cls,
+        tilt_series: str | Path | TiltSeries,
+        reference: ip.ImgArray,
+        scale: float | None = None,
+        *,
+        reference_binsize: int | None = None,
+        tomo_hand: Literal[-1, 1] = -1,
+        binsize: int | Iterable[int] = (1,),
+        tomogram_center: tuple[nm, nm, nm] | None = None,
+    ) -> Self:
+        """Construct a Tomogram object from a tilt series and its coarse tomogram.
+
+        The bin-1 tomogram is never reconstructed as a whole. Subtomograms are
+        reconstructed directly from the tilt series using `acryo.BackProjectionLoader`,
+        and the image regions needed for analysis (such as spline fitting and lattice
+        analysis) are reconstructed chunk by chunk on demand. The reference tomogram
+        determines the geometry of the tomogram and is available as
+        `tilt_series.reference` for visualization, but it is never used for analysis.
+
+        The reference tomogram must be reconstructed from the tilt series as in
+        `BackProjectionLoader.reconstruct_tomogram`, that is, its voxel `i` is at
+        `(i - shape // 2) * scale` in the tomogram space of the tilt series. The images
+        reconstructed from the tilt series are always dark-background (bright density).
+        The tilt images are preprocessed for each bin size when it is first needed, and
+        cached until `tilt_series.release_cache()` is called.
+
+        Parameters
+        ----------
+        tilt_series : path-like or TiltSeries
+            Path to the tilt series json file, or the tilt series object.
+        reference : ImgArray
+            The coarse (binned) tomogram reconstructed from the tilt series.
+        scale : float, optional
+            Pixel size of the tilt images in nm, which is the scale of the tomogram. If
+            not given, the pixel size of the tilt series file is used. Required for
+            IMOD tilt series.
+        reference_binsize : int, optional
+            Bin size of the reference tomogram relative to the tilt images. Inferred
+            from the pixel sizes by default.
+        tomo_hand : Literal[-1, 1], default -1
+            Handedness of the tomogram.
+        binsize : int or iterable of int, default (1,)
+            Bin sizes available for analysis.
+        tomogram_center : (float, float, float), optional
+            Position of the origin of the tomogram space of the tilt series in nm. By
+            default, it is determined from the shape of the reference tomogram.
+
+        Returns
+        -------
+        Tomogram
+            Tomogram object backed by the tilt series.
+        """
+        from acryo.projection import TiltSeries
+
+        from cylindra.components.tomogram import _tilt_series as _ts
+
+        ts_path = None
+        if isinstance(tilt_series, TiltSeries):
+            ts = tilt_series
+        else:
+            ts_path = Path(tilt_series).resolve()
+            ts = _ts.read_tilt_series(ts_path, scale)
+        if ts.scale is None:
+            raise ValueError("Pixel size of the tilt series is not set.")
+        scale = ts.scale
+
+        img_ref = reference
+        # the source may be relative to the current directory
+        ref_path = Path(img_ref.source).resolve() if img_ref.source else None
+        if isinstance(img_ref, ip.LazyImgArray):
+            img_ref = img_ref.compute()
+        if img_ref.ndim != 3:
+            raise ValueError(f"Reference tomogram must be 3-D, got {img_ref.ndim}-D.")
+        if reference_binsize is None:
+            reference_binsize = _ts.infer_reference_binsize(img_ref.scale.x, scale)
+        img_ref = img_ref.astype(np.float32)  # copy, as scale will be updated
+        img_ref.set_scale(zyx=scale * reference_binsize, unit="nm")
+        if tomogram_center is None:
+            tomogram_center = _ts.default_tomogram_center(
+                img_ref.shape, reference_binsize, scale
+            )
+        loader = _ts.make_loader(ts, tomogram_center, tomo_hand)
+        shape = tuple(s * reference_binsize for s in img_ref.shape)
+        if isinstance(binsize, int):
+            binsize = [binsize]
+        source = _ts.TiltSeriesSource(
+            loader,
+            shape,
+            reference=img_ref,
+            binsizes=binsize,
+            name=ts_path.stem if ts_path is not None else img_ref.name,
+        )
+
+        self = cls()
+        self._tilt_series = source
+        self._set_image(source.image(1))
+        self._tilt_model = loader.tilt_model
+        self._metadata.update(source=ts_path, scale=scale, reference=ref_path)
+        return self
+
     def with_cache_info(self, orig_path: Path, cached: bool = False) -> Self:
         """Set cache path."""
         orig_path = Path(orig_path)
@@ -371,6 +511,13 @@ class Tomogram:
         for _, img in self._multiscaled:
             img.name = orig_path.name
         return self
+
+    @property
+    def shape(self) -> tuple[int, int, int]:
+        """Shape of the 3D tomogram image."""
+        if self._image is None:
+            raise ValueError("Image is not set.")
+        return self._image.shape
 
     @property
     def image(self) -> _ImageType:
@@ -448,9 +595,13 @@ class Tomogram:
                 imgb = _img.binning(binsize // _b, check_edges=False)
                 break
         else:
-            imgb = self.image.binning(binsize, check_edges=False)
-            if isinstance(imgb, ip.LazyImgArray) and compute:
-                imgb = imgb.compute()
+            if self._tilt_series is not None:
+                # binning the bin-1 image means reconstructing the whole tomogram
+                imgb = self._tilt_series.reconstruct(binsize)
+            else:
+                imgb = self.image.binning(binsize, check_edges=False)
+                if isinstance(imgb, ip.LazyImgArray) and compute:
+                    imgb = imgb.compute()
         self._multiscaled.append((binsize, imgb))
         self._multiscaled.sort(key=lambda x: x[0])
         return imgb
@@ -464,25 +615,44 @@ class Tomogram:
             return self.add_multiscale(binsize)
         raise ValueError(f"Multiscale = {binsize} not found.")
 
-    def _get_multiscale_or_original(
-        self, binsize: int
-    ) -> ip.ImgArray | ip.LazyImgArray:
-        """Get multiscaled image of given binsize but use original one if needed."""
-        if binsize > 1:
-            out = self.get_multiscale(binsize)
-        else:
-            try:
-                out = self.get_multiscale(1)
-            except ValueError:
-                out = self.image
-        return out
+    def get_multiscale_or_original(self, binsize: int) -> ip.ImgArray | ip.LazyImgArray:
+        """Get multiscaled image of given binsize but use original one if needed.
+
+        If the tomogram is opened from a tilt series, a lazy image reconstructed from
+        the tilt series is returned for bin sizes without multi-scale images.
+        """
+        for _b, _img in self._multiscaled:
+            if _b == binsize:
+                return _img
+        if self._tilt_series is not None:
+            return self._tilt_series.image(binsize)
+        if binsize == 1:
+            return self.image
+        raise ValueError(f"Multiscale = {binsize} not found.")
+
+    # backward compatibility
+    _get_multiscale_or_original = get_multiscale_or_original
 
     def multiscale_translation(self, binsize: float) -> nm:
         """Get lateral translation of binned image in nm."""
         return (binsize - 1) / 2 * self.scale
 
+    def available_binsizes(self) -> list[int]:
+        """List of bin sizes available for analysis."""
+        binsizes = {b for b, _ in self._multiscaled}
+        binsizes.add(1)
+        if self._tilt_series is not None:
+            binsizes.update(self._tilt_series.binsizes)
+        return sorted(binsizes)
+
     def invert(self, cache: bool = False) -> Self:
         """Invert tomogram intensities **in-place**."""
+        if self._tilt_series is not None:
+            raise ValueError(
+                "Tomogram from a tilt series is always dark-background and cannot be "
+                "inverted. If the reference tomogram is light-background, invert only "
+                "the reference image."
+            )
         img_inv = -self.image
         if cache:
             img_inv.release()
@@ -501,8 +671,21 @@ class Tomogram:
         output_shape: tuple[nm, nm, nm] | None = None,
         binsize: int = 1,
         order: int = 1,
-    ) -> SubtomogramLoader:
-        """Create a subtomogram loader from molecules."""
+    ) -> SubtomogramLoader | BackProjectionLoader:
+        """Create a subtomogram loader from molecules.
+
+        If the tomogram is opened from a tilt series, subtomograms of bin sizes without
+        multi-scale images are reconstructed from the tilt series.
+        """
+        if self._tilt_series is not None and all(
+            _b != binsize for _b, _ in self._multiscaled
+        ):
+            if output_shape is not None:
+                _shape = self.nm2pixel(output_shape, binsize=binsize)
+                output_shape = tuple(int(s) for s in _shape)
+            return self._tilt_series.get_loader(
+                mole, binsize=binsize, output_shape=output_shape, order=order
+            )
         if binsize == 1:
             try:
                 img = self.get_multiscale(1)
