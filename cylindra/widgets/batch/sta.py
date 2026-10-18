@@ -1,5 +1,6 @@
 import re
 import tempfile
+from collections.abc import Hashable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Annotated, Any, Iterator
 
@@ -413,7 +414,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         size: _SubVolumeSize = 12.0,
         max_shifts: _MaxShifts = (0.8, 0.8, 0.8),
         max_rotations: _MaxRotations = (3.0, 3.0, 3.0),
-        min_rotation_step: Annotated[float, {"min": 0.1, "step": 0.1}] = 0.4,
+        min_rotation_step: Annotated[float, {"min": 0.1, "step": 0.1}] = 1.0,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
         bin_size: _BINSIZE = 1,
@@ -447,30 +448,27 @@ class BatchSubtomogramAveraging(MagicTemplate):
             min_rotation_step=min_rotation_step,
         )
         # loaders of each tomogram, which have their own tilt models
-        sub_loaders = list(loader.loaders)
+        sub_loaders = list(loader.loaders.iter_loaders())
         num_images = len(sub_loaders)
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmpdir:
             # Subtomograms are extracted to files only once, as spline coefficients so
             # that they can be resampled without the prefilter. In each iteration, the
             # extracted subtomograms are resampled at the aligned molecules for both
             # alignment and FSC calculation.
-            extracted: list[ExtractedSubvolumeLoader] = []
-            for ith, sub in enumerate(sub_loaders):
+            extracted: dict[Hashable, ExtractedSubvolumeLoader] = {}
+            for ith, (img_id, sub) in enumerate(sub_loaders):
                 yield thread_worker.description(
                     f"Extracting subtomograms ({ith + 1}/{num_images})"
                 )
-                extracted.append(
-                    sub.extract_subtomograms(
-                        Path(tmpdir) / f"image-{ith}",
-                        chunksize=64,
-                        apply_prefilter=True,
-                    )
+                extracted[img_id] = sub.extract_subtomograms(
+                    Path(tmpdir) / f"image-{ith}",
+                    chunksize=64,
+                    apply_prefilter=True,
                 )
-            molecules = [ext.molecules for ext in extracted]
+            # the image IDs are kept, as the aligned molecules are the output
+            joined = join_extracted_loaders(extracted)
             yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
-            result0 = _alignment_state.fsc_step_init(
-                join_extracted_loaders(extracted), max_shifts, max_rotations
-            )
+            result0 = _alignment_state.fsc_step_init(joined, max_shifts, max_rotations)
             _Logger.print(f"Iteration {int(_alignment_state.num_iter)}")
             yield _plot_current_fsc.with_args(result0.fsc, result0.avg).with_desc(_pdesc.align_tf_1(_alignment_state))  # fmt: skip
             while True:
@@ -479,20 +477,14 @@ class BatchSubtomogramAveraging(MagicTemplate):
                 if _alignment_state.is_converged() or _exceeded:
                     _Logger.print("Maximum iteration exceeded" if _exceeded else "FSC converged.")  # fmt: skip
                     break
-                molecules = [
-                    _alignment_state.align_step(
-                        template_free.resample_extracted(ext, mole)
-                    ).molecules
-                    for ext, mole in zip(extracted, molecules, strict=True)
-                ]
+                # the extracted subtomograms are resampled at the aligned molecules
+                joined = _alignment_state.align_step(joined)
                 yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
-                result = _alignment_state.fsc_step(
-                    join_extracted_loaders(extracted, molecules)
-                )
+                result = _alignment_state.fsc_step(joined)
                 _Logger.print(f"Iteration {int(_alignment_state.num_iter)}")
                 yield _plot_current_fsc.with_args(result.fsc, result.avg).with_desc(_pdesc.align_tf_1(_alignment_state))  # fmt: skip
 
-        mole_aligned = _as_alignment_output(loader.molecules, molecules)
+        mole_aligned = _as_alignment_output(loader.molecules, [joined.molecules])
         loaderlist.add_loader(
             loader.replace(molecules=mole_aligned).order_restore(),
             name=_coerce_aligned_name(info.name, loaderlist),
@@ -1226,22 +1218,32 @@ def join_loaders(
 
 
 def join_extracted_loaders(
-    loaders: list[ExtractedSubvolumeLoader],
+    loaders: (
+        Sequence[ExtractedSubvolumeLoader] | Mapping[Hashable, ExtractedSubvolumeLoader]
+    ),
     molecules: list[Molecules] | None = None,
 ) -> BatchLoader:
-    """Join the extracted loaders for averaging and FSC calculation.
+    """Join the extracted loaders for averaging, FSC calculation and alignment.
 
-    If `molecules` is given, the extracted subvolumes are resampled at these molecules
-    instead of cropping the tomograms again.
+    If `loaders` is a mapping, its keys are used as the image IDs. If `molecules` is
+    given, the extracted subvolumes are resampled at these molecules instead of
+    cropping the tomograms again.
     """
+    if isinstance(loaders, Mapping):
+        image_ids, loaders = list(loaders.keys()), list(loaders.values())
+    else:
+        image_ids, loaders = None, list(loaders)
     if molecules is not None:
         loaders = [
             template_free.resample_extracted(loader, mole)
             for loader, mole in zip(loaders, molecules, strict=True)
         ]
     first = loaders[0]
+    inputs = (
+        loaders if image_ids is None else dict(zip(image_ids, loaders, strict=True))
+    )
     return BatchLoader.from_loaders(
-        loaders, order=first.order, scale=first.scale, output_shape=first.output_shape
+        inputs, order=first.order, scale=first.scale, output_shape=first.output_shape
     )
 
 

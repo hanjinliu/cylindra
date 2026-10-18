@@ -240,7 +240,33 @@ class ImageLoader(MagicTemplate):
 
 @magicclass(name="_Open tilt series", record=False)
 class TiltSeriesLoader(MagicTemplate):
-    """Widget for opening a tilt series."""
+    """Widget for opening a tilt series.
+
+    Attributes
+    ----------
+    path : Path
+        Path to the file that describes the tilt series.
+    create_reference : bool
+        Whether to create a coarse tomogram from the tilt series.
+    reference_bin_size : int
+        Bin size of the coarse tomogram for visualization.
+    reference_path : Path
+        Path to the coarse tomogram reconstructed from the tilt series, if available.
+    tomo_hand : int
+        Handedness of the tomogram.
+    tomo_height : int
+        Height of the tomogram in pixels for coarse tomogram reconstruction (binned).
+    save_reference : bool
+        Whether to save the coarse tomogram after creation.
+    bin_size : list of int
+        Bin sizes available for analysis.
+    filter : ImageFilter | None
+        Filter to apply to the tilt series images for visualization.
+    invert_reference : bool
+        Whether to invert the intensity of the reference tomogram.
+    cache_image : bool
+        Whether to cache the image on the SSD.
+    """
 
     path = vfield(Path).with_options(filter=FileFilter.TILT_SERIES)
 
@@ -275,6 +301,7 @@ class TiltSeriesLoader(MagicTemplate):
         int, label="Tomogram handedness", widget_type=ToggleButtons
     ).with_choices([-1, 1])
     tomo_height = vfield(200, label="Tomogram height (pixels)")
+    save_reference = vfield(True, label="Save coarse tomogram")
     bin_size = vfield([2, 4]).with_options(options={"min": 1, "max": 32})
     filter = vfield(ImageFilter | None, widget_type=ToggleButtons).with_options(
         value=ImageFilter.Lowpass
@@ -292,6 +319,7 @@ class TiltSeriesLoader(MagicTemplate):
         self["invert_reference"].visible = not create_ref
         self["open_tilt_series"].visible = create_ref
         self["open_tilt_series_with_reference"].visible = not create_ref
+        self["save_reference"].visible = create_ref
 
     @set_design(text="Scan", max_width=60, location=scale)
     def scan_header_or_defaults(self):

@@ -688,11 +688,17 @@ class CylindraMainWidget(MagicTemplate):
         tomo_height: Annotated[int, {"bind": _ts_loader.tomo_height}] = 200,
         bin_size: Annotated[list[int], {"bind": _ts_loader.bin_size}] = [2, 4],
         filter: Annotated[ImageFilter | None, {"bind": _ts_loader.filter}] = ImageFilter.Lowpass,
+        save_coarse_tomogram: Annotated[bool, {"bind": _ts_loader.save_reference}] = True,
     ):  # fmt: skip
         from cylindra.components.tomogram import _tilt_series as _ts
 
         ref = _ts.prep_reference_tomogram(
-            path, scale, reference_bin_size, tomo_hand, tomo_height
+            path,
+            scale,
+            reference_bin_size,
+            tomo_hand,
+            tomo_height,
+            save_coarse_tomogram=save_coarse_tomogram,
         )
         # TODO: prep default
         yield thread_worker.description("Reading tilt series")

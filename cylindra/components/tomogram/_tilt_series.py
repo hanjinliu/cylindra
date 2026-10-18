@@ -86,7 +86,7 @@ class TiltSeriesSource:
         self._lock = threading.Lock()
         # whether the tilt series and the reference differ from the files
         self._unsaved_tilt_series = False
-        self._unsaved_reference = False
+        self._unsaved_reference = reference is not None and reference.source is None
 
     def __repr__(self) -> str:
         return (
@@ -364,17 +364,23 @@ def prep_reference_tomogram(
     bin_size: int,
     tomo_hand: int,
     height: int,
+    save_coarse_tomogram: bool = True,
 ) -> ip.ImgArray:
     from acryo import BackProjectionLoader
 
     path = Path(path)
     loader = BackProjectionLoader(read_tilt_series(path, scale), tomo_hand=tomo_hand)
-    save_path = path.with_name(f"{path.stem}_rec_bin{bin_size}.mrc")
-    if save_path.exists():
-        save_path.unlink()
     loader_binned = loader.binning(bin_size)
-    loader_binned.reconstruct_tomogram((height, -1, -1), save_path=save_path)
-    return ip.imread(save_path)
+    if save_coarse_tomogram:
+        save_path = path.with_name(f"{path.stem}_rec_bin{bin_size}.mrc")
+        if save_path.exists():
+            save_path.unlink()
+    else:
+        save_path = None
+    recon = loader_binned.reconstruct_tomogram((height, -1, -1), save_path=save_path)
+    if save_coarse_tomogram:
+        return ip.imread(save_path)
+    return ip.asarray(recon, axes="zyx").set_scale(zyx=scale * bin_size, unit="nm")
 
 
 def infer_reference_binsize(
