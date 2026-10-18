@@ -623,3 +623,185 @@ def test_batch_with_tilt_series(
     single = ui.batch.constructor.projects[0].get_loader(order=1)
     assert isinstance(single, BackProjectionLoader)
     assert single.molecules.count() == mole.count()
+
+
+def test_open_tilt_series_dialog(
+    ui: CylindraMainWidget,
+    tilt_series_files: TiltSeriesFiles,
+    tmp_path: Path,
+):
+    import shutil
+
+    from acryo.projection import TiltSeries
+
+    # the default settings are written next to the tilt series
+    shutil.copy(tilt_series_files.json.parent / "ts.mrc", tmp_path / "ts.mrc")
+    json_path = shutil.copy(tilt_series_files.json, tmp_path / "ts.json")
+    dialog = ui.FileMenu.open_tilt_series_loader()
+    dialog.path = json_path
+    dialog.scan_header_or_defaults()
+    assert dialog.create_reference  # no default settings yet
+
+    # the coarse tomogram is reconstructed and saved
+    ui.open_tilt_series(
+        json_path,
+        scale=SCALE,
+        reference_bin_size=2,
+        tomo_hand=TOMO_HAND,
+        tomo_height=18,
+        bin_size=[1],
+        filter=None,
+        save_coarse_tomogram=True,
+    )
+    assert str(ui.macro[-1]).startswith("ui.open_tilt_series(")
+    src = ui.tomogram.tilt_series
+    assert src.reference_binsize == 2
+    assert src.reference.shape[0] == 18
+    ref_path = tmp_path / "ts_rec_bin2.mrc"
+    assert ref_path.exists()
+    assert not src.has_unsaved_reference
+    # the coarse tomogram is shown with inverted contrast
+    np.testing.assert_allclose(ui._reserved_layers.image_data, -np.asarray(src.reference))
+
+    # the default settings are used next time
+    dialog.scan_header_or_defaults()
+    assert not dialog.create_reference
+    assert Path(dialog.reference_path) == ref_path
+    assert dialog.tomo_hand == TOMO_HAND
+    assert dialog.tomo_height == 18
+    assert dialog.reference_bin_size == 2
+    assert float(dialog.scale.scale_value) == pytest.approx(SCALE, abs=1e-4)
+
+    # the coarse tomogram is not saved
+    ui.open_tilt_series(
+        json_path,
+        scale=SCALE,
+        reference_bin_size=3,
+        tomo_hand=TOMO_HAND,
+        tomo_height=12,
+        bin_size=[1],
+        filter=None,
+        save_coarse_tomogram=False,
+    )
+    src = ui.tomogram.tilt_series
+    assert src.reference_binsize == 3
+    assert src.has_unsaved_reference
+    assert not (tmp_path / "ts_rec_bin3.mrc").exists()
+
+    # size of the tilt series is unknown if the images are missing
+    ts = TiltSeries.from_json(json_path.read_text())
+    tomo = CylTomogram.from_tilt_series(
+        ts.replace(image_path=tmp_path / "missing.mrc", scale=SCALE),
+        ip.imread(ref_path),
+    )
+    ui.GeneralInfo._refer_tomogram(tomo)
+    assert "Data size: Unknown (tilt series)" in ui.GeneralInfo.image_info.value
+
+
+def test_tilt_series_source_errors(tilt_series_files: TiltSeriesFiles, tmp_path: Path):
+    from cylindra.components.tomogram import _tilt_series as _ts
+
+    tomo = CylTomogram.from_tilt_series(
+        tilt_series_files.json,
+        ip.imread(tilt_series_files.reference),
+        tomo_hand=TOMO_HAND,
+    )
+    src = tomo.tilt_series
+    assert "TiltSeriesSource" in repr(src)
+    assert src.shape == (36, 206, 94)
+    for kwargs in [{"chunk_size": 63}, {"chunk_margin": -1}, {"binsizes": [0]}]:
+        with pytest.raises(ValueError):
+            _ts.TiltSeriesSource(src.loader, src.shape, **kwargs)
+    with pytest.raises(ValueError):
+        src.image(0)
+
+    # without a reference
+    no_ref = _ts.TiltSeriesSource(src.loader, src.shape)
+    assert no_ref.reference_binsize is None
+    with pytest.raises(ValueError):
+        no_ref.reconstruct_reference()
+
+    # the reference must be of the same shape and bin size
+    with pytest.raises(ValueError):
+        src.set_reference(src.reference[:-1])
+    other_bin = src.reference.copy()
+    other_bin.set_scale(zyx=SCALE * 3, unit="nm")
+    with pytest.raises(ValueError):
+        src.set_reference(other_bin)
+    with pytest.raises(ValueError):
+        _ts.reconstruct_coarse_tomogram(src.tilt_series, 2, None, TOMO_HAND)
+    with pytest.raises(ValueError):
+        _ts.reconstruct_coarse_tomogram(
+            src.tilt_series.replace(scale=None), 2, src.reference.shape, TOMO_HAND
+        )
+
+    # size of the tilt images
+    ts = src.tilt_series
+    assert src.nbytes == ts.ntilts * 206 * 104 * 4
+    per_tilt = ts.replace(image_path=(ts.image_path,) * ts.ntilts)
+    assert _ts.tilt_images_nbytes(per_tilt) == src.nbytes
+    assert _ts.tilt_images_nbytes(ts.replace(image_path=None)) is None
+    missing = ts.replace(image_path=tmp_path / "missing.mrc")
+    assert _ts.tilt_images_nbytes(missing) is None
+
+    # file types of the tilt series
+    with pytest.raises(ValueError):
+        _ts.read_tilt_series(tmp_path / "tilt_series.txt")
+    with pytest.raises(ValueError):
+        _ts.read_tilt_series(tmp_path / "tilt_series.edf")  # needs the pixel size
+    # the paths of the tilt images are relative to the json file
+    (tmp_path / "per_tilt.json").write_text(
+        ts.replace(image_path=("ts.mrc",) * ts.ntilts).dump_json()
+    )
+    read = _ts.read_tilt_series(tmp_path / "per_tilt.json")
+    assert read.image_path == (tmp_path / "ts.mrc",) * ts.ntilts
+    src.release_cache()
+
+
+def test_chunk_cache():
+    from cylindra.components.tomogram._tilt_series import _ChunkCache
+
+    arr = np.zeros(1, dtype=np.float32)  # 4 bytes
+    cache = _ChunkCache(max_bytes=12)
+    for key in "abc":
+        cache.put(key, arr)
+    assert cache.get("a") is arr  # "a" is used recently
+    cache.put("d", arr)  # "b" is removed
+    assert cache.get("b") is None
+    assert cache.get("a") is arr
+    cache.put("a", np.zeros(2, dtype=np.float32))  # "c" is removed
+    assert cache.get("c") is None
+    assert cache.get("a").size == 2
+    cache.put("large", np.zeros(4, dtype=np.float32))  # too large to be cached
+    assert cache.get("large") is None
+    cache.clear()
+    assert cache.get("a") is None
+
+
+def test_infer_tilt_series_scale(tmp_path: Path):
+    from cylindra.widgets.subwidgets.misc import (
+        _format_nbytes,
+        _infer_scale_for_tilt_series,
+        _resolve_path_str,
+    )
+
+    image_path = tmp_path / "TS_01.mrc"
+    with mrcfile.new(image_path) as f:
+        f.set_data(np.zeros((3, 8, 8), dtype=np.float32))
+        f.voxel_size = 2.5
+    # IMOD
+    (tmp_path / "TS_01.edf").write_text("")
+    assert _infer_scale_for_tilt_series(tmp_path / "TS_01.edf") == pytest.approx(0.25)
+    # RELION 5
+    star_path = tmp_path / "TS_01.star"
+    star_path.write_text(
+        "data_\n\nloop_\n_rlnMicrographName #1\n_rlnTomoNominalStageTiltAngle #2\n"
+        f"{image_path.as_posix()} 3.0\n{image_path.as_posix()} -3.0\n"
+    )
+    assert _infer_scale_for_tilt_series(star_path) == pytest.approx(0.25)
+    assert _infer_scale_for_tilt_series(tmp_path / "tilt_series.json") is None
+
+    assert _format_nbytes(3 * 1024**3) == "3.00 GB"
+    assert _format_nbytes(3 * 1024**2) == "3.00 MB"
+    assert _resolve_path_str(f"{image_path};{tmp_path / 'b.mrc'}") == image_path
+    assert _resolve_path_str(tmp_path / "TS_*.mrc") == image_path
