@@ -97,7 +97,8 @@ def _corr(a, b) -> float:
 
 def _cached_binsizes(tomo: CylTomogram) -> set[int]:
     """Bin sizes of which the preprocessed tilt images are cached."""
-    return set(tomo.tilt_series.loader._images.cache.images.keys())
+    # keys are (bin size, selection of the tilts)
+    return {key[0] for key in tomo.tilt_series.loader._images.cache.images.keys()}
 
 
 def test_from_tilt_series(tilt_series_files: TiltSeriesFiles):

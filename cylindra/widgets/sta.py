@@ -89,6 +89,7 @@ from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 if TYPE_CHECKING:
     from acryo.loader import ExtractedSubvolumeLoader
+    from acryo.projection import TiltSeries
     from dask.array.core import Array
     from napari.layers import Image
     from numpy.typing import NDArray
@@ -2569,21 +2570,32 @@ class SubtomogramAveraging(ChildWidget):
             new_ref = None
         t0.toc()
 
+        old_ref = src.reference
+
+        def _apply(tilt_series: "TiltSeries", reference: "ip.ImgArray | None"):
+            removed = tomo.update_tilt_series(tilt_series)
+            if new_ref is not None and reference is not None:
+                src.set_reference(reference)
+                self._show_coarse_tomogram(reference)
+            if main.SplineControl.need_resample:
+                main.sample_subtomograms()
+            return removed
+
         @thread_worker.callback
         def _on_return():
-            removed = tomo.update_tilt_series(new)
-            if new_ref is not None:
-                src.set_reference(new_ref)
-                self._show_coarse_tomogram(new_ref)
+            removed = _apply(new, new_ref)
             _log_tilt_series_shifts(old, new)
             if removed:
                 _Logger.print(
                     f"Multi-scale images of bin size {removed} are removed. They are "
                     "reconstructed from the refined tilt series on demand."
                 )
-
-            if main.SplineControl.need_resample:
-                main.sample_subtomograms()
+            # the tilt series and the coarse tomogram are restored by undo
+            return (
+                undo_callback(_apply)
+                .with_args(old, old_ref)
+                .with_redo(lambda: _apply(new, new_ref))
+            )
 
         return _on_return
 
