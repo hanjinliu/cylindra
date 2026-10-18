@@ -1315,6 +1315,8 @@
       
         
       
+        
+      
     
     
     
@@ -1465,6 +1467,34 @@
     
   
     Restricted Mesh Annealing (RMA)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../alignment/tilt_series/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Refinement on Tilt Series
   
 
     
@@ -2993,7 +3023,10 @@ variables are pushed to the console global namespace:</p>
 <li><code>Path</code>: <code>pathlib.Path</code> class.</li>
 </ul>
 <h3 id="open-an-image">Open an Image</h3>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="open_image(path, scale=None, tilt_range=None, bin_size=[1], filter=ImageFilter.Lowpass, invert=False, eager=False, cache_image=False)" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.open_image"><code>open_image</code></a>.</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Open a Tomogram</label><label for="__tabbed_1_2">Open a Tilt Series</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="open_image(path, scale=None, tilt_range=None, bin_size=[1], filter=ImageFilter.Lowpass, invert=False, eager=False, cache_image=False)" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.open_image"><code>open_image</code></a> or <a class="autorefs autorefs-internal" title="open_image_with_reference(path, reference_path, scale=None, tilt_range=None, bin_size=[1], filter=ImageFilter.Lowpass, invert=False, invert_reference=False, fix_reference_scale=True, cache_image=False)" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.open_image_with_reference"><code>open_image_with_reference</code></a>.</p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>File &gt; Open image</code> or <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-k">K</kbd></span> &rarr; <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-o">O</kbd></span>.</p>
 <p>In GUI, an open-image dialog is shown.</p>
 <p><img alt="open image dialog" loading="lazy," src="../images/open_image_dialog.png" width="400px" /></p>
@@ -3022,20 +3055,19 @@ loaded image can also be inverted from the menu (see <a href="#invert-images">In
 <li>Click "Select file" to select the image file to open. tiff and mrc files are
    supported.</li>
 <li>Set the appropriate pixel scale and the tilt range/axis used for calculating missing
-   wedges. You can click "Scan" to fill these field automatically. To make the "Scan"
+   wedges. You can click "Scan" to fill these fields automatically. To make the "Scan"
    button more clever, <a href="#directory-specific-defaults">prepare a <code>.cylindra-defaults.toml</code> file</a>.</li>
 <li>Set the bin sizes used during your analysis. For example, setting to <code>[2, 4]</code> will
    start calculation of 2&times; and 4&times; binned images, which will be loaded into
    the memory, and leave the original image in the memory-mapped state (ready to be read
    in the future). The 4&times; binned image will be shown in the viewer as a
    reference. In the later analysis, you can switch between the original, 2&times;
-   binned and 4&times; binned images. See <a href="#use-multi-scaled-images">Use Multi-scaled Images</a>
-   for more details.</li>
+   binned and 4&times; binned images. See <a href="#use-multi-scaled-images">Use Multi-scaled Images</a> for more details.</li>
 <li>Set the filter to apply to the image. The filter is applied to the reference image
    shown in the viewer, not to the original image.</li>
 <li>If you want to invert the image, check "Invert intensity".</li>
-<li>If you want to load the original image into the memory, check "Load the entire image
-   into memory".</li>
+<li>If you want to load the original image into the memory, check "Load the entire
+   image into memory".</li>
 <li>If the tomogram is stored in HDD, check "Cache image on SSD". Tomogram will be copied
    to the cache directory in SSD and automatically deleted at exit. This option will
    improve the performance a lot during your analysis.</li>
@@ -3043,6 +3075,35 @@ loaded image can also be inverted from the menu (see <a href="#invert-images">In
    shown, which only loads separate image slices to accelerate the image loading.</li>
 <li>Click "Open" to calculate the binning/filtering and show the reference image.</li>
 </ol>
+</div>
+<div class="tabbed-block">
+<p><img alt="✨" class="twemoji" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@16.0.1/assets/svg/2728.svg" title=":sparkles:" /> <em>New in v1.3.0</em></p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="open_tilt_series(path, scale=None, reference_bin_size=6, tomo_hand=-1, tomo_height=200, bin_size=[2, 4], filter=None, save_coarse_tomogram=True)" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.open_tilt_series"><code>open_tilt_series</code></a> or <a class="autorefs autorefs-internal" title="open_tilt_series_with_reference(path, scale, reference_path, tomo_hand=-1, bin_size=[2, 4], filter=None, invert_reference=True)" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.open_tilt_series_with_reference"><code>open_tilt_series_with_reference</code></a>.</p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>File &gt; Open tilt series</code></p>
+<p><img alt="open tilt series dialog" loading="lazy," src="../images/open_tilt_series_dialog.png" width="400px" /></p>
+<p>Bin-1 tomograms usually take up a lot of storage space and time to reconstruct.
+Since v1.3.0, <code>cylindra</code> can now analyze tilt series directly by reconstructing the
+subvolumes on demand. For visualization, a coarse tomogram will be generated.</p>
+<ol>
+<li>Click "Select file" to select a file that describes the tilt series. Currently,
+   IMOD directive file (<code>*.edf</code>), or a STAR file of RELION 5 tilt series (<code>tilt_series/*.star</code>) are supported.</li>
+<li>If a coarse tomogram is not generated yet, check "Create coarse tomogram" and
+   provide the bin size you want (usually &gt;1.5 nm/pixel is enough, but do not exceed
+   half of the periodicity you want to analyze!).</li>
+<li>Set the appropriate pixel scale and tomogram handedness (and tomogram height for
+   the coarse tomogram reconstruction). You can click "Scan" to fill scale and other these fields automatically. To make the "Scan" button more
+   clever, <a href="#directory-specific-defaults">prepare a <code>.cylindra-defaults.toml</code> file</a>.</li>
+<li>Click "Open tilt series" or "Open tilt series with reference" to start analysis.</li>
+</ol>
+<p>Tilt series requires preprocessing when any subvolumes are to be cropped. The
+preprocessed tilt series images of each bin size will be cached in memory until next
+tomogram or tilt series is opened. This means that the first time you use a data of
+a particular bin size, it takes longer to load as the images are being preprocessed
+and cached.</p>
+</div>
+</div>
+</div>
+<hr />
 <p><img alt="" loading="lazy" src="../images/viewer_00_open_image.png" /></p>
 <p>After opening an image, you'll find three layers added to the viewer:</p>
 <ul>
@@ -3051,17 +3112,6 @@ loaded image can also be inverted from the menu (see <a href="#invert-images">In
 <li><code>&lt;name of the tomogram&gt;</code>: an <a href="https://napari.org/stable/howtos/layers/image.html">Image layer</a> showing the reference image.</li>
 </ul>
 <p>The <code>"Drawing Layer"</code> will be selected, with the "add points" mode activated by default.</p>
-<details class="warning">
-<summary>Handedness since napari v0.6</summary>
-<p>Since v0.6, napari introduced full accessivility to the
-<a href="https://napari.org/stable/guides/handedness.html">axis directionality</a>, and the
-default handedness was changed from "left-handed" to "right-handed". This means that
-if you set the axis directionality to wrong parameters, tomograms and the average
-images will be flipped.
-<code>cylindra</code> will automatically change the viewer handedness to "left-handed" on
-startup, so you don't have to worry about it. However, if you find the 3D images
-flipped, you may want to <a href="https://napari.org/stable/guides/handedness.html#d-data-3d-axis-orientation-and-handedness">check the handedness</a>.</p>
-</details>
 <h3 id="use-multi-scaled-images">Use Multi-scaled Images</h3>
 <p>Tomograms can be loaded as multi-scaled images, which means that you can switch between
 the original and binned images. Many methods in <code>cylindra</code> have a <code>bin_size</code> argument.

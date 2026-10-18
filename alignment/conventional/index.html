@@ -1126,6 +1126,8 @@
       
         
       
+        
+      
     
     
     
@@ -1417,6 +1419,34 @@
     
   
     Restricted Mesh Annealing (RMA)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tilt_series/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Refinement on Tilt Series
   
 
     
@@ -2862,7 +2892,7 @@
 <h1 id="conventional-methods-in-cryo-et-studies">Conventional Methods in Cryo-ET Studies</h1>
 <p><code>cylindra</code> provides several common methods used in cryo-ET studies.</p>
 <h2 id="subtomogram-averaging">Subtomogram Averaging</h2>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="average_all(layers, size=None, interpolation=1, bin_size=1)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.average_all"><code>average_all</code></a></p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="average_all(layers, size=None, interpolation=1, bin_size=1, wedge_weighting=True)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.average_all"><code>average_all</code></a></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>STA widget &gt; Averaging &gt; Average all molecules</code></p>
 <p>This method uses one or more molecules-layer to calculate the subtomogram average.</p>
 <p><img alt="Average all" loading="lazy," src="../../images/average_all.png" width="320px" /></p>
@@ -2888,13 +2918,13 @@ image. This viewer can be accessed via <code>ui.sta.sub_viewer</code>.</p>
 <p>There are more options for averaging molecules in the <code>Averaging</code> menu:</p>
 <ul>
 <li>
-<p><a class="autorefs autorefs-internal" title="average_subset(layers, size=None, method='steps', number=64, bin_size=1)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.average_subset"><code>average_subset</code></a></p>
+<p><a class="autorefs autorefs-internal" title="average_subset(layers, size=None, method='steps', number=64, bin_size=1, wedge_weighting=True)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.average_subset"><code>average_subset</code></a></p>
 </li>
 <li>
-<p><a class="autorefs autorefs-internal" title="average_groups(layers, size=None, by="col('pf-id')", interpolation=1, bin_size=1)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.average_groups"><code>average_groups</code></a></p>
+<p><a class="autorefs autorefs-internal" title="average_groups(layers, size=None, by="col('pf-id')", interpolation=1, bin_size=1, wedge_weighting=True)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.average_groups"><code>average_groups</code></a></p>
 </li>
 <li>
-<p><a class="autorefs autorefs-internal" title="average_filtered(layers, size=None, predicate="col('pf-id') == 0", interpolation=1, bin_size=1)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.average_filtered"><code>average_filtered</code></a></p>
+<p><a class="autorefs autorefs-internal" title="average_filtered(layers, size=None, predicate="col('pf-id') == 0", interpolation=1, bin_size=1, wedge_weighting=True)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.average_filtered"><code>average_filtered</code></a></p>
 </li>
 </ul>
 </div>
@@ -2955,7 +2985,7 @@ near the cylinder by checking "Use cylindrical mask". The mask is automatically
 generated based on the radius measured from each spline and the <a href="../../spline/config/">spline configs</a>.</p>
 <p><img alt="Cylindrical mask" loading="lazy," src="../../images/align_averaged_cylindrical_mask.png" width="480px" /></p>
 <h2 id="fourier-shell-correlation-fsc">Fourier Shell Correlation (FSC)</h2>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="calculate_fsc(layers, template_path=None, mask_params=None, size=None, seed=0, interpolation=1, n_pairs=1, show_average=True, dfreq=None)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.calculate_fsc"><code>calculate_fsc</code></a></p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="calculate_fsc(layers, template_path=None, mask_params=None, size=None, seed=0, interpolation=1, n_pairs=1, show_average=True, dfreq=None, wedge_weighting=True)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.calculate_fsc"><code>calculate_fsc</code></a></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>STA widget &gt; Analysis &gt; Calculate FSC</code></p>
 <p>This method automatically split the selected molecules into two groups, and calculate
 the Fourier Shell Correlation (FSC) between the two groups. The FSC curve will be shown
