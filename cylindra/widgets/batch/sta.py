@@ -1207,12 +1207,11 @@ def join_loaders(
         scale=loader.scale,
         output_shape=loader.output_shape,
     )
+    # loaders of the tomograms, or of the tilt series, of the images
+    image_loaders = dict(loader.loaders.iter_loaders())
     for inputs, mole in zip(sub_inputs, molecules, strict=True):
-        loader_batch.add_tomogram(
-            loader.images[inputs.image_id],
-            mole,
-            inputs.image_id,
-            loader._tilt_models[inputs.image_id],
+        loader_batch.add_loader(
+            image_loaders[inputs.image_id].replace(molecules=mole), inputs.image_id
         )
     return loader_batch
 

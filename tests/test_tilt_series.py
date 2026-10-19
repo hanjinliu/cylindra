@@ -631,6 +631,53 @@ def test_batch_with_tilt_series(
     assert single.molecules.count() == mole.count()
 
 
+def test_batch_template_free_with_tilt_series(
+    ui: CylindraMainWidget,
+    tilt_series_files: TiltSeriesFiles,
+    tmp_path: Path,
+):
+    from acryo import BackProjectionLoader
+
+    ui.open_tilt_series_with_reference(
+        tilt_series_files.json,
+        scale=SCALE,
+        reference_path=tilt_series_files.reference,
+        tomo_hand=TOMO_HAND,
+        bin_size=[1],
+        filter=None,
+        invert_reference=True,
+    )
+    # RFA needs the source splines of the molecules
+    ui.register_path(COORDS_13PF + tilt_series_files.offset)
+    ui.map_along_spline(0, molecule_interval=4.1, rotate_molecules=False)
+    ui.save_project(tmp_path / "project")
+    ui.batch.constructor.add_projects([tmp_path / "project"], clear=True)
+    ui.batch.construct_loader(ui.batch._get_loader_paths(), name="Loader")
+    loader_in = ui.batch.sta.get_loader("Loader")
+
+    # subtomograms reconstructed from the tilt series are extracted
+    ui.batch.sta.align_all_template_free(
+        "Loader", mask_params=(2.0, 2.0), size=8.0, max_num_iters=3
+    )
+    ui.batch.sta.align_all_rfa_template_free(
+        "Loader",
+        mask_params=(2.0, 2.0),
+        size=8.0,
+        max_shifts=(1.2, 1.2, 1.2),
+        max_rotations=(0.0, 60.0, 0.0),
+        range_long=(3.8, "np.inf"),
+        angle_max=20.0,
+        upsample_factor=2,
+        temperature_time_const=0.2,
+        num_trials=2,
+        max_num_iters=3,
+    )
+    for name in ["Loader-ALN1", "Loader-ALN2"]:
+        aligned = ui.batch.sta.get_loader(name)
+        assert aligned.molecules.count() == loader_in.molecules.count()
+        assert all(isinstance(ldr, BackProjectionLoader) for ldr in aligned.loaders)
+
+
 def test_open_tilt_series_dialog(
     ui: CylindraMainWidget,
     tilt_series_files: TiltSeriesFiles,
