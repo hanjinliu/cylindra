@@ -524,3 +524,21 @@ def test_interaction_net_features():
     filt = net.filter(pl.col("projection-origin-y") > 0)
     assert filt.count() == 2
     assert filt.features.shape == (2, 7)
+
+
+def test_check_handedness():
+    img = ip.imread(TEST_DIR / "13pf_MT.tif")
+
+    tomo = CylTomogram.from_image(img, binsize=[1])
+    tomo.add_spline(coords=coords_13pf)
+    tomo.fit()
+    tomo.measure_radius(0)
+    assert tomo.check_handedness(0)
+
+    tomo = CylTomogram.from_image(img[::-1], binsize=[1])
+    coords_zfilpped = np.array(coords_13pf)
+    coords_zfilpped[:, 0] = tomo.shape[0] * img.scale.z - coords_zfilpped[:, 0]
+    tomo.add_spline(coords=coords_zfilpped)
+    tomo.fit()
+    tomo.measure_radius(0)
+    assert not tomo.check_handedness(0)

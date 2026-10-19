@@ -121,6 +121,8 @@ variables are pushed to the console global namespace:
     3. Set the appropriate pixel scale and tomogram handedness (and tomogram height for
        the coarse tomogram reconstruction). You can click "Scan" to fill scale and other these fields automatically. To make the "Scan" button more
        clever, [prepare a `.cylindra-defaults.toml` file](#directory-specific-defaults).
+       Tomogram handedness depends on the image acquisition scheme you used. If you are
+       unsure, see [Checking Tomogram Handedness](./case_studies/check_handedness.md).
     4. Click "Open tilt series" or "Open tilt series with reference" to start analysis.
 
     Tilt series requires preprocessing when any subvolumes are to be cropped. The
