@@ -440,6 +440,8 @@ def coarse_tomogram_shape(
         raise ValueError(f"Height of the tomogram must be positive, got {height}.")
     ny, nx = tilt_image_shape(tilt_series)
     nz = round(height / (tilt_series.scale * binsize))
+    if abs((90 - np.mean(tilt_series.tilt_axis_angle)) % 180 - 90) > 45:
+        ny, nx = nx, ny
     return max(nz, 1), max(int(ny // binsize), 1), max(int(nx // binsize), 1)
 
 
