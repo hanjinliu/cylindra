@@ -694,6 +694,7 @@ class CylindraMainWidget(MagicTemplate):
         reference_bin_size: Annotated[int, {"bind": _ts_loader.reference_bin_size}] = 6,
         tomo_hand: Annotated[Literal[-1, 1], {"bind": _ts_loader.tomo_hand}] = -1,
         tomo_height: Annotated[int, {"bind": _ts_loader.tomo_height}] = 200,
+        ctf: Annotated[bool, {"bind": _ts_loader.ctf}] = True,
         bin_size: Annotated[list[int], {"bind": _ts_loader.bin_size}] = [2, 4],
         filter: Annotated[ImageFilter | None, {"bind": _ts_loader.filter}] = None,
         save_coarse_tomogram: Annotated[bool, {"bind": _ts_loader.save_reference}] = True,
@@ -721,6 +722,8 @@ class CylindraMainWidget(MagicTemplate):
             Handedness of the tomogram.
         tomo_height : int, default 200
             Height (number of z slices) of the coarse tomogram.
+        ctf : bool, default True
+            Whether to perform CTF correction.
         bin_size : list of int, default [2, 4]
             Bin sizes available for analysis.
         {filter}
@@ -759,6 +762,7 @@ class CylindraMainWidget(MagicTemplate):
             scale=scale,
             tomo_hand=tomo_hand,
             binsize=bin_size,
+            ctf=ctf,
         )
         self._init_macro_state()
         cb = self._send_tomogram_to_viewer.with_args(tomo, filter)
@@ -782,6 +786,7 @@ class CylindraMainWidget(MagicTemplate):
         scale: Annotated[nm, {"bind": _ts_loader.scale.scale_value}],
         reference_path: Annotated[Path, {"bind": _ts_loader.reference_path}],
         tomo_hand: Annotated[Literal[-1, 1], {"bind": _ts_loader.tomo_hand}] = -1,
+        ctf: Annotated[bool, {"bind": _ts_loader.ctf}] = True,
         bin_size: Annotated[list[int], {"bind": _ts_loader.bin_size}] = [2, 4],
         filter: Annotated[ImageFilter | None, {"bind": _ts_loader.filter}] = None,
         invert_reference: Annotated[bool, {"bind": _ts_loader.invert_reference}] = True,
@@ -806,6 +811,8 @@ class CylindraMainWidget(MagicTemplate):
             Scale of the tilt series in nm/pixel.
         tomo_hand : Literal[-1, 1], default -1
             Handedness of the tomogram.
+        ctf : bool, default True
+            Whether to perform CTF correction.
         bin_size : list of int, default [2, 4]
             Bin sizes available for analysis.
         {filter}
@@ -820,6 +827,7 @@ class CylindraMainWidget(MagicTemplate):
             scale=scale,
             tomo_hand=tomo_hand,
             binsize=bin_size,
+            ctf=ctf,
         )
         self._init_macro_state()
         cb = self._send_tomogram_to_viewer.with_args(tomo, filter)

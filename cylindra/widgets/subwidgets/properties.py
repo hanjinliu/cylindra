@@ -33,7 +33,8 @@ class LabeledText(FieldGroup):
 
     def __init__(self, label_text: str):
         super().__init__(labels=False)
-        self.lbl.value = label_text
+        self.lbl.value = f"<b><small>{label_text}</small></b>"
+        self.lbl.max_height = 18
         self.margins = (0, 0, 0, 0)
 
 

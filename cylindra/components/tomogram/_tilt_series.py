@@ -333,7 +333,11 @@ def make_loader(
     )
 
 
-def read_tilt_series(path: str | Path, scale: nm | None = None) -> TiltSeries:
+def read_tilt_series(
+    path: str | Path,
+    scale: nm | None = None,
+    ctf: bool = True,
+) -> TiltSeries:
     """Read a tilt series.
 
     Parameters
@@ -344,6 +348,8 @@ def read_tilt_series(path: str | Path, scale: nm | None = None) -> TiltSeries:
     scale : float, optional
         Pixel size of the tilt images in nm. If not given, the pixel size in the file
         is used. Required for IMOD, which does not store the pixel size.
+    ctf : bool, default True
+        Whether to perform CTF correction.
     """
     from acryo.projection import TiltSeries
 
@@ -358,10 +364,13 @@ def read_tilt_series(path: str | Path, scale: nm | None = None) -> TiltSeries:
         if scale is None:
             raise ValueError("Pixel size ('scale') is required for IMOD tilt series.")
         ts = TiltSeries.from_etomo_directory(
-            path.parent, scale=scale, local_alignment=True
+            path.parent,
+            scale=scale,
+            local_alignment=True,
+            ctf=ctf,
         )
     elif path.suffix == ".star":
-        ts = TiltSeries.from_relion_tilt_series_star(path, scale=scale)
+        ts = TiltSeries.from_relion_tilt_series_star(path, scale=scale, ctf=ctf)
     else:
         raise ValueError(f"Unsupported file type: {path.suffix}")
     if ts.scale is None:
@@ -419,11 +428,14 @@ def prep_reference_tomogram(
     tomo_hand: int,
     height: int,
     save_coarse_tomogram: bool = True,
+    ctf: bool = True,
 ) -> ip.ImgArray:
     from acryo import BackProjectionLoader
 
     path = Path(path)
-    loader = BackProjectionLoader(read_tilt_series(path, scale), tomo_hand=tomo_hand)
+    loader = BackProjectionLoader(
+        read_tilt_series(path, scale, ctf=ctf), tomo_hand=tomo_hand
+    )
     loader_binned = loader.binning(bin_size)
     if save_coarse_tomogram:
         save_path = path.with_name(f"{path.stem}_rec_bin{bin_size}.mrc")

@@ -301,6 +301,7 @@ class TiltSeriesLoader(MagicTemplate):
         int, label="Tomogram handedness", widget_type=ToggleButtons
     ).with_choices([-1, 1])
     tomo_height = vfield(200, label="Tomogram height (pixels)")
+    ctf = vfield(True, label="Perform patch CTF correction")
     save_reference = vfield(True, label="Save coarse tomogram")
     bin_size = vfield([2, 4]).with_options(options={"min": 1, "max": 32})
     filter = vfield(ImageFilter | None, widget_type=ToggleButtons).with_options(

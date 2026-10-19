@@ -411,6 +411,7 @@ class Tomogram:
         tomo_hand: Literal[-1, 1] = -1,
         binsize: int | Iterable[int] = (1,),
         tomogram_center: tuple[nm, nm, nm] | None = None,
+        ctf: bool = True,
     ) -> Self:
         """Construct a Tomogram object from a tilt series and its coarse tomogram.
 
@@ -448,6 +449,8 @@ class Tomogram:
         tomogram_center : (float, float, float), optional
             Position of the origin of the tomogram space of the tilt series in nm. By
             default, it is determined from the shape of the reference tomogram.
+        ctf : bool, default True
+            Whether to perform CTF correction.
 
         Returns
         -------
@@ -463,7 +466,7 @@ class Tomogram:
             ts = tilt_series
         else:
             ts_path = Path(tilt_series).resolve()
-            ts = _ts.read_tilt_series(ts_path, scale)
+            ts = _ts.read_tilt_series(ts_path, scale, ctf=ctf)
         if ts.scale is None:
             raise ValueError("Pixel size of the tilt series is not set.")
         scale = ts.scale
