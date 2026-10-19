@@ -1021,7 +1021,9 @@ class SubtomogramAveraging(ChildWidget):
 
         mole = layers[0].molecules
         loader = self._get_loader(bin_size, mole, order=1)
-        template = self.params._norm_template_param(template_path, allow_multiple=False)
+        template = loader.normalize_template(
+            self.params._norm_template_param(template_path, allow_multiple=False)
+        )
         temp_norm = utils.normalize_image(template)
 
         _scale = parent.tomogram.scale * bin_size
