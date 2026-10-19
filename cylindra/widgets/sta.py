@@ -976,7 +976,7 @@ class SubtomogramAveraging(ChildWidget):
         self,
         layers: MoleculesLayersType,
         template_path: Annotated[_PathOrNone, {"bind": _template_param}],
-        mask_params: Annotated[Any, {"bind": _get_mask_params}],
+        mask_params: Annotated[Any, {"bind": None}] = None,  # deprecated
         max_shifts: Optional[_MaxShifts] = None,
         rotations: _Rotations = ((0.0, 0.0), (15.0, 1.0), (3.0, 1.0)),
         bin_size: BinSizeType = 1,
@@ -993,7 +993,7 @@ class SubtomogramAveraging(ChildWidget):
 
         Parameters
         ----------
-        {layers}{template_path}{mask_params}{max_shifts}{rotations}{bin_size}{method}
+        {layers}{template_path}{max_shifts}{rotations}{bin_size}{method}
         cylindrical_mask : bool, default: False
             If True, apply a cylindrical mask to the averaged image before alignment.
             This option is useful if the averaged image contains a lot of background
@@ -1021,12 +1021,7 @@ class SubtomogramAveraging(ChildWidget):
 
         mole = layers[0].molecules
         loader = self._get_loader(bin_size, mole, order=1)
-        template, mask = loader.normalize_input(
-            template=self.params._norm_template_param(
-                template_path, allow_multiple=False
-            ),
-            mask=self.params._get_mask(params=mask_params),
-        )
+        template = self.params._norm_template_param(template_path, allow_multiple=False)
         temp_norm = utils.normalize_image(template)
 
         _scale = parent.tomogram.scale * bin_size
@@ -1036,7 +1031,6 @@ class SubtomogramAveraging(ChildWidget):
 
         model = _get_alignment(method)(
             template,
-            mask,
             rotations=rotations,
             tilt=None,  # NOTE: because input is an average
         )
@@ -2512,6 +2506,7 @@ class SubtomogramAveraging(ChildWidget):
         layers: MoleculesLayersType,
         size: _SubVolumeSize = None,
         max_shift: Annotated[nm, {"label": "max shift (nm)", "min": 0.1, "max": 50.0, "step": 0.1}] = 2.0,
+        rotation: Annotated[tuple[float, float], {"label": "rotation max/step (deg)"}] = (0, 0),
         grid_shape: Annotated[tuple[int, int], {"label": "grid shape (y, x)", "options": {"min": 1, "max": 20}}] = (1, 1),
         smoothness: Annotated[float, {"min": 0.0, "max": 100.0, "step": 0.001}] = 0.01,
         bin_size: BinSizeType = 1,
@@ -2520,18 +2515,16 @@ class SubtomogramAveraging(ChildWidget):
         """Refine the alignment of the tilt series using the molecules.
 
         The subtomograms of each layer are averaged as the reference of the molecules
-        of the layer. Similar to Bayesian polishing, the projections of the averages
-        placed at the molecules are compared with the tilt images, and the shifts of
-        each tilt image are refined. The subtomograms and the images for analysis are
-        reconstructed from the refined tilt series afterwards. The refined tilt series
-        (and the coarse tomogram) is saved in the project directory when the project
-        is saved.
+        of the layer. Projections of the averages placed at the molecules are compared
+        with the tilt images, and the shifts of each tilt image are refined.
 
         Parameters
         ----------
         {layers}{size}
         max_shift : nm
             Maximum shift of the tilt images in nm.
+        rotation : (float, float)
+            Maximum rotation and the step of the tilt images in degrees.
         grid_shape : (int, int)
             Number of control points of the local shifts along y and x of the tilt
             images. (1, 1) means a uniform shift of each tilt image. Otherwise, the
@@ -2562,7 +2555,11 @@ class SubtomogramAveraging(ChildWidget):
         old = src.tilt_series
         loader = src.get_loader(Molecules.empty(), binsize=bin_size)
         new = loader.refine_tilt_series(
-            refs, max_shift=max_shift, grid_shape=grid_shape, smoothness=smoothness
+            refs,
+            max_shift=max_shift,
+            grid_shape=grid_shape,
+            smoothness=smoothness,
+            rotation=rotation,
         ).tilt_series
         if update_coarse_tomogram:
             new_ref = src.reconstruct_reference(new)
@@ -3110,7 +3107,7 @@ def _post_classify_em(result, loader: SubtomogramLoader, all_moles: Molecules):
     return avgs, all_moles_updated
 
 
-def _log_tilt_series_shifts(old, new):
+def _log_tilt_series_shifts(old: "TiltSeries", new: "TiltSeries"):
     """Log the refined shifts of each tilt image."""
     shifts = new.sample_translations - old.sample_translations
     dist = np.linalg.norm(shifts, axis=1)
