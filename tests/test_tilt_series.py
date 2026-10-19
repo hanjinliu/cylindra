@@ -79,7 +79,8 @@ def tilt_series_files(tmp_path_factory: pytest.TempPathFactory) -> TiltSeriesFil
     loader = BackProjectionLoader(ts, binsize=2)
     assert loader.scale == pytest.approx(SCALE * 2)
     with mrcfile.new(tmpdir / "ref.mrc") as f:
-        f.set_data(loader.reconstruct_tomogram(ref_shape))  # light background
+        # light background, in float32 to compare with the reconstructed references
+        f.set_data(loader.reconstruct_tomogram(ref_shape, dtype=np.float32))
         f.voxel_size = SCALE * 2 * 10
     # Voxel `i` of the reference tomogram is at `(i - shape // 2) * scale`, and its
     # voxel `shape // 2` is at the bin-1 voxel `shape // 2 * 2` of the tomogram (see
