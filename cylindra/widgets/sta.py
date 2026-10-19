@@ -2982,9 +2982,19 @@ def _plot_current_fsc(result: widget_utils.FscResult, avg: ip.ImgArray):
 @thread_worker.callback
 def _plot_shannon_entropy_classification(shannon_entropy: "NDArray[np.floating]"):
     bins = max(min(int(np.sqrt(shannon_entropy.size)), 96), 12)
+    # The entropies can be almost the same (~0 if all the molecules are classified
+    # with certainty), whose range cannot be split into finite-sized bins.
+    lo, hi = float(np.min(shannon_entropy)), float(np.max(shannon_entropy))
+    hist_range = (lo, max(hi, lo + 1e-3))
     with _Logger.set_plt():
         plt.figure(figsize=(6, 2))
-        plt.hist(shannon_entropy, bins=bins, color="#B771E6", edgecolor="gray")
+        plt.hist(
+            shannon_entropy,
+            bins=bins,
+            range=hist_range,
+            color="#B771E6",
+            edgecolor="gray",
+        )
         plt.title("Distribution of Shannon Entropy")
         plt.tight_layout()
         plt.show()
