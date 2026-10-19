@@ -320,7 +320,7 @@ class CylindraMainWidget(MagicTemplate):
         self._need_save: bool = False
         self._batch: CylindraBatchWidget | None = None
         self._project_dir: Path | None = None
-        self._current_binsize: int = 1
+        self._current_binsize: int | float = 1
         self._project_metadata = dict[str, Any]()
         self._events = MainWidgetEvents()
         self.objectName()  # load napari types
@@ -451,7 +451,7 @@ class CylindraMainWidget(MagicTemplate):
     def _get_available_binsize(self, w=None) -> list[tuple[str, int]]:
         return get_available_binsize(w)
 
-    def _get_displayable_binsize(self, w=None) -> list[tuple[str, int]]:
+    def _get_displayable_binsize(self, w=None) -> list[tuple[str, int | float]]:
         """Bin sizes of the images that can be shown in the viewer."""
         tomo = self.tomogram
         binsizes = {b for b, _ in tomo.multiscaled}
@@ -691,9 +691,9 @@ class CylindraMainWidget(MagicTemplate):
         self,
         path: Annotated[Path, {"bind": _ts_loader.path}],
         scale: Annotated[nm, {"bind": _ts_loader.scale.scale_value}] = None,
-        reference_bin_size: Annotated[int, {"bind": _ts_loader.reference_bin_size}] = 6,
+        reference_scale: Annotated[nm, {"bind": _ts_loader.reference_scale}] = 2.0,
         tomo_hand: Annotated[Literal[-1, 1], {"bind": _ts_loader.tomo_hand}] = -1,
-        tomo_height: Annotated[int, {"bind": _ts_loader.tomo_height}] = 200,
+        tomo_height: Annotated[nm, {"bind": _ts_loader.tomo_height}] = 300.0,
         ctf: Annotated[bool, {"bind": _ts_loader.ctf}] = True,
         bin_size: Annotated[list[int], {"bind": _ts_loader.bin_size}] = [2, 4],
         filter: Annotated[ImageFilter | None, {"bind": _ts_loader.filter}] = None,
@@ -716,12 +716,13 @@ class CylindraMainWidget(MagicTemplate):
         scale : float, optional
             Pixel size of the tilt images in nm. Required for IMOD, which does not store
             the pixel size.
-        reference_bin_size : int, default 6
-            Bin size of the coarse tomogram.
+        reference_scale : nm, default 2.0
+            Pixel size of the coarse tomogram in nm. It does not need to be an integer
+            multiple of the pixel size of the tilt series.
         tomo_hand : Literal[-1, 1], default -1
             Handedness of the tomogram.
-        tomo_height : int, default 200
-            Height (number of z slices) of the coarse tomogram.
+        tomo_height : nm, default 300.0
+            Height (thickness along z) of the coarse tomogram in nm.
         ctf : bool, default True
             Whether to perform CTF correction.
         bin_size : list of int, default [2, 4]
@@ -737,23 +738,11 @@ class CylindraMainWidget(MagicTemplate):
         ref = _ts.prep_reference_tomogram(
             path,
             scale,
-            reference_bin_size,
+            reference_scale,
             tomo_hand,
             tomo_height,
             save_coarse_tomogram=save_coarse_tomogram,
         )
-        if save_coarse_tomogram:
-            # prepare cylindra-default
-            path.with_name(".cylindra-defaults.toml").write_text(
-                f"scale = {ref.scale.x / reference_bin_size:.4f}\n"
-                'image_reference = "{}_rec_bin*.mrc"\n'
-                "invert_reference = true\n"
-                "\n"
-                "[tilt_series]\n"
-                f"tomo_hand = {tomo_hand}\n"
-                f"tomo_height = {tomo_height}\n"
-                f"reference_bin_size = {reference_bin_size}\n"
-            )
 
         yield thread_worker.description("Reading tilt series")
         tomo = CylTomogram.from_tilt_series(
@@ -764,6 +753,18 @@ class CylindraMainWidget(MagicTemplate):
             binsize=bin_size,
             ctf=ctf,
         )
+        if save_coarse_tomogram:
+            # prepare cylindra-default
+            path.with_name(".cylindra-defaults.toml").write_text(
+                f"scale = {tomo.scale:.4f}\n"
+                'image_reference = "{}_rec_bin*.mrc"\n'
+                "invert_reference = true\n"
+                "\n"
+                "[tilt_series]\n"
+                f"tomo_hand = {tomo_hand}\n"
+                f"tomo_height = {tomo_height}\n"
+                f"reference_scale = {reference_scale}\n"
+            )
         self._init_macro_state()
         cb = self._send_tomogram_to_viewer.with_args(tomo, filter)
         yield cb
@@ -806,7 +807,7 @@ class CylindraMainWidget(MagicTemplate):
         reference_path : Path
             Path to the coarse (binned) tomogram reconstructed from the tilt series,
             such as the one created by `BackProjectionLoader.reconstruct_tomogram`.
-            Its pixel size must be an integer multiple of that of the tilt series.
+            Its bin size, which can be non-integer, is inferred from the pixel sizes.
         scale : nm, required
             Scale of the tilt series in nm/pixel.
         tomo_hand : Literal[-1, 1], default -1
@@ -1445,7 +1446,7 @@ class CylindraMainWidget(MagicTemplate):
         return thread_worker.callback(self.set_multiscale).with_args(bin_size)
 
     @set_design(text="Set multi-scale", location=_sw.ImageMenu)
-    def set_multiscale(self, bin_size: Annotated[int, {"choices": _get_displayable_binsize}]):  # fmt: skip
+    def set_multiscale(self, bin_size: Annotated[float, {"choices": _get_displayable_binsize}]):  # fmt: skip
         """Set multiscale used for image display.
 
         If the tomogram is opened from a tilt series, its coarse tomogram can also be
@@ -1453,8 +1454,9 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        bin_size: int
-            Bin size of multiscaled image.
+        bin_size: float
+            Bin size of multiscaled image. The bin size of the coarse tomogram can be
+            non-integer.
         """
         tomo = self.tomogram
         _old_bin_size = self._current_binsize

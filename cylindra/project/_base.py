@@ -142,8 +142,8 @@ class TiltSeriesInfo(BaseModel):
     """Path to the coarse tomogram for visualization, or a path relative to the
     project directory if saved in the project. If None, the coarse tomogram is
     reconstructed from the tilt series when the project is opened."""
-    reference_binsize: int
-    """Bin size of the reference tomogram."""
+    reference_binsize: int | float
+    """Bin size of the reference tomogram, which can be non-integer."""
     reference_shape: tuple[int, int, int] | None = None
     """Shape of the reference tomogram."""
     tomogram_center: tuple[float, float, float]

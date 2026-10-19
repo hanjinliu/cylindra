@@ -189,11 +189,16 @@ class CylindraProject(BaseProject):
                 f"ui.open_tilt_series_with_reference({path=}, {scale=:.4f}, "
                 f"{reference_path=}, {tomo_hand=}, {bin_size=}, {invert_reference=})"
             )
-        reference_bin_size = ts.reference_binsize
-        tomo_height = ts.reference_shape[0] if ts.reference_shape else 200
+        # same bin size from the pixel sizes rounded in the script
+        reference_scale = round(round(scale, 4) * ts.reference_binsize, 6)
+        if ts.reference_shape:
+            tomo_height = ts.reference_shape[0] * ts.reference_binsize * scale
+        else:
+            tomo_height = 300.0
         return (
-            f"ui.open_tilt_series({path=}, {scale=:.4f}, {reference_bin_size=}, "
-            f"{tomo_hand=}, {tomo_height=}, {bin_size=}, save_coarse_tomogram=False)"
+            f"ui.open_tilt_series({path=}, {scale=:.4f}, {reference_scale=}, "
+            f"{tomo_hand=}, {tomo_height=:.2f}, {bin_size=}, "
+            "save_coarse_tomogram=False)"
         )
 
     @classmethod

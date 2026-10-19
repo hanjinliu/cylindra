@@ -93,6 +93,6 @@ filter = "Lowpass"
 
 # [tilt_series]
 # tomo_hand = 1
-# tomo_height = 200
-# reference_bin_size = 6
+# tomo_height = 300.0  # in nm
+# reference_scale = 2.0  # pixel size of the coarse tomogram in nm
 """

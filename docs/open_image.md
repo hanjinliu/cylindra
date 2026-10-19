@@ -116,10 +116,11 @@ variables are pushed to the console global namespace:
     1. Click "Select file" to select a file that describes the tilt series. Currently,
        IMOD directive file (`*.edf`), or a STAR file of RELION 5 tilt series (`tilt_series/*.star`) are supported.
     2. If a coarse tomogram is not generated yet, check "Create coarse tomogram" and
-       provide the bin size you want (usually >1.5 nm/pixel is enough, but do not exceed
-       half of the periodicity you want to analyze!).
-    3. Set the appropriate pixel scale and tomogram handedness (and tomogram height for
-       the coarse tomogram reconstruction). You can click "Scan" to fill scale and other these fields automatically. To make the "Scan" button more
+       provide the pixel size (nm) you want (usually >1.5 nm/pixel is enough, but do not
+       exceed half of the periodicity you want to analyze!). The pixel size does not
+       need to be an integer multiple of that of the tilt series.
+    3. Set the appropriate pixel scale and tomogram handedness (and tomogram height in nm
+       for the coarse tomogram reconstruction). You can click "Scan" to fill scale and other these fields automatically. To make the "Scan" button more
        clever, [prepare a `.cylindra-defaults.toml` file](#directory-specific-defaults).
     4. Click "Open tilt series" or "Open tilt series with reference" to start analysis.
 

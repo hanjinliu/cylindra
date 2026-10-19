@@ -201,6 +201,7 @@ class RelionTiltSeriesJobs(NamedTuple):
     tilt_series_star: Path
     tomogram: Path  # bin-2 tomogram reconstructed from the tilt series
     particles_zyx: np.ndarray  # centered coordinates of the particles in Angstrom
+    tomo_bin25: Path  # Reconstruct tomograms job directory (bin 2.5)
 
 
 def _write_star(path: Path, name: str, columns: dict[str, list], loop: bool = True):
@@ -307,6 +308,22 @@ def relion_tilt_series_jobs(tmp_path_factory: pytest.TempPathFactory):
     _write_star(tomo_dir / "tomograms.star", "global", tomo_columns)
     _write_job_star(tomo_dir, "relion.reconstructtomograms")
 
+    # Reconstruct tomograms job of a non-integer binning (bin 2.5)
+    tomo25_dir = rln_dir / "Tomograms" / "job008"
+    tomo25_path = tomo25_dir / "tomograms" / "rec_TS_01.mrc"
+    tomo25_path.parent.mkdir(parents=True)
+    with mrcfile.new(tomo25_path) as f:
+        f.set_data(
+            loader.binning(1.25).reconstruct_tomogram((14, 82, 37), dtype=np.float32)
+        )
+        f.voxel_size = TS_SCALE * 2.5 * 10
+    tomo25_columns = tomo_columns | {
+        "rlnTomoTomogramBinning": [2.5],
+        "rlnTomoReconstructedTomogram": ["Tomograms/job008/tomograms/rec_TS_01.mrc"],
+    }
+    _write_star(tomo25_dir / "tomograms.star", "global", tomo25_columns)
+    _write_job_star(tomo25_dir, "relion.reconstructtomograms")
+
     # Pick job
     pick_dir = rln_dir / "Picks" / "job007"
     particles_zyx = np.array([[0.0, 0.0, 0.0], [52.0, -310.0, 105.0]])
@@ -332,7 +349,7 @@ def relion_tilt_series_jobs(tmp_path_factory: pytest.TempPathFactory):
     )
     _write_job_star(pick_dir, "relion.picktomo")
     return RelionTiltSeriesJobs(
-        align_dir, tomo_dir, pick_dir, ts_star, tomo_path, particles_zyx
+        align_dir, tomo_dir, pick_dir, ts_star, tomo_path, particles_zyx, tomo25_dir
     )
 
 
@@ -359,8 +376,8 @@ def test_open_relion_job_from_tilt_series(
         ui,
         jobs.align / "job.star",
         project_root=tmp_path / "align",
-        reference_bin_size=2,
-        tomo_height=20,
+        reference_scale=TS_SCALE * 2,
+        tomo_height=42.0,  # nm, 20 slices of 2.104 nm
     )
     assert len(ui.batch.constructor.projects) == 1
     # scale of the batch analyzer is the pixel size of the tilt series
@@ -392,7 +409,7 @@ def test_open_relion_job_from_tilt_series(
         project_root=tmp_path / "tomo",
         use_tilt_series=True,
         bin_size=[1, 2],
-        reference_bin_size=None,
+        reference_scale=None,
     )
     prj = _batch_project(ui)
     ts_info = prj.tilt_series
@@ -413,18 +430,47 @@ def test_open_relion_job_from_tilt_series(
     region = tomo.get_multiscale_or_original(2)[sl].compute()
     assert _corr(region, -np.asarray(tomo.tilt_series.reference)[sl]) > 0.8
 
+    # RELION tomograms of a non-integer binning are also the coarse tomograms
+    relion.open_relion_job(
+        ui,
+        jobs.tomo_bin25 / "job.star",
+        project_root=tmp_path / "tomo-bin2.5",
+        use_tilt_series=True,
+        reference_scale=None,
+    )
+    ts_info = _batch_project(ui).tilt_series
+    assert Path(ts_info.reference).parent.parent == jobs.tomo_bin25
+    assert ts_info.reference_binsize == 2.5
+    assert ts_info.reference_shape == (14, 82, 37)
+    ui.batch.constructor.projects[0].send_to_viewer()
+    tomo = ui.tomogram
+    assert tomo.tilt_series.reference_binsize == 2.5
+    assert tomo.tilt_series.reference.scale.x == pytest.approx(TS_SCALE * 2.5)
+    assert tomo.shape == (35, 205, 92)
+
     # coarse tomograms of a different bin size are reconstructed
     relion.open_relion_job(
         ui,
         jobs.tomo / "job.star",
         project_root=tmp_path / "tomo-bin3",
         use_tilt_series=True,
-        reference_bin_size=3,
+        reference_scale=TS_SCALE * 3,
     )
     ts_info = _batch_project(ui).tilt_series
     assert ts_info.reference is None
     assert ts_info.reference_binsize == 3
     assert ts_info.reference_shape == (12, 68, 31)
+    relion.open_relion_job(
+        ui,
+        jobs.tomo / "job.star",
+        project_root=tmp_path / "tomo-bin2.5-rec",
+        use_tilt_series=True,
+        reference_scale=TS_SCALE * 2.5,
+    )
+    ts_info = _batch_project(ui).tilt_series
+    assert ts_info.reference is None
+    assert ts_info.reference_binsize == 2.5
+    assert ts_info.reference_shape == (14, 82, 37)
 
     # tomograms are still available
     relion.open_relion_job(ui, jobs.tomo / "job.star", project_root=tmp_path / "rec")
@@ -476,6 +522,6 @@ def test_open_relion_job_from_tilt_series(
 
     # preview
     _preview_open_relion_job(
-        ui, jobs.align / "job.star", reference_bin_size=2, tomo_height=20
+        ui, jobs.align / "job.star", reference_scale=TS_SCALE * 2, tomo_height=42.0
     )
     _preview_open_relion_job(ui, jobs.tomo / "job.star", use_tilt_series=True)

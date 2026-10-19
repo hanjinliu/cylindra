@@ -191,12 +191,15 @@ def test_from_tilt_series_reference(tilt_series_files: TiltSeriesFiles):
     assert tomo.available_binsizes() == [1, 3]
     assert tomo.tilt_series.reference is not ref
 
+    # the bin size of the reference can be non-integer
     ref_wrong_scale = ref.set_scale(zyx=SCALE * 2.5)
-    with pytest.raises(ValueError):
-        CylTomogram.from_tilt_series(tilt_series_files.json, ref_wrong_scale)
+    tomo = CylTomogram.from_tilt_series(tilt_series_files.json, ref_wrong_scale)
+    assert tomo.tilt_series.reference_binsize == 2.5
+    assert tomo.shape == (45, 258, 118)  # (18, 103, 47) * 2.5, rounded
     tomo = CylTomogram.from_tilt_series(
         tilt_series_files.json, ref_wrong_scale, reference_binsize=2
     )
+    assert tomo.tilt_series.reference_binsize == 2
     assert tomo.tilt_series.reference.scale.x == pytest.approx(SCALE * 2)
     assert ref_wrong_scale.scale.x == pytest.approx(SCALE * 2.5)  # not updated
 
@@ -211,25 +214,28 @@ def test_relative_reference_path(
     assert tomo.metadata["reference"] == tilt_series_files.reference.resolve()
 
 
-@pytest.mark.parametrize("binsize", [2, 3])
+@pytest.mark.parametrize("binsize", [2, 3, 2.5])
 @pytest.mark.parametrize("tomo_hand", [1, -1])
 def test_reference_aligned_with_tilt_series(
-    tilt_series_files: TiltSeriesFiles, binsize: int, tomo_hand: int
+    tilt_series_files: TiltSeriesFiles, binsize: float, tomo_hand: int
 ):
     from acryo import BackProjectionLoader
 
-    from cylindra.components.tomogram._tilt_series import read_tilt_series
+    from cylindra.components.tomogram import _tilt_series as _ts
 
     # reference created as in `prep_reference_tomogram`
-    ts = read_tilt_series(tilt_series_files.json)
+    ts = _ts.read_tilt_series(tilt_series_files.json)
     loader = BackProjectionLoader(ts, tomo_hand=tomo_hand)
-    ref = loader.binning(binsize).reconstruct_tomogram((36 // binsize, -1, -1))
+    shape = _ts.coarse_tomogram_shape(ts, binsize, height=36 * SCALE)
+    ref = loader.binning(binsize).reconstruct_tomogram(shape)
     ref = ip.asarray(ref, axes="zyx").set_scale(zyx=SCALE * binsize, unit="nm")
     tomo = CylTomogram.from_tilt_series(
         tilt_series_files.json, ref, tomo_hand=tomo_hand
     )
     src = tomo.tilt_series
-    assert src.reconstruct(binsize).shape == ref.shape
+    assert src.reference_binsize == binsize
+    if binsize == int(binsize):  # images for analysis are of integer bin sizes
+        assert src.reconstruct(binsize).shape == ref.shape
     # Voxel `i` of the reference is at the bin-1 voxel `i * binsize` of the tomogram
     # (while that of the binned images is at `i * binsize + (binsize - 1) / 2`). The
     # subtomogram of an odd size at the tomogram center must be at the same position
@@ -646,9 +652,9 @@ def test_open_tilt_series_dialog(
     ui.open_tilt_series(
         json_path,
         scale=SCALE,
-        reference_bin_size=2,
+        reference_scale=2.104,  # bin 2
         tomo_hand=TOMO_HAND,
-        tomo_height=18,
+        tomo_height=38.0,  # nm, 18 slices of 2.104 nm
         bin_size=[1],
         filter=None,
         save_coarse_tomogram=True,
@@ -656,7 +662,7 @@ def test_open_tilt_series_dialog(
     assert str(ui.macro[-1]).startswith("ui.open_tilt_series(")
     src = ui.tomogram.tilt_series
     assert src.reference_binsize == 2
-    assert src.reference.shape[0] == 18
+    assert src.reference.shape == (18, 103, 52)  # tilt images are (206, 104)
     ref_path = tmp_path / "ts_rec_bin2.mrc"
     assert ref_path.exists()
     assert not src.has_unsaved_reference
@@ -668,25 +674,66 @@ def test_open_tilt_series_dialog(
     assert not dialog.create_reference
     assert Path(dialog.reference_path) == ref_path
     assert dialog.tomo_hand == TOMO_HAND
-    assert dialog.tomo_height == 18
-    assert dialog.reference_bin_size == 2
+    assert dialog.tomo_height == pytest.approx(38.0)
+    assert dialog.reference_scale == pytest.approx(2.104)
     assert float(dialog.scale.scale_value) == pytest.approx(SCALE, abs=1e-4)
 
-    # the coarse tomogram is not saved
+    # the pixel size of the coarse tomogram must not be smaller than the tilt series
+    from cylindra.components.tomogram import _tilt_series as _ts
+
+    with pytest.raises(ValueError):
+        _ts.prep_reference_tomogram(json_path, SCALE, 0.5, TOMO_HAND, 38.0)
+
+    # the coarse tomogram of a non-integer bin size, which is not saved
     ui.open_tilt_series(
         json_path,
         scale=SCALE,
-        reference_bin_size=3,
+        reference_scale=2.63,  # bin 2.5
         tomo_hand=TOMO_HAND,
-        tomo_height=12,
+        tomo_height=38.0,  # nm, 14 slices of 2.63 nm
         bin_size=[1],
         filter=None,
         save_coarse_tomogram=False,
     )
     src = ui.tomogram.tilt_series
-    assert src.reference_binsize == 3
+    assert src.reference_binsize == 2.5
+    assert src.reference.shape == (14, 82, 41)
+    assert src.reference.scale.x == pytest.approx(SCALE * 2.5)
+    assert ui.tomogram.shape == (35, 205, 102)
+    assert ui._current_binsize == 2.5
+    assert [b for _, b in ui._get_displayable_binsize()] == [2.5]
+    np.testing.assert_allclose(
+        ui._reserved_layers.image.translate,
+        [ui.tomogram.multiscale_translation(2.5)] * 3,
+    )
     assert src.has_unsaved_reference
-    assert not (tmp_path / "ts_rec_bin3.mrc").exists()
+    assert not (tmp_path / "ts_rec_bin2.5.mrc").exists()
+
+    # the bin size is in the file name of the saved coarse tomogram
+    ui.open_tilt_series(
+        json_path,
+        scale=SCALE,
+        reference_scale=2.63,
+        tomo_hand=TOMO_HAND,
+        tomo_height=38.0,
+        bin_size=[1],
+        filter=None,
+        save_coarse_tomogram=True,
+    )
+    ref_path = tmp_path / "ts_rec_bin2.5.mrc"
+    assert ref_path.exists()
+    dialog.scan_header_or_defaults()
+    assert dialog.reference_scale == pytest.approx(2.63)
+    ui.open_tilt_series_with_reference(
+        json_path,
+        scale=SCALE,
+        reference_path=ref_path,
+        tomo_hand=TOMO_HAND,
+        bin_size=[1],
+        filter=None,
+    )
+    # inferred from the pixel size in the header
+    assert ui.tomogram.tilt_series.reference_binsize == 2.5
 
     # size of the tilt series is unknown if the images are missing
     ts = TiltSeries.from_json(json_path.read_text())
@@ -728,6 +775,23 @@ def test_tilt_series_source_errors(tilt_series_files: TiltSeriesFiles, tmp_path:
     other_bin.set_scale(zyx=SCALE * 3, unit="nm")
     with pytest.raises(ValueError):
         src.set_reference(other_bin)
+    # bin sizes are integers if close to integers
+    assert _ts.normalize_binsize(2.0004) == 2
+    assert isinstance(_ts.normalize_binsize(2.0004), int)
+    assert _ts.normalize_binsize(2.50000003) == 2.5
+    assert _ts.infer_reference_binsize(SCALE * 12.048192771, SCALE) == 12.0482
+    assert _ts.normalize_binsize(0.9995) == 1
+    for binsize in [0, -1.5, 0.5, float("nan"), float("inf")]:
+        with pytest.raises(ValueError):
+            _ts.normalize_binsize(binsize)
+    with pytest.raises(ValueError):  # such as the default scale of 1.0 nm
+        _ts.infer_reference_binsize(1.0, SCALE)
+    with pytest.raises(ValueError):
+        _ts.coarse_tomogram_shape(src.tilt_series, 2, height=0.0)
+    with pytest.raises(ValueError):
+        _ts.coarse_tomogram_shape(src.tilt_series.replace(scale=None), 2, 30.0)
+    with pytest.raises(ValueError):
+        _ts.tilt_image_shape(src.tilt_series.replace(image_path=None))
     with pytest.raises(ValueError):
         _ts.reconstruct_coarse_tomogram(src.tilt_series, 2, None, TOMO_HAND)
     with pytest.raises(ValueError):
