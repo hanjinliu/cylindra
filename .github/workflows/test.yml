@@ -44,6 +44,12 @@ jobs:
       - name: Install dependencies
         run: python -m pip install .[testing]
 
+      # The tilt-series features need unreleased acryo (CTF correction of the RELION
+      # tilt series, extract_subtomograms of BackProjectionLoader). Remove this step
+      # and bump the acryo version in pyproject.toml after the next acryo release.
+      - name: Install acryo from main
+        run: python -m pip install --force-reinstall --no-deps "acryo @ git+https://github.com/hanjinliu/acryo.git@main"
+
       - name: Build Rust extension
         run: maturin develop --release
 
