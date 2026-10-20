@@ -400,15 +400,15 @@ def open_relion_job(
     ] = None,
     join_molecules_by_id: Annotated[bool, {"text": "Join RELION particles to the current batch project"}] = False,
     use_tilt_series: Annotated[bool, {"label": "Create projects from tilt series"}] = False,
-    reference_bin_size: Annotated[
-        Optional[int],
+    reference_scale: Annotated[
+        Optional[nm],
         {
-            "label": "Coarse tomogram bin size",
+            "label": "Coarse tomogram pixel size (nm)",
             "text": "Use RELION tomograms",
-            "options": {"min": 1, "max": 64, "value": 6},
+            "options": {"min": 0.01, "max": 100.0, "step": 0.001, "value": 2.0},
         },
-    ] = 12,
-    tomo_height: Annotated[int, {"label": "Coarse tomogram height (pixels)", "min": 1, "max": 10000}] = 200,
+    ] = 2.0,
+    tomo_height: Annotated[nm, {"label": "Coarse tomogram height (nm)", "min": 1.0, "max": 10000.0}] = 300.0,
     path_sets: Annotated[Any, {"bind": _get_loader_paths}] = None,
 ):  # fmt: skip
     """Open a RELION tomogram reconstruction/refinement job as a cylindra batch project.
@@ -445,16 +445,17 @@ def open_relion_job(
         Subtomograms are reconstructed directly from the tilt series, and the image
         regions needed for analysis are reconstructed on demand. Always True for tilt
         series alignment jobs, which have no tomograms.
-    reference_bin_size : int, default 12
-        Bin size of the coarse tomograms for visualization, if the projects are
-        created from the tilt series. The coarse tomogram is reconstructed from the tilt
-        series when the project is opened, and saved when the project is saved. If
-        None, the RELION tomograms are used as the coarse tomograms if their binning
-        is an integer. Otherwise, the coarse tomograms are reconstructed with
-        the nearest integer binning, or bin size 6 for jobs without tomograms.
-    tomo_height : int, default 200
-        Height (number of z slices) of the coarse tomograms reconstructed from the tilt
-        series, used only for jobs without the tomogram size (such as tilt series
+    reference_scale : nm, default 2.0
+        Pixel size of the coarse tomograms for visualization in nm, if the projects are
+        created from the tilt series. It does not need to be an integer multiple of the
+        pixel size of the tilt series. The coarse tomogram is reconstructed from the
+        tilt series when the project is opened, and saved when the project is saved. If
+        None, the RELION tomograms are used as the coarse tomograms. If the RELION
+        tomograms are not available, the coarse tomograms are reconstructed with the
+        pixel size of the RELION tomograms, or 2.0 nm for jobs without tomograms.
+    tomo_height : nm, default 300.0
+        Height (thickness along z) of the coarse tomograms reconstructed from the tilt
+        series in nm, used only for jobs without the tomogram size (such as tilt series
         alignment jobs).
     """
     job = _parse_relion_job(path, project_root)
@@ -462,7 +463,7 @@ def open_relion_job(
     if use_tilt_series:
         projects = [
             _new_tilt_series_project(
-                tomo, scale_override, bin_size, invert, reference_bin_size, tomo_height
+                tomo, scale_override, bin_size, invert, reference_scale, tomo_height
             )
             for tomo in job.tomograms
         ]
@@ -532,8 +533,8 @@ def _preview_open_relion_job(
     bin_size: list[int] = [1],
     scale_override: float | None = None,
     use_tilt_series: bool = False,
-    reference_bin_size: int | None = 12,
-    tomo_height: int = 200,
+    reference_scale: nm | None = 2.0,
+    tomo_height: nm = 300.0,
 ):
     job = _parse_relion_job(path, project_root)
     use_tilt_series = use_tilt_series or not job.has_tomograms
@@ -543,7 +544,7 @@ def _preview_open_relion_job(
         _indent = " " * len(_num)
         if use_tilt_series:
             prj = _new_tilt_series_project(
-                tomo, scale_override, bin_size, invert, reference_bin_size, tomo_height
+                tomo, scale_override, bin_size, invert, reference_scale, tomo_height
             )
             ts_info = prj.tilt_series
             scale = prj.scale
@@ -580,9 +581,9 @@ def _preview_open_relion_job(
     ACTIVE_WIDGETS.add(widget)
 
 
-# Bin size of the coarse tomograms for the jobs without tomograms, same as the default
-# of `open_tilt_series`.
-_DEFAULT_REFERENCE_BIN_SIZE = 6
+# Pixel size (nm) of the coarse tomograms for the jobs without tomograms, same as the
+# default of `open_tilt_series`.
+_DEFAULT_REFERENCE_SCALE = 2.0
 
 
 def _new_tilt_series_project(
@@ -590,8 +591,8 @@ def _new_tilt_series_project(
     scale_override: nm | None,
     bin_size: list[int],
     invert: bool,
-    reference_bin_size: int | None,
-    tomo_height: int,
+    reference_scale: nm | None,
+    tomo_height: nm,
 ) -> "CylindraProject":
     """Create a new project of the tilt series of a RELION tomogram."""
     from cylindra._io import lazy_imread
@@ -605,29 +606,31 @@ def _new_tilt_series_project(
             f"tomograms must have the {TILT_STAR!r} column."
         )
     scale = scale_override if scale_override is not None else tomo.pixel_size
-    ref_binsize = tomo.integer_binning() if reference_bin_size is None else None
     if (
-        ref_binsize is not None
+        reference_scale is None
+        and tomo.binning is not None
         and tomo.tomo_path is not None
         and tomo.tomo_path.exists()
     ):
         # The RELION tomogram is used as the coarse tomogram. RELION reconstructs the
         # tomogram from the tilt series in the same way as `TiltSeriesSource`.
+        ref_binsize = _ts.normalize_binsize(tomo.binning)
         reference = tomo.tomo_path
         ref_shape = tuple(lazy_imread(reference).shape)
         invert_reference = invert
     else:
-        if reference_bin_size is not None:
-            ref_binsize = reference_bin_size
+        if reference_scale is not None:
+            ref_binsize = _ts.infer_reference_binsize(reference_scale, scale)
         elif tomo.binning is not None:
-            ref_binsize = max(round(tomo.binning), 1)
+            ref_binsize = _ts.normalize_binsize(tomo.binning)
         else:
-            ref_binsize = _DEFAULT_REFERENCE_BIN_SIZE
+            ref_scale = max(_DEFAULT_REFERENCE_SCALE, scale)
+            ref_binsize = _ts.infer_reference_binsize(ref_scale, scale)
         if tomo.size is not None:
-            ref_shape = tuple(max(s // ref_binsize, 1) for s in tomo.size)
+            ref_shape = tuple(max(int(s // ref_binsize), 1) for s in tomo.size)
         else:
-            ny, nx = _tilt_image_shape(tomo.tilt_series_path, scale)
-            ref_shape = (tomo_height, ny // ref_binsize, nx // ref_binsize)
+            ts = _ts.read_tilt_series(tomo.tilt_series_path, scale)
+            ref_shape = _ts.coarse_tomogram_shape(ts, ref_binsize, tomo_height)
         # reconstructed when the project is opened (light background)
         reference = None
         invert_reference = True
@@ -652,19 +655,6 @@ def _new_tilt_series_project(
         invert_reference=invert_reference,
         tilt_series=ts_info,
     )
-
-
-def _tilt_image_shape(ts_path: Path, scale: nm) -> tuple[int, int]:
-    """Shape (y, x) of the tilt images of a tilt series."""
-    from acryo.projection._io import MrcImageStack
-
-    from cylindra.components.tomogram import _tilt_series as _ts
-
-    image_path = _ts.read_tilt_series(ts_path, scale).image_path
-    if isinstance(image_path, tuple):
-        image_path = image_path[0]
-    _, ny, nx = MrcImageStack(image_path).shape
-    return ny, nx
 
 
 @dataclass
@@ -866,15 +856,6 @@ class RelionTomogram:
                 "from the tilt series instead."
             )
         return self.tomo_path
-
-    def integer_binning(self, tol: float = 1e-3) -> int | None:
-        """The binning as an integer, or None if it is not an integer."""
-        if self.binning is None:
-            return None
-        binning = round(self.binning)
-        if binning < 1 or abs(self.binning / binning - 1) > tol:
-            return None
-        return binning
 
 
 class TomogramStar:

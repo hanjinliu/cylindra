@@ -248,14 +248,14 @@ class TiltSeriesLoader(MagicTemplate):
         Path to the file that describes the tilt series.
     create_reference : bool
         Whether to create a coarse tomogram from the tilt series.
-    reference_bin_size : int
-        Bin size of the coarse tomogram for visualization.
+    reference_scale : float
+        Pixel size of the coarse tomogram for visualization in nm.
     reference_path : Path
         Path to the coarse tomogram reconstructed from the tilt series, if available.
     tomo_hand : int
         Handedness of the tomogram.
-    tomo_height : int
-        Height of the tomogram in pixels for coarse tomogram reconstruction (binned).
+    tomo_height : float
+        Height of the tomogram in nm for coarse tomogram reconstruction.
     save_reference : bool
         Whether to save the coarse tomogram after creation.
     bin_size : list of int
@@ -275,12 +275,12 @@ class TiltSeriesLoader(MagicTemplate):
         """Create reference image now."""
 
         create_reference = abstractapi()
-        reference_bin_size = abstractapi()
+        reference_scale = abstractapi()
 
     create_reference = vfield(True, label="Create coarse tomogram", location=create_ref)
-    reference_bin_size = vfield(
-        6, label="... with bin size", location=create_ref
-    ).with_options(min=2, max=32)
+    reference_scale = vfield(
+        1.5, label="... with pixel size (nm)", location=create_ref
+    ).with_options(min=0.01, max=100.0, step=0.001)
     reference_path = vfield(Path).with_options(filter=FileFilter.IMAGE)
 
     @magicclass(layout="horizontal", labels=False)
@@ -300,11 +300,14 @@ class TiltSeriesLoader(MagicTemplate):
     tomo_hand = vfield(
         int, label="Tomogram handedness", widget_type=ToggleButtons
     ).with_choices([-1, 1])
-    tomo_height = vfield(200, label="Tomogram height (pixels)")
+    tomo_height = vfield(300.0, label="Tomogram height (nm)").with_options(
+        min=1.0, max=10000.0, step=10.0
+    )
+    ctf = vfield(True, label="Perform patch CTF correction")
     save_reference = vfield(True, label="Save coarse tomogram")
     bin_size = vfield([2, 4]).with_options(options={"min": 1, "max": 32})
     filter = vfield(ImageFilter | None, widget_type=ToggleButtons).with_options(
-        value=ImageFilter.Lowpass
+        value=None
     )
 
     invert_reference = vfield(True, label="Invert reference intensity")
@@ -314,7 +317,7 @@ class TiltSeriesLoader(MagicTemplate):
     def _on_create_reference_change(self, create_ref: bool):
         """Show or hide the reference path field based on the create_reference value."""
         self["reference_path"].visible = not create_ref
-        self["reference_bin_size"].visible = create_ref
+        self["reference_scale"].visible = create_ref
         self["tomo_height"].visible = create_ref
         self["invert_reference"].visible = not create_ref
         self["open_tilt_series"].visible = create_ref
@@ -337,10 +340,8 @@ class TiltSeriesLoader(MagicTemplate):
                 self.tomo_height = _tomo_height
             if (_scale := default_setting.scale) is not None:
                 self.scale.scale_value = f"{_scale:.4f}"
-            if (
-                _bin_size := default_setting.tilt_series.reference_bin_size
-            ) is not None:
-                self.reference_bin_size = _bin_size
+            if (_ref_scale := default_setting.tilt_series.reference_scale) is not None:
+                self.reference_scale = _ref_scale
             if (_filter := default_setting.filter) is not None:
                 self.filter = _filter
             if _img_ref := default_setting.resolve_reference_path(path):

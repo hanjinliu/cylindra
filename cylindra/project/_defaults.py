@@ -16,8 +16,10 @@ TOMOGRAM_DEFAULTS_PATH_NAME = ".cylindra-defaults.toml"
 
 class TiltSeriesDefaults(BaseModel):
     tomo_hand: Literal[-1, 1] | None = None
-    tomo_height: int | None = None
-    reference_bin_size: int | None = None
+    tomo_height: float | None = None
+    """Height of the coarse tomogram in nm."""
+    reference_scale: float | None = None
+    """Pixel size of the coarse tomogram in nm."""
 
 
 class TomogramDefaults(BaseModel):

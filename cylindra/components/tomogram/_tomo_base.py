@@ -407,10 +407,11 @@ class Tomogram:
         reference: ip.ImgArray,
         scale: float | None = None,
         *,
-        reference_binsize: int | None = None,
+        reference_binsize: float | None = None,
         tomo_hand: Literal[-1, 1] = -1,
         binsize: int | Iterable[int] = (1,),
         tomogram_center: tuple[nm, nm, nm] | None = None,
+        ctf: bool = True,
     ) -> Self:
         """Construct a Tomogram object from a tilt series and its coarse tomogram.
 
@@ -438,9 +439,9 @@ class Tomogram:
             Pixel size of the tilt images in nm, which is the scale of the tomogram. If
             not given, the pixel size of the tilt series file is used. Required for
             IMOD tilt series.
-        reference_binsize : int, optional
-            Bin size of the reference tomogram relative to the tilt images. Inferred
-            from the pixel sizes by default.
+        reference_binsize : float, optional
+            Bin size of the reference tomogram relative to the tilt images, which can be
+            non-integer. Inferred from the pixel sizes by default.
         tomo_hand : Literal[-1, 1], default -1
             Handedness of the tomogram.
         binsize : int or iterable of int, default (1,)
@@ -448,6 +449,8 @@ class Tomogram:
         tomogram_center : (float, float, float), optional
             Position of the origin of the tomogram space of the tilt series in nm. By
             default, it is determined from the shape of the reference tomogram.
+        ctf : bool, default True
+            Whether to perform CTF correction.
 
         Returns
         -------
@@ -463,7 +466,7 @@ class Tomogram:
             ts = tilt_series
         else:
             ts_path = Path(tilt_series).resolve()
-            ts = _ts.read_tilt_series(ts_path, scale)
+            ts = _ts.read_tilt_series(ts_path, scale, ctf=ctf)
         if ts.scale is None:
             raise ValueError("Pixel size of the tilt series is not set.")
         scale = ts.scale
@@ -477,6 +480,8 @@ class Tomogram:
             raise ValueError(f"Reference tomogram must be 3-D, got {img_ref.ndim}-D.")
         if reference_binsize is None:
             reference_binsize = _ts.infer_reference_binsize(img_ref.scale.x, scale)
+        else:
+            reference_binsize = _ts.normalize_binsize(reference_binsize)
         img_ref = img_ref.astype(np.float32)  # copy, as scale will be updated
         img_ref.set_scale(zyx=scale * reference_binsize, unit="nm")
         if tomogram_center is None:
@@ -484,13 +489,14 @@ class Tomogram:
                 img_ref.shape, reference_binsize, scale
             )
         loader = _ts.make_loader(ts, tomogram_center, tomo_hand)
-        shape = tuple(s * reference_binsize for s in img_ref.shape)
+        shape = tuple(round(s * reference_binsize) for s in img_ref.shape)
         if isinstance(binsize, int):
             binsize = [binsize]
         source = _ts.TiltSeriesSource(
             loader,
             shape,
             reference=img_ref,
+            reference_binsize=reference_binsize,
             binsizes=binsize,
             name=ts_path.stem if ts_path is not None else img_ref.name,
         )

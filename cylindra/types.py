@@ -68,8 +68,10 @@ def get_available_binsize(gui: "CategoricalWidget") -> list[tuple[str, int]]:
             return binsize_choices(tomo.scale, tomo.available_binsizes())
 
 
-def binsize_choices(scale: float, binsizes: "Iterable[int]") -> list[tuple[str, int]]:
-    """Choices of bin sizes labeled with the pixel sizes."""
+def binsize_choices(
+    scale: float, binsizes: "Iterable[float]"
+) -> list[tuple[str, float]]:
+    """Choices of bin sizes (can be non-integer) labeled with the pixel sizes."""
     return [
         (f"{b} pixel{'s' if b > 1 else ''} ({scale * b:.2f} nm/pixel)", b)
         for b in sorted(binsizes)

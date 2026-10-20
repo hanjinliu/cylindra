@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import threading
 import uuid
 from collections import OrderedDict
@@ -42,6 +43,9 @@ class TiltSeriesSource:
     reference : ImgArray, optional
         Coarse tomogram reconstructed from the tilt series. It is only for
         visualization, and is never used for analysis.
+    reference_binsize : float, optional
+        Bin size of the coarse tomogram relative to the tilt images, which can be
+        non-integer. Inferred from the pixel sizes by default.
     binsizes : iterable of int, default (1,)
         Bin sizes of the tomogram available for analysis.
     name : str, optional
@@ -61,6 +65,7 @@ class TiltSeriesSource:
         shape: tuple[int, int, int],
         *,
         reference: ip.ImgArray | None = None,
+        reference_binsize: float | None = None,
         binsizes: Iterable[int] = (1,),
         name: str | None = None,
         chunk_size: int = 64,
@@ -77,6 +82,14 @@ class TiltSeriesSource:
         self._loader = loader
         self._shape = tuple(int(s) for s in shape)
         self._reference = reference
+        if reference is None:
+            self._reference_binsize = None
+        elif reference_binsize is None:
+            self._reference_binsize = infer_reference_binsize(
+                reference.scale.x, self.scale
+            )
+        else:
+            self._reference_binsize = normalize_binsize(reference_binsize)
         self._name = name
         self._chunk_size = chunk_size
         self._chunk_margin = chunk_margin
@@ -127,11 +140,9 @@ class TiltSeriesSource:
         return self._reference
 
     @property
-    def reference_binsize(self) -> int | None:
-        """Bin size of the coarse tomogram for visualization, if given."""
-        if self._reference is None:
-            return None
-        return round(self._reference.scale.x / self.scale)
+    def reference_binsize(self) -> int | float | None:
+        """Bin size of the coarse tomogram for visualization (can be non-integer)."""
+        return self._reference_binsize
 
     @property
     def binsizes(self) -> list[int]:
@@ -174,19 +185,20 @@ class TiltSeriesSource:
 
         The new reference must be of the same shape and bin size as the current one.
         """
+        binsize = infer_reference_binsize(reference.scale.x, self.scale)
         if self._reference is not None:
             if reference.shape != self._reference.shape:
                 raise ValueError(
                     f"Shape of the reference must be {self._reference.shape}, got "
                     f"{reference.shape}."
                 )
-            binsize = round(reference.scale.x / self.scale)
             if binsize != self.reference_binsize:
                 raise ValueError(
                     f"Bin size of the reference must be {self.reference_binsize}, got "
                     f"{binsize}."
                 )
         self._reference = reference
+        self._reference_binsize = binsize
         self._unsaved_reference = True
 
     def reconstruct_reference(
@@ -333,7 +345,11 @@ def make_loader(
     )
 
 
-def read_tilt_series(path: str | Path, scale: nm | None = None) -> TiltSeries:
+def read_tilt_series(
+    path: str | Path,
+    scale: nm | None = None,
+    ctf: bool = True,
+) -> TiltSeries:
     """Read a tilt series.
 
     Parameters
@@ -344,6 +360,8 @@ def read_tilt_series(path: str | Path, scale: nm | None = None) -> TiltSeries:
     scale : float, optional
         Pixel size of the tilt images in nm. If not given, the pixel size in the file
         is used. Required for IMOD, which does not store the pixel size.
+    ctf : bool, default True
+        Whether to perform CTF correction.
     """
     from acryo.projection import TiltSeries
 
@@ -358,10 +376,13 @@ def read_tilt_series(path: str | Path, scale: nm | None = None) -> TiltSeries:
         if scale is None:
             raise ValueError("Pixel size ('scale') is required for IMOD tilt series.")
         ts = TiltSeries.from_etomo_directory(
-            path.parent, scale=scale, local_alignment=True
+            path.parent,
+            scale=scale,
+            local_alignment=True,
+            ctf=ctf,
         )
     elif path.suffix == ".star":
-        ts = TiltSeries.from_relion_tilt_series_star(path, scale=scale)
+        ts = TiltSeries.from_relion_tilt_series_star(path, scale=scale, ctf=ctf)
     else:
         raise ValueError(f"Unsupported file type: {path.suffix}")
     if ts.scale is None:
@@ -393,9 +414,40 @@ def tilt_images_nbytes(tilt_series: TiltSeries) -> int | None:
     return sum(s.shape[1] * s.shape[2] * s.dtype.itemsize for s in stacks)
 
 
+def tilt_image_shape(tilt_series: TiltSeries) -> tuple[int, int]:
+    """(y, x) shape of the tilt images."""
+    from acryo.projection._io import MrcImageStack
+
+    paths = tilt_series.image_path
+    if paths is None:
+        raise ValueError("Tilt images of the tilt series are not set.")
+    if isinstance(paths, tuple):  # a file for each tilt
+        paths = paths[0]
+    _, ny, nx = MrcImageStack(paths).shape
+    return ny, nx
+
+
+def coarse_tomogram_shape(
+    tilt_series: TiltSeries, binsize: float, height: nm
+) -> tuple[int, int, int]:
+    """Shape of the coarse tomogram of the given bin size and height (nm).
+
+    The coarse tomogram covers the tilt images in the (y, x) plane.
+    """
+    if tilt_series.scale is None:
+        raise ValueError("Pixel size of the tilt series is not set.")
+    if height <= 0:
+        raise ValueError(f"Height of the tomogram must be positive, got {height}.")
+    ny, nx = tilt_image_shape(tilt_series)
+    nz = round(height / (tilt_series.scale * binsize))
+    if abs((90 - np.mean(tilt_series.tilt_axis_angle)) % 180 - 90) > 45:
+        ny, nx = nx, ny
+    return max(nz, 1), max(int(ny // binsize), 1), max(int(nx // binsize), 1)
+
+
 def reconstruct_coarse_tomogram(
     tilt_series: TiltSeries,
-    binsize: int,
+    binsize: float,
     shape: tuple[int, int, int] | None,
     tomo_hand: int,
 ) -> ip.ImgArray:
@@ -415,44 +467,69 @@ def reconstruct_coarse_tomogram(
 def prep_reference_tomogram(
     path: str | Path,
     scale: nm | None,
-    bin_size: int,
+    reference_scale: nm,
     tomo_hand: int,
-    height: int,
+    height: nm,
     save_coarse_tomogram: bool = True,
+    ctf: bool = True,
 ) -> ip.ImgArray:
+    """Reconstruct the coarse tomogram of the given pixel size and height (nm).
+
+    The pixel size of the coarse tomogram does not need to be an integer multiple of
+    that of the tilt series.
+    """
     from acryo import BackProjectionLoader
 
     path = Path(path)
-    loader = BackProjectionLoader(read_tilt_series(path, scale), tomo_hand=tomo_hand)
-    loader_binned = loader.binning(bin_size)
+    ts = read_tilt_series(path, scale, ctf=ctf)
+    bin_size = infer_reference_binsize(reference_scale, ts.scale)
+    loader = BackProjectionLoader(ts, tomo_hand=tomo_hand).binning(bin_size)
+    shape = coarse_tomogram_shape(ts, bin_size, height)
     if save_coarse_tomogram:
-        save_path = path.with_name(f"{path.stem}_rec_bin{bin_size}.mrc")
+        save_path = path.with_name(f"{path.stem}_rec_bin{bin_size:g}.mrc")
         if save_path.exists():
             save_path.unlink()
     else:
         save_path = None
-    recon = loader_binned.reconstruct_tomogram((height, -1, -1), save_path=save_path)
+    recon = loader.reconstruct_tomogram(shape, save_path=save_path)
     if save_coarse_tomogram:
-        return ip.imread(save_path)
-    return ip.asarray(recon, axes="zyx").set_scale(zyx=scale * bin_size, unit="nm")
+        img = ip.imread(save_path)
+    else:
+        img = ip.asarray(recon, axes="zyx")
+    # not limited by the precision of the pixel size in the MRC header
+    return img.set_scale(zyx=ts.scale * bin_size, unit="nm")
+
+
+def normalize_binsize(binsize: float, tolerance: float = 1e-3) -> int | float:
+    """Normalize a bin size, which can be non-integer.
+
+    The bin size is an integer if it is close to an integer within the relative
+    tolerance. Otherwise, it is rounded to 4 decimals to absorb the limited precision
+    of the pixel sizes in the image headers.
+    """
+    binsize = float(binsize)
+    if not math.isfinite(binsize) or binsize < 1 - tolerance:
+        raise ValueError(f"Bin size must be 1 or larger, got {binsize}.")
+    if abs(binsize / (rounded := round(binsize)) - 1) <= tolerance:
+        return rounded
+    return round(binsize, 4)
 
 
 def infer_reference_binsize(
-    reference_scale: nm, scale: nm, tolerance: float = 0.02
-) -> int:
-    """Infer the integer bin size of a reference tomogram from the pixel sizes."""
-    binsize = round(reference_scale / scale)
-    if binsize < 1 or abs(reference_scale / (binsize * scale) - 1) > tolerance:
+    reference_scale: nm, scale: nm, tolerance: float = 1e-3
+) -> int | float:
+    """Infer the bin size of a reference tomogram from the pixel sizes."""
+    if not reference_scale / scale >= 1 - tolerance:
         raise ValueError(
-            f"Pixel size of the reference tomogram ({reference_scale:.4f} nm) is not an "
-            f"integer multiple of the pixel size of the tilt series ({scale:.4f} nm). "
-            "Please specify the bin size of the reference tomogram explicitly."
+            f"Pixel size of the reference tomogram ({reference_scale:.4f} nm) is "
+            f"smaller than that of the tilt series ({scale:.4f} nm). Please check the "
+            "pixel sizes, or specify the bin size of the reference tomogram explicitly."
         )
-    return binsize
+    return normalize_binsize(reference_scale / scale, tolerance=tolerance)
 
 
 def default_tomogram_center(
-    reference_shape: Sequence[int], reference_binsize: int, scale: nm
+    reference_shape: Sequence[int], reference_binsize: float, scale: nm
 ) -> tuple[float, float, float]:
     """Origin of the tomogram space of a tilt series in the tomogram coordinates."""
     offset = 0
