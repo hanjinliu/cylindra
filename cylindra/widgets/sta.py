@@ -48,6 +48,7 @@ from cylindra.components.seam_search import (
     BooleanSeamSearcher,
     CorrelationSeamSearcher,
     ManualSeamSearcher,
+    TiltScoreSeamSearcher,
     prep_seam_search_input,
 )
 from cylindra.const import (
@@ -399,6 +400,7 @@ class STAnalysis(MagicTemplate):
     @magicmenu(name="Seam search")
     class SeamSearch(MagicTemplate):
         seam_search = abstractapi()
+        seam_search_on_tilt = abstractapi()
         seam_search_by_feature = abstractapi()
         seam_search_manually = abstractapi()
 
@@ -2447,6 +2449,106 @@ class SubtomogramAveraging(ChildWidget):
 
         return _seam_search_on_return
 
+    @set_design(text="Seam search on tilt series", location=STAnalysis.SeamSearch)
+    @dask_worker.with_progress(desc=_pdesc.fmt_layer("Seam search of {!r} on tilt series"))  # fmt: skip
+    def seam_search_on_tilt(
+        self,
+        layer: MoleculesLayerType,
+        template_path: Path.Read[FileFilter.IMAGE],
+        mask_params: Annotated[Any, {"bind": _get_mask_params}],
+        anti_template_path: Annotated[Path.Read[FileFilter.IMAGE] | None, {"label": "anti-template path"}] = None,
+        npf: Annotated[Optional[int], {"text": "use global properties"}] = None,
+        bin_size: BinSizeType = 1,
+        cutoff: _CutoffFreq = 0.25,
+        ctf: Annotated[bool, {"label": "apply CTF"}] = True,
+        n_bootstrap: Annotated[int, {"min": 0, "max": 100000, "step": 100, "label": "number of bootstrap samples"}] = 1000,
+    ):  # fmt: skip
+        """Search for the best seam position using the scores in the tilt images.
+
+        The template (and the anti-template) is projected to each tilt image at the
+        position and orientation of each molecule, and compared with the tilt images
+        by ZNCC. The score of each molecule is the mean over the tilts. The class
+        means of the scores are compared for all the seam positions, and the
+        probability of each seam position is estimated by bootstrapping the rings.
+        The tomogram must be opened from a tilt series.
+
+        Parameters
+        ----------
+        {layer}{template_path}{mask_params}
+        anti_template_path : Path, optional
+            The anti-template used for seam search. For instance, if the template is
+            beta-tubulin, the anti-template is alpha-tubulin.
+        npf : int, optional
+            Number of protofilaments. By default the global properties stored in the
+            corresponding spline will be used.
+        {bin_size}{cutoff}
+        ctf : bool, default True
+            If true, the CTF is applied to the projections of the templates, with the
+            defocus of each molecule in each tilt, considering its depth. The tilt
+            series must have the CTF parameters.
+        n_bootstrap : int, default 1000
+            Number of bootstrap samples used to estimate the probability of each seam
+            position. Set 0 to skip bootstrapping.
+        """
+        t0 = timer()
+        layer = assert_layer(layer, self.parent_viewer)
+        if (src := self._get_main().tomogram.tilt_series) is None:
+            raise ValueError("The tomogram is not opened from a tilt series.")
+        mole = layer.molecules
+        if npf is None:
+            npf = mole.features[Mole.pf].unique().len()
+        loader = src.get_loader(mole, binsize=bin_size)
+        template, mask = loader.normalize_input(
+            template=self.params._norm_template_param(template_path),
+            mask=self.params._get_mask(params=mask_params),
+        )
+        if anti_template_path is not None and str(anti_template_path) not in ("", "."):
+            anti_template, anti_mask = loader.normalize_input(
+                template=self.params._norm_template_param(anti_template_path),
+                mask=self.params._get_mask(params=mask_params),
+            )
+            # the same mask is used for both templates
+            if mask is not None and anti_mask is not None:
+                mask = np.maximum(mask, anti_mask)
+        else:
+            anti_template = None
+
+        seam_searcher = TiltScoreSeamSearcher(npf)
+        result = seam_searcher.search(
+            loader=loader,
+            template=template,
+            anti_template=anti_template,
+            mask=mask,
+            cutoff=cutoff,
+            ctf=ctf,
+            n_bootstrap=n_bootstrap,
+        )
+
+        t0.toc()
+
+        @thread_worker.callback
+        def _seam_search_on_return():
+            new_feat = result.as_series(mole.count())
+            layer.features = layer.molecules.features.with_columns(new_feat)
+            layer.metadata[SEAM_SEARCH_RESULT] = result
+
+            with _Logger.set_plt():
+                _Logger.print(f"layer = {layer.name!r}")
+                _Logger.print(f"template = {Path(template_path).as_posix()!r}")
+                if anti_template is not None:
+                    _Logger.print(
+                        f"anti_template = {Path(anti_template_path).as_posix()!r}"
+                    )
+                _Logger.print(f"seam position = {result.seam_pos}")
+                widget_utils.plot_seam_search_result(result.scores, npf)
+                if n_bootstrap > 0:
+                    _Logger.print(f"bootstrap probability = {result.confidence:.3f}")
+                    widget_utils.plot_seam_search_probabilities(
+                        result.probabilities, npf
+                    )
+
+        return _seam_search_on_return
+
     @set_design(text=capitalize, location=STAnalysis.SeamSearch)
     def seam_search_by_feature(
         self,
@@ -2502,7 +2604,7 @@ class SubtomogramAveraging(ChildWidget):
         return undo_callback(layer.feature_setter(feat, layer.colormap_info))
 
     @set_design(text=capitalize, location=Alignment)
-    @thread_worker.with_progress(desc="Refining the tilt series")
+    @dask_worker.with_progress(desc="Refining the tilt series")
     def refine_tilt_series(
         self,
         layers: MoleculesLayersType,
@@ -2511,6 +2613,7 @@ class SubtomogramAveraging(ChildWidget):
         rotation: Annotated[tuple[float, float], {"label": "rotation max/step (deg)"}] = (0, 0),
         grid_shape: Annotated[tuple[int, int], {"label": "grid shape (y, x)", "options": {"min": 1, "max": 20}}] = (1, 1),
         smoothness: Annotated[float, {"min": 0.0, "max": 100.0, "step": 0.001}] = 0.01,
+        ctf: Annotated[bool, {"label": "apply CTF"}] = True,
         bin_size: BinSizeType = 1,
         update_coarse_tomogram: bool = True,
     ):  # fmt: skip
@@ -2534,6 +2637,10 @@ class SubtomogramAveraging(ChildWidget):
         smoothness : float
             Weight of the smoothness prior of the local shifts. Larger value is more
             robust against noise and fewer molecules.
+        ctf : bool, default True
+            If true, the CTF is applied to the projections of the averages, with the
+            defocus of each molecule in each tilt, considering its depth. The tilt
+            series must have the CTF parameters.
         {bin_size}
         update_coarse_tomogram : bool, default True
             If true, the coarse tomogram for visualization is also reconstructed from
@@ -2562,6 +2669,7 @@ class SubtomogramAveraging(ChildWidget):
             grid_shape=grid_shape,
             smoothness=smoothness,
             rotation=rotation,
+            ctf=ctf,
         ).tilt_series
         if update_coarse_tomogram:
             new_ref = src.reconstruct_reference(new)

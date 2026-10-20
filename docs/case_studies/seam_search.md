@@ -35,6 +35,31 @@ distinguish them.
 Molecules labeled with `0` are the molecules that should be considered as the template,
 and `1` the anti-template.
 
+## Seam-search in the Tilt Series
+
+:material-arrow-right-thin-circle-outline: API: [`seam_search_on_tilt`][cylindra.widgets.sta.SubtomogramAveraging.seam_search_on_tilt]
+
+:material-arrow-right-thin-circle-outline: GUI: `STA widget > Analysis > Seam search > Seam search on tilt series`
+
+If the tomogram is opened from a tilt series, the molecules can be scored directly in the
+tilt images instead of the reconstructed subvolumes. The template (and the anti-template)
+is projected to each tilt image at the position and orientation of each molecule, and
+compared with the tilt image by ZNCC. The score of each molecule is the mean over the tilts,
+and the mean scores of the two groups of molecules are compared for all the seam locations.
+The probability of each seam location is estimated by bootstrapping the rings of molecules,
+and the score of each protofilament (even rings minus odd rings) is plotted, whose sign
+should flip at the seam.
+
+??? info "List of parameters"
+
+    1. "layer", the template, the mask, "anti-template path", "npf" and "cutoff" are the
+       same as [`seam_search`](#seam-search-based-on-cross-correlation).
+    2. "bin size" is the bin size of the projections.
+    3. If "apply CTF" is checked, the CTF is applied to the projections, with the defocus
+       of each molecule in each tilt. The tilt series must have the CTF parameters.
+    4. "number of bootstrap samples" is the number of bootstrap samples to estimate the
+       probability of each seam location. Set 0 to skip it.
+
 ## Manual Seam-search
 
 :material-arrow-right-thin-circle-outline: API: [`seam_search_manually`][cylindra.widgets.sta.SubtomogramAveraging.seam_search_manually]

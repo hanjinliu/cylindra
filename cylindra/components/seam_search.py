@@ -16,6 +16,8 @@ from numpy.typing import NDArray
 from cylindra.const import MoleculesHeader as Mole
 
 if TYPE_CHECKING:
+    from acryo import BackProjectionLoader
+
     from cylindra.components.tomogram import CylTomogram
 
 
@@ -105,6 +107,54 @@ class CorrelationSeamSearchResult(SeamSearchResult):
         return pl.DataFrame(d)
 
 
+@dataclass
+class MoleculeScoreSeamSearchResult(SeamSearchResult):
+    """Seam search result based on the score of each molecule.
+
+    Attributes
+    ----------
+    scores : (2 * npf,) array
+        Score of each seam position. ``scores[s + npf] == -scores[s]``.
+    probabilities : (2 * npf,) array
+        Fraction of the bootstrap samples in which each seam position had the best
+        score. Filled with NaN if bootstrapping was not performed.
+    molecule_scores : (N,) array
+        Score of each molecule. Larger value means that the molecule is more similar
+        to the template (than to the anti-template, if given).
+    ring, pf : (N,) arrays
+        Ring and protofilament indices of each molecule used for labeling.
+    tilt_scores : (N, T) array, optional
+        Score of each molecule in each tilt image, if the molecules are scored in
+        the tilt images. ``molecule_scores`` is the mean over the tilts.
+    """
+
+    scores: NDArray[np.floating]
+    probabilities: NDArray[np.floating]
+    molecule_scores: NDArray[np.floating]
+    ring: NDArray[np.int32]
+    pf: NDArray[np.int32]
+    tilt_scores: NDArray[np.floating] | None = None
+
+    @property
+    def confidence(self) -> float:
+        """Bootstrap probability of the best seam position."""
+        return float(self.probabilities[self.seam_pos])
+
+    def get_label(self, size: int) -> NDArray[np.uint8]:
+        if size != self.ring.size:
+            raise ValueError(
+                f"Seam search was performed on {self.ring.size} molecules, but labels "
+                f"for {size} molecules were requested."
+            )
+        parity = _seam_parity(self.ring, self.pf, self.seam_pos, self.npf)
+        return (~parity).astype(np.uint8)
+
+    def to_dataframe(self) -> pl.DataFrame:
+        return pl.DataFrame(
+            {"scores": self.scores, "probabilities": self.probabilities}
+        )
+
+
 class ManualSeamSearcher(SeamSearcher):
     def search(self, pos: int) -> SeamSearchResult:
         scores = np.zeros(self.npf * 2, dtype=np.float32)
@@ -168,6 +218,187 @@ class CorrelationSeamSearcher(SeamSearcher):
         return (img * mask).lowpass_filter(cutoff, dims="zyx")
 
 
+class TiltScoreSeamSearcher(SeamSearcher):
+    """Seam searcher based on the scores of each molecule in the tilt images.
+
+    The templates are projected to each tilt image at the position and orientation of
+    each molecule, and compared with the tilt images by ZNCC
+    (``acryo.BackProjectionLoader.score_on_tilt``). The score of each molecule is the
+    mean of the scores over the tilts. Because averaging is linear, comparing the
+    averages of the seam hypotheses is approximately the same as comparing the class
+    means of the scores of each molecule. This makes all the 2 * npf hypotheses cheap,
+    and allows the confidence of the result to be estimated by bootstrapping the
+    rings. Unlike the subtomograms, the tilt images have no missing wedge or
+    interpolation of the reconstruction.
+    """
+
+    def search(
+        self,
+        loader: BackProjectionLoader,
+        template: NDArray[np.float32],
+        anti_template: NDArray[np.float32] | None = None,
+        mask: NDArray[np.float32] | None = None,
+        cutoff: float | None = None,
+        ctf: bool = True,
+        n_bootstrap: int = 1000,
+        seed: int | None = 0,
+    ) -> MoleculeScoreSeamSearchResult:
+        """Search for the seam position.
+
+        Parameters
+        ----------
+        loader : BackProjectionLoader
+            Loader of the molecules from the tilt series. Molecules should have the
+            "nth" and "pf-id" features, otherwise they are assumed to be sorted by
+            (nth, pf-id).
+        template : 3D array
+            Template image in the pixel size of the loader.
+        anti_template : 3D array, optional
+            Anti-template image. If given, the score of each molecule is the
+            correlation with the template minus that with the anti-template.
+        mask : 3D array, optional
+            Mask image of the templates. It is projected in the same way as the
+            templates and applied to both the projections and the tilt images.
+        cutoff : float, optional
+            Cutoff frequency of the low-pass filter, in the same unit as the alignment.
+            None or 0 means no filter.
+        ctf : bool, default True
+            If true, the CTF is applied to the projections of the templates, with the
+            defocus of each molecule in each tilt.
+        n_bootstrap : int, default 1000
+            Number of bootstrap samples (resampling of rings) used to estimate the
+            probability of each seam position. Set 0 to skip bootstrapping.
+        seed : int, optional
+            Random seed for bootstrapping.
+        """
+        templates = [template]
+        if anti_template is not None:
+            if anti_template.shape != template.shape:
+                raise ValueError(
+                    f"The shape of anti-template ({anti_template.shape}) must be the "
+                    f"same as the shape of template ({template.shape})."
+                )
+            templates.append(anti_template)
+        # (n_templates, N, T) scores in each tilt image
+        scores = loader.score_on_tilt(
+            templates, mask=mask, cutoff=cutoff or None, ctf=ctf
+        )
+        if anti_template is None:
+            tilt_scores = scores[0]
+        else:
+            tilt_scores = scores[0] - scores[1]
+        mole_scores = tilt_scores.mean(axis=1, dtype=np.float64)
+        result = self._search_by_molecule_scores(
+            loader.molecules, mole_scores, n_bootstrap=n_bootstrap, seed=seed
+        )
+        result.tilt_scores = tilt_scores.astype(np.float32)
+        return result
+
+    def _search_by_molecule_scores(
+        self,
+        mole: Molecules,
+        mole_scores: NDArray[np.float64],
+        n_bootstrap: int = 1000,
+        seed: int | None = 0,
+    ) -> MoleculeScoreSeamSearchResult:
+        """Compare the class means of the molecule scores of all the seam positions."""
+        ring, pf = self._get_ring_and_pf(mole)
+        ring_ids, ring_idx = np.unique(ring, return_inverse=True)
+        nring = ring_ids.size
+        if nring < 2:
+            raise ValueError("At least two rings are needed for seam search.")
+
+        # labels[s, i] is True if the i-th molecule is in the template-like class
+        # under the seam position s.
+        seam_pos = np.arange(2 * self.npf)[:, np.newaxis]
+        labels = _seam_parity(ring, pf, seam_pos, self.npf)
+
+        # sum of the scores and the number of molecules of each class in each ring
+        ring_onehot = (ring_idx == np.arange(nring)[:, np.newaxis]).astype(np.float64)
+        sum_true = ring_onehot @ (labels * mole_scores).T
+        cnt_true = ring_onehot @ labels.T.astype(np.float64)
+        sum_false = (ring_onehot @ mole_scores)[:, np.newaxis] - sum_true
+        cnt_false = ring_onehot.sum(axis=1)[:, np.newaxis] - cnt_true
+        ring_sums = (sum_true, cnt_true, sum_false, cnt_false)
+        # The above is equivalent to the following loops. Each array has the shape
+        # (nring, 2 * npf), and [r, s] is the value of the r-th ring under the seam
+        # position s.
+        #
+        #   shape = (nring, 2 * self.npf)
+        #   sum_true, cnt_true = np.zeros(shape), np.zeros(shape)
+        #   sum_false, cnt_false = np.zeros(shape), np.zeros(shape)
+        #   for i in range(mole_scores.size):  # for each molecule
+        #       r = ring_idx[i]
+        #       for s in range(2 * self.npf):
+        #           if labels[s, i]:  # template-like
+        #               sum_true[r, s] += mole_scores[i]
+        #               cnt_true[r, s] += 1
+        #           else:
+        #               sum_false[r, s] += mole_scores[i]
+        #               cnt_false[r, s] += 1
+
+        scores = self._class_mean_difference(np.ones(nring), *ring_sums)
+        if np.isnan(scores).any():
+            raise ValueError("Molecules in both even and odd rings are needed.")
+
+        if n_bootstrap > 0:
+            rng = np.random.default_rng(seed)
+            pvals = np.full(nring, 1 / nring)
+            counts = rng.multinomial(nring, pvals, size=n_bootstrap)
+            boot_scores = self._class_mean_difference(counts, *ring_sums)
+            # a class can be empty if only even (or odd) rings are sampled
+            boot_scores[np.isnan(boot_scores)] = -np.inf
+            best = np.argmax(boot_scores, axis=1)
+            probs = np.bincount(best, minlength=2 * self.npf) / n_bootstrap
+        else:
+            probs = np.full(2 * self.npf, np.nan)
+
+        return MoleculeScoreSeamSearchResult(
+            scores=scores.astype(np.float32),
+            probabilities=probs.astype(np.float32),
+            molecule_scores=mole_scores.astype(np.float32),
+            ring=ring,
+            pf=pf,
+        )
+
+    def _get_ring_and_pf(
+        self, mole: Molecules
+    ) -> tuple[NDArray[np.int32], NDArray[np.int32]]:
+        feat = mole.features
+        if Mole.nth in feat.columns and Mole.pf in feat.columns:
+            ring = feat[Mole.nth].cast(pl.Int32).to_numpy()
+            pf = feat[Mole.pf].cast(pl.Int32).to_numpy()
+            ring = ring - ring.min()
+        else:
+            _id = np.arange(mole.count(), dtype=np.int32)
+            if _id.size % self.npf != 0:
+                raise ValueError(
+                    f"Number of molecules ({_id.size}) is not a multiple of npf "
+                    f"({self.npf})."
+                )
+            ring, pf = np.divmod(_id, self.npf)
+        if pf.min() < 0 or pf.max() >= self.npf:
+            raise ValueError(
+                f"Protofilament IDs must be in [0, {self.npf}), got "
+                f"[{pf.min()}, {pf.max()}]."
+            )
+        return ring, pf
+
+    @staticmethod
+    def _class_mean_difference(
+        weights: NDArray[np.number],
+        sum_true: NDArray[np.float64],
+        cnt_true: NDArray[np.float64],
+        sum_false: NDArray[np.float64],
+        cnt_false: NDArray[np.float64],
+    ) -> NDArray[np.float64]:
+        """Difference of the class means with the given weights of rings."""
+        with np.errstate(divide="ignore", invalid="ignore"):
+            mean_true = (weights @ sum_true) / (weights @ cnt_true)
+            mean_false = (weights @ sum_false) / (weights @ cnt_false)
+        return mean_true - mean_false
+
+
 class BooleanSeamSearcher(SeamSearcher):
     def search(self, label: np.ndarray) -> SeamSearchResult:
         label = np.asarray(label)
@@ -191,6 +422,20 @@ class BooleanSeamSearcher(SeamSearcher):
     @staticmethod
     def _binarize(x: NDArray[np.bool_]) -> NDArray[np.int8]:
         return np.where(x, 1, -1)
+
+
+def _seam_parity(
+    ring: NDArray[np.integer],
+    pf: NDArray[np.integer],
+    seam_pos: int | NDArray[np.integer],
+    npf: int,
+) -> NDArray[np.bool_]:
+    """True if the molecule is in the template-like class under the seam position.
+
+    This is consistent with ``SeamSearcher.label_with_seam`` if molecules are sorted
+    by (ring, pf).
+    """
+    return (ring + (pf - seam_pos) // npf) % 2 == 0
 
 
 def prep_seam_search_input(

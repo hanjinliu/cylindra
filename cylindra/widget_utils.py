@@ -311,13 +311,36 @@ def plot_seam_search_result(score: np.ndarray, npf: int):
     plt.plot(score, marker="o")
     plt.xlabel("PF position")
     plt.ylabel("ΔCorr")
-    npf_vals = np.arange(0, npf + 1, 4)
-    xticks = np.concatenate([npf_vals, npf + npf_vals])
-    plt.xticks(xticks)
+    _set_seam_position_xticks(npf)
     plt.title("Score")
     plt.xlim(-0.5, len(score) - 0.5)
     plt.tight_layout()
     plt.show()
+
+
+def plot_seam_search_probabilities(probs: np.ndarray, npf: int):
+    import matplotlib.pyplot as plt
+
+    imax = np.argmax(probs)
+    colors = np.where(np.arange(probs.size) == imax, "crimson", "C0").tolist()
+    plt.figure(figsize=(6, 2.4))
+    plt.axvline(npf - 0.5, color="gray", ls=":")
+    plt.bar(np.arange(probs.size), probs, color=colors)
+    plt.xlabel("PF position")
+    plt.ylabel("Probability")
+    _set_seam_position_xticks(npf)
+    plt.title("Bootstrap probability")
+    plt.xlim(-0.6, probs.size - 0.4)
+    plt.ylim(0, 1)
+    plt.tight_layout()
+    plt.show()
+
+
+def _set_seam_position_xticks(npf: int):
+    import matplotlib.pyplot as plt
+
+    npf_vals = np.arange(0, npf + 1, 4)
+    plt.xticks(np.concatenate([npf_vals, npf + npf_vals]))
 
 
 def plot_signal_noise_profile(df: pl.DataFrame):
