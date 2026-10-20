@@ -2757,7 +2757,7 @@
 <h3 id="tilt-series-alignment">Tilt Series Alignment</h3>
 <p>If the tomogram is <a href="../../open_image/">opened from a tilt series</a>, the alignment of the
 tilt series can be refined using the molecules.</p>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="refine_tilt_series(layers, size=None, max_shift=2.0, grid_shape=(1, 1), smoothness=0.01, bin_size=1, update_coarse_tomogram=True)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.refine_tilt_series"><code>refine_tilt_series</code></a></p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="refine_tilt_series(layers, size=None, max_shift=2.0, rotation=(0, 0), grid_shape=(1, 1), smoothness=0.01, bin_size=1, update_coarse_tomogram=True)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.refine_tilt_series"><code>refine_tilt_series</code></a></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>STA widget &gt; Alignment &gt; Refine tilt series</code></p>
 <p>The subtomograms of each selected layer are averaged as the reference of the molecules
 of the layer. The projections of the averages placed at the molecules are compared with
@@ -2783,7 +2783,7 @@ the tilt images, and the shifts of each tilt image are refined.</p>
 </ol>
 </details>
 <p>The molecules should be aligned beforehand. If the tilt series is poorly aligned,
-<a class="autorefs autorefs-internal" title="align_averaged(layers, template_path, mask_params, max_shifts=None, rotations=((0.0, 0.0), (15.0, 1.0), (3.0, 1.0)), bin_size=1, method='zncc', cylindrical_mask=False)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.align_averaged"><code>align_averaged</code></a> usually
+<a class="autorefs autorefs-internal" title="align_averaged(layers, template_path, mask_params=None, max_shifts=None, rotations=((0.0, 0.0), (15.0, 1.0), (3.0, 1.0)), bin_size=1, method='zncc', cylindrical_mask=False)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.align_averaged"><code>align_averaged</code></a> usually
 works very well.</p>
 <p><img alt="Refinement on Tilt Series" loading="lazy," src="../../images/refine_tilt_series.png" width="480px" /></p>
 <p>The shifts of the tilt images are shown in the logger. After the refinement, all the

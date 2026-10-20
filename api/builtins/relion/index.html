@@ -3117,7 +3117,7 @@
 
 
 <h3 id="cylindra_builtins.relion.open_relion_job" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">open_relion_job</span><span class="p">(</span><span class="n">ui</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">project_root</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">invert</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">scale_override</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">join_molecules_by_id</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">use_tilt_series</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">reference_bin_size</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span> <span class="n">tomo_height</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">path_sets</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">open_relion_job</span><span class="p">(</span><span class="n">ui</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">project_root</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">invert</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">bin_size</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">scale_override</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">join_molecules_by_id</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">use_tilt_series</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">reference_scale</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">tomo_height</span><span class="o">=</span><span class="mf">300.0</span><span class="p">,</span> <span class="n">path_sets</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h3>
 
@@ -3267,23 +3267,24 @@ series alignment jobs, which have no tomograms.</p>
           </tr>
           <tr class="doc-section-item">
             <td>
-                <code>reference_bin_size</code>
+                <code>reference_scale</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#int">int</a></code>
+                  <code><span title="cylindra.const.nm">nm</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Bin size of the coarse tomograms for visualization, if the projects are
-created from the tilt series. The coarse tomogram is reconstructed from the tilt
-series when the project is opened, and saved when the project is saved. If
-None, the RELION tomograms are used as the coarse tomograms if their binning
-is an integer. Otherwise, the coarse tomograms are reconstructed with
-the nearest integer binning, or bin size 6 for jobs without tomograms.</p>
+                <p>Pixel size of the coarse tomograms for visualization in nm, if the projects are
+created from the tilt series. It does not need to be an integer multiple of the
+pixel size of the tilt series. The coarse tomogram is reconstructed from the
+tilt series when the project is opened, and saved when the project is saved. If
+None, the RELION tomograms are used as the coarse tomograms. If the RELION
+tomograms are not available, the coarse tomograms are reconstructed with the
+pixel size of the RELION tomograms, or 2.0 nm for jobs without tomograms.</p>
               </div>
             </td>
             <td>
-                  <code>12</code>
+                  <code>2.0</code>
             </td>
           </tr>
           <tr class="doc-section-item">
@@ -3291,17 +3292,17 @@ the nearest integer binning, or bin size 6 for jobs without tomograms.</p>
                 <code>tomo_height</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#int">int</a></code>
+                  <code><span title="cylindra.const.nm">nm</span></code>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Height (number of z slices) of the coarse tomograms reconstructed from the tilt
-series, used only for jobs without the tomogram size (such as tilt series
+                <p>Height (thickness along z) of the coarse tomograms reconstructed from the tilt
+series in nm, used only for jobs without the tomogram size (such as tilt series
 alignment jobs).</p>
               </div>
             </td>
             <td>
-                  <code>200</code>
+                  <code>300.0</code>
             </td>
           </tr>
       </tbody>
@@ -3447,7 +3448,8 @@ alignment jobs).</p>
 <span class="normal">520</span>
 <span class="normal">521</span>
 <span class="normal">522</span>
-<span class="normal">523</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Open RELION job"</span><span class="p">)</span>
+<span class="normal">523</span>
+<span class="normal">524</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@register_function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"Open RELION job"</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">open_relion_job</span><span class="p">(</span>
     <span class="n">ui</span><span class="p">:</span> <span class="n">CylindraMainWidget</span><span class="p">,</span>
     <span class="n">path</span><span class="p">:</span> <span class="n">Path</span><span class="o">.</span><span class="n">Read</span><span class="p">[</span><span class="n">FileFilter</span><span class="o">.</span><span class="n">STAR_JOB</span><span class="p">],</span>
@@ -3464,15 +3466,15 @@ alignment jobs).</p>
     <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">join_molecules_by_id</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="p">{</span><span class="s2">"text"</span><span class="p">:</span> <span class="s2">"Join RELION particles to the current batch project"</span><span class="p">}]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
     <span class="n">use_tilt_series</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="p">{</span><span class="s2">"label"</span><span class="p">:</span> <span class="s2">"Create projects from tilt series"</span><span class="p">}]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-    <span class="n">reference_bin_size</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
-        <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+    <span class="n">reference_scale</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+        <span class="n">Optional</span><span class="p">[</span><span class="n">nm</span><span class="p">],</span>
         <span class="p">{</span>
-            <span class="s2">"label"</span><span class="p">:</span> <span class="s2">"Coarse tomogram bin size"</span><span class="p">,</span>
+            <span class="s2">"label"</span><span class="p">:</span> <span class="s2">"Coarse tomogram pixel size (nm)"</span><span class="p">,</span>
             <span class="s2">"text"</span><span class="p">:</span> <span class="s2">"Use RELION tomograms"</span><span class="p">,</span>
-            <span class="s2">"options"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"min"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">"max"</span><span class="p">:</span> <span class="mi">64</span><span class="p">,</span> <span class="s2">"value"</span><span class="p">:</span> <span class="mi">6</span><span class="p">},</span>
+            <span class="s2">"options"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"min"</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="s2">"max"</span><span class="p">:</span> <span class="mf">100.0</span><span class="p">,</span> <span class="s2">"step"</span><span class="p">:</span> <span class="mf">0.001</span><span class="p">,</span> <span class="s2">"value"</span><span class="p">:</span> <span class="mf">2.0</span><span class="p">},</span>
         <span class="p">},</span>
-    <span class="p">]</span> <span class="o">=</span> <span class="mi">12</span><span class="p">,</span>
-    <span class="n">tomo_height</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">"label"</span><span class="p">:</span> <span class="s2">"Coarse tomogram height (pixels)"</span><span class="p">,</span> <span class="s2">"min"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">"max"</span><span class="p">:</span> <span class="mi">10000</span><span class="p">}]</span> <span class="o">=</span> <span class="mi">200</span><span class="p">,</span>
+    <span class="p">]</span> <span class="o">=</span> <span class="mf">2.0</span><span class="p">,</span>
+    <span class="n">tomo_height</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">nm</span><span class="p">,</span> <span class="p">{</span><span class="s2">"label"</span><span class="p">:</span> <span class="s2">"Coarse tomogram height (nm)"</span><span class="p">,</span> <span class="s2">"min"</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">,</span> <span class="s2">"max"</span><span class="p">:</span> <span class="mf">10000.0</span><span class="p">}]</span> <span class="o">=</span> <span class="mf">300.0</span><span class="p">,</span>
     <span class="n">path_sets</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="p">{</span><span class="s2">"bind"</span><span class="p">:</span> <span class="n">_get_loader_paths</span><span class="p">}]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">):</span>  <span class="c1"># fmt: skip</span>
 <span class="w">    </span><span class="sd">"""Open a RELION tomogram reconstruction/refinement job as a cylindra batch project.</span>
@@ -3509,16 +3511,17 @@ alignment jobs).</p>
 <span class="sd">        Subtomograms are reconstructed directly from the tilt series, and the image</span>
 <span class="sd">        regions needed for analysis are reconstructed on demand. Always True for tilt</span>
 <span class="sd">        series alignment jobs, which have no tomograms.</span>
-<span class="sd">    reference_bin_size : int, default 12</span>
-<span class="sd">        Bin size of the coarse tomograms for visualization, if the projects are</span>
-<span class="sd">        created from the tilt series. The coarse tomogram is reconstructed from the tilt</span>
-<span class="sd">        series when the project is opened, and saved when the project is saved. If</span>
-<span class="sd">        None, the RELION tomograms are used as the coarse tomograms if their binning</span>
-<span class="sd">        is an integer. Otherwise, the coarse tomograms are reconstructed with</span>
-<span class="sd">        the nearest integer binning, or bin size 6 for jobs without tomograms.</span>
-<span class="sd">    tomo_height : int, default 200</span>
-<span class="sd">        Height (number of z slices) of the coarse tomograms reconstructed from the tilt</span>
-<span class="sd">        series, used only for jobs without the tomogram size (such as tilt series</span>
+<span class="sd">    reference_scale : nm, default 2.0</span>
+<span class="sd">        Pixel size of the coarse tomograms for visualization in nm, if the projects are</span>
+<span class="sd">        created from the tilt series. It does not need to be an integer multiple of the</span>
+<span class="sd">        pixel size of the tilt series. The coarse tomogram is reconstructed from the</span>
+<span class="sd">        tilt series when the project is opened, and saved when the project is saved. If</span>
+<span class="sd">        None, the RELION tomograms are used as the coarse tomograms. If the RELION</span>
+<span class="sd">        tomograms are not available, the coarse tomograms are reconstructed with the</span>
+<span class="sd">        pixel size of the RELION tomograms, or 2.0 nm for jobs without tomograms.</span>
+<span class="sd">    tomo_height : nm, default 300.0</span>
+<span class="sd">        Height (thickness along z) of the coarse tomograms reconstructed from the tilt</span>
+<span class="sd">        series in nm, used only for jobs without the tomogram size (such as tilt series</span>
 <span class="sd">        alignment jobs).</span>
 <span class="sd">    """</span>
     <span class="n">job</span> <span class="o">=</span> <span class="n">_parse_relion_job</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">project_root</span><span class="p">)</span>
@@ -3526,7 +3529,7 @@ alignment jobs).</p>
     <span class="k">if</span> <span class="n">use_tilt_series</span><span class="p">:</span>
         <span class="n">projects</span> <span class="o">=</span> <span class="p">[</span>
             <span class="n">_new_tilt_series_project</span><span class="p">(</span>
-                <span class="n">tomo</span><span class="p">,</span> <span class="n">scale_override</span><span class="p">,</span> <span class="n">bin_size</span><span class="p">,</span> <span class="n">invert</span><span class="p">,</span> <span class="n">reference_bin_size</span><span class="p">,</span> <span class="n">tomo_height</span>
+                <span class="n">tomo</span><span class="p">,</span> <span class="n">scale_override</span><span class="p">,</span> <span class="n">bin_size</span><span class="p">,</span> <span class="n">invert</span><span class="p">,</span> <span class="n">reference_scale</span><span class="p">,</span> <span class="n">tomo_height</span>
             <span class="p">)</span>
             <span class="k">for</span> <span class="n">tomo</span> <span class="ow">in</span> <span class="n">job</span><span class="o">.</span><span class="n">tomograms</span>
         <span class="p">]</span>
