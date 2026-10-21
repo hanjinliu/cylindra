@@ -38,7 +38,7 @@ def main(ui: 'CylindraMainWidget'):
 class AppConfig:
     """Application configuration."""
 
-    default_spline_config: str = "eukaryotic_MT"
+    default_spline_config: str = "microtubule"
     dask_chunk: tuple[int, int, int] = (256, 256, 256)
     point_size: float = 4.2
     molecules_color: str = "#00EA00"
@@ -227,30 +227,33 @@ def get_main_function(filename: str | Path) -> Callable:
 
 def init_config(force: bool = False):  # pragma: no cover
     # Initialize user config directory.
+    _data_dir = Path(__file__).parent / "_data"
     if force or not VAR_PATH.exists() or _is_empty(VAR_PATH):
         try:
-            if not VAR_PATH.exists():
-                VAR_PATH.mkdir(parents=True)
-
-            _data_dir = Path(__file__).parent / "_data"
-            for fp in _data_dir.glob("*.json"):
-                with open(fp) as f:
-                    js = json.load(f)
-
-                with open(VAR_PATH / fp.name, mode="w") as f:
-                    json.dump(js, f, indent=4, separators=(", ", ": "))
+            VAR_PATH.mkdir(parents=True, exist_ok=True)
+            for fp in _data_dir.iterdir():
+                cfg_dict = json.loads(fp.read_text())
+                VAR_PATH.joinpath(fp.name).write_text(
+                    json.dumps(cfg_dict, indent=4, separators=(", ", ": "))
+                )
 
         except Exception as e:
             print("Failed to initialize config directory.")
             print(e)
         else:
             print(f"Config directory initialized at {VAR_PATH}.")
+    else:
+        for fp in _data_dir.iterdir():
+            cfg_dict = json.loads(fp.read_text())
+            if not (VAR_PATH / fp.name).exists():
+                VAR_PATH.joinpath(fp.name).write_text(
+                    json.dumps(cfg_dict, indent=4, separators=(", ", ": "))
+                )
 
     # Initialize user settings directory.
     if not SETTINGS_DIR.exists() or _is_empty(SETTINGS_DIR):
         try:
-            if not SETTINGS_DIR.exists():
-                SETTINGS_DIR.mkdir(parents=True)
+            SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
             AppConfig().to_user_dir()
         except Exception as e:
             print("Failed to initialize settings directory.")
@@ -277,6 +280,18 @@ def init_config(force: bool = False):  # pragma: no cover
                     ]
                 )
             )
+        )
+
+    # Warn if old config is used
+    cfg = get_config()
+    if cfg.default_spline_config == "eukaryotic_MT":
+        print(
+            "Config 'eukaryotic_MT' has been replaced by 'microtubule'. The twist "
+            "search range of the old config turned out to be too narrow for "
+            "non-standard microtubule lattice N_S types such as 14_4. Existing "
+            "scripts using the old config still reproduce the old behavior.\n\n"
+            "Please go to Others > Configure cylindra and set 'default spline config' "
+            "to 'microtubule'."
         )
 
 

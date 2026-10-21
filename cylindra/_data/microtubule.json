@@ -1,0 +1,13 @@
+{
+    "npf_range": [11, 17],
+    "spacing_range": [3.9, 4.3],
+    "twist_range": [-1.2, 1.2],
+    "rise_range": [5.0, 13.0],
+    "rise_sign": -1,
+    "clockwise": "MinusToPlus",
+    "thickness_inner": 2.8,
+    "thickness_outer": 2.8,
+    "fit_depth": 49.0,
+    "fit_width": 40.0,
+    "note": "Standard eukaryotic microtubule"
+}

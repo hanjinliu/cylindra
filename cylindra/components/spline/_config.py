@@ -73,6 +73,7 @@ class SplineConfig:
     thickness_outer: nm = 3.0
     fit_depth: nm = 48.0
     fit_width: nm = 44.0
+    note: str = ""
 
     def _repr_pretty_(self, p: RepresentationPrinter, cycle: bool):
         if cycle:
@@ -110,6 +111,7 @@ class SplineConfig:
             "thickness_outer": self.thickness_outer,
             "fit_depth": self.fit_depth,
             "fit_width": self.fit_width,
+            "note": self.note,
         }
 
     def json_dumps(self) -> str:

@@ -2986,7 +2986,7 @@ class CylindraMainWidget(MagicTemplate):
         splines: SplinesType = None,
         molecule_interval: PolarsExprStrOrScalar = "col('spacing')",
         orientation: PlusOrMinusOrNoneType = None,
-        rotate_molecules: bool = True,
+        rotate_molecules: Annotated[bool, {"label": "rotate molecules by twist"}] = True,
         prefix: str = "Center",
     ):  # fmt: skip
         """Map molecules along splines. Each molecule is rotated by skewing.
