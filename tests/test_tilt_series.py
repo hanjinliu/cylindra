@@ -382,6 +382,7 @@ def test_refine_tilt_series(
     ui: CylindraMainWidget,
     tilt_series_files: TiltSeriesFiles,
     tmp_path: Path,
+    qtbot,
 ):
     ui.open_tilt_series_with_reference(
         tilt_series_files.json,
@@ -405,13 +406,19 @@ def test_refine_tilt_series(
         max_shifts=(1.0, 1.0, 1.0),
         bin_size=1,
     )
-    with pytest.raises(ValueError):  # no layer
+    # the error in the dask worker is also raised in the Qt event loop
+    with pytest.raises(ValueError), qtbot.capture_exceptions():  # no layer
         ui.sta.refine_tilt_series(layers=[], size=12.0, bin_size=1)
     # The averages of the current tilt series are the references. The molecules are
     # not exactly at their centers, which shifts the tilt images systematically. The
-    # shifts are estimated from the true tilt series.
+    # shifts are estimated from the true tilt series. The simulated tilt series has
+    # no CTF.
     ui.sta.refine_tilt_series(
-        layers=["Mole-0-ALN1"], size=12.0, bin_size=1, update_coarse_tomogram=False
+        layers=["Mole-0-ALN1"],
+        size=12.0,
+        bin_size=1,
+        ctf=False,
+        update_coarse_tomogram=False,
     )
     assert str(ui.macro[-1]).startswith(
         "ui.sta.refine_tilt_series(layers=['Mole-0-ALN1'], size=12.0,"
@@ -430,7 +437,9 @@ def test_refine_tilt_series(
     assert tomo.add_multiscale(4) is not None
     assert tomo.update_tilt_series(perturbed) == [4]  # stale images are removed
     assert tomo.multiscaled == []
-    ui.sta.refine_tilt_series(layers=["Mole-0-ALN1"], size=12.0, bin_size=1)
+    ui.sta.refine_tilt_series(
+        layers=["Mole-0-ALN1"], size=12.0, bin_size=1, ctf=False
+    )
     refined = src.tilt_series
     # the periodic lattice of microtubules is ambiguous in a few tilts
     error = np.abs(refined.sample_translations - expected).max(axis=1)  # nm
