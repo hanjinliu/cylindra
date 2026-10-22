@@ -628,7 +628,13 @@ def test_align_tilt_series(
     tomo.update_tilt_series(perturbed)
     ref_before = np.asarray(src.reference)
     ui.sta.align_tilt_series(
-        splines=[0], max_shift=10.0, bin_size=1, ctf=False, update_coarse_tomogram=False
+        splines=[0],
+        max_shift=10.0,
+        offset_per="spline",
+        max_tilt_angle_change=0.0,
+        bin_size=1,
+        ctf=False,
+        update_coarse_tomogram=False,
     )
     assert str(ui.macro[-1]).startswith("ui.sta.align_tilt_series(splines='all',")
     aligned = src.tilt_series
@@ -658,6 +664,7 @@ def test_align_tilt_series(
     ui.sta.align_tilt_series(
         splines=[0],
         max_shift=4.0,
+        offset_per="spline",
         bin_size=1,
         ctf=False,
         max_tilt_angle_change=1.0,
@@ -674,7 +681,12 @@ def test_align_tilt_series(
     # each segment has its own offset, and the spline is fitted to the segments
     spl = ui.splines[0]
     ui.sta.align_tilt_series(
-        splines=[0], max_shift=4.0, bin_size=1, ctf=False, offset_per="segment"
+        splines=[0],
+        max_shift=4.0,
+        bin_size=1,
+        ctf=False,
+        offset_per="segment",
+        max_tilt_angle_change=0.0,
     )
     new_spl = ui.splines[0]
     assert new_spl is not spl

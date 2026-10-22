@@ -85,9 +85,7 @@ class ConfigContainer(ChildWidget):
         path = _config.get_config().spline_config_path(name)
         if path.exists():
             raise FileExistsError(f"Config file {path} already exists.")
-        cfg = self.get_config()
-        cfg.note = note
-        cfg.to_file(path)
+        self.get_config().updated(note=note).to_file(path)
         return self._get_main().reset_choices()
 
     @set_design(text="Refer current spline config")
@@ -102,8 +100,9 @@ class ConfigContainer(ChildWidget):
     def apply_to_splines(self, splines: SplinesType = None):
         """Overwrite the config of the specified splines with the edited config."""
         main = self._get_main()
-        config_new = self.get_config()
-        main.update_spline_config(splines, **config_new.asdict())
+        config_new = self.get_config().asdict()
+        config_new.pop("note")  # description of the preset, not a parameter
+        main.update_spline_config(splines, **config_new)
 
     @nogui
     def get_config(self) -> SplineConfig:
