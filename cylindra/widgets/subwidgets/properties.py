@@ -75,7 +75,7 @@ class LocalPropertiesWidget(ChildWidget):
         spacing = LabeledText("spacing")
         twist = LabeledText("twist")
         rise = LabeledText("rise angle")
-        structure = LabeledText("structure")
+        structure = LabeledText("N_S structure")
 
     plot = box.resizable(
         field(QtMultiPlotCanvas).with_options(

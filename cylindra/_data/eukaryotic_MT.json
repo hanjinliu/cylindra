@@ -8,5 +8,6 @@
     "thickness_inner": 2.8,
     "thickness_outer": 2.8,
     "fit_depth": 49.0,
-    "fit_width": 40.0
+    "fit_width": 40.0,
+    "note": "Deprecated"
 }

@@ -311,13 +311,18 @@ def plot_seam_search_result(score: np.ndarray, npf: int):
     plt.plot(score, marker="o")
     plt.xlabel("PF position")
     plt.ylabel("ΔCorr")
-    npf_vals = np.arange(0, npf + 1, 4)
-    xticks = np.concatenate([npf_vals, npf + npf_vals])
-    plt.xticks(xticks)
+    _set_seam_position_xticks(npf)
     plt.title("Score")
     plt.xlim(-0.5, len(score) - 0.5)
     plt.tight_layout()
     plt.show()
+
+
+def _set_seam_position_xticks(npf: int):
+    import matplotlib.pyplot as plt
+
+    npf_vals = np.arange(0, npf + 1, 4)
+    plt.xticks(np.concatenate([npf_vals, npf + npf_vals]))
 
 
 def plot_signal_noise_profile(df: pl.DataFrame):

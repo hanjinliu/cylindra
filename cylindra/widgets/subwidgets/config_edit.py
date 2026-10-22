@@ -47,15 +47,19 @@ class ConfigContainer(ChildWidget):
         Width of the box used for the spline fitting tasks (nm).
     """
 
-    npf_range = field((11, 17)).with_options(options={"min": 2, "max": 100})
-    spacing_range = field((3.9, 4.3)).with_options(options={"step": 0.05})
-    twist_range = field((-1.0, 1.0)).with_options(
+    npf_range = field((11, 17), label="<code>npf</code> range").with_options(
+        options={"min": 2, "max": 100}
+    )
+    spacing_range = field((3.9, 4.3), label="<code>spacing</code> range").with_options(
+        options={"step": 0.05}
+    )
+    twist_range = field((-1.0, 1.0), label="<code>twist</code> range").with_options(
         options={"min": -45.0, "max": 45.0, "step": 0.05}
     )
-    rise_range = field((0.0, 45.0)).with_options(
+    rise_range = field((0.0, 45.0), label="<code>rise</code> range").with_options(
         options={"min": -45.0, "max": 45.0, "step": 0.1}
     )
-    rise_sign = field(-1).with_choices([-1, 1])
+    rise_sign = field(-1, label="<code>rise</code> sign").with_choices([-1, 1])
     clockwise = field("MinusToPlus").with_choices(["PlusToMinus", "MinusToPlus"])
     thickness_inner = field(2.8).with_options(min=0.0, step=0.1)
     thickness_outer = field(2.8).with_options(min=0.0, step=0.1)
@@ -74,12 +78,14 @@ class ConfigContainer(ChildWidget):
         self.set_config(config)
 
     @set_design(text="Save as new preset")
-    def save_as_config_preset(self, name: str):
+    def save_as_config_preset(
+        self, name: str, note: Annotated[str, {"widget_type": "TextEdit"}] = ""
+    ):
         """Save current default config as a preset."""
         path = _config.get_config().spline_config_path(name)
         if path.exists():
             raise FileExistsError(f"Config file {path} already exists.")
-        self.get_config().to_file(path)
+        self.get_config().updated(note=note).to_file(path)
         return self._get_main().reset_choices()
 
     @set_design(text="Refer current spline config")
@@ -94,8 +100,9 @@ class ConfigContainer(ChildWidget):
     def apply_to_splines(self, splines: SplinesType = None):
         """Overwrite the config of the specified splines with the edited config."""
         main = self._get_main()
-        config_new = self.get_config()
-        main.update_spline_config(splines, **config_new.asdict())
+        config_new = self.get_config().asdict()
+        config_new.pop("note")  # description of the preset, not a parameter
+        main.update_spline_config(splines, **config_new)
 
     @nogui
     def get_config(self) -> SplineConfig:

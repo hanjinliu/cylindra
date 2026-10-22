@@ -225,6 +225,7 @@ class ImageMenu(ChildWidget):
     def open_slicer(self):
         """Open spline slicer widget"""
         main = self._get_main()
+        main.spline_slicer.params._set_maximum_binsize()
         main.spline_slicer.show()
         return main.spline_slicer.refresh_widget_state()
 
@@ -244,6 +245,14 @@ class ImageMenu(ChildWidget):
     def open_simulator(self):
         """Open the simulator widget."""
         return self._get_main().simulator.show()
+
+    @set_design(text="Open tilt series viewer")
+    @do_not_record
+    def open_tilt_series_viewer(self):
+        """View the tilt images with the splines projected by the current alignment."""
+        from cylindra._previews import view_tilt_series
+
+        return view_tilt_series(self._get_main())
 
     sep1 = Separator
     sample_subtomograms = abstractapi()

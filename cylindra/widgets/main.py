@@ -2535,15 +2535,7 @@ class CylindraMainWidget(MagicTemplate):
             # show all in a table
             @thread_worker.callback
             def _global_cft_analysis_on_return():
-                df = (
-                    pl.concat(
-                        [tomo.splines[i].props.glob for i in splines],
-                        how="vertical_relaxed",
-                    )
-                    .to_pandas()
-                    .transpose()
-                )
-                df.columns = [f"Spline-{i}" for i in range(len(df.columns))]
+                df = _safe_concat_dfs([tomo.splines[i].props.glob for i in splines])
                 self.sample_subtomograms()
                 _Logger.print_table(df, precision=3)
                 self._update_global_properties_in_widget()
@@ -2641,15 +2633,7 @@ class CylindraMainWidget(MagicTemplate):
             # show all in a table
             @thread_worker.callback
             def _global_ft_analysis_on_return():
-                df = (
-                    pl.concat(
-                        [tomo.splines[i].props.glob for i in splines],
-                        how="vertical_relaxed",
-                    )
-                    .to_pandas()
-                    .transpose()
-                )
-                df.columns = [f"Spline-{i}" for i in range(len(df.columns))]
+                df = _safe_concat_dfs([tomo.splines[i].props.glob for i in splines])
                 self.sample_subtomograms()
                 _Logger.print_table(df, precision=3)
                 self._update_global_properties_in_widget()
@@ -2986,7 +2970,7 @@ class CylindraMainWidget(MagicTemplate):
         splines: SplinesType = None,
         molecule_interval: PolarsExprStrOrScalar = "col('spacing')",
         orientation: PlusOrMinusOrNoneType = None,
-        rotate_molecules: bool = True,
+        rotate_molecules: Annotated[bool, {"label": "rotate molecules by twist"}] = True,
         prefix: str = "Center",
     ):  # fmt: skip
         """Map molecules along splines. Each molecule is rotated by skewing.
@@ -4781,3 +4765,15 @@ def _unique_dtype(to_be_updated: list[tuple[CylSpline, pl.Series | None]]):
 def _check_arg_given(a: str, name: str):
     if a == "":
         raise ValueError(f"Argument {name!r} must be given.")
+
+
+def _safe_concat_dfs(dfs: list[pl.DataFrame]):
+    common_columns = set(dfs[0].columns)
+    for df in dfs[1:]:
+        common_columns &= set(df.columns)
+    # reorder
+    common_columns = [col for col in dfs[0].columns if col in common_columns]
+    dfs = [df.select(common_columns) for df in dfs]
+    df = pl.concat(dfs, how="vertical_relaxed").to_pandas().transpose()
+    df.columns = [f"Spline-{i}" for i in range(len(df.columns))]
+    return df

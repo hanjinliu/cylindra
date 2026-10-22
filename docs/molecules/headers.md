@@ -40,6 +40,7 @@ Here's the list of the standard feature names and how they will be added.
     This feature is added by:
 
     - [seam_search][cylindra.widgets.sta.SubtomogramAveraging.seam_search]
+    - [seam_search_on_tilt][cylindra.widgets.sta.SubtomogramAveraging.seam_search_on_tilt]
     - [seam_search_by_feature][cylindra.widgets.sta.SubtomogramAveraging.seam_search_by_feature]
     - [seam_search_manually][cylindra.widgets.sta.SubtomogramAveraging.seam_search_manually]
 

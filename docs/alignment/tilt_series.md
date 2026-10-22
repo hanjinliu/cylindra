@@ -24,9 +24,12 @@ the tilt images, and the shifts of each tilt image are refined.
        Otherwise, the shifts are refined as a smooth field over each tilt image.
     5. "smoothness" is the weight of the smoothness prior of the local shifts. Larger
        value is more robust against noise and fewer molecules.
-    6. "bin size" is the bin size of the subtomograms used for the averages and the
+    6. If "apply CTF" is checked, the CTF is applied to the projections of the
+       averages, with the defocus of each molecule in each tilt (changed by its depth
+       in the microscope). The tilt series must have the CTF parameters.
+    7. "bin size" is the bin size of the subtomograms used for the averages and the
        refinement.
-    7. If "update coarse tomogram" is checked, the coarse tomogram for visualization is
+    8. If "update coarse tomogram" is checked, the coarse tomogram for visualization is
        also reconstructed from the refined tilt series, and shown with the same filter
        and inversion.
 

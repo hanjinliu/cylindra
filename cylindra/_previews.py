@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import weakref
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import impy as ip
 import numpy as np
@@ -22,6 +24,13 @@ from magicgui.widgets import Slider
 
 from cylindra._io import lazy_imread
 from cylindra.core import ACTIVE_WIDGETS
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
+    from cylindra.components import CylSpline
+    from cylindra.components.tomogram._tilt_series import TiltSeriesSource
+    from cylindra.widgets.main import CylindraMainWidget
 
 
 @magicclass(record=False, name="Image Preview", use_native_menubar=False)
@@ -142,6 +151,164 @@ class ImagePreview(MagicTemplate):
         if img is None:
             return
         self.canvas.contrast_limits = np.percentile(img, (0.5, 99.5))
+
+
+_SPLINE_COLORS = ["orange", "cyan", "magenta", "yellow", "lime"]
+
+
+@magicclass(record=False, name="Tilt Series Viewer", use_native_menubar=False)
+class TiltSeriesViewer(MagicTemplate):
+    """A widget to view the tilt images with the splines projected on them.
+
+    The splines are projected by the current alignment of the tilt series, so the
+    alignment can be checked by whether the splines follow the filaments in all the
+    tilts. The edges of the cylinders (dotted lines) are also shown if the radii of
+    the splines are measured. The raw tilt images are shown (not preprocessed), with
+    the contrast adjusted for each tilt.
+    """
+
+    @magicmenu
+    class Menu(MagicTemplate):
+        refresh = abstractapi()
+        close_this = abstractapi()
+
+    canvas = field(QtImageCanvas).with_options(lock_contrast_limits=True)
+    sl = field(int, widget_type=Slider, name="tilt")
+
+    @magicclass(widget_type="frame", layout="horizontal")
+    class Filter(MagicTemplate):
+        """Filtering parameters.
+
+        Attributes
+        ----------
+        bin_size : int
+            Image binning prior to low-pass filtering.
+        apply_filter : bool
+            Apply low-pass filter to image.
+        cutoff : float
+            Cutoff frequency for low-pass filtering.
+        """
+
+        bin_size = vfield(4).with_options(min=1, max=16, step=1)
+        apply_filter = vfield(False, label="Apply low-pass filter")
+        cutoff = vfield(0.1).with_options(min=0.05, max=0.85, step=0.05, enabled=False)
+
+        @apply_filter.connect
+        def _toggle(self):
+            self["cutoff"].enabled = self.apply_filter
+
+    show_splines = vfield(True, label="Show splines")
+
+    def __init__(self):
+        self._main_ref = lambda: None
+
+    def __post_init__(self):
+        self.canvas.text_overlay.color = "lime"
+        self.canvas.text_overlay.visible = True
+
+    @set_design(text="Refresh", location=Menu)
+    def refresh(self):
+        """Read the tilt series and the splines again, such as after alignment."""
+        self._update_canvas()
+
+    @set_design(text="Close", location=Menu)
+    def close_this(self):
+        self.close()
+
+    def _set_main(self, main: CylindraMainWidget):
+        self._main_ref = weakref.ref(main)
+        angles = self._get_source().tilt_series.tilt_angles
+        self.sl.max = angles.size - 1
+        self.sl.value = int(np.argmin(np.abs(angles)))  # the zero tilt
+
+    def _get_main(self) -> CylindraMainWidget:
+        if (main := self._main_ref()) is None:
+            raise ValueError("The main widget is not available.")
+        return main
+
+    def _get_source(self) -> TiltSeriesSource:
+        if (src := self._get_main().tomogram.tilt_series) is None:
+            raise ValueError("The tomogram is not opened from a tilt series.")
+        return src
+
+    @show_splines.connect_async(timeout=0.1)
+    @Filter.bin_size.connect_async(timeout=0.1)
+    @Filter.apply_filter.connect_async(timeout=0.1)
+    @Filter.cutoff.connect_async(timeout=0.1)
+    @sl.connect_async(timeout=0.1, abort_limit=0.1)
+    def _update_canvas(self):
+        src = self._get_source()
+        angles = src.tilt_series.tilt_angles
+        t = min(self.sl.value, angles.size - 1)
+        binsize = self.Filter.bin_size
+        yield self._set_text_overlay.with_args("reading ...")
+        img = ip.asarray(src.tilt_image_source()[t], axes="yx")
+        if binsize > 1:
+            img = img.binning(binsize, check_edges=False)
+        if self.Filter.apply_filter:
+            img = img.lowpass_filter(cutoff=self.Filter.cutoff)
+        if self.show_splines:
+            splines = list(self._get_main().tomogram.splines)
+            curves = [_projected_spline(src, spl, t, binsize) for spl in splines]
+        else:
+            curves = []
+        text = f"tilt {t}: {angles[t]:.1f}\N{DEGREE SIGN}"
+        yield self._set_canvas.with_args(np.asarray(img), curves, text)
+
+    @thread_worker.callback
+    def _set_text_overlay(self, txt: str):
+        self.canvas.text_overlay.text = txt
+
+    @thread_worker.callback
+    def _set_canvas(
+        self,
+        img: NDArray[np.float32],
+        curves: list[tuple[NDArray[np.float64], list[NDArray[np.float64]]]],
+        text: str,
+    ):
+        self.canvas.image = img
+        self.canvas.contrast_limits = np.percentile(img, (0.5, 99.5))
+        self.canvas.layers.clear()
+        for i, (center, edges) in enumerate(curves):
+            color = _SPLINE_COLORS[i % len(_SPLINE_COLORS)]
+            self.canvas.add_curve(center[:, 1], center[:, 0], color=color, lw=1.5)
+            for edge in edges:
+                self.canvas.add_curve(edge[:, 1], edge[:, 0], color=color, ls=":")
+            self.canvas.add_text(center[0, 1], center[0, 0], str(i), color=color)
+        self.canvas.text_overlay.text = text
+
+
+def _projected_spline(
+    src: TiltSeriesSource, spl: CylSpline, t: int, binsize: int
+) -> tuple[NDArray[np.float64], list[NDArray[np.float64]]]:
+    """The spline and the edges of its cylinder projected to the binned t-th tilt.
+
+    Returned arrays are (y, x) positions (N, 2) in pixel of the binned image, sampled
+    every ~2 nm along the spline. The edges are empty if the radius is not measured.
+    """
+    coords = spl.partition(max(int(spl.length() / 2), 2))
+    # the binned pixel i is centered at the raw pixel i * binsize + (binsize - 1) / 2
+    center = (src.project_points(coords)[:, t] - (binsize - 1) / 2) / binsize
+    if spl.radius is None:
+        return center, []
+    tangent = np.gradient(center, axis=0)
+    normal = np.stack([tangent[:, 1], -tangent[:, 0]], axis=1)
+    normal /= np.maximum(np.linalg.norm(normal, axis=1, keepdims=True), 1e-12)
+    # the projection of a cylinder is as wide as its diameter
+    radius = spl.radius / src.scale / binsize
+    return center, [center + radius * normal, center - radius * normal]
+
+
+def view_tilt_series(main: CylindraMainWidget) -> TiltSeriesViewer:
+    """View the tilt images of the tomogram with the splines projected on them."""
+    viewer = TiltSeriesViewer()
+    viewer._set_main(main)
+    viewer.native.setParent(main.native, viewer.native.windowFlags())
+    viewer.show()
+    viewer.width, viewer.height = 400, 520
+    ACTIVE_WIDGETS.add(viewer)
+    viewer._update_canvas()
+    return viewer
 
 
 def view_tables(

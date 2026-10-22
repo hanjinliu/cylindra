@@ -9,7 +9,11 @@ from acryo import Molecules
 from numpy.testing import assert_allclose, assert_array_equal
 
 from cylindra import utils, widget_utils
-from cylindra.components.seam_search import BooleanSeamSearcher
+from cylindra.components.seam_search import (
+    BooleanSeamSearcher,
+    TiltScoreSeamSearcher,
+    _seam_parity,
+)
 from cylindra.const import MoleculesHeader as Mole
 
 
@@ -173,6 +177,39 @@ def test_rotated_auto_zncc():
 def test_infer_seam(label, expected: int):
     searcher = BooleanSeamSearcher(npf=4)
     assert searcher.search(label).seam_pos == expected
+
+
+def test_search_seam_by_molecule_scores():
+    npf, nring = 13, 6
+    ring, pf = np.divmod(np.arange(npf * nring), npf)
+    searcher = TiltScoreSeamSearcher(npf)
+    # molecules are sorted by (nth, pf-id) if they don't have the features
+    mole = Molecules(np.zeros((ring.size, 3)))
+    # the template-like molecules under the seam position 5 have higher scores
+    scores = np.where(_seam_parity(ring, pf, 5, npf), 1.0, -1.0)
+    result = searcher._search_by_molecule_scores(mole, scores)
+    assert result.seam_pos == 5
+    assert_allclose(result.scores[npf:], -result.scores[:npf])
+    assert_array_equal(result.get_label(ring.size), scores < 0)
+    assert result.to_dataframe().columns == ["scores"]
+
+    # shuffled molecules with the features give the same result
+    perm = np.random.default_rng(0).permutation(ring.size)
+    mole_feat = Molecules(
+        np.zeros((ring.size, 3)),
+        features=pl.DataFrame({Mole.nth: ring[perm] + 3, Mole.pf: pf[perm]}),
+    )
+    result_feat = searcher._search_by_molecule_scores(mole_feat, scores[perm])
+    assert_allclose(result_feat.scores, result.scores)
+
+    with pytest.raises(ValueError):  # number of molecules is different
+        result.get_label(ring.size + 1)
+    with pytest.raises(ValueError):  # not a multiple of npf
+        searcher._search_by_molecule_scores(mole[:-1], scores[:-1])
+    with pytest.raises(ValueError):  # only one ring
+        searcher._search_by_molecule_scores(mole[:npf], scores[:npf])
+    with pytest.raises(ValueError):  # pf-id out of range
+        TiltScoreSeamSearcher(12)._search_by_molecule_scores(mole_feat, scores[perm])
 
 
 def test_rust_expressions():
