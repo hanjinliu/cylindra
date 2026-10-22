@@ -3991,6 +3991,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#cylindra.components.seam_search.MoleculeScoreSeamSearchResult" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MoleculeScoreSeamSearchResult
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#cylindra.components.seam_search.SeamSearcher" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4004,6 +4015,34 @@
         
           <li class="md-nav__item">
   <a href="#cylindra.components.seam_search.SeamSearcher.search" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        search
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cylindra.components.seam_search.TiltScoreSeamSearcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TiltScoreSeamSearcher
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="TiltScoreSeamSearcher">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cylindra.components.seam_search.TiltScoreSeamSearcher.search" class="md-nav__link">
     <span class="md-ellipsis">
       
         search
@@ -6331,6 +6370,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#cylindra.components.seam_search.MoleculeScoreSeamSearchResult" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MoleculeScoreSeamSearchResult
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#cylindra.components.seam_search.SeamSearcher" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -6344,6 +6394,34 @@
         
           <li class="md-nav__item">
   <a href="#cylindra.components.seam_search.SeamSearcher.search" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        search
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cylindra.components.seam_search.TiltScoreSeamSearcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TiltScoreSeamSearcher
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="TiltScoreSeamSearcher">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cylindra.components.seam_search.TiltScoreSeamSearcher.search" class="md-nav__link">
     <span class="md-ellipsis">
       
         search
@@ -15090,7 +15168,10 @@ guaranteed to be larger than spline order.</p>
 <span class="normal">196</span>
 <span class="normal">197</span>
 <span class="normal">198</span>
-<span class="normal">199</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="normal">199</span>
+<span class="normal">200</span>
+<span class="normal">201</span>
+<span class="normal">202</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">SplineConfig</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Class for spline configuration."""</span>
 
@@ -15104,6 +15185,7 @@ guaranteed to be larger than spline order.</p>
     <span class="n">thickness_outer</span><span class="p">:</span> <span class="n">nm</span> <span class="o">=</span> <span class="mf">3.0</span>
     <span class="n">fit_depth</span><span class="p">:</span> <span class="n">nm</span> <span class="o">=</span> <span class="mf">48.0</span>
     <span class="n">fit_width</span><span class="p">:</span> <span class="n">nm</span> <span class="o">=</span> <span class="mf">44.0</span>
+    <span class="n">note</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_repr_pretty_</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p</span><span class="p">:</span> <span class="n">RepresentationPrinter</span><span class="p">,</span> <span class="n">cycle</span><span class="p">:</span> <span class="nb">bool</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">cycle</span><span class="p">:</span>
@@ -15141,6 +15223,7 @@ guaranteed to be larger than spline order.</p>
             <span class="s2">"thickness_outer"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">thickness_outer</span><span class="p">,</span>
             <span class="s2">"fit_depth"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">fit_depth</span><span class="p">,</span>
             <span class="s2">"fit_width"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">fit_width</span><span class="p">,</span>
+            <span class="s2">"note"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">note</span><span class="p">,</span>
         <span class="p">}</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">json_dumps</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
@@ -15212,6 +15295,7 @@ guaranteed to be larger than spline order.</p>
         <span class="n">thickness_outer</span><span class="p">:</span> <span class="n">nm</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">fit_depth</span><span class="p">:</span> <span class="n">nm</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">fit_width</span><span class="p">:</span> <span class="n">nm</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">note</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SplineConfig</span><span class="p">:</span>
         <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">locals</span><span class="p">()</span>
         <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">"self"</span><span class="p">)</span>
@@ -15264,10 +15348,10 @@ guaranteed to be larger than spline order.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/spline/_config.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">124</span>
-<span class="normal">125</span>
-<span class="normal">126</span>
-<span class="normal">127</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">126</span>
+<span class="normal">127</span>
+<span class="normal">128</span>
+<span class="normal">129</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SplineConfig</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Construct a SplineConfig with argument check."""</span>
     <span class="k">return</span> <span class="n">SplineConfig</span><span class="p">()</span><span class="o">.</span><span class="n">updated</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
@@ -32284,43 +32368,7 @@ peak usually does not represent the optimal result.</p>
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>cylindra/components/seam_search.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">115</span>
-<span class="normal">116</span>
-<span class="normal">117</span>
-<span class="normal">118</span>
-<span class="normal">119</span>
-<span class="normal">120</span>
-<span class="normal">121</span>
-<span class="normal">122</span>
-<span class="normal">123</span>
-<span class="normal">124</span>
-<span class="normal">125</span>
-<span class="normal">126</span>
-<span class="normal">127</span>
-<span class="normal">128</span>
-<span class="normal">129</span>
-<span class="normal">130</span>
-<span class="normal">131</span>
-<span class="normal">132</span>
-<span class="normal">133</span>
-<span class="normal">134</span>
-<span class="normal">135</span>
-<span class="normal">136</span>
-<span class="normal">137</span>
-<span class="normal">138</span>
-<span class="normal">139</span>
-<span class="normal">140</span>
-<span class="normal">141</span>
-<span class="normal">142</span>
-<span class="normal">143</span>
-<span class="normal">144</span>
-<span class="normal">145</span>
-<span class="normal">146</span>
-<span class="normal">147</span>
-<span class="normal">148</span>
-<span class="normal">149</span>
-<span class="normal">150</span>
-<span class="normal">151</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">151</span>
 <span class="normal">152</span>
 <span class="normal">153</span>
 <span class="normal">154</span>
@@ -32337,7 +32385,43 @@ peak usually does not represent the optimal result.</p>
 <span class="normal">165</span>
 <span class="normal">166</span>
 <span class="normal">167</span>
-<span class="normal">168</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CorrelationSeamSearcher</span><span class="p">(</span><span class="n">SeamSearcher</span><span class="p">):</span>
+<span class="normal">168</span>
+<span class="normal">169</span>
+<span class="normal">170</span>
+<span class="normal">171</span>
+<span class="normal">172</span>
+<span class="normal">173</span>
+<span class="normal">174</span>
+<span class="normal">175</span>
+<span class="normal">176</span>
+<span class="normal">177</span>
+<span class="normal">178</span>
+<span class="normal">179</span>
+<span class="normal">180</span>
+<span class="normal">181</span>
+<span class="normal">182</span>
+<span class="normal">183</span>
+<span class="normal">184</span>
+<span class="normal">185</span>
+<span class="normal">186</span>
+<span class="normal">187</span>
+<span class="normal">188</span>
+<span class="normal">189</span>
+<span class="normal">190</span>
+<span class="normal">191</span>
+<span class="normal">192</span>
+<span class="normal">193</span>
+<span class="normal">194</span>
+<span class="normal">195</span>
+<span class="normal">196</span>
+<span class="normal">197</span>
+<span class="normal">198</span>
+<span class="normal">199</span>
+<span class="normal">200</span>
+<span class="normal">201</span>
+<span class="normal">202</span>
+<span class="normal">203</span>
+<span class="normal">204</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CorrelationSeamSearcher</span><span class="p">(</span><span class="n">SeamSearcher</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Seam searcher based on correlation with the template."""</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">search</span><span class="p">(</span>
@@ -32419,6 +32503,183 @@ peak usually does not represent the optimal result.</p>
 
 
 
+<h3 id="cylindra.components.seam_search.MoleculeScoreSeamSearchResult" class="doc doc-heading">
+            <code>MoleculeScoreSeamSearchResult</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Seam search result based on the score of each molecule.</p>
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="cylindra.components.seam_search.MoleculeScoreSeamSearchResult.scores">scores</span></code></td>
+            <td>
+                  <code>(2 * npf,) array</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Score of each seam position. <code>scores[s + npf] == -scores[s]</code>.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="cylindra.components.seam_search.MoleculeScoreSeamSearchResult.molecule_scores">molecule_scores</span></code></td>
+            <td>
+                  <code>(N,) array</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Score of each molecule. Larger value means that the molecule is more similar
+to the template (than to the anti-template, if given).</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="cylindra.components.seam_search.MoleculeScoreSeamSearchResult.ring, pf">ring, pf</span></code></td>
+            <td>
+                  <code>(N,) arrays</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Ring and protofilament indices of each molecule used for labeling.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="cylindra.components.seam_search.MoleculeScoreSeamSearchResult.tilt_scores">tilt_scores</span></code></td>
+            <td>
+                  <code>(N, T) array, optional</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Score of each molecule in each tilt image, if the molecules are scored in
+the tilt images.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+
+
+
+
+
+
+              <details class="mkdocstrings-source">
+                <summary>Source code in <code>cylindra/components/seam_search.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">110</span>
+<span class="normal">111</span>
+<span class="normal">112</span>
+<span class="normal">113</span>
+<span class="normal">114</span>
+<span class="normal">115</span>
+<span class="normal">116</span>
+<span class="normal">117</span>
+<span class="normal">118</span>
+<span class="normal">119</span>
+<span class="normal">120</span>
+<span class="normal">121</span>
+<span class="normal">122</span>
+<span class="normal">123</span>
+<span class="normal">124</span>
+<span class="normal">125</span>
+<span class="normal">126</span>
+<span class="normal">127</span>
+<span class="normal">128</span>
+<span class="normal">129</span>
+<span class="normal">130</span>
+<span class="normal">131</span>
+<span class="normal">132</span>
+<span class="normal">133</span>
+<span class="normal">134</span>
+<span class="normal">135</span>
+<span class="normal">136</span>
+<span class="normal">137</span>
+<span class="normal">138</span>
+<span class="normal">139</span>
+<span class="normal">140</span>
+<span class="normal">141</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">MoleculeScoreSeamSearchResult</span><span class="p">(</span><span class="n">SeamSearchResult</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Seam search result based on the score of each molecule.</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    scores : (2 * npf,) array</span>
+<span class="sd">        Score of each seam position. ``scores[s + npf] == -scores[s]``.</span>
+<span class="sd">    molecule_scores : (N,) array</span>
+<span class="sd">        Score of each molecule. Larger value means that the molecule is more similar</span>
+<span class="sd">        to the template (than to the anti-template, if given).</span>
+<span class="sd">    ring, pf : (N,) arrays</span>
+<span class="sd">        Ring and protofilament indices of each molecule used for labeling.</span>
+<span class="sd">    tilt_scores : (N, T) array, optional</span>
+<span class="sd">        Score of each molecule in each tilt image, if the molecules are scored in</span>
+<span class="sd">        the tilt images.</span>
+<span class="sd">    """</span>
+
+    <span class="n">scores</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]</span>
+    <span class="n">molecule_scores</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]</span>
+    <span class="n">ring</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">]</span>
+    <span class="n">pf</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">]</span>
+    <span class="n">tilt_scores</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_label</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">size</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ring</span><span class="o">.</span><span class="n">size</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Seam search was performed on </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ring</span><span class="o">.</span><span class="n">size</span><span class="si">}</span><span class="s2"> molecules, but labels "</span>
+                <span class="sa">f</span><span class="s2">"for </span><span class="si">{</span><span class="n">size</span><span class="si">}</span><span class="s2"> molecules were requested."</span>
+            <span class="p">)</span>
+        <span class="n">parity</span> <span class="o">=</span> <span class="n">_seam_parity</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ring</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pf</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">seam_pos</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">npf</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="o">~</span><span class="n">parity</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+              </details>
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
 <h3 id="cylindra.components.seam_search.SeamSearcher" class="doc doc-heading">
             <code>SeamSearcher</code>
 
@@ -32439,9 +32700,7 @@ peak usually does not represent the optimal result.</p>
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>cylindra/components/seam_search.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">22</span>
-<span class="normal">23</span>
-<span class="normal">24</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">24</span>
 <span class="normal">25</span>
 <span class="normal">26</span>
 <span class="normal">27</span>
@@ -32479,7 +32738,9 @@ peak usually does not represent the optimal result.</p>
 <span class="normal">59</span>
 <span class="normal">60</span>
 <span class="normal">61</span>
-<span class="normal">62</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SeamSearcher</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
+<span class="normal">62</span>
+<span class="normal">63</span>
+<span class="normal">64</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SeamSearcher</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">npf</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_npf</span> <span class="o">=</span> <span class="n">npf</span>
 
@@ -32556,11 +32817,519 @@ peak usually does not represent the optimal result.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/seam_search.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">30</span>
-<span class="normal">31</span>
-<span class="normal">32</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@abstractmethod</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">32</span>
+<span class="normal">33</span>
+<span class="normal">34</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@abstractmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">search</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SeamSearchResult</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Search for the seam position."""</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="cylindra.components.seam_search.TiltScoreSeamSearcher" class="doc doc-heading">
+            <code>TiltScoreSeamSearcher</code>
+
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Seam searcher based on the scores of each molecule in the tilt images.</p>
+<p>The templates are projected to each tilt image at the position and orientation of
+each molecule, and compared with the tilt images by ZNCC. Unlike the subtomograms,
+the tilt images have no missing wedge or interpolation of the reconstruction.</p>
+
+
+
+
+
+
+
+
+              <details class="mkdocstrings-source">
+                <summary>Source code in <code>cylindra/components/seam_search.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">207</span>
+<span class="normal">208</span>
+<span class="normal">209</span>
+<span class="normal">210</span>
+<span class="normal">211</span>
+<span class="normal">212</span>
+<span class="normal">213</span>
+<span class="normal">214</span>
+<span class="normal">215</span>
+<span class="normal">216</span>
+<span class="normal">217</span>
+<span class="normal">218</span>
+<span class="normal">219</span>
+<span class="normal">220</span>
+<span class="normal">221</span>
+<span class="normal">222</span>
+<span class="normal">223</span>
+<span class="normal">224</span>
+<span class="normal">225</span>
+<span class="normal">226</span>
+<span class="normal">227</span>
+<span class="normal">228</span>
+<span class="normal">229</span>
+<span class="normal">230</span>
+<span class="normal">231</span>
+<span class="normal">232</span>
+<span class="normal">233</span>
+<span class="normal">234</span>
+<span class="normal">235</span>
+<span class="normal">236</span>
+<span class="normal">237</span>
+<span class="normal">238</span>
+<span class="normal">239</span>
+<span class="normal">240</span>
+<span class="normal">241</span>
+<span class="normal">242</span>
+<span class="normal">243</span>
+<span class="normal">244</span>
+<span class="normal">245</span>
+<span class="normal">246</span>
+<span class="normal">247</span>
+<span class="normal">248</span>
+<span class="normal">249</span>
+<span class="normal">250</span>
+<span class="normal">251</span>
+<span class="normal">252</span>
+<span class="normal">253</span>
+<span class="normal">254</span>
+<span class="normal">255</span>
+<span class="normal">256</span>
+<span class="normal">257</span>
+<span class="normal">258</span>
+<span class="normal">259</span>
+<span class="normal">260</span>
+<span class="normal">261</span>
+<span class="normal">262</span>
+<span class="normal">263</span>
+<span class="normal">264</span>
+<span class="normal">265</span>
+<span class="normal">266</span>
+<span class="normal">267</span>
+<span class="normal">268</span>
+<span class="normal">269</span>
+<span class="normal">270</span>
+<span class="normal">271</span>
+<span class="normal">272</span>
+<span class="normal">273</span>
+<span class="normal">274</span>
+<span class="normal">275</span>
+<span class="normal">276</span>
+<span class="normal">277</span>
+<span class="normal">278</span>
+<span class="normal">279</span>
+<span class="normal">280</span>
+<span class="normal">281</span>
+<span class="normal">282</span>
+<span class="normal">283</span>
+<span class="normal">284</span>
+<span class="normal">285</span>
+<span class="normal">286</span>
+<span class="normal">287</span>
+<span class="normal">288</span>
+<span class="normal">289</span>
+<span class="normal">290</span>
+<span class="normal">291</span>
+<span class="normal">292</span>
+<span class="normal">293</span>
+<span class="normal">294</span>
+<span class="normal">295</span>
+<span class="normal">296</span>
+<span class="normal">297</span>
+<span class="normal">298</span>
+<span class="normal">299</span>
+<span class="normal">300</span>
+<span class="normal">301</span>
+<span class="normal">302</span>
+<span class="normal">303</span>
+<span class="normal">304</span>
+<span class="normal">305</span>
+<span class="normal">306</span>
+<span class="normal">307</span>
+<span class="normal">308</span>
+<span class="normal">309</span>
+<span class="normal">310</span>
+<span class="normal">311</span>
+<span class="normal">312</span>
+<span class="normal">313</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">TiltScoreSeamSearcher</span><span class="p">(</span><span class="n">SeamSearcher</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Seam searcher based on the scores of each molecule in the tilt images.</span>
+
+<span class="sd">    The templates are projected to each tilt image at the position and orientation of</span>
+<span class="sd">    each molecule, and compared with the tilt images by ZNCC. Unlike the subtomograms,</span>
+<span class="sd">    the tilt images have no missing wedge or interpolation of the reconstruction.</span>
+<span class="sd">    """</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">search</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">loader</span><span class="p">:</span> <span class="n">BackProjectionLoader</span><span class="p">,</span>
+        <span class="n">template</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">],</span>
+        <span class="n">anti_template</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">mask</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">cutoff</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">ctf</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MoleculeScoreSeamSearchResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Search for the seam position.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        loader : BackProjectionLoader</span>
+<span class="sd">            Loader of the molecules from the tilt series. Molecules should have the</span>
+<span class="sd">            "nth" and "pf-id" features, otherwise they are assumed to be sorted by</span>
+<span class="sd">            (nth, pf-id).</span>
+<span class="sd">        template : 3D array</span>
+<span class="sd">            Template image in the pixel size of the loader.</span>
+<span class="sd">        anti_template : 3D array, optional</span>
+<span class="sd">            Anti-template image. If given, the score of each molecule is the</span>
+<span class="sd">            correlation with the template minus that with the anti-template.</span>
+<span class="sd">        mask : 3D array, optional</span>
+<span class="sd">            Mask image of the templates. It is projected in the same way as the</span>
+<span class="sd">            templates and applied to both the projections and the tilt images.</span>
+<span class="sd">        cutoff : float, optional</span>
+<span class="sd">            Cutoff frequency of the low-pass filter, in the same unit as the alignment.</span>
+<span class="sd">            None or 0 means no filter.</span>
+<span class="sd">        ctf : bool, default True</span>
+<span class="sd">            If true, the CTF is applied to the projections of the templates, with the</span>
+<span class="sd">            defocus of each molecule in each tilt.</span>
+<span class="sd">        """</span>
+        <span class="n">templates</span> <span class="o">=</span> <span class="p">[</span><span class="n">template</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">anti_template</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">anti_template</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">template</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"The shape of anti-template (</span><span class="si">{</span><span class="n">anti_template</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">) must be the "</span>
+                    <span class="sa">f</span><span class="s2">"same as the shape of template (</span><span class="si">{</span><span class="n">template</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">)."</span>
+                <span class="p">)</span>
+            <span class="n">templates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">anti_template</span><span class="p">)</span>
+        <span class="c1"># (n_templates, N, T) scores in each tilt image</span>
+        <span class="n">scores</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">score_on_tilt</span><span class="p">(</span>
+            <span class="n">templates</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span> <span class="n">cutoff</span><span class="o">=</span><span class="n">cutoff</span> <span class="ow">or</span> <span class="kc">None</span><span class="p">,</span> <span class="n">ctf</span><span class="o">=</span><span class="n">ctf</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">anti_template</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">tilt_scores</span> <span class="o">=</span> <span class="n">scores</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">tilt_scores</span> <span class="o">=</span> <span class="n">scores</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">scores</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">mole_scores</span> <span class="o">=</span> <span class="n">tilt_scores</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_search_by_molecule_scores</span><span class="p">(</span><span class="n">loader</span><span class="o">.</span><span class="n">molecules</span><span class="p">,</span> <span class="n">mole_scores</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">tilt_scores</span> <span class="o">=</span> <span class="n">tilt_scores</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_search_by_molecule_scores</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">mole</span><span class="p">:</span> <span class="n">Molecules</span><span class="p">,</span> <span class="n">mole_scores</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MoleculeScoreSeamSearchResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Compare the class means of the molecule scores of all the seam positions."""</span>
+        <span class="n">ring</span><span class="p">,</span> <span class="n">pf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ring_and_pf</span><span class="p">(</span><span class="n">mole</span><span class="p">)</span>
+        <span class="c1"># labels[s, i] is True if the i-th molecule is in the template-like class</span>
+        <span class="c1"># under the seam position s.</span>
+        <span class="n">seam_pos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">npf</span><span class="p">)[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="n">_seam_parity</span><span class="p">(</span><span class="n">ring</span><span class="p">,</span> <span class="n">pf</span><span class="p">,</span> <span class="n">seam_pos</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">npf</span><span class="p">)</span>
+        <span class="n">cnt_true</span> <span class="o">=</span> <span class="n">labels</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">cnt_false</span> <span class="o">=</span> <span class="n">mole_scores</span><span class="o">.</span><span class="n">size</span> <span class="o">-</span> <span class="n">cnt_true</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">cnt_true</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">cnt_false</span> <span class="o">==</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Molecules in both even and odd rings are needed."</span><span class="p">)</span>
+        <span class="n">sum_true</span> <span class="o">=</span> <span class="p">(</span><span class="n">labels</span> <span class="o">*</span> <span class="n">mole_scores</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">sum_false</span> <span class="o">=</span> <span class="n">mole_scores</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">-</span> <span class="n">sum_true</span>
+        <span class="n">scores</span> <span class="o">=</span> <span class="n">sum_true</span> <span class="o">/</span> <span class="n">cnt_true</span> <span class="o">-</span> <span class="n">sum_false</span> <span class="o">/</span> <span class="n">cnt_false</span>
+
+        <span class="k">return</span> <span class="n">MoleculeScoreSeamSearchResult</span><span class="p">(</span>
+            <span class="n">scores</span><span class="o">=</span><span class="n">scores</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+            <span class="n">molecule_scores</span><span class="o">=</span><span class="n">mole_scores</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+            <span class="n">ring</span><span class="o">=</span><span class="n">ring</span><span class="p">,</span>
+            <span class="n">pf</span><span class="o">=</span><span class="n">pf</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_ring_and_pf</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">mole</span><span class="p">:</span> <span class="n">Molecules</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">],</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">]]:</span>
+        <span class="n">feat</span> <span class="o">=</span> <span class="n">mole</span><span class="o">.</span><span class="n">features</span>
+        <span class="k">if</span> <span class="n">Mole</span><span class="o">.</span><span class="n">nth</span> <span class="ow">in</span> <span class="n">feat</span><span class="o">.</span><span class="n">columns</span> <span class="ow">and</span> <span class="n">Mole</span><span class="o">.</span><span class="n">pf</span> <span class="ow">in</span> <span class="n">feat</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="n">ring</span> <span class="o">=</span> <span class="n">feat</span><span class="p">[</span><span class="n">Mole</span><span class="o">.</span><span class="n">nth</span><span class="p">]</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">Int32</span><span class="p">)</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+            <span class="n">pf</span> <span class="o">=</span> <span class="n">feat</span><span class="p">[</span><span class="n">Mole</span><span class="o">.</span><span class="n">pf</span><span class="p">]</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">pl</span><span class="o">.</span><span class="n">Int32</span><span class="p">)</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+            <span class="n">ring</span> <span class="o">=</span> <span class="n">ring</span> <span class="o">-</span> <span class="n">ring</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">_id</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">mole</span><span class="o">.</span><span class="n">count</span><span class="p">(),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">_id</span><span class="o">.</span><span class="n">size</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">npf</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">"Number of molecules (</span><span class="si">{</span><span class="n">_id</span><span class="o">.</span><span class="n">size</span><span class="si">}</span><span class="s2">) is not a multiple of npf "</span>
+                    <span class="sa">f</span><span class="s2">"(</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">npf</span><span class="si">}</span><span class="s2">)."</span>
+                <span class="p">)</span>
+            <span class="n">ring</span><span class="p">,</span> <span class="n">pf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">divmod</span><span class="p">(</span><span class="n">_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">npf</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">pf</span><span class="o">.</span><span class="n">min</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">pf</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">npf</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"Protofilament IDs must be in [0, </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">npf</span><span class="si">}</span><span class="s2">), got "</span>
+                <span class="sa">f</span><span class="s2">"[</span><span class="si">{</span><span class="n">pf</span><span class="o">.</span><span class="n">min</span><span class="p">()</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">pf</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">}</span><span class="s2">]."</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">ring</span><span class="p">,</span> <span class="n">pf</span>
+</code></pre></div></td></tr></table></div>
+              </details>
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="cylindra.components.seam_search.TiltScoreSeamSearcher.search" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">search</span><span class="p">(</span><span class="n">loader</span><span class="p">,</span> <span class="n">template</span><span class="p">,</span> <span class="n">anti_template</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cutoff</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ctf</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+
+</h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Search for the seam position.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>loader</code>
+            </td>
+            <td>
+                  <code><span title="acryo.BackProjectionLoader">BackProjectionLoader</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Loader of the molecules from the tilt series. Molecules should have the
+"nth" and "pf-id" features, otherwise they are assumed to be sorted by
+(nth, pf-id).</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>template</code>
+            </td>
+            <td>
+                  <code>3D array</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Template image in the pixel size of the loader.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>anti_template</code>
+            </td>
+            <td>
+                  <code>3D array</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Anti-template image. If given, the score of each molecule is the
+correlation with the template minus that with the anti-template.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>mask</code>
+            </td>
+            <td>
+                  <code>3D array</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Mask image of the templates. It is projected in the same way as the
+templates and applied to both the projections and the tilt images.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>cutoff</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#float">float</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Cutoff frequency of the low-pass filter, in the same unit as the alignment.
+None or 0 means no filter.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>ctf</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#bool">bool</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If true, the CTF is applied to the projections of the templates, with the
+defocus of each molecule in each tilt.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>cylindra/components/seam_search.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">215</span>
+<span class="normal">216</span>
+<span class="normal">217</span>
+<span class="normal">218</span>
+<span class="normal">219</span>
+<span class="normal">220</span>
+<span class="normal">221</span>
+<span class="normal">222</span>
+<span class="normal">223</span>
+<span class="normal">224</span>
+<span class="normal">225</span>
+<span class="normal">226</span>
+<span class="normal">227</span>
+<span class="normal">228</span>
+<span class="normal">229</span>
+<span class="normal">230</span>
+<span class="normal">231</span>
+<span class="normal">232</span>
+<span class="normal">233</span>
+<span class="normal">234</span>
+<span class="normal">235</span>
+<span class="normal">236</span>
+<span class="normal">237</span>
+<span class="normal">238</span>
+<span class="normal">239</span>
+<span class="normal">240</span>
+<span class="normal">241</span>
+<span class="normal">242</span>
+<span class="normal">243</span>
+<span class="normal">244</span>
+<span class="normal">245</span>
+<span class="normal">246</span>
+<span class="normal">247</span>
+<span class="normal">248</span>
+<span class="normal">249</span>
+<span class="normal">250</span>
+<span class="normal">251</span>
+<span class="normal">252</span>
+<span class="normal">253</span>
+<span class="normal">254</span>
+<span class="normal">255</span>
+<span class="normal">256</span>
+<span class="normal">257</span>
+<span class="normal">258</span>
+<span class="normal">259</span>
+<span class="normal">260</span>
+<span class="normal">261</span>
+<span class="normal">262</span>
+<span class="normal">263</span>
+<span class="normal">264</span>
+<span class="normal">265</span>
+<span class="normal">266</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">search</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">loader</span><span class="p">:</span> <span class="n">BackProjectionLoader</span><span class="p">,</span>
+    <span class="n">template</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">],</span>
+    <span class="n">anti_template</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">mask</span><span class="p">:</span> <span class="n">NDArray</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">cutoff</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">ctf</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MoleculeScoreSeamSearchResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Search for the seam position.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    loader : BackProjectionLoader</span>
+<span class="sd">        Loader of the molecules from the tilt series. Molecules should have the</span>
+<span class="sd">        "nth" and "pf-id" features, otherwise they are assumed to be sorted by</span>
+<span class="sd">        (nth, pf-id).</span>
+<span class="sd">    template : 3D array</span>
+<span class="sd">        Template image in the pixel size of the loader.</span>
+<span class="sd">    anti_template : 3D array, optional</span>
+<span class="sd">        Anti-template image. If given, the score of each molecule is the</span>
+<span class="sd">        correlation with the template minus that with the anti-template.</span>
+<span class="sd">    mask : 3D array, optional</span>
+<span class="sd">        Mask image of the templates. It is projected in the same way as the</span>
+<span class="sd">        templates and applied to both the projections and the tilt images.</span>
+<span class="sd">    cutoff : float, optional</span>
+<span class="sd">        Cutoff frequency of the low-pass filter, in the same unit as the alignment.</span>
+<span class="sd">        None or 0 means no filter.</span>
+<span class="sd">    ctf : bool, default True</span>
+<span class="sd">        If true, the CTF is applied to the projections of the templates, with the</span>
+<span class="sd">        defocus of each molecule in each tilt.</span>
+<span class="sd">    """</span>
+    <span class="n">templates</span> <span class="o">=</span> <span class="p">[</span><span class="n">template</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">anti_template</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">anti_template</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">template</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"The shape of anti-template (</span><span class="si">{</span><span class="n">anti_template</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">) must be the "</span>
+                <span class="sa">f</span><span class="s2">"same as the shape of template (</span><span class="si">{</span><span class="n">template</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">)."</span>
+            <span class="p">)</span>
+        <span class="n">templates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">anti_template</span><span class="p">)</span>
+    <span class="c1"># (n_templates, N, T) scores in each tilt image</span>
+    <span class="n">scores</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">score_on_tilt</span><span class="p">(</span>
+        <span class="n">templates</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span> <span class="n">cutoff</span><span class="o">=</span><span class="n">cutoff</span> <span class="ow">or</span> <span class="kc">None</span><span class="p">,</span> <span class="n">ctf</span><span class="o">=</span><span class="n">ctf</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">anti_template</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">tilt_scores</span> <span class="o">=</span> <span class="n">scores</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">tilt_scores</span> <span class="o">=</span> <span class="n">scores</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">scores</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">mole_scores</span> <span class="o">=</span> <span class="n">tilt_scores</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_search_by_molecule_scores</span><span class="p">(</span><span class="n">loader</span><span class="o">.</span><span class="n">molecules</span><span class="p">,</span> <span class="n">mole_scores</span><span class="p">)</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">tilt_scores</span> <span class="o">=</span> <span class="n">tilt_scores</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -32615,23 +33384,23 @@ peak usually does not represent the optimal result.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/seam_search.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">196</span>
-<span class="normal">197</span>
-<span class="normal">198</span>
-<span class="normal">199</span>
-<span class="normal">200</span>
-<span class="normal">201</span>
-<span class="normal">202</span>
-<span class="normal">203</span>
-<span class="normal">204</span>
-<span class="normal">205</span>
-<span class="normal">206</span>
-<span class="normal">207</span>
-<span class="normal">208</span>
-<span class="normal">209</span>
-<span class="normal">210</span>
-<span class="normal">211</span>
-<span class="normal">212</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">prep_seam_search_input</span><span class="p">(</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">355</span>
+<span class="normal">356</span>
+<span class="normal">357</span>
+<span class="normal">358</span>
+<span class="normal">359</span>
+<span class="normal">360</span>
+<span class="normal">361</span>
+<span class="normal">362</span>
+<span class="normal">363</span>
+<span class="normal">364</span>
+<span class="normal">365</span>
+<span class="normal">366</span>
+<span class="normal">367</span>
+<span class="normal">368</span>
+<span class="normal">369</span>
+<span class="normal">370</span>
+<span class="normal">371</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">prep_seam_search_input</span><span class="p">(</span>
     <span class="n">tomo</span><span class="p">:</span> <span class="n">CylTomogram</span><span class="p">,</span>
     <span class="n">mole</span><span class="p">:</span> <span class="n">Molecules</span><span class="p">,</span>
     <span class="n">npf</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>

@@ -2757,7 +2757,7 @@
 <h3 id="tilt-series-alignment">Tilt Series Alignment</h3>
 <p>If the tomogram is <a href="../../open_image/">opened from a tilt series</a>, the alignment of the
 tilt series can be refined using the molecules.</p>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="refine_tilt_series(layers, size=None, max_shift=2.0, rotation=(0, 0), grid_shape=(1, 1), smoothness=0.01, bin_size=1, update_coarse_tomogram=True)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.refine_tilt_series"><code>refine_tilt_series</code></a></p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="refine_tilt_series(layers, size=None, max_shift=2.0, rotation=(0, 0), grid_shape=(1, 1), smoothness=0.01, ctf=True, bin_size=1, update_coarse_tomogram=True)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.refine_tilt_series"><code>refine_tilt_series</code></a></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>STA widget &gt; Alignment &gt; Refine tilt series</code></p>
 <p>The subtomograms of each selected layer are averaged as the reference of the molecules
 of the layer. The projections of the averages placed at the molecules are compared with
@@ -2775,6 +2775,9 @@ the tilt images, and the shifts of each tilt image are refined.</p>
    Otherwise, the shifts are refined as a smooth field over each tilt image.</li>
 <li>"smoothness" is the weight of the smoothness prior of the local shifts. Larger
    value is more robust against noise and fewer molecules.</li>
+<li>If "apply CTF" is checked, the CTF is applied to the projections of the
+   averages, with the defocus of each molecule in each tilt (changed by its depth
+   in the microscope). The tilt series must have the CTF parameters.</li>
 <li>"bin size" is the bin size of the subtomograms used for the averages and the
    refinement.</li>
 <li>If "update coarse tomogram" is checked, the coarse tomogram for visualization is

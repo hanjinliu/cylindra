@@ -1947,6 +1947,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#seam-search-in-the-tilt-series" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Seam-search in the Tilt Series
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#manual-seam-search" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2756,6 +2767,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#seam-search-in-the-tilt-series" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Seam-search in the Tilt Series
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#manual-seam-search" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2827,6 +2849,25 @@ distinguish them.</p>
 </details>
 <p>Molecules labeled with <code>0</code> are the molecules that should be considered as the template,
 and <code>1</code> the anti-template.</p>
+<h2 id="seam-search-in-the-tilt-series">Seam-search in the Tilt Series</h2>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="seam_search_on_tilt(layer, template_path, mask_params, anti_template_path=None, npf=None, bin_size=1, cutoff=0.25, ctf=True)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.seam_search_on_tilt"><code>seam_search_on_tilt</code></a></p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>STA widget &gt; Analysis &gt; Seam search &gt; Seam search on tilt series</code></p>
+<p>If the tomogram is opened from a tilt series, the molecules can be scored directly in the
+tilt images instead of the reconstructed subvolumes. The template (and the anti-template)
+is projected to each tilt image at the position and orientation of each molecule, and
+compared with the tilt image by ZNCC. The score of each molecule is the mean over the tilts,
+and the mean scores of the two groups of molecules are compared for all the seam locations.
+The location with the largest difference is the seam.</p>
+<details class="info">
+<summary>List of parameters</summary>
+<ol>
+<li>"layer", the template, the mask, "anti-template path", "npf" and "cutoff" are the
+   same as <a href="#seam-search-based-on-cross-correlation"><code>seam_search</code></a>.</li>
+<li>"bin size" is the bin size of the projections.</li>
+<li>If "apply CTF" is checked, the CTF is applied to the projections, with the defocus
+   of each molecule in each tilt. The tilt series must have the CTF parameters.</li>
+</ol>
+</details>
 <h2 id="manual-seam-search">Manual Seam-search</h2>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="seam_search_manually(layer, location=0)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.seam_search_manually"><code>seam_search_manually</code></a></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>STA widget &gt; Analysis &gt; Seam search &gt; Seam search manually</code></p>

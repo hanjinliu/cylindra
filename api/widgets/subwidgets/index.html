@@ -8511,7 +8511,11 @@ denoising the Y-projection images.</p>
 <span class="normal">827</span>
 <span class="normal">828</span>
 <span class="normal">829</span>
-<span class="normal">830</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="normal">830</span>
+<span class="normal">831</span>
+<span class="normal">832</span>
+<span class="normal">833</span>
+<span class="normal">834</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">record</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">SplineSlicer</span><span class="p">(</span><span class="n">ChildWidget</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Slicer along spline.</span>
 
@@ -8575,6 +8579,10 @@ denoising the Y-projection images.</p>
                 <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_main</span><span class="p">()</span><span class="o">.</span><span class="n">_get_available_binsize</span><span class="p">(</span><span class="n">widget</span><span class="p">)</span>
             <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
                 <span class="k">return</span> <span class="p">[(</span><span class="s2">"1 pixel"</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">_set_maximum_binsize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">widget</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">bin_size</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">b</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_available_binsize</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">binsize</span> <span class="o">=</span> <span class="n">bin_size</span>
 
         <span class="n">depth</span> <span class="o">=</span> <span class="n">vfield</span><span class="p">(</span><span class="mf">50.0</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">"depth (nm)"</span><span class="p">)</span><span class="o">.</span><span class="n">with_options</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mf">200.0</span><span class="p">)</span>
         <span class="n">binsize</span> <span class="o">=</span> <span class="n">vfield</span><span class="p">()</span><span class="o">.</span><span class="n">with_choices</span><span class="p">(</span><span class="n">_get_available_binsize</span><span class="p">)</span>
@@ -9390,11 +9398,7 @@ denoising the Y-projection images.</p>
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>cylindra/widgets/subwidgets/slicer.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">145</span>
-<span class="normal">146</span>
-<span class="normal">147</span>
-<span class="normal">148</span>
-<span class="normal">149</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">149</span>
 <span class="normal">150</span>
 <span class="normal">151</span>
 <span class="normal">152</span>
@@ -9432,7 +9436,11 @@ denoising the Y-projection images.</p>
 <span class="normal">184</span>
 <span class="normal">185</span>
 <span class="normal">186</span>
-<span class="normal">187</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">widget_type</span><span class="o">=</span><span class="s2">"frame"</span><span class="p">)</span>
+<span class="normal">187</span>
+<span class="normal">188</span>
+<span class="normal">189</span>
+<span class="normal">190</span>
+<span class="normal">191</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">widget_type</span><span class="o">=</span><span class="s2">"frame"</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">controller</span><span class="p">(</span><span class="n">ChildWidget</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Control spline positions.</span>
 
@@ -9507,13 +9515,13 @@ denoising the Y-projection images.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/subwidgets/slicer.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">181</span>
-<span class="normal">182</span>
-<span class="normal">183</span>
-<span class="normal">184</span>
-<span class="normal">185</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">185</span>
 <span class="normal">186</span>
-<span class="normal">187</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">max_width</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="s2">"&gt;"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">SplineId</span><span class="p">)</span>
+<span class="normal">187</span>
+<span class="normal">188</span>
+<span class="normal">189</span>
+<span class="normal">190</span>
+<span class="normal">191</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">max_width</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="s2">"&gt;"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">SplineId</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">next_spline</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Next spline."""</span>
     <span class="n">num_splines</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_main</span><span class="p">()</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">splines</span><span class="p">)</span>
@@ -9542,12 +9550,12 @@ denoising the Y-projection images.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/subwidgets/slicer.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">174</span>
-<span class="normal">175</span>
-<span class="normal">176</span>
-<span class="normal">177</span>
-<span class="normal">178</span>
-<span class="normal">179</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">max_width</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="s2">"&lt;"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">SplineId</span><span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">178</span>
+<span class="normal">179</span>
+<span class="normal">180</span>
+<span class="normal">181</span>
+<span class="normal">182</span>
+<span class="normal">183</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">max_width</span><span class="o">=</span><span class="mi">24</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="s2">"&lt;"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">SplineId</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">prev_spline</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Previous spline."""</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">spline_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -9655,7 +9663,11 @@ be binned by 2 before projection and/or Fourier transformation.</p>
 <span class="normal">114</span>
 <span class="normal">115</span>
 <span class="normal">116</span>
-<span class="normal">117</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">layout</span><span class="o">=</span><span class="s2">"horizontal"</span><span class="p">)</span>
+<span class="normal">117</span>
+<span class="normal">118</span>
+<span class="normal">119</span>
+<span class="normal">120</span>
+<span class="normal">121</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">layout</span><span class="o">=</span><span class="s2">"horizontal"</span><span class="p">)</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">params</span><span class="p">(</span><span class="n">ChildWidget</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Slicing parameters.</span>
 
@@ -9677,6 +9689,10 @@ be binned by 2 before projection and/or Fourier transformation.</p>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_main</span><span class="p">()</span><span class="o">.</span><span class="n">_get_available_binsize</span><span class="p">(</span><span class="n">widget</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">[(</span><span class="s2">"1 pixel"</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_set_maximum_binsize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">widget</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">bin_size</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">b</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_available_binsize</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">binsize</span> <span class="o">=</span> <span class="n">bin_size</span>
 
     <span class="n">depth</span> <span class="o">=</span> <span class="n">vfield</span><span class="p">(</span><span class="mf">50.0</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">"depth (nm)"</span><span class="p">)</span><span class="o">.</span><span class="n">with_options</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mf">200.0</span><span class="p">)</span>
     <span class="n">binsize</span> <span class="o">=</span> <span class="n">vfield</span><span class="p">()</span><span class="o">.</span><span class="n">with_choices</span><span class="p">(</span><span class="n">_get_available_binsize</span><span class="p">)</span>
@@ -9721,17 +9737,17 @@ be binned by 2 before projection and/or Fourier transformation.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/subwidgets/slicer.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">217</span>
-<span class="normal">218</span>
-<span class="normal">219</span>
-<span class="normal">220</span>
-<span class="normal">221</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">221</span>
 <span class="normal">222</span>
 <span class="normal">223</span>
 <span class="normal">224</span>
 <span class="normal">225</span>
 <span class="normal">226</span>
-<span class="normal">227</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Apply N_S"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Row4</span><span class="p">)</span>
+<span class="normal">227</span>
+<span class="normal">228</span>
+<span class="normal">229</span>
+<span class="normal">230</span>
+<span class="normal">231</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Apply N_S"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Row4</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">apply_n_s</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">npf</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="p">{</span><span class="s2">"bind"</span><span class="p">:</span> <span class="n">npf</span><span class="p">}],</span>
@@ -9764,11 +9780,7 @@ be binned by 2 before projection and/or Fourier transformation.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/subwidgets/slicer.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">347</span>
-<span class="normal">348</span>
-<span class="normal">349</span>
-<span class="normal">350</span>
-<span class="normal">351</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">351</span>
 <span class="normal">352</span>
 <span class="normal">353</span>
 <span class="normal">354</span>
@@ -9776,7 +9788,11 @@ be binned by 2 before projection and/or Fourier transformation.</p>
 <span class="normal">356</span>
 <span class="normal">357</span>
 <span class="normal">358</span>
-<span class="normal">359</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Apply radius and thickness"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Row1</span><span class="p">)</span>
+<span class="normal">359</span>
+<span class="normal">360</span>
+<span class="normal">361</span>
+<span class="normal">362</span>
+<span class="normal">363</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Apply radius and thickness"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Row1</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">apply_radius_and_thickness</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Apply the current radius and thickness to the current spline."""</span>
     <span class="n">idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">controller</span><span class="o">.</span><span class="n">spline_id</span>
@@ -9811,12 +9827,12 @@ be binned by 2 before projection and/or Fourier transformation.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/subwidgets/slicer.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">317</span>
-<span class="normal">318</span>
-<span class="normal">319</span>
-<span class="normal">320</span>
-<span class="normal">321</span>
-<span class="normal">322</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Fit spline manually ..."</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Row3</span><span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">321</span>
+<span class="normal">322</span>
+<span class="normal">323</span>
+<span class="normal">324</span>
+<span class="normal">325</span>
+<span class="normal">326</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Fit spline manually ..."</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Row3</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">fit_spline_manually</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Open the spline fitter and run fitting tasks there."""</span>
     <span class="n">main</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_main</span><span class="p">()</span>
@@ -9981,11 +9997,7 @@ will be the output image shape.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/subwidgets/slicer.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">626</span>
-<span class="normal">627</span>
-<span class="normal">628</span>
-<span class="normal">629</span>
-<span class="normal">630</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">630</span>
 <span class="normal">631</span>
 <span class="normal">632</span>
 <span class="normal">633</span>
@@ -10041,7 +10053,11 @@ will be the output image shape.</p>
 <span class="normal">683</span>
 <span class="normal">684</span>
 <span class="normal">685</span>
-<span class="normal">686</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+<span class="normal">686</span>
+<span class="normal">687</span>
+<span class="normal">688</span>
+<span class="normal">689</span>
+<span class="normal">690</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">get_cartesian_image</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">spline</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
@@ -10260,11 +10276,7 @@ direction parallel to the spline vector at the given position.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/subwidgets/slicer.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">688</span>
-<span class="normal">689</span>
-<span class="normal">690</span>
-<span class="normal">691</span>
-<span class="normal">692</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">692</span>
 <span class="normal">693</span>
 <span class="normal">694</span>
 <span class="normal">695</span>
@@ -10313,7 +10325,11 @@ direction parallel to the spline vector at the given position.</p>
 <span class="normal">738</span>
 <span class="normal">739</span>
 <span class="normal">740</span>
-<span class="normal">741</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+<span class="normal">741</span>
+<span class="normal">742</span>
+<span class="normal">743</span>
+<span class="normal">744</span>
+<span class="normal">745</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">get_cylindric_image</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">spline</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
@@ -10525,11 +10541,7 @@ direction parallel to the spline vector at the given position.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/subwidgets/slicer.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">743</span>
-<span class="normal">744</span>
-<span class="normal">745</span>
-<span class="normal">746</span>
-<span class="normal">747</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">747</span>
 <span class="normal">748</span>
 <span class="normal">749</span>
 <span class="normal">750</span>
@@ -10571,7 +10583,11 @@ direction parallel to the spline vector at the given position.</p>
 <span class="normal">786</span>
 <span class="normal">787</span>
 <span class="normal">788</span>
-<span class="normal">789</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
+<span class="normal">789</span>
+<span class="normal">790</span>
+<span class="normal">791</span>
+<span class="normal">792</span>
+<span class="normal">793</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@nogui</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">get_cylindric_power_spectrum</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">spline</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
@@ -10640,11 +10656,7 @@ direction parallel to the spline vector at the given position.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/subwidgets/slicer.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">291</span>
-<span class="normal">292</span>
-<span class="normal">293</span>
-<span class="normal">294</span>
-<span class="normal">295</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">295</span>
 <span class="normal">296</span>
 <span class="normal">297</span>
 <span class="normal">298</span>
@@ -10664,7 +10676,11 @@ direction parallel to the spline vector at the given position.</p>
 <span class="normal">312</span>
 <span class="normal">313</span>
 <span class="normal">314</span>
-<span class="normal">315</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Measure CFT"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Row2</span><span class="p">)</span>
+<span class="normal">315</span>
+<span class="normal">316</span>
+<span class="normal">317</span>
+<span class="normal">318</span>
+<span class="normal">319</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Measure CFT"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Row2</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">measure_cft_here</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Measure CFT parameters at the current position."""</span>
     <span class="n">idx</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">depth</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_cropping_params</span><span class="p">()</span>
@@ -10711,11 +10727,7 @@ direction parallel to the spline vector at the given position.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/subwidgets/slicer.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">324</span>
-<span class="normal">325</span>
-<span class="normal">326</span>
-<span class="normal">327</span>
-<span class="normal">328</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">328</span>
 <span class="normal">329</span>
 <span class="normal">330</span>
 <span class="normal">331</span>
@@ -10725,7 +10737,11 @@ direction parallel to the spline vector at the given position.</p>
 <span class="normal">335</span>
 <span class="normal">336</span>
 <span class="normal">337</span>
-<span class="normal">338</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Measure CW/CCW"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Row2</span><span class="p">)</span>
+<span class="normal">338</span>
+<span class="normal">339</span>
+<span class="normal">340</span>
+<span class="normal">341</span>
+<span class="normal">342</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Measure CW/CCW"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Row2</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">measure_clockwise</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Measure if the helix is clockwise or counter-clockwise."""</span>
     <span class="n">idx</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">depth</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_cropping_params</span><span class="p">()</span>
@@ -10762,13 +10778,13 @@ direction parallel to the spline vector at the given position.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/subwidgets/slicer.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">283</span>
-<span class="normal">284</span>
-<span class="normal">285</span>
-<span class="normal">286</span>
-<span class="normal">287</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">287</span>
 <span class="normal">288</span>
-<span class="normal">289</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Measure radius"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Row2</span><span class="p">)</span>
+<span class="normal">289</span>
+<span class="normal">290</span>
+<span class="normal">291</span>
+<span class="normal">292</span>
+<span class="normal">293</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Measure radius"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Row2</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">measure_radius</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Measure the radius for the current spline."""</span>
     <span class="n">idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">controller</span><span class="o">.</span><span class="n">spline_id</span>
@@ -10797,12 +10813,12 @@ direction parallel to the spline vector at the given position.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/widgets/subwidgets/slicer.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">340</span>
-<span class="normal">341</span>
-<span class="normal">342</span>
-<span class="normal">343</span>
-<span class="normal">344</span>
-<span class="normal">345</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Refresh"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Row3</span><span class="p">)</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">344</span>
+<span class="normal">345</span>
+<span class="normal">346</span>
+<span class="normal">347</span>
+<span class="normal">348</span>
+<span class="normal">349</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@set_design</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Refresh"</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">Row3</span><span class="p">)</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">refresh_widget_state</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Refresh widget state."""</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_spline_changed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">controller</span><span class="o">.</span><span class="n">spline_id</span><span class="p">,</span> <span class="n">refer_config</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
