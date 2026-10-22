@@ -125,7 +125,7 @@ class MoleculeScoreSeamSearchResult(SeamSearchResult):
         Ring and protofilament indices of each molecule used for labeling.
     tilt_scores : (N, T) array, optional
         Score of each molecule in each tilt image, if the molecules are scored in
-        the tilt images. ``molecule_scores`` is the mean over the tilts.
+        the tilt images.
     """
 
     scores: NDArray[np.floating]
@@ -223,10 +223,6 @@ class TiltScoreSeamSearcher(SeamSearcher):
 
     The templates are projected to each tilt image at the position and orientation of
     each molecule, and compared with the tilt images by ZNCC
-    (``acryo.BackProjectionLoader.score_on_tilt``). The score of each molecule is the
-    mean of the scores over the tilts. Because averaging is linear, comparing the
-    averages of the seam hypotheses is approximately the same as comparing the class
-    means of the scores of each molecule. This makes all the 2 * npf hypotheses cheap,
     and allows the confidence of the result to be estimated by bootstrapping the
     rings. Unlike the subtomograms, the tilt images have no missing wedge or
     interpolation of the reconstruction.

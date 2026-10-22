@@ -980,7 +980,8 @@ def _save_tilt_series(
             tilt_series = tilt_series.replace(image_path=image_path)
         (results_dir / TILT_SERIES_FILE).write_text(tilt_series.dump_json())
     if save_coarse_tomogram and ts.has_unsaved_reference and ts.reference is not None:
-        ts.reference.imsave(results_dir / COARSE_TOMOGRAM_FILE)
+        # float16 (MRC mode 12) is precise enough for visualization
+        ts.reference.astype("float16").imsave(results_dir / COARSE_TOMOGRAM_FILE)
     return None
 
 

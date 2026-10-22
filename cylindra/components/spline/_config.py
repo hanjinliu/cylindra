@@ -183,6 +183,7 @@ class SplineConfig:
         thickness_outer: nm | None = None,
         fit_depth: nm | None = None,
         fit_width: nm | None = None,
+        note: str | None = None,
     ) -> SplineConfig:
         kwargs = locals()
         kwargs.pop("self")

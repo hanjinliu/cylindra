@@ -101,7 +101,7 @@ variables are pushed to the console global namespace:
 
 === "Open a Tilt Series"
 
-    :sparkles: *New in v1.3.0*
+    :sparkles: *New in v1.3.0 (beta)*
 
     :material-arrow-right-thin-circle-outline: API: [`open_tilt_series`][cylindra.widgets.main.CylindraMainWidget.open_tilt_series] or [`open_tilt_series_with_reference`][cylindra.widgets.main.CylindraMainWidget.open_tilt_series_with_reference].
 

@@ -91,8 +91,11 @@ def tilt_series_files(tmp_path_factory: pytest.TempPathFactory) -> TiltSeriesFil
 
 
 def _corr(a, b) -> float:
-    a = np.asarray(a) - np.mean(a)
-    b = np.asarray(b) - np.mean(b)
+    # in float64, as the coarse tomograms are float16
+    a = np.asarray(a, dtype=np.float64)
+    b = np.asarray(b, dtype=np.float64)
+    a = a - a.mean()
+    b = b - b.mean()
     return float(np.sum(a * b) / np.sqrt(np.sum(a**2) * np.sum(b**2)))
 
 
@@ -450,6 +453,7 @@ def test_refine_tilt_series(
     # with the same inversion
     new_ref = src.reference
     assert new_ref.shape == ref_before.shape
+    assert new_ref.dtype == np.float16
     assert new_ref.scale.x == pytest.approx(SCALE * 2)
     assert src.has_unsaved_reference
     assert _corr(new_ref, ref_before) > 0.95
@@ -487,7 +491,9 @@ def test_refine_tilt_series(
         assert src.has_unsaved_tilt_series and src.has_unsaved_reference
         assert ui._reserved_layers.ref_inverted
     assert (tmp_path / "project" / "tilt_series.json").exists()
-    assert (tmp_path / "project" / "coarse_tomogram.mrc").exists()
+    # the coarse tomogram is saved in float16 (MRC mode 12)
+    with mrcfile.open(tmp_path / "project" / "coarse_tomogram.mrc") as mrc:
+        assert mrc.header.mode == 12
     src.release_cache()
 
 
@@ -503,6 +509,184 @@ def _project_files(path: Path) -> set[str]:
         with zipfile.ZipFile(path) as zf:
             return set(zf.namelist())
     return {p.name for p in path.iterdir()}
+
+
+@pytest.mark.parametrize("tomo_hand", [1, -1])
+def test_project_points(tilt_series_files: TiltSeriesFiles, tomo_hand: int):
+    from acryo import BackProjectionLoader
+
+    from cylindra.components.tomogram._tilt_series import (
+        TiltSeriesSource,
+        read_tilt_series,
+    )
+
+    ts = read_tilt_series(tilt_series_files.json, SCALE)
+    loader = BackProjectionLoader(
+        ts, tomogram_center=(20.0, 100.0, 50.0), tomo_hand=tomo_hand
+    )
+    src = TiltSeriesSource(loader, (36, 206, 94))
+    points = np.array([[18.0, 120.0, 40.0], [25.0, 80.0, 60.0]])
+    # the same projection as the reconstruction of the subtomograms
+    pos, _ = loader._to_tilt_series_frame(Molecules(points))
+    expected = ts.project_points(pos - loader.tomogram_center) / SCALE
+    expected += np.array(src.tilt_image_source().image_shape) // 2
+    np.testing.assert_allclose(src.project_points(points), expected)
+
+
+def test_tilt_series_viewer(ui: CylindraMainWidget, tilt_series_files: TiltSeriesFiles):
+    from magicclass.utils import thread_worker
+
+    ui.open_tilt_series_with_reference(
+        tilt_series_files.json,
+        scale=SCALE,
+        reference_path=tilt_series_files.reference,
+        tomo_hand=TOMO_HAND,
+        bin_size=[1],
+        filter=None,
+        invert_reference=True,
+    )
+    ui.register_path(COORDS_13PF + tilt_series_files.offset)
+    src = ui.tomogram.tilt_series
+    angles = src.tilt_series.tilt_angles
+    # the projected spline is on the microtubule (dark) in the tilt images
+    proj = src.project_points(ui.splines[0].partition(20))  # (20, T, 2)
+    for t in [0, angles.size // 2, angles.size - 1]:
+        img = ndi.gaussian_filter(src.tilt_image_source()[t], 3.0)
+        iy, ix = np.round(proj[:, t]).astype(np.intp).T
+        # 20 pixels away from the microtubule
+        off = min(
+            img[iy, np.clip(ix + d, 0, img.shape[1] - 1)].mean() for d in (-20, 20)
+        )
+        assert img[iy, ix].mean() < off - img.std() / 2
+
+    with thread_worker.blocking_mode():
+        viewer = ui.ImageMenu.open_tilt_series_viewer()
+        assert viewer.sl.value == np.argmin(np.abs(angles))
+        assert viewer.canvas.image.shape == (206 // 4, 104 // 4)
+        assert len(viewer.canvas.layers) == 2  # the spline and its index
+        # the edges of the cylinder are shown if the radius is measured
+        ui.measure_radius(splines=[0], bin_size=1)
+        viewer.refresh()
+        assert len(viewer.canvas.layers) == 4
+        viewer.sl.value = 0
+        viewer.Filter.bin_size = 2
+        viewer.Filter.apply_filter = True
+        viewer._update_canvas()
+        assert viewer.canvas.image.shape == (206 // 2, 104 // 2)
+        assert viewer.canvas.text_overlay.text.startswith("tilt 0:")
+        viewer.show_splines = False
+        viewer._update_canvas()
+        assert len(viewer.canvas.layers) == 0
+        viewer.close_this()
+
+
+def _shift_errors(true_ts, ts) -> np.ndarray:
+    """Errors (T, 2) of the shifts of the tilt images up to a translation of the
+    tomogram, which is compensated by the shifts."""
+    diff = ts.sample_translations - true_ts.sample_translations
+    linear = (true_ts.projection_matrices @ true_ts.tomo2sample)[:, 1:3, :3]
+    translation, *_ = np.linalg.lstsq(linear.reshape(-1, 3), diff.ravel(), rcond=None)
+    return diff - linear @ translation
+
+
+def test_align_tilt_series(
+    ui: CylindraMainWidget,
+    tilt_series_files: TiltSeriesFiles,
+    qtbot,
+):
+    ui.open_tilt_series_with_reference(
+        tilt_series_files.json,
+        scale=SCALE,
+        reference_path=tilt_series_files.reference,
+        tomo_hand=TOMO_HAND,
+        bin_size=[1],
+        filter=None,
+        invert_reference=True,
+    )
+    tomo = ui.tomogram
+    src = tomo.tilt_series
+    true_ts = src.tilt_series
+    ui.register_path(COORDS_13PF + tilt_series_files.offset)
+    with pytest.raises(ValueError), qtbot.capture_exceptions():  # no radius
+        ui.sta.align_tilt_series(splines=[0], bin_size=1, ctf=False)
+    # the tilt axis angle compensates the error of the direction of a single spline
+    ui.fit_splines(splines=[0], bin_size=1)
+    ui.refine_splines(splines=[0], bin_size=1)
+    ui.measure_radius(splines=[0], bin_size=1)
+    spl = ui.splines[0]
+
+    # errors across the microtubule in each tilt image
+    ends = true_ts.project_points(spl.map(np.array([0.0, 1.0])) - src.tomogram_center)
+    along = ends[1] - ends[0]  # (T, 2)
+    along /= np.linalg.norm(along, axis=1, keepdims=True)
+    across = np.stack([-along[:, 1], along[:, 0]], axis=1)
+    rng = np.random.default_rng(0)
+    errors = rng.uniform(-6.0, 6.0, size=(true_ts.ntilts, 1)) * across
+    perturbed = true_ts.replace(
+        sample_translations=true_ts.sample_translations + errors
+    )
+    tomo.update_tilt_series(perturbed)
+    ref_before = np.asarray(src.reference)
+    ui.sta.align_tilt_series(
+        splines=[0], max_shift=10.0, bin_size=1, ctf=False, update_coarse_tomogram=False
+    )
+    assert str(ui.macro[-1]).startswith("ui.sta.align_tilt_series(splines='all',")
+    aligned = src.tilt_series
+    initial = (_shift_errors(true_ts, perturbed) * across).sum(axis=1)
+    assert np.abs(initial).max() > 4.0  # nm
+    error = _shift_errors(true_ts, aligned)
+    error_across = (error * across).sum(axis=1)
+    assert np.abs(error_across).max() < 2.0
+    assert np.sqrt(np.mean(error_across**2)) < 0.6
+    # the shifts along the microtubule cannot be determined, and are kept (they
+    # drifted by 10-28 nm without the prior along the flat directions)
+    assert np.abs((error * along).sum(axis=1)).max() < 3.0
+    np.testing.assert_allclose(aligned.tilt_axis_angle, 0.0, atol=0.3)
+    # the offset of a single spline is zero
+    assert ui.splines[0].close_to(spl)
+    np.testing.assert_allclose(src.reference, ref_before)
+
+    # the tilt series is restored by undo
+    ui.macro.undo()
+    assert src.tilt_series is perturbed
+    ui.macro.redo()
+    assert src.tilt_series is aligned
+
+    # The tilt angles are also optimized within the range, keeping their mean. They
+    # are not determined by a single microtubule (at similar depths), and change by
+    # the limit, approximately as the mean change is subtracted.
+    ui.sta.align_tilt_series(
+        splines=[0],
+        max_shift=4.0,
+        bin_size=1,
+        ctf=False,
+        max_tilt_angle_change=1.0,
+        update_coarse_tomogram=False,
+    )
+    assert "max_tilt_angle_change=1.0" in str(ui.macro[-1])
+    change = src.tilt_series.tilt_angles - aligned.tilt_angles
+    assert np.any(change != 0)
+    assert np.abs(change).max() < 2.0
+    assert abs(change.mean()) < 1e-6
+    ui.macro.undo()
+    assert src.tilt_series is aligned
+
+    # each segment has its own offset, and the spline is fitted to the segments
+    spl = ui.splines[0]
+    ui.sta.align_tilt_series(
+        splines=[0], max_shift=4.0, bin_size=1, ctf=False, offset_per="segment"
+    )
+    new_spl = ui.splines[0]
+    assert new_spl is not spl
+    assert new_spl.radius == pytest.approx(spl.radius)
+    assert new_spl.orientation == spl.orientation
+    positions = np.linspace(0, 1, 5)
+    assert np.abs(new_spl.map(positions) - spl.map(positions)).max() < 2.0
+    # the coarse tomogram is reconstructed from the aligned tilt series
+    assert src.has_unsaved_reference
+    ui.macro.undo()
+    assert ui.splines[0] is spl
+    np.testing.assert_allclose(src.reference, ref_before)
 
 
 def test_save_project_with_tilt_series(
@@ -546,9 +730,10 @@ def test_save_project_with_tilt_series(
             src = ui.tomogram.tilt_series
             assert src is not None, f"{name}, {save_coarse=}"
             assert src.has_unsaved_tilt_series and src.has_unsaved_reference
-            np.testing.assert_allclose(src.reference, expected, rtol=1e-4, atol=1e-4)
+            # the coarse tomograms are float16
+            np.testing.assert_allclose(src.reference, expected, rtol=1e-3, atol=1e-3)
             np.testing.assert_allclose(
-                ui._reserved_layers.image_data, -expected, rtol=1e-4, atol=1e-4
+                ui._reserved_layers.image_data, -expected, rtol=1e-3, atol=1e-3
             )
             assert ui.splines[0].close_to(old_spline)
 

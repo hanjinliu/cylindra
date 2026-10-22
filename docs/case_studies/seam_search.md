@@ -44,8 +44,11 @@ and `1` the anti-template.
 If the tomogram is opened from a tilt series, the molecules can be scored directly in the
 tilt images instead of the reconstructed subvolumes. The template (and the anti-template)
 is projected to each tilt image at the position and orientation of each molecule, and
-compared with the tilt image by ZNCC. The score of each molecule is the mean over the tilts,
-and the mean scores of the two groups of molecules are compared for all the seam locations.
+compared with the tilt image by ZNCC. The scores in each tilt are standardized over the
+molecules (by the median and the median absolute deviation), and the score of each molecule
+is their trimmed mean over the tilts (10% cut off from each end), which is robust to the noisy
+high tilts and the outliers such as gold beads. The mean scores of the two groups of
+molecules are compared for all the seam locations.
 The probability of each seam location is estimated by bootstrapping the rings of molecules,
 and the score of each protofilament (even rings minus odd rings) is plotted, whose sign
 should flip at the seam.

@@ -113,6 +113,10 @@ class SplineSlicer(ChildWidget):
             except Exception:
                 return [("1 pixel", 1)]
 
+        def _set_maximum_binsize(self, widget=None) -> None:
+            bin_size = max(b for _, b in self._get_available_binsize())
+            self.binsize = bin_size
+
         depth = vfield(50.0, label="depth (nm)").with_options(min=1.0, max=200.0)
         binsize = vfield().with_choices(_get_available_binsize)
 

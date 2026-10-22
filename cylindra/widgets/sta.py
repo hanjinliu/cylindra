@@ -35,6 +35,7 @@ from scipy.spatial.transform import Rotation
 
 from cylindra import (
     _config,
+    _image_gen,
     _shared_doc,
     cylmeasure,
     template_free,
@@ -80,6 +81,7 @@ from cylindra.widgets._annotated import (
     MoleculesLayersType,
     MoleculesLayerType,
     PlusOrMinusType,
+    SplinesType,
     SplineType,
     assert_layer,
     assert_list_of_layers,
@@ -425,6 +427,7 @@ class Alignment(MagicTemplate):
     TemplateImage = TemplateImage
     sep2 = Separator
     fit_spline_rfa = abstractapi()
+    align_tilt_series = abstractapi()
     refine_tilt_series = abstractapi()
 
 
@@ -1052,10 +1055,15 @@ class SubtomogramAveraging(ChildWidget):
             # apply cylindrical mask
             if cylindrical_mask:
                 if spl := layer.source_spline:
-                    _cyl_mask = _make_cylindrical_mask(
+                    _cyl_mask = _image_gen.make_cylindrical_mask(
                         spl, mole, avg.shape, loader.scale
                     )
                     avg *= _cyl_mask
+                    with _Logger.set_plt():
+                        import matplotlib.pyplot as plt
+
+                        plt.imshow(_cyl_mask.mean(axis=1), cmap="gray")
+                        plt.show()
                 else:
                     _Logger.print(
                         f"Layer {layer.name} has no source spline, cannot apply "
@@ -1912,6 +1920,7 @@ class SubtomogramAveraging(ChildWidget):
         bin_size: BinSizeType = 1,
         method: Annotated[str, {"choices": METHOD_CHOICES}] = "zncc",
         column_prefix: str = "score",
+        use_tilt_series: bool = False,
     ):
         """Calculate correlation between template images and the subtomograms.
 
@@ -1934,17 +1943,29 @@ class SubtomogramAveraging(ChildWidget):
         mask = self.params._get_mask(mask_params)
         all_mole = combiner.concat(layer.molecules for layer in layers)
 
-        out = main.tomogram.get_subtomogram_loader(
-            all_mole,
-            order=interpolation,
-            binsize=bin_size,
-        ).score(
-            templates=[pipe.from_file(t) for t in template_path],
-            mask=mask,
-            alignment_model=_get_alignment(method),
-            cutoff=cutoff,
-            tilt=main.tomogram.tilt_model,
-        )
+        score_kwargs = {
+            "templates": [pipe.from_file(t) for t in template_path],
+            "mask": mask,
+            "cutoff": cutoff,
+        }
+        if use_tilt_series:
+            out = (
+                main.tomogram.tilt_series.loader.replace(
+                    molecules=all_mole, order=interpolation, binsize=bin_size
+                )
+                .score_on_tilt(**score_kwargs, method=method)
+                .mean(axis=2)
+            )
+        else:
+            out = main.tomogram.get_subtomogram_loader(
+                all_mole,
+                order=interpolation,
+                binsize=bin_size,
+            ).score(
+                **score_kwargs,
+                tilt=main.tomogram.tilt_model,
+                alignment_model=_get_alignment(method),
+            )
         all_mole = all_mole.with_features(
             pl.Series(f"{column_prefix}_{i}", col) for i, col in enumerate(out)
         )
@@ -2467,9 +2488,10 @@ class SubtomogramAveraging(ChildWidget):
 
         The template (and the anti-template) is projected to each tilt image at the
         position and orientation of each molecule, and compared with the tilt images
-        by ZNCC. The score of each molecule is the mean over the tilts. The class
-        means of the scores are compared for all the seam positions, and the
-        probability of each seam position is estimated by bootstrapping the rings.
+        by ZNCC. The scores in each tilt are standardized over the molecules, and the
+        score of each molecule is their trimmed mean over the tilts. The class means of
+        the scores are compared for all the seam positions, and the probability of each
+        seam position is estimated by bootstrapping the rings.
         The tomogram must be opened from a tilt series.
 
         Parameters
@@ -2658,11 +2680,13 @@ class SubtomogramAveraging(ChildWidget):
             # the average of the current tilt series is the reference of each layer
             mole = layer.molecules
             loader = tomo.get_subtomogram_loader(mole, shape, binsize=bin_size)
+            yield thread_worker.description(f"Creating template for layer {layer.name}")
             refs.append((mole, loader.average(wedge_weighting=True)))
         nmole = sum(mole.count() for mole, _ in refs)
         _Logger.print(f"Refining the tilt series using {nmole} molecules ...")
         old = src.tilt_series
         loader = src.get_loader(Molecules.empty(), binsize=bin_size)
+        yield thread_worker.description("Running tilt series refinement")
         new = loader.refine_tilt_series(
             refs,
             max_shift=max_shift,
@@ -2672,6 +2696,7 @@ class SubtomogramAveraging(ChildWidget):
             ctf=ctf,
         ).tilt_series
         if update_coarse_tomogram:
+            yield thread_worker.description("Reconstructing coarse tomogram")
             new_ref = src.reconstruct_reference(new)
         else:
             new_ref = None
@@ -2702,6 +2727,169 @@ class SubtomogramAveraging(ChildWidget):
                 undo_callback(_apply)
                 .with_args(old, old_ref)
                 .with_redo(lambda: _apply(new, new_ref))
+            )
+
+        return _on_return
+
+    @set_design(text=capitalize, location=Alignment)
+    @thread_worker.with_progress(desc="Aligning the tilt series")
+    def align_tilt_series(
+        self,
+        splines: SplinesType = None,
+        interval: Annotated[nm, {"label": "segment interval (nm)", "min": 2.0, "max": 200.0, "step": 1.0}] = 25.0,
+        length: Annotated[nm, {"label": "segment length (nm)", "min": 4.0, "max": 200.0, "step": 1.0}] = 32.0,
+        max_shift: Annotated[nm, {"label": "max shift (nm)", "min": 1.0, "max": 200.0, "step": 1.0}] = 20.0,
+        resolution: Annotated[nm, {"label": "low-pass resolution (nm)", "min": 0.5, "max": 100.0, "step": 0.5}] = 6.0,
+        position_sigma: Annotated[Optional[nm], {"label": "position sigma (nm)", "text": "do not move splines", "options": {"min": 0.1, "max": 100.0, "step": 0.5, "value": 10.0}}] = 10.0,
+        offset_per: Literal["spline", "segment"] = "spline",
+        fit_tilt_axis: bool = True,
+        max_tilt_angle_change: Annotated[float, {"label": "max tilt angle change (deg)", "min": 0.0, "max": 10.0, "step": 0.1}] = 0.0,
+        progressive: bool = True,
+        niter: Annotated[int, {"min": 1, "max": 20}] = 3,
+        ctf: Annotated[bool, {"label": "apply CTF"}] = True,
+        bin_size: Annotated[int, {"min": 1, "max": 16}] = 4,
+        update_splines: bool = True,
+        update_coarse_tomogram: bool = True,
+    ):  # fmt: skip
+        """Coarsely align the tilt series of large errors using the splines.
+
+        Segments of tubes are placed along the splines, and their projections are
+        compared with the tilt images. Call `refine_tilt_series` for further refinement.
+
+        Parameters
+        ----------
+        {splines}
+        interval : nm
+            Interval between the centers of the segments along the splines.
+        length : nm
+            Length of each segment (tube) along the spline. The ends of the tubes are
+            smoothly tapered.
+        max_shift : nm
+            Maximum shift of the segments in the tilt images from the predicted
+            positions.
+        resolution : nm
+            Resolution of the low-pass filter applied to the projections and the tilt
+            images. It should be coarser than the lattice spacing (~4 nm), because the
+            ends of the segments correlate with the lattice.
+        position_sigma : nm, optional
+            Standard deviation of the prior of the 3D offsets of the splines. The
+            splines picked in the tomogram of a wrong alignment are misplaced,
+            especially along the z axis. If not given, the splines are not moved.
+        offset_per : "spline" or "segment"
+            The segments of the same spline share the 3D offset if "spline", otherwise
+            each segment has its own offset.
+        fit_tilt_axis : bool
+            If true, the tilt axis angle common to all the tilts is also optimized.
+        max_tilt_angle_change : float
+            If positive, the tilt angles are also optimized within this range (deg)
+            around the current ones. The mean change is fixed to zero, as it is a
+            rotation of the tomogram.
+        progressive : bool
+            If true, the tilts are added one by one from the zero tilt, so that the
+            errors accumulating over the tilts can be larger than `max_shift`.
+        niter : int
+            Maximum number of iterations of computing the correlation and optimizing
+            the parameters.
+        ctf : bool, default True
+            If true, the CTF is applied to the projections of the segments, with the
+            defocus of each segment in each tilt, considering its depth. The tilt
+            series must have the CTF parameters.
+        bin_size : int
+            Bin size of the tilt images used for the alignment. It does not have to be
+            a bin size of the multi-scale images.
+        update_splines : bool, default True
+            If true, the splines are moved by their offsets, so that they are at the
+            filaments in the tomogram of the aligned tilt series. If the offsets are
+            of each segment, the splines are fitted to the moved segments again. The
+            components of the offsets along the splines are ignored.
+        update_coarse_tomogram : bool, default True
+            If true, the coarse tomogram for visualization is also reconstructed from
+            the aligned tilt series.
+        """
+        t0 = timer()
+        main = self._get_main()
+        tomo = main.tomogram
+        if (src := tomo.tilt_series) is None:
+            raise ValueError("The tomogram is not opened from a tilt series.")
+        indices = main._norm_splines(splines)
+        if len(indices) == 0:
+            raise ValueError("No spline is given.")
+        loader = src.get_loader(Molecules.empty(), binsize=bin_size)
+        refs = list[tuple[Molecules, "NDArray[np.float32]"]]()
+        for i in indices:
+            spl = tomo.splines[i]
+            if spl.radius is None:
+                raise ValueError(f"The radius of spline {i} is not measured yet.")
+            mole = _spline_segments(spl, interval, length)
+            refs.append((mole, _image_gen.tube_template(spl, length, loader.scale)))
+        nseg = sum(mole.count() for mole, _ in refs)
+        _Logger.print(
+            f"Aligning the tilt series using {nseg} segments of {len(indices)} "
+            "splines ..."
+        )
+        old = src.tilt_series
+        result = loader.align_tilt_series(
+            refs,
+            max_shift=max_shift,
+            cutoff=loader.scale / resolution,  # cycles per pixel
+            group_by=_SEGMENT_GROUP if offset_per == "spline" else None,
+            position_sigma=position_sigma,
+            tilt_axis="global" if fit_tilt_axis else "fixed",
+            max_tilt_angle_change=max_tilt_angle_change,
+            progressive=progressive,
+            niter=niter,
+            ctf=ctf,
+        )
+        new = result.loader.tilt_series
+        offsets = [
+            moved.pos - mole.pos
+            for (mole, _), moved in zip(refs, result.molecules, strict=True)
+        ]
+        new_splines = dict[int, CylSpline]()
+        if update_splines and position_sigma is not None:
+            for i, (mole, _), offset in zip(indices, refs, offsets, strict=True):
+                new_splines[i] = _move_spline(tomo.splines[i], mole, offset)
+        if update_coarse_tomogram:
+            yield thread_worker.description("Reconstructing coarse tomogram")
+            new_ref = src.reconstruct_reference(new)
+        else:
+            new_ref = None
+        t0.toc()
+
+        old_ref = src.reference
+        old_splines = {i: tomo.splines[i] for i in new_splines}
+
+        def _apply(
+            tilt_series: "TiltSeries",
+            reference: "ip.ImgArray | None",
+            spls: dict[int, CylSpline],
+        ):
+            removed = tomo.update_tilt_series(tilt_series)
+            if new_ref is not None and reference is not None:
+                src.set_reference(reference)
+                self._show_coarse_tomogram(reference)
+            for i, spl in spls.items():
+                tomo.splines[i] = spl
+            if spls:
+                main._update_splines_in_images()
+            if main.SplineControl.need_resample:
+                main.sample_subtomograms()
+            return removed
+
+        @thread_worker.callback
+        def _on_return():
+            removed = _apply(new, new_ref, new_splines)
+            _log_tilt_series_alignment(old, new, offsets, result.scores)
+            if removed:
+                _Logger.print(
+                    f"Multi-scale images of bin size {removed} are removed. They are "
+                    "reconstructed from the aligned tilt series on demand."
+                )
+            # the tilt series, the coarse tomogram and the splines are restored by undo
+            return (
+                undo_callback(_apply)
+                .with_args(old, old_ref, old_splines)
+                .with_redo(lambda: _apply(new, new_ref, new_splines))
             )
 
         return _on_return
@@ -3246,6 +3434,78 @@ def _log_tilt_series_shifts(old: "TiltSeries", new: "TiltSeries"):
         plt.show()
 
 
+# feature of the segments of a spline, which share the 3D offset
+_SEGMENT_GROUP = "segment-group"
+
+
+def _spline_segments(spl: CylSpline, interval: nm, length: nm) -> Molecules:
+    """Segments of the given length along the spline, whose y axes are the tangents.
+
+    The segments are placed every ``interval`` within the spline, at the center.
+    """
+    total = spl.length()
+    half = min(length, total) / 2
+    dists = np.arange(half, total - half + 1e-6, interval)
+    dists += (total - half - dists[-1]) / 2
+    mole = spl.anchors_to_molecules(dists / total)
+    group = np.zeros(mole.count(), dtype=np.int32)
+    return Molecules(mole.pos, mole.rotator, features={_SEGMENT_GROUP: group})
+
+
+def _move_spline(
+    spl: CylSpline, segments: Molecules, offsets: "NDArray[np.float32]"
+) -> CylSpline:
+    """Move the spline by the 3D offsets of its segments.
+
+    The components of the offsets along the spline are ignored, because they cannot be
+    determined by the tubes. The spline is translated if the segments share the offset.
+    Otherwise, the spline is fitted to the moved segments and its ends moved by the
+    offsets of the nearest segments.
+    """
+    tangents = segments.y  # unit vectors along the spline
+    offsets = offsets - (offsets * tangents).sum(axis=1, keepdims=True) * tangents
+    if np.ptp(offsets, axis=0).max() < 1e-3:
+        return spl.translate(tuple(float(s) for s in offsets.mean(axis=0)))
+    ends = spl.map(np.array([0.0, 1.0]))
+    coords = np.concatenate(
+        [ends[:1] + offsets[:1], segments.pos + offsets, ends[1:] + offsets[-1:]]
+    )
+    new = spl.fit(coords, err_max=0.5)
+    new.orientation = spl.orientation
+    new.radius = spl.radius
+    return new
+
+
+def _log_tilt_series_alignment(
+    old: "TiltSeries",
+    new: "TiltSeries",
+    offsets: "list[NDArray[np.float32]]",
+    scores: "list[NDArray[np.float32]]",
+):
+    """Log the aligned tilt series, the offsets of the splines and the scores."""
+    rotation = float(np.mean(new.tilt_axis_angle - old.tilt_axis_angle))
+    _Logger.print_html(f"Rotation of the tilt axis: <b>{rotation:.3f}&deg;</b>")
+    tilt_change = new.tilt_angles - old.tilt_angles
+    if np.any(tilt_change != 0):
+        _Logger.print_html(
+            "Changes of the tilt angles: rms "
+            f"<b>{np.sqrt(np.mean(tilt_change**2)):.3f}&deg;</b>, max "
+            f"<b>{np.abs(tilt_change).max():.3f}&deg;</b>"
+        )
+    _log_tilt_series_shifts(old, new)
+    offset_rms = np.sqrt(
+        np.array([offset.mean(axis=0) for offset in offsets]) ** 2
+    ).mean()
+    _Logger.print(f"Offset of spline: rms = ({offset_rms}) nm")
+    with _Logger.set_plt():
+        plt.figure(figsize=(6, 2.4))
+        plt.plot(new.tilt_angles, np.concatenate(scores).mean(axis=0), ".-")
+        plt.xlabel("Tilt angle (deg)")
+        plt.ylabel("Mean ZNCC")
+        plt.tight_layout()
+        plt.show()
+
+
 def _align_averages_table(svec, rvec):
     _fmt = "  {:.2f}  ".format
     return [
@@ -3253,33 +3513,6 @@ def _align_averages_table(svec, rvec):
         ["Shift (nm)", _fmt(svec[2]), _fmt(svec[1]), _fmt(svec[0])],
         ["Rot vector", _fmt(rvec[2]), _fmt(rvec[1]), _fmt(rvec[0])],
     ]
-
-
-def _make_cylindrical_mask(
-    spl: CylSpline,
-    mole: Molecules,
-    shape: tuple[int, int, int],
-    scale: nm,
-) -> "NDArray[np.float32]":
-    _inner = spl.config.thickness_inner / scale
-    _outer = spl.config.thickness_outer / scale
-    if spl.radius is None:
-        _radius_nm: nm = cylmeasure.calc_radius(mole, spl).mean()
-    else:
-        _radius_nm = spl.radius
-    _radius = _radius_nm / scale
-    zz, xx = np.indices((shape[0], shape[2]), dtype=np.float32)
-    xx -= (shape[2] - 1) / 2
-    zz -= (shape[0] - 1) / 2 - _radius
-    dd2 = zz**2 + xx**2
-    _cyl_mask_2d = ((_radius - _inner) ** 2 < dd2) & (dd2 < (_radius + _outer) ** 2)
-    return (
-        ip.asarray(
-            np.repeat(_cyl_mask_2d[:, np.newaxis, :], shape[1], axis=1), axes="zyx"
-        )
-        .smooth_mask(sigma=1 / scale, dilate_radius=0.5 / scale)
-        .value
-    )
 
 
 def _log_mean_sd_for_detect_defect(mean_s, std_s, mean_n, std_n):

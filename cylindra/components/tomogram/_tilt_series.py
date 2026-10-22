@@ -20,6 +20,7 @@ from cylindra.const import nm
 if TYPE_CHECKING:
     from acryo import BackProjectionLoader
     from acryo.projection import TiltSeries
+    from acryo.projection._io import TiltImageSource
 
 
 class TiltSeriesSource:
@@ -207,8 +208,8 @@ class TiltSeriesSource:
         """Reconstruct the coarse tomogram from the tilt series.
 
         The tomogram is reconstructed in the same shape and bin size as the current
-        reference, in the same way as `prep_reference_tomogram` (light background).
-        The current tilt series is used by default.
+        reference, in the same way as `prep_reference_tomogram` (light background, in
+        float16). The current tilt series is used by default.
         """
         if self._reference is None:
             raise ValueError("The tilt series has no reference tomogram.")
@@ -218,9 +219,43 @@ class TiltSeriesSource:
         if tilt_series is not None:
             loader = loader.with_tilt_series(tilt_series)
         loader = loader.binning(binsize)
-        img = loader.reconstruct_tomogram(self._reference.shape, dtype=np.float32)
+        img = loader.reconstruct_tomogram(self._reference.shape, dtype=np.float16)
         img = ip.asarray(img, axes="zyx", name=self._reference.name)
         return img.set_scale(zyx=self.scale * binsize, unit="nm")
+
+    def project_points(self, points: NDArray[np.floating]) -> NDArray[np.float64]:
+        """Project points of the tomogram (nm) to the raw tilt images.
+
+        The points are projected by the current alignment of the tilt series, in the
+        same way as the subtomograms are reconstructed (``BackProjectionLoader``).
+
+        Parameters
+        ----------
+        points : (..., 3) array
+            (z, y, x) coordinates of the points in the tomogram in nm.
+
+        Returns
+        -------
+        (..., T, 2) array
+            (y, x) positions in pixel of the raw (not binned) tilt images.
+        """
+        pos = np.array(points, dtype=np.float64)
+        center = self.tomogram_center
+        if self._loader.tomo_hand == -1:
+            # the tomogram is mirrored along the z axis around the center
+            pos[..., 0] = 2 * center[0] - pos[..., 0]
+        tilt_series = self.tilt_series
+        projected = tilt_series.project_points(pos - center)
+        return projected / self.scale + np.array(tilt_image_shape(tilt_series)) // 2
+
+    def tilt_image_source(self) -> TiltImageSource:
+        """The raw tilt images, which are read one by one by ``source[t]``."""
+        from acryo.projection._io import TiltImageSource
+
+        ts = self.tilt_series
+        if ts.image_path is None:
+            raise ValueError("Tilt images of the tilt series are not set.")
+        return TiltImageSource(ts.image_path, ts.image_indices, ts.ntilts)
 
     @property
     def is_cache_enabled(self) -> bool:
@@ -459,7 +494,7 @@ def reconstruct_coarse_tomogram(
     if tilt_series.scale is None:
         raise ValueError("Pixel size of the tilt series is not set.")
     loader = BackProjectionLoader(tilt_series, tomo_hand=tomo_hand).binning(binsize)
-    img = loader.reconstruct_tomogram(tuple(shape), dtype=np.float32)
+    img = loader.reconstruct_tomogram(tuple(shape), dtype=np.float16)
     img = ip.asarray(img, axes="zyx")
     return img.set_scale(zyx=tilt_series.scale * binsize, unit="nm")
 

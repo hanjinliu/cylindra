@@ -9,7 +9,12 @@ from acryo import Molecules
 from numpy.testing import assert_allclose, assert_array_equal
 
 from cylindra import utils, widget_utils
-from cylindra.components.seam_search import BooleanSeamSearcher
+from cylindra.components.seam_search import (
+    BooleanSeamSearcher,
+    TiltScoreSeamSearcher,
+    _aggregate_tilt_scores,
+    _seam_parity,
+)
 from cylindra.const import MoleculesHeader as Mole
 
 
@@ -173,6 +178,42 @@ def test_rotated_auto_zncc():
 def test_infer_seam(label, expected: int):
     searcher = BooleanSeamSearcher(npf=4)
     assert searcher.search(label).seam_pos == expected
+
+
+def test_aggregate_tilt_scores():
+    rng = np.random.default_rng(0)
+    tilt_scores = rng.normal(0, 1, (100, 41))
+    # invariant to the score level and the noise level of each tilt
+    transformed = tilt_scores * rng.uniform(0.5, 2, 41) + rng.uniform(-1, 1, 41)
+    assert_allclose(
+        _aggregate_tilt_scores(transformed), _aggregate_tilt_scores(tilt_scores)
+    )
+    with pytest.raises(ValueError):
+        _aggregate_tilt_scores(tilt_scores, trim=0.5)
+
+
+@pytest.mark.parametrize("seed", [0, 1, 2])
+def test_tilt_score_seam_search_with_outliers(seed: int):
+    npf, nring, ntilt = 13, 40, 41
+    ring, pf = np.divmod(np.arange(npf * nring), npf)
+    mole = Molecules(
+        np.zeros((ring.size, 3)), features=pl.DataFrame({Mole.nth: ring, Mole.pf: pf})
+    )
+    sign = np.where(_seam_parity(ring, pf, 5, npf), 1.0, -1.0)
+    cos = np.cos(np.deg2rad(np.linspace(-60, 60, ntilt)))
+    rng = np.random.default_rng(seed)
+    # high tilts have lower scores, weaker signal and larger noise
+    tilt_scores = (
+        0.1 * cos**2
+        + 0.01 * cos * sign[:, np.newaxis]
+        + rng.normal(0, 1, (ring.size, ntilt)) * 0.05 / cos
+    )
+    outliers = rng.random(tilt_scores.shape) < 0.05
+    tilt_scores[outliers] += rng.normal(0, 1, outliers.sum())
+    searcher = TiltScoreSeamSearcher(npf)
+    mole_scores = _aggregate_tilt_scores(tilt_scores)
+    result = searcher._search_by_molecule_scores(mole, mole_scores, n_bootstrap=100)
+    assert result.seam_pos == 5
 
 
 def test_rust_expressions():
