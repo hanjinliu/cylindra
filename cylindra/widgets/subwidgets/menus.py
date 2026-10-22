@@ -225,7 +225,7 @@ class ImageMenu(ChildWidget):
     def open_slicer(self):
         """Open spline slicer widget"""
         main = self._get_main()
-        main.spline_slicer._set_maximum_binsize()
+        main.spline_slicer.params._set_maximum_binsize()
         main.spline_slicer.show()
         return main.spline_slicer.refresh_widget_state()
 

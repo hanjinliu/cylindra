@@ -1059,11 +1059,6 @@ class SubtomogramAveraging(ChildWidget):
                         spl, mole, avg.shape, loader.scale
                     )
                     avg *= _cyl_mask
-                    with _Logger.set_plt():
-                        import matplotlib.pyplot as plt
-
-                        plt.imshow(_cyl_mask.mean(axis=1), cmap="gray")
-                        plt.show()
                 else:
                     _Logger.print(
                         f"Layer {layer.name} has no source spline, cannot apply "
@@ -2741,12 +2736,12 @@ class SubtomogramAveraging(ChildWidget):
         max_shift: Annotated[nm, {"label": "max shift (nm)", "min": 1.0, "max": 200.0, "step": 1.0}] = 20.0,
         resolution: Annotated[nm, {"label": "low-pass resolution (nm)", "min": 0.5, "max": 100.0, "step": 0.5}] = 6.0,
         position_sigma: Annotated[Optional[nm], {"label": "position sigma (nm)", "text": "do not move splines", "options": {"min": 0.1, "max": 100.0, "step": 0.5, "value": 10.0}}] = 10.0,
-        offset_per: Literal["spline", "segment"] = "spline",
+        offset_per: Literal["spline", "segment"] = "segment",
         fit_tilt_axis: bool = True,
-        max_tilt_angle_change: Annotated[float, {"label": "max tilt angle change (deg)", "min": 0.0, "max": 10.0, "step": 0.1}] = 0.0,
+        max_tilt_angle_change: Annotated[float, {"label": "max tilt angle change (deg)", "min": 0.0, "max": 10.0, "step": 0.1}] = 0.5,
         progressive: bool = True,
         niter: Annotated[int, {"min": 1, "max": 20}] = 3,
-        ctf: Annotated[bool, {"label": "apply CTF"}] = True,
+        ctf: Annotated[bool, {"label": "apply CTF"}] = False,
         bin_size: Annotated[int, {"min": 1, "max": 16}] = 4,
         update_splines: bool = True,
         update_coarse_tomogram: bool = True,
@@ -2821,7 +2816,9 @@ class SubtomogramAveraging(ChildWidget):
             if spl.radius is None:
                 raise ValueError(f"The radius of spline {i} is not measured yet.")
             mole = _spline_segments(spl, interval, length)
-            refs.append((mole, _image_gen.tube_template(spl, length, loader.scale)))
+            refs.append(
+                (mole, _image_gen.make_tube_template(spl, length, loader.scale))
+            )
         nseg = sum(mole.count() for mole, _ in refs)
         _Logger.print(
             f"Aligning the tilt series using {nseg} segments of {len(indices)} "
@@ -2848,7 +2845,14 @@ class SubtomogramAveraging(ChildWidget):
         new_splines = dict[int, CylSpline]()
         if update_splines and position_sigma is not None:
             for i, (mole, _), offset in zip(indices, refs, offsets, strict=True):
-                new_splines[i] = _move_spline(tomo.splines[i], mole, offset)
+                spl_old = tomo.splines[i]
+                spl_new = _move_spline(spl_old, mole, offset)
+                _u = np.linspace(0, 1, max(int(spl_old.length() / 4), 1))
+                if spl_new.curvature(_u).max() > spl_old.curvature(_u).max() * 3:
+                    _Logger.print(
+                        f"Warning: Curvature of spline {i} increased significantly."
+                    )
+                new_splines[i] = spl_new
         if update_coarse_tomogram:
             yield thread_worker.description("Reconstructing coarse tomogram")
             new_ref = src.reconstruct_reference(new)
@@ -3496,7 +3500,7 @@ def _log_tilt_series_alignment(
     offset_rms = np.sqrt(
         np.array([offset.mean(axis=0) for offset in offsets]) ** 2
     ).mean()
-    _Logger.print(f"Offset of spline: rms = ({offset_rms}) nm")
+    _Logger.print(f"Offset of spline: rms = {offset_rms:.3f} nm")
     with _Logger.set_plt():
         plt.figure(figsize=(6, 2.4))
         plt.plot(new.tilt_angles, np.concatenate(scores).mean(axis=0), ".-")
