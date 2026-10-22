@@ -12,6 +12,8 @@ from scipy import ndimage as ndi
 from skimage.registration import phase_cross_correlation
 
 from cylindra.components import CylTomogram
+from cylindra.const import SEAM_SEARCH_RESULT
+from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import PropertyNames as H
 from cylindra.widgets import CylindraMainWidget
 
@@ -699,6 +701,36 @@ def test_align_tilt_series(
     ui.macro.undo()
     assert ui.splines[0] is spl
     np.testing.assert_allclose(src.reference, ref_before)
+
+
+def test_seam_search_on_tilt(
+    ui: CylindraMainWidget, tilt_series_files: TiltSeriesFiles
+):
+    ui.open_tilt_series_with_reference(
+        tilt_series_files.json,
+        scale=SCALE,
+        reference_path=tilt_series_files.reference,
+        tomo_hand=TOMO_HAND,
+        bin_size=[1],
+        filter=None,
+        invert_reference=True,
+    )
+    ntilts = ui.tomogram.tilt_series.tilt_series.ntilts
+    mole = Molecules.from_csv(TEST_DIR / "test_project_13pf" / "Mole-0.csv")
+    layer = ui.add_molecules(mole.translate(tilt_series_files.offset), name="Mole-0")
+    for anti_template_path in [None, TEST_DIR / "beta-tubulin.mrc"]:
+        ui.sta.seam_search_on_tilt(
+            layer=layer,
+            template_path=TEST_DIR / "beta-tubulin.mrc",
+            mask_params=(1, 1),
+            anti_template_path=anti_template_path,
+            bin_size=1,
+            ctf=False,
+        )
+        result = layer.metadata[SEAM_SEARCH_RESULT]
+        assert result.scores.shape == (26,)
+        assert result.tilt_scores.shape == (mole.count(), ntilts)
+        assert set(layer.molecules.features[Mole.isotype].unique()) == {0, 1}
 
 
 def test_save_project_with_tilt_series(
