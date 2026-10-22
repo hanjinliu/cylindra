@@ -2477,17 +2477,14 @@ class SubtomogramAveraging(ChildWidget):
         bin_size: BinSizeType = 1,
         cutoff: _CutoffFreq = 0.25,
         ctf: Annotated[bool, {"label": "apply CTF"}] = True,
-        n_bootstrap: Annotated[int, {"min": 0, "max": 100000, "step": 100, "label": "number of bootstrap samples"}] = 1000,
     ):  # fmt: skip
         """Search for the best seam position using the scores in the tilt images.
 
         The template (and the anti-template) is projected to each tilt image at the
         position and orientation of each molecule, and compared with the tilt images
-        by ZNCC. The scores in each tilt are standardized over the molecules, and the
-        score of each molecule is their trimmed mean over the tilts. The class means of
-        the scores are compared for all the seam positions, and the probability of each
-        seam position is estimated by bootstrapping the rings.
-        The tomogram must be opened from a tilt series.
+        by ZNCC. The score of each molecule is the mean over the tilts. The class means
+        of the scores are compared for all the seam positions. The tomogram must be
+        opened from a tilt series.
 
         Parameters
         ----------
@@ -2503,9 +2500,6 @@ class SubtomogramAveraging(ChildWidget):
             If true, the CTF is applied to the projections of the templates, with the
             defocus of each molecule in each tilt, considering its depth. The tilt
             series must have the CTF parameters.
-        n_bootstrap : int, default 1000
-            Number of bootstrap samples used to estimate the probability of each seam
-            position. Set 0 to skip bootstrapping.
         """
         t0 = timer()
         layer = assert_layer(layer, self.parent_viewer)
@@ -2538,7 +2532,6 @@ class SubtomogramAveraging(ChildWidget):
             mask=mask,
             cutoff=cutoff,
             ctf=ctf,
-            n_bootstrap=n_bootstrap,
         )
 
         t0.toc()
@@ -2558,11 +2551,6 @@ class SubtomogramAveraging(ChildWidget):
                     )
                 _Logger.print(f"seam position = {result.seam_pos}")
                 widget_utils.plot_seam_search_result(result.scores, npf)
-                if n_bootstrap > 0:
-                    _Logger.print(f"bootstrap probability = {result.confidence:.3f}")
-                    widget_utils.plot_seam_search_probabilities(
-                        result.probabilities, npf
-                    )
 
         return _seam_search_on_return
 

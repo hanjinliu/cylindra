@@ -44,14 +44,9 @@ and `1` the anti-template.
 If the tomogram is opened from a tilt series, the molecules can be scored directly in the
 tilt images instead of the reconstructed subvolumes. The template (and the anti-template)
 is projected to each tilt image at the position and orientation of each molecule, and
-compared with the tilt image by ZNCC. The scores in each tilt are standardized over the
-molecules (by the median and the median absolute deviation), and the score of each molecule
-is their trimmed mean over the tilts (10% cut off from each end), which is robust to the noisy
-high tilts and the outliers such as gold beads. The mean scores of the two groups of
-molecules are compared for all the seam locations.
-The probability of each seam location is estimated by bootstrapping the rings of molecules,
-and the score of each protofilament (even rings minus odd rings) is plotted, whose sign
-should flip at the seam.
+compared with the tilt image by ZNCC. The score of each molecule is the mean over the tilts,
+and the mean scores of the two groups of molecules are compared for all the seam locations.
+The location with the largest difference is the seam.
 
 ??? info "List of parameters"
 
@@ -60,8 +55,6 @@ should flip at the seam.
     2. "bin size" is the bin size of the projections.
     3. If "apply CTF" is checked, the CTF is applied to the projections, with the defocus
        of each molecule in each tilt. The tilt series must have the CTF parameters.
-    4. "number of bootstrap samples" is the number of bootstrap samples to estimate the
-       probability of each seam location. Set 0 to skip it.
 
 ## Manual Seam-search
 
