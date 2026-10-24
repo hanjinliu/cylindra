@@ -697,7 +697,7 @@ class CylindraMainWidget(MagicTemplate):
         ctf: Annotated[bool, {"bind": _ts_loader.ctf}] = True,
         bin_size: Annotated[list[int], {"bind": _ts_loader.bin_size}] = [2, 4],
         filter: Annotated[ImageFilter | None, {"bind": _ts_loader.filter}] = None,
-        save_coarse_tomogram: Annotated[bool, {"bind": _ts_loader.save_reference}] = True,
+        save_coarse_tomogram: Annotated[bool, {"bind": _ts_loader.save_reference}] = False,
     ):  # fmt: skip
         """Open a tilt series and reconstruct its coarse tomogram.
 
@@ -728,7 +728,7 @@ class CylindraMainWidget(MagicTemplate):
         bin_size : list of int, default [2, 4]
             Bin sizes available for analysis.
         {filter}
-        save_coarse_tomogram : bool, default True
+        save_coarse_tomogram : bool, default False
             If true, the coarse tomogram is saved next to the tilt series file, together
             with the default settings (".cylindra-defaults.toml") to open it later.
         """
