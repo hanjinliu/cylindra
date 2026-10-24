@@ -215,13 +215,13 @@ class TiltSeriesSource:
             raise ValueError("The tilt series has no reference tomogram.")
         binsize = self.reference_binsize
         assert binsize is not None
-        loader = self._loader
-        if tilt_series is not None:
-            loader = loader.with_tilt_series(tilt_series)
-        loader = loader.binning(binsize)
-        img = loader.reconstruct_tomogram(self._reference.shape, dtype=np.float16)
-        img = ip.asarray(img, axes="zyx", name=self._reference.name)
-        return img.set_scale(zyx=self.scale * binsize, unit="nm")
+        if tilt_series is None:
+            tilt_series = self.tilt_series
+        img = reconstruct_coarse_tomogram(
+            tilt_series, binsize, self._reference.shape, self._loader.tomo_hand
+        )
+        img.name = self._reference.name
+        return img
 
     def project_points(self, points: NDArray[np.floating]) -> NDArray[np.float64]:
         """Project points of the tomogram (nm) to the raw tilt images.
@@ -480,6 +480,36 @@ def coarse_tomogram_shape(
     return max(nz, 1), max(int(ny // binsize), 1), max(int(nx // binsize), 1)
 
 
+# The coarse tomogram is only for visualization, so it is reconstructed with larger
+# patches, thinner blending margins and less padding than the defaults of
+# `BackProjectionLoader.reconstruct_tomogram`, which is about 2x faster without
+# visible artifacts.
+COARSE_PATCH_SIZE = 128
+COARSE_BLEND_MARGIN = 16
+COARSE_PADDING = 1.5
+
+
+def _reconstruct_coarse(
+    tilt_series: TiltSeries,
+    binsize: float,
+    shape: tuple[int, int, int],
+    tomo_hand: int,
+    save_path: Path | None = None,
+) -> NDArray[np.float16]:
+    from acryo import BackProjectionLoader
+
+    loader = BackProjectionLoader(
+        tilt_series, tomo_hand=tomo_hand, padding=COARSE_PADDING
+    ).binning(binsize)
+    return loader.reconstruct_tomogram(
+        shape,
+        patch_size=COARSE_PATCH_SIZE,
+        blend_margin=COARSE_BLEND_MARGIN,
+        save_path=save_path,
+        dtype=np.float16,
+    )
+
+
 def reconstruct_coarse_tomogram(
     tilt_series: TiltSeries,
     binsize: float,
@@ -487,14 +517,11 @@ def reconstruct_coarse_tomogram(
     tomo_hand: int,
 ) -> ip.ImgArray:
     """Reconstruct a coarse tomogram as `TiltSeriesSource.reconstruct_reference`."""
-    from acryo import BackProjectionLoader
-
     if shape is None:
         raise ValueError("Shape of the coarse tomogram is unknown.")
     if tilt_series.scale is None:
         raise ValueError("Pixel size of the tilt series is not set.")
-    loader = BackProjectionLoader(tilt_series, tomo_hand=tomo_hand).binning(binsize)
-    img = loader.reconstruct_tomogram(tuple(shape), dtype=np.float16)
+    img = _reconstruct_coarse(tilt_series, binsize, tuple(shape), tomo_hand)
     img = ip.asarray(img, axes="zyx")
     return img.set_scale(zyx=tilt_series.scale * binsize, unit="nm")
 
@@ -513,12 +540,9 @@ def prep_reference_tomogram(
     The pixel size of the coarse tomogram does not need to be an integer multiple of
     that of the tilt series.
     """
-    from acryo import BackProjectionLoader
-
     path = Path(path)
     ts = read_tilt_series(path, scale, ctf=ctf)
     bin_size = infer_reference_binsize(reference_scale, ts.scale)
-    loader = BackProjectionLoader(ts, tomo_hand=tomo_hand).binning(bin_size)
     shape = coarse_tomogram_shape(ts, bin_size, height)
     if save_coarse_tomogram:
         save_path = path.with_name(f"{path.stem}_rec_bin{bin_size:g}.mrc")
@@ -526,7 +550,7 @@ def prep_reference_tomogram(
             save_path.unlink()
     else:
         save_path = None
-    recon = loader.reconstruct_tomogram(shape, save_path=save_path)
+    recon = _reconstruct_coarse(ts, bin_size, shape, tomo_hand, save_path=save_path)
     if save_coarse_tomogram:
         img = ip.imread(save_path)
     else:

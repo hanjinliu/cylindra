@@ -225,16 +225,12 @@ def test_relative_reference_path(
 def test_reference_aligned_with_tilt_series(
     tilt_series_files: TiltSeriesFiles, binsize: float, tomo_hand: int
 ):
-    from acryo import BackProjectionLoader
-
     from cylindra.components.tomogram import _tilt_series as _ts
 
     # reference created as in `prep_reference_tomogram`
     ts = _ts.read_tilt_series(tilt_series_files.json)
-    loader = BackProjectionLoader(ts, tomo_hand=tomo_hand)
     shape = _ts.coarse_tomogram_shape(ts, binsize, height=36 * SCALE)
-    ref = loader.binning(binsize).reconstruct_tomogram(shape)
-    ref = ip.asarray(ref, axes="zyx").set_scale(zyx=SCALE * binsize, unit="nm")
+    ref = _ts.reconstruct_coarse_tomogram(ts, binsize, shape, tomo_hand)
     tomo = CylTomogram.from_tilt_series(
         tilt_series_files.json, ref, tomo_hand=tomo_hand
     )
@@ -256,7 +252,8 @@ def test_reference_aligned_with_tilt_series(
     ref_center = -np.asarray(ref, dtype=np.float32)[sl]  # light background
     shift, *_ = phase_cross_correlation(ref_center, cube, upsample_factor=20)
     assert np.abs(shift).max() <= 0.05
-    assert _corr(ref_center, cube) > 0.98
+    # the coarse tomogram is reconstructed with less padding than the subtomograms
+    assert _corr(ref_center, cube) > 0.9
     src.release_cache()
 
 
@@ -753,8 +750,11 @@ def test_save_project_with_tilt_series(
     ui.register_path(COORDS_13PF + tilt_series_files.offset)
     old_spline = ui.splines[0].copy()
     src = ui.tomogram.tilt_series
-    # the tilt series and the coarse tomogram that are not saved in any file
-    src.set_reference(src.reconstruct_reference())
+    # the tilt series and the coarse tomogram that are not saved in any file, shown as
+    # after refining the tilt series
+    new_ref = src.reconstruct_reference()
+    src.set_reference(new_ref)
+    ui.sta._show_coarse_tomogram(new_ref)
     src.mark_unsaved(tilt_series=True, reference=False)
     expected = np.asarray(src.reference)
     with mrcfile.mmap(tilt_series_files.json.parent / "ts.mrc", mode="r") as mrc:
