@@ -304,7 +304,7 @@ class TiltSeriesLoader(MagicTemplate):
         min=1.0, max=10000.0, step=10.0
     )
     ctf = vfield(True, label="Perform patch CTF correction")
-    save_reference = vfield(True, label="Save coarse tomogram")
+    save_reference = vfield(False, label="Save coarse tomogram")
     bin_size = vfield([2, 4]).with_options(options={"min": 1, "max": 32})
     filter = vfield(ImageFilter | None, widget_type=ToggleButtons).with_options(
         value=None

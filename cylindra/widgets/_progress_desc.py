@@ -72,7 +72,7 @@ def align_annealing_fmt(layer: Layer):
     name = _get_name(layer)
     yield f"(0/3) Preparing template images for {name!r}"
     yield f"(1/3) Calculating the correlation landscape of {name!r}"
-    yield f"(2/3) Running RMA of {name!r}"
+    yield f"(2/3) Running RFA of {name!r}"
     yield "(3/3) Finishing"
 
 
