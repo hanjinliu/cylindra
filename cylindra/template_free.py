@@ -476,6 +476,9 @@ class BaseAnnealingAlignmentState(BaseAlignmentState[RMAAlignmentResult]):
                 f"{self.final_temperature_ratio}."
             )
 
+    def is_converged(self) -> bool:
+        return False
+
     @property
     def cooling_fraction(self) -> float:
         """Ratio of the temperature to be cooled down in each iteration."""
