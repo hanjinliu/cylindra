@@ -372,9 +372,9 @@ class TiltSeriesLoader(MagicTemplate):
 def _get_tilt_series_image_path(path) -> str | list[str] | None:
     """Get the tilt series image path(s) from the given tilt series info path."""
     path = Path(path)
-    if path.suffix == ".edf":
+    if path.suffix == ".edf":  # IMOD
         return path.with_name(f"{path.stem}.mrc").as_posix()
-    elif path.suffix == ".star":
+    elif path.suffix == ".star":  # RELION 5
         import starfile_rs
 
         df = starfile_rs.read_star(path).first().to_polars()

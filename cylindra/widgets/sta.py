@@ -2746,8 +2746,9 @@ class SubtomogramAveraging(ChildWidget):
         resolution: Annotated[nm, {"label": "low-pass resolution (nm)", "min": 0.5, "max": 100.0, "step": 0.5}] = 6.0,
         position_sigma: Annotated[Optional[nm], {"label": "position sigma (nm)", "text": "do not move splines", "options": {"min": 0.1, "max": 100.0, "step": 0.5, "value": 10.0}}] = 10.0,
         offset_per: Literal["spline", "segment"] = "segment",
-        fit_tilt_axis: bool = True,
+        fit_tilt_axis: Literal["global", "fixed", "per_tilt"] = "global",
         max_tilt_angle_change: Annotated[float, {"label": "max tilt angle change (deg)", "min": 0.0, "max": 10.0, "step": 0.1}] = 0.5,
+        max_x_tilt_change: Annotated[float, {"label": "max X tilt change (deg)", "min": 0.0, "max": 90.0, "step": 1}] = 20,
         progressive: bool = True,
         niter: Annotated[int, {"min": 1, "max": 20}] = 3,
         ctf: Annotated[bool, {"label": "apply CTF"}] = False,
@@ -2840,8 +2841,9 @@ class SubtomogramAveraging(ChildWidget):
             cutoff=loader.scale / resolution,  # cycles per pixel
             group_by=_SEGMENT_GROUP if offset_per == "spline" else None,
             position_sigma=position_sigma,
-            tilt_axis="global" if fit_tilt_axis else "fixed",
+            tilt_axis=fit_tilt_axis,
             max_tilt_angle_change=max_tilt_angle_change,
+            max_x_tilt_change=max_x_tilt_change,
             progressive=progressive,
             niter=niter,
             ctf=ctf,
@@ -2892,7 +2894,7 @@ class SubtomogramAveraging(ChildWidget):
         @thread_worker.callback
         def _on_return():
             removed = _apply(new, new_ref, new_splines)
-            _log_tilt_series_alignment(old, new, offsets, result.scores)
+            _log_tilt_series_alignment(old, new, offsets, result)
             if removed:
                 _Logger.print(
                     f"Multi-scale images of bin size {removed} are removed. They are "
@@ -3511,17 +3513,24 @@ def _log_tilt_series_alignment(
     old: "TiltSeries",
     new: "TiltSeries",
     offsets: "list[NDArray[np.float32]]",
-    scores: "list[NDArray[np.float32]]",
+    result,
 ):
     """Log the aligned tilt series, the offsets of the splines and the scores."""
     rotation = float(np.mean(new.tilt_axis_angle - old.tilt_axis_angle))
     _Logger.print_html(f"Rotation of the tilt axis: <b>{rotation:.3f}&deg;</b>")
     tilt_change = new.tilt_angles - old.tilt_angles
+    x_tilt_change = new.x_tilts - old.x_tilts
     if np.any(tilt_change != 0):
         _Logger.print_html(
             "Changes of the tilt angles: rms "
             f"<b>{np.sqrt(np.mean(tilt_change**2)):.3f}&deg;</b>, max "
             f"<b>{np.abs(tilt_change).max():.3f}&deg;</b>"
+        )
+    if np.any(x_tilt_change != 0):
+        _Logger.print_html(
+            "Changes of the X tilts: rms "
+            f"<b>{np.sqrt(np.mean(x_tilt_change**2)):.3f}&deg;</b>, max "
+            f"<b>{np.abs(x_tilt_change).max():.3f}&deg;</b>"
         )
     _log_tilt_series_shifts(old, new)
     offset_rms = np.sqrt(
@@ -3530,7 +3539,7 @@ def _log_tilt_series_alignment(
     _Logger.print(f"Offset of spline: rms = {offset_rms:.3f} nm")
     with _Logger.set_plt():
         plt.figure(figsize=(6, 2.4))
-        plt.plot(new.tilt_angles, np.concatenate(scores).mean(axis=0), ".-")
+        plt.plot(new.tilt_angles, np.concatenate(result.scores).mean(axis=0), ".-")
         plt.xlabel("Tilt angle (deg)")
         plt.ylabel("Mean ZNCC")
         plt.tight_layout()
