@@ -932,12 +932,27 @@ def test_sta(ui: CylindraMainWidget, bin_size: int, tmpdir):
     ui.macro.undo()
     ui.macro.redo()
     ui.sta.align_all_template_free(
-        layers=["Mole-0-ALN1"],
+        layers=["Mole-0-ALN1", "Mole-1"],
         mask_params={"kind": "spherical", "radius": 2.3, "sigma": 0.7},
         size=12.0,
         bin_size=bin_size,
         max_num_iters=2,
     )
+    # half maps of the independently aligned half sets
+    img0, img1 = ui.sta.sub_viewer.layers[-1].metadata["fsc_halfmaps"]
+    assert img0.shape == img1.shape
+    assert not np.allclose(img0, img1)
+    # molecules of each layer are output in the original order without the temporary
+    # features
+    names = [("Mole-0-ALN1", "Mole-0-ALN2"), ("Mole-1", "Mole-1-ALN1")]
+    for name_in, name_out in names:
+        mole_in = ui.mole_layers[name_in].molecules
+        mole_out = ui.mole_layers[name_out].molecules
+        assert mole_out.count() == mole_in.count()
+        assert mole_out.features.columns[: len(mole_in.features.columns)] == mole_in.features.columns  # fmt: skip
+        assert "align-halfset-id" not in mole_out.features.columns
+        for col in [Mole.nth, Mole.pf]:
+            assert mole_out.features[col].to_list() == mole_in.features[col].to_list()
     ui.sta.align_all(
         layers=["Mole-0"],
         template_path=[template_path, template_path],

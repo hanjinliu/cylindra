@@ -1194,6 +1194,11 @@ class SubtomogramAveraging(ChildWidget):
     ):  # fmt: skip
         """Iteratively align molecules and validate using FSC without template.
 
+        Molecules are randomly split into two half sets, and the molecules of each half
+        set are aligned to the average of the same half set (gold-standard). As FSC
+        between the half sets is not inflated by the noise shared through the same
+        template, the templates are weighted by FSC.
+
         Parameters
         ----------
         {layers}{mask_params}{size}{max_shifts}{max_rotations}{min_rotation_step}
@@ -1224,26 +1229,42 @@ class SubtomogramAveraging(ChildWidget):
             min_rotation_step=min_rotation_step,
         )
         _Logger.print(f"Starting template-free alignment ({loader.molecules.count()} molecules in total) ...")  # fmt: skip
-        yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
-        result = _alignment_state.fsc_step_init(loader, max_shifts, max_rotations)
-        _Logger.print(f"Iteration {int(_alignment_state.num_iter)}")
-        yield _plot_current_fsc.with_args(result.fsc, result.avg).with_desc(_pdesc.align_tf_1(_alignment_state))  # fmt: skip
-        while True:
-            _Logger.print(_alignment_state.next_params(loader.scale).format())
-            _exceeded = max_num_iters <= _alignment_state.num_iter
-            if _alignment_state.is_converged() or _exceeded:
-                _Logger.print(
-                    "Maximum iteration exceeded" if _exceeded else "FSC converged."
-                )
-                break
-            loader = _alignment_state.align_step(loader)
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmpdir:
+            # Subtomograms are extracted to files only once, as spline coefficients so
+            # that they can be resampled without the prefilter. In each iteration, the
+            # extracted subtomograms are resampled at the aligned molecules for both
+            # alignment and FSC calculation.
+            yield thread_worker.description("Extracting subtomograms")
+            extracted = loader.extract_subtomograms(
+                Path(tmpdir) / "subtomograms", chunksize=64, apply_prefilter=True
+            )
+            inputs = template_free.assign_halves(extracted, rng)
             yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
-            result = _alignment_state.fsc_step(loader)
+            result = _alignment_state.fsc_step_init(inputs, max_shifts, max_rotations)
             _Logger.print(f"Iteration {int(_alignment_state.num_iter)}")
             yield _plot_current_fsc.with_args(result.fsc, result.avg).with_desc(_pdesc.align_tf_1(_alignment_state))  # fmt: skip
+            while True:
+                _exceeded = max_num_iters <= _alignment_state.num_iter
+                if _alignment_state.is_converged() or _exceeded:
+                    _Logger.print("Maximum iteration exceeded" if _exceeded else "FSC converged.")  # fmt: skip
+                    break
+                _Logger.print(_alignment_state.results[-1].params.format())
+                inputs = _alignment_state.align_step(inputs)
+                yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
+                result = _alignment_state.fsc_step(inputs)
+                _Logger.print(f"Iteration {int(_alignment_state.num_iter)}")
+                yield _plot_current_fsc.with_args(result.fsc, result.avg).with_desc(_pdesc.align_tf_1(_alignment_state))  # fmt: skip
 
-        yield self._show_rec.with_args(result.avg, f"[Aligned]{_avg_name(layers)}")
-        loader = loader.order_restore()
+        @thread_worker.callback
+        def _show_average():
+            layer = self._show_rec(result.avg, f"[Aligned]{_avg_name(layers)}")
+            _store_halfmaps(layer, result)
+
+        yield _show_average
+        mole_aligned = template_free.as_alignment_output(
+            loader.molecules, [inputs.molecules]
+        )
+        loader = loader.replace(molecules=mole_aligned).order_restore()
         molecules = combiner.split(loader.molecules, layers)
         t0.toc()
         return self._align_all_on_return.with_args(molecules, layers)
@@ -3265,6 +3286,24 @@ def _plot_current_fsc(result: widget_utils.FscResult, avg: ip.ImgArray):
     for _c in criteria:
         _r = result.get_resolution(_c)
         _Logger.print_html(f"Resolution at FSC={_c:.3f} ... <b>{_r:.3f} nm</b>")
+
+
+def _store_halfmaps(layer: "Image", result: template_free.AlignmentResult):
+    """Store the FSC and the averages of the half sets of gold-standard alignment.
+
+    They are stored in the same format as `calculate_fsc`, so that they can be saved
+    by `save_fsc_result`. Nothing is stored if the half sets are not aligned
+    independently.
+    """
+    if result.half_avgs is None:
+        return
+    layer.metadata["fsc"] = result.fsc
+    layer.metadata["fsc_halfmaps"] = tuple(
+        ip.asarray(half.value[np.newaxis], axes="izyx").set_scale(
+            zyx=half.scale.x, unit="nm"
+        )
+        for half in result.half_avgs
+    )
 
 
 @thread_worker.callback
