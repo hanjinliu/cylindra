@@ -98,6 +98,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
     from cylindra.components.landscape import AnnealingResult
+    from cylindra.components.tomogram._tilt_series import TiltSeriesSource
 
 
 def _get_template_shape(
@@ -2740,7 +2741,7 @@ class SubtomogramAveraging(ChildWidget):
         self,
         splines: SplinesType = None,
         radius_override: Annotated[Optional[nm], {"label": "radius override (nm)", "text": "do not override", "options": {"min": 0.1, "max": 100.0, "step": 0.5, "value": 11.0}}] = 11.0,
-        interval: Annotated[nm, {"label": "segment interval (nm)", "min": 2.0, "max": 200.0, "step": 1.0}] = 25.0,
+        interval: Annotated[nm, {"label": "segment interval (nm)", "min": 2.0, "max": 200.0, "step": 1.0}] = 32.0,
         length: Annotated[nm, {"label": "segment length (nm)", "min": 4.0, "max": 200.0, "step": 1.0}] = 32.0,
         max_shift: Annotated[nm, {"label": "max shift (nm)", "min": 1.0, "max": 200.0, "step": 1.0}] = 20.0,
         resolution: Annotated[nm, {"label": "low-pass resolution (nm)", "min": 0.5, "max": 100.0, "step": 0.5}] = 6.0,
@@ -2750,7 +2751,7 @@ class SubtomogramAveraging(ChildWidget):
         max_tilt_angle_change: Annotated[float, {"label": "max tilt angle change (deg)", "min": 0.0, "max": 10.0, "step": 0.1}] = 0.5,
         max_x_tilt_change: Annotated[float, {"label": "max X tilt change (deg)", "min": 0.0, "max": 90.0, "step": 1}] = 20,
         progressive: bool = True,
-        niter: Annotated[int, {"min": 1, "max": 20}] = 3,
+        niter: Annotated[int, {"min": 1, "max": 20, "label": "Number of iterations"}] = 3,
         ctf: Annotated[bool, {"label": "apply CTF"}] = False,
         bin_size: Annotated[int, {"min": 1, "max": 16}] = 4,
         update_splines: bool = True,
@@ -2806,10 +2807,11 @@ class SubtomogramAveraging(ChildWidget):
             Bin size of the tilt images used for the alignment. It does not have to be
             a bin size of the multi-scale images.
         update_splines : bool, default True
-            If true, the splines are moved by their offsets, so that they are at the
-            filaments in the tomogram of the aligned tilt series. If the offsets are
-            of each segment, the splines are fitted to the moved segments again. The
-            components of the offsets along the splines are ignored.
+            If true, the splines are moved to the filaments in the tomogram of the
+            aligned tilt series by the change of the alignment, not by the offsets of
+            the segments, so that they are not pulled by the outlier segments. Each
+            point of the splines is moved to the position whose projections by the
+            aligned tilt series are reconstructed at the point by the current one.
         update_coarse_tomogram : bool, default True
             If true, the coarse tomogram for visualization is also reconstructed from
             the aligned tilt series.
@@ -2861,9 +2863,9 @@ class SubtomogramAveraging(ChildWidget):
         ]
         new_splines = dict[int, CylSpline]()
         if update_splines and position_sigma is not None:
-            for i, (mole, _), offset in zip(indices, refs, offsets, strict=True):
+            for i in indices:
                 spl_old = tomo.splines[i]
-                spl_new = _move_spline(spl_old, mole, offset)
+                spl_new = _move_spline(spl_old, src, new)
                 _u = np.linspace(0, 1, max(int(spl_old.length() / 4), 1))
                 if spl_new.curvature(_u).max() > spl_old.curvature(_u).max() * 3:
                     _Logger.print(
@@ -3493,24 +3495,17 @@ def _spline_segments(spl: CylSpline, interval: nm, length: nm) -> Molecules:
 
 
 def _move_spline(
-    spl: CylSpline, segments: Molecules, offsets: "NDArray[np.float32]"
+    spl: CylSpline, src: "TiltSeriesSource", tilt_series: "TiltSeries"
 ) -> CylSpline:
-    """Move the spline by the 3D offsets of its segments.
+    """Move the spline to the tomogram of the new alignment of the tilt series.
 
-    The components of the offsets along the spline are ignored, because they cannot be
-    determined by the tubes. The spline is translated if the segments share the offset.
-    Otherwise, the spline is fitted to the moved segments and its ends moved by the
-    offsets of the nearest segments.
+    The points along the spline (every 1 nm) are transferred by the change of the
+    alignment (see `TiltSeriesSource.transfer_points`), and the spline is fitted to
+    them again. The offsets of the segments are not used, so that the spline is not
+    pulled by the outliers.
     """
-    tangents = segments.y  # unit vectors along the spline
-    offsets = offsets - (offsets * tangents).sum(axis=1, keepdims=True) * tangents
-    if np.ptp(offsets, axis=0).max() < 1e-3:
-        return spl.translate(tuple(float(s) for s in offsets.mean(axis=0)))
-    ends = spl.map(np.array([0.0, 1.0]))
-    coords = np.concatenate(
-        [ends[:1] + offsets[:1], segments.pos + offsets, ends[1:] + offsets[-1:]]
-    )
-    new = spl.fit(coords, err_max=0.5)
+    coords = spl.map(np.linspace(0, 1, max(int(np.ceil(spl.length())), 2)))
+    new = spl.fit(src.transfer_points(coords, tilt_series), err_max=0.1)
     new.orientation = spl.orientation
     new.radius = spl.radius
     return new

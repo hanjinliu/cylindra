@@ -630,6 +630,52 @@ def test_project_points(tilt_series_files: TiltSeriesFiles, tomo_hand: int):
     np.testing.assert_allclose(src.project_points(points), expected)
 
 
+@pytest.mark.parametrize("tomo_hand", [1, -1])
+def test_transfer_points(tilt_series_files: TiltSeriesFiles, tomo_hand: int):
+    from acryo import BackProjectionLoader
+
+    from cylindra.components.tomogram._tilt_series import (
+        TiltSeriesSource,
+        read_tilt_series,
+    )
+
+    true_ts = read_tilt_series(tilt_series_files.json, SCALE)
+    ntilts = true_ts.ntilts
+    rng = np.random.default_rng(0)
+    ts = true_ts.replace(
+        sample_translations=true_ts.sample_translations
+        + rng.normal(0.0, 3.0, (ntilts, 2)),
+        tilt_axis_angle=true_ts.tilt_axis_angle + 2.0,
+        tilt_angles=true_ts.tilt_angles + rng.normal(0.0, 0.5, ntilts),
+        x_tilts=true_ts.x_tilts + rng.normal(0.0, 2.0, ntilts),
+    )
+    center = np.array([20.0, 100.0, 50.0])
+    loader = BackProjectionLoader(ts, tomogram_center=center, tomo_hand=tomo_hand)
+    src = TiltSeriesSource(loader, (36, 206, 94))
+    points = np.array([[18.0, 120.0, 40.0], [25.0, 80.0, 60.0], [20.0, 100.0, 50.0]])
+    # the objects at the points are reconstructed at the least-squares positions of
+    # their projections by the wrong alignment
+    pos, _ = loader._to_tilt_series_frame(Molecules(points))
+    projected = true_ts.project_points(pos - center)  # (N, T, 2)
+    affine = (ts.projection_matrices @ ts.tomo2sample)[:, 1:3]  # (T, 2, 4)
+    picked = np.stack(
+        [
+            np.linalg.lstsq(
+                affine[..., :3].reshape(-1, 3),
+                (proj - affine[..., 3]).ravel(),
+                rcond=None,
+            )[0]
+            for proj in projected
+        ]
+    )
+    picked[:, 0] *= tomo_hand
+    picked += center
+    assert np.abs(picked - points).max() > 1.0
+    np.testing.assert_allclose(src.transfer_points(picked, true_ts), points, atol=1e-6)
+    # not moved without the change of the alignment
+    np.testing.assert_allclose(src.transfer_points(points, ts), points, atol=1e-9)
+
+
 def test_tilt_series_viewer(ui: CylindraMainWidget, tilt_series_files: TiltSeriesFiles):
     from magicclass.utils import thread_worker
 
@@ -705,8 +751,10 @@ def test_align_tilt_series(
     true_ts = src.tilt_series
     ui.register_path(COORDS_13PF + tilt_series_files.offset)
     with pytest.raises(ValueError), qtbot.capture_exceptions():  # no radius
-        ui.sta.align_tilt_series(splines=[0], bin_size=1, ctf=False)
-    # the tilt axis angle compensates the error of the direction of a single spline
+        ui.sta.align_tilt_series(
+            splines=[0], radius_override=None, bin_size=1, ctf=False
+        )
+    # the segments of the spline fitted to the microtubule are the references
     ui.fit_splines(splines=[0], bin_size=1)
     ui.refine_splines(splines=[0], bin_size=1)
     ui.measure_radius(splines=[0], bin_size=1)
@@ -724,11 +772,16 @@ def test_align_tilt_series(
     )
     tomo.update_tilt_series(perturbed)
     ref_before = np.asarray(src.reference)
+    # The tilt axis angle is fixed, because it is not determined by a single short
+    # microtubule. The rotation of the tilt images is coupled with the opposite
+    # rotation of the particles, which keeps the projections at the zero tilt.
     ui.sta.align_tilt_series(
         splines=[0],
         max_shift=10.0,
         offset_per="spline",
+        fit_tilt_axis="fixed",
         max_tilt_angle_change=0.0,
+        max_x_tilt_change=0.0,
         bin_size=1,
         ctf=False,
         update_coarse_tomogram=False,
@@ -744,16 +797,26 @@ def test_align_tilt_series(
     # the shifts along the microtubule cannot be determined, and are kept (they
     # drifted by 10-28 nm without the prior along the flat directions)
     assert np.abs((error * along).sum(axis=1)).max() < 3.0
-    np.testing.assert_allclose(aligned.tilt_axis_angle, 0.0, atol=0.3)
-    # the offset of a single spline is zero
-    assert ui.splines[0].close_to(spl)
+    np.testing.assert_array_equal(aligned.tilt_axis_angle, perturbed.tilt_axis_angle)
+    # The spline is moved by the change of the alignment, not by its offset (zero for
+    # a single spline). It is not picked in the perturbed tomogram, so it is moved
+    # from the true position by the errors.
+    moved = ui.splines[0]
+    positions = np.linspace(0, 1, 5)
+    assert np.abs(moved.map(positions) - spl.map(positions)).max() < 3.0
+    assert moved.radius == pytest.approx(spl.radius)
+    assert moved.orientation == spl.orientation
     np.testing.assert_allclose(src.reference, ref_before)
 
-    # the tilt series is restored by undo
+    # the tilt series and the spline are restored by undo
     ui.macro.undo()
     assert src.tilt_series is perturbed
+    assert ui.splines[0] is spl
+    expected = src.transfer_points(spl.map(positions), aligned)
+    np.testing.assert_allclose(moved.map(positions), expected, atol=0.1)
     ui.macro.redo()
     assert src.tilt_series is aligned
+    assert ui.splines[0] is moved
 
     # The tilt angles are also optimized within the range, keeping their mean. They
     # are not determined by a single microtubule (at similar depths), and change by
@@ -762,9 +825,11 @@ def test_align_tilt_series(
         splines=[0],
         max_shift=4.0,
         offset_per="spline",
+        fit_tilt_axis="fixed",
         bin_size=1,
         ctf=False,
         max_tilt_angle_change=1.0,
+        max_x_tilt_change=0.0,
         update_coarse_tomogram=False,
     )
     assert "max_tilt_angle_change=1.0" in str(ui.macro[-1])
@@ -775,7 +840,8 @@ def test_align_tilt_series(
     ui.macro.undo()
     assert src.tilt_series is aligned
 
-    # each segment has its own offset, and the spline is fitted to the segments
+    # each segment has its own offset, but the spline is moved by the change of the
+    # alignment in the same way
     spl = ui.splines[0]
     ui.sta.align_tilt_series(
         splines=[0],
@@ -783,13 +849,14 @@ def test_align_tilt_series(
         bin_size=1,
         ctf=False,
         offset_per="segment",
+        fit_tilt_axis="fixed",
         max_tilt_angle_change=0.0,
+        max_x_tilt_change=0.0,
     )
     new_spl = ui.splines[0]
     assert new_spl is not spl
     assert new_spl.radius == pytest.approx(spl.radius)
     assert new_spl.orientation == spl.orientation
-    positions = np.linspace(0, 1, 5)
     assert np.abs(new_spl.map(positions) - spl.map(positions)).max() < 2.0
     # the coarse tomogram is reconstructed from the aligned tilt series
     assert src.has_unsaved_reference

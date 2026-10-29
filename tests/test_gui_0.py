@@ -2212,4 +2212,4 @@ def test_clustering(ui: CylindraMainWidget):
 
 def test_utilities(ui: CylindraMainWidget):
     ui.load_project(PROJECT_DIR_13PF, filter=None, read_image=False)
-    ui.AnalysisMenu.Utilities.check_handedness(bin_size=1)
+    ui.AnalysisMenu.Utilities.check_handedness_by_cft(bin_size=1)
