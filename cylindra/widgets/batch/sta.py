@@ -617,14 +617,14 @@ class BatchSubtomogramAveraging(MagicTemplate):
         The annealing schedule of RMA is split into `max_num_iters` iterations. In
         each iteration, annealing is resumed from the last state and temperature of
         the previous iteration using the current average as the template, and then the
-        average is updated and evaluated using FSC. As the molecules are perturbed at
-        high temperature, the template is updated only if the resolution at FSC=0.143
-        is improved. If FSC converged, the rest of the annealing will be finished in
-        the next iteration. Splines are split into two half sets, and the molecules of
-        each half set are aligned to the average of the same half set (gold-standard).
-        As FSC between the half sets is not inflated by the noise shared through the
-        same template, the templates are weighted by FSC. At least two splines are
-        required.
+        average is updated and evaluated using FSC. The temperature is cooled down to
+        5e-4 of the initial one in `max_num_iters - 1` iterations, and the rest of the
+        annealing is run in the last iteration without rebuilding the landscape, as
+        the average is hardly improved at such low temperature. Splines are split into
+        two half sets, and the molecules of each half set are aligned to the average
+        of the same half set (gold-standard). As FSC between the half sets is not
+        inflated by the noise shared through the same template, the templates are
+        weighted by FSC. At least two splines are required.
 
         Parameters
         ----------
@@ -648,7 +648,6 @@ class BatchSubtomogramAveraging(MagicTemplate):
             rng=rng,
             mask=mask,
             alignment_model=_get_alignment(method),
-            keep_best_template=True,
             max_num_iters=max_num_iters,
         )
         sub_inputs = list(self._group_loader_by_spline(loader_name, loader))
@@ -696,35 +695,35 @@ class BatchSubtomogramAveraging(MagicTemplate):
                 yield _plot_current_fsc.with_args(result.fsc, result.avg).with_desc(_pdesc.align_tf_1(_alignment_state))  # fmt: skip
                 if _final:
                     break
-                if (_tmpl := _alignment_state.template_result) is not result:
-                    _Logger.print(
-                        "FSC not improved. The template of iteration "
-                        f"{_tmpl.params.num_iter} is used."
-                    )
                 if _final := _alignment_state.is_final_iteration():
                     _converged = _alignment_state.is_converged()
                     _Logger.print("FSC converged." if _converged else "Last iteration.")
-                _Logger.print(_alignment_state.results[-1].params.format())
+                if _rebuild := _alignment_state.rebuilds_landscape():
+                    _Logger.print(_alignment_state.results[-1].params.format())
+                else:
+                    _Logger.print("The landscape of the last iteration is used.")
                 _ratio = _alignment_state.temperature_ratio(_final)
                 _Logger.print(f"Annealing until temperature reaches {_ratio:.2e} of T0")
                 _iter = _alignment_state.num_iter + 1
                 molecules: list[Molecules] = []
                 for ith, inputs in enumerate(sub_inputs):
                     _p_ind = f"({ith + 1}/{num_splines})"
-                    yield thread_worker.description(
-                        f"Landscape construction {_p_ind} of iteration {_iter}"
-                    )
-                    landscape = _alignment_state.built_landscape_step(
-                        inputs.loader, half=halves[ith]
-                    )
                     annealing = annealings[ith]
-                    if annealing is None:
-                        annealing = _alignment_state.prep_annealing_step(
-                            landscape, inputs.spline, range_long, range_lat, angle_max
+                    if annealing is None or _rebuild:
+                        yield thread_worker.description(
+                            f"Landscape construction {_p_ind} of iteration {_iter}"
                         )
-                        annealings[ith] = annealing
-                    else:
-                        annealing.update_landscape(landscape)
+                        landscape = _alignment_state.built_landscape_step(
+                            inputs.loader, half=halves[ith]
+                        )
+                        if annealing is None:
+                            annealing = _alignment_state.prep_annealing_step(
+                                landscape, inputs.spline, range_long, range_lat,
+                                angle_max,
+                            )  # fmt: skip
+                            annealings[ith] = annealing
+                        else:
+                            annealing.update_landscape(landscape)
                     yield thread_worker.description(
                         f"RMA step {_p_ind} of iteration {_iter}"
                     )

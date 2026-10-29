@@ -422,18 +422,6 @@ def _fake_fsc(resolution: float) -> SimpleNamespace:
     return SimpleNamespace(get_resolution=lambda _: resolution)
 
 
-@pytest.mark.parametrize("keep_best_template", [False, True])
-def test_template_result(keep_best_template: bool):
-    state = RMAAlignmentState(keep_best_template=keep_best_template)
-    # 0.0 means FSC below the threshold at all frequencies, and NaN means above
-    resolutions = [3.0, 4.0, 3.5, 2.5, 2.5, 0.0, np.nan]
-    expected = [0, 0, 0, 3, 3, 3, 6]
-    for i, res in enumerate(resolutions):
-        state.results.append(SimpleNamespace(fsc=_fake_fsc(res)))
-        idx = expected[i] if keep_best_template else i
-        assert state.template_result is state.results[idx]
-
-
 def _rma_params(cutoff: float, max_rot: float) -> RMAAlignmentParams:
     return RMAAlignmentParams.init(
         cutoff=cutoff,
@@ -443,64 +431,6 @@ def _rma_params(cutoff: float, max_rot: float) -> RMAAlignmentParams:
         temperature_time_const=1.0,
         num_trials=1,
     )
-
-
-def test_landscape_of_best_template():
-    loader = _loaders_with_tilt()[1]
-    avg_good, avg_bad = (
-        ip.asarray(loader.replace(molecules=loader.molecules[sl]).average(), axes="zyx")
-        .set_scale(zyx=0.5, unit="nm")
-        for sl in [slice(0, 2), slice(2, 4)]
-    )  # fmt: skip
-    state = RMAAlignmentState(rng=np.random.default_rng(0), keep_best_template=True)
-    params = _rma_params(0.3, 30.0)
-    state.results.append(RMAAlignmentResult(_fake_fsc(2.0), avg_good, None, params))
-    state.results.append(
-        RMAAlignmentResult(_fake_fsc(3.0), avg_bad, None, _rma_params(0.5, 60.0))
-    )
-    landscape = state.built_landscape_step(loader, norm=False)
-    # template of the best FSC, with the alignment parameters of the last result
-    ref = Landscape.from_loader(
-        loader,
-        template=avg_good.value,
-        max_shifts=params.max_shifts,
-        upsample_factor=1,
-        alignment_model=alignment.ZNCCAlignment.with_params(
-            rotations=state.results[-1].params.rotations,
-            cutoff=0.5,
-            tilt=loader.tilt_model,
-        ),
-    )
-    assert_allclose(landscape.energies, ref.energies, rtol=1e-5, atol=1e-6)
-    assert_allclose(landscape.quaternions, ref.quaternions)
-
-
-def test_mask_of_best_template():
-    loader = _smooth_loader(n=4)
-    converted = list[np.ndarray]()
-
-    def _record(img, scale):
-        converted.append(img)
-        return np.ones_like(img)
-
-    state = RMAAlignmentState(
-        rng=np.random.default_rng(0),
-        mask=pipe.ImageConverter(_record),
-        keep_best_template=True,
-    )
-    avgs = [
-        ip.asarray(np.full(loader.output_shape, val, dtype=np.float32), axes="zyx")
-        for val in [1.0, 2.0]
-    ]
-    for res, avg in zip([2.0, 3.0], avgs, strict=True):
-        state.results.append(
-            RMAAlignmentResult(_fake_fsc(res), avg, None, _rma_params(0.5, 0.0))
-        )
-    result = state.fsc_step(loader)
-    # mask is created from the template, not from the last average
-    assert len(converted) == 1
-    assert_allclose(converted[0], avgs[0].value)
-    assert_allclose(result.mask, 1.0)
 
 
 @pytest.mark.parametrize("kind", ["tomogram", "extracted", "batch"])
@@ -691,6 +621,30 @@ def test_cooling_schedule(max_num_iters: int):
         [final ** ((k + 1) / max_num_iters) for k in range(max_num_iters - 1)],
     )
     assert all(r > final for r in ratios[:-1])
+    # landscape is rebuilt in every iteration
+    assert state.rebuilds_landscape()
+
+
+@pytest.mark.parametrize("max_num_iters", [2, 3, 8, 20])
+def test_cooling_schedule_with_final_landscape(max_num_iters: int):
+    state = RMAAlignmentState(max_num_iters=max_num_iters)
+    final = state.final_temperature_ratio
+    final_landscape = state.final_landscape_temperature_ratio
+    assert final_landscape == 5e-4
+    ratios = list[float]()
+    rebuilds = list[bool]()
+    for _ in range(max_num_iters):
+        state.results.append(SimpleNamespace())
+        rebuilds.append(state.rebuilds_landscape())
+        ratios.append(state.temperature_ratio(final=state.is_final_iteration()))
+    # temperature reaches `final_landscape` in all the iterations but the last one,
+    # in which the annealing is finished without rebuilding the landscape
+    assert ratios[-1] == final
+    assert_allclose(
+        ratios[:-1],
+        [final_landscape ** ((k + 1) / (max_num_iters - 1)) for k in range(max_num_iters - 1)],
+    )  # fmt: skip
+    assert rebuilds == [True] * (max_num_iters - 1) + [False]
 
 
 def test_default_cooling_fraction():
@@ -704,6 +658,19 @@ def test_default_cooling_fraction():
 def test_invalid_annealing_schedule(kwargs: dict):
     with pytest.raises(ValueError):
         RFAAlignmentState(**kwargs)
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"max_num_iters": 1},
+        {"final_landscape_temperature_ratio": 1e-6},
+        {"final_landscape_temperature_ratio": 1.0},
+    ],
+)
+def test_invalid_annealing_schedule_with_final_landscape(kwargs: dict):
+    with pytest.raises(ValueError):
+        RMAAlignmentState(**kwargs)
 
 
 def test_randomize_roll():
@@ -842,11 +809,8 @@ def test_rotation_schedule(cls, max_rot: float, expected: list[float]):
 
 
 @pytest.mark.parametrize("cls", [AlignmentState, RMAAlignmentState])
-@pytest.mark.parametrize("keep_best_template", [False, True])
 @pytest.mark.parametrize("weighted", [False, True])
-def test_cutoff_of_template(
-    monkeypatch: pytest.MonkeyPatch, cls, keep_best_template: bool, weighted: bool
-):
+def test_cutoff_of_template(monkeypatch: pytest.MonkeyPatch, cls, weighted: bool):
     resolutions = iter([2.0, 4.0, 1.0])  # initial, worse and better
     avg = ip.asarray(np.zeros((64, 64, 64), dtype=np.float32), axes="zyx")
     # templates are weighted by FSC if the half sets are aligned independently
@@ -857,16 +821,16 @@ def test_cutoff_of_template(
         lambda *_: (_fake_fsc(next(resolutions)), avg, half_avgs, None),
     )
     loader = SimpleNamespace(scale=0.5)
-    state = cls(keep_best_template=keep_best_template)
+    state = cls()
     if cls is RMAAlignmentState:
         state.fsc_step_init(loader, (1.0, 1.0, 1.0), (0.0, 0.0, 0.0), 1, 1.0, 1)
     else:
         state.fsc_step_init(loader, (1.0, 1.0, 1.0), (0.0, 0.0, 0.0))
     state.fsc_step(loader)
     state.fsc_step(loader)
-    # cutoff of the parameters of each result is determined by the FSC of the template
-    # of the next alignment, which is the result itself unless the template is kept
-    expected = [0.5 / 2.0, 0.5 / (2.0 if keep_best_template else 4.0), 0.5 / 1.0]
+    # cutoff of the parameters of each result is determined by the FSC of the result
+    # itself, as it is the template of the next alignment even if FSC is worse
+    expected = [0.5 / 2.0, 0.5 / 4.0, 0.5 / 1.0]
     if weighted:
         # 10 Fourier pixels beyond the resolution, as the fake FSC crosses all the
         # thresholds at the same frequency

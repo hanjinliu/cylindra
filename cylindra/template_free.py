@@ -266,8 +266,6 @@ class BaseAlignmentState[R: "AlignmentResult"]:
     )
     min_rotation_step: float = 1.0
     max_rotation_step: float = 30.0
-    # if true, the template is updated only when FSC is improved
-    keep_best_template: bool = False
     results: list[R] = field(default_factory=list)
     # alignment models of the last result, for all (None) or each half set
     _model_cache: tuple[R, dict[int | None, TomographyInput]] | None = field(
@@ -279,24 +277,6 @@ class BaseAlignmentState[R: "AlignmentResult"]:
         """Number of completed iterations."""
         return len(self.results) - 1
 
-    @property
-    def template_result(self) -> R:
-        """Result whose averages are used as the templates of the next alignment.
-
-        The last result is returned by default. If `keep_best_template` is true, the
-        template is updated only when the resolution at FSC=0.143 is improved, so that
-        the result of the best resolution so far (the earliest one for ties) is
-        returned. The mask and the parameters of alignment are always taken from the
-        last result.
-        """
-        if not self.keep_best_template:
-            return self.results[-1]
-        best = self.results[0]
-        for result in self.results[1:]:
-            if _is_better(result.fsc, best.fsc):
-                best = result
-        return best
-
     def _next_params[P: AlignmentParams](
         self,
         last_params: P,
@@ -307,12 +287,9 @@ class BaseAlignmentState[R: "AlignmentResult"]:
     ) -> P:
         """Parameters of the next alignment after a result of `fsc` is added.
 
-        The cutoff frequency is determined by the FSC of the template of the next
-        alignment, which is `fsc` unless the template is kept (see `template_result`).
-        See `cutoff_of` for the other parameters.
+        The cutoff frequency is determined by `fsc`, the FSC of the template of the next
+        alignment. See `cutoff_of` for the other parameters.
         """
-        if self.keep_best_template and not _is_better(fsc, self.template_result.fsc):
-            fsc = self.template_result.fsc
         return last_params.next_iteration(
             scale,
             cutoff_of(fsc, scale, size, weighted),
@@ -353,7 +330,7 @@ class BaseAlignmentState[R: "AlignmentResult"]:
         set), so that the template images are rotated only once and shared by all the
         loaders. If `half` is given, the average of the half set is used as the
         template instead of the average of all the molecules. The template images are
-        those of `template_result`, which are weighted by FSC if the half sets are
+        the averages of the last result, which are weighted by FSC if the half sets are
         aligned independently, as the FSC is then not inflated.
         """
         result = self.results[-1]
@@ -361,10 +338,9 @@ class BaseAlignmentState[R: "AlignmentResult"]:
             self._model_cache = (result, {})
         models = self._model_cache[1]
         if half not in models:
-            tmpl_result = self.template_result
-            template = tmpl_result.template(half)
-            if tmpl_result.half_avgs is not None:
-                template = fsc_weighted(template, tmpl_result.fsc)
+            template = result.template(half)
+            if result.half_avgs is not None:
+                template = fsc_weighted(template, result.fsc)
             mask = loader.normalize_mask(result.mask, reshape_to=template.shape)
             models[half] = self.alignment_model.with_params(
                 rotations=result.params.rotations,
@@ -415,7 +391,7 @@ class AlignmentState(BaseAlignmentState[AlignmentResult]):
         by the noise shared through the same template.
         """
         scale = _scale_of(loader)
-        mask = self._prep_mask(self.template_result.avg.value, scale)
+        mask = self._prep_mask(self.results[-1].avg.value, scale)
         fsc, avg, half_avgs, _ = _fsc_with_average(loader, mask, self.rng)
         params = self._next_params(
             self.results[-1].params, fsc, scale, min(avg.shape), half_avgs is not None
@@ -460,20 +436,34 @@ class BaseAnnealingAlignmentState(BaseAlignmentState[RMAAlignmentResult]):
     previous iteration using the energy landscape updated with the new template, and
     the temperature is cooled down by `cooling_fraction`, so that it reaches
     `final_temperature_ratio` of the initial one in `max_num_iters` iterations.
+
+    If `final_landscape_temperature_ratio` is given, the temperature reaches it in
+    `max_num_iters - 1` iterations instead, and the rest of the annealing is run in
+    the last iteration without rebuilding the landscape (see `rebuilds_landscape`), as
+    the average is hardly improved at such low temperature.
     """
 
     max_num_iters: int = 8
     final_temperature_ratio: float = 1e-5
+    final_landscape_temperature_ratio: float | None = None
 
     def __post_init__(self):
-        if self.max_num_iters < 1:
+        min_iters = 1 if self.final_landscape_temperature_ratio is None else 2
+        if self.max_num_iters < min_iters:
             raise ValueError(
-                f"max_num_iters must be positive, got {self.max_num_iters}."
+                f"max_num_iters must be at least {min_iters}, got {self.max_num_iters}."
             )
         if not 0 < self.final_temperature_ratio < 1:
             raise ValueError(
                 "final_temperature_ratio must be in (0, 1), got "
                 f"{self.final_temperature_ratio}."
+            )
+        if (ratio := self.final_landscape_temperature_ratio) is not None and not (
+            self.final_temperature_ratio < ratio < 1
+        ):
+            raise ValueError(
+                "final_landscape_temperature_ratio must be in "
+                f"({self.final_temperature_ratio}, 1), got {ratio}."
             )
 
     def is_converged(self) -> bool:
@@ -482,7 +472,9 @@ class BaseAnnealingAlignmentState(BaseAlignmentState[RMAAlignmentResult]):
     @property
     def cooling_fraction(self) -> float:
         """Ratio of the temperature to be cooled down in each iteration."""
-        return self.final_temperature_ratio ** (1 / self.max_num_iters)
+        if (ratio := self.final_landscape_temperature_ratio) is None:
+            return self.final_temperature_ratio ** (1 / self.max_num_iters)
+        return ratio ** (1 / (self.max_num_iters - 1))
 
     def fsc_step_init(
         self,
@@ -521,7 +513,19 @@ class BaseAnnealingAlignmentState(BaseAlignmentState[RMAAlignmentResult]):
         if final:
             return self.final_temperature_ratio
         frac = self.cooling_fraction ** (self.num_iter + 1)
-        return max(self.final_temperature_ratio, frac)
+        if (ratio := self.final_landscape_temperature_ratio) is None:
+            ratio = self.final_temperature_ratio
+        return max(ratio, frac)
+
+    def rebuilds_landscape(self) -> bool:
+        """True if the landscape should be rebuilt with the template in the next step.
+
+        If `final_landscape_temperature_ratio` is given, the landscape of the previous
+        iteration is used in the last iteration.
+        """
+        if self.final_landscape_temperature_ratio is None:
+            return True
+        return not self.is_final_iteration()
 
     def fsc_step(
         self, loader: LoaderBase | tuple[LoaderBase, LoaderBase]
@@ -536,7 +540,7 @@ class BaseAnnealingAlignmentState(BaseAlignmentState[RMAAlignmentResult]):
         through the same template.
         """
         scale = _scale_of(loader)
-        mask = self._prep_mask(self.template_result.avg.value, scale)
+        mask = self._prep_mask(self.results[-1].avg.value, scale)
         fsc, avg, half_avgs, _ = _fsc_with_average(loader, mask, self.rng)
         params = self._next_params(
             self.results[-1].params, fsc, scale, min(avg.shape), half_avgs is not None
@@ -620,6 +624,8 @@ class BaseAnnealingAlignmentState(BaseAlignmentState[RMAAlignmentResult]):
 @dataclass
 class RMAAlignmentState(BaseAnnealingAlignmentState):
     """State of the template-free RMA alignment."""
+
+    final_landscape_temperature_ratio: float | None = 5e-4
 
     def prep_annealing_step(
         self,
@@ -1181,25 +1187,6 @@ def _crossing_freq(fsc: FscResult, threshold: float, scale: nm) -> float:
     if res == 0:
         return 0.0
     return scale / res
-
-
-def _resolution_key(fsc: FscResult) -> nm:
-    """Resolution at FSC=0.143 to compare results (smaller is better).
-
-    FSC is above the threshold at all frequencies if the resolution is NaN, and below
-    the threshold at all frequencies if the resolution is 0.
-    """
-    res = fsc.get_resolution(0.143)
-    if np.isnan(res):
-        return 0.0
-    if res == 0:
-        return np.inf
-    return res
-
-
-def _is_better(fsc: FscResult, other: FscResult) -> bool:
-    """True if the resolution of `fsc` is better than that of `other`."""
-    return _resolution_key(fsc) < _resolution_key(other)
 
 
 def _scale_of(loader: LoaderBase | tuple[LoaderBase, LoaderBase]) -> nm:
