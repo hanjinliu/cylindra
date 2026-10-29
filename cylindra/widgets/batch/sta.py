@@ -606,7 +606,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         range_lat: _DistRangeLat = ("d.mean() - 0.1", "d.mean() + 0.1"),
         angle_max: _AngleMaxLon = 5.0,
         bin_size: _BINSIZE = 1,
-        temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
+        temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.5,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 3,
         num_trials: Annotated[int, {"min": 1, "max": 100}] = 5,
         max_num_iters: Annotated[int, {"min": 3, "max": 100}] = 8,

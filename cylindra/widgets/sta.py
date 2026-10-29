@@ -2739,6 +2739,7 @@ class SubtomogramAveraging(ChildWidget):
     def align_tilt_series(
         self,
         splines: SplinesType = None,
+        radius_override: Annotated[Optional[nm], {"label": "radius override (nm)", "text": "do not override", "options": {"min": 0.1, "max": 100.0, "step": 0.5, "value": 11.0}}] = 11.0,
         interval: Annotated[nm, {"label": "segment interval (nm)", "min": 2.0, "max": 200.0, "step": 1.0}] = 25.0,
         length: Annotated[nm, {"label": "segment length (nm)", "min": 4.0, "max": 200.0, "step": 1.0}] = 32.0,
         max_shift: Annotated[nm, {"label": "max shift (nm)", "min": 1.0, "max": 200.0, "step": 1.0}] = 20.0,
@@ -2763,6 +2764,9 @@ class SubtomogramAveraging(ChildWidget):
         Parameters
         ----------
         {splines}
+        radius_override : nm
+            Radius override for the segments (tubes). If not specified, the spline
+            radius is used.
         interval : nm
             Interval between the centers of the segments along the splines.
         length : nm
@@ -2822,12 +2826,15 @@ class SubtomogramAveraging(ChildWidget):
         refs = list[tuple[Molecules, "NDArray[np.float32]"]]()
         for i in indices:
             spl = tomo.splines[i]
-            if spl.radius is None:
-                raise ValueError(f"The radius of spline {i} is not measured yet.")
+            if radius_override is None:
+                if spl.radius is None:
+                    raise ValueError(f"The radius of spline {i} is not measured yet.")
+                radius = spl.radius
+            else:
+                radius = radius_override
             mole = _spline_segments(spl, interval, length)
-            refs.append(
-                (mole, _image_gen.make_tube_template(spl, length, loader.scale))
-            )
+            _tube = _image_gen.make_tube_template(spl, length, loader.scale, radius)
+            refs.append((mole, _tube))
         nseg = sum(mole.count() for mole, _ in refs)
         _Logger.print(
             f"Aligning the tilt series using {nseg} segments of {len(indices)} "
