@@ -2645,9 +2645,10 @@ class SubtomogramAveraging(ChildWidget):
     ):  # fmt: skip
         """Refine the alignment of the tilt series using the molecules.
 
-        The subtomograms of each layer are averaged as the reference of the molecules
-        of the layer. Projections of the averages placed at the molecules are compared
-        with the tilt images, and the shifts of each tilt image are refined.
+        The subtomograms of all the layers are averaged as the reference of all the
+        molecules, so the layers should be of the same structure (such as tubulins).
+        Projections of the average placed at the molecules are compared with the tilt
+        images, and the shifts of each tilt image are refined.
 
         Parameters
         ----------
@@ -2664,7 +2665,7 @@ class SubtomogramAveraging(ChildWidget):
             Weight of the smoothness prior of the local shifts. Larger value is more
             robust against noise and fewer molecules.
         ctf : bool, default True
-            If true, the CTF is applied to the projections of the averages, with the
+            If true, the CTF is applied to the projections of the average, with the
             defocus of each molecule in each tilt, considering its depth. The tilt
             series must have the CTF parameters.
         {bin_size}
@@ -2679,20 +2680,17 @@ class SubtomogramAveraging(ChildWidget):
         if (src := tomo.tilt_series) is None:
             raise ValueError("The tomogram is not opened from a tilt series.")
         shape = self._get_shape_in_nm(size)
-        refs = list[tuple[Molecules, "NDArray[np.float32]"]]()
-        for layer in layers:
-            # the average of the current tilt series is the reference of each layer
-            mole = layer.molecules
-            loader = tomo.get_subtomogram_loader(mole, shape, binsize=bin_size)
-            yield thread_worker.description(f"Creating template for layer {layer.name}")
-            refs.append((mole, loader.average(wedge_weighting=True)))
-        nmole = sum(mole.count() for mole, _ in refs)
-        _Logger.print(f"Refining the tilt series using {nmole} molecules ...")
+        # the average of all the molecules in the current tilt series is the reference
+        mole = _concat_molecules(layers)
+        loader = tomo.get_subtomogram_loader(mole, shape, binsize=bin_size)
+        yield thread_worker.description(f"Creating template of {_avg_name(layers)}")
+        template = loader.average(wedge_weighting=True)
+        _Logger.print(f"Refining the tilt series using {mole.count()} molecules ...")
         old = src.tilt_series
         loader = src.get_loader(Molecules.empty(), binsize=bin_size)
         yield thread_worker.description("Running tilt series refinement")
         new = loader.refine_tilt_series(
-            refs,
+            [(mole, template)],
             max_shift=max_shift,
             grid_shape=grid_shape,
             smoothness=smoothness,
@@ -2710,6 +2708,7 @@ class SubtomogramAveraging(ChildWidget):
 
         def _apply(tilt_series: "TiltSeries", reference: "ip.ImgArray | None"):
             removed = tomo.update_tilt_series(tilt_series)
+            main.GeneralInfo._refer_tomogram(tomo)
             if new_ref is not None and reference is not None:
                 src.set_reference(reference)
                 self._show_coarse_tomogram(reference)
@@ -2880,6 +2879,7 @@ class SubtomogramAveraging(ChildWidget):
             spls: dict[int, CylSpline],
         ):
             removed = tomo.update_tilt_series(tilt_series)
+            main.GeneralInfo._refer_tomogram(tomo)
             if new_ref is not None and reference is not None:
                 src.set_reference(reference)
                 self._show_coarse_tomogram(reference)

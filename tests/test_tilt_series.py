@@ -415,6 +415,9 @@ def test_refine_tilt_series(
     # not exactly at their centers, which shifts the tilt images systematically. The
     # shifts are estimated from the true tilt series. The simulated tilt series has
     # no CTF.
+    info = ui.GeneralInfo.image_info.value
+    assert "CTF: Not corrected" in info
+    assert "Local alignment: None" in info
     ui.sta.refine_tilt_series(
         layers=["Mole-0-ALN1"],
         size=12.0,
@@ -493,7 +496,102 @@ def test_refine_tilt_series(
     # the coarse tomogram is saved in float16 (MRC mode 12)
     with mrcfile.open(tmp_path / "project" / "coarse_tomogram.mrc") as mrc:
         assert mrc.header.mode == 12
-    src.release_cache()
+
+    # the information is updated with the local shifts of the refinement
+    ui.sta.refine_tilt_series(
+        layers=["Mole-0-ALN1"],
+        size=12.0,
+        grid_shape=(2, 2),
+        bin_size=1,
+        ctf=False,
+        update_coarse_tomogram=False,
+    )
+    assert "Local alignment: 2 × 2 shift grid" in ui.GeneralInfo.image_info.value
+    ui.tomogram.tilt_series.release_cache()
+
+
+def test_refine_tilt_series_of_layers(
+    ui: CylindraMainWidget,
+    tilt_series_files: TiltSeriesFiles,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    ui.open_tilt_series_with_reference(
+        tilt_series_files.json,
+        scale=SCALE,
+        reference_path=tilt_series_files.reference,
+        tomo_hand=TOMO_HAND,
+        bin_size=[1],
+        filter=None,
+        invert_reference=True,
+    )
+    mole = Molecules.from_csv(TEST_DIR / "test_project_13pf" / "Mole-0.csv")
+    mole = mole.translate(tilt_series_files.offset)
+    moles = [mole.subset(slice(0, 20)), mole.subset(slice(20, 40))]
+    for i, each in enumerate(moles):
+        ui.add_molecules(each, name=f"Mole-{i}")
+    calls = list[list[tuple[Molecules, np.ndarray]]]()
+
+    def _refine(self: acryo.BackProjectionLoader, refs, **kwargs):
+        calls.append(refs)
+        return self
+
+    monkeypatch.setattr(acryo.BackProjectionLoader, "refine_tilt_series", _refine)
+    ui.sta.refine_tilt_series(
+        layers=["Mole-0", "Mole-1"],
+        size=12.0,
+        bin_size=1,
+        ctf=False,
+        update_coarse_tomogram=False,
+    )
+    # the average of all the layers is the reference of all the molecules
+    ((refs,),) = calls
+    all_mole, template = refs
+    all_expected = Molecules.concat(moles)
+    np.testing.assert_allclose(all_mole.pos, all_expected.pos)
+    loader = ui.tomogram.get_subtomogram_loader(all_expected, (12.0,) * 3)
+    expected = loader.average(wedge_weighting=True)
+    np.testing.assert_allclose(template, expected, rtol=1e-5, atol=1e-6)
+    ui.tomogram.tilt_series.release_cache()
+
+
+def test_general_info_of_tilt_series():
+    from acryo.ctf import TiltSeriesCTF
+    from acryo.projection import (
+        AffineShifts2D,
+        LocalAlignment,
+        LocalShifts2D,
+        TiltSeries,
+    )
+
+    from cylindra.widgets.subwidgets.misc import _ctf_info, _local_alignment_info
+
+    ntilts = 3
+    assert _ctf_info(None) == "Not corrected"
+    ctf = TiltSeriesCTF(
+        defocus_u=[-3.8, -4.0, -4.1], defocus_v=[-3.8, -3.9, -4.1], voltage=200,
+        spherical_aberration=2.0,
+    )  # fmt: skip
+    info = _ctf_info(ctf)
+    # the voltage and Cs are shown, so that the defaults of etomo are noticed
+    assert "200 kV, Cs = 2.00 mm" in info
+    assert "underfocus = 3.80 — 4.10 μm" in info
+    assert "astigmatism ≤ 0.10 μm" in info
+    ts = TiltSeries(tilt_angles=np.zeros(ntilts), tilt_axis_angle=0.0)
+    assert _local_alignment_info(ts) == "None"
+    local = LocalAlignment(
+        origin=[0.0, 0.0], spacing=[10.0, 10.0], tilt_angles=np.zeros((2, 3, ntilts)),
+        mode="full",
+    )  # fmt: skip
+    # the change of magnification of each tilt is a part of the global alignment
+    mag = AffineShifts2D(np.tile(np.eye(2) * 1.001, (ntilts, 1, 1)))
+    assert _local_alignment_info(ts.replace(local_shifts_2d=mag)) == "None"
+    affine = AffineShifts2D(np.tile(np.eye(2) * 1.001, (ntilts, 1, 1)), base=local)
+    refined = LocalShifts2D(np.zeros((ntilts, 2, 4, 5)), [1.0, 1.0], base=affine)
+    # in the order of application
+    assert (
+        _local_alignment_info(ts.replace(local_shifts_2d=refined))
+        == "2 × 3 local areas (full) + 4 × 5 shift grid"
+    )
 
 
 def _project_files(path: Path) -> set[str]:

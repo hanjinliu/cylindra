@@ -413,7 +413,7 @@ def read_tilt_series(
         ts = TiltSeries.from_etomo_directory(
             path.parent,
             scale=scale,
-            local_alignment=True,
+            local_alignment="shift",
             ctf=ctf,
         )
     elif path.suffix == ".star":
