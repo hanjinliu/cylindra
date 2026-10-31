@@ -3,7 +3,8 @@ from types import SimpleNamespace
 import impy as ip
 import numpy as np
 import pytest
-from acryo import BatchLoader, Molecules, SubtomogramLoader, alignment
+from acryo import BatchLoader, Molecules, SubtomogramLoader, alignment, pipe
+from acryo.loader._extracted import SUBVOLUME_INDEX
 from acryo.tilt import no_wedge, single_axis
 from dask import array as da
 from numpy.testing import assert_allclose
@@ -14,6 +15,7 @@ from cylindra import template_free
 from cylindra.components.landscape import Landscape
 from cylindra.components.spline import CylSpline
 from cylindra.template_free import (
+    HALF_SET,
     AlignmentParams,
     AlignmentResult,
     AlignmentState,
@@ -21,10 +23,15 @@ from cylindra.template_free import (
     RMAAlignmentParams,
     RMAAlignmentResult,
     RMAAlignmentState,
+    assign_halves,
+    cutoff_of,
+    fsc_weighted,
     randomize_roll,
     resample_extracted,
     rotation_range,
+    split_into_halves,
 )
+from cylindra.widget_utils import FscResult
 
 
 def _smooth_loader(n: int = 6) -> SubtomogramLoader:
@@ -173,10 +180,8 @@ def test_rotation_step_of_params():
         num_trials=1,
     )
     assert params.rotations == ((0.0, 0.0), (180.0, 30.0), (3.0, 3.0))
-    fsc = SimpleNamespace(get_resolution=lambda _: 2.0)
     for _ in range(10):
-        result = RMAAlignmentResult(fsc, None, None, params)
-        params = RMAAlignmentParams.from_last_result(1.0, result, max_rot_step=30.0)
+        params = params.next_iteration(1.0, 0.5, max_rot_step=30.0)
         for max_rot, step in params.rotations[1:]:
             assert 0 < step <= 30.0
             assert int(max_rot / step) * step == pytest.approx(max_rot)
@@ -276,6 +281,305 @@ def test_alignment_model_is_shared(num_template_rotations: list[int]):
         assert_allclose(out.features["score"], ref.features["score"], rtol=1e-5)
 
 
+def _decaying_fsc(size: int = 20, scale: float = 0.5) -> FscResult:
+    """FSC of a box of `size` that decays from 1 to 0 around 0.25 (1/pixel)."""
+    dfreq = 1.5 / size
+    freq = (np.arange(int(np.sqrt(3) / 2 / dfreq)) + 0.5) * dfreq
+    fsc = 1 / (1 + (freq / 0.25) ** 4)
+    return FscResult(freq, fsc, np.zeros_like(fsc), scale)
+
+
+def test_landscape_of_half_set(num_template_rotations: list[int]):
+    loader = _loaders_with_tilt()[1]
+    half_avgs = tuple(
+        ip.asarray(loader.replace(molecules=loader.molecules[sl]).average(), axes="zyx")
+        .set_scale(zyx=0.5, unit="nm")
+        for sl in [slice(0, 2), slice(2, 4)]
+    )  # fmt: skip
+    params = RMAAlignmentParams.init(
+        cutoff=0.5,
+        max_shifts=(1.0, 1.0, 1.0),
+        max_rotations=(0.0, 60.0, 0.0),
+        upsample_factor=1,
+        temperature_time_const=1.0,
+        num_trials=1,
+    )
+    fsc = _decaying_fsc()
+    state = RMAAlignmentState(rng=np.random.default_rng(0))
+    state.results.append(RMAAlignmentResult(fsc, None, None, params, half_avgs))
+    halves = [0, 1, 0, 1]
+    landscapes = [
+        state.built_landscape_step(loader, norm=False, half=half) for half in halves
+    ]
+    # templates of each half set are rotated only once in an iteration
+    assert num_template_rotations[0] == 5 * 2
+    for half, lnd in zip(halves, landscapes, strict=True):
+        # the templates are weighted by the FSC between the half sets
+        ref = Landscape.from_loader(
+            loader,
+            template=fsc_weighted(half_avgs[half].value, fsc),
+            max_shifts=params.max_shifts,
+            upsample_factor=1,
+            alignment_model=alignment.ZNCCAlignment.with_params(
+                rotations=params.rotations, cutoff=0.5, tilt=loader.tilt_model
+            ),
+        )
+        assert_allclose(lnd.energies, ref.energies, rtol=1e-5, atol=1e-6)
+    assert not np.allclose(landscapes[0].energies, landscapes[1].energies)
+
+
+@pytest.mark.parametrize("mask_shape", [None, (20, 20, 20), (16, 16, 16)])
+def test_gold_standard_fsc(mask_shape: tuple[int, int, int] | None):
+    loader = _smooth_loader(n=2)
+    if mask_shape is None:
+        mask = None
+    else:
+        center = (np.array(mask_shape) - 1) / 2
+        dist = np.linalg.norm(
+            np.indices(mask_shape) - center[:, None, None, None], axis=0
+        )
+        mask = (dist < mask_shape[0] / 3).astype(np.float32)
+    halves = tuple(
+        loader.replace(molecules=loader.molecules[i : i + 1]) for i in range(2)
+    )
+    fsc, avg, half_avgs, mask_used = template_free._fsc_with_average(
+        halves, mask, np.random.default_rng(0)
+    )
+    if mask is None:
+        assert mask_used is None
+    else:
+        expected_mask = loader.normalize_mask(mask, reshape_to=(20, 20, 20))
+        assert_allclose(mask_used, expected_mask)
+    # same as randomly splitting two molecules, as FSC is symmetric
+    fsc_ref, avg_ref = loader.fsc_with_average(mask, seed=0)
+    assert_allclose(fsc.freq, fsc_ref["freq"])
+    assert_allclose(fsc.mean, fsc_ref["FSC-0"], atol=1e-4)
+    assert_allclose(avg.value, avg_ref, atol=1e-5)
+    assert fsc.scale == loader.scale
+    for half_avg, half in zip(half_avgs, halves, strict=True):
+        assert half_avg.scale.x == pytest.approx(loader.scale)
+        expected = half.average()
+        assert_allclose(
+            half_avg.value - half_avg.value.mean(),
+            expected - expected.mean(),
+            atol=1e-5,
+        )
+
+
+def test_gold_standard_average_is_weighted():
+    loader = _smooth_loader(n=4)
+    halves = (
+        loader.replace(molecules=loader.molecules[:1]),
+        loader.replace(molecules=loader.molecules[1:]),
+    )
+    state = RMAAlignmentState(rng=np.random.default_rng(0))
+    result = state.fsc_step_init(halves, (1.0, 1.0, 1.0), (0.0, 0.0, 0.0), 1, 1.0, 1)
+    assert result.half_avgs is not None
+    # average of all the molecules, not the mean of the half sets
+    expected = loader.average()
+    assert_allclose(
+        result.avg.value - result.avg.value.mean(),
+        expected - expected.mean(),
+        atol=1e-5,
+    )
+    # the half sets are not used without splitting
+    state = RMAAlignmentState(rng=np.random.default_rng(0))
+    result = state.fsc_step_init(loader, (1.0, 1.0, 1.0), (0.0, 0.0, 0.0), 1, 1.0, 1)
+    assert result.half_avgs is None
+    with pytest.raises(ValueError):
+        result.template(0)
+
+
+@pytest.mark.parametrize("halved", [False, True])
+@pytest.mark.parametrize("cls", [AlignmentState, RMAAlignmentState])
+def test_first_iteration_is_masked(cls, halved: bool):
+    loader = _smooth_loader(n=4)
+    inputs = assign_halves(loader, np.random.default_rng(1)) if halved else loader
+    mask = pipe.soft_otsu(sigma=1.0, radius=1.0)
+    state = cls(rng=np.random.default_rng(0), mask=mask)
+    if cls is RMAAlignmentState:
+        args = (1, 1.0, 1)
+    else:
+        args = ()
+    result = state.fsc_step_init(inputs, (1.0, 1.0, 1.0), (0.0, 0.0, 0.0), *args)
+    # the mask of the first alignment is created from the initial average (before
+    # normalization, so that the thresholding may differ by rounding errors)
+    expected_mask = mask.convert(result.avg.value, loader.scale)
+    assert result.mask is not None
+    assert np.mean(np.abs(result.mask - expected_mask)) < 0.01
+    # FSC is calculated with the mask, so that it is comparable to the later ones
+    fsc_masked, *_ = template_free._fsc_with_average(
+        inputs, result.mask, np.random.default_rng(0)
+    )
+    fsc_unmasked, *_ = template_free._fsc_with_average(
+        inputs, None, np.random.default_rng(0)
+    )
+    assert_allclose(result.fsc.mean, fsc_masked.mean, atol=1e-6)
+    assert not np.allclose(result.fsc.mean, fsc_unmasked.mean, atol=1e-3)
+
+
+def _fake_fsc(resolution: float) -> SimpleNamespace:
+    return SimpleNamespace(get_resolution=lambda _: resolution)
+
+
+def _rma_params(cutoff: float, max_rot: float) -> RMAAlignmentParams:
+    return RMAAlignmentParams.init(
+        cutoff=cutoff,
+        max_shifts=(1.0, 1.0, 1.0),
+        max_rotations=(0.0, max_rot, 0.0),
+        upsample_factor=1,
+        temperature_time_const=1.0,
+        num_trials=1,
+    )
+
+
+@pytest.mark.parametrize("kind", ["tomogram", "extracted", "batch"])
+@pytest.mark.parametrize("n", [7, 8])
+def test_assign_halves(tmp_path, kind: str, n: int):
+    loader = _smooth_loader(n=n)
+    if kind == "extracted":
+        # extracted subvolumes, as in template-free alignment of a tomogram
+        loader = loader.extract_subtomograms(tmp_path / "ext")
+    elif kind == "batch":
+        # loader of the extracted subvolumes, as in batch alignment
+        loader = BatchLoader.from_loaders(
+            [loader.extract_subtomograms(tmp_path / "ext")],
+            order=loader.order,
+            scale=loader.scale,
+            output_shape=loader.output_shape,
+        )
+    assigned = assign_halves(loader, np.random.default_rng(0))
+    labels = assigned.molecules.features[HALF_SET].to_numpy()
+    # molecules are randomly split into half sets of the same size
+    assert sorted(np.bincount(labels)) == [n // 2, n - n // 2]
+    assert_allclose(assigned.molecules.pos, loader.molecules.pos)
+    assert any(
+        assign_halves(loader, np.random.default_rng(seed)).molecules.features[HALF_SET].to_list() != labels.tolist()
+        for seed in range(1, 5)
+    )  # fmt: skip
+    # FSC and the averages are the same as those of the loaders of the half sets
+    halves = tuple(loader.filter(labels == half) for half in (0, 1))
+    fsc, avg, half_avgs, _ = template_free._fsc_with_average(
+        assigned, None, np.random.default_rng(0)
+    )
+    fsc_ref, avg_ref, half_avgs_ref, _ = template_free._fsc_with_average(
+        halves, None, np.random.default_rng(0)
+    )
+    assert_allclose(fsc.mean, fsc_ref.mean, atol=1e-6)
+    assert_allclose(avg.value, avg_ref.value, atol=1e-5)
+    for half_avg, half_avg_ref in zip(half_avgs, half_avgs_ref, strict=True):
+        assert_allclose(half_avg.value, half_avg_ref.value, atol=1e-5)
+    # the half sets are temporary
+    out = template_free.as_alignment_output(loader.molecules, [assigned.molecules])
+    assert (
+        out.features.columns
+        == loader.molecules.features.drop(SUBVOLUME_INDEX, strict=False).columns
+    )
+    with pytest.raises(ValueError):
+        assign_halves(loader.head(1), np.random.default_rng(0))
+
+
+def test_gold_standard_alignment():
+    loader = assign_halves(_smooth_loader(n=6), np.random.default_rng(0))
+    labels = loader.molecules.features[HALF_SET].to_numpy()
+    # the half sets are not contiguous, so that the order must be restored
+    assert np.any(np.diff(labels) < 0)
+    mask = pipe.soft_otsu(sigma=1.0, radius=1.0)
+    state = AlignmentState(rng=np.random.default_rng(0), mask=mask)
+    result = state.fsc_step_init(loader, (1.0, 1.0, 1.0), (0.0, 30.0, 0.0))
+    assert result.half_avgs is not None
+    assert result.params.cutoff == pytest.approx(
+        cutoff_of(result.fsc, loader.scale, 20, weighted=True)
+    )
+    aligned = state.align_step(loader)
+    assert aligned.molecules.features[HALF_SET].to_list() == labels.tolist()
+    # molecules of each half set are aligned to the average of the same half set,
+    # weighted by the FSC between the half sets, using the mask of the average
+    for half in (0, 1):
+        rows = np.flatnonzero(labels == half)
+        ref = loader.filter(labels == half).align(
+            fsc_weighted(result.half_avgs[half].value, result.fsc),
+            mask=result.mask,
+            max_shifts=result.params.max_shifts,
+            rotations=result.params.rotations,
+            cutoff=result.params.cutoff,
+            alignment_model=alignment.ZNCCAlignment,
+        )
+        out = aligned.molecules[rows]
+        assert_allclose(out.pos, ref.molecules.pos, atol=1e-5)
+        assert_allclose(out.features["score"], ref.features["score"], rtol=1e-5)
+    result = state.fsc_step(aligned)
+    assert result.half_avgs is not None
+    assert result.params.num_iter == 1
+
+
+@pytest.mark.parametrize(
+    "value, factor", [(1.0, 1.0), (0.5, np.sqrt(2 / 3)), (-0.2, 0.0)]
+)
+def test_fsc_weighted_by_constant(value: float, factor: float):
+    img = np.random.default_rng(0).normal(size=(20, 18, 17)).astype(np.float32)
+    # FSC of the same value at all frequencies, weighted by sqrt(2 FSC / (1 + FSC))
+    freq = np.linspace(0.0, 1.0, 21)
+    fsc = FscResult(freq, np.full(21, value), np.zeros(21), 0.5)
+    out = fsc_weighted(img, fsc)
+    assert out.dtype == np.float32
+    assert_allclose(out, img * factor, atol=1e-5)
+
+
+def test_fsc_weighted_by_frequency():
+    img = np.random.default_rng(0).normal(size=(20, 20, 20)).astype(np.float32)
+    # FSC of 1 for the first 3 shells and 0 for the others
+    freq = (np.arange(12) + 0.5) * 0.075
+    fsc = FscResult(freq, np.where(freq < 0.2, 1.0, 0.0), np.zeros(12), 0.5)
+    ft_in = np.fft.rfftn(img)
+    ft_out = np.fft.rfftn(fsc_weighted(img, fsc))
+    grids = np.meshgrid(
+        np.fft.fftfreq(20), np.fft.fftfreq(20), np.fft.rfftfreq(20), indexing="ij"
+    )
+    radius = np.sqrt(sum(grid**2 for grid in grids))
+    # weight is interpolated between the shells
+    low, high = radius <= freq[2], radius >= freq[3]
+    assert_allclose(ft_out[low], ft_in[low], atol=1e-2)
+    assert_allclose(ft_out[high], 0.0, atol=1e-2)
+    mid = ~(low | high)
+    assert np.all(np.abs(ft_out[mid]) < np.abs(ft_in[mid]))
+
+
+@pytest.mark.parametrize("size", [20, 64])
+@pytest.mark.parametrize("weighted", [False, True])
+def test_cutoff_of(size: int, weighted: bool):
+    freq = (np.arange(12) + 0.5) * 0.075
+    # FSC decreases linearly, crossing 0.5 at 0.2 and 0.143 at 0.3428 (1/pixel)
+    fsc = FscResult(freq, 1 - freq / 0.4, np.zeros(12), 0.5)
+    freq_0500, freq_0143 = 0.2, (1 - 0.143) * 0.4
+    if weighted:
+        # the larger of 10 Fourier pixels beyond FSC=0.5 and 5 beyond FSC=0.143
+        expected = max(freq_0500 + 10 / size, freq_0143 + 5 / size)
+    else:
+        expected = freq_0143
+    assert cutoff_of(fsc, 0.5, size, weighted) == pytest.approx(expected)
+    if weighted:
+        # FSC above the thresholds at all frequencies, or below them
+        fsc_high = FscResult(freq, np.ones(12), np.zeros(12), 0.5)
+        fsc_low = FscResult(freq, np.zeros(12), np.zeros(12), 0.5)
+        assert cutoff_of(fsc_high, 0.5, size, weighted) == 1.0
+        assert cutoff_of(fsc_low, 0.5, size, weighted) == pytest.approx(10 / size)
+
+
+@pytest.mark.parametrize("seed", [0, 1, 2])
+def test_split_into_halves(seed: int):
+    counts = [40, 10, 25, 25, 5, 30]
+    halves = split_into_halves(counts, np.random.default_rng(seed))
+    assert sorted(set(halves)) == [0, 1]
+    totals = [
+        sum(c for c, h in zip(counts, halves, strict=True) if h == i) for i in (0, 1)
+    ]
+    assert abs(totals[0] - totals[1]) <= max(counts)
+    assert split_into_halves([3, 3], np.random.default_rng(seed)) in ([0, 1], [1, 0])
+    with pytest.raises(ValueError):
+        split_into_halves([10], np.random.default_rng(seed))
+
+
 def test_landscapes_are_computed_at_once(monkeypatch: pytest.MonkeyPatch):
     loaders = _loaders_with_tilt()
     avg = ip.asarray(loaders[0].average(), axes="zyx").set_scale(zyx=0.5, unit="nm")
@@ -317,6 +621,30 @@ def test_cooling_schedule(max_num_iters: int):
         [final ** ((k + 1) / max_num_iters) for k in range(max_num_iters - 1)],
     )
     assert all(r > final for r in ratios[:-1])
+    # landscape is rebuilt in every iteration
+    assert state.rebuilds_landscape()
+
+
+@pytest.mark.parametrize("max_num_iters", [2, 3, 8, 20])
+def test_cooling_schedule_with_final_landscape(max_num_iters: int):
+    state = RMAAlignmentState(max_num_iters=max_num_iters)
+    final = state.final_temperature_ratio
+    final_landscape = state.final_landscape_temperature_ratio
+    assert final_landscape == 5e-4
+    ratios = list[float]()
+    rebuilds = list[bool]()
+    for _ in range(max_num_iters):
+        state.results.append(SimpleNamespace())
+        rebuilds.append(state.rebuilds_landscape())
+        ratios.append(state.temperature_ratio(final=state.is_final_iteration()))
+    # temperature reaches `final_landscape` in all the iterations but the last one,
+    # in which the annealing is finished without rebuilding the landscape
+    assert ratios[-1] == final
+    assert_allclose(
+        ratios[:-1],
+        [final_landscape ** ((k + 1) / (max_num_iters - 1)) for k in range(max_num_iters - 1)],
+    )  # fmt: skip
+    assert rebuilds == [True] * (max_num_iters - 1) + [False]
 
 
 def test_default_cooling_fraction():
@@ -330,6 +658,19 @@ def test_default_cooling_fraction():
 def test_invalid_annealing_schedule(kwargs: dict):
     with pytest.raises(ValueError):
         RFAAlignmentState(**kwargs)
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"max_num_iters": 1},
+        {"final_landscape_temperature_ratio": 1e-6},
+        {"final_landscape_temperature_ratio": 1.0},
+    ],
+)
+def test_invalid_annealing_schedule_with_final_landscape(kwargs: dict):
+    with pytest.raises(ValueError):
+        RMAAlignmentState(**kwargs)
 
 
 def test_randomize_roll():
@@ -454,17 +795,59 @@ def test_update_landscape_with_rotated_molecules():
 def test_rotation_schedule(cls, max_rot: float, expected: list[float]):
     if cls is RMAAlignmentParams:
         params = cls.init(0.5, (1.0, 1.0, 1.0), (0.0, max_rot, 0.0), 1, 1.0, 1)
-        result_cls = RMAAlignmentResult
     else:
         params = cls.init(0.5, (1.0, 1.0, 1.0), (0.0, max_rot, 0.0))
-        result_cls = AlignmentResult
-    fsc = SimpleNamespace(get_resolution=lambda _: 2.0)
     max_rots = list[float]()
     for _ in expected:
         max_rots.append(params.rotations[1][0])
         if max_rot > 30:
             # the step is 30 degrees until narrowed, and then 3 rotations are searched
             assert params.rotations[1][1] == pytest.approx(min(30.0, max_rots[-1]))
-        result = result_cls(fsc, None, None, params)
-        params = cls.from_last_result(1.0, result, min_rot_step=1.0, max_rot_step=30.0)
+        params = params.next_iteration(1.0, 0.5, min_rot_step=1.0, max_rot_step=30.0)
+        assert isinstance(params, cls)
     assert max_rots == pytest.approx(expected)
+
+
+@pytest.mark.parametrize("cls", [AlignmentState, RMAAlignmentState])
+@pytest.mark.parametrize("weighted", [False, True])
+def test_cutoff_of_template(monkeypatch: pytest.MonkeyPatch, cls, weighted: bool):
+    resolutions = iter([2.0, 4.0, 1.0])  # initial, worse and better
+    avg = ip.asarray(np.zeros((64, 64, 64), dtype=np.float32), axes="zyx")
+    # templates are weighted by FSC if the half sets are aligned independently
+    half_avgs = (avg, avg) if weighted else None
+    monkeypatch.setattr(
+        template_free,
+        "_fsc_with_average",
+        lambda *_: (_fake_fsc(next(resolutions)), avg, half_avgs, None),
+    )
+    loader = SimpleNamespace(scale=0.5)
+    state = cls()
+    if cls is RMAAlignmentState:
+        state.fsc_step_init(loader, (1.0, 1.0, 1.0), (0.0, 0.0, 0.0), 1, 1.0, 1)
+    else:
+        state.fsc_step_init(loader, (1.0, 1.0, 1.0), (0.0, 0.0, 0.0))
+    state.fsc_step(loader)
+    state.fsc_step(loader)
+    # cutoff of the parameters of each result is determined by the FSC of the result
+    # itself, as it is the template of the next alignment even if FSC is worse
+    expected = [0.5 / 2.0, 0.5 / 4.0, 0.5 / 1.0]
+    if weighted:
+        # 10 Fourier pixels beyond the resolution, as the fake FSC crosses all the
+        # thresholds at the same frequency
+        expected = [c + 10 / 64 for c in expected]
+    assert [r.params.cutoff for r in state.results] == pytest.approx(expected)
+    assert [r.params.num_iter for r in state.results] == [0, 1, 2]
+
+
+def test_params_format():
+    params = _rma_params(0.5, 0.0)
+    # labeled by the iteration in which the parameters are used
+    assert params.format().startswith("Iteration 1:")
+    assert "Upsample factor" in params.format()
+    params = params.next_iteration(1.0, 0.25)
+    assert params.format().startswith("Iteration 2:")
+    assert "Relative cutoff frequency = 0.250" in params.format()
+    assert "Upsample factor" not in params.format()
+    params = AlignmentParams.init(0.5, (1.0, 1.0, 1.0), (0.0, 0.0, 0.0))
+    assert params.format().startswith("Iteration 1:")
+    assert params.next_iteration(1.0, 0.25).format().startswith("Iteration 2:")

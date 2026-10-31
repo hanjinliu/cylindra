@@ -35,7 +35,7 @@ distinguish them.
 Molecules labeled with `0` are the molecules that should be considered as the template,
 and `1` the anti-template.
 
-## Seam-search in the Tilt Series
+## Seam-search on the Tilt Series
 
 :material-arrow-right-thin-circle-outline: API: [`seam_search_on_tilt`][cylindra.widgets.sta.SubtomogramAveraging.seam_search_on_tilt]
 

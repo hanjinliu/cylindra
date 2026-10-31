@@ -468,6 +468,7 @@ class CylindraMainWidget(MagicTemplate):
             config = config.asdict()
         else:
             raise TypeError(f"Invalid config type: {type(config)}")
+        config.pop("note", None)  # this is not needed for recording
         return config
 
     def _norm_splines(self, splines: list[int] | Literal["all"]) -> list[int]:
@@ -730,29 +731,21 @@ class CylindraMainWidget(MagicTemplate):
         {filter}
         save_coarse_tomogram : bool, default False
             If true, the coarse tomogram is saved next to the tilt series file, together
-            with the default settings (".cylindra-defaults.toml") to open it later.
+            with the default settings (".cylindra-defaults.toml") to open it later. Note
+            that you can also save the coarse tomogram when saving the project.
         """
         from cylindra.components.tomogram import _tilt_series as _ts
 
         path = Path(path)
         ref = _ts.prep_reference_tomogram(
-            path,
-            scale,
-            reference_scale,
-            tomo_hand,
-            tomo_height,
+            path, scale, reference_scale, tomo_hand, tomo_height,
             save_coarse_tomogram=save_coarse_tomogram,
-        )
+        )  # fmt: skip
 
         yield thread_worker.description("Reading tilt series")
         tomo = CylTomogram.from_tilt_series(
-            path,
-            ref,
-            scale=scale,
-            tomo_hand=tomo_hand,
-            binsize=bin_size,
-            ctf=ctf,
-        )
+            path, ref, scale=scale, tomo_hand=tomo_hand, binsize=bin_size, ctf=ctf,
+        )  # fmt: skip
         if save_coarse_tomogram:
             # prepare cylindra-default
             path.with_name(".cylindra-defaults.toml").write_text(

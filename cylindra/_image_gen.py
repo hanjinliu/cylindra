@@ -10,8 +10,9 @@ from cylindra import cylmeasure
 from cylindra.const import nm
 
 if TYPE_CHECKING:
-    from cylindra.components.cyl_spline import CylSpline
-    from cylindra.components.molecules import Molecules
+    from acryo import Molecules
+
+    from cylindra.components import CylSpline
 
 
 def make_cylindrical_mask(
@@ -46,7 +47,9 @@ def make_cylindrical_mask(
     return mask_binary.value
 
 
-def make_tube_template(spl: CylSpline, length: nm, scale: nm) -> NDArray[np.float32]:
+def make_tube_template(
+    spl: CylSpline, length: nm, scale: nm, radius: nm
+) -> NDArray[np.float32]:
     """Bright tube along the y axis, of the radius and the wall of the spline.
 
     The edges of the wall are blurred by 1 nm, and the ends of the tube are tapered by
@@ -54,9 +57,8 @@ def make_tube_template(spl: CylSpline, length: nm, scale: nm) -> NDArray[np.floa
     """
     from scipy.special import erf
 
-    assert spl.radius is not None
-    r_inner = spl.radius - spl.config.thickness_inner
-    r_outer = spl.radius + spl.config.thickness_outer
+    r_inner = radius - spl.config.thickness_inner
+    r_outer = radius + spl.config.thickness_outer
     half_d = int(np.ceil((r_outer + 2.0) / scale))
     half_l = int(np.ceil(length / 2 / scale))
     shape = (2 * half_d + 1, 2 * half_l + 1, 2 * half_d + 1)

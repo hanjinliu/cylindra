@@ -44,6 +44,8 @@ variables are pushed to the console global namespace:
 
 ### Open an Image
 
+You can open a reconstructed tomogram or a tilt series project for analysis.
+
 === "Open a Tomogram"
 
     :material-arrow-right-thin-circle-outline: API: [`open_image`][cylindra.widgets.main.CylindraMainWidget.open_image] or [`open_image_with_reference`][cylindra.widgets.main.CylindraMainWidget.open_image_with_reference].
@@ -57,17 +59,6 @@ variables are pushed to the console global namespace:
     In this dialog, you can configure how to open the image. Note that the image opened in
     the viewer is **NOT the original image**. `cylindra` uses a binned and optionally
     filtered image for visualization.
-
-    ??? info "Open an image from IMOD or RELION project"
-
-        If tomograms are reconstructed using IMOD or RELION, the built-in plugins can
-        directly read it. See [here](extern/index.md) for more details.
-
-    ??? info "If you have multiple tomograms to analyze"
-
-        If you have multiple tomograms to analyze, you can create a batch project and use
-        the batch analyzer to manage them. See [Prepare Batch Projects](batch/prep.md) for
-        more details.
 
     !!! danger "Important: Use dark background images"
 
@@ -144,29 +135,40 @@ After opening an image, you'll find three layers added to the viewer:
 
 The `"Drawing Layer"` will be selected, with the "add points" mode activated by default.
 
+??? info "Use multi-scaled images"
 
-### Use Multi-scaled Images
+    Tomograms and tilt series data can be loaded as multi-scaled images, which means that
+    you can switch between the original and binned images. Many methods in `cylindra` have
+    a `bin_size` argument. All the bin sizes registered as multi-scales are available for
+    this argument. Usually, the bin sizes are set using the `bin_size` argument of the
+    open-image dialog.
 
-Tomograms can be loaded as multi-scaled images, which means that you can switch between
-the original and binned images. Many methods in `cylindra` have a `bin_size` argument.
-All the bin sizes registered as multi-scales are available for this argument. Usually,
-the bin sizes are set using the `bin_size` argument of the open-image dialog.
+    ##### (i) Add a new bin size to the multi-scale list after you opened the image
 
-##### (i) Add a new bin size to the multi-scale list after you opened the image
+    :material-arrow-right-thin-circle-outline: API: [`add_multiscale`][cylindra.widgets.main.CylindraMainWidget.add_multiscale].
 
-:material-arrow-right-thin-circle-outline: API: [`add_multiscale`][cylindra.widgets.main.CylindraMainWidget.add_multiscale].
+    :material-arrow-right-thin-circle-outline: GUI: `File > Add multi-scale`
 
-:material-arrow-right-thin-circle-outline: GUI: `File > Add multi-scale`
+    ##### (ii) Choose which multi-scale image to be shown in the viewer
 
-##### (ii) Choose which multi-scale image to be shown in the viewer
+    :material-arrow-right-thin-circle-outline: API: [`set_multiscale`][cylindra.widgets.main.CylindraMainWidget.set_multiscale].
 
-:material-arrow-right-thin-circle-outline: API: [`set_multiscale`][cylindra.widgets.main.CylindraMainWidget.set_multiscale].
+    :material-arrow-right-thin-circle-outline: GUI: `File > Set multi-scale`
 
-:material-arrow-right-thin-circle-outline: GUI: `File > Set multi-scale`
+    It is useful when you have a low-resolution image (to see the overall state of your
+    sample) and a high-resolution image (to see the detailed structures of the components)
+    as the multi-scale images.
 
-It is useful when you have a low-resolution image (to see the overall state of your
-sample) and a high-resolution image (to see the detailed structures of the components)
-as the multi-scale images.
+??? info "Open an image from IMOD or RELION project"
+
+    If you have IMOD or RELION projects, the built-in plugins can directly read them. See
+    [here](extern/index.md) for more details.
+
+??? info "If you have multiple tomograms to analyze"
+
+    If you have multiple tomograms to analyze, you can create a batch project and use
+    the batch analyzer to manage them. See [Prepare Batch Projects](batch/prep.md) for
+    more details.
 
 ### Invert Images
 

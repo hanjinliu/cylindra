@@ -10,7 +10,6 @@ import numpy as np
 import polars as pl
 from acryo import BackProjectionLoader, BatchLoader, Molecules, SubtomogramLoader
 from acryo.loader import ExtractedSubvolumeLoader
-from acryo.loader._extracted import SUBVOLUME_INDEX
 from magicclass import (
     MagicTemplate,
     abstractapi,
@@ -60,6 +59,7 @@ from cylindra.widgets.sta import (
     StaParameters,
     _get_alignment,
     _plot_current_fsc,
+    _store_halfmaps,
 )
 
 if TYPE_CHECKING:
@@ -423,7 +423,10 @@ class BatchSubtomogramAveraging(MagicTemplate):
         """Create initial model by iteratively aligning molecules without template.
 
         This method iteratively calculate average, evaluate using FSC, and align
-        molecules to the current average.
+        molecules to the current average. Molecules are randomly split into two half
+        sets, and the molecules of each half set are aligned to the average of the same
+        half set (gold-standard). As FSC between the half sets is not inflated by the
+        noise shared through the same template, the templates are weighted by FSC.
 
         Parameters
         ----------
@@ -466,17 +469,17 @@ class BatchSubtomogramAveraging(MagicTemplate):
                     apply_prefilter=True,
                 )
             # the image IDs are kept, as the aligned molecules are the output
-            joined = join_extracted_loaders(extracted)
+            joined = template_free.assign_halves(join_extracted_loaders(extracted), rng)
             yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
-            result0 = _alignment_state.fsc_step_init(joined, max_shifts, max_rotations)
+            result = _alignment_state.fsc_step_init(joined, max_shifts, max_rotations)
             _Logger.print(f"Iteration {int(_alignment_state.num_iter)}")
-            yield _plot_current_fsc.with_args(result0.fsc, result0.avg).with_desc(_pdesc.align_tf_1(_alignment_state))  # fmt: skip
+            yield _plot_current_fsc.with_args(result.fsc, result.avg).with_desc(_pdesc.align_tf_1(_alignment_state))  # fmt: skip
             while True:
-                _Logger.print(_alignment_state.next_params(loader.scale).format())
                 _exceeded = max_num_iters <= _alignment_state.num_iter
                 if _alignment_state.is_converged() or _exceeded:
                     _Logger.print("Maximum iteration exceeded" if _exceeded else "FSC converged.")  # fmt: skip
                     break
+                _Logger.print(_alignment_state.results[-1].params.format())
                 # the extracted subtomograms are resampled at the aligned molecules
                 joined = _alignment_state.align_step(joined)
                 yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
@@ -484,7 +487,9 @@ class BatchSubtomogramAveraging(MagicTemplate):
                 _Logger.print(f"Iteration {int(_alignment_state.num_iter)}")
                 yield _plot_current_fsc.with_args(result.fsc, result.avg).with_desc(_pdesc.align_tf_1(_alignment_state))  # fmt: skip
 
-        mole_aligned = _as_alignment_output(loader.molecules, [joined.molecules])
+        mole_aligned = template_free.as_alignment_output(
+            loader.molecules, [joined.molecules]
+        )
         loaderlist.add_loader(
             loader.replace(molecules=mole_aligned).order_restore(),
             name=_coerce_aligned_name(info.name, loaderlist),
@@ -492,9 +497,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
             invert=info.invert,
         )
         t0.toc()
-        return self._show_rec.with_args(
-            _alignment_state.results[-1].avg, f"[AVG]{loader_name}"
-        )
+        return self._show_template_free_average.with_args(result, f"[AVG]{loader_name}")
 
     @set_design(text="RMA alignment", location=BatchRefinement)
     @dask_thread_worker.with_progress(desc="Simulated annealing (RMA)")
@@ -603,7 +606,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
         range_lat: _DistRangeLat = ("d.mean() - 0.1", "d.mean() + 0.1"),
         angle_max: _AngleMaxLon = 5.0,
         bin_size: _BINSIZE = 1,
-        temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.0,
+        temperature_time_const: Annotated[float, {"min": 0.01, "max": 10.0}] = 1.5,
         upsample_factor: Annotated[int, {"min": 1, "max": 20}] = 3,
         num_trials: Annotated[int, {"min": 1, "max": 100}] = 5,
         max_num_iters: Annotated[int, {"min": 3, "max": 100}] = 8,
@@ -614,8 +617,14 @@ class BatchSubtomogramAveraging(MagicTemplate):
         The annealing schedule of RMA is split into `max_num_iters` iterations. In
         each iteration, annealing is resumed from the last state and temperature of
         the previous iteration using the current average as the template, and then the
-        average is updated and evaluated using FSC. If FSC converged, the rest of the
-        annealing will be finished in the next iteration.
+        average is updated and evaluated using FSC. The temperature is cooled down to
+        5e-4 of the initial one in `max_num_iters - 1` iterations, and the rest of the
+        annealing is run in the last iteration without rebuilding the landscape, as
+        the average is hardly improved at such low temperature. Splines are split into
+        two half sets, and the molecules of each half set are aligned to the average
+        of the same half set (gold-standard). As FSC between the half sets is not
+        inflated by the noise shared through the same template, the templates are
+        weighted by FSC. At least two splines are required.
 
         Parameters
         ----------
@@ -644,6 +653,22 @@ class BatchSubtomogramAveraging(MagicTemplate):
         sub_inputs = list(self._group_loader_by_spline(loader_name, loader))
         num_splines = len(sub_inputs)
         _Logger.print(f"{num_splines} splines found for RMA alignment.")
+        if num_splines < 2:
+            raise ValueError(
+                "At least two splines are required for gold-standard alignment, got "
+                f"{num_splines}."
+            )
+        # the half set (0 or 1) of each spline for gold-standard alignment
+        counts = [inputs.loader.molecules.count() for inputs in sub_inputs]
+        halves = template_free.split_into_halves(counts, rng)
+        _n0, _n1 = (
+            sum(c for c, h in zip(counts, halves, strict=True) if h == half)
+            for half in (0, 1)
+        )
+        _Logger.print(
+            f"Splines split into half sets of {halves.count(0)} splines "
+            f"({_n0} molecules) and {halves.count(1)} splines ({_n1} molecules)."
+        )
         annealings: list[template_free.ResumableAnnealing | None] = [None] * num_splines
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmpdir:
             # Subtomograms are extracted to files only once, as spline coefficients so
@@ -661,7 +686,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
             extracted = [inputs.loader for inputs in sub_inputs]
             yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
             result = _alignment_state.fsc_step_init(
-                join_extracted_loaders(extracted), max_shifts, max_rotations,
+                _join_extracted_halves(extracted, halves), max_shifts, max_rotations,
                 upsample_factor, temperature_time_const, num_trials,
             )  # fmt: skip
             _final = False
@@ -673,25 +698,32 @@ class BatchSubtomogramAveraging(MagicTemplate):
                 if _final := _alignment_state.is_final_iteration():
                     _converged = _alignment_state.is_converged()
                     _Logger.print("FSC converged." if _converged else "Last iteration.")
-                _Logger.print(_alignment_state.next_params(loader.scale).format())
+                if _rebuild := _alignment_state.rebuilds_landscape():
+                    _Logger.print(_alignment_state.results[-1].params.format())
+                else:
+                    _Logger.print("The landscape of the last iteration is used.")
                 _ratio = _alignment_state.temperature_ratio(_final)
                 _Logger.print(f"Annealing until temperature reaches {_ratio:.2e} of T0")
                 _iter = _alignment_state.num_iter + 1
                 molecules: list[Molecules] = []
                 for ith, inputs in enumerate(sub_inputs):
                     _p_ind = f"({ith + 1}/{num_splines})"
-                    yield thread_worker.description(
-                        f"Landscape construction {_p_ind} of iteration {_iter}"
-                    )
-                    landscape = _alignment_state.built_landscape_step(inputs.loader)
                     annealing = annealings[ith]
-                    if annealing is None:
-                        annealing = _alignment_state.prep_annealing_step(
-                            landscape, inputs.spline, range_long, range_lat, angle_max
+                    if annealing is None or _rebuild:
+                        yield thread_worker.description(
+                            f"Landscape construction {_p_ind} of iteration {_iter}"
                         )
-                        annealings[ith] = annealing
-                    else:
-                        annealing.update_landscape(landscape)
+                        landscape = _alignment_state.built_landscape_step(
+                            inputs.loader, half=halves[ith]
+                        )
+                        if annealing is None:
+                            annealing = _alignment_state.prep_annealing_step(
+                                landscape, inputs.spline, range_long, range_lat,
+                                angle_max,
+                            )  # fmt: skip
+                            annealings[ith] = annealing
+                        else:
+                            annealing.update_landscape(landscape)
                     yield thread_worker.description(
                         f"RMA step {_p_ind} of iteration {_iter}"
                     )
@@ -704,7 +736,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
                     )
                 yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
                 result = _alignment_state.fsc_step(
-                    join_extracted_loaders(extracted, molecules)
+                    _join_extracted_halves(extracted, halves, molecules)
                 )
 
         loaderlist.add_loader(
@@ -714,9 +746,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
             invert=info.invert,
         )
         t0.toc()
-        return self._show_rec.with_args(
-            _alignment_state.results[-1].avg, f"[AVG]{loader_name}"
-        )
+        return self._show_template_free_average.with_args(result, f"[AVG]{loader_name}")
 
     @set_design(text="RFA alignment (template-free)", location=BatchRefinement)
     @dask_thread_worker.with_progress(desc="RFA alignment started")
@@ -832,7 +862,7 @@ class BatchSubtomogramAveraging(MagicTemplate):
                 if _final := _alignment_state.is_final_iteration():
                     _converged = _alignment_state.is_converged()
                     _Logger.print("FSC converged." if _converged else "Last iteration.")
-                _Logger.print(_alignment_state.next_params(loader.scale).format())
+                _Logger.print(_alignment_state.results[-1].params.format())
                 _ratio = _alignment_state.temperature_ratio(_final)
                 _Logger.print(f"Annealing until temperature reaches {_ratio:.2e} of T0")
                 _iter = _alignment_state.num_iter + 1
@@ -1052,6 +1082,15 @@ class BatchSubtomogramAveraging(MagicTemplate):
     ):
         return self.params._show_reconstruction(img, name, store, threshold)
 
+    @thread_worker.callback
+    def _show_template_free_average(
+        self, result: template_free.AlignmentResult, name: str
+    ):
+        """Show the average of template-free alignment with the half maps if any."""
+        layer = self._show_rec(result.avg, name)
+        _store_halfmaps(layer, result)
+        return layer
+
     def _get_shape_in_px(
         self, default: "nm | None", loader: BatchLoader
     ) -> tuple[int, ...]:
@@ -1246,21 +1285,23 @@ def join_extracted_loaders(
     )
 
 
-# features added by the alignment of acryo loaders, in the same order
-_ALIGN_FEATURES = [Mole.score] + [f"align-d{c}" for c in "zyx"]
-_ALIGN_FEATURES += [f"align-d{c}rot" for c in "zyx"]
+def _join_extracted_halves(
+    loaders: Sequence[ExtractedSubvolumeLoader],
+    halves: list[int],
+    molecules: list[Molecules] | None = None,
+) -> tuple[BatchLoader, BatchLoader]:
+    """Join the extracted loaders of each half set.
 
-
-def _as_alignment_output(original: Molecules, aligned: list[Molecules]) -> Molecules:
-    """Concatenate molecules aligned using the extracted subtomograms.
-
-    The feature columns are ordered in the same way as aligning the original loader
-    directly.
+    `halves` is the half set (0 or 1) of each loader. See `join_extracted_loaders` for
+    the other parameters.
     """
-    mole = Molecules.concat(aligned).drop_features(SUBVOLUME_INDEX)
-    columns = mole.features.columns
-    order = [c for c in original.features.columns if c in columns]
-    order += [c for c in _ALIGN_FEATURES if c in columns and c not in order]
-    order += [c for c in columns if c not in order]
-    mole.features = mole.features.select(order)
-    return mole
+    out = list[BatchLoader]()
+    for half in (0, 1):
+        idx = [i for i, h in enumerate(halves) if h == half]
+        out.append(
+            join_extracted_loaders(
+                [loaders[i] for i in idx],
+                None if molecules is None else [molecules[i] for i in idx],
+            )
+        )
+    return tuple(out)

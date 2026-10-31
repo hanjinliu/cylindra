@@ -192,6 +192,8 @@ def test_align(ui: CylindraMainWidget, binsize: int):
         max_num_iters=3,
     )
     assert len(ui.sta.sub_viewer.layers) == 2
+    # half maps of the independently aligned half sets
+    assert "fsc_halfmaps" in ui.sta.sub_viewer.layers[-1].metadata
     loader = ui.batch.sta.get_loader("Loader-ALN2")
     _assert_box_size(loader.output_shape, loader.scale, 12.0)
     ui.batch.sta.split_loader("Loader", by="pf-id", delete_old=True)
@@ -264,6 +266,29 @@ def test_align_rma(
     ]:
         loader = ui.batch.sta.get_loader(name)
         _assert_box_size(loader.output_shape, loader.scale, size)
+
+
+@pytest_group("batch.align")
+def test_align_rma_template_free_gold_standard(ui: CylindraMainWidget):
+    ui.batch.constructor.add_projects([PROJECT_DIR_13PF])
+    _load(ui)
+    ui.batch.sta.align_all_rma_template_free(
+        "Loader",
+        mask_params=(2.0, 2.0),
+        size=8.0,
+        max_shifts=(1.2, 1.2, 1.2),
+        bin_size=2,
+        upsample_factor=2,
+        temperature_time_const=0.2,
+        max_num_iters=3,
+    )
+    loader_in = ui.batch.sta.get_loader("Loader")
+    loader = ui.batch.sta.get_loader("Loader-ALN1")
+    assert loader.molecules.count() == loader_in.molecules.count()
+    # half maps of the independently aligned half sets
+    img0, img1 = ui.sta.sub_viewer.layers[-1].metadata["fsc_halfmaps"]
+    assert img0.shape == img1.shape == (1, *loader.output_shape)
+    assert not np.allclose(img0, img1)
 
 
 @pytest_group("batch.align")

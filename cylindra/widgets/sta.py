@@ -29,7 +29,7 @@ from magicclass.logging import getLogger
 from magicclass.types import Optional, Path
 from magicclass.undo import undo_callback
 from magicclass.utils import thread_worker
-from magicclass.widgets import HistoryFileEdit
+from magicclass.widgets import HistoryFileEdit, ToggleButtons
 from magicgui.types import Separator
 from scipy.spatial.transform import Rotation
 
@@ -98,6 +98,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
     from cylindra.components.landscape import AnnealingResult
+    from cylindra.components.tomogram._tilt_series import TiltSeriesSource
 
 
 def _get_template_shape(
@@ -1194,6 +1195,11 @@ class SubtomogramAveraging(ChildWidget):
     ):  # fmt: skip
         """Iteratively align molecules and validate using FSC without template.
 
+        Molecules are randomly split into two half sets, and the molecules of each half
+        set are aligned to the average of the same half set (gold-standard). As FSC
+        between the half sets is not inflated by the noise shared through the same
+        template, the templates are weighted by FSC.
+
         Parameters
         ----------
         {layers}{mask_params}{size}{max_shifts}{max_rotations}{min_rotation_step}
@@ -1224,26 +1230,42 @@ class SubtomogramAveraging(ChildWidget):
             min_rotation_step=min_rotation_step,
         )
         _Logger.print(f"Starting template-free alignment ({loader.molecules.count()} molecules in total) ...")  # fmt: skip
-        yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
-        result = _alignment_state.fsc_step_init(loader, max_shifts, max_rotations)
-        _Logger.print(f"Iteration {int(_alignment_state.num_iter)}")
-        yield _plot_current_fsc.with_args(result.fsc, result.avg).with_desc(_pdesc.align_tf_1(_alignment_state))  # fmt: skip
-        while True:
-            _Logger.print(_alignment_state.next_params(loader.scale).format())
-            _exceeded = max_num_iters <= _alignment_state.num_iter
-            if _alignment_state.is_converged() or _exceeded:
-                _Logger.print(
-                    "Maximum iteration exceeded" if _exceeded else "FSC converged."
-                )
-                break
-            loader = _alignment_state.align_step(loader)
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmpdir:
+            # Subtomograms are extracted to files only once, as spline coefficients so
+            # that they can be resampled without the prefilter. In each iteration, the
+            # extracted subtomograms are resampled at the aligned molecules for both
+            # alignment and FSC calculation.
+            yield thread_worker.description("Extracting subtomograms")
+            extracted = loader.extract_subtomograms(
+                Path(tmpdir) / "subtomograms", chunksize=64, apply_prefilter=True
+            )
+            inputs = template_free.assign_halves(extracted, rng)
             yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
-            result = _alignment_state.fsc_step(loader)
+            result = _alignment_state.fsc_step_init(inputs, max_shifts, max_rotations)
             _Logger.print(f"Iteration {int(_alignment_state.num_iter)}")
             yield _plot_current_fsc.with_args(result.fsc, result.avg).with_desc(_pdesc.align_tf_1(_alignment_state))  # fmt: skip
+            while True:
+                _exceeded = max_num_iters <= _alignment_state.num_iter
+                if _alignment_state.is_converged() or _exceeded:
+                    _Logger.print("Maximum iteration exceeded" if _exceeded else "FSC converged.")  # fmt: skip
+                    break
+                _Logger.print(_alignment_state.results[-1].params.format())
+                inputs = _alignment_state.align_step(inputs)
+                yield thread_worker.description(_pdesc.align_tf_0(_alignment_state))
+                result = _alignment_state.fsc_step(inputs)
+                _Logger.print(f"Iteration {int(_alignment_state.num_iter)}")
+                yield _plot_current_fsc.with_args(result.fsc, result.avg).with_desc(_pdesc.align_tf_1(_alignment_state))  # fmt: skip
 
-        yield self._show_rec.with_args(result.avg, f"[Aligned]{_avg_name(layers)}")
-        loader = loader.order_restore()
+        @thread_worker.callback
+        def _show_average():
+            layer = self._show_rec(result.avg, f"[Aligned]{_avg_name(layers)}")
+            _store_halfmaps(layer, result)
+
+        yield _show_average
+        mole_aligned = template_free.as_alignment_output(
+            loader.molecules, [inputs.molecules]
+        )
+        loader = loader.replace(molecules=mole_aligned).order_restore()
         molecules = combiner.split(loader.molecules, layers)
         t0.toc()
         return self._align_all_on_return.with_args(molecules, layers)
@@ -1303,7 +1325,7 @@ class SubtomogramAveraging(ChildWidget):
         return self._align_all_on_return.with_args([mole], [layer])
 
     @set_design(text="RMA alignment", location=Alignment)
-    @dask_worker.with_progress(descs=_pdesc.align_annealing_fmt)
+    @dask_worker.with_progress(descs=_pdesc.align_rma_fmt)
     def align_all_rma(
         self,
         layer: MoleculesLayerType,
@@ -1381,7 +1403,7 @@ class SubtomogramAveraging(ChildWidget):
         return _on_return
 
     @set_design(text="MT-RMA alignment", location=Alignment)
-    @dask_worker.with_progress(descs=_pdesc.align_annealing_fmt)
+    @dask_worker.with_progress(descs=_pdesc.align_rma_fmt)
     def align_all_mt_rma(
         self,
         layer: MoleculesLayerType,
@@ -1458,7 +1480,7 @@ class SubtomogramAveraging(ChildWidget):
         return _on_return
 
     @set_design(text="RFA alignment", location=Alignment)
-    @dask_worker.with_progress(descs=_pdesc.align_annealing_fmt)
+    @dask_worker.with_progress(descs=_pdesc.align_rfa_fmt)
     def align_all_rfa(
         self,
         layer: MoleculesLayerType,
@@ -2624,9 +2646,10 @@ class SubtomogramAveraging(ChildWidget):
     ):  # fmt: skip
         """Refine the alignment of the tilt series using the molecules.
 
-        The subtomograms of each layer are averaged as the reference of the molecules
-        of the layer. Projections of the averages placed at the molecules are compared
-        with the tilt images, and the shifts of each tilt image are refined.
+        The subtomograms of all the layers are averaged as the reference of all the
+        molecules, so the layers should be of the same structure (such as tubulins).
+        Projections of the average placed at the molecules are compared with the tilt
+        images, and the shifts of each tilt image are refined.
 
         Parameters
         ----------
@@ -2643,7 +2666,7 @@ class SubtomogramAveraging(ChildWidget):
             Weight of the smoothness prior of the local shifts. Larger value is more
             robust against noise and fewer molecules.
         ctf : bool, default True
-            If true, the CTF is applied to the projections of the averages, with the
+            If true, the CTF is applied to the projections of the average, with the
             defocus of each molecule in each tilt, considering its depth. The tilt
             series must have the CTF parameters.
         {bin_size}
@@ -2658,20 +2681,17 @@ class SubtomogramAveraging(ChildWidget):
         if (src := tomo.tilt_series) is None:
             raise ValueError("The tomogram is not opened from a tilt series.")
         shape = self._get_shape_in_nm(size)
-        refs = list[tuple[Molecules, "NDArray[np.float32]"]]()
-        for layer in layers:
-            # the average of the current tilt series is the reference of each layer
-            mole = layer.molecules
-            loader = tomo.get_subtomogram_loader(mole, shape, binsize=bin_size)
-            yield thread_worker.description(f"Creating template for layer {layer.name}")
-            refs.append((mole, loader.average(wedge_weighting=True)))
-        nmole = sum(mole.count() for mole, _ in refs)
-        _Logger.print(f"Refining the tilt series using {nmole} molecules ...")
+        # the average of all the molecules in the current tilt series is the reference
+        mole = _concat_molecules(layers)
+        loader = tomo.get_subtomogram_loader(mole, shape, binsize=bin_size)
+        yield thread_worker.description(f"Creating template of {_avg_name(layers)}")
+        template = loader.average(wedge_weighting=True)
+        _Logger.print(f"Refining the tilt series using {mole.count()} molecules ...")
         old = src.tilt_series
         loader = src.get_loader(Molecules.empty(), binsize=bin_size)
         yield thread_worker.description("Running tilt series refinement")
         new = loader.refine_tilt_series(
-            refs,
+            [(mole, template)],
             max_shift=max_shift,
             grid_shape=grid_shape,
             smoothness=smoothness,
@@ -2689,6 +2709,7 @@ class SubtomogramAveraging(ChildWidget):
 
         def _apply(tilt_series: "TiltSeries", reference: "ip.ImgArray | None"):
             removed = tomo.update_tilt_series(tilt_series)
+            main.GeneralInfo._refer_tomogram(tomo)
             if new_ref is not None and reference is not None:
                 src.set_reference(reference)
                 self._show_coarse_tomogram(reference)
@@ -2719,16 +2740,18 @@ class SubtomogramAveraging(ChildWidget):
     def align_tilt_series(
         self,
         splines: SplinesType = None,
-        interval: Annotated[nm, {"label": "segment interval (nm)", "min": 2.0, "max": 200.0, "step": 1.0}] = 25.0,
+        radius_override: Annotated[Optional[nm], {"label": "radius override (nm)", "text": "Use spline radius", "options": {"min": 0.1, "max": 100.0, "step": 0.5, "value": 11.0}}] = 11.0,
+        interval: Annotated[nm, {"label": "segment interval (nm)", "min": 2.0, "max": 200.0, "step": 1.0}] = 32.0,
         length: Annotated[nm, {"label": "segment length (nm)", "min": 4.0, "max": 200.0, "step": 1.0}] = 32.0,
         max_shift: Annotated[nm, {"label": "max shift (nm)", "min": 1.0, "max": 200.0, "step": 1.0}] = 20.0,
         resolution: Annotated[nm, {"label": "low-pass resolution (nm)", "min": 0.5, "max": 100.0, "step": 0.5}] = 6.0,
         position_sigma: Annotated[Optional[nm], {"label": "position sigma (nm)", "text": "do not move splines", "options": {"min": 0.1, "max": 100.0, "step": 0.5, "value": 10.0}}] = 10.0,
         offset_per: Literal["spline", "segment"] = "segment",
-        fit_tilt_axis: bool = True,
+        fit_tilt_axis: Annotated[Literal["global", "fixed", "per_tilt"], {"widget_type": ToggleButtons}] = "global",
         max_tilt_angle_change: Annotated[float, {"label": "max tilt angle change (deg)", "min": 0.0, "max": 10.0, "step": 0.1}] = 0.5,
+        max_x_tilt_change: Annotated[float, {"label": "max X tilt change (deg)", "min": 0.0, "max": 90.0, "step": 1}] = 20,
         progressive: bool = True,
-        niter: Annotated[int, {"min": 1, "max": 20}] = 3,
+        niter: Annotated[int, {"min": 1, "max": 20, "label": "Number of iterations"}] = 3,
         ctf: Annotated[bool, {"label": "apply CTF"}] = False,
         bin_size: Annotated[int, {"min": 1, "max": 16}] = 4,
         update_splines: bool = True,
@@ -2742,6 +2765,9 @@ class SubtomogramAveraging(ChildWidget):
         Parameters
         ----------
         {splines}
+        radius_override : nm
+            Radius override for the segments (tubes). If not specified, the spline
+            radius is used.
         interval : nm
             Interval between the centers of the segments along the splines.
         length : nm
@@ -2781,10 +2807,11 @@ class SubtomogramAveraging(ChildWidget):
             Bin size of the tilt images used for the alignment. It does not have to be
             a bin size of the multi-scale images.
         update_splines : bool, default True
-            If true, the splines are moved by their offsets, so that they are at the
-            filaments in the tomogram of the aligned tilt series. If the offsets are
-            of each segment, the splines are fitted to the moved segments again. The
-            components of the offsets along the splines are ignored.
+            If true, the splines are moved to the filaments in the tomogram of the
+            aligned tilt series by the change of the alignment, not by the offsets of
+            the segments, so that they are not pulled by the outlier segments. Each
+            point of the splines is moved to the position whose projections by the
+            aligned tilt series are reconstructed at the point by the current one.
         update_coarse_tomogram : bool, default True
             If true, the coarse tomogram for visualization is also reconstructed from
             the aligned tilt series.
@@ -2801,16 +2828,22 @@ class SubtomogramAveraging(ChildWidget):
         refs = list[tuple[Molecules, "NDArray[np.float32]"]]()
         for i in indices:
             spl = tomo.splines[i]
-            if spl.radius is None:
-                raise ValueError(f"The radius of spline {i} is not measured yet.")
+            if radius_override is None:
+                if spl.radius is None:
+                    raise ValueError(f"The radius of spline {i} is not measured yet.")
+                radius = spl.radius
+            else:
+                radius = radius_override
             mole = _spline_segments(spl, interval, length)
-            refs.append(
-                (mole, _image_gen.make_tube_template(spl, length, loader.scale))
-            )
+            _tube = _image_gen.make_tube_template(spl, length, loader.scale, radius)
+            refs.append((mole, _tube))
         nseg = sum(mole.count() for mole, _ in refs)
         _Logger.print(
             f"Aligning the tilt series using {nseg} segments of {len(indices)} "
             "splines ..."
+        )
+        yield _plot_segment_orientations.with_args(
+            np.concatenate([mole.y for mole, _ in refs])
         )
         old = src.tilt_series
         result = loader.align_tilt_series(
@@ -2819,8 +2852,9 @@ class SubtomogramAveraging(ChildWidget):
             cutoff=loader.scale / resolution,  # cycles per pixel
             group_by=_SEGMENT_GROUP if offset_per == "spline" else None,
             position_sigma=position_sigma,
-            tilt_axis="global" if fit_tilt_axis else "fixed",
+            tilt_axis=fit_tilt_axis,
             max_tilt_angle_change=max_tilt_angle_change,
+            max_x_tilt_change=max_x_tilt_change,
             progressive=progressive,
             niter=niter,
             ctf=ctf,
@@ -2832,9 +2866,9 @@ class SubtomogramAveraging(ChildWidget):
         ]
         new_splines = dict[int, CylSpline]()
         if update_splines and position_sigma is not None:
-            for i, (mole, _), offset in zip(indices, refs, offsets, strict=True):
+            for i in indices:
                 spl_old = tomo.splines[i]
-                spl_new = _move_spline(spl_old, mole, offset)
+                spl_new = _move_spline(spl_old, src, new)
                 _u = np.linspace(0, 1, max(int(spl_old.length() / 4), 1))
                 if spl_new.curvature(_u).max() > spl_old.curvature(_u).max() * 3:
                     _Logger.print(
@@ -2857,6 +2891,7 @@ class SubtomogramAveraging(ChildWidget):
             spls: dict[int, CylSpline],
         ):
             removed = tomo.update_tilt_series(tilt_series)
+            main.GeneralInfo._refer_tomogram(tomo)
             if new_ref is not None and reference is not None:
                 src.set_reference(reference)
                 self._show_coarse_tomogram(reference)
@@ -2871,7 +2906,7 @@ class SubtomogramAveraging(ChildWidget):
         @thread_worker.callback
         def _on_return():
             removed = _apply(new, new_ref, new_splines)
-            _log_tilt_series_alignment(old, new, offsets, result.scores)
+            _log_tilt_series_alignment(old, new, offsets, result)
             if removed:
                 _Logger.print(
                     f"Multi-scale images of bin size {removed} are removed. They are "
@@ -3267,6 +3302,24 @@ def _plot_current_fsc(result: widget_utils.FscResult, avg: ip.ImgArray):
         _Logger.print_html(f"Resolution at FSC={_c:.3f} ... <b>{_r:.3f} nm</b>")
 
 
+def _store_halfmaps(layer: "Image", result: template_free.AlignmentResult):
+    """Store the FSC and the averages of the half sets of gold-standard alignment.
+
+    They are stored in the same format as `calculate_fsc`, so that they can be saved
+    by `save_fsc_result`. Nothing is stored if the half sets are not aligned
+    independently.
+    """
+    if result.half_avgs is None:
+        return
+    layer.metadata["fsc"] = result.fsc
+    layer.metadata["fsc_halfmaps"] = tuple(
+        ip.asarray(half.value[np.newaxis], axes="izyx").set_scale(
+            zyx=half.scale.x, unit="nm"
+        )
+        for half in result.half_avgs
+    )
+
+
 @thread_worker.callback
 def _plot_shannon_entropy_classification(shannon_entropy: "NDArray[np.floating]"):
     bins = max(min(int(np.sqrt(shannon_entropy.size)), 96), 12)
@@ -3445,44 +3498,71 @@ def _spline_segments(spl: CylSpline, interval: nm, length: nm) -> Molecules:
 
 
 def _move_spline(
-    spl: CylSpline, segments: Molecules, offsets: "NDArray[np.float32]"
+    spl: CylSpline, src: "TiltSeriesSource", tilt_series: "TiltSeries"
 ) -> CylSpline:
-    """Move the spline by the 3D offsets of its segments.
+    """Move the spline to the tomogram of the new alignment of the tilt series.
 
-    The components of the offsets along the spline are ignored, because they cannot be
-    determined by the tubes. The spline is translated if the segments share the offset.
-    Otherwise, the spline is fitted to the moved segments and its ends moved by the
-    offsets of the nearest segments.
+    The points along the spline (every 1 nm) are transferred by the change of the
+    alignment (see `TiltSeriesSource.transfer_points`), and the spline is fitted to
+    them again. The offsets of the segments are not used, so that the spline is not
+    pulled by the outliers.
     """
-    tangents = segments.y  # unit vectors along the spline
-    offsets = offsets - (offsets * tangents).sum(axis=1, keepdims=True) * tangents
-    if np.ptp(offsets, axis=0).max() < 1e-3:
-        return spl.translate(tuple(float(s) for s in offsets.mean(axis=0)))
-    ends = spl.map(np.array([0.0, 1.0]))
-    coords = np.concatenate(
-        [ends[:1] + offsets[:1], segments.pos + offsets, ends[1:] + offsets[-1:]]
-    )
-    new = spl.fit(coords, err_max=0.5)
+    coords = spl.map(np.linspace(0, 1, max(int(np.ceil(spl.length())), 2)))
+    new = spl.fit(src.transfer_points(coords, tilt_series), err_max=0.1)
     new.orientation = spl.orientation
     new.radius = spl.radius
     return new
+
+
+@thread_worker.callback
+def _plot_segment_orientations(vec: "NDArray[np.floating]"):
+    """Plot the orientations (N, 3) of the segments in the (z, y, x) order.
+
+    The orientations are shown in the equal-area cylindrical map: the in-plane angle
+    from the tilt axis (y) and the z component, so that the area of each bin is
+    proportional to its solid angle. ``v`` and ``-v`` are the same orientation.
+    """
+    vec = vec / np.linalg.norm(vec, axis=1, keepdims=True)
+    vec = vec * np.where(vec[:, 1:2] < 0, -1.0, 1.0)
+    phi = np.rad2deg(np.arctan2(vec[:, 2], vec[:, 1]))
+    elev = np.array([-60, -30, 0, 30, 60])
+    with _Logger.set_plt():
+        plt.figure(figsize=(6, 2.4))
+        plt.hist2d(
+            phi, vec[:, 0], bins=(18, 9), range=((-90, 90), (-1, 1)), cmap="Blues"
+        )
+        plt.xticks([-90, -45, 0, 45, 90])
+        plt.yticks(np.sin(np.deg2rad(elev)), [f"{e}" for e in elev])
+        plt.xlabel("Angle from tilt axis (deg)")
+        plt.ylabel("Elevation (deg)")
+        plt.colorbar(label="Segments")
+        plt.title("Orientations of the segments")
+        plt.tight_layout()
+        plt.show()
 
 
 def _log_tilt_series_alignment(
     old: "TiltSeries",
     new: "TiltSeries",
     offsets: "list[NDArray[np.float32]]",
-    scores: "list[NDArray[np.float32]]",
+    result,
 ):
     """Log the aligned tilt series, the offsets of the splines and the scores."""
     rotation = float(np.mean(new.tilt_axis_angle - old.tilt_axis_angle))
     _Logger.print_html(f"Rotation of the tilt axis: <b>{rotation:.3f}&deg;</b>")
     tilt_change = new.tilt_angles - old.tilt_angles
+    x_tilt_change = new.x_tilts - old.x_tilts
     if np.any(tilt_change != 0):
         _Logger.print_html(
             "Changes of the tilt angles: rms "
             f"<b>{np.sqrt(np.mean(tilt_change**2)):.3f}&deg;</b>, max "
             f"<b>{np.abs(tilt_change).max():.3f}&deg;</b>"
+        )
+    if np.any(x_tilt_change != 0):
+        _Logger.print_html(
+            "Changes of the X tilts: rms "
+            f"<b>{np.sqrt(np.mean(x_tilt_change**2)):.3f}&deg;</b>, max "
+            f"<b>{np.abs(x_tilt_change).max():.3f}&deg;</b>"
         )
     _log_tilt_series_shifts(old, new)
     offset_rms = np.sqrt(
@@ -3491,7 +3571,7 @@ def _log_tilt_series_alignment(
     _Logger.print(f"Offset of spline: rms = {offset_rms:.3f} nm")
     with _Logger.set_plt():
         plt.figure(figsize=(6, 2.4))
-        plt.plot(new.tilt_angles, np.concatenate(scores).mean(axis=0), ".-")
+        plt.plot(new.tilt_angles, np.concatenate(result.scores).mean(axis=0), ".-")
         plt.xlabel("Tilt angle (deg)")
         plt.ylabel("Mean ZNCC")
         plt.tight_layout()
