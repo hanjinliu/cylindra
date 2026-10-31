@@ -68,11 +68,19 @@ def align_viterbi_fmt(layer: Layer):
     yield "(3/3) Finishing"
 
 
-def align_annealing_fmt(layer: Layer):
+def align_rma_fmt(layer: Layer):
+    yield from _align_rma_or_rfa_fmt(layer, "RMA")
+
+
+def align_rfa_fmt(layer: Layer):
+    yield from _align_rma_or_rfa_fmt(layer, "RFA")
+
+
+def _align_rma_or_rfa_fmt(layer: Layer, method: str):
     name = _get_name(layer)
     yield f"(0/3) Preparing template images for {name!r}"
     yield f"(1/3) Calculating the correlation landscape of {name!r}"
-    yield f"(2/3) Running RFA of {name!r}"
+    yield f"(2/3) Running {method} of {name!r}"
     yield "(3/3) Finishing"
 
 

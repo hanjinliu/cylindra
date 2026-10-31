@@ -468,6 +468,7 @@ class CylindraMainWidget(MagicTemplate):
             config = config.asdict()
         else:
             raise TypeError(f"Invalid config type: {type(config)}")
+        config.pop("note", None)  # this is not needed for recording
         return config
 
     def _norm_splines(self, splines: list[int] | Literal["all"]) -> list[int]:

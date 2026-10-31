@@ -1,9 +1,32 @@
 # Refinement on Tilt Series
 
-### Tilt Series Alignment
-
 If the tomogram is [opened from a tilt series](../open_image.md), the alignment of the
-tilt series can be refined using the molecules.
+tilt series can be refined using the splines or molecules.
+
+### Coarse Tilt Series Alignment
+
+:sparkles: *New in v1.3.0*
+
+:material-arrow-right-thin-circle-outline: API: [`align_tilt_series`][cylindra.widgets.sta.SubtomogramAveraging.align_tilt_series]
+
+:material-arrow-right-thin-circle-outline: GUI: `STA widget > Alignment > Align tilt series`
+
+This method uses splines as fiducial markers to align the tilt series. Segments of the
+splines are represented as a feature-less cylinder, and their projections are used to
+calculate the cross correlation with the tilt images. Shift, rotation, and tilt angles
+are optimized at the same time.
+
+Alignment can be improved iteratively. Therefore, tilt series aligned only by IMOD's
+`tiltxcorr` can also be used.
+
+!!! warning
+
+    If filaments (such as microtubules) are oriented toward the same direction, this
+    method is likely to fail. You will usually need to select 3 - 5 filaments that are oriented in different directions.
+
+### Template-based Tilt Series Refinement
+
+:sparkles: *New in v1.3.0*
 
 :material-arrow-right-thin-circle-outline: API: [`refine_tilt_series`][cylindra.widgets.sta.SubtomogramAveraging.refine_tilt_series]
 
@@ -34,9 +57,7 @@ tilt images, and the shifts of each tilt image are refined.
        also reconstructed from the refined tilt series, and shown with the same filter
        and inversion.
 
-The molecules should be aligned beforehand. If the tilt series is poorly aligned,
-[`align_averaged`][cylindra.widgets.sta.SubtomogramAveraging.align_averaged] usually
-works very well.
+The molecules should be aligned beforehand. [`align_averaged`][cylindra.widgets.sta.SubtomogramAveraging.align_averaged] usually works very well.
 
 ![Refinement on Tilt Series](../images/refine_tilt_series.png){ loading=lazy, width=480px }
 
@@ -49,6 +70,6 @@ series.
     than half of the period (about 2 nm for the 4-nm repeat of tubulin), otherwise the
     tilt images may be aligned to the neighboring repeat.
 
-The refined tilt series alignment and the reconstructed coarse tomogram are saved in the
-project directory (`tilt_series.json` and `coarse_tomogram.mrc`) when the project is
-saved.
+The refined tilt series alignment (and the reconstructed coarse tomogram, if checked in
+the dialog) are saved in the project directory (`tilt_series.json` and `coarse_tomogram.mrc`)
+when the project is saved.

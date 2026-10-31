@@ -29,7 +29,7 @@ from magicclass.logging import getLogger
 from magicclass.types import Optional, Path
 from magicclass.undo import undo_callback
 from magicclass.utils import thread_worker
-from magicclass.widgets import HistoryFileEdit
+from magicclass.widgets import HistoryFileEdit, ToggleButtons
 from magicgui.types import Separator
 from scipy.spatial.transform import Rotation
 
@@ -1325,7 +1325,7 @@ class SubtomogramAveraging(ChildWidget):
         return self._align_all_on_return.with_args([mole], [layer])
 
     @set_design(text="RMA alignment", location=Alignment)
-    @dask_worker.with_progress(descs=_pdesc.align_annealing_fmt)
+    @dask_worker.with_progress(descs=_pdesc.align_rma_fmt)
     def align_all_rma(
         self,
         layer: MoleculesLayerType,
@@ -1403,7 +1403,7 @@ class SubtomogramAveraging(ChildWidget):
         return _on_return
 
     @set_design(text="MT-RMA alignment", location=Alignment)
-    @dask_worker.with_progress(descs=_pdesc.align_annealing_fmt)
+    @dask_worker.with_progress(descs=_pdesc.align_rma_fmt)
     def align_all_mt_rma(
         self,
         layer: MoleculesLayerType,
@@ -1480,7 +1480,7 @@ class SubtomogramAveraging(ChildWidget):
         return _on_return
 
     @set_design(text="RFA alignment", location=Alignment)
-    @dask_worker.with_progress(descs=_pdesc.align_annealing_fmt)
+    @dask_worker.with_progress(descs=_pdesc.align_rfa_fmt)
     def align_all_rfa(
         self,
         layer: MoleculesLayerType,
@@ -2740,14 +2740,14 @@ class SubtomogramAveraging(ChildWidget):
     def align_tilt_series(
         self,
         splines: SplinesType = None,
-        radius_override: Annotated[Optional[nm], {"label": "radius override (nm)", "text": "do not override", "options": {"min": 0.1, "max": 100.0, "step": 0.5, "value": 11.0}}] = 11.0,
+        radius_override: Annotated[Optional[nm], {"label": "radius override (nm)", "text": "Use spline radius", "options": {"min": 0.1, "max": 100.0, "step": 0.5, "value": 11.0}}] = 11.0,
         interval: Annotated[nm, {"label": "segment interval (nm)", "min": 2.0, "max": 200.0, "step": 1.0}] = 32.0,
         length: Annotated[nm, {"label": "segment length (nm)", "min": 4.0, "max": 200.0, "step": 1.0}] = 32.0,
         max_shift: Annotated[nm, {"label": "max shift (nm)", "min": 1.0, "max": 200.0, "step": 1.0}] = 20.0,
         resolution: Annotated[nm, {"label": "low-pass resolution (nm)", "min": 0.5, "max": 100.0, "step": 0.5}] = 6.0,
         position_sigma: Annotated[Optional[nm], {"label": "position sigma (nm)", "text": "do not move splines", "options": {"min": 0.1, "max": 100.0, "step": 0.5, "value": 10.0}}] = 10.0,
         offset_per: Literal["spline", "segment"] = "segment",
-        fit_tilt_axis: Literal["global", "fixed", "per_tilt"] = "global",
+        fit_tilt_axis: Annotated[Literal["global", "fixed", "per_tilt"], {"widget_type": ToggleButtons}] = "global",
         max_tilt_angle_change: Annotated[float, {"label": "max tilt angle change (deg)", "min": 0.0, "max": 10.0, "step": 0.1}] = 0.5,
         max_x_tilt_change: Annotated[float, {"label": "max X tilt change (deg)", "min": 0.0, "max": 90.0, "step": 1}] = 20,
         progressive: bool = True,
@@ -2841,6 +2841,9 @@ class SubtomogramAveraging(ChildWidget):
         _Logger.print(
             f"Aligning the tilt series using {nseg} segments of {len(indices)} "
             "splines ..."
+        )
+        yield _plot_segment_orientations.with_args(
+            np.concatenate([mole.y for mole, _ in refs])
         )
         old = src.tilt_series
         result = loader.align_tilt_series(
@@ -3509,6 +3512,33 @@ def _move_spline(
     new.orientation = spl.orientation
     new.radius = spl.radius
     return new
+
+
+@thread_worker.callback
+def _plot_segment_orientations(vec: "NDArray[np.floating]"):
+    """Plot the orientations (N, 3) of the segments in the (z, y, x) order.
+
+    The orientations are shown in the equal-area cylindrical map: the in-plane angle
+    from the tilt axis (y) and the z component, so that the area of each bin is
+    proportional to its solid angle. ``v`` and ``-v`` are the same orientation.
+    """
+    vec = vec / np.linalg.norm(vec, axis=1, keepdims=True)
+    vec = vec * np.where(vec[:, 1:2] < 0, -1.0, 1.0)
+    phi = np.rad2deg(np.arctan2(vec[:, 2], vec[:, 1]))
+    elev = np.array([-60, -30, 0, 30, 60])
+    with _Logger.set_plt():
+        plt.figure(figsize=(6, 2.4))
+        plt.hist2d(
+            phi, vec[:, 0], bins=(18, 9), range=((-90, 90), (-1, 1)), cmap="Blues"
+        )
+        plt.xticks([-90, -45, 0, 45, 90])
+        plt.yticks(np.sin(np.deg2rad(elev)), [f"{e}" for e in elev])
+        plt.xlabel("Angle from tilt axis (deg)")
+        plt.ylabel("Elevation (deg)")
+        plt.colorbar(label="Segments")
+        plt.title("Orientations of the segments")
+        plt.tight_layout()
+        plt.show()
 
 
 def _log_tilt_series_alignment(
