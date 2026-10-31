@@ -517,18 +517,7 @@
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#use-multi-scaled-images" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Use Multi-scaled Images
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Use Multi-scaled Images">
+    <nav class="md-nav" aria-label="Open an Image">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2873,18 +2862,7 @@
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#use-multi-scaled-images" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Use Multi-scaled Images
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Use Multi-scaled Images">
+    <nav class="md-nav" aria-label="Open an Image">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -3053,6 +3031,7 @@ variables are pushed to the console global namespace:</p>
 <li><code>Path</code>: <code>pathlib.Path</code> class.</li>
 </ul>
 <h3 id="open-an-image">Open an Image</h3>
+<p>You can open a reconstructed tomogram or a tilt series project for analysis.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Open a Tomogram</label><label for="__tabbed_1_2">Open a Tilt Series</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
@@ -3063,17 +3042,6 @@ variables are pushed to the console global namespace:</p>
 <p>In this dialog, you can configure how to open the image. Note that the image opened in
 the viewer is <strong>NOT the original image</strong>. <code>cylindra</code> uses a binned and optionally
 filtered image for visualization.</p>
-<details class="info">
-<summary>Open an image from IMOD or RELION project</summary>
-<p>If tomograms are reconstructed using IMOD or RELION, the built-in plugins can
-directly read it. See <a href="../extern/">here</a> for more details.</p>
-</details>
-<details class="info">
-<summary>If you have multiple tomograms to analyze</summary>
-<p>If you have multiple tomograms to analyze, you can create a batch project and use
-the batch analyzer to manage them. See <a href="../batch/prep/">Prepare Batch Projects</a> for
-more details.</p>
-</details>
 <div class="admonition danger">
 <p class="admonition-title">Important: Use dark background images</p>
 <p>Most of the methods require dark-background images, while most of the raw images of
@@ -3145,11 +3113,13 @@ and cached.</p>
 <li><code>&lt;name of the tomogram&gt;</code>: an <a href="https://napari.org/stable/howtos/layers/image.html">Image layer</a> showing the reference image.</li>
 </ul>
 <p>The <code>"Drawing Layer"</code> will be selected, with the "add points" mode activated by default.</p>
-<h3 id="use-multi-scaled-images">Use Multi-scaled Images</h3>
-<p>Tomograms can be loaded as multi-scaled images, which means that you can switch between
-the original and binned images. Many methods in <code>cylindra</code> have a <code>bin_size</code> argument.
-All the bin sizes registered as multi-scales are available for this argument. Usually,
-the bin sizes are set using the <code>bin_size</code> argument of the open-image dialog.</p>
+<details class="info">
+<summary>Use multi-scaled images</summary>
+<p>Tomograms and tilt series data can be loaded as multi-scaled images, which means that
+you can switch between the original and binned images. Many methods in <code>cylindra</code> have
+a <code>bin_size</code> argument. All the bin sizes registered as multi-scales are available for
+this argument. Usually, the bin sizes are set using the <code>bin_size</code> argument of the
+open-image dialog.</p>
 <h5 id="i-add-a-new-bin-size-to-the-multi-scale-list-after-you-opened-the-image">(i) Add a new bin size to the multi-scale list after you opened the image</h5>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="add_multiscale(bin_size=4)" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.add_multiscale"><code>add_multiscale</code></a>.</p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>File &gt; Add multi-scale</code></p>
@@ -3159,6 +3129,18 @@ the bin sizes are set using the <code>bin_size</code> argument of the open-image
 <p>It is useful when you have a low-resolution image (to see the overall state of your
 sample) and a high-resolution image (to see the detailed structures of the components)
 as the multi-scale images.</p>
+</details>
+<details class="info">
+<summary>Open an image from IMOD or RELION project</summary>
+<p>If you have IMOD or RELION projects, the built-in plugins can directly read them. See
+<a href="../extern/">here</a> for more details.</p>
+</details>
+<details class="info">
+<summary>If you have multiple tomograms to analyze</summary>
+<p>If you have multiple tomograms to analyze, you can create a batch project and use
+the batch analyzer to manage them. See <a href="../batch/prep/">Prepare Batch Projects</a> for
+more details.</p>
+</details>
 <h3 id="invert-images">Invert Images</h3>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="invert_image(reference_only=False)" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.invert_image"><code>invert_image</code></a>.</p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Image &gt; Invert image</code></p>

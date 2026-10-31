@@ -3053,9 +3053,12 @@ for the average image.</p>
 <h2 id="template-free-alignment-create-an-initial-model">Template-free Alignment (Create an Initial Model)</h2>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="align_all_template_free(layers, mask_params, size=12.0, max_shifts=(0.8, 0.8, 0.8), max_rotations=(3.0, 3.0, 3.0), min_rotation_step=0.4, interpolation=3, method='zncc', bin_size=1, max_num_iters=20)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.align_all_template_free"><code>align_all_template_free</code></a></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>STA widget &gt; Alignment &gt; Align all molecules (template-free)</code></p>
-<p>This method iteratively align molecules to the current average image, and validate the
-alignment by <a href="#fourier-shell-correlation-fsc">FSC</a>. The low-pass cutoff frequency is
-updated according to the resolution determined by FSC to avoid overfitting.</p>
+<p>This method randomly splits the molecules into two half sets, iteratively aligns the
+molecules of each half set to the current average of the same half set, and validates
+the alignment by <a href="#fourier-shell-correlation-fsc">FSC</a> between the averages of the half
+sets (gold-standard). As the FSC is not inflated by the noise shared through the same
+template, the template images are weighted by the FSC, and frequencies slightly beyond
+the current resolution are also used to improve the resolution without overfitting.</p>
 <p><img alt="Align all template-free" loading="lazy," src="../../images/align_all_template_free.png" width="480px" /></p>
 <h2 id="classification">Classification</h2>
 <p><img alt="✨" class="twemoji" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@16.0.1/assets/svg/2728.svg" title=":sparkles:" /> <em>New in v1.1.0</em></p>

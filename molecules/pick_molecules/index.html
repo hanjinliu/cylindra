@@ -951,10 +951,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#manual-pick-along-splines" class="md-nav__link">
+  <a href="#advanced-manual-pickers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Manual pick along splines
+        Advanced manual pickers
       
     </span>
   </a>
@@ -2745,10 +2745,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#manual-pick-along-splines" class="md-nav__link">
+  <a href="#advanced-manual-pickers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Manual pick along splines
+        Advanced manual pickers
       
     </span>
   </a>
@@ -2779,7 +2779,6 @@
 <p>In cryo-ET, particle picking is a critical step for subsequent subtomogram averaging and
 structural analysis. Although there are many powerful automatic picking tools available
 to this field, manual picking is still important for many cases.</p>
-<p>In <code>cylindra</code>,</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>If you want to automatically generate molecules along splines rather than picking
@@ -2793,25 +2792,11 @@ one by one, see <a href="../spline_to_molecules/">Spline to Molecules</a>.</p>
 points were added, this method will work properly without affecting macro recording, as
 long as the points are added in the drawing layer. This means that you can use any
 functionalities or <code>napari</code> plugins to pick molecules.</p>
-<h2 id="manual-pick-along-splines">Manual pick along splines</h2>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Image &gt; Open manual picker</code></p>
-<p>Because <code>cylindra</code> has many functions to manipulate splines, sometimes picking molecules
-along splines will be more efficient. This is especially useful to look for binding
-proteins along cylindrical structures, such as MAPs on microtubules.</p>
-<p>The manual picker widget in <code>cylidnra</code> is designed for this purpose. It makes a "plane"
-along the specified spline which can be moved, rotated or shifted relative to the
-spline. You can imaging you set a camera on a drone and fly it in the spline orbit; you
-can change the camera angles and focus to take pictures.</p>
-<p><img alt="Manual picker" loading="lazy," src="../../images/manual_picker.png" width="600px" /></p>
-<p>The center of the plane is first defined by the specified position on the spline. The
-plane normal is parallel to the spline tangent vector, so that the plane is always
-perpendicular to the spline by default. The plane is first rotated by roll, pitch and
-yaw Euler angles, and focus offset is applied (shifted towards the direction defined by
-the plane normal vector). Finally, tomogram is sliced by the user defined width and
-depth.</p>
-<p>You can click the 2D slice to add molecules. These molecules are linked to the <code>napari</code>
-viewer; they are directly added to the <code>napari</code> drawing layer, and all the points in the
-drawing layer will appear in the 2D slice if it is near the plane.</p>
+<h2 id="advanced-manual-pickers">Advanced manual pickers</h2>
+<p>More advanced manual picking can be achieved using plugins, such as:</p>
+<ul>
+<li><a href="https://github.com/hanjinliu/cylindra-guided-picker">cylindra-guided-picker</a></li>
+</ul>
 
 
 

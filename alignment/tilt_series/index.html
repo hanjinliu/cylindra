@@ -1358,10 +1358,21 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#tilt-series-alignment" class="md-nav__link">
+  <a href="#coarse-tilt-series-alignment" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Tilt Series Alignment
+        Coarse Tilt Series Alignment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#template-based-tilt-series-refinement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Template-based Tilt Series Refinement
       
     </span>
   </a>
@@ -2723,10 +2734,21 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#tilt-series-alignment" class="md-nav__link">
+  <a href="#coarse-tilt-series-alignment" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Tilt Series Alignment
+        Coarse Tilt Series Alignment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#template-based-tilt-series-refinement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Template-based Tilt Series Refinement
       
     </span>
   </a>
@@ -2754,20 +2776,37 @@
 
 
 <h1 id="refinement-on-tilt-series">Refinement on Tilt Series</h1>
-<h3 id="tilt-series-alignment">Tilt Series Alignment</h3>
 <p>If the tomogram is <a href="../../open_image/">opened from a tilt series</a>, the alignment of the
-tilt series can be refined using the molecules.</p>
+tilt series can be refined using the splines or molecules.</p>
+<h3 id="coarse-tilt-series-alignment">Coarse Tilt Series Alignment</h3>
+<p><img alt="✨" class="twemoji" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@16.0.1/assets/svg/2728.svg" title=":sparkles:" /> <em>New in v1.3.0</em></p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="align_tilt_series(splines=None, radius_override=11.0, interval=32.0, length=32.0, max_shift=20.0, resolution=6.0, position_sigma=10.0, offset_per='segment', fit_tilt_axis='global', max_tilt_angle_change=0.5, max_x_tilt_change=20, progressive=True, niter=3, ctf=False, bin_size=4, update_splines=True, update_coarse_tomogram=True)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.align_tilt_series"><code>align_tilt_series</code></a></p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>STA widget &gt; Alignment &gt; Align tilt series</code></p>
+<p>This method uses splines as fiducial markers to align the tilt series. Segments of the
+splines are represented as a feature-less cylinder, and their projections are used to
+calculate the cross correlation with the tilt images. Shift, rotation, and tilt angles
+are optimized at the same time.</p>
+<p>Alignment can be improved iteratively. Therefore, tilt series aligned only by IMOD's
+<code>tiltxcorr</code> can also be used.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>If filaments (such as microtubules) are oriented toward the same direction, this
+method is likely to fail. You will usually need to select 3 - 5 filaments that are oriented in different directions.</p>
+</div>
+<h3 id="template-based-tilt-series-refinement">Template-based Tilt Series Refinement</h3>
+<p><img alt="✨" class="twemoji" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@16.0.1/assets/svg/2728.svg" title=":sparkles:" /> <em>New in v1.3.0</em></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="refine_tilt_series(layers, size=None, max_shift=2.0, rotation=(0, 0), grid_shape=(1, 1), smoothness=0.01, ctf=True, bin_size=1, update_coarse_tomogram=True)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.refine_tilt_series"><code>refine_tilt_series</code></a></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>STA widget &gt; Alignment &gt; Refine tilt series</code></p>
-<p>The subtomograms of each selected layer are averaged as the reference of the molecules
-of the layer. The projections of the averages placed at the molecules are compared with
-the tilt images, and the shifts of each tilt image are refined.</p>
+<p>The subtomograms of all the selected layers are averaged as the reference of all the
+molecules. The projections of the average placed at the molecules are compared with the
+tilt images, and the shifts of each tilt image are refined.</p>
 <details class="info">
 <summary>List of parameters</summary>
 <ol>
-<li>"layers" is the molecules layer(s) used for the refinement. Each layer is
-   averaged separately, so the layers of different structures can be used together.</li>
-<li>"size (nm)" is the size of the averages. If not given, it tries to use the size
+<li>"layers" is the molecules layer(s) used for the refinement. All the layers are
+   averaged together, so they should be of the same structure (such as tubulins of
+   microtubules).</li>
+<li>"size (nm)" is the size of the average. If not given, it tries to use the size
    of the template image.</li>
 <li>"max shift (nm)" is the maximum shift of the tilt images.</li>
 <li>"grid shape (y, x)" is the number of control points of the local shifts along y
@@ -2776,18 +2815,16 @@ the tilt images, and the shifts of each tilt image are refined.</p>
 <li>"smoothness" is the weight of the smoothness prior of the local shifts. Larger
    value is more robust against noise and fewer molecules.</li>
 <li>If "apply CTF" is checked, the CTF is applied to the projections of the
-   averages, with the defocus of each molecule in each tilt (changed by its depth
+   average, with the defocus of each molecule in each tilt (changed by its depth
    in the microscope). The tilt series must have the CTF parameters.</li>
-<li>"bin size" is the bin size of the subtomograms used for the averages and the
+<li>"bin size" is the bin size of the subtomograms used for the average and the
    refinement.</li>
 <li>If "update coarse tomogram" is checked, the coarse tomogram for visualization is
    also reconstructed from the refined tilt series, and shown with the same filter
    and inversion.</li>
 </ol>
 </details>
-<p>The molecules should be aligned beforehand. If the tilt series is poorly aligned,
-<a class="autorefs autorefs-internal" title="align_averaged(layers, template_path, mask_params=None, max_shifts=None, rotations=((0.0, 0.0), (15.0, 1.0), (3.0, 1.0)), bin_size=1, method='zncc', cylindrical_mask=False)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.align_averaged"><code>align_averaged</code></a> usually
-works very well.</p>
+<p>The molecules should be aligned beforehand. <a class="autorefs autorefs-internal" title="align_averaged(layers, template_path, mask_params=None, max_shifts=None, rotations=((0.0, 0.0), (15.0, 1.0), (3.0, 1.0)), bin_size=1, method='zncc', cylindrical_mask=False)" href="../../api/widgets/sta/#cylindra.widgets.sta.SubtomogramAveraging.align_averaged"><code>align_averaged</code></a> usually works very well.</p>
 <p><img alt="Refinement on Tilt Series" loading="lazy," src="../../images/refine_tilt_series.png" width="480px" /></p>
 <p>The shifts of the tilt images are shown in the logger. After the refinement, all the
 subtomograms and the images for analysis are reconstructed from the refined tilt
@@ -2798,9 +2835,9 @@ series.</p>
 than half of the period (about 2 nm for the 4-nm repeat of tubulin), otherwise the
 tilt images may be aligned to the neighboring repeat.</p>
 </div>
-<p>The refined tilt series alignment and the reconstructed coarse tomogram are saved in the
-project directory (<code>tilt_series.json</code> and <code>coarse_tomogram.mrc</code>) when the project is
-saved.</p>
+<p>The refined tilt series alignment (and the reconstructed coarse tomogram, if checked in
+the dialog) are saved in the project directory (<code>tilt_series.json</code> and <code>coarse_tomogram.mrc</code>)
+when the project is saved.</p>
 
 
 
