@@ -8,6 +8,7 @@ from cylindra.const import ImageFilter
 
 if TYPE_CHECKING:
     from cylindra.template_free import AlignmentState
+    from cylindra.widgets.sta import SubtomogramAveraging
 
 
 def _get_name(layer) -> str:
@@ -46,53 +47,72 @@ def filter_image_fmt(method: ImageFilter):
     return f"Running {ImageFilter(method).name} filter"
 
 
-def align_all_fmt(layers: list[Layer]):
+def _is_tilt_cached(self: SubtomogramAveraging):
+    main = self._get_main()
+    if ts := main.tomogram.tilt_series:
+        return ts.is_cache_enabled
+    return False
+
+
+def align_all_fmt(self: SubtomogramAveraging, layers: list[Layer]):
     name = _get_name(layers)
     yield f"(0/2) Preparing template images for {name!r}"
+    if _is_tilt_cached(self):
+        yield "Preprocessing tilt series"
     yield f"(1/2) Alignment of {name!r}"
 
 
-def align_template_free_fmt(layers: list[Layer]):
+def align_template_free_fmt(self: SubtomogramAveraging, layers: list[Layer]):
     name = _get_name(layers)
     yield f"(0/3) Preparing template images for {name!r}"
+    if _is_tilt_cached(self):
+        yield "Preprocessing tilt series"
     yield f"(1/3) Averaging subtomograms of {name!r}"
     yield f"(2/3) Aligning subtomograms of {name!r}"
     yield "(4/4) Finishing"
 
 
-def align_viterbi_fmt(layer: Layer):
+def align_viterbi_fmt(self: SubtomogramAveraging, layer: Layer):
     name = _get_name(layer)
     yield f"(0/3) Preparing template images for {name!r}"
+    if _is_tilt_cached(self):
+        yield "Preprocessing tilt series"
     yield f"(1/3) Calculating the correlation landscape of {name!r}"
     yield f"(2/3) Running Viterbi alignment of {name!r}"
     yield "(3/3) Finishing"
 
 
-def align_rma_fmt(layer: Layer):
-    yield from _align_rma_or_rfa_fmt(layer, "RMA")
+def align_rma_fmt(self: SubtomogramAveraging, layer: Layer):
+    yield from _align_rma_or_rfa_fmt(self, layer, "RMA")
 
 
-def align_rfa_fmt(layer: Layer):
-    yield from _align_rma_or_rfa_fmt(layer, "RFA")
+def align_rfa_fmt(self: SubtomogramAveraging, layer: Layer):
+    yield from _align_rma_or_rfa_fmt(self, layer, "RFA")
 
 
-def _align_rma_or_rfa_fmt(layer: Layer, method: str):
+def _align_rma_or_rfa_fmt(self: SubtomogramAveraging, layer: Layer, method: str):
     name = _get_name(layer)
     yield f"(0/3) Preparing template images for {name!r}"
+    if _is_tilt_cached(self):
+        yield "Preprocessing tilt series"
     yield f"(1/3) Calculating the correlation landscape of {name!r}"
     yield f"(2/3) Running {method} of {name!r}"
     yield "(3/3) Finishing"
 
 
-def construct_landscape_fmt(layer: Layer):
+def construct_landscape_fmt(self: SubtomogramAveraging, layer: Layer):
     name = _get_name(layer)
     yield f"(0/3) Preparing template images for {name!r}"
+    if _is_tilt_cached(self):
+        yield "Preprocessing tilt series"
     yield f"(1/3) Calculating the correlation landscape of {name!r}"
     yield f"(2/3) Building the surface of {name!r}"
     yield "(3/3) Finishing"
 
 
-def fit_spline_rfa_fmt():
+def fit_spline_rfa_fmt(self: SubtomogramAveraging):
+    if _is_tilt_cached(self):
+        yield "Preprocessing tilt series"
     yield "(0/6) Preparing template images"
     yield "(1/6) Calculating the correlation landscape for forward fitting"
     yield "(2/6) Running forward RFA"
