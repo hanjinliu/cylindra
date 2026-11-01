@@ -239,15 +239,6 @@ def main():
     ui.SplinesMenu.open_spline_3d_interactor()
     _imsave(ui.spline_3d_interactor.native, "spline_3d_interactor")
 
-    ### manual picker ###
-    ui.ImageMenu.open_manual_picker()
-    ui.manual_picker.controller.pos.value = 33.6
-    ui.manual_picker.Rot.pitch = 90
-    ui.manual_picker.Rot.focus = 13
-    QtW.QApplication.processEvents()
-
-    _imsave(ui.manual_picker.native, "manual_picker")
-
     # Image processor
     ui.image_processor.show()
     _imsave(ui.image_processor.native, "image_processor")

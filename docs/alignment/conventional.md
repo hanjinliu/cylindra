@@ -145,9 +145,12 @@ for the average image.
 
 :material-arrow-right-thin-circle-outline: GUI: `STA widget > Alignment > Align all molecules (template-free)`
 
-This method iteratively align molecules to the current average image, and validate the
-alignment by [FSC](#fourier-shell-correlation-fsc). The low-pass cutoff frequency is
-updated according to the resolution determined by FSC to avoid overfitting.
+This method randomly splits the molecules into two half sets, iteratively aligns the
+molecules of each half set to the current average of the same half set, and validates
+the alignment by [FSC](#fourier-shell-correlation-fsc) between the averages of the half
+sets (gold-standard). As the FSC is not inflated by the noise shared through the same
+template, the template images are weighted by the FSC, and frequencies slightly beyond
+the current resolution are also used to improve the resolution without overfitting.
 
 ![Align all template-free](../images/align_all_template_free.png){ loading=lazy, width=480px }
 

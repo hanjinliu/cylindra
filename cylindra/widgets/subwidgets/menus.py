@@ -857,10 +857,11 @@ class AnalysisMenu(ChildWidget):
 
         @set_design(text=capitalize)
         @thread_worker.with_progress(
-            desc="Checking handedness", total="self._get_main().splines.count()"
+            desc="Checking handedness by global-CFT",
+            total="self._get_main().splines.count()",
         )
         @do_not_record
-        def check_handedness(
+        def check_handedness_by_cft(
             self,
             bin_size: Annotated[int, {"choices": get_available_binsize}] = 1,
         ):

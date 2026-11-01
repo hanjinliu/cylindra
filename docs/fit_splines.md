@@ -43,10 +43,10 @@ To delete the last spline, click ![](images/toolbutton_clear_current.png){ width
     In the future version, other auto-picking tools (AI-powered, fully automated, etc)
     may be added.
 
-!!! danger "Important: Configure the spline for your cylindric structure"
+!!! danger "Important: Configure the spline for your cylindrical structure"
 
     Each spline is tagged with a `SplineConfig` object, which describes the average
-    feature of the cylindric structure it represents. **Default values are optimized for
+    feature of the cylindrical structure it represents. **Default values are optimized for
     microtubules**. If you want to analyze other structures, you should first learn the
     spline config [here](spline/config.md). If `cylindra` don't have a config preset for
     your structure, you need to define a custom config. Please follow the instructions
@@ -54,7 +54,7 @@ To delete the last spline, click ![](images/toolbutton_clear_current.png){ width
 
 ## Fit Automatically
 
-Manually drawn splines usually does not fit the cylindric structure well. `cylindra`
+Manually drawn splines usually does not fit the cylindrical structure well. `cylindra`
 provides some automatic spline fitting methods using template-free image alignment.
 
 ### Rough fitting

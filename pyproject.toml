@@ -23,7 +23,7 @@ license = { file = "LICENSE" }
 dynamic = ["version"]
 dependencies = [
     "impy-array>=2.5.1",
-    "acryo>=0.9.1",
+    "acryo>=0.9.3",
     "macro-kit>=0.4.6",
     "magicgui>=0.8.1",
     "magic-class>=0.7.23",
@@ -61,7 +61,7 @@ testing = [
     "starfile-rs>=0.1.12",
     "imodmodel",
     "cookiecutter",
-    "maturin>=1.14.1,<2.0.0",
+    "maturin>=1.16.0,<2.0.0",
 ]
 all = [
     "pyqt6",

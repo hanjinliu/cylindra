@@ -1,6 +1,8 @@
 import glob
 from pathlib import Path
+from typing import TYPE_CHECKING
 
+import numpy as np
 from acryo.tilt import NoWedge, SingleAxis
 from magicclass import (
     MagicTemplate,
@@ -21,6 +23,10 @@ from cylindra.components import CylTomogram
 from cylindra.const import FileFilter, ImageFilter
 from cylindra.project import CylindraProject, TomogramDefaults
 from cylindra.utils import ceilint, find_tilt_angles
+
+if TYPE_CHECKING:
+    from acryo.ctf import TiltSeriesCTF
+    from acryo.projection import TiltSeries
 
 
 @magicclass(widget_type="groupbox")
@@ -372,9 +378,9 @@ class TiltSeriesLoader(MagicTemplate):
 def _get_tilt_series_image_path(path) -> str | list[str] | None:
     """Get the tilt series image path(s) from the given tilt series info path."""
     path = Path(path)
-    if path.suffix == ".edf":
+    if path.suffix == ".edf":  # IMOD
         return path.with_name(f"{path.stem}.mrc").as_posix()
-    elif path.suffix == ".star":
+    elif path.suffix == ".star":  # RELION 5
         import starfile_rs
 
         df = starfile_rs.read_star(path).first().to_polars()
@@ -413,6 +419,55 @@ def _format_nbytes(nbytes: int) -> str:
     if nbytes < 1024**3:
         return f"{nbytes / 1024**2:.2f} MB"
     return f"{nbytes / 1024**3:.2f} GB"
+
+
+def _ctf_info(ctf: "TiltSeriesCTF | None") -> str:
+    """Summary of the CTF parameters, so that wrong parameters are noticed early."""
+    if ctf is None:
+        return "Not corrected"
+    # defocus is negative for underfocus
+    underfocus = -(np.asarray(ctf.defocus_u) + np.asarray(ctf.defocus_v)) / 2
+    astigmatism = np.abs(np.asarray(ctf.defocus_u) - np.asarray(ctf.defocus_v)).max()
+    out = (
+        f"{ctf.voltage:g} kV, Cs = {ctf.spherical_aberration:.2f} mm, amplitude "
+        f"contrast = {ctf.amplitude_contrast:g}, underfocus = "
+        f"{underfocus.min():.2f} — {underfocus.max():.2f} μm"
+    )
+    if astigmatism > 0:
+        out += f", astigmatism ≤ {astigmatism:.2f} μm"
+    return out
+
+
+def _local_alignment_info(ts: "TiltSeries") -> str:
+    """Summary of the local shifts of the tilt series, in the order of application.
+
+    The affine transformation of each tilt (`AffineShifts2D`) is not included, as it
+    is a part of the global alignment, such as the change of magnification in the
+    transforms of IMOD (.xf), which is read regardless of the local alignments.
+    """
+    from acryo.projection import AffineShifts2D, LocalAlignment, LocalShifts2D
+
+    parts = list[str]()
+    model = ts.local_shifts_2d
+    while model is not None:
+        if isinstance(model, LocalAlignment):
+            # such as the local alignments of IMOD
+            gy, gx = model.grid_shape
+            parts.append(f"{gy} × {gx} local areas ({model.mode})")
+        elif isinstance(model, AffineShifts2D):
+            pass
+        elif isinstance(model, LocalShifts2D):
+            # such as the refinement by `refine_tilt_series`
+            gy, gx = model.control_points.shape[2:]
+            parts.append(f"{gy} × {gx} shift grid")
+        else:
+            parts.append(type(model).__name__)
+        model = getattr(model, "base", None)
+    if ts.local_shifts is not None:
+        parts.append("3D shifts")
+    if not parts:
+        return "None"
+    return " + ".join(reversed(parts))
 
 
 @magicclass(record=False, widget_type="collapsible", labels=False)
@@ -460,8 +515,13 @@ class GeneralInfo(MagicTemplate):
             )
             if ref_path:
                 fpath += f'<br><span style="color: gray;">Reference:</span> {Path(ref_path).as_posix()}'  # fmt: skip
+            tilt_series_info = (
+                f'<br><span style="color: gray;">CTF:</span> {_ctf_info(ts.tilt_series.ctf)}'
+                f'<br><span style="color: gray;">Local alignment:</span> {_local_alignment_info(ts.tilt_series)}'
+            )  # fmt: skip
         else:
             size = _format_nbytes(img.value.nbytes)
+            tilt_series_info = ""
 
         self.image_info.value = (
             f'<span style="color: gray;">File:</span> {fpath}<br>'
@@ -472,6 +532,7 @@ class GeneralInfo(MagicTemplate):
             f'<span style="color: gray;">Tilt range:</span> {tilt_range}<br>'
             f'<span style="color: gray;">Data type:</span> {img.dtype}<br>'
             f'<span style="color: gray;">Data size:</span> {size}'
+            f"{tilt_series_info}"
         )
 
     def _refer_project(self, project: CylindraProject):

@@ -7,13 +7,13 @@ from collections import OrderedDict
 from collections.abc import Hashable, Iterable, Sequence
 from contextlib import ExitStack
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import impy as ip
 import numpy as np
 from acryo import Molecules
 from dask import array as da
-from numpy.typing import NDArray
+from numpy.typing import ArrayLike, NDArray
 
 from cylindra.const import nm
 
@@ -239,14 +239,68 @@ class TiltSeriesSource:
         (..., T, 2) array
             (y, x) positions in pixel of the raw (not binned) tilt images.
         """
-        pos = np.array(points, dtype=np.float64)
-        center = self.tomogram_center
+        tilt_series = self.tilt_series
+        projected = tilt_series.project_points(self._to_tilt_series_frame(points))
+        return projected / self.scale + np.array(tilt_image_shape(tilt_series)) // 2
+
+    def transfer_points(
+        self, points: NDArray[np.floating], tilt_series: TiltSeries
+    ) -> NDArray[np.float64]:
+        """Transfer points of the tomogram (nm) to the tomogram of another alignment.
+
+        An object in the tomogram is at the least-squares position of its projections
+        on the tilt images by the current alignment. If the given alignment is correct,
+        the projections are those of the object by the given alignment. Therefore, each
+        point is transferred to the position whose projections by the given alignment
+        are reconstructed at the point by the current alignment. The transfer only
+        depends on the change of the alignment, not on the tilt images.
+
+        Parameters
+        ----------
+        points : (N, 3) array
+            (z, y, x) coordinates of the points in the tomogram in nm.
+        tilt_series : TiltSeries
+            Another alignment of the tilt series, such as the aligned one.
+
+        Returns
+        -------
+        (N, 3) array
+            (z, y, x) coordinates of the points in the tomogram of ``tilt_series``.
+        """
+        current = self.tilt_series
+        pos = self._to_tilt_series_frame(points)
+        target = current.project_points(pos)
+        # The point is the least-squares position of the projections by the current
+        # alignment if the residuals are orthogonal to the derivatives at the point.
+        # The equations are solved by the Newton method (exact for affine alignments).
+        jac = _projection_jacobian(current, pos)
+        out = pos.copy()
+        for _ in range(10):
+            res = tilt_series.project_points(out) - target  # (N, T, 2)
+            hess = np.einsum(
+                "ntik,ntil->nkl", jac, _projection_jacobian(tilt_series, out)
+            )
+            grad = np.einsum("ntik,nti->nk", jac, res)
+            step = np.linalg.solve(hess, grad[..., np.newaxis])[..., 0]
+            out -= step
+            if np.abs(step).max() < 1e-4:
+                break
+        return self._from_tilt_series_frame(out)
+
+    def _to_tilt_series_frame(self, points: ArrayLike) -> NDArray[np.float64]:
+        """Points of the tomogram (nm) relative to the center in the tilt series."""
+        pos = np.array(points, dtype=np.float64) - self.tomogram_center
         if self._loader.tomo_hand == -1:
             # the tomogram is mirrored along the z axis around the center
-            pos[..., 0] = 2 * center[0] - pos[..., 0]
-        tilt_series = self.tilt_series
-        projected = tilt_series.project_points(pos - center)
-        return projected / self.scale + np.array(tilt_image_shape(tilt_series)) // 2
+            pos[..., 0] *= -1
+        return pos
+
+    def _from_tilt_series_frame(self, pos: ArrayLike) -> NDArray[np.float64]:
+        """The inverse of `_to_tilt_series_frame`."""
+        pos = np.array(pos, dtype=np.float64)
+        if self._loader.tomo_hand == -1:
+            pos[..., 0] *= -1
+        return pos + self.tomogram_center
 
     def tilt_image_source(self) -> TiltImageSource:
         """The raw tilt images, which are read one by one by ``source[t]``."""
@@ -384,6 +438,7 @@ def read_tilt_series(
     path: str | Path,
     scale: nm | None = None,
     ctf: bool = True,
+    local_alignment: Literal["none", "shift", "full"] = "shift",
 ) -> TiltSeries:
     """Read a tilt series.
 
@@ -397,6 +452,8 @@ def read_tilt_series(
         is used. Required for IMOD, which does not store the pixel size.
     ctf : bool, default True
         Whether to perform CTF correction.
+    local_alignment : {"none", "shift"}, default "shift"
+        Local alignment method for IMOD tilt series.
     """
     from acryo.projection import TiltSeries
 
@@ -413,7 +470,7 @@ def read_tilt_series(
         ts = TiltSeries.from_etomo_directory(
             path.parent,
             scale=scale,
-            local_alignment=True,
+            local_alignment=local_alignment,
             ctf=ctf,
         )
     elif path.suffix == ".star":
@@ -594,6 +651,20 @@ def default_tomogram_center(
     offset = 0
     nz, ny, nx = (n // 2 * reference_binsize + offset for n in reference_shape)
     return (nz * scale, ny * scale, nx * scale)
+
+
+def _projection_jacobian(
+    tilt_series: TiltSeries, points: NDArray[np.float64], step: nm = 0.5
+) -> NDArray[np.float64]:
+    """(N, T, 2, 3) derivatives of the projections (y, x) by the points (z, y, x).
+
+    The points (N, 3) are relative to the center in the tilt series, and the
+    derivatives are the central differences of ``step`` nm.
+    """
+    offsets = np.concatenate([np.eye(3), -np.eye(3)]) * step
+    projected = tilt_series.project_points(points[:, np.newaxis] + offsets)
+    jac = (projected[:, :3] - projected[:, 3:]) / (2 * step)  # (N, 3, T, 2)
+    return jac.transpose(0, 2, 3, 1)
 
 
 def _split_length(length: int, chunk_size: int) -> tuple[int, ...]:

@@ -466,6 +466,11 @@ class MoleculesCombiner:
     def __init__(self, identifier: str = ".molecule_object_id"):
         self._identifier = identifier
 
+    @property
+    def identifier(self) -> str:
+        """Feature column of the index of the source of each concatenated molecule."""
+        return self._identifier
+
     def concat(self, molecules: Molecules | Iterable[Molecules]) -> Molecules:
         if isinstance(molecules, Molecules):
             return molecules

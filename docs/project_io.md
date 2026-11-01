@@ -47,10 +47,7 @@ visual inspection of the tomogram.
 
 You may want to temporarily save the session for later use. In `cylindra`, some "stash"
 operations are available. Stashed sessions are cached in the user directory, and can be
-readily loaded from the GUI.
-
-!!! note
-    If you already know the `git stash` command, you should be familiar with this.
+readily loaded from the GUI (if you already know the `git stash` command, you should be familiar with this).
 
 ## Reuse the Existing Projects
 
