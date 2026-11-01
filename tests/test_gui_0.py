@@ -166,6 +166,26 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     assert ui._reserved_layers.ref_inverted
 
 
+def test_inversion_on_opening_not_recorded(
+    ui: CylindraMainWidget, monkeypatch: pytest.MonkeyPatch
+):
+    from contextlib import nullcontext
+
+    # Emulate the case where the macro is not blocked while the opener is running,
+    # so that any recordable method called inside it would be recorded.
+    worker = type(ui).open_image_with_reference
+    monkeypatch.setattr(worker, "_call_context", lambda _: nullcontext())
+    path = TEST_DIR / "13pf_MT.tif"
+    ui.open_image_with_reference(
+        path, reference_path=path, invert=True, invert_reference=True, bin_size=[1]
+    )
+    assert ui.tomogram.is_inverted
+    assert ui._reserved_layers.ref_inverted
+    macro_lines = [str(expr) for expr in ui.macro[ui._macro_offset :]]
+    assert len(macro_lines) == 1
+    assert macro_lines[0].startswith("ui.open_image_with_reference(")
+
+
 def test_io_with_different_data(ui: CylindraMainWidget, tmpdir):
     path = TEST_DIR / "13pf_MT.tif"
     params = [
