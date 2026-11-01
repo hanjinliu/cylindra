@@ -26,15 +26,21 @@ jobs:
         platform:
           - runner: ubuntu-latest
             target: x86_64
-          - runner: ubuntu-latest
+          # Docker on ubuntu-26.04 blocks socketcall(2), so i386 containers have no network
+          # https://github.com/actions/runner-images/issues/14790
+          # rust-numpy does not support free-threaded Python < 3.15 on 32-bit platforms,
+          # so 3.14t is excluded from the 32-bit targets.
+          - runner: ubuntu-22.04
             target: x86
-          - runner: ubuntu-latest
+            interpreter: python3.12 python3.13 python3.14 python3.15 python3.15t
+          - runner: ubuntu-22.04
             target: aarch64
-          - runner: ubuntu-latest
+          - runner: ubuntu-22.04
             target: armv7
-          - runner: ubuntu-latest
+            interpreter: python3.12 python3.13 python3.14 python3.15 python3.15t pypy3.12
+          - runner: ubuntu-22.04
             target: s390x
-          - runner: ubuntu-latest
+          - runner: ubuntu-22.04
             target: ppc64le
     steps:
       - uses: actions/checkout@v4
@@ -45,7 +51,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --out dist --find-interpreter
+          args: --release --out dist ${{ matrix.platform.interpreter && format('--interpreter {0}', matrix.platform.interpreter) || '--find-interpreter' }}
           sccache: 'true'
           manylinux: auto
       - name: Upload wheels
@@ -88,8 +94,9 @@ jobs:
         platform:
           - runner: macos-latest
             target: x86_64
-          - runner: macos-14
-            target: aarch64
+          # see https://github.com/actions/runner-images/issues/13518"
+            # - runner: macos-14
+            # target: aarch64
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

@@ -2746,7 +2746,7 @@ class SubtomogramAveraging(ChildWidget):
         max_shift: Annotated[nm, {"label": "max shift (nm)", "min": 1.0, "max": 200.0, "step": 1.0}] = 20.0,
         resolution: Annotated[nm, {"label": "low-pass resolution (nm)", "min": 0.5, "max": 100.0, "step": 0.5}] = 6.0,
         position_sigma: Annotated[Optional[nm], {"label": "position sigma (nm)", "text": "do not move splines", "options": {"min": 0.1, "max": 100.0, "step": 0.5, "value": 10.0}}] = 10.0,
-        offset_per: Literal["spline", "segment"] = "segment",
+        offset_per: Annotated[Literal["spline", "segment"], {"widget_type": ToggleButtons}] = "segment",
         fit_tilt_axis: Annotated[Literal["global", "fixed", "per_tilt"], {"widget_type": ToggleButtons}] = "global",
         max_tilt_angle_change: Annotated[float, {"label": "max tilt angle change (deg)", "min": 0.0, "max": 10.0, "step": 0.1}] = 0.5,
         max_x_tilt_change: Annotated[float, {"label": "max X tilt change (deg)", "min": 0.0, "max": 90.0, "step": 1}] = 20,

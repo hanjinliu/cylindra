@@ -61,7 +61,7 @@ testing = [
     "starfile-rs>=0.1.12",
     "imodmodel",
     "cookiecutter",
-    "maturin>=1.14.1,<2.0.0",
+    "maturin>=1.16.0,<2.0.0",
 ]
 all = [
     "pyqt6",
