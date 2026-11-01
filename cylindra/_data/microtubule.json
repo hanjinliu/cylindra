@@ -1,6 +1,6 @@
 {
     "npf_range": [11, 17],
-    "spacing_range": [3.9, 4.3],
+    "spacing_range": [3.9, 4.36],
     "twist_range": [-1.2, 1.2],
     "rise_range": [5.0, 13.0],
     "rise_sign": -1,

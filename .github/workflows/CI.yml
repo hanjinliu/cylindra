@@ -26,7 +26,9 @@ jobs:
         platform:
           - runner: ubuntu-latest
             target: x86_64
-          - runner: ubuntu-latest
+          # Docker on ubuntu-26.04 blocks socketcall(2), so i386 containers have no network
+          # https://github.com/actions/runner-images/issues/14790
+          - runner: ubuntu-22.04
             target: x86
           - runner: ubuntu-latest
             target: aarch64
