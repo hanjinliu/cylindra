@@ -681,7 +681,7 @@ class CylindraMainWidget(MagicTemplate):
             if filter is not None:
                 self.filter_reference_image(filter)
             if invert_reference:
-                self.invert_image(reference_only=True)
+                self._invert_image_callback(reference_only=True)()
 
         return _on_return
 
@@ -767,7 +767,7 @@ class CylindraMainWidget(MagicTemplate):
 
         @thread_worker.callback
         def _on_return():
-            self.invert_image(reference_only=True)
+            self._invert_image_callback(reference_only=True)()
 
         return _on_return
 
@@ -833,7 +833,7 @@ class CylindraMainWidget(MagicTemplate):
         @thread_worker.callback
         def _on_return():
             if invert_reference:
-                self.invert_image(reference_only=True)
+                self._invert_image_callback(reference_only=True)()
 
         return _on_return
 
@@ -1237,7 +1237,15 @@ class CylindraMainWidget(MagicTemplate):
     @set_design(text=capitalize, location=_sw.ImageMenu)
     def invert_image(self, reference_only: Annotated[bool, {"bind": False}] = False):
         """Invert the intensity of the images."""
-        t0 = timer()
+        return self._invert_image_callback(reference_only)
+
+    def _invert_image_callback(self, reference_only: bool = False):
+        """Invert the images and return the callback that updates the viewer.
+
+        Use this method instead of `invert_image` inside other methods, so that the
+        inversion is never recorded in the macro.
+        """
+        t0 = timer("invert_image")
         if not reference_only:
             self.tomogram.invert()
         if self._reserved_layers.is_lazy:
@@ -4400,7 +4408,7 @@ class CylindraMainWidget(MagicTemplate):
             if filt is not None and not isinstance(imgb, ip.LazyImgArray):
                 self.filter_reference_image(method=filt)
             if invert:
-                self.invert_image()
+                self._invert_image_callback()()
         self.reset_choices()
         self.GeneralInfo.project_desc.value = ""  # clear the project description
         self._need_save = False
