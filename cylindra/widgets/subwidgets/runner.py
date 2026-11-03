@@ -135,7 +135,7 @@ class Runner(ChildWidget):
             return
         main = self._get_main()
         tomo = main.tomogram
-        ideal_pixel_size = 0.4  # nm
+        ideal_pixel_size = 0.6  # nm
         bin_sizes = [b for _, b in main._get_available_binsize()]
         pixel_sizes = np.array([tomo.scale * b for b in bin_sizes])
         self.bin_size = bin_sizes[np.argmin(np.abs(pixel_sizes - ideal_pixel_size))]

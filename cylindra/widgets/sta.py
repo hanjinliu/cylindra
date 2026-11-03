@@ -22,6 +22,7 @@ from magicclass import (
     magictoolbar,
     nogui,
     set_design,
+    set_preprocessor,
     vfield,
 )
 from magicclass.ext.dask import dask_thread_worker as dask_worker
@@ -120,6 +121,16 @@ def _get_template_shape(
     else:
         _size = max(self._get_shape_in_nm(size))
     return _size
+
+
+def _deprecate_mask_params(kwargs: dict):
+    if "mask_params" in kwargs:
+        p = kwargs.pop("mask_params", None)
+        _Logger.warning(
+            f"The 'mask_params' argument no longer has any effect (got {p!r})",
+            DeprecationWarning,
+        )
+    return kwargs
 
 
 _PathOrNone = str | Path | None
@@ -978,11 +989,11 @@ class SubtomogramAveraging(ChildWidget):
 
     @set_design(text="Align average to template", location=Alignment)
     @dask_worker.with_progress()
+    @set_preprocessor(_deprecate_mask_params)
     def align_averaged(
         self,
         layers: MoleculesLayersType,
         template_path: Annotated[_PathOrNone, {"bind": _template_param}],
-        mask_params: Annotated[Any, {"bind": None}] = None,  # deprecated
         max_shifts: Optional[_MaxShifts] = None,
         rotations: _Rotations = ((0.0, 0.0), (15.0, 1.0), (3.0, 1.0)),
         bin_size: BinSizeType = 1,

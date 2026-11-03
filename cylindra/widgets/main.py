@@ -401,7 +401,7 @@ class CylindraMainWidget(MagicTemplate):
 
     @property
     def logger(self):
-        """The logger instance."""
+        """The GUI logger instance."""
         return _Logger
 
     @property
