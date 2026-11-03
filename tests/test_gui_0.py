@@ -931,7 +931,6 @@ def test_sta(ui: CylindraMainWidget, bin_size: int, tmpdir):
     ui.sta.align_averaged(
         layers=["Mole-0"],
         template_path=template_path,
-        mask_params=(1, 1),
         bin_size=bin_size,
         cylindrical_mask=True,
     )
@@ -998,7 +997,6 @@ def test_sta(ui: CylindraMainWidget, bin_size: int, tmpdir):
         layers=["Mole-0"],
         template_path=template_path,
         rotations=[(0.0, 0.0), (0.0, 0.0), (0.0, 0.0)],
-        mask_params=(1, 1),
         bin_size=bin_size,
         method="ncc",
     )
