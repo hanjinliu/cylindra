@@ -12,6 +12,7 @@ from numpy.typing import ArrayLike, NDArray
 
 from cylindra._dask import Delayed, compute
 from cylindra.components._ftprops import (
+    ClockwiseResult,
     LatticeAnalyzer,
     LatticeParams,
     LatticeParamsCartesian,
@@ -975,6 +976,40 @@ class CylTomogram(Tomogram):
         img_st -= np.mean(img_st)
         return img_st.fft(dims="rya")
 
+    def _calc_clockwise_result(
+        self,
+        i: int = None,
+        *,
+        binsize: int = 1,
+        depth: nm = 40,
+        mask_freq: bool = True,
+        sample_every: nm = 9999,
+    ) -> ClockwiseResult:
+        current_scale = self.scale * binsize
+
+        imgb = self.get_multiscale_or_original(binsize)
+
+        spl = self.splines[i]
+        cfg = spl.config
+        r_range = spl.radius_range()
+
+        num_points = ceilint(spl.length() / sample_every)
+        points = np.arange(1, num_points + 1) / (num_points + 1)
+
+        polar_imgs: list[ip.ImgArray] = []
+        for point in points:
+            coords = spl.local_cylindrical(r_range, depth, point, scale=current_scale)
+            polar = get_polar_image(imgb, coords, spl.radius, order=1)
+            polar_imgs.append(polar)
+        LOGGER.info(f" >> Using {num_points} segments ({depth:.1f} nm).")
+        clkwise = is_clockwise(
+            cfg,
+            sum(polar_imgs) / len(polar_imgs),
+            mask_freq=mask_freq,
+            npf=spl.props.get_glob(H.npf, None),
+        )
+        return clkwise
+
     @_misc.batch_process
     def infer_polarity(
         self,
@@ -1002,6 +1037,8 @@ class CylTomogram(Tomogram):
             will be equally spaced along the spline from the center.
         depth : nm, default 40.0
             Depth of images used to infer polarities.
+        update : bool, default True
+            If True, update the spline orientation after inference.
 
         Returns
         -------
@@ -1009,33 +1046,25 @@ class CylTomogram(Tomogram):
             Orientation of corresponding splines.
         """
         LOGGER.info(f"Running: {self.__class__.__name__}.infer_polarity, i={i}")
-        current_scale = self.scale * binsize
-
-        imgb = self.get_multiscale_or_original(binsize)
-
         spl = self.splines[i]
         cfg = spl.config
         ori_clockwise = Ori(cfg.clockwise)
         ori_counterclockwise = Ori.invert(ori_clockwise, allow_none=False)
-        r_range = spl.radius_range()
-
-        num_points = ceilint(spl.length() / sample_every)
-        points = np.arange(1, num_points + 1) / (num_points + 1)
-
-        polar_imgs: list[ip.ImgArray] = []
-        for point in points:
-            coords = spl.local_cylindrical(r_range, depth, point, scale=current_scale)
-            polar = get_polar_image(imgb, coords, spl.radius, order=1)
-            polar_imgs.append(polar)
-        LOGGER.info(f" >> Using {num_points} segments ({depth:.1f} nm).")
-        clkwise = is_clockwise(
-            cfg,
-            sum(polar_imgs) / len(polar_imgs),
+        clkwise = self._calc_clockwise_result(
+            i,
+            binsize=binsize,
+            depth=depth,
             mask_freq=mask_freq,
-            npf=spl.props.get_glob(H.npf, None),
-            logger=LOGGER,
+            sample_every=sample_every,
         )
-        ori = ori_clockwise if clkwise else ori_counterclockwise
+        pw_peak = clkwise.power_spectrum.mean(axis="a")
+        r_argmax = np.argmax(pw_peak)
+        _val = pw_peak[r_argmax]
+        pw_non_peak = np.delete(pw_peak, r_argmax)
+        _ave, _std = np.mean(pw_non_peak), np.std(pw_non_peak, ddof=1)
+        LOGGER.info(f" >> clockwise = {clkwise.clockwise} (peak intensity={_val:.2g} compared to {_ave:.2g} ± {_std:.2g})")  # fmt: skip
+
+        ori = ori_clockwise if clkwise.clockwise else ori_counterclockwise
         if update:
             spl.orientation = ori
         return ori

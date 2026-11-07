@@ -336,7 +336,7 @@ class SplineSlicer(ChildWidget):
         )
         tomo = self._get_main().tomogram
         spl = tomo.splines[idx]
-        is_cw = is_clockwise(spl.config, img)
+        is_cw = is_clockwise(spl.config, img).clockwise
         spl_info = _col(f"spline ID = {idx}; position = {pos:.2f} nm", color="#003FFF")
         direction = "clockwise" if is_cw else "counter-clockwise"
         _Logger.print_html(f"{spl_info}<br>The helix is {_col(direction)}.")
