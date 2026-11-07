@@ -2461,7 +2461,7 @@ class CylindraMainWidget(MagicTemplate):
             return tracker.as_undo_callback()
 
     @set_design(text="Local CFT analysis", location=_sw.AnalysisMenu)
-    @thread_worker.with_progress(desc="Local Cylindric Fourier transform", total=_NSPLINES)  # fmt: skip
+    @thread_worker.with_progress(desc="Local Cylindrical Fourier transform", total=_NSPLINES)  # fmt: skip
     def local_cft_analysis(
         self,
         splines: SplinesType = None,
@@ -2510,7 +2510,7 @@ class CylindraMainWidget(MagicTemplate):
             return tracker.as_undo_callback()
 
     @set_design(text="Global CFT analysis", location=_sw.AnalysisMenu)
-    @thread_worker.with_progress(desc="Global Cylindric Fourier transform", total=_NSPLINES)  # fmt: skip
+    @thread_worker.with_progress(desc="Global Cylindrical Fourier transform", total=_NSPLINES)  # fmt: skip
     def global_cft_analysis(
         self,
         splines: SplinesType = None,
@@ -2536,7 +2536,7 @@ class CylindraMainWidget(MagicTemplate):
             # show all in a table
             @thread_worker.callback
             def _global_cft_analysis_on_return():
-                df = _safe_concat_dfs([tomo.splines[i].props.glob for i in splines])
+                df = _safe_concat_global_props(tomo, splines)
                 self.sample_subtomograms()
                 _Logger.print_table(df, precision=3)
                 self._update_global_properties_in_widget()
@@ -2634,7 +2634,7 @@ class CylindraMainWidget(MagicTemplate):
             # show all in a table
             @thread_worker.callback
             def _global_ft_analysis_on_return():
-                df = _safe_concat_dfs([tomo.splines[i].props.glob for i in splines])
+                df = _safe_concat_global_props(tomo, splines)
                 self.sample_subtomograms()
                 _Logger.print_table(df, precision=3)
                 self._update_global_properties_in_widget()
@@ -4768,7 +4768,8 @@ def _check_arg_given(a: str, name: str):
         raise ValueError(f"Argument {name!r} must be given.")
 
 
-def _safe_concat_dfs(dfs: list[pl.DataFrame]):
+def _safe_concat_global_props(tomo: CylTomogram, splines: list[int]):
+    dfs = [tomo.splines[i].props.glob for i in splines]
     common_columns = set(dfs[0].columns)
     for df in dfs[1:]:
         common_columns &= set(df.columns)
@@ -4776,5 +4777,5 @@ def _safe_concat_dfs(dfs: list[pl.DataFrame]):
     common_columns = [col for col in dfs[0].columns if col in common_columns]
     dfs = [df.select(common_columns) for df in dfs]
     df = pl.concat(dfs, how="vertical_relaxed").to_pandas().transpose()
-    df.columns = [f"Spline-{i}" for i in range(len(df.columns))]
+    df.columns = [f"Spline-{i}" for i in splines]
     return df

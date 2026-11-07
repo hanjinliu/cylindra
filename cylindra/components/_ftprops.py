@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from logging import Logger
+from dataclasses import dataclass
 from typing import Literal, NamedTuple
 
 import impy as ip
@@ -342,13 +342,18 @@ class LatticeAnalyzer:
         return polar_ft.ifft(shift=False, dims="rya")
 
 
+@dataclass
+class ClockwiseResult:
+    clockwise: bool
+    power_spectrum: ip.ImgArray
+
+
 def is_clockwise(
     cfg: SplineConfig,
     polar: ip.ImgArray,
     mask_freq: bool = True,
     npf: int | None = None,
-    logger: Logger | None = None,
-) -> bool:
+) -> ClockwiseResult:
     """Check if the polar image has clockwise slew.
 
     This function is used for determining the polarity of the cylinder.
@@ -365,20 +370,19 @@ def is_clockwise(
         img_pw = np.mean(pw, axis=0)
         npf = np.argmax(img_pw[cfg.npf_range.asslice()]) + cfg.npf_range.min
 
-    pw_peak = img_flat.local_power_spectra(
+    pw_peak_2d = img_flat.local_power_spectra(
         key=ip.slicer.a[npf - 1 : npf + 2],
         upsample_factor=20,
         dims="ra",
-    ).mean(axis="a")
+    )
+    pw_peak = pw_peak_2d.mean(axis="a")
     r_argmax = np.argmax(pw_peak)
     out = r_argmax - (pw_peak.size + 1) // 2 <= 0
 
-    if logger:
-        _val = pw_peak[r_argmax]
-        pw_non_peak = np.delete(pw_peak, r_argmax)
-        _ave, _std = np.mean(pw_non_peak), np.std(pw_non_peak, ddof=1)
-        logger.info(f" >> clockwise = {out} (peak intensity={_val:.2g} compared to {_ave:.2g} ± {_std:.2g})")  # fmt: skip
-    return out
+    return ClockwiseResult(
+        clockwise=out,
+        power_spectrum=pw_peak_2d,
+    )
 
 
 def _safe_div(a, b):

@@ -654,6 +654,8 @@ def test_preview(ui: CylindraMainWidget):
     tester.update_parameters(lengths=(-3, -2))  # extend
     tester.click_preview()
 
+    tester = mcls_testing.FunctionGuiTester(ui.infer_polarity)
+    tester.click_preview()
     tester = mcls_testing.FunctionGuiTester(ui.convolve_feature)
     tester.click_preview()
     tester = mcls_testing.FunctionGuiTester(ui.binarize_feature)

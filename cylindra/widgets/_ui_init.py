@@ -404,6 +404,33 @@ def _label_feature_clusters_preview(
         yield
 
 
+@impl_preview(CylindraMainWidget.infer_polarity, text="Plot power spectra")
+def _infer_polarity_preview(
+    self: CylindraMainWidget,
+    splines: list[int],
+    depth: float,
+    bin_size: int,
+    sample_every: float,
+):
+    import matplotlib.pyplot as plt
+
+    tomo = self.tomogram
+    with self.logger.set_plt():
+        for i in self._norm_splines(splines):
+            result = tomo._calc_clockwise_result(
+                i, binsize=bin_size, depth=depth, sample_every=sample_every
+            )  # fmt: skip
+            plt.figure()
+            plt.title(f"Spline {i} Power Spectrum")
+            plt.imshow(result.power_spectrum)
+            ny = result.power_spectrum.shape[0]
+            plt.yticks([0, (ny + 1) // 2, ny], ["-1/$\\pi$", "DC", "1/$\\pi$"])
+            plt.xlabel("$f_r$")
+            plt.ylabel("$f_{\\theta}$")
+            plt.tight_layout()
+            plt.show()
+
+
 # setup FunctionGUIs
 
 
