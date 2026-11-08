@@ -2515,7 +2515,7 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: SplinesType = None,
         bin_size: BinSizeType = 1,
-        monomer_diameter_prior: Annotated[Optional[nm], {"text": "No prior", "options": {"value": 5.35, "step": 0.01, "min": 0.1}}, "label": "monomer diameter prior (nm)"] = None,
+        monomer_diameter_prior: Annotated[Optional[nm], {"text": "No prior", "options": {"value": 5.35, "step": 0.01, "min": 0.1}, "label": "monomer diameter prior (nm)"}] = None,
     ):  # fmt: skip
         """Determine cylindrical global structural parameters by Fourier transformation.
 
