@@ -51,6 +51,8 @@ class PeakDetector:
         range_a: tuple[float, float],
         up_y: int = 1,
         up_a: int = 1,
+        *,
+        a_prior_mean_sd: tuple[float, float] | None = None,
     ):
         """Get the peak in the power spectrum of the image in subpixel precision.
 
@@ -74,6 +76,12 @@ class PeakDetector:
             The peak info object.
         """
         ps, y0, a0 = self._local_ps_and_offset(range_y, range_a, up_y, up_a)
+        if a_prior_mean_sd is not None:
+            # apply prior
+            mean, sd = a_prior_mean_sd
+            _x = (np.arange(ps.shape[1]) + a0) / up_a
+            factor = np.exp(-0.5 * ((_x - mean) / sd) ** 2)
+            ps *= factor[np.newaxis]
         ymax, amax = np.unravel_index(np.argmax(ps), ps.shape)
         (ymaxsub, amaxsub), value = find_peak(ps, index=(ymax, amax), nrepeat=1)
         return FTPeakInfo(

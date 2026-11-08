@@ -11,8 +11,6 @@ on:
 jobs:
   docs:
     runs-on: macos-latest  # windows not working due to OpenGL error in vispy
-    env:
-      DISABLE_MKDOCS_2_WARNING: "true"
 
     steps:
       - uses: actions/checkout@v4
@@ -37,10 +35,12 @@ jobs:
       - name: Build Rust extension
         run: maturin develop --release
 
+      - name: Generate screenshots
+        run: python docs/scripts/_screenshots.py
+
+      - name: Build docs
+        run: zensical build --strict
+
       - name: Deploy docs to GitHub Pages
         if: github.event_name == 'push'
-        run: mkdocs gh-deploy --strict --force
-
-      - name: Test that docs build without error
-        if: github.event_name == 'pull_request'
-        run: mkdocs build --strict
+        run: ghp-import --no-jekyll --push --force -m "Deployed ${GITHUB_SHA} with Zensical" site

@@ -244,6 +244,10 @@ makes it possible to measure the average lattice parameters.
     1. The registered splines should be shown in the top "splines" row.
     2. Available bin sizes are shown in the "bin size" combo box. Global-CFT uses a
        a very long region, you can use larger bin sizes.
+    3. :sparkles: *New in 1.3.1*: Monomer diameter prior (nm) is useful for computing
+       the expected protofilament number using the radius. Due to the missing wedge,
+       `npf - 2` and `npf + 2` usually have equally strong signals in the power spectrum,
+       but the monomer diameter prior can help to resolve this ambiguity.
 
 This method will update the global properties of the spline. You can access them
 similarly.
