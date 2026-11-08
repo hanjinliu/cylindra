@@ -11,6 +11,7 @@
       
       
       
+      
         <link rel="prev" href="../">
       
       
@@ -21,7 +22,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
+      <meta name="generator" content="zensical-0.1.0">
     
     
       
@@ -29,10 +30,15 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      <link rel="stylesheet" href="../../assets/stylesheets/classic/main.94dd801d.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/classic/palette.813d4b3f.min.css">
       
       
 
@@ -46,16 +52,14 @@
         
         
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,500,500i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback">
         <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
       
     
     
-      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
-    
       <link rel="stylesheet" href="../../extra_style.css">
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
     
       
 
@@ -76,14 +80,11 @@
     
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
-    <label class="md-overlay" for="__drawer"></label>
+    <label class="md-overlay" for="__drawer" aria-hidden="true"></label>
     <div data-md-component="skip">
-      
-        
-        <a href="#cylindracomponents" class="md-skip">
-          Skip to content
-        </a>
-      
+      <a href="#__skip" class="md-skip">
+        Skip to content
+      </a>
     </div>
     <div data-md-component="announce">
       
@@ -105,6 +106,7 @@
     <label class="md-header__button md-icon" for="__drawer">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+      <span class="md-visually-hidden">Navigation</span>
     </label>
     <div class="md-header__title" data-md-component="header-title">
       <div class="md-header__ellipsis">
@@ -129,7 +131,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="lime" data-md-color-accent="light-green"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="lime" data-md-color-accent="light-green"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
     
       <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -139,7 +141,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="lime" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="lime" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
     
       <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -159,61 +161,28 @@
         <label class="md-header__button md-icon" for="__search">
           
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+          <span class="md-visually-hidden">Search</span>
         </label>
-        <div class="md-search" data-md-component="search" role="dialog">
-  <label class="md-search__overlay" for="__search"></label>
-  <div class="md-search__inner" role="search">
-    <form class="md-search__form" name="search">
-      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
-      <label class="md-search__icon md-icon" for="__search">
-        
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
-        
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
-      </label>
-      <nav class="md-search__options" aria-label="Search">
-        
-          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
-            
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
-          </a>
-        
-        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
-          
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-        </button>
-      </nav>
-      
-        <div class="md-search__suggest" data-md-component="search-suggest"></div>
-      
-    </form>
-    <div class="md-search__output">
-      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
-        <div class="md-search-result" data-md-component="search-result">
-          <div class="md-search-result__meta">
-            Initializing search
-          </div>
-          <ol class="md-search-result__list" role="presentation"></ol>
-        </div>
-      </div>
-    </div>
-  </div>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
 </div>
       
     
-    
-      <div class="md-header__source">
+    <div class="md-header__source">
+      
         <a href="https://github.com/hanjinliu/cylindra" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
     cylindra
   </div>
 </a>
-      </div>
-    
+      
+    </div>
   </nav>
   
 </header>
@@ -252,7 +221,7 @@
       <a href="https://github.com/hanjinliu/cylindra" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
     cylindra
@@ -276,8 +245,7 @@
   <span class="md-ellipsis">
     
   
-    Overview
-  
+  Overview
 
     
   </span>
@@ -303,8 +271,7 @@
   <span class="md-ellipsis">
     
   
-    Installation
-  
+  Installation
 
     
   </span>
@@ -330,8 +297,7 @@
   <span class="md-ellipsis">
     
   
-    Basics
-  
+  Basics
 
     
   </span>
@@ -407,8 +373,7 @@
   <span class="md-ellipsis">
     
   
-    Usage
-  
+  Usage
 
     
   </span>
@@ -418,19 +383,19 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4">
-            <span class="md-nav__icon md-icon"></span>
-            
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4">
+              <span class="md-nav__icon md-icon"></span>
+              
   
-    Usage
-  
+  Usage
 
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+                  
   
   
   
@@ -443,8 +408,7 @@
   <span class="md-ellipsis">
     
   
-    Start Cylindra
-  
+  Start Cylindra
 
     
   </span>
@@ -455,10 +419,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -471,8 +435,7 @@
   <span class="md-ellipsis">
     
   
-    Fit Splines
-  
+  Fit Splines
 
     
   </span>
@@ -483,10 +446,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -499,8 +462,7 @@
   <span class="md-ellipsis">
     
   
-    Measure Lattice Parameters
-  
+  Measure Lattice Parameters
 
     
   </span>
@@ -511,10 +473,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -527,8 +489,7 @@
   <span class="md-ellipsis">
     
   
-    Inspect CFT Results
-  
+  Inspect CFT Results
 
     
   </span>
@@ -539,10 +500,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -555,8 +516,7 @@
   <span class="md-ellipsis">
     
   
-    Load &amp; Save Projects
-  
+  Load &amp; Save Projects
 
     
   </span>
@@ -567,10 +527,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -583,8 +543,7 @@
   <span class="md-ellipsis">
     
   
-    Custom Workflows
-  
+  Custom Workflows
 
     
   </span>
@@ -595,10 +554,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -639,8 +598,7 @@
   <span class="md-ellipsis">
     
   
-    Spline
-  
+  Spline
 
     
   </span>
@@ -656,21 +614,21 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4_7">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Spline
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_7_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4_7">
+              <span class="md-nav__icon md-icon"></span>
               
-            
+  
+  Spline
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+              
+                
+                  
   
   
   
@@ -683,8 +641,7 @@
   <span class="md-ellipsis">
     
   
-    Clip and Invert Splines
-  
+  Clip and Invert Splines
 
     
   </span>
@@ -695,10 +652,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -711,8 +668,7 @@
   <span class="md-ellipsis">
     
   
-    Spline Configurations
-  
+  Spline Configurations
 
     
   </span>
@@ -723,10 +679,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -739,8 +695,7 @@
   <span class="md-ellipsis">
     
   
-    Annotate Segments on Splines
-  
+  Annotate Segments on Splines
 
     
   </span>
@@ -751,10 +706,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -767,8 +722,7 @@
   <span class="md-ellipsis">
     
   
-    Spline 3D interactivity
-  
+  Spline 3D interactivity
 
     
   </span>
@@ -779,18 +733,19 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -839,8 +794,7 @@
   <span class="md-ellipsis">
     
   
-    Molecules
-  
+  Molecules
 
     
   </span>
@@ -856,21 +810,21 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_8_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4_8">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Molecules
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_8_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4_8">
+              <span class="md-nav__icon md-icon"></span>
               
-            
+  
+  Molecules
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+              
+                
+                  
   
   
   
@@ -883,8 +837,7 @@
   <span class="md-ellipsis">
     
   
-    Pick Molecules
-  
+  Pick Molecules
 
     
   </span>
@@ -895,10 +848,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -911,8 +864,7 @@
   <span class="md-ellipsis">
     
   
-    Spline to Molecules
-  
+  Spline to Molecules
 
     
   </span>
@@ -923,10 +875,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -939,8 +891,7 @@
   <span class="md-ellipsis">
     
   
-    Molecule Features
-  
+  Molecule Features
 
     
   </span>
@@ -951,10 +902,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -967,8 +918,7 @@
   <span class="md-ellipsis">
     
   
-    The "Expressions"
-  
+  The "Expressions"
 
     
   </span>
@@ -979,10 +929,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -995,8 +945,7 @@
   <span class="md-ellipsis">
     
   
-    Split &amp; Combine Molecules
-  
+  Split &amp; Combine Molecules
 
     
   </span>
@@ -1007,10 +956,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1023,8 +972,7 @@
   <span class="md-ellipsis">
     
   
-    Filter Molecules by Features
-  
+  Filter Molecules by Features
 
     
   </span>
@@ -1035,10 +983,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1051,8 +999,7 @@
   <span class="md-ellipsis">
     
   
-    Transform Molecules
-  
+  Transform Molecules
 
     
   </span>
@@ -1063,10 +1010,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1079,8 +1026,7 @@
   <span class="md-ellipsis">
     
   
-    Feature Names
-  
+  Feature Names
 
     
   </span>
@@ -1091,18 +1037,19 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1145,8 +1092,7 @@
   <span class="md-ellipsis">
     
   
-    Alignment
-  
+  Alignment
 
     
   </span>
@@ -1162,21 +1108,21 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_9_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4_9">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Alignment
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_9_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4_9">
+              <span class="md-nav__icon md-icon"></span>
               
-            
+  
+  Alignment
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+              
+                
+                  
   
   
   
@@ -1189,8 +1135,7 @@
   <span class="md-ellipsis">
     
   
-    Conventional Methods in Cryo-ET Studies
-  
+  Conventional Methods in Cryo-ET Studies
 
     
   </span>
@@ -1201,10 +1146,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1217,8 +1162,7 @@
   <span class="md-ellipsis">
     
   
-    Build Correlation Landscapes
-  
+  Build Correlation Landscapes
 
     
   </span>
@@ -1229,10 +1173,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1245,8 +1189,7 @@
   <span class="md-ellipsis">
     
   
-    Viterbi Alignment
-  
+  Viterbi Alignment
 
     
   </span>
@@ -1257,10 +1200,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1273,8 +1216,7 @@
   <span class="md-ellipsis">
     
   
-    Restricted Mesh Annealing (RMA)
-  
+  Restricted Mesh Annealing (RMA)
 
     
   </span>
@@ -1285,10 +1227,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1301,8 +1243,7 @@
   <span class="md-ellipsis">
     
   
-    Refinement on Tilt Series
-  
+  Refinement on Tilt Series
 
     
   </span>
@@ -1313,18 +1254,19 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1365,8 +1307,7 @@
   <span class="md-ellipsis">
     
   
-    Working with Many Projects
-  
+  Working with Many Projects
 
     
   </span>
@@ -1382,21 +1323,21 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_10_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4_10">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Working with Many Projects
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_10_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4_10">
+              <span class="md-nav__icon md-icon"></span>
               
-            
+  
+  Working with Many Projects
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+              
+                
+                  
   
   
   
@@ -1409,8 +1350,7 @@
   <span class="md-ellipsis">
     
   
-    Prepare Batch Projects
-  
+  Prepare Batch Projects
 
     
   </span>
@@ -1421,10 +1361,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1437,8 +1377,7 @@
   <span class="md-ellipsis">
     
   
-    Construct Batch Loaders
-  
+  Construct Batch Loaders
 
     
   </span>
@@ -1449,10 +1388,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1465,8 +1404,7 @@
   <span class="md-ellipsis">
     
   
-    Average Across Projects
-  
+  Average Across Projects
 
     
   </span>
@@ -1477,10 +1415,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1493,8 +1431,7 @@
   <span class="md-ellipsis">
     
   
-    Post-processing
-  
+  Post-processing
 
     
   </span>
@@ -1505,18 +1442,19 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1553,8 +1491,7 @@
   <span class="md-ellipsis">
     
   
-    Working with External Softwares
-  
+  Working with External Softwares
 
     
   </span>
@@ -1570,21 +1507,21 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_11_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4_11">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Working with External Softwares
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_11_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4_11">
+              <span class="md-nav__icon md-icon"></span>
               
-            
+  
+  Working with External Softwares
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+              
+                
+                  
   
   
   
@@ -1597,8 +1534,7 @@
   <span class="md-ellipsis">
     
   
-    IMOD
-  
+  IMOD
 
     
   </span>
@@ -1609,10 +1545,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1625,8 +1561,7 @@
   <span class="md-ellipsis">
     
   
-    RELION
-  
+  RELION
 
     
   </span>
@@ -1637,18 +1572,19 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1661,8 +1597,7 @@
   <span class="md-ellipsis">
     
   
-    Process Images
-  
+  Process Images
 
     
   </span>
@@ -1673,10 +1608,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1689,8 +1624,7 @@
   <span class="md-ellipsis">
     
   
-    Simulate Tomograms
-  
+  Simulate Tomograms
 
     
   </span>
@@ -1701,10 +1635,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1717,8 +1651,7 @@
   <span class="md-ellipsis">
     
   
-    CLI Usage
-  
+  CLI Usage
 
     
   </span>
@@ -1729,10 +1662,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1745,8 +1678,7 @@
   <span class="md-ellipsis">
     
   
-    The Plugin System
-  
+  The Plugin System
 
     
   </span>
@@ -1757,10 +1689,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1807,8 +1739,7 @@
   <span class="md-ellipsis">
     
   
-    Case Studies
-  
+  Case Studies
 
     
   </span>
@@ -1824,21 +1755,21 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_16_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4_16">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Case Studies
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_16_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4_16">
+              <span class="md-nav__icon md-icon"></span>
               
-            
+  
+  Case Studies
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+              
+                
+                  
   
   
   
@@ -1851,8 +1782,7 @@
   <span class="md-ellipsis">
     
   
-    Analyzing Microtubule Local Structures with RMA
-  
+  Analyzing Microtubule Local Structures with RMA
 
     
   </span>
@@ -1863,10 +1793,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1879,8 +1809,7 @@
   <span class="md-ellipsis">
     
   
-    Microtubule Seam-search
-  
+  Microtubule Seam-search
 
     
   </span>
@@ -1891,10 +1820,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1907,8 +1836,7 @@
   <span class="md-ellipsis">
     
   
-    Segmented Subtomogram Averaging (SSTA)
-  
+  Segmented Subtomogram Averaging (SSTA)
 
     
   </span>
@@ -1919,10 +1847,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1935,8 +1863,7 @@
   <span class="md-ellipsis">
     
   
-    Prepare Spline Configuration for Your Structure of Interest
-  
+  Prepare Spline Configuration for Your Structure of Interest
 
     
   </span>
@@ -1947,10 +1874,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1963,8 +1890,7 @@
   <span class="md-ellipsis">
     
   
-    Learning CFT
-  
+  Learning CFT
 
     
   </span>
@@ -1975,10 +1901,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1991,8 +1917,7 @@
   <span class="md-ellipsis">
     
   
-    Microtubule for Figures
-  
+  Microtubule for Figures
 
     
   </span>
@@ -2003,10 +1928,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2019,8 +1944,7 @@
   <span class="md-ellipsis">
     
   
-    Checking Tomogram Handedness
-  
+  Checking Tomogram Handedness
 
     
   </span>
@@ -2031,18 +1955,20 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
@@ -2103,8 +2029,7 @@
   <span class="md-ellipsis">
     
   
-    API References
-  
+  API References
 
     
   </span>
@@ -2120,21 +2045,21 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_5">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    API References
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+            <label class="md-nav__title" for="__nav_5">
+              <span class="md-nav__icon md-icon"></span>
               
-            
+  
+  API References
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+              
+                
+                  
   
   
     
@@ -2143,7 +2068,9 @@
   
     <li class="md-nav__item md-nav__item--active">
       
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+        <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
       
       
         
@@ -2156,8 +2083,7 @@
   <span class="md-ellipsis">
     
   
-    cylindra.components
-  
+  cylindra.components
 
     
   </span>
@@ -2167,15 +2093,14 @@
           <span class="md-nav__icon md-icon"></span>
         </label>
       
-      <a href="./" class="md-nav__link md-nav__link--active">
+      <a href="././" class="md-nav__link md-nav__link--active">
         
   
   
   <span class="md-ellipsis">
     
   
-    cylindra.components
-  
+  cylindra.components
 
     
   </span>
@@ -2186,7 +2111,8 @@
       
         
 
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
   
   
   
@@ -2195,16 +2121,16 @@
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
-      Table of contents
+      On this page
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
   <a href="#cylindra.components.spline" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         spline
-      
+      </span>
     </span>
   </a>
   
@@ -2213,9 +2139,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.spline.CylSpline" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         CylSpline
-      
+      </span>
     </span>
   </a>
   
@@ -2225,9 +2151,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.CylSpline.orientation" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         orientation
-      
+      </span>
     </span>
   </a>
   
@@ -2236,9 +2162,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.CylSpline.radius" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         radius
-      
+      </span>
     </span>
   </a>
   
@@ -2247,9 +2173,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.CylSpline.clip" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         clip
-      
+      </span>
     </span>
   </a>
   
@@ -2258,9 +2184,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.CylSpline.cylinder_model" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         cylinder_model
-      
+      </span>
     </span>
   </a>
   
@@ -2269,9 +2195,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.CylSpline.cylinder_params" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         cylinder_params
-      
+      </span>
     </span>
   </a>
   
@@ -2280,9 +2206,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.CylSpline.invert" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         invert
-      
+      </span>
     </span>
   </a>
   
@@ -2291,9 +2217,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.CylSpline.nrise" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         nrise
-      
+      </span>
     </span>
   </a>
   
@@ -2302,9 +2228,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.CylSpline.radius_range" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         radius_range
-      
+      </span>
     </span>
   </a>
   
@@ -2313,9 +2239,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.CylSpline.restore" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         restore
-      
+      </span>
     </span>
   </a>
   
@@ -2324,9 +2250,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.CylSpline.update_glob_by_cylinder_params" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         update_glob_by_cylinder_params
-      
+      </span>
     </span>
   </a>
   
@@ -2335,9 +2261,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.CylSpline.update_props" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         update_props
-      
+      </span>
     </span>
   </a>
   
@@ -2351,9 +2277,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Spline
-      
+      </span>
     </span>
   </a>
   
@@ -2363,9 +2289,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.anchors" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         anchors
-      
+      </span>
     </span>
   </a>
   
@@ -2374,9 +2300,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.coeff" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         coeff
-      
+      </span>
     </span>
   </a>
   
@@ -2385,9 +2311,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.config" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         config
-      
+      </span>
     </span>
   </a>
   
@@ -2396,9 +2322,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.extrapolate" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         extrapolate
-      
+      </span>
     </span>
   </a>
   
@@ -2407,9 +2333,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.has_anchors" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         has_anchors
-      
+      </span>
     </span>
   </a>
   
@@ -2418,9 +2344,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.knots" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         knots
-      
+      </span>
     </span>
   </a>
   
@@ -2429,9 +2355,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.lims" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         lims
-      
+      </span>
     </span>
   </a>
   
@@ -2440,9 +2366,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.order" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         order
-      
+      </span>
     </span>
   </a>
   
@@ -2451,9 +2377,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.params" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         params
-      
+      </span>
     </span>
   </a>
   
@@ -2462,9 +2388,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.props" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         props
-      
+      </span>
     </span>
   </a>
   
@@ -2473,9 +2399,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.segments" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         segments
-      
+      </span>
     </span>
   </a>
   
@@ -2484,9 +2410,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.__repr__" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         __repr__
-      
+      </span>
     </span>
   </a>
   
@@ -2495,9 +2421,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.anchors_to_molecules" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         anchors_to_molecules
-      
+      </span>
     </span>
   </a>
   
@@ -2506,9 +2432,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.cartesian" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         cartesian
-      
+      </span>
     </span>
   </a>
   
@@ -2517,9 +2443,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.cartesian_to_world" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         cartesian_to_world
-      
+      </span>
     </span>
   </a>
   
@@ -2528,9 +2454,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.clip" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         clip
-      
+      </span>
     </span>
   </a>
   
@@ -2539,9 +2465,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.close_to" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         close_to
-      
+      </span>
     </span>
   </a>
   
@@ -2550,9 +2476,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.continuous_move" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         continuous_move
-      
+      </span>
     </span>
   </a>
   
@@ -2561,9 +2487,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.copy" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         copy
-      
+      </span>
     </span>
   </a>
   
@@ -2572,9 +2498,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.curvature" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         curvature
-      
+      </span>
     </span>
   </a>
   
@@ -2583,9 +2509,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.curvature_radii" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         curvature_radii
-      
+      </span>
     </span>
   </a>
   
@@ -2594,9 +2520,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.cylindrical" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         cylindrical
-      
+      </span>
     </span>
   </a>
   
@@ -2605,9 +2531,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.cylindrical_to_molecules" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         cylindrical_to_molecules
-      
+      </span>
     </span>
   </a>
   
@@ -2616,9 +2542,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.cylindrical_to_world" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         cylindrical_to_world
-      
+      </span>
     </span>
   </a>
   
@@ -2627,9 +2553,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.distance_matrix" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         distance_matrix
-      
+      </span>
     </span>
   </a>
   
@@ -2638,9 +2564,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.distances" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         distances
-      
+      </span>
     </span>
   </a>
   
@@ -2649,9 +2575,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.fit" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         fit
-      
+      </span>
     </span>
   </a>
   
@@ -2660,9 +2586,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.from_dict" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         from_dict
-      
+      </span>
     </span>
   </a>
   
@@ -2671,9 +2597,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.get_rotator" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         get_rotator
-      
+      </span>
     </span>
   </a>
   
@@ -2682,9 +2608,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.invert" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         invert
-      
+      </span>
     </span>
   </a>
   
@@ -2693,9 +2619,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.is_inverted" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         is_inverted
-      
+      </span>
     </span>
   </a>
   
@@ -2704,9 +2630,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.length" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         length
-      
+      </span>
     </span>
   </a>
   
@@ -2715,9 +2641,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.line" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         line
-      
+      </span>
     </span>
   </a>
   
@@ -2726,9 +2652,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.local_cartesian" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         local_cartesian
-      
+      </span>
     </span>
   </a>
   
@@ -2737,9 +2663,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.local_cylindrical" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         local_cylindrical
-      
+      </span>
     </span>
   </a>
   
@@ -2748,9 +2674,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.make_anchors" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         make_anchors
-      
+      </span>
     </span>
   </a>
   
@@ -2759,9 +2685,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.map" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         map
-      
+      </span>
     </span>
   </a>
   
@@ -2770,9 +2696,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.partition" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         partition
-      
+      </span>
     </span>
   </a>
   
@@ -2781,9 +2707,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.resample" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         resample
-      
+      </span>
     </span>
   </a>
   
@@ -2792,9 +2718,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.restore" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         restore
-      
+      </span>
     </span>
   </a>
   
@@ -2803,9 +2729,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.shift" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         shift
-      
+      </span>
     </span>
   </a>
   
@@ -2814,9 +2740,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.split" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         split
-      
+      </span>
     </span>
   </a>
   
@@ -2825,9 +2751,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.to_dict" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         to_dict
-      
+      </span>
     </span>
   </a>
   
@@ -2836,9 +2762,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.translate" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         translate
-      
+      </span>
     </span>
   </a>
   
@@ -2847,9 +2773,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.with_config" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         with_config
-      
+      </span>
     </span>
   </a>
   
@@ -2858,9 +2784,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.with_extrapolation" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         with_extrapolation
-      
+      </span>
     </span>
   </a>
   
@@ -2869,9 +2795,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.y_to_position" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         y_to_position
-      
+      </span>
     </span>
   </a>
   
@@ -2885,9 +2811,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.spline.SplineConfig" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         SplineConfig
-      
+      </span>
     </span>
   </a>
   
@@ -2897,9 +2823,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.SplineConfig.construct" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         construct
-      
+      </span>
     </span>
   </a>
   
@@ -2913,9 +2839,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.spline.SplineSegment" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         SplineSegment
-      
+      </span>
     </span>
   </a>
   
@@ -2924,9 +2850,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.spline.SplineSegments" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         SplineSegments
-      
+      </span>
     </span>
   </a>
   
@@ -2935,9 +2861,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.tomogram" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         tomogram
-      
+      </span>
     </span>
   </a>
   
@@ -2946,9 +2872,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         CylTomogram
-      
+      </span>
     </span>
   </a>
   
@@ -2958,9 +2884,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.splines" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         splines
-      
+      </span>
     </span>
   </a>
   
@@ -2969,9 +2895,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.add_spline" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         add_spline
-      
+      </span>
     </span>
   </a>
   
@@ -2980,9 +2906,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.align_to_polarity" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         align_to_polarity
-      
+      </span>
     </span>
   </a>
   
@@ -2991,9 +2917,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.check_handedness" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         check_handedness
-      
+      </span>
     </span>
   </a>
   
@@ -3002,9 +2928,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.fit" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         fit
-      
+      </span>
     </span>
   </a>
   
@@ -3013,9 +2939,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.get_cylinder_model" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         get_cylinder_model
-      
+      </span>
     </span>
   </a>
   
@@ -3024,9 +2950,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.global_cft" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         global_cft
-      
+      </span>
     </span>
   </a>
   
@@ -3035,9 +2961,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.global_cft_params" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         global_cft_params
-      
+      </span>
     </span>
   </a>
   
@@ -3046,9 +2972,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.global_cps" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         global_cps
-      
+      </span>
     </span>
   </a>
   
@@ -3057,9 +2983,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.global_image_with_peaks" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         global_image_with_peaks
-      
+      </span>
     </span>
   </a>
   
@@ -3068,9 +2994,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.infer_polarity" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         infer_polarity
-      
+      </span>
     </span>
   </a>
   
@@ -3079,9 +3005,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.local_cft" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         local_cft
-      
+      </span>
     </span>
   </a>
   
@@ -3090,9 +3016,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.local_cft_params" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         local_cft_params
-      
+      </span>
     </span>
   </a>
   
@@ -3101,9 +3027,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.local_cps" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         local_cps
-      
+      </span>
     </span>
   </a>
   
@@ -3112,9 +3038,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.local_ft_params" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         local_ft_params
-      
+      </span>
     </span>
   </a>
   
@@ -3123,9 +3049,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.local_image_with_peaks" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         local_image_with_peaks
-      
+      </span>
     </span>
   </a>
   
@@ -3134,9 +3060,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.local_radii" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         local_radii
-      
+      </span>
     </span>
   </a>
   
@@ -3145,9 +3071,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.make_anchors" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         make_anchors
-      
+      </span>
     </span>
   </a>
   
@@ -3156,9 +3082,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.map_centers" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         map_centers
-      
+      </span>
     </span>
   </a>
   
@@ -3167,9 +3093,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.map_centers_helical_symmetry" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         map_centers_helical_symmetry
-      
+      </span>
     </span>
   </a>
   
@@ -3178,9 +3104,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.map_monomers" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         map_monomers
-      
+      </span>
     </span>
   </a>
   
@@ -3189,9 +3115,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.map_on_grid" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         map_on_grid
-      
+      </span>
     </span>
   </a>
   
@@ -3200,9 +3126,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.map_pf_line" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         map_pf_line
-      
+      </span>
     </span>
   </a>
   
@@ -3211,9 +3137,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.measure_radius" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         measure_radius
-      
+      </span>
     </span>
   </a>
   
@@ -3222,9 +3148,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.refine" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         refine
-      
+      </span>
     </span>
   </a>
   
@@ -3233,9 +3159,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.straighten" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         straighten
-      
+      </span>
     </span>
   </a>
   
@@ -3244,9 +3170,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.straighten_cylindric" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         straighten_cylindric
-      
+      </span>
     </span>
   </a>
   
@@ -3260,9 +3186,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Tomogram
-      
+      </span>
     </span>
   </a>
   
@@ -3272,9 +3198,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.image" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         image
-      
+      </span>
     </span>
   </a>
   
@@ -3283,9 +3209,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.image_halves" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         image_halves
-      
+      </span>
     </span>
   </a>
   
@@ -3294,9 +3220,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.is_dummy" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         is_dummy
-      
+      </span>
     </span>
   </a>
   
@@ -3305,9 +3231,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.is_inverted" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         is_inverted
-      
+      </span>
     </span>
   </a>
   
@@ -3316,9 +3242,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.metadata" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         metadata
-      
+      </span>
     </span>
   </a>
   
@@ -3327,9 +3253,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.multiscaled" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         multiscaled
-      
+      </span>
     </span>
   </a>
   
@@ -3338,9 +3264,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.origin" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         origin
-      
+      </span>
     </span>
   </a>
   
@@ -3349,9 +3275,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.scale" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         scale
-      
+      </span>
     </span>
   </a>
   
@@ -3360,9 +3286,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.shape" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         shape
-      
+      </span>
     </span>
   </a>
   
@@ -3371,9 +3297,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.source" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         source
-      
+      </span>
     </span>
   </a>
   
@@ -3382,9 +3308,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.tilt" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         tilt
-      
+      </span>
     </span>
   </a>
   
@@ -3393,9 +3319,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.tilt_model" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         tilt_model
-      
+      </span>
     </span>
   </a>
   
@@ -3404,9 +3330,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.tilt_series" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         tilt_series
-      
+      </span>
     </span>
   </a>
   
@@ -3415,9 +3341,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.__hash__" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         __hash__
-      
+      </span>
     </span>
   </a>
   
@@ -3426,9 +3352,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.add_multiscale" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         add_multiscale
-      
+      </span>
     </span>
   </a>
   
@@ -3437,9 +3363,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.available_binsizes" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         available_binsizes
-      
+      </span>
     </span>
   </a>
   
@@ -3448,9 +3374,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.dummy" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         dummy
-      
+      </span>
     </span>
   </a>
   
@@ -3459,9 +3385,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.from_image" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         from_image
-      
+      </span>
     </span>
   </a>
   
@@ -3470,9 +3396,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.from_multiscale" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         from_multiscale
-      
+      </span>
     </span>
   </a>
   
@@ -3481,9 +3407,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.from_tilt_series" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         from_tilt_series
-      
+      </span>
     </span>
   </a>
   
@@ -3492,9 +3418,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.get_multiscale" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         get_multiscale
-      
+      </span>
     </span>
   </a>
   
@@ -3503,9 +3429,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.get_multiscale_or_original" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         get_multiscale_or_original
-      
+      </span>
     </span>
   </a>
   
@@ -3514,9 +3440,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.get_subtomogram_loader" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         get_subtomogram_loader
-      
+      </span>
     </span>
   </a>
   
@@ -3525,9 +3451,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.imread" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         imread
-      
+      </span>
     </span>
   </a>
   
@@ -3536,9 +3462,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.invert" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         invert
-      
+      </span>
     </span>
   </a>
   
@@ -3547,9 +3473,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.multiscale_translation" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         multiscale_translation
-      
+      </span>
     </span>
   </a>
   
@@ -3558,9 +3484,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.nm2pixel" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         nm2pixel
-      
+      </span>
     </span>
   </a>
   
@@ -3569,9 +3495,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.update_tilt_series" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         update_tilt_series
-      
+      </span>
     </span>
   </a>
   
@@ -3580,9 +3506,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.with_cache_info" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         with_cache_info
-      
+      </span>
     </span>
   </a>
   
@@ -3596,9 +3522,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components._base" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         _base
-      
+      </span>
     </span>
   </a>
   
@@ -3607,9 +3533,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components._base.BaseComponent" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         BaseComponent
-      
+      </span>
     </span>
   </a>
   
@@ -3619,9 +3545,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components._base.BaseComponent.from_dict" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         from_dict
-      
+      </span>
     </span>
   </a>
   
@@ -3630,9 +3556,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components._base.BaseComponent.from_json" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         from_json
-      
+      </span>
     </span>
   </a>
   
@@ -3641,9 +3567,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components._base.BaseComponent.rescale" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         rescale
-      
+      </span>
     </span>
   </a>
   
@@ -3652,9 +3578,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components._base.BaseComponent.to_dict" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         to_dict
-      
+      </span>
     </span>
   </a>
   
@@ -3663,9 +3589,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components._base.BaseComponent.to_json" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         to_json
-      
+      </span>
     </span>
   </a>
   
@@ -3679,9 +3605,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.landscape" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         landscape
-      
+      </span>
     </span>
   </a>
   
@@ -3690,9 +3616,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.landscape.AnnealingResult" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         AnnealingResult
-      
+      </span>
     </span>
   </a>
   
@@ -3701,9 +3627,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Landscape
-      
+      </span>
     </span>
   </a>
   
@@ -3713,9 +3639,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.offset" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         offset
-      
+      </span>
     </span>
   </a>
   
@@ -3724,9 +3650,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.offset_nm" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         offset_nm
-      
+      </span>
     </span>
   </a>
   
@@ -3735,9 +3661,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.__getitem__" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         __getitem__
-      
+      </span>
     </span>
   </a>
   
@@ -3746,9 +3672,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.create_surface" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         create_surface
-      
+      </span>
     </span>
   </a>
   
@@ -3757,9 +3683,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.cylindric_annealing_model" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         cylindric_annealing_model
-      
+      </span>
     </span>
   </a>
   
@@ -3768,9 +3694,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.from_dir" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         from_dir
-      
+      </span>
     </span>
   </a>
   
@@ -3779,9 +3705,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.from_loader" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         from_loader
-      
+      </span>
     </span>
   </a>
   
@@ -3790,9 +3716,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.from_loaders" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         from_loaders
-      
+      </span>
     </span>
   </a>
   
@@ -3801,9 +3727,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.graph_coordinates" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         graph_coordinates
-      
+      </span>
     </span>
   </a>
   
@@ -3812,9 +3738,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.microtubule_annealing_model" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         microtubule_annealing_model
-      
+      </span>
     </span>
   </a>
   
@@ -3823,9 +3749,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.nearest_indices" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         nearest_indices
-      
+      </span>
     </span>
   </a>
   
@@ -3834,9 +3760,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.normed" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         normed
-      
+      </span>
     </span>
   </a>
   
@@ -3845,9 +3771,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.run_annealing" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         run_annealing
-      
+      </span>
     </span>
   </a>
   
@@ -3856,9 +3782,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.run_microtubule_annealing" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         run_microtubule_annealing
-      
+      </span>
     </span>
   </a>
   
@@ -3867,9 +3793,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.run_min_energy" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         run_min_energy
-      
+      </span>
     </span>
   </a>
   
@@ -3878,9 +3804,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.run_viterbi" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         run_viterbi
-      
+      </span>
     </span>
   </a>
   
@@ -3889,9 +3815,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.run_viterbi_fixed_start" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         run_viterbi_fixed_start
-      
+      </span>
     </span>
   </a>
   
@@ -3900,9 +3826,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.save" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         save
-      
+      </span>
     </span>
   </a>
   
@@ -3911,9 +3837,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.transform_molecules" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         transform_molecules
-      
+      </span>
     </span>
   </a>
   
@@ -3922,9 +3848,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.world_positions" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         world_positions
-      
+      </span>
     </span>
   </a>
   
@@ -3938,9 +3864,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.landscape.SurfaceData" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         SurfaceData
-      
+      </span>
     </span>
   </a>
   
@@ -3949,9 +3875,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.landscape.ViterbiResult" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         ViterbiResult
-      
+      </span>
     </span>
   </a>
   
@@ -3960,9 +3886,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.landscape.delayed_isosurface" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         delayed_isosurface
-      
+      </span>
     </span>
   </a>
   
@@ -3971,9 +3897,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.seam_search" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         seam_search
-      
+      </span>
     </span>
   </a>
   
@@ -3982,9 +3908,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.seam_search.CorrelationSeamSearcher" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         CorrelationSeamSearcher
-      
+      </span>
     </span>
   </a>
   
@@ -3993,9 +3919,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.seam_search.MoleculeScoreSeamSearchResult" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         MoleculeScoreSeamSearchResult
-      
+      </span>
     </span>
   </a>
   
@@ -4004,9 +3930,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.seam_search.SeamSearcher" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         SeamSearcher
-      
+      </span>
     </span>
   </a>
   
@@ -4016,9 +3942,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.seam_search.SeamSearcher.search" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         search
-      
+      </span>
     </span>
   </a>
   
@@ -4032,9 +3958,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.seam_search.TiltScoreSeamSearcher" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         TiltScoreSeamSearcher
-      
+      </span>
     </span>
   </a>
   
@@ -4044,9 +3970,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.seam_search.TiltScoreSeamSearcher.search" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         search
-      
+      </span>
     </span>
   </a>
   
@@ -4060,9 +3986,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.seam_search.prep_seam_search_input" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         prep_seam_search_input
-      
+      </span>
     </span>
   </a>
   
@@ -4075,10 +4001,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -4091,8 +4017,7 @@
   <span class="md-ellipsis">
     
   
-    cylindra.core
-  
+  cylindra.core
 
     
   </span>
@@ -4103,10 +4028,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -4119,8 +4044,7 @@
   <span class="md-ellipsis">
     
   
-    cylindra.project
-  
+  cylindra.project
 
     
   </span>
@@ -4131,10 +4055,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -4147,8 +4071,7 @@
   <span class="md-ellipsis">
     
   
-    cylindra.cylmeasure
-  
+  cylindra.cylmeasure
 
     
   </span>
@@ -4159,10 +4082,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -4175,8 +4098,7 @@
   <span class="md-ellipsis">
     
   
-    cylindra.cylfilters
-  
+  cylindra.cylfilters
 
     
   </span>
@@ -4187,10 +4109,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -4203,8 +4125,7 @@
   <span class="md-ellipsis">
     
   
-    cylindra.plugin
-  
+  cylindra.plugin
 
     
   </span>
@@ -4215,10 +4136,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -4254,8 +4175,7 @@
   <span class="md-ellipsis">
     
   
-    Widgets
-  
+  Widgets
 
     
   </span>
@@ -4265,19 +4185,19 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_8_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_8">
-            <span class="md-nav__icon md-icon"></span>
-            
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_8_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_5_8">
+              <span class="md-nav__icon md-icon"></span>
+              
   
-    Widgets
-  
+  Widgets
 
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+                  
   
   
   
@@ -4290,8 +4210,7 @@
   <span class="md-ellipsis">
     
   
-    cylindra.widgets.main.CylindraMainWidget
-  
+  cylindra.widgets.main.CylindraMainWidget
 
     
   </span>
@@ -4302,10 +4221,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -4318,8 +4237,7 @@
   <span class="md-ellipsis">
     
   
-    cylindra.widgets.sta.SubtomogramAveraging
-  
+  cylindra.widgets.sta.SubtomogramAveraging
 
     
   </span>
@@ -4330,10 +4248,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -4346,8 +4264,7 @@
   <span class="md-ellipsis">
     
   
-    cylindra.widgets.subwidgets
-  
+  cylindra.widgets.subwidgets
 
     
   </span>
@@ -4358,10 +4275,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -4374,8 +4291,7 @@
   <span class="md-ellipsis">
     
   
-    cylindra.widgets.batch
-  
+  cylindra.widgets.batch
 
     
   </span>
@@ -4386,18 +4302,19 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -4431,8 +4348,7 @@
   <span class="md-ellipsis">
     
   
-    Builtin Plugins
-  
+  Builtin Plugins
 
     
   </span>
@@ -4442,19 +4358,19 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_9_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_9">
-            <span class="md-nav__icon md-icon"></span>
-            
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_9_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_5_9">
+              <span class="md-nav__icon md-icon"></span>
+              
   
-    Builtin Plugins
-  
+  Builtin Plugins
 
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+                  
   
   
   
@@ -4467,8 +4383,7 @@
   <span class="md-ellipsis">
     
   
-    cylindra_builtins.fetch
-  
+  cylindra_builtins.fetch
 
     
   </span>
@@ -4479,10 +4394,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -4495,8 +4410,7 @@
   <span class="md-ellipsis">
     
   
-    cylindra_builtins.imod
-  
+  cylindra_builtins.imod
 
     
   </span>
@@ -4507,10 +4421,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -4523,8 +4437,7 @@
   <span class="md-ellipsis">
     
   
-    cylindra_builtins.relion
-  
+  cylindra_builtins.relion
 
     
   </span>
@@ -4535,18 +4448,20 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
@@ -4562,10 +4477,12 @@
               
               <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
                 <div class="md-sidebar__scrollwrap">
+                  
                   <div class="md-sidebar__inner">
                     
 
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
   
   
   
@@ -4574,16 +4491,16 @@
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
-      Table of contents
+      On this page
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
   <a href="#cylindra.components.spline" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         spline
-      
+      </span>
     </span>
   </a>
   
@@ -4592,9 +4509,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.spline.CylSpline" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         CylSpline
-      
+      </span>
     </span>
   </a>
   
@@ -4604,9 +4521,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.CylSpline.orientation" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         orientation
-      
+      </span>
     </span>
   </a>
   
@@ -4615,9 +4532,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.CylSpline.radius" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         radius
-      
+      </span>
     </span>
   </a>
   
@@ -4626,9 +4543,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.CylSpline.clip" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         clip
-      
+      </span>
     </span>
   </a>
   
@@ -4637,9 +4554,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.CylSpline.cylinder_model" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         cylinder_model
-      
+      </span>
     </span>
   </a>
   
@@ -4648,9 +4565,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.CylSpline.cylinder_params" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         cylinder_params
-      
+      </span>
     </span>
   </a>
   
@@ -4659,9 +4576,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.CylSpline.invert" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         invert
-      
+      </span>
     </span>
   </a>
   
@@ -4670,9 +4587,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.CylSpline.nrise" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         nrise
-      
+      </span>
     </span>
   </a>
   
@@ -4681,9 +4598,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.CylSpline.radius_range" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         radius_range
-      
+      </span>
     </span>
   </a>
   
@@ -4692,9 +4609,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.CylSpline.restore" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         restore
-      
+      </span>
     </span>
   </a>
   
@@ -4703,9 +4620,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.CylSpline.update_glob_by_cylinder_params" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         update_glob_by_cylinder_params
-      
+      </span>
     </span>
   </a>
   
@@ -4714,9 +4631,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.CylSpline.update_props" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         update_props
-      
+      </span>
     </span>
   </a>
   
@@ -4730,9 +4647,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Spline
-      
+      </span>
     </span>
   </a>
   
@@ -4742,9 +4659,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.anchors" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         anchors
-      
+      </span>
     </span>
   </a>
   
@@ -4753,9 +4670,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.coeff" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         coeff
-      
+      </span>
     </span>
   </a>
   
@@ -4764,9 +4681,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.config" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         config
-      
+      </span>
     </span>
   </a>
   
@@ -4775,9 +4692,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.extrapolate" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         extrapolate
-      
+      </span>
     </span>
   </a>
   
@@ -4786,9 +4703,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.has_anchors" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         has_anchors
-      
+      </span>
     </span>
   </a>
   
@@ -4797,9 +4714,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.knots" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         knots
-      
+      </span>
     </span>
   </a>
   
@@ -4808,9 +4725,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.lims" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         lims
-      
+      </span>
     </span>
   </a>
   
@@ -4819,9 +4736,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.order" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         order
-      
+      </span>
     </span>
   </a>
   
@@ -4830,9 +4747,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.params" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         params
-      
+      </span>
     </span>
   </a>
   
@@ -4841,9 +4758,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.props" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         props
-      
+      </span>
     </span>
   </a>
   
@@ -4852,9 +4769,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.segments" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         segments
-      
+      </span>
     </span>
   </a>
   
@@ -4863,9 +4780,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.__repr__" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         __repr__
-      
+      </span>
     </span>
   </a>
   
@@ -4874,9 +4791,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.anchors_to_molecules" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         anchors_to_molecules
-      
+      </span>
     </span>
   </a>
   
@@ -4885,9 +4802,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.cartesian" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         cartesian
-      
+      </span>
     </span>
   </a>
   
@@ -4896,9 +4813,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.cartesian_to_world" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         cartesian_to_world
-      
+      </span>
     </span>
   </a>
   
@@ -4907,9 +4824,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.clip" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         clip
-      
+      </span>
     </span>
   </a>
   
@@ -4918,9 +4835,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.close_to" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         close_to
-      
+      </span>
     </span>
   </a>
   
@@ -4929,9 +4846,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.continuous_move" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         continuous_move
-      
+      </span>
     </span>
   </a>
   
@@ -4940,9 +4857,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.copy" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         copy
-      
+      </span>
     </span>
   </a>
   
@@ -4951,9 +4868,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.curvature" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         curvature
-      
+      </span>
     </span>
   </a>
   
@@ -4962,9 +4879,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.curvature_radii" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         curvature_radii
-      
+      </span>
     </span>
   </a>
   
@@ -4973,9 +4890,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.cylindrical" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         cylindrical
-      
+      </span>
     </span>
   </a>
   
@@ -4984,9 +4901,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.cylindrical_to_molecules" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         cylindrical_to_molecules
-      
+      </span>
     </span>
   </a>
   
@@ -4995,9 +4912,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.cylindrical_to_world" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         cylindrical_to_world
-      
+      </span>
     </span>
   </a>
   
@@ -5006,9 +4923,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.distance_matrix" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         distance_matrix
-      
+      </span>
     </span>
   </a>
   
@@ -5017,9 +4934,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.distances" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         distances
-      
+      </span>
     </span>
   </a>
   
@@ -5028,9 +4945,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.fit" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         fit
-      
+      </span>
     </span>
   </a>
   
@@ -5039,9 +4956,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.from_dict" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         from_dict
-      
+      </span>
     </span>
   </a>
   
@@ -5050,9 +4967,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.get_rotator" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         get_rotator
-      
+      </span>
     </span>
   </a>
   
@@ -5061,9 +4978,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.invert" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         invert
-      
+      </span>
     </span>
   </a>
   
@@ -5072,9 +4989,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.is_inverted" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         is_inverted
-      
+      </span>
     </span>
   </a>
   
@@ -5083,9 +5000,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.length" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         length
-      
+      </span>
     </span>
   </a>
   
@@ -5094,9 +5011,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.line" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         line
-      
+      </span>
     </span>
   </a>
   
@@ -5105,9 +5022,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.local_cartesian" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         local_cartesian
-      
+      </span>
     </span>
   </a>
   
@@ -5116,9 +5033,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.local_cylindrical" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         local_cylindrical
-      
+      </span>
     </span>
   </a>
   
@@ -5127,9 +5044,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.make_anchors" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         make_anchors
-      
+      </span>
     </span>
   </a>
   
@@ -5138,9 +5055,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.map" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         map
-      
+      </span>
     </span>
   </a>
   
@@ -5149,9 +5066,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.partition" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         partition
-      
+      </span>
     </span>
   </a>
   
@@ -5160,9 +5077,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.resample" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         resample
-      
+      </span>
     </span>
   </a>
   
@@ -5171,9 +5088,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.restore" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         restore
-      
+      </span>
     </span>
   </a>
   
@@ -5182,9 +5099,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.shift" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         shift
-      
+      </span>
     </span>
   </a>
   
@@ -5193,9 +5110,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.split" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         split
-      
+      </span>
     </span>
   </a>
   
@@ -5204,9 +5121,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.to_dict" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         to_dict
-      
+      </span>
     </span>
   </a>
   
@@ -5215,9 +5132,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.translate" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         translate
-      
+      </span>
     </span>
   </a>
   
@@ -5226,9 +5143,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.with_config" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         with_config
-      
+      </span>
     </span>
   </a>
   
@@ -5237,9 +5154,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.with_extrapolation" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         with_extrapolation
-      
+      </span>
     </span>
   </a>
   
@@ -5248,9 +5165,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.Spline.y_to_position" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         y_to_position
-      
+      </span>
     </span>
   </a>
   
@@ -5264,9 +5181,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.spline.SplineConfig" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         SplineConfig
-      
+      </span>
     </span>
   </a>
   
@@ -5276,9 +5193,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.spline.SplineConfig.construct" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         construct
-      
+      </span>
     </span>
   </a>
   
@@ -5292,9 +5209,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.spline.SplineSegment" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         SplineSegment
-      
+      </span>
     </span>
   </a>
   
@@ -5303,9 +5220,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.spline.SplineSegments" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         SplineSegments
-      
+      </span>
     </span>
   </a>
   
@@ -5314,9 +5231,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.tomogram" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         tomogram
-      
+      </span>
     </span>
   </a>
   
@@ -5325,9 +5242,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         CylTomogram
-      
+      </span>
     </span>
   </a>
   
@@ -5337,9 +5254,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.splines" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         splines
-      
+      </span>
     </span>
   </a>
   
@@ -5348,9 +5265,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.add_spline" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         add_spline
-      
+      </span>
     </span>
   </a>
   
@@ -5359,9 +5276,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.align_to_polarity" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         align_to_polarity
-      
+      </span>
     </span>
   </a>
   
@@ -5370,9 +5287,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.check_handedness" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         check_handedness
-      
+      </span>
     </span>
   </a>
   
@@ -5381,9 +5298,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.fit" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         fit
-      
+      </span>
     </span>
   </a>
   
@@ -5392,9 +5309,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.get_cylinder_model" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         get_cylinder_model
-      
+      </span>
     </span>
   </a>
   
@@ -5403,9 +5320,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.global_cft" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         global_cft
-      
+      </span>
     </span>
   </a>
   
@@ -5414,9 +5331,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.global_cft_params" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         global_cft_params
-      
+      </span>
     </span>
   </a>
   
@@ -5425,9 +5342,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.global_cps" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         global_cps
-      
+      </span>
     </span>
   </a>
   
@@ -5436,9 +5353,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.global_image_with_peaks" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         global_image_with_peaks
-      
+      </span>
     </span>
   </a>
   
@@ -5447,9 +5364,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.infer_polarity" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         infer_polarity
-      
+      </span>
     </span>
   </a>
   
@@ -5458,9 +5375,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.local_cft" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         local_cft
-      
+      </span>
     </span>
   </a>
   
@@ -5469,9 +5386,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.local_cft_params" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         local_cft_params
-      
+      </span>
     </span>
   </a>
   
@@ -5480,9 +5397,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.local_cps" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         local_cps
-      
+      </span>
     </span>
   </a>
   
@@ -5491,9 +5408,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.local_ft_params" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         local_ft_params
-      
+      </span>
     </span>
   </a>
   
@@ -5502,9 +5419,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.local_image_with_peaks" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         local_image_with_peaks
-      
+      </span>
     </span>
   </a>
   
@@ -5513,9 +5430,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.local_radii" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         local_radii
-      
+      </span>
     </span>
   </a>
   
@@ -5524,9 +5441,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.make_anchors" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         make_anchors
-      
+      </span>
     </span>
   </a>
   
@@ -5535,9 +5452,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.map_centers" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         map_centers
-      
+      </span>
     </span>
   </a>
   
@@ -5546,9 +5463,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.map_centers_helical_symmetry" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         map_centers_helical_symmetry
-      
+      </span>
     </span>
   </a>
   
@@ -5557,9 +5474,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.map_monomers" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         map_monomers
-      
+      </span>
     </span>
   </a>
   
@@ -5568,9 +5485,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.map_on_grid" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         map_on_grid
-      
+      </span>
     </span>
   </a>
   
@@ -5579,9 +5496,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.map_pf_line" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         map_pf_line
-      
+      </span>
     </span>
   </a>
   
@@ -5590,9 +5507,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.measure_radius" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         measure_radius
-      
+      </span>
     </span>
   </a>
   
@@ -5601,9 +5518,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.refine" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         refine
-      
+      </span>
     </span>
   </a>
   
@@ -5612,9 +5529,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.straighten" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         straighten
-      
+      </span>
     </span>
   </a>
   
@@ -5623,9 +5540,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.CylTomogram.straighten_cylindric" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         straighten_cylindric
-      
+      </span>
     </span>
   </a>
   
@@ -5639,9 +5556,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Tomogram
-      
+      </span>
     </span>
   </a>
   
@@ -5651,9 +5568,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.image" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         image
-      
+      </span>
     </span>
   </a>
   
@@ -5662,9 +5579,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.image_halves" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         image_halves
-      
+      </span>
     </span>
   </a>
   
@@ -5673,9 +5590,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.is_dummy" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         is_dummy
-      
+      </span>
     </span>
   </a>
   
@@ -5684,9 +5601,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.is_inverted" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         is_inverted
-      
+      </span>
     </span>
   </a>
   
@@ -5695,9 +5612,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.metadata" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         metadata
-      
+      </span>
     </span>
   </a>
   
@@ -5706,9 +5623,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.multiscaled" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         multiscaled
-      
+      </span>
     </span>
   </a>
   
@@ -5717,9 +5634,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.origin" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         origin
-      
+      </span>
     </span>
   </a>
   
@@ -5728,9 +5645,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.scale" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         scale
-      
+      </span>
     </span>
   </a>
   
@@ -5739,9 +5656,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.shape" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         shape
-      
+      </span>
     </span>
   </a>
   
@@ -5750,9 +5667,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.source" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         source
-      
+      </span>
     </span>
   </a>
   
@@ -5761,9 +5678,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.tilt" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         tilt
-      
+      </span>
     </span>
   </a>
   
@@ -5772,9 +5689,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.tilt_model" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         tilt_model
-      
+      </span>
     </span>
   </a>
   
@@ -5783,9 +5700,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.tilt_series" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         tilt_series
-      
+      </span>
     </span>
   </a>
   
@@ -5794,9 +5711,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.__hash__" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         __hash__
-      
+      </span>
     </span>
   </a>
   
@@ -5805,9 +5722,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.add_multiscale" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         add_multiscale
-      
+      </span>
     </span>
   </a>
   
@@ -5816,9 +5733,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.available_binsizes" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         available_binsizes
-      
+      </span>
     </span>
   </a>
   
@@ -5827,9 +5744,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.dummy" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         dummy
-      
+      </span>
     </span>
   </a>
   
@@ -5838,9 +5755,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.from_image" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         from_image
-      
+      </span>
     </span>
   </a>
   
@@ -5849,9 +5766,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.from_multiscale" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         from_multiscale
-      
+      </span>
     </span>
   </a>
   
@@ -5860,9 +5777,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.from_tilt_series" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         from_tilt_series
-      
+      </span>
     </span>
   </a>
   
@@ -5871,9 +5788,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.get_multiscale" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         get_multiscale
-      
+      </span>
     </span>
   </a>
   
@@ -5882,9 +5799,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.get_multiscale_or_original" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         get_multiscale_or_original
-      
+      </span>
     </span>
   </a>
   
@@ -5893,9 +5810,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.get_subtomogram_loader" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         get_subtomogram_loader
-      
+      </span>
     </span>
   </a>
   
@@ -5904,9 +5821,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.imread" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         imread
-      
+      </span>
     </span>
   </a>
   
@@ -5915,9 +5832,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.invert" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         invert
-      
+      </span>
     </span>
   </a>
   
@@ -5926,9 +5843,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.multiscale_translation" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         multiscale_translation
-      
+      </span>
     </span>
   </a>
   
@@ -5937,9 +5854,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.nm2pixel" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         nm2pixel
-      
+      </span>
     </span>
   </a>
   
@@ -5948,9 +5865,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.update_tilt_series" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         update_tilt_series
-      
+      </span>
     </span>
   </a>
   
@@ -5959,9 +5876,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.tomogram.Tomogram.with_cache_info" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         with_cache_info
-      
+      </span>
     </span>
   </a>
   
@@ -5975,9 +5892,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components._base" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         _base
-      
+      </span>
     </span>
   </a>
   
@@ -5986,9 +5903,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components._base.BaseComponent" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         BaseComponent
-      
+      </span>
     </span>
   </a>
   
@@ -5998,9 +5915,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components._base.BaseComponent.from_dict" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         from_dict
-      
+      </span>
     </span>
   </a>
   
@@ -6009,9 +5926,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components._base.BaseComponent.from_json" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         from_json
-      
+      </span>
     </span>
   </a>
   
@@ -6020,9 +5937,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components._base.BaseComponent.rescale" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         rescale
-      
+      </span>
     </span>
   </a>
   
@@ -6031,9 +5948,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components._base.BaseComponent.to_dict" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         to_dict
-      
+      </span>
     </span>
   </a>
   
@@ -6042,9 +5959,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components._base.BaseComponent.to_json" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         to_json
-      
+      </span>
     </span>
   </a>
   
@@ -6058,9 +5975,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.landscape" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         landscape
-      
+      </span>
     </span>
   </a>
   
@@ -6069,9 +5986,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.landscape.AnnealingResult" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         AnnealingResult
-      
+      </span>
     </span>
   </a>
   
@@ -6080,9 +5997,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Landscape
-      
+      </span>
     </span>
   </a>
   
@@ -6092,9 +6009,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.offset" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         offset
-      
+      </span>
     </span>
   </a>
   
@@ -6103,9 +6020,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.offset_nm" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         offset_nm
-      
+      </span>
     </span>
   </a>
   
@@ -6114,9 +6031,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.__getitem__" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         __getitem__
-      
+      </span>
     </span>
   </a>
   
@@ -6125,9 +6042,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.create_surface" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         create_surface
-      
+      </span>
     </span>
   </a>
   
@@ -6136,9 +6053,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.cylindric_annealing_model" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         cylindric_annealing_model
-      
+      </span>
     </span>
   </a>
   
@@ -6147,9 +6064,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.from_dir" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         from_dir
-      
+      </span>
     </span>
   </a>
   
@@ -6158,9 +6075,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.from_loader" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         from_loader
-      
+      </span>
     </span>
   </a>
   
@@ -6169,9 +6086,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.from_loaders" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         from_loaders
-      
+      </span>
     </span>
   </a>
   
@@ -6180,9 +6097,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.graph_coordinates" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         graph_coordinates
-      
+      </span>
     </span>
   </a>
   
@@ -6191,9 +6108,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.microtubule_annealing_model" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         microtubule_annealing_model
-      
+      </span>
     </span>
   </a>
   
@@ -6202,9 +6119,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.nearest_indices" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         nearest_indices
-      
+      </span>
     </span>
   </a>
   
@@ -6213,9 +6130,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.normed" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         normed
-      
+      </span>
     </span>
   </a>
   
@@ -6224,9 +6141,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.run_annealing" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         run_annealing
-      
+      </span>
     </span>
   </a>
   
@@ -6235,9 +6152,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.run_microtubule_annealing" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         run_microtubule_annealing
-      
+      </span>
     </span>
   </a>
   
@@ -6246,9 +6163,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.run_min_energy" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         run_min_energy
-      
+      </span>
     </span>
   </a>
   
@@ -6257,9 +6174,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.run_viterbi" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         run_viterbi
-      
+      </span>
     </span>
   </a>
   
@@ -6268,9 +6185,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.run_viterbi_fixed_start" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         run_viterbi_fixed_start
-      
+      </span>
     </span>
   </a>
   
@@ -6279,9 +6196,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.save" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         save
-      
+      </span>
     </span>
   </a>
   
@@ -6290,9 +6207,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.transform_molecules" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         transform_molecules
-      
+      </span>
     </span>
   </a>
   
@@ -6301,9 +6218,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.landscape.Landscape.world_positions" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         world_positions
-      
+      </span>
     </span>
   </a>
   
@@ -6317,9 +6234,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.landscape.SurfaceData" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         SurfaceData
-      
+      </span>
     </span>
   </a>
   
@@ -6328,9 +6245,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.landscape.ViterbiResult" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         ViterbiResult
-      
+      </span>
     </span>
   </a>
   
@@ -6339,9 +6256,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.landscape.delayed_isosurface" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         delayed_isosurface
-      
+      </span>
     </span>
   </a>
   
@@ -6350,9 +6267,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.seam_search" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         seam_search
-      
+      </span>
     </span>
   </a>
   
@@ -6361,9 +6278,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.seam_search.CorrelationSeamSearcher" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         CorrelationSeamSearcher
-      
+      </span>
     </span>
   </a>
   
@@ -6372,9 +6289,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.seam_search.MoleculeScoreSeamSearchResult" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         MoleculeScoreSeamSearchResult
-      
+      </span>
     </span>
   </a>
   
@@ -6383,9 +6300,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.seam_search.SeamSearcher" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         SeamSearcher
-      
+      </span>
     </span>
   </a>
   
@@ -6395,9 +6312,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.seam_search.SeamSearcher.search" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         search
-      
+      </span>
     </span>
   </a>
   
@@ -6411,9 +6328,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.seam_search.TiltScoreSeamSearcher" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         TiltScoreSeamSearcher
-      
+      </span>
     </span>
   </a>
   
@@ -6423,9 +6340,9 @@
           <li class="md-nav__item">
   <a href="#cylindra.components.seam_search.TiltScoreSeamSearcher.search" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         search
-      
+      </span>
     </span>
   </a>
   
@@ -6439,9 +6356,9 @@
         <li class="md-nav__item">
   <a href="#cylindra.components.seam_search.prep_seam_search_input" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         prep_seam_search_input
-      
+      </span>
     </span>
   </a>
   
@@ -6459,9 +6376,9 @@
             <div class="md-content" data-md-component="content">
               
               <article class="md-content__inner md-typeset">
+                <a id="__skip" tabindex="-1"></a>
                 
                   
-
 
   
   
@@ -6509,7 +6426,7 @@
 
     <div class="doc doc-contents ">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="Spline (cylindra.components.spline._spline_base.Spline)" href="#cylindra.components.spline.Spline">Spline</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="Spline (cylindra.components.spline._spline_base.Spline)" href="./#cylindra.components.spline.Spline">Spline</a></code></p>
 
 
 
@@ -7349,7 +7266,7 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code><a class="autorefs autorefs-internal" title="CylSpline (cylindra.components.spline._cyl_spline.CylSpline)" href="#cylindra.components.spline.CylSpline">CylSpline</a></code>
+                  <code><a class="autorefs autorefs-internal" title="CylSpline (cylindra.components.spline._cyl_spline.CylSpline)" href="./#cylindra.components.spline.CylSpline">CylSpline</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -7647,7 +7564,7 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code><a class="autorefs autorefs-internal" title="CylSpline (cylindra.components.spline._cyl_spline.CylSpline)" href="#cylindra.components.spline.CylSpline">CylSpline</a></code>
+                  <code><a class="autorefs autorefs-internal" title="CylSpline (cylindra.components.spline._cyl_spline.CylSpline)" href="./#cylindra.components.spline.CylSpline">CylSpline</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -7793,7 +7710,7 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code><a class="autorefs autorefs-internal" title="Spline (cylindra.components.spline._spline_base.Spline)" href="#cylindra.components.spline.Spline">Spline</a></code>
+                  <code><a class="autorefs autorefs-internal" title="Spline (cylindra.components.spline._spline_base.Spline)" href="./#cylindra.components.spline.Spline">Spline</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -8053,7 +7970,7 @@ will be inverted, thus the <code>orientation</code> attribute will also be inver
 
     <div class="doc doc-contents ">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="BaseComponent (cylindra.components._base.BaseComponent)" href="#cylindra.components._base.BaseComponent">BaseComponent</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="BaseComponent (cylindra.components._base.BaseComponent)" href="./#cylindra.components._base.BaseComponent">BaseComponent</a></code></p>
 
 
 
@@ -11280,7 +11197,7 @@ and dimensional axis.</p>
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code><a class="autorefs autorefs-internal" title="Spline (cylindra.components.spline._spline_base.Spline)" href="#cylindra.components.spline.Spline">Spline</a></code>
+                  <code><a class="autorefs autorefs-internal" title="Spline (cylindra.components.spline._spline_base.Spline)" href="./#cylindra.components.spline.Spline">Spline</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -11566,7 +11483,7 @@ should be the most natural way to move along the spline.</p>
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code><a class="autorefs autorefs-internal" title="Spline (cylindra.components.spline._spline_base.Spline)" href="#cylindra.components.spline.Spline">Spline</a></code>
+                  <code><a class="autorefs autorefs-internal" title="Spline (cylindra.components.spline._spline_base.Spline)" href="./#cylindra.components.spline.Spline">Spline</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -12644,7 +12561,7 @@ the maximum curvature will be chosen.</p>
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code><a class="autorefs autorefs-internal" title="Spline (cylindra.components.spline._spline_base.Spline)" href="#cylindra.components.spline.Spline">Spline</a></code>
+                  <code><a class="autorefs autorefs-internal" title="Spline (cylindra.components.spline._spline_base.Spline)" href="./#cylindra.components.spline.Spline">Spline</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -12875,7 +12792,7 @@ the maximum curvature will be chosen.</p>
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code><a class="autorefs autorefs-internal" title="Spline (cylindra.components.spline._spline_base.Spline)" href="#cylindra.components.spline.Spline">Spline</a></code>
+                  <code><a class="autorefs autorefs-internal" title="Spline (cylindra.components.spline._spline_base.Spline)" href="./#cylindra.components.spline.Spline">Spline</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -13135,7 +13052,7 @@ the maximum curvature will be chosen.</p>
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code><a class="autorefs autorefs-internal" title="Spline (cylindra.components.spline._spline_base.Spline)" href="#cylindra.components.spline.Spline">Spline</a></code>
+                  <code><a class="autorefs autorefs-internal" title="Spline (cylindra.components.spline._spline_base.Spline)" href="./#cylindra.components.spline.Spline">Spline</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -13344,7 +13261,7 @@ the spline with 'nknots' knots. nknots=256 is large enough for most cases.</p>
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code><a class="autorefs autorefs-internal" title="Spline (cylindra.components.spline._spline_base.Spline)" href="#cylindra.components.spline.Spline">Spline</a></code>
+                  <code><a class="autorefs autorefs-internal" title="Spline (cylindra.components.spline._spline_base.Spline)" href="./#cylindra.components.spline.Spline">Spline</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -14350,7 +14267,7 @@ guaranteed to be larger than spline order.</p>
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code><a class="autorefs autorefs-internal" title="Spline (cylindra.components.spline._spline_base.Spline)" href="#cylindra.components.spline.Spline">Spline</a></code>
+                  <code><a class="autorefs autorefs-internal" title="Spline (cylindra.components.spline._spline_base.Spline)" href="./#cylindra.components.spline.Spline">Spline</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -14430,7 +14347,7 @@ guaranteed to be larger than spline order.</p>
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code><a class="autorefs autorefs-internal" title="Spline (cylindra.components.spline._spline_base.Spline)" href="#cylindra.components.spline.Spline">Spline</a></code>
+                  <code><a class="autorefs autorefs-internal" title="Spline (cylindra.components.spline._spline_base.Spline)" href="./#cylindra.components.spline.Spline">Spline</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -14565,7 +14482,7 @@ guaranteed to be larger than spline order.</p>
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code><a class="autorefs autorefs-internal" title="Spline (cylindra.components.spline._spline_base.Spline)" href="#cylindra.components.spline.Spline">Spline</a></code>
+                  <code><a class="autorefs autorefs-internal" title="Spline (cylindra.components.spline._spline_base.Spline)" href="./#cylindra.components.spline.Spline">Spline</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -15516,7 +15433,7 @@ guaranteed to be larger than spline order.</p>
 
   
       dataclass
-   (cylindra.components.spline._segments.SplineSegment)" href="#cylindra.components.spline.SplineSegment">SplineSegment</a>]</code></p>
+   (cylindra.components.spline._segments.SplineSegment)" href="./#cylindra.components.spline.SplineSegment">SplineSegment</a>]</code></p>
 
 
 
@@ -15710,7 +15627,7 @@ guaranteed to be larger than spline order.</p>
 
     <div class="doc doc-contents ">
             <p class="doc doc-class-bases">
-              Bases: <code><a class="autorefs autorefs-internal" title="Tomogram (cylindra.components.tomogram._tomo_base.Tomogram)" href="#cylindra.components.tomogram.Tomogram">Tomogram</a></code></p>
+              Bases: <code><a class="autorefs autorefs-internal" title="Tomogram (cylindra.components.tomogram._tomo_base.Tomogram)" href="./#cylindra.components.tomogram.Tomogram">Tomogram</a></code></p>
 
 
 
@@ -17133,7 +17050,10 @@ guaranteed to be larger than spline order.</p>
 <span class="normal">1452</span>
 <span class="normal">1453</span>
 <span class="normal">1454</span>
-<span class="normal">1455</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylTomogram</span><span class="p">(</span><span class="n">Tomogram</span><span class="p">):</span>
+<span class="normal">1455</span>
+<span class="normal">1456</span>
+<span class="normal">1457</span>
+<span class="normal">1458</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylTomogram</span><span class="p">(</span><span class="n">Tomogram</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Tomogram with cylindrical splines."""</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -17976,6 +17896,7 @@ guaranteed to be larger than spline order.</p>
         <span class="n">binsize</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
         <span class="n">nsamples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span><span class="p">,</span>
         <span class="n">update</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">npf_prior_mean_sd</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pl</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Calculate global lattice parameters.</span>
 
@@ -18008,7 +17929,9 @@ guaranteed to be larger than spline order.</p>
         <span class="n">img_st</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">straighten_cylindric</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">radii</span><span class="o">=</span><span class="p">(</span><span class="n">rmin</span><span class="p">,</span> <span class="n">rmax</span><span class="p">),</span> <span class="n">binsize</span><span class="o">=</span><span class="n">binsize</span><span class="p">)</span>
         <span class="n">rc</span> <span class="o">=</span> <span class="p">(</span><span class="n">rmin</span> <span class="o">+</span> <span class="n">rmax</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
         <span class="n">analyzer</span> <span class="o">=</span> <span class="n">LatticeAnalyzer</span><span class="p">(</span><span class="n">spl</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
-        <span class="n">lparams</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">estimate_lattice_params_polar</span><span class="p">(</span><span class="n">img_st</span><span class="p">,</span> <span class="n">rc</span><span class="p">,</span> <span class="n">nsamples</span><span class="o">=</span><span class="n">nsamples</span><span class="p">)</span>
+        <span class="n">lparams</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">estimate_lattice_params_polar</span><span class="p">(</span>
+            <span class="n">img_st</span><span class="p">,</span> <span class="n">rc</span><span class="p">,</span> <span class="n">nsamples</span><span class="o">=</span><span class="n">nsamples</span><span class="p">,</span> <span class="n">npf_prior_mean_sd</span><span class="o">=</span><span class="n">npf_prior_mean_sd</span>
+        <span class="p">)</span>  <span class="c1"># fmt: skip</span>
         <span class="n">out</span> <span class="o">=</span> <span class="n">lparams</span><span class="o">.</span><span class="n">to_polars</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">update</span><span class="p">:</span>
             <span class="n">spl</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">update_glob</span><span class="p">(</span><span class="n">spl</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">glob</span><span class="o">.</span><span class="n">with_columns</span><span class="p">(</span><span class="n">out</span><span class="p">),</span> <span class="n">bin_size</span><span class="o">=</span><span class="n">binsize</span><span class="p">)</span>
@@ -18663,7 +18586,7 @@ guaranteed to be larger than spline order.</p>
 
   
       dataclass
-   (cylindra.components.spline.SplineConfig)" href="#cylindra.components.spline.SplineConfig">SplineConfig</a> or <a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/stdtypes.html#dict">dict</a></code>
+   (cylindra.components.spline.SplineConfig)" href="./#cylindra.components.spline.SplineConfig">SplineConfig</a> or <a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/stdtypes.html#dict">dict</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -18982,10 +18905,7 @@ inputs, unlike FFT. Larger <code>nsamples</code> reduces the error but is slower
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1072</span>
-<span class="normal">1073</span>
-<span class="normal">1074</span>
-<span class="normal">1075</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1075</span>
 <span class="normal">1076</span>
 <span class="normal">1077</span>
 <span class="normal">1078</span>
@@ -19011,7 +18931,10 @@ inputs, unlike FFT. Larger <code>nsamples</code> reduces the error but is slower
 <span class="normal">1098</span>
 <span class="normal">1099</span>
 <span class="normal">1100</span>
-<span class="normal">1101</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
+<span class="normal">1101</span>
+<span class="normal">1102</span>
+<span class="normal">1103</span>
+<span class="normal">1104</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">check_handedness</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -19523,10 +19446,7 @@ cross correlation.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1263</span>
-<span class="normal">1264</span>
-<span class="normal">1265</span>
-<span class="normal">1266</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1266</span>
 <span class="normal">1267</span>
 <span class="normal">1268</span>
 <span class="normal">1269</span>
@@ -19564,7 +19484,10 @@ cross correlation.</p>
 <span class="normal">1301</span>
 <span class="normal">1302</span>
 <span class="normal">1303</span>
-<span class="normal">1304</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_cylinder_model</span><span class="p">(</span>
+<span class="normal">1304</span>
+<span class="normal">1305</span>
+<span class="normal">1306</span>
+<span class="normal">1307</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_cylinder_model</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="n">offsets</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
@@ -19698,10 +19621,7 @@ cross correlation.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">959</span>
-<span class="normal">960</span>
-<span class="normal">961</span>
-<span class="normal">962</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">962</span>
 <span class="normal">963</span>
 <span class="normal">964</span>
 <span class="normal">965</span>
@@ -19716,7 +19636,10 @@ cross correlation.</p>
 <span class="normal">974</span>
 <span class="normal">975</span>
 <span class="normal">976</span>
-<span class="normal">977</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
+<span class="normal">977</span>
+<span class="normal">978</span>
+<span class="normal">979</span>
+<span class="normal">980</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">global_cft</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">binsize</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ip</span><span class="o">.</span><span class="n">ImgArray</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Calculate global cylindrical fast Fourier tranformation.</span>
 
@@ -19745,7 +19668,7 @@ cross correlation.</p>
 
 
 <h4 id="cylindra.components.tomogram.CylTomogram.global_cft_params" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">global_cft_params</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">i</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">binsize</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">nsamples</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">global_cft_params</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">i</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">binsize</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">nsamples</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">npf_prior_mean_sd</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 </h4>
 
@@ -19909,7 +19832,10 @@ inputs, unlike FFT. Larger <code>nsamples</code> reduces the error but is slower
 <span class="normal">923</span>
 <span class="normal">924</span>
 <span class="normal">925</span>
-<span class="normal">926</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
+<span class="normal">926</span>
+<span class="normal">927</span>
+<span class="normal">928</span>
+<span class="normal">929</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">global_cft_params</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
@@ -19917,6 +19843,7 @@ inputs, unlike FFT. Larger <code>nsamples</code> reduces the error but is slower
     <span class="n">binsize</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
     <span class="n">nsamples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span><span class="p">,</span>
     <span class="n">update</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">npf_prior_mean_sd</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pl</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Calculate global lattice parameters.</span>
 
@@ -19949,7 +19876,9 @@ inputs, unlike FFT. Larger <code>nsamples</code> reduces the error but is slower
     <span class="n">img_st</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">straighten_cylindric</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">radii</span><span class="o">=</span><span class="p">(</span><span class="n">rmin</span><span class="p">,</span> <span class="n">rmax</span><span class="p">),</span> <span class="n">binsize</span><span class="o">=</span><span class="n">binsize</span><span class="p">)</span>
     <span class="n">rc</span> <span class="o">=</span> <span class="p">(</span><span class="n">rmin</span> <span class="o">+</span> <span class="n">rmax</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
     <span class="n">analyzer</span> <span class="o">=</span> <span class="n">LatticeAnalyzer</span><span class="p">(</span><span class="n">spl</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
-    <span class="n">lparams</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">estimate_lattice_params_polar</span><span class="p">(</span><span class="n">img_st</span><span class="p">,</span> <span class="n">rc</span><span class="p">,</span> <span class="n">nsamples</span><span class="o">=</span><span class="n">nsamples</span><span class="p">)</span>
+    <span class="n">lparams</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">estimate_lattice_params_polar</span><span class="p">(</span>
+        <span class="n">img_st</span><span class="p">,</span> <span class="n">rc</span><span class="p">,</span> <span class="n">nsamples</span><span class="o">=</span><span class="n">nsamples</span><span class="p">,</span> <span class="n">npf_prior_mean_sd</span><span class="o">=</span><span class="n">npf_prior_mean_sd</span>
+    <span class="p">)</span>  <span class="c1"># fmt: skip</span>
     <span class="n">out</span> <span class="o">=</span> <span class="n">lparams</span><span class="o">.</span><span class="n">to_polars</span><span class="p">()</span>
     <span class="k">if</span> <span class="n">update</span><span class="p">:</span>
         <span class="n">spl</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">update_glob</span><span class="p">(</span><span class="n">spl</span><span class="o">.</span><span class="n">props</span><span class="o">.</span><span class="n">glob</span><span class="o">.</span><span class="n">with_columns</span><span class="p">(</span><span class="n">out</span><span class="p">),</span> <span class="n">bin_size</span><span class="o">=</span><span class="n">binsize</span><span class="p">)</span>
@@ -20342,10 +20271,7 @@ will be equally spaced along the spline from the center.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1013</span>
-<span class="normal">1014</span>
-<span class="normal">1015</span>
-<span class="normal">1016</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1016</span>
 <span class="normal">1017</span>
 <span class="normal">1018</span>
 <span class="normal">1019</span>
@@ -20399,7 +20325,10 @@ will be equally spaced along the spline from the center.</p>
 <span class="normal">1067</span>
 <span class="normal">1068</span>
 <span class="normal">1069</span>
-<span class="normal">1070</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
+<span class="normal">1070</span>
+<span class="normal">1071</span>
+<span class="normal">1072</span>
+<span class="normal">1073</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">infer_polarity</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -21930,10 +21859,7 @@ radii.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1177</span>
-<span class="normal">1178</span>
-<span class="normal">1179</span>
-<span class="normal">1180</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1180</span>
 <span class="normal">1181</span>
 <span class="normal">1182</span>
 <span class="normal">1183</span>
@@ -21981,7 +21907,10 @@ radii.</p>
 <span class="normal">1225</span>
 <span class="normal">1226</span>
 <span class="normal">1227</span>
-<span class="normal">1228</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
+<span class="normal">1228</span>
+<span class="normal">1229</span>
+<span class="normal">1230</span>
+<span class="normal">1231</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">map_centers</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -22125,10 +22054,7 @@ radii.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1230</span>
-<span class="normal">1231</span>
-<span class="normal">1232</span>
-<span class="normal">1233</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1233</span>
 <span class="normal">1234</span>
 <span class="normal">1235</span>
 <span class="normal">1236</span>
@@ -22156,7 +22082,10 @@ radii.</p>
 <span class="normal">1258</span>
 <span class="normal">1259</span>
 <span class="normal">1260</span>
-<span class="normal">1261</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
+<span class="normal">1261</span>
+<span class="normal">1262</span>
+<span class="normal">1263</span>
+<span class="normal">1264</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">map_centers_helical_symmetry</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -22328,10 +22257,7 @@ radii.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1306</span>
-<span class="normal">1307</span>
-<span class="normal">1308</span>
-<span class="normal">1309</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1309</span>
 <span class="normal">1310</span>
 <span class="normal">1311</span>
 <span class="normal">1312</span>
@@ -22376,7 +22302,10 @@ radii.</p>
 <span class="normal">1351</span>
 <span class="normal">1352</span>
 <span class="normal">1353</span>
-<span class="normal">1354</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
+<span class="normal">1354</span>
+<span class="normal">1355</span>
+<span class="normal">1356</span>
+<span class="normal">1357</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">map_monomers</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -22549,10 +22478,7 @@ radii.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1356</span>
-<span class="normal">1357</span>
-<span class="normal">1358</span>
-<span class="normal">1359</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1359</span>
 <span class="normal">1360</span>
 <span class="normal">1361</span>
 <span class="normal">1362</span>
@@ -22583,7 +22509,10 @@ radii.</p>
 <span class="normal">1387</span>
 <span class="normal">1388</span>
 <span class="normal">1389</span>
-<span class="normal">1390</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
+<span class="normal">1390</span>
+<span class="normal">1391</span>
+<span class="normal">1392</span>
+<span class="normal">1393</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">map_on_grid</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -22713,10 +22642,7 @@ microtubule.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1392</span>
-<span class="normal">1393</span>
-<span class="normal">1394</span>
-<span class="normal">1395</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1395</span>
 <span class="normal">1396</span>
 <span class="normal">1397</span>
 <span class="normal">1398</span>
@@ -22755,7 +22681,10 @@ microtubule.</p>
 <span class="normal">1431</span>
 <span class="normal">1432</span>
 <span class="normal">1433</span>
-<span class="normal">1434</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
+<span class="normal">1434</span>
+<span class="normal">1435</span>
+<span class="normal">1436</span>
+<span class="normal">1437</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">map_pf_line</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -23646,10 +23575,7 @@ afterward, to avoid loading entire image into memory.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1103</span>
-<span class="normal">1104</span>
-<span class="normal">1105</span>
-<span class="normal">1106</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1106</span>
 <span class="normal">1107</span>
 <span class="normal">1108</span>
 <span class="normal">1109</span>
@@ -23681,7 +23607,10 @@ afterward, to avoid loading entire image into memory.</p>
 <span class="normal">1135</span>
 <span class="normal">1136</span>
 <span class="normal">1137</span>
-<span class="normal">1138</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
+<span class="normal">1138</span>
+<span class="normal">1139</span>
+<span class="normal">1140</span>
+<span class="normal">1141</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">straighten</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -23859,10 +23788,7 @@ afterward, to avoid loading entire image into memory.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/components/tomogram/_cyl_tomo.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1140</span>
-<span class="normal">1141</span>
-<span class="normal">1142</span>
-<span class="normal">1143</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1143</span>
 <span class="normal">1144</span>
 <span class="normal">1145</span>
 <span class="normal">1146</span>
@@ -23894,7 +23820,10 @@ afterward, to avoid loading entire image into memory.</p>
 <span class="normal">1172</span>
 <span class="normal">1173</span>
 <span class="normal">1174</span>
-<span class="normal">1175</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
+<span class="normal">1175</span>
+<span class="normal">1176</span>
+<span class="normal">1177</span>
+<span class="normal">1178</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@_misc</span><span class="o">.</span><span class="n">batch_process</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">straighten_cylindric</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">i</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -26024,7 +25953,7 @@ subtomogram cache will automatically deleted from the old ones.</p>
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code><a class="autorefs autorefs-internal" title="Tomogram (cylindra.components.tomogram._tomo_base.Tomogram)" href="#cylindra.components.tomogram.Tomogram">Tomogram</a></code>
+                  <code><a class="autorefs autorefs-internal" title="Tomogram (cylindra.components.tomogram._tomo_base.Tomogram)" href="./#cylindra.components.tomogram.Tomogram">Tomogram</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -26556,7 +26485,7 @@ default, it is determined from the shape of the reference tomogram.</p>
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code><a class="autorefs autorefs-internal" title="Tomogram (cylindra.components.tomogram._tomo_base.Tomogram)" href="#cylindra.components.tomogram.Tomogram">Tomogram</a></code>
+                  <code><a class="autorefs autorefs-internal" title="Tomogram (cylindra.components.tomogram._tomo_base.Tomogram)" href="./#cylindra.components.tomogram.Tomogram">Tomogram</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -27103,7 +27032,7 @@ into the memory.</p>
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code><a class="autorefs autorefs-internal" title="Tomogram (cylindra.components.tomogram._tomo_base.Tomogram)" href="#cylindra.components.tomogram.Tomogram">Tomogram</a></code>
+                  <code><a class="autorefs autorefs-internal" title="Tomogram (cylindra.components.tomogram._tomo_base.Tomogram)" href="./#cylindra.components.tomogram.Tomogram">Tomogram</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -27799,7 +27728,7 @@ demand. The reference tomogram for visualization is not updated.</p>
       <tbody>
           <tr class="doc-section-item">
             <td>
-                  <code><a class="autorefs autorefs-internal" title="BaseComponent (cylindra.components._base.BaseComponent)" href="#cylindra.components._base.BaseComponent">BaseComponent</a></code>
+                  <code><a class="autorefs autorefs-internal" title="BaseComponent (cylindra.components._base.BaseComponent)" href="./#cylindra.components._base.BaseComponent">BaseComponent</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -33502,6 +33431,8 @@ defocus of each molecule in each tilt.</p>
 
 
 
+
+
                 
               </article>
             </div>
@@ -33564,8 +33495,8 @@ defocus of each molecule in each tilt.</p>
   
   
     Made with
-    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
-      Material for MkDocs
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
     </a>
   
 </div>
@@ -33575,7 +33506,7 @@ defocus of each molecule in each tilt.</p>
 </footer>
       
     </div>
-    <div class="md-dialog" data-md-component="dialog">
+    <div class="md-dialog" data-md-component="dialog" role="status" aria-atomic="true">
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
@@ -33583,10 +33514,14 @@ defocus of each molecule in each tilt.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.annotate", "content.code.copy", "navigation.sections", "navigation.indexes", "navigation.footer", "toc.follow", "search.suggest", "search.share"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      
+      
+        
+        
+      <script id="__config" type="application/json">{"annotate":null,"base":"../..","features":["content.code.annotate","content.code.copy","navigation.sections","navigation.indexes","navigation.footer","toc.follow","search.suggest","search.share"],"redirect":null,"search":"../../assets/javascripts/workers/search.719e0d91.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","clipboard.error":"Could not copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d31f0ffa.min.js"></script>
       
         <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
       

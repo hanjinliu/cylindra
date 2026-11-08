@@ -11,6 +11,7 @@
       
       
       
+      
         <link rel="prev" href="../average/">
       
       
@@ -21,7 +22,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
+      <meta name="generator" content="zensical-0.1.0">
     
     
       
@@ -29,10 +30,15 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      <link rel="stylesheet" href="../../assets/stylesheets/classic/main.94dd801d.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/classic/palette.813d4b3f.min.css">
       
       
 
@@ -46,16 +52,14 @@
         
         
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,500,500i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback">
         <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
       
     
     
-      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
-    
       <link rel="stylesheet" href="../../extra_style.css">
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
     
       
 
@@ -76,14 +80,11 @@
     
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
-    <label class="md-overlay" for="__drawer"></label>
+    <label class="md-overlay" for="__drawer" aria-hidden="true"></label>
     <div data-md-component="skip">
-      
-        
-        <a href="#post-processing" class="md-skip">
-          Skip to content
-        </a>
-      
+      <a href="#__skip" class="md-skip">
+        Skip to content
+      </a>
     </div>
     <div data-md-component="announce">
       
@@ -105,6 +106,7 @@
     <label class="md-header__button md-icon" for="__drawer">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+      <span class="md-visually-hidden">Navigation</span>
     </label>
     <div class="md-header__title" data-md-component="header-title">
       <div class="md-header__ellipsis">
@@ -129,7 +131,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="lime" data-md-color-accent="light-green"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="lime" data-md-color-accent="light-green"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
     
       <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -139,7 +141,7 @@
     
     
     
-    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="lime" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="lime" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
     
       <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
@@ -159,61 +161,28 @@
         <label class="md-header__button md-icon" for="__search">
           
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+          <span class="md-visually-hidden">Search</span>
         </label>
-        <div class="md-search" data-md-component="search" role="dialog">
-  <label class="md-search__overlay" for="__search"></label>
-  <div class="md-search__inner" role="search">
-    <form class="md-search__form" name="search">
-      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
-      <label class="md-search__icon md-icon" for="__search">
-        
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
-        
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
-      </label>
-      <nav class="md-search__options" aria-label="Search">
-        
-          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
-            
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
-          </a>
-        
-        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
-          
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-        </button>
-      </nav>
-      
-        <div class="md-search__suggest" data-md-component="search-suggest"></div>
-      
-    </form>
-    <div class="md-search__output">
-      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
-        <div class="md-search-result" data-md-component="search-result">
-          <div class="md-search-result__meta">
-            Initializing search
-          </div>
-          <ol class="md-search-result__list" role="presentation"></ol>
-        </div>
-      </div>
-    </div>
-  </div>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
 </div>
       
     
-    
-      <div class="md-header__source">
+    <div class="md-header__source">
+      
         <a href="https://github.com/hanjinliu/cylindra" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
     cylindra
   </div>
 </a>
-      </div>
-    
+      
+    </div>
   </nav>
   
 </header>
@@ -252,7 +221,7 @@
       <a href="https://github.com/hanjinliu/cylindra" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
     cylindra
@@ -276,8 +245,7 @@
   <span class="md-ellipsis">
     
   
-    Overview
-  
+  Overview
 
     
   </span>
@@ -303,8 +271,7 @@
   <span class="md-ellipsis">
     
   
-    Installation
-  
+  Installation
 
     
   </span>
@@ -330,8 +297,7 @@
   <span class="md-ellipsis">
     
   
-    Basics
-  
+  Basics
 
     
   </span>
@@ -409,8 +375,7 @@
   <span class="md-ellipsis">
     
   
-    Usage
-  
+  Usage
 
     
   </span>
@@ -420,19 +385,19 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_4">
-            <span class="md-nav__icon md-icon"></span>
-            
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+            <label class="md-nav__title" for="__nav_4">
+              <span class="md-nav__icon md-icon"></span>
+              
   
-    Usage
-  
+  Usage
 
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+                  
   
   
   
@@ -445,8 +410,7 @@
   <span class="md-ellipsis">
     
   
-    Start Cylindra
-  
+  Start Cylindra
 
     
   </span>
@@ -457,10 +421,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -473,8 +437,7 @@
   <span class="md-ellipsis">
     
   
-    Fit Splines
-  
+  Fit Splines
 
     
   </span>
@@ -485,10 +448,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -501,8 +464,7 @@
   <span class="md-ellipsis">
     
   
-    Measure Lattice Parameters
-  
+  Measure Lattice Parameters
 
     
   </span>
@@ -513,10 +475,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -529,8 +491,7 @@
   <span class="md-ellipsis">
     
   
-    Inspect CFT Results
-  
+  Inspect CFT Results
 
     
   </span>
@@ -541,10 +502,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -557,8 +518,7 @@
   <span class="md-ellipsis">
     
   
-    Load &amp; Save Projects
-  
+  Load &amp; Save Projects
 
     
   </span>
@@ -569,10 +529,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -585,8 +545,7 @@
   <span class="md-ellipsis">
     
   
-    Custom Workflows
-  
+  Custom Workflows
 
     
   </span>
@@ -597,10 +556,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -641,8 +600,7 @@
   <span class="md-ellipsis">
     
   
-    Spline
-  
+  Spline
 
     
   </span>
@@ -658,21 +616,21 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4_7">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Spline
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_7_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4_7">
+              <span class="md-nav__icon md-icon"></span>
               
-            
+  
+  Spline
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+              
+                
+                  
   
   
   
@@ -685,8 +643,7 @@
   <span class="md-ellipsis">
     
   
-    Clip and Invert Splines
-  
+  Clip and Invert Splines
 
     
   </span>
@@ -697,10 +654,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -713,8 +670,7 @@
   <span class="md-ellipsis">
     
   
-    Spline Configurations
-  
+  Spline Configurations
 
     
   </span>
@@ -725,10 +681,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -741,8 +697,7 @@
   <span class="md-ellipsis">
     
   
-    Annotate Segments on Splines
-  
+  Annotate Segments on Splines
 
     
   </span>
@@ -753,10 +708,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -769,8 +724,7 @@
   <span class="md-ellipsis">
     
   
-    Spline 3D interactivity
-  
+  Spline 3D interactivity
 
     
   </span>
@@ -781,18 +735,19 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -841,8 +796,7 @@
   <span class="md-ellipsis">
     
   
-    Molecules
-  
+  Molecules
 
     
   </span>
@@ -858,21 +812,21 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_8_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4_8">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Molecules
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_8_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4_8">
+              <span class="md-nav__icon md-icon"></span>
               
-            
+  
+  Molecules
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+              
+                
+                  
   
   
   
@@ -885,8 +839,7 @@
   <span class="md-ellipsis">
     
   
-    Pick Molecules
-  
+  Pick Molecules
 
     
   </span>
@@ -897,10 +850,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -913,8 +866,7 @@
   <span class="md-ellipsis">
     
   
-    Spline to Molecules
-  
+  Spline to Molecules
 
     
   </span>
@@ -925,10 +877,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -941,8 +893,7 @@
   <span class="md-ellipsis">
     
   
-    Molecule Features
-  
+  Molecule Features
 
     
   </span>
@@ -953,10 +904,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -969,8 +920,7 @@
   <span class="md-ellipsis">
     
   
-    The "Expressions"
-  
+  The "Expressions"
 
     
   </span>
@@ -981,10 +931,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -997,8 +947,7 @@
   <span class="md-ellipsis">
     
   
-    Split &amp; Combine Molecules
-  
+  Split &amp; Combine Molecules
 
     
   </span>
@@ -1009,10 +958,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1025,8 +974,7 @@
   <span class="md-ellipsis">
     
   
-    Filter Molecules by Features
-  
+  Filter Molecules by Features
 
     
   </span>
@@ -1037,10 +985,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1053,8 +1001,7 @@
   <span class="md-ellipsis">
     
   
-    Transform Molecules
-  
+  Transform Molecules
 
     
   </span>
@@ -1065,10 +1012,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1081,8 +1028,7 @@
   <span class="md-ellipsis">
     
   
-    Feature Names
-  
+  Feature Names
 
     
   </span>
@@ -1093,18 +1039,19 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1147,8 +1094,7 @@
   <span class="md-ellipsis">
     
   
-    Alignment
-  
+  Alignment
 
     
   </span>
@@ -1164,21 +1110,21 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_9_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4_9">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Alignment
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_9_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4_9">
+              <span class="md-nav__icon md-icon"></span>
               
-            
+  
+  Alignment
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+              
+                
+                  
   
   
   
@@ -1191,8 +1137,7 @@
   <span class="md-ellipsis">
     
   
-    Conventional Methods in Cryo-ET Studies
-  
+  Conventional Methods in Cryo-ET Studies
 
     
   </span>
@@ -1203,10 +1148,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1219,8 +1164,7 @@
   <span class="md-ellipsis">
     
   
-    Build Correlation Landscapes
-  
+  Build Correlation Landscapes
 
     
   </span>
@@ -1231,10 +1175,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1247,8 +1191,7 @@
   <span class="md-ellipsis">
     
   
-    Viterbi Alignment
-  
+  Viterbi Alignment
 
     
   </span>
@@ -1259,10 +1202,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1275,8 +1218,7 @@
   <span class="md-ellipsis">
     
   
-    Restricted Mesh Annealing (RMA)
-  
+  Restricted Mesh Annealing (RMA)
 
     
   </span>
@@ -1287,10 +1229,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1303,8 +1245,7 @@
   <span class="md-ellipsis">
     
   
-    Refinement on Tilt Series
-  
+  Refinement on Tilt Series
 
     
   </span>
@@ -1315,18 +1256,19 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
     
@@ -1369,8 +1311,7 @@
   <span class="md-ellipsis">
     
   
-    Working with Many Projects
-  
+  Working with Many Projects
 
     
   </span>
@@ -1386,21 +1327,21 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_10_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_4_10">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Working with Many Projects
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_10_label" aria-expanded="true">
+            <label class="md-nav__title" for="__nav_4_10">
+              <span class="md-nav__icon md-icon"></span>
               
-            
+  
+  Working with Many Projects
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+              
+                
+                  
   
   
   
@@ -1413,8 +1354,7 @@
   <span class="md-ellipsis">
     
   
-    Prepare Batch Projects
-  
+  Prepare Batch Projects
 
     
   </span>
@@ -1425,10 +1365,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1441,8 +1381,7 @@
   <span class="md-ellipsis">
     
   
-    Construct Batch Loaders
-  
+  Construct Batch Loaders
 
     
   </span>
@@ -1453,10 +1392,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1469,8 +1408,7 @@
   <span class="md-ellipsis">
     
   
-    Average Across Projects
-  
+  Average Across Projects
 
     
   </span>
@@ -1481,10 +1419,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
     
@@ -1493,7 +1431,9 @@
   
     <li class="md-nav__item md-nav__item--active">
       
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+        <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
       
       
         
@@ -1506,8 +1446,7 @@
   <span class="md-ellipsis">
     
   
-    Post-processing
-  
+  Post-processing
 
     
   </span>
@@ -1517,15 +1456,14 @@
           <span class="md-nav__icon md-icon"></span>
         </label>
       
-      <a href="./" class="md-nav__link md-nav__link--active">
+      <a href="././" class="md-nav__link md-nav__link--active">
         
   
   
   <span class="md-ellipsis">
     
   
-    Post-processing
-  
+  Post-processing
 
     
   </span>
@@ -1536,7 +1474,8 @@
       
         
 
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
   
   
   
@@ -1545,16 +1484,16 @@
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
-      Table of contents
+      On this page
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
   <a href="#collect-spline-properties" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Collect Spline Properties
-      
+      </span>
     </span>
   </a>
   
@@ -1564,9 +1503,9 @@
           <li class="md-nav__item">
   <a href="#collect_localprops" class="md-nav__link">
     <span class="md-ellipsis">
-      
-        collect_localprops
-      
+      <span class="md-typeset">
+        <code>collect_localprops</code>
+      </span>
     </span>
   </a>
   
@@ -1575,9 +1514,9 @@
           <li class="md-nav__item">
   <a href="#collect_globalprops" class="md-nav__link">
     <span class="md-ellipsis">
-      
-        collect_globalprops
-      
+      <span class="md-typeset">
+        <code>collect_globalprops</code>
+      </span>
     </span>
   </a>
   
@@ -1586,9 +1525,9 @@
           <li class="md-nav__item">
   <a href="#collect_joinedprops" class="md-nav__link">
     <span class="md-ellipsis">
-      
-        collect_joinedprops
-      
+      <span class="md-typeset">
+        <code>collect_joinedprops</code>
+      </span>
     </span>
   </a>
   
@@ -1606,18 +1545,19 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1654,8 +1594,7 @@
   <span class="md-ellipsis">
     
   
-    Working with External Softwares
-  
+  Working with External Softwares
 
     
   </span>
@@ -1671,21 +1610,21 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_11_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4_11">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Working with External Softwares
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_11_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4_11">
+              <span class="md-nav__icon md-icon"></span>
               
-            
+  
+  Working with External Softwares
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+              
+                
+                  
   
   
   
@@ -1698,8 +1637,7 @@
   <span class="md-ellipsis">
     
   
-    IMOD
-  
+  IMOD
 
     
   </span>
@@ -1710,10 +1648,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1726,8 +1664,7 @@
   <span class="md-ellipsis">
     
   
-    RELION
-  
+  RELION
 
     
   </span>
@@ -1738,18 +1675,19 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1762,8 +1700,7 @@
   <span class="md-ellipsis">
     
   
-    Process Images
-  
+  Process Images
 
     
   </span>
@@ -1774,10 +1711,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1790,8 +1727,7 @@
   <span class="md-ellipsis">
     
   
-    Simulate Tomograms
-  
+  Simulate Tomograms
 
     
   </span>
@@ -1802,10 +1738,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1818,8 +1754,7 @@
   <span class="md-ellipsis">
     
   
-    CLI Usage
-  
+  CLI Usage
 
     
   </span>
@@ -1830,10 +1765,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1846,8 +1781,7 @@
   <span class="md-ellipsis">
     
   
-    The Plugin System
-  
+  The Plugin System
 
     
   </span>
@@ -1858,10 +1792,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1908,8 +1842,7 @@
   <span class="md-ellipsis">
     
   
-    Case Studies
-  
+  Case Studies
 
     
   </span>
@@ -1925,21 +1858,21 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_16_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4_16">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Case Studies
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_16_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4_16">
+              <span class="md-nav__icon md-icon"></span>
               
-            
+  
+  Case Studies
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+              
+                
+                  
   
   
   
@@ -1952,8 +1885,7 @@
   <span class="md-ellipsis">
     
   
-    Analyzing Microtubule Local Structures with RMA
-  
+  Analyzing Microtubule Local Structures with RMA
 
     
   </span>
@@ -1964,10 +1896,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -1980,8 +1912,7 @@
   <span class="md-ellipsis">
     
   
-    Microtubule Seam-search
-  
+  Microtubule Seam-search
 
     
   </span>
@@ -1992,10 +1923,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2008,8 +1939,7 @@
   <span class="md-ellipsis">
     
   
-    Segmented Subtomogram Averaging (SSTA)
-  
+  Segmented Subtomogram Averaging (SSTA)
 
     
   </span>
@@ -2020,10 +1950,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2036,8 +1966,7 @@
   <span class="md-ellipsis">
     
   
-    Prepare Spline Configuration for Your Structure of Interest
-  
+  Prepare Spline Configuration for Your Structure of Interest
 
     
   </span>
@@ -2048,10 +1977,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2064,8 +1993,7 @@
   <span class="md-ellipsis">
     
   
-    Learning CFT
-  
+  Learning CFT
 
     
   </span>
@@ -2076,10 +2004,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2092,8 +2020,7 @@
   <span class="md-ellipsis">
     
   
-    Microtubule for Figures
-  
+  Microtubule for Figures
 
     
   </span>
@@ -2104,10 +2031,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2120,8 +2047,7 @@
   <span class="md-ellipsis">
     
   
-    Checking Tomogram Handedness
-  
+  Checking Tomogram Handedness
 
     
   </span>
@@ -2132,18 +2058,20 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
@@ -2202,8 +2130,7 @@
   <span class="md-ellipsis">
     
   
-    API References
-  
+  API References
 
     
   </span>
@@ -2219,21 +2146,21 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    API References
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_5">
+              <span class="md-nav__icon md-icon"></span>
               
-            
+  
+  API References
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+              
+                
+                  
   
   
   
@@ -2246,8 +2173,7 @@
   <span class="md-ellipsis">
     
   
-    cylindra.components
-  
+  cylindra.components
 
     
   </span>
@@ -2258,10 +2184,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2274,8 +2200,7 @@
   <span class="md-ellipsis">
     
   
-    cylindra.core
-  
+  cylindra.core
 
     
   </span>
@@ -2286,10 +2211,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2302,8 +2227,7 @@
   <span class="md-ellipsis">
     
   
-    cylindra.project
-  
+  cylindra.project
 
     
   </span>
@@ -2314,10 +2238,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2330,8 +2254,7 @@
   <span class="md-ellipsis">
     
   
-    cylindra.cylmeasure
-  
+  cylindra.cylmeasure
 
     
   </span>
@@ -2342,10 +2265,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2358,8 +2281,7 @@
   <span class="md-ellipsis">
     
   
-    cylindra.cylfilters
-  
+  cylindra.cylfilters
 
     
   </span>
@@ -2370,10 +2292,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2386,8 +2308,7 @@
   <span class="md-ellipsis">
     
   
-    cylindra.plugin
-  
+  cylindra.plugin
 
     
   </span>
@@ -2398,10 +2319,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2437,8 +2358,7 @@
   <span class="md-ellipsis">
     
   
-    Widgets
-  
+  Widgets
 
     
   </span>
@@ -2448,19 +2368,19 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_8_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_8">
-            <span class="md-nav__icon md-icon"></span>
-            
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_8_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_5_8">
+              <span class="md-nav__icon md-icon"></span>
+              
   
-    Widgets
-  
+  Widgets
 
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+                  
   
   
   
@@ -2473,8 +2393,7 @@
   <span class="md-ellipsis">
     
   
-    cylindra.widgets.main.CylindraMainWidget
-  
+  cylindra.widgets.main.CylindraMainWidget
 
     
   </span>
@@ -2485,10 +2404,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2501,8 +2420,7 @@
   <span class="md-ellipsis">
     
   
-    cylindra.widgets.sta.SubtomogramAveraging
-  
+  cylindra.widgets.sta.SubtomogramAveraging
 
     
   </span>
@@ -2513,10 +2431,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2529,8 +2447,7 @@
   <span class="md-ellipsis">
     
   
-    cylindra.widgets.subwidgets
-  
+  cylindra.widgets.subwidgets
 
     
   </span>
@@ -2541,10 +2458,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2557,8 +2474,7 @@
   <span class="md-ellipsis">
     
   
-    cylindra.widgets.batch
-  
+  cylindra.widgets.batch
 
     
   </span>
@@ -2569,18 +2485,19 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2614,8 +2531,7 @@
   <span class="md-ellipsis">
     
   
-    Builtin Plugins
-  
+  Builtin Plugins
 
     
   </span>
@@ -2625,19 +2541,19 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_9_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5_9">
-            <span class="md-nav__icon md-icon"></span>
-            
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_9_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_5_9">
+              <span class="md-nav__icon md-icon"></span>
+              
   
-    Builtin Plugins
-  
+  Builtin Plugins
 
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+                  
   
   
   
@@ -2650,8 +2566,7 @@
   <span class="md-ellipsis">
     
   
-    cylindra_builtins.fetch
-  
+  cylindra_builtins.fetch
 
     
   </span>
@@ -2662,10 +2577,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2678,8 +2593,7 @@
   <span class="md-ellipsis">
     
   
-    cylindra_builtins.imod
-  
+  cylindra_builtins.imod
 
     
   </span>
@@ -2690,10 +2604,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -2706,8 +2620,7 @@
   <span class="md-ellipsis">
     
   
-    cylindra_builtins.relion
-  
+  cylindra_builtins.relion
 
     
   </span>
@@ -2718,18 +2631,20 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
@@ -2745,10 +2660,12 @@
               
               <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
                 <div class="md-sidebar__scrollwrap">
+                  
                   <div class="md-sidebar__inner">
                     
 
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
   
   
   
@@ -2757,16 +2674,16 @@
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
-      Table of contents
+      On this page
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
   <a href="#collect-spline-properties" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Collect Spline Properties
-      
+      </span>
     </span>
   </a>
   
@@ -2776,9 +2693,9 @@
           <li class="md-nav__item">
   <a href="#collect_localprops" class="md-nav__link">
     <span class="md-ellipsis">
-      
-        collect_localprops
-      
+      <span class="md-typeset">
+        <code>collect_localprops</code>
+      </span>
     </span>
   </a>
   
@@ -2787,9 +2704,9 @@
           <li class="md-nav__item">
   <a href="#collect_globalprops" class="md-nav__link">
     <span class="md-ellipsis">
-      
-        collect_globalprops
-      
+      <span class="md-typeset">
+        <code>collect_globalprops</code>
+      </span>
     </span>
   </a>
   
@@ -2798,9 +2715,9 @@
           <li class="md-nav__item">
   <a href="#collect_joinedprops" class="md-nav__link">
     <span class="md-ellipsis">
-      
-        collect_joinedprops
-      
+      <span class="md-typeset">
+        <code>collect_joinedprops</code>
+      </span>
     </span>
   </a>
   
@@ -2823,9 +2740,9 @@
             <div class="md-content" data-md-component="content">
               
               <article class="md-content__inner md-typeset">
+                <a id="__skip" tabindex="-1"></a>
                 
                   
-
 
   
   
@@ -2902,6 +2819,8 @@ plots the distribution of the local "twist" parameters of 13-protofilament micro
 
 
 
+
+
                 
               </article>
             </div>
@@ -2964,8 +2883,8 @@ plots the distribution of the local "twist" parameters of 13-protofilament micro
   
   
     Made with
-    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
-      Material for MkDocs
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
     </a>
   
 </div>
@@ -2975,7 +2894,7 @@ plots the distribution of the local "twist" parameters of 13-protofilament micro
 </footer>
       
     </div>
-    <div class="md-dialog" data-md-component="dialog">
+    <div class="md-dialog" data-md-component="dialog" role="status" aria-atomic="true">
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
@@ -2983,10 +2902,14 @@ plots the distribution of the local "twist" parameters of 13-protofilament micro
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.annotate", "content.code.copy", "navigation.sections", "navigation.indexes", "navigation.footer", "toc.follow", "search.suggest", "search.share"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      
+      
+        
+        
+      <script id="__config" type="application/json">{"annotate":null,"base":"../..","features":["content.code.annotate","content.code.copy","navigation.sections","navigation.indexes","navigation.footer","toc.follow","search.suggest","search.share"],"redirect":null,"search":"../../assets/javascripts/workers/search.719e0d91.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","clipboard.error":"Could not copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d31f0ffa.min.js"></script>
       
         <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
       
