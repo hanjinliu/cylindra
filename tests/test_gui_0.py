@@ -138,7 +138,7 @@ def test_io(ui: CylindraMainWidget, save_path: Path, npf: int):
     # try .zip file
     ui.save_project(save_path / "test_zip.zip")
     ui.overwrite_project()
-    ui.global_cft_params(i=0, bin_size=1, monomer_diameter_prior=5.35)
+    ui.global_cft_analysis(splines=[0], bin_size=1, monomer_diameter_prior=5.35)
     ui.load_project(save_path / "test_zip.zip", filter="DoG")
     assert len(ui.macro.undo_stack["undo"]) == 0
     new_splines = ui.tomogram.splines

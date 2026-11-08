@@ -97,7 +97,7 @@ def update_doc(doc: str, indent: int = 2) -> str:
         out = doc_rep.format(**_TRANSLATION_MAP)
     except IndexError:  # pragma: no cover
         raise IndexError(f"Failed to format docstring: {doc}")
-    if indent < 2:  # only used for mkdocs
+    if indent < 2:  # only used for the API documentation
         out = out.replace("\n" + (2 - indent) * "    ", "\n")
     return out
 

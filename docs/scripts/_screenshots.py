@@ -1,21 +1,32 @@
+"""Generate the GUI screenshots used in the documentation.
+
+Run this script before building the documentation:
+
+    python docs/scripts/_screenshots.py
+    zensical build
+
+Images are saved to `docs/images/`. They are build artifacts and are ignored by
+git (see `.gitignore`).
+"""
+
 import gc
 import tempfile
-from contextlib import contextmanager
+import warnings
 from pathlib import Path
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import mkdocs_gen_files
 from magicclass import get_button, get_function_gui, logging
 from magicgui import magicgui
 from qtpy import QtWidgets as QtW
 
-from cylindra import _config, instance
+from cylindra import _config, start
 from cylindra.widget_utils import find_dock_widget
 from cylindra.widgets import CylindraMainWidget
 from cylindra.widgets.subwidgets.measure import LOCAL_CFT, LOCAL_CFT_UP
 
 DOCS = Path(__file__).parent.parent
+IMAGES = DOCS / "images"
 PATH_13_3 = DOCS.parent / "tests" / "13pf_MT.tif"
 PATH_TEMP = DOCS.parent / "tests" / "beta-tubulin.mrc"
 
@@ -24,29 +35,22 @@ assert PATH_13_3.exists()
 _Logger = logging.getLogger("cylindra")
 
 
-@contextmanager
-def _open(path, mode):
-    """Open a file and yield the file object."""
-    with mkdocs_gen_files.FilesEditor.current().open(path, mode) as f:
-        yield f
+def _image_path(name: str) -> str:
+    return str(IMAGES / f"{name}.png")
 
 
 def _imsave(widget: QtW.QWidget, name: str):
-    with _open(f"images/{name}.png", "wb") as f:
-        widget.grab().save(f.name, "png")
+    if not widget.grab().save(_image_path(name), "png"):
+        raise OSError(f"Failed to save screenshot {name!r}.")
 
 
 def _viewer_screenshot(ui: CylindraMainWidget, name: str, canvas_only: bool = True):
-    with _open(f"images/{name}.png", "wb") as f:
-        ui.parent_viewer.screenshot(f.name, canvas_only=canvas_only, flash=False)
+    ui.parent_viewer.screenshot(
+        _image_path(name), canvas_only=canvas_only, flash=False
+    )
 
 
-def main():
-    # `instance` will get the existing GUI created in `_dynamic_doc.py`
-    ui = instance()
-    if ui is None:
-        return
-
+def main(ui: CylindraMainWidget):
     ui.clear_all()
     _Logger.widget.clear()
     mpl.use("Agg")
@@ -258,8 +262,7 @@ def main():
         spline=0, spacing=4.1, twist=-0.3, start=3, npf=14, radius=11.0
     )
     ui.parent_viewer.reset_view()
-    with _open("images/learning_cft-line.png", "wb") as f:
-        ui.parent_viewer.screenshot(f.name)
+    ui.parent_viewer.screenshot(_image_path("learning_cft-line"))
     mole_layer = ui.mole_layers[-1]  # the just added molecules layer
     ui.simulator.simulate_tomogram_and_open(
         components=[(mole_layer, PATH_TEMP)],
@@ -269,19 +272,28 @@ def main():
         interpolation=1,
     )
     ui.mole_layers[0].visible = False
-    with _open("images/learning_cft-tomogram.png", "wb") as f:
-        ui.parent_viewer.screenshot(f.name)
+    ui.parent_viewer.screenshot(_image_path("learning_cft-tomogram"))
     pw = ui.spline_slicer.get_cylindric_power_spectrum(spline=0, pos=length / 2)
     fig, axes = plt.subplots()
     axes.imshow(pw, cmap="gray")
     axes.set_axis_off()
     fig.tight_layout()
-    with _open("images/learning_cft-cft.png", "wb") as f:
-        fig.savefig(f, dpi=300)
+    fig.savefig(_image_path("learning_cft-cft"), dpi=300)
+    plt.close(fig)
 
     # to avoid OpenGL rendering error
     for _ in range(10):
         QtW.QApplication.processEvents()
     gc.collect()
 
-main()
+
+if __name__ == "__main__":
+    warnings.simplefilter("ignore", DeprecationWarning)
+    ui = start(run=False)
+    try:
+        main(ui)
+    finally:
+        try:
+            ui.parent_viewer.close()
+        except (AttributeError, RuntimeError):
+            pass

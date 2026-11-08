@@ -135,6 +135,7 @@ After opening an image, you'll find three layers added to the viewer:
 
 The `"Drawing Layer"` will be selected, with the "add points" mode activated by default.
 
+<a id="use-multi-scaled-images"></a>
 ??? info "Use multi-scaled images"
 
     Tomograms and tilt series data can be loaded as multi-scaled images, which means that

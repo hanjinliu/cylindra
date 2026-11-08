@@ -1,0 +1,154 @@
+[project]
+site_name = "Cylindra"
+site_description = "Cryo-ET image analysis tool for cylindric periodic structures such as microtubules."
+repo_name = "cylindra"
+repo_url = "https://github.com/hanjinliu/cylindra"
+copyright = "Copyright (c) 2023 - 2025 Hanjin Liu"
+
+extra_css = ["extra_style.css"]
+extra_javascript = ["https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"]
+
+# Rebuild the API references on `zensical serve` when the source changes.
+watch = ["cylindra"]
+
+nav = [
+  { "Overview" = "index.md" },
+  { "Installation" = "installation.md" },
+  { "Basics" = "basics.md" },
+  { "Usage" = [
+    "open_image.md",
+    "fit_splines.md",
+    "lattice_params.md",
+    "inspect_results.md",
+    "project_io.md",
+    "workflows.md",
+    { "Spline" = [
+      { "Spline" = "spline/index.md" },
+      "spline/clip.md",
+      "spline/config.md",
+      "spline/segments.md",
+      "spline/3d_interaction.md",
+    ] },
+    { "Molecules" = [
+      { "Molecules" = "molecules/index.md" },
+      "molecules/pick_molecules.md",
+      "molecules/spline_to_molecules.md",
+      "molecules/features.md",
+      "molecules/expressions.md",
+      "molecules/split_and_combine.md",
+      "molecules/filter_molecules.md",
+      "molecules/transform.md",
+      "molecules/headers.md",
+    ] },
+    { "Alignment" = [
+      { "Subtomogram Alignment and Averaging" = "alignment/index.md" },
+      "alignment/conventional.md",
+      "alignment/landscape.md",
+      "alignment/viterbi.md",
+      "alignment/rma.md",
+      "alignment/tilt_series.md",
+    ] },
+    { "Working with Many Projects" = [
+      { "Working with Many Projects" = "batch/index.md" },
+      "batch/prep.md",
+      "batch/construct.md",
+      "batch/average.md",
+      "batch/post_processing.md",
+    ] },
+    { "Working with External Softwares" = [
+      { "Working with External Softwares" = "extern/index.md" },
+      "extern/imod.md",
+      "extern/relion.md",
+    ] },
+    "process_images.md",
+    "simulate.md",
+    "cli.md",
+    "plugins.md",
+    { "Case Studies" = [
+      { "Case Studies" = "case_studies/index.md" },
+      "case_studies/rma.md",
+      "case_studies/seam_search.md",
+      "case_studies/ssta.md",
+      "case_studies/custom_config.md",
+      "case_studies/learning_cft.md",
+      "case_studies/make_figure.md",
+      "case_studies/check_handedness.md",
+    ] },
+  ] },
+  { "API References" = [
+    "api/index.md",
+    "api/components.md",
+    "api/core.md",
+    "api/project.md",
+    "api/cylmeasure.md",
+    "api/cylfilters.md",
+    "api/plugin.md",
+    { "Widgets" = [
+      "api/widgets/main.md",
+      "api/widgets/sta.md",
+      "api/widgets/subwidgets.md",
+      "api/widgets/batch.md",
+    ] },
+    { "Builtin Plugins" = [
+      "api/builtins/fetch.md",
+      "api/builtins/imod.md",
+      "api/builtins/relion.md",
+    ] },
+  ] },
+]
+
+[project.theme]
+# "classic" keeps the look of Material for MkDocs. Remove this line to switch
+# to the new Zensical look.
+variant = "classic"
+features = [
+  "content.code.annotate",
+  "content.code.copy",
+  "navigation.sections",
+  "navigation.indexes",
+  "navigation.footer",
+  "toc.follow",
+  "search.suggest",
+  "search.share",
+]
+
+[project.theme.font]
+text = "Roboto"
+code = "Roboto Mono"
+
+[[project.theme.palette]]
+scheme = "slate"
+primary = "lime"
+accent = "light-green"
+toggle.icon = "material/brightness-4"
+toggle.name = "Switch to light mode"
+
+[[project.theme.palette]]
+scheme = "default"
+primary = "lime"
+toggle.icon = "material/brightness-7"
+toggle.name = "Switch to dark mode"
+
+[project.markdown_extensions]
+admonition = {}
+attr_list = {}
+md_in_html = {}
+pymdownx.details = {}
+pymdownx.superfences = {}
+pymdownx.tabbed.alternate_style = true
+pymdownx.keys = {}
+pymdownx.arithmatex.generic = true
+pymdownx.emoji.emoji_index = "zensical.extensions.emoji.twemoji"
+pymdownx.emoji.emoji_generator = "zensical.extensions.emoji.to_svg"
+
+[project.plugins.mkdocstrings.handlers.python]
+inventories = ["https://docs.python.org/3/objects.inv"]
+
+[project.plugins.mkdocstrings.handlers.python.options]
+docstring_style = "numpy"
+show_source = true
+show_bases = false
+show_signature_annotations = true
+# Fills in the shared parameter descriptions of `cylindra._shared_doc` and
+# renders doctest examples as code blocks.
+extensions = ["docs/scripts/_griffe_ext.py"]
