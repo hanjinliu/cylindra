@@ -164,12 +164,18 @@ class LatticeAnalyzer:
         return self.estimate_lattice_params_cartesian_task(task, width, nsamples)
 
     def estimate_lattice_params_polar(
-        self, img: ip.ImgArray, radius: nm, nsamples: int = 8
+        self,
+        img: ip.ImgArray,
+        radius: nm,
+        nsamples: int = 8,
+        npf_prior_mean_sd: tuple[float, float] | None = None,
     ) -> LatticeParams:
         """Estimate lattice parameters from a cylindric input."""
         img = img - float(img.mean())  # normalize.
         peak_det = PeakDetector(img, nsamples=nsamples)
-        peakh = self.get_peak_h(peak_det, img, radius)
+        peakh = self.get_peak_h(
+            peak_det, img, radius, npf_prior_mean_sd=npf_prior_mean_sd
+        )
         peakv = self.get_peak_v(peak_det, img, peakh.a)
 
         cparams = self.get_params(img, peakh, peakv, radius)
@@ -212,8 +218,16 @@ class LatticeAnalyzer:
     # Transformation around `peakh``.
     # This analysis measures skew angle and protofilament number.
 
-    def get_peak_h(self, peak_det: PeakDetector, img: ip.ImgArray, radius: nm):
-        return peak_det.get_peak(**self._params_h(img, radius))
+    def get_peak_h(
+        self,
+        peak_det: PeakDetector,
+        img: ip.ImgArray,
+        radius: nm,
+        npf_prior_mean_sd: tuple[float, float] | None = None,
+    ):
+        return peak_det.get_peak(
+            **self._params_h(img, radius), a_prior_mean_sd=npf_prior_mean_sd
+        )
 
     def get_peak_v(self, peak_det: PeakDetector, img: ip.ImgArray, npf: float):
         return peak_det.get_peak(**self._params_v(img, npf))

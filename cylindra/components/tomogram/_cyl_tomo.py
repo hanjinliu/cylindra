@@ -887,6 +887,7 @@ class CylTomogram(Tomogram):
         binsize: int = 1,
         nsamples: int = 8,
         update: bool = True,
+        npf_prior_mean_sd: tuple[float, float] | None = None,
     ) -> pl.DataFrame:
         """Calculate global lattice parameters.
 
@@ -919,7 +920,9 @@ class CylTomogram(Tomogram):
         img_st = self.straighten_cylindric(i, radii=(rmin, rmax), binsize=binsize)
         rc = (rmin + rmax) / 2
         analyzer = LatticeAnalyzer(spl.config)
-        lparams = analyzer.estimate_lattice_params_polar(img_st, rc, nsamples=nsamples)
+        lparams = analyzer.estimate_lattice_params_polar(
+            img_st, rc, nsamples=nsamples, npf_prior_mean_sd=npf_prior_mean_sd
+        )  # fmt: skip
         out = lparams.to_polars()
         if update:
             spl.props.update_glob(spl.props.glob.with_columns(out), bin_size=binsize)

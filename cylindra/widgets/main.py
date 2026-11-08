@@ -2515,22 +2515,33 @@ class CylindraMainWidget(MagicTemplate):
         self,
         splines: SplinesType = None,
         bin_size: BinSizeType = 1,
+        monomer_diameter_prior: Annotated[Optional[nm], {"text": "No prior", "options": {"value": 5.35, "step": 0.01, "min": 0.1}}, "label": "monomer diameter prior (nm)"] = None,
     ):  # fmt: skip
         """Determine cylindrical global structural parameters by Fourier transformation.
 
         Parameters
         ----------
         {splines}{bin_size}
+        monomer_diameter_prior : float or None
+            Prior for the monomer diameter. If given, it will be used to compute the
+            expected PF number and apply a Gaussian prior to the power spectrum.
         """
         tomo = self.tomogram
         splines = self._norm_splines(splines)
-
         with SplineTracker(widget=self, indices=splines, sample=True) as tracker:
             for i in splines:
                 spl = tomo.splines[i]
                 if spl.radius is None:
                     tomo.measure_radius(i=i)
-                tomo.global_cft_params(i=i, binsize=bin_size)
+                if monomer_diameter_prior is None:
+                    npf_prior_mean_sd = None
+                else:
+                    mean = np.pi * spl.radius * 2 / monomer_diameter_prior
+                    sd = 2.0
+                    npf_prior_mean_sd = (mean, sd)
+                tomo.global_cft_params(
+                    i=i, binsize=bin_size, npf_prior_mean_sd=npf_prior_mean_sd
+                )
                 yield
 
             # show all in a table
