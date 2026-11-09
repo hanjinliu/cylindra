@@ -15,6 +15,7 @@ jobs:
   test:
     name: ${{ matrix.platform }} (${{ matrix.python-version }})
     runs-on: ${{ matrix.platform }}
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:

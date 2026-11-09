@@ -4,6 +4,26 @@ from contextlib import suppress
 import pytest
 
 
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_protocol(item: pytest.Item, nextitem):
+    """Free the GUI created by the `ui` fixture on the main thread after the test.
+
+    The GUI released by the `ui` fixture is still referenced by pytest during the
+    fixture teardown, and its reference cycles are left to the cyclic garbage
+    collector. Without this, the GUI will be destroyed at an arbitrary timing, even in
+    a non-GUI thread (e.g. a thread pool running a task of the next test). Destroying
+    Qt widgets outside the main thread may hang the tests (especially on macOS).
+    """
+    yield
+    if "ui" in getattr(item, "fixturenames", ()):
+        import gc
+
+        # process `deleteLater` called in the teardown of other fixtures
+        # (e.g. `make_napari_viewer`)
+        _wait_for_thread_workers()
+        gc.collect()
+
+
 @pytest.fixture
 def ui(make_napari_viewer, request: "pytest.FixtureRequest"):
     import napari
@@ -46,6 +66,8 @@ def ui(make_napari_viewer, request: "pytest.FixtureRequest"):
             sv.close()
         StaParameters._viewer = None
     viewer.close()
+    # closing widgets and layers may start new workers
+    _wait_for_thread_workers()
     _clear_console_namespace(_ui, viewer)
     _release_magicclass_references(cache_roots)
 
@@ -54,24 +76,37 @@ def _wait_for_thread_workers(timeout_ms: int = 5000) -> None:
     """Wait for the running thread workers and process their pending callbacks.
 
     Signals of workers keep references to the callbacks (and thus to the GUI) from the
-    C++ side, so workers must be finished before releasing them.
+    C++ side, so workers must be finished before releasing them. The connections are
+    released by `deleteLater`, which is not processed by `processEvents`.
     """
-    from qtpy.QtCore import QThreadPool
+    from qtpy.QtCore import QEvent, QThreadPool
     from qtpy.QtWidgets import QApplication
 
     QThreadPool.globalInstance().waitForDone(timeout_ms)
     for _ in range(3):
         QApplication.processEvents()
+        QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
 
 
 def _clear_console_namespace(*objs) -> None:
-    """Remove `objs` from the namespace of the in-process IPython kernel (singleton)."""
+    """Remove `objs` and widgets from the namespace of the in-process IPython kernel.
+
+    The kernel is a singleton, so the namespace is shared by all the tests. Besides the
+    variables pushed by `start`, the console namespace also contains the local
+    variables of the frame where the console was created (such as the dock widget of
+    the main widget).
+    """
     shell_mod = sys.modules.get("ipykernel.inprocess.ipkernel")
     if shell_mod is None or not shell_mod.InProcessInteractiveShell.initialized():
         return
+    from magicgui.widgets import Widget
+    from qtpy.QtCore import QObject
+
     ns = shell_mod.InProcessInteractiveShell.instance().user_ns
     ids = {id(obj) for obj in objs}
-    for key in [k for k, v in ns.items() if id(v) in ids]:
+    for key in [
+        k for k, v in ns.items() if id(v) in ids or isinstance(v, QObject | Widget)
+    ]:
         del ns[key]
 
 
@@ -94,6 +129,16 @@ def _release_magicclass_references(roots: list) -> None:
     from magicclass.fields import FieldGroup, MagicField
     from magicclass.fields._fields import AsyncConnection
     from magicclass.utils import thread_worker
+    from magicclass.utils.qthreading._progressbar import (
+        DefaultProgressBar,
+        _ProgressBarContainer,
+    )
+
+    # The progress bar container is shared by all the GUIs, and its parent is set to
+    # the GUI that first showed a progress bar. If not replaced, it will be deleted
+    # together with the GUI, and progress bars (and workers and GUIs referred by them)
+    # will be accumulated in the container as `pop` fails.
+    DefaultProgressBar._CONTAINER = _ProgressBarContainer()
 
     cache_attrs: list[tuple[type, tuple[str, ...]]] = [
         (MagicField, ("_guis",)),
