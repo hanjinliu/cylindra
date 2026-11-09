@@ -30,6 +30,10 @@ def ui(make_napari_viewer, request: "pytest.FixtureRequest"):
     for _w in ACTIVE_WIDGETS:
         with suppress(RuntimeError):
             _w.close()
+    # Widgets of this test must not be touched in later tests. Once released, their
+    # C++ objects may be deleted (e.g. along with the parent) while the Python objects
+    # are still waiting for the garbage collection.
+    ACTIVE_WIDGETS.clear()
     if batch := _ui._batch:
         with suppress(RuntimeError):
             batch.constructor.close()
@@ -161,6 +165,7 @@ def run_cli(make_napari_viewer, monkeypatch):
         yield _run_cli
 
     for widget in ACTIVE_WIDGETS:
-        widget.close()
+        with suppress(RuntimeError):
+            widget.close()
     ACTIVE_WIDGETS.clear()
     use_app().process_events()
