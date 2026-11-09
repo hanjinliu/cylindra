@@ -148,7 +148,9 @@ def _release_magicclass_references(roots: list) -> None:
     ]
     attrs_of_type: dict[type, tuple[str, ...]] = {}
     caches: list[dict[int, object]] = []
+    live_ids: set[int] = set()
     for obj in gc.get_objects():
+        live_ids.add(id(obj))
         obj_type = type(obj)
         if obj_type is AsyncConnection:
             worker = obj.running_worker
@@ -184,8 +186,10 @@ def _release_magicclass_references(roots: list) -> None:
         for cache in caches:
             if (cached := cache.get(id(obj))) is not None:
                 to_visit.append(cached)
+    # Also remove the entries of deleted objects (e.g. GUIs deleted during a test).
+    # Their IDs may be reused by new objects, and the stale entries would be returned.
     for cache in caches:
-        for _id in ids.intersection(cache.keys()):
+        for _id in [k for k in cache if k in ids or k not in live_ids]:
             del cache[_id]
 
 
