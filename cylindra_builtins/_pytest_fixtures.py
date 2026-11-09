@@ -24,14 +24,28 @@ def pytest_runtest_protocol(item: pytest.Item, nextitem):
         gc.collect()
 
 
+def _disable_error_message_box(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Raise errors instead of showing modal message boxes.
+
+    Errors in GUI callbacks such as async thread workers are shown in a modal message
+    box by default, which blocks the tests forever because no one closes it.
+    """
+    from magicclass._gui._gui_modes import ErrorMode, ErrorModeHandlers
+
+    monkeypatch.setitem(
+        ErrorModeHandlers, ErrorMode.msgbox, ErrorModeHandlers[ErrorMode.stderr]
+    )
+
+
 @pytest.fixture
-def ui(make_napari_viewer, request: "pytest.FixtureRequest"):
+def ui(make_napari_viewer, request: "pytest.FixtureRequest", monkeypatch):
     import napari
 
     from cylindra.core import ACTIVE_WIDGETS, _delete_instance, start
     from cylindra.widget_utils import find_dock_widget
     from cylindra.widgets.sta import StaParameters
 
+    _disable_error_message_box(monkeypatch)
     viewer: napari.Viewer = make_napari_viewer()
     _ui = start(viewer=viewer)
     if request.config.getoption("--show-viewer", default=None):
@@ -202,6 +216,7 @@ def run_cli(make_napari_viewer, monkeypatch):
     from cylindra.cli import set_testing
     from cylindra.core import ACTIVE_WIDGETS
 
+    _disable_error_message_box(monkeypatch)
     viewer = make_napari_viewer()
     set_testing(True)
     monkeypatch.setattr("builtins.input", lambda *_: "")
