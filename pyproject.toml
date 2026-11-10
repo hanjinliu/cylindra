@@ -117,6 +117,8 @@ include-package-data = true
 [tool.pytest.ini_options]
 testpaths = ["tests", "cylindra_builtins/*/tests"]
 addopts = ["-v", "--maxfail=5"]
+# dump the tracebacks of all threads if a test hangs
+faulthandler_timeout = 600
 filterwarnings = [
     "ignore::DeprecationWarning:qtpy",
     "ignore::DeprecationWarning:ipykernel",
