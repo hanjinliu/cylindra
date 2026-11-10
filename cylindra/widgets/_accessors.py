@@ -106,7 +106,7 @@ class MoleculesLayerAccessor(Accessor[MoleculesLayer, "CylindraMainWidget"]):
         return len(self)
 
     def _ipython_key_completions_(self) -> list[str]:
-        """Just for autocompletion."""  # BUG: not working
+        """Just for autocompletion."""
         return self.names()
 
     def __iter__(self) -> Iterator[MoleculesLayer]:

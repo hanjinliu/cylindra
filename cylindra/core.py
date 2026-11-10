@@ -147,8 +147,33 @@ def start(
     # Programmatically run `%matplotlib inline` magic
     if ipy := get_ipython():
         ipy.run_line_magic("matplotlib", "inline")
+        with suppress(Exception):  # This function uses private API of IPython.
+            _allow_completion_on_cylindra_objects(ipy)
 
     return ui
+
+
+def _allow_completion_on_cylindra_objects(ipy) -> None:
+    """Allow IPython to evaluate the attributes of cylindra objects for completion.
+
+    IPython evaluates expressions for completion (such as `ui.mole_layers` of
+    `ui.mole_layers["`) under the "limited" policy by default, which refuses the
+    attribute access of objects implementing `__getattr__`. As magicgui containers
+    implement `__getattr__`, the key completion of the accessors did not work. This
+    function adds cylindra to the allow-list. Properties are still not evaluated.
+    """
+    from IPython.core.guarded_eval import EVALUATION_POLICIES
+
+    completer = ipy.Completer
+    if completer.evaluation != "limited" or not completer.has_trait("policy_overrides"):
+        return
+    overrides = dict(completer.policy_overrides)
+    allowed = overrides.get(
+        "allowed_getattr_external",
+        EVALUATION_POLICIES["limited"].allowed_getattr_external,
+    )
+    overrides["allowed_getattr_external"] = set(allowed) | {"cylindra"}
+    completer.policy_overrides = overrides
 
 
 def start_as_plugin(run: bool = True):
