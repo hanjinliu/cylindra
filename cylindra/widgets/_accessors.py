@@ -49,9 +49,11 @@ class Accessor[V, W: MagicTemplate](MutableSequence[V]):
         if instance is None:
             return self
         _id = id(instance)
-        if _id not in self._instances:
-            self._instances[_id] = self.__class__(instance)
-        return self._instances[_id]
+        # the ID of a deleted widget may be reused by a new widget
+        acc = self._instances.get(_id)
+        if acc is None or acc._widget() is not instance:
+            acc = self._instances[_id] = self.__class__(instance)
+        return acc
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({list(self)!r})"
@@ -104,7 +106,7 @@ class MoleculesLayerAccessor(Accessor[MoleculesLayer, "CylindraMainWidget"]):
         return len(self)
 
     def _ipython_key_completions_(self) -> list[str]:
-        """Just for autocompletion."""  # BUG: not working
+        """Just for autocompletion."""
         return self.names()
 
     def __iter__(self) -> Iterator[MoleculesLayer]:
