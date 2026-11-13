@@ -4,6 +4,7 @@ from typing import NamedTuple
 
 import acryo
 import impy as ip
+import mrcfile
 import numpy as np
 import polars as pl
 import pytest
@@ -18,12 +19,6 @@ from cylindra.const import PropertyNames as H
 from cylindra.widgets import CylindraMainWidget
 
 from ._const import TEST_DIR
-
-pytestmark = pytest.mark.skipif(
-    not hasattr(acryo, "BackProjectionLoader"),
-    reason="BackProjectionLoader is not available",
-)
-mrcfile = pytest.importorskip("mrcfile")
 
 SCALE = 1.052
 TOMO_HAND = 1  # handedness of the reference tomogram of the fixture
