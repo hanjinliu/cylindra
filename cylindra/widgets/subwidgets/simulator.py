@@ -80,6 +80,7 @@ PROJECT_NAME = "simulation-project.tar"
 SIMULATION_MODEL_KEY = "simulation-model"
 SIMULATED_IMAGE_NAME = "Simulated tomogram"
 _Logger = getLogger("cylindra")
+_ICON_PATH = Path(__file__).parent.parent / "icons"
 
 
 @magicclass(labels=False, record=False, layout="horizontal")
@@ -723,7 +724,7 @@ class Simulator(ChildWidget):
             _Logger.print(f"{i}-th tilt series saved at {save_path}.")
         self._get_main().save_project(save_dir / PROJECT_NAME, molecules_ext=".parquet")
 
-    @set_design(icon="iconoir:expand-lines", location=SimulatorTools)
+    @set_design(icon=_ICON_PATH / "expand.svg", location=SimulatorTools)
     def expand(
         self,
         layer: _ModeledMoleculesLayer,
@@ -753,10 +754,9 @@ class Simulator(ChildWidget):
             CylinderModel.expand, layer, by, yrange, arange, allev
         )
         layer.molecules = model.to_molecules(spl, layer.molecules.features)
-        _set_simulation_model(layer, model)
-        return None
+        return _set_simulation_model(layer, model)
 
-    @set_design(icon="mingcute:rotate-x-line", location=SimulatorTools)
+    @set_design(icon=_ICON_PATH / "twist.svg", location=SimulatorTools)
     def twist(
         self,
         layer: _ModeledMoleculesLayer,
@@ -786,9 +786,9 @@ class Simulator(ChildWidget):
             CylinderModel.twist, layer, np.deg2rad(by), yrange, arange, allev
         )
         layer.molecules = model.to_molecules(spl, layer.molecules.features)
-        _set_simulation_model(layer, model)
+        return _set_simulation_model(layer, model)
 
-    @set_design(icon="iconoir:scale-frame-enlarge", location=SimulatorTools)
+    @set_design(icon=_ICON_PATH / "dilate.svg", location=SimulatorTools)
     def dilate(
         self,
         layer: _ModeledMoleculesLayer,
@@ -818,10 +818,9 @@ class Simulator(ChildWidget):
             CylinderModel.dilate, layer, by, yrange, arange, allev
         )
         layer.molecules = model.to_molecules(spl, layer.molecules.features)
-        _set_simulation_model(layer, model)
-        return None
+        return _set_simulation_model(layer, model)
 
-    @set_design(icon="fluent:arrow-move-20-filled", location=SimulatorTools)
+    @set_design(icon=_ICON_PATH / "displace.svg", location=SimulatorTools)
     def displace(
         self,
         layer: _ModeledMoleculesLayer,
@@ -829,7 +828,7 @@ class Simulator(ChildWidget):
         twist: ExprStr.In[POLARS_NAMESPACE] = 0.0,
         dilate: ExprStr.In[POLARS_NAMESPACE] = 0.0,
     ):
-        """Detailed local transformation of molecules.
+        """Apply low-level local transformation of molecules (advanced).
 
         In this method, you'll have to specify the displacement for each molecule
         using polars expressions. For example, if you want to expand the molecules
