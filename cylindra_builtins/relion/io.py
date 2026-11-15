@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Annotated, Any, Iterator
 import numpy as np
 import polars as pl
 from acryo import Molecules
-from magicclass import impl_preview
+from magicclass import impl_preview, setup_function_gui
 from magicclass.types import Optional, Path
 from magicclass.utils import thread_worker
 from magicclass.widgets import ConsoleTextEdit
@@ -579,6 +579,20 @@ def _preview_open_relion_job(
     else:
         widget.native.setWindowTitle("Incoming tomograms")
     ACTIVE_WIDGETS.add(widget)
+
+
+@setup_function_gui(open_relion_job)
+def _setup_open_relion_job(ui: "CylindraMainWidget", fgui):
+    @fgui.use_tilt_series.changed.connect
+    @fgui.reference_scale.changed.connect
+    def _on_param_changed():
+        use_tilt_series = fgui.use_tilt_series.value
+        use_relion_tomo = fgui.reference_scale.value is None
+        fgui.invert.enabled = not use_tilt_series
+        fgui.reference_scale.enabled = use_tilt_series
+        fgui.tomo_height.enabled = use_tilt_series and not use_relion_tomo
+
+    _on_param_changed()
 
 
 # Pixel size (nm) of the coarse tomograms for the jobs without tomograms, same as the
