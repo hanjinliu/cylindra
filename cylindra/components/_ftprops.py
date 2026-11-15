@@ -144,9 +144,15 @@ class LatticeAnalyzer:
         coords: NDArray[np.float32],
         radius: nm,
         nsamples: int = 8,
+        npf_prior_mean_sd: tuple[float, float] | None = None,
     ) -> Delayed[LatticeParams]:
         task = get_polar_image_task(img, coords, radius)
-        return self.estimate_lattice_params_polar_delayed(task, radius, nsamples)
+        return self.estimate_lattice_params_polar_delayed(
+            task,
+            radius,
+            nsamples,
+            npf_prior_mean_sd=npf_prior_mean_sd,
+        )
 
     def estimate_lattice_params_task_cartesian(
         self,

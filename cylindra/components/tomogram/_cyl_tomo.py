@@ -573,6 +573,7 @@ class CylTomogram(Tomogram):
         nsamples: int = 8,
         update: bool = True,
         update_glob: bool = False,
+        npf_prior_mean_sd: tuple[float, float] | None = None,
     ) -> pl.DataFrame:
         """Calculate local lattice parameters from cylindrical Fourier space.
 
@@ -600,6 +601,8 @@ class CylTomogram(Tomogram):
         update_glob : bool, default False
             If True, global properties will be updated using the mean of the local
             properties (see `mean_lattice_params`).
+        npf_prior_mean_sd: tuple[float, float], optional
+            Prior mean and standard deviation for the number of protofilaments (npf).
 
         Returns
         -------
@@ -619,7 +622,15 @@ class CylTomogram(Tomogram):
             rmin, rmax = spl.radius_range(r0)
             rc = (rmin + rmax) / 2
             coords = spl_trans.local_cylindrical((rmin, rmax), depth, anc, scale=_scale)
-            tasks.append(_analyze_fn(input_img, coords, rc, nsamples=nsamples))
+            tasks.append(
+                _analyze_fn(
+                    input_img,
+                    coords,
+                    rc,
+                    nsamples=nsamples,
+                    npf_prior_mean_sd=npf_prior_mean_sd,
+                )
+            )
             rc_list.append(rc)
 
         lprops = pl.DataFrame(
@@ -908,6 +919,8 @@ class CylTomogram(Tomogram):
             inputs, unlike FFT. Larger `nsamples` reduces the error but is slower.
         update : bool, default True
             If True, spline properties will be updated.
+        npf_prior_mean_sd: tuple[float, float], optional
+            Prior mean and standard deviation for the number of protofilaments (npf).
 
         Returns
         -------
