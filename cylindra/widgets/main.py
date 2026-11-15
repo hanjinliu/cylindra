@@ -2470,6 +2470,7 @@ class CylindraMainWidget(MagicTemplate):
         bin_size: BinSizeType = 1,
         radius: Annotated[Literal["local", "global"], {"widget_type": ToggleButtons}] = "global",
         update_glob: Annotated[bool, {"text": "Also update the global properties"}] = False,
+        monomer_diameter_prior: Annotated[Optional[nm], {"text": "No prior", "options": {"value": 5.35, "step": 0.01, "min": 0.1}, "label": "monomer diameter prior (nm)"}] = None,
     ):  # fmt: skip
         """Determine local lattice parameters by local cylindric Fourier transformation.
 
@@ -2484,7 +2485,7 @@ class CylindraMainWidget(MagicTemplate):
         radius : str, default "global"
             If "local", use the local radius for the analysis. If "global", use the
             global radius.
-        {update_glob}
+        {update_glob}{monomer_diameter_prior}
         """
         tomo = self.tomogram
         splines = self._norm_splines(splines)
@@ -2502,9 +2503,12 @@ class CylindraMainWidget(MagicTemplate):
             for i in splines:
                 if interval is not None:
                     tomo.make_anchors(i=i, interval=interval)
+                npf_prior_mean_sd = _norm_npf_prior(
+                    monomer_diameter_prior, tomo.splines[i]
+                )
                 tomo.local_cft_params(
                     i=i, depth=depth, binsize=bin_size, radius=radius,
-                    update_glob=update_glob,
+                    update_glob=update_glob, npf_prior_mean_sd=npf_prior_mean_sd
                 )  # fmt: skip
                 yield _local_cft_analysis_on_yield.with_args(i)
             return tracker.as_undo_callback()
@@ -2521,10 +2525,7 @@ class CylindraMainWidget(MagicTemplate):
 
         Parameters
         ----------
-        {splines}{bin_size}
-        monomer_diameter_prior : float or None
-            Prior for the monomer diameter. If given, it will be used to compute the
-            expected PF number and apply a Gaussian prior to the power spectrum.
+        {splines}{bin_size}{monomer_diameter_prior}
         """
         tomo = self.tomogram
         splines = self._norm_splines(splines)
@@ -2533,12 +2534,7 @@ class CylindraMainWidget(MagicTemplate):
                 spl = tomo.splines[i]
                 if spl.radius is None:
                     tomo.measure_radius(i=i)
-                if monomer_diameter_prior is None:
-                    npf_prior_mean_sd = None
-                else:
-                    mean = np.pi * spl.radius * 2 / monomer_diameter_prior
-                    sd = 2.0
-                    npf_prior_mean_sd = (mean, sd)
+                npf_prior_mean_sd = _norm_npf_prior(monomer_diameter_prior, spl)
                 tomo.global_cft_params(
                     i=i, binsize=bin_size, npf_prior_mean_sd=npf_prior_mean_sd
                 )
@@ -4722,6 +4718,19 @@ def _assert_source_spline_exists(layer: MoleculesLayer) -> "CylSpline":
     if (spl := layer.source_spline) is None:
         raise ValueError(f"Cannot find the source spline of layer {layer.name!r}.")
     return spl
+
+
+def _norm_npf_prior(
+    monomer_diameter_prior: float | None,
+    spl: "CylSpline",
+    sd: float = 2.0,
+):
+    if monomer_diameter_prior is None:
+        npf_prior_mean_sd = None
+    else:
+        mean = np.pi * spl.radius * 2 / monomer_diameter_prior
+        npf_prior_mean_sd = (mean, sd)
+    return npf_prior_mean_sd
 
 
 def _check_params_local_cft(

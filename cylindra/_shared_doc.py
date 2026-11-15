@@ -48,6 +48,7 @@ _PARAMETERS = [
     Parameter(name="interval", type="nm", desc="Interval (nm) between spline anchors. Please note that resetting interval will discard\nall the existing local properties."),
     Parameter(name="depth", type="nm", desc="Depth (length parallel to the spline tangent) of the subtomograms to be sampled."),
     Parameter(name="max_interval", type="nm", desc="Maximum interval (nm) between spline anchors."),
+    Parameter(name="monomer_diameter_prior", type="float, optional", desc="Prior for the monomer diameter. If given, it will be used to compute the expected PF number and apply a Gaussian prior to the power spectrum."),
     Parameter(name="molecule_interval", type="nm", desc="Interval (nm) between molecules.\n`col` is available in this namespace to refer to the spline global properties.\nFor example, `col('spacing') * 2` means twice the spacing of the spline."),
     Parameter(name="orientation", type="None, 'PlusToMinus', 'MinusToPlus'", desc="Orientation of molecules' y-axis. If none, use the\ncurrent spline orientation as is."),
     Parameter(name="offsets", type="(float, float), optional", desc="Offset values that will be used to define molecule positions."),

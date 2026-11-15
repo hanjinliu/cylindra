@@ -100,6 +100,9 @@ class Runner(ChildWidget):
     fit = vfield(True, label="Fit splines")
     params1 = runner_params1
     n_refine = vfield(1, label="Refinement iteration").with_options(max=10)
+    monomer_diameter_prior = vfield(
+        Optional[float], label="Monomer diameter prior (nm)"
+    ).with_options(text="No prior", options={"value": 5.35, "step": 0.01, "min": 0.1})
     local_props = vfield(True, label="Calculate local properties")
     params2 = runner_params2
     global_props = vfield(True, label="Calculate global properties")
@@ -154,6 +157,7 @@ class Runner(ChildWidget):
         max_shift: Annotated[nm, {"bind": _get_max_shift}] = 5.0,
         edge_sigma: Annotated[nm, {"bind": params1.edge_sigma}] = 2.0,
         n_refine: Annotated[int, {"bind": n_refine}] = 1,
+        monomer_diameter_prior: Annotated[nm, {"bind": monomer_diameter_prior}] = 5.35,
         local_props: Annotated[bool, {"bind": local_props}] = True,
         interval: Annotated[nm, {"bind": params2.interval}] = 50.0,
         depth: Annotated[nm, {"bind": params2.depth}] = 50.0,
@@ -191,7 +195,11 @@ class Runner(ChildWidget):
         yield
         if local_props:
             yield from main.local_cft_analysis.arun(
-                splines=splines, interval=interval, depth=depth, bin_size=bin_size
+                splines=splines,
+                interval=interval,
+                depth=depth,
+                bin_size=bin_size,
+                monomer_diameter_prior=monomer_diameter_prior,
             )
             yield
         if infer_polarity:
@@ -202,7 +210,11 @@ class Runner(ChildWidget):
             )
             yield
         if global_props:
-            yield from main.global_cft_analysis.arun(splines=splines, bin_size=bin_size)
+            yield from main.global_cft_analysis.arun(
+                splines=splines,
+                bin_size=bin_size,
+                monomer_diameter_prior=monomer_diameter_prior,
+            )
             yield
         if map_monomers:
             yield from main.map_monomers.arun(splines, orientation="MinusToPlus")
