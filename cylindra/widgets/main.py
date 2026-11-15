@@ -3335,8 +3335,7 @@ class CylindraMainWidget(MagicTemplate):
         column: Annotated[str, {"choices": _choice_getter("copy_molecules_features")}],
         alias: str = "",
     ):  # fmt: skip
-        """
-        Copy molecules features from one layer to another.
+        """Copy molecules features from one layer to another.
 
         This method is useful when a layer feature (such as seam search result) should be
         shared by multiple molecules layers that were aligned in a different parameters.

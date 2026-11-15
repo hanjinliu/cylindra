@@ -64,6 +64,10 @@ class Runner(ChildWidget):
         Set to >1 to use binned image for fitting.
     n_refine : int
         Iteration number of spline refinement.
+    monomer_diameter_prior : nm, optional
+        Prior for the monomer diameter. If given, it will be used to compute the
+        expected PF number and apply a Gaussian prior to the power spectrum of local-CFT
+        and global-CFT. 5.35 nm is useful for typical microtubules.
     local_props : bool
         Check if calculate local properties.
     global_props : bool
