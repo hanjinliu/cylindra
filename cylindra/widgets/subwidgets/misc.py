@@ -262,6 +262,11 @@ class TiltSeriesLoader(MagicTemplate):
         Handedness of the tomogram.
     tomo_height : float
         Height of the tomogram in nm for coarse tomogram reconstruction.
+    ctf : bool
+        Whether to perform CTF correction.
+    halves : str or None
+        Method to split the tilt series into halves for the methods that use half
+        tomograms, such as defect detection.
     save_reference : bool
         Whether to save the coarse tomogram after creation.
     bin_size : list of int
@@ -310,6 +315,9 @@ class TiltSeriesLoader(MagicTemplate):
         min=1.0, max=10000.0, step=10.0
     )
     ctf = vfield(True, label="Perform patch CTF correction")
+    halves = vfield(label="Half tomograms", widget_type=ToggleButtons).with_choices(
+        [("None", None), ("Odd/even tilts", "odd_even")]
+    )
     save_reference = vfield(False, label="Save coarse tomogram")
     bin_size = vfield([2, 4]).with_options(options={"min": 1, "max": 32})
     filter = vfield(ImageFilter | None, widget_type=ToggleButtons).with_options(
@@ -519,6 +527,8 @@ class GeneralInfo(MagicTemplate):
                 f'<br><span style="color: gray;">CTF:</span> {_ctf_info(ts.tilt_series.ctf)}'
                 f'<br><span style="color: gray;">Local alignment:</span> {_local_alignment_info(ts.tilt_series)}'
             )  # fmt: skip
+            if ts.halves_method is not None:
+                tilt_series_info += f'<br><span style="color: gray;">Half tomograms:</span> {ts.halves_method}'  # fmt: skip
         else:
             size = _format_nbytes(img.value.nbytes)
             tilt_series_info = ""

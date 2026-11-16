@@ -699,6 +699,7 @@ class CylindraMainWidget(MagicTemplate):
         bin_size: Annotated[list[int], {"bind": _ts_loader.bin_size}] = [2, 4],
         filter: Annotated[ImageFilter | None, {"bind": _ts_loader.filter}] = None,
         save_coarse_tomogram: Annotated[bool, {"bind": _ts_loader.save_reference}] = False,
+        halves: Annotated[Literal["odd_even", "checkerboard"] | None, {"bind": _ts_loader.halves}] = None,
     ):  # fmt: skip
         """Open a tilt series and reconstruct its coarse tomogram.
 
@@ -733,9 +734,14 @@ class CylindraMainWidget(MagicTemplate):
             If true, the coarse tomogram is saved next to the tilt series file, together
             with the default settings (".cylindra-defaults.toml") to open it later. Note
             that you can also save the coarse tomogram when saving the project.
+        halves : str, optional
+            If given ("odd_even"), split the tilt series into halves by this method to
+            use the methods that need half tomograms, such as `detect_defects`. See
+            `CylTomogram.with_halves` for details ("checkerboard" is not supported yet).
         """
         from cylindra.components.tomogram import _tilt_series as _ts
 
+        _ts.check_halves_method(halves)  # before the reconstruction
         path = Path(path)
         ref = _ts.prep_reference_tomogram(
             path, scale, reference_scale, tomo_hand, tomo_height,
@@ -746,6 +752,8 @@ class CylindraMainWidget(MagicTemplate):
         tomo = CylTomogram.from_tilt_series(
             path, ref, scale=scale, tomo_hand=tomo_hand, binsize=bin_size, ctf=ctf,
         )  # fmt: skip
+        if halves is not None:
+            tomo.with_halves(halves)
         if save_coarse_tomogram:
             # prepare cylindra-default
             path.with_name(".cylindra-defaults.toml").write_text(
@@ -784,6 +792,7 @@ class CylindraMainWidget(MagicTemplate):
         bin_size: Annotated[list[int], {"bind": _ts_loader.bin_size}] = [2, 4],
         filter: Annotated[ImageFilter | None, {"bind": _ts_loader.filter}] = None,
         invert_reference: Annotated[bool, {"bind": _ts_loader.invert_reference}] = True,
+        halves: Annotated[Literal["odd_even", "checkerboard"] | None, {"bind": _ts_loader.halves}] = None,
     ):  # fmt: skip
         """Open a tilt series with its coarse tomogram.
 
@@ -814,7 +823,14 @@ class CylindraMainWidget(MagicTemplate):
             If true, invert the intensity of the reference tomogram. Images
             reconstructed from the tilt series are always dark-background, so check this
             if the reference tomogram is light-background.
+        halves : str, optional
+            If given ("odd_even"), split the tilt series into halves by this method to
+            use the methods that need half tomograms, such as `detect_defects`. See
+            `CylTomogram.with_halves` for details ("checkerboard" is not supported yet).
         """
+        from cylindra.components.tomogram import _tilt_series as _ts
+
+        _ts.check_halves_method(halves)
         tomo = CylTomogram.from_tilt_series(
             path,
             ip.imread(reference_path),
@@ -823,6 +839,8 @@ class CylindraMainWidget(MagicTemplate):
             binsize=bin_size,
             ctf=ctf,
         )
+        if halves is not None:
+            tomo.with_halves(halves)
         self._init_macro_state()
         cb = self._send_tomogram_to_viewer.with_args(tomo, filter)
         yield cb

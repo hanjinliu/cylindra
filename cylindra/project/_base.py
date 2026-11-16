@@ -1,7 +1,7 @@
 import io
 import json
 from pathlib import Path
-from typing import Any, Self
+from typing import Any, Literal, Self
 
 from pydantic import BaseModel, Field
 
@@ -152,6 +152,9 @@ class TiltSeriesInfo(BaseModel):
     """Handedness of the tomogram (1 or -1)."""
     binsizes: list[int] = Field(default_factory=lambda: [1])
     """Bin sizes available for analysis."""
+    halves: Literal["odd_even", "checkerboard"] | None = None
+    """Method to split the tilt series into halves for the half tomograms (see
+    `Tomogram.with_halves`), or None if the tilt series is not split."""
 
     # NOTE: The files outside the project are saved with absolute paths, and the files
     # in the project with relative paths. The relative paths are not resolved here,

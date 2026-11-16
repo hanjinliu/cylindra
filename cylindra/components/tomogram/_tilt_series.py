@@ -7,20 +7,27 @@ from collections import OrderedDict
 from collections.abc import Hashable, Iterable, Sequence
 from contextlib import ExitStack
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, get_args
 
 import impy as ip
 import numpy as np
 from acryo import Molecules
+from acryo.loader import LoaderBase
 from dask import array as da
 from numpy.typing import ArrayLike, NDArray
 
 from cylindra.const import nm
 
 if TYPE_CHECKING:
+    from typing import Self
+
     from acryo import BackProjectionLoader
+    from acryo.backend import Backend
     from acryo.projection import TiltSeries
     from acryo.projection._io import TiltImageSource
+
+HalvesMethod = Literal["odd_even", "checkerboard"]
+"""Method to split a tilt series into two halves of independent noise."""
 
 
 class TiltSeriesSource:
@@ -31,7 +38,8 @@ class TiltSeriesSource:
     tomogram (of any bin size) are dask arrays whose chunks are reconstructed on
     demand. The tilt images are preprocessed for each bin size when it is first
     needed, and cached until `release_cache` is called. The cache is enabled again if
-    needed after that.
+    needed after that. The tilt series can be split into two halves of independent
+    noise (see `set_halves`) to reconstruct the subtomograms of the half tomograms.
 
     Parameters
     ----------
@@ -98,6 +106,9 @@ class TiltSeriesSource:
         self._images: dict[int, ip.LazyImgArray] = {}
         self._cache_stack: ExitStack | None = None
         self._lock = threading.Lock()
+        self._halves_method: HalvesMethod | None = None
+        # loaders of the half tilt series, created from the loader on demand
+        self._half_loaders: tuple[BackProjectionLoader, BackProjectionLoader] | None = None  # fmt: skip
         # whether the tilt series and the reference differ from the files
         self._unsaved_tilt_series = False
         self._unsaved_reference = reference is not None and reference.source is None
@@ -174,11 +185,13 @@ class TiltSeriesSource:
         """Update the tilt series, such as the one with a refined alignment.
 
         If the tilt images are the same, the preprocessed tilt images are kept. The
-        reconstructed chunks are released. The reference is not updated.
+        reconstructed chunks are released. The reference is not updated. The halves
+        (see `set_halves`) are split again from the new tilt series.
         """
         with self._lock:
             self._loader = self._loader.with_tilt_series(tilt_series)
             self._chunks.clear()
+            self._half_loaders = None
         self._unsaved_tilt_series = True
 
     def set_reference(self, reference: ip.ImgArray) -> None:
@@ -348,6 +361,88 @@ class TiltSeriesSource:
             molecules=molecules, order=order, binsize=binsize, **kwargs
         )
 
+    @property
+    def halves_method(self) -> HalvesMethod | None:
+        """Method to split the tilt series into halves (see `set_halves`), or None."""
+        return self._halves_method
+
+    def set_halves(self, method: HalvesMethod | None = "odd_even") -> None:
+        """Split the tilt series into two halves of independent noise.
+
+        The subtomograms of the half tomograms are reconstructed from the halves of the
+        tilt series (see `get_half_loaders`). The halves share the preprocessed tilt
+        images with the whole tilt series, so they need no extra preprocessing.
+
+        Parameters
+        ----------
+        method : {"odd_even", "checkerboard"} or None, default "odd_even"
+            Method to split the tilt series. "odd_even" assigns the tilts to the halves
+            alternately in the order of the tilt angles. "checkerboard", which splits
+            the pixels of each tilt image, is not supported yet. None removes the
+            halves.
+        """
+        check_halves_method(method)
+        if method is not None and self.tilt_series.ntilts < 2:
+            raise ValueError("At least 2 tilts are needed to split the tilt series.")
+        with self._lock:
+            self._halves_method = method
+            self._half_loaders = None
+
+    def half_loaders(self) -> tuple[BackProjectionLoader, BackProjectionLoader]:
+        """The base loaders of the two halves of the tilt series."""
+        with self._lock:
+            if self._halves_method is None:
+                raise ValueError(
+                    "The tilt series is not split into halves. Call `set_halves` first."
+                )
+            if self._half_loaders is None:
+                half0, half1 = split_tilts(
+                    self.tilt_series.tilt_angles, self._halves_method
+                )
+                # `exclude_tilts` shares the cache of the preprocessed tilt images, and
+                # the images of a half are cropped from the cached images of all tilts
+                self._half_loaders = (
+                    self._loader.exclude_tilts(half1),
+                    self._loader.exclude_tilts(half0),
+                )
+            return self._half_loaders
+
+    def get_half_loaders(
+        self,
+        molecules: Molecules,
+        binsize: int = 1,
+        output_shape: tuple[int, int, int] | None = None,
+        order: int = 1,
+    ) -> tuple[BackProjectionLoader, BackProjectionLoader]:
+        """Create the loaders of the two halves of the tilt series (see `get_loader`)."""
+        self.enable_cache()  # also enables the cache of the halves
+        kwargs = {}
+        if output_shape is not None:
+            kwargs["output_shape"] = output_shape
+        loader0, loader1 = (
+            loader.replace(molecules=molecules, order=order, binsize=binsize, **kwargs)
+            for loader in self.half_loaders()
+        )
+        return loader0, loader1
+
+    def get_signal_noise_loaders(
+        self,
+        molecules: Molecules,
+        binsize: int = 1,
+        output_shape: tuple[int, int, int] | None = None,
+        order: int = 1,
+    ) -> tuple[HalfMapLoader, HalfMapLoader]:
+        """Create the loaders of the sum and the difference of the half tomograms.
+
+        The sum has the signal and the noise, and the difference has only the noise of
+        the same level, as `Tomogram.get_subtomogram_and_noise_loader` of the half
+        tomogram images.
+        """
+        loader0, loader1 = self.get_half_loaders(
+            molecules, binsize=binsize, output_shape=output_shape, order=order
+        )
+        return HalfMapLoader.sum_and_difference(loader0, loader1)
+
     def shape_at(self, binsize: int) -> tuple[int, int, int]:
         """Shape of the tomogram of the given bin size."""
         return tuple(s // binsize for s in self._shape)
@@ -419,6 +514,144 @@ class TiltSeriesSource:
         return self.get_loader(
             Molecules(pos), binsize=binsize, output_shape=(size,) * 3, order=0
         )
+
+
+def check_halves_method(method: HalvesMethod | None) -> None:
+    """Raise an error if the tilt series cannot be split into halves by the method."""
+    if method is not None and method not in get_args(HalvesMethod):
+        raise ValueError(
+            f"Method must be one of {get_args(HalvesMethod)} or None, got {method!r}."
+        )
+    if method == "checkerboard":
+        # not NotImplementedError, which is a RuntimeError ignored by thread workers
+        raise ValueError(
+            "Splitting the tilt images in a checkerboard pattern is not supported yet, "
+            "because their preprocessed halves cannot share the cache of the "
+            "preprocessed tilt images. Use 'odd_even' instead."
+        )
+
+
+def split_tilts(
+    tilt_angles: ArrayLike, method: HalvesMethod = "odd_even"
+) -> tuple[NDArray[np.intp], NDArray[np.intp]]:
+    """Indices of the tilts of the two halves of a tilt series.
+
+    For "odd_even", the tilts are assigned to the halves alternately in the order of
+    the tilt angles, so both halves sample the tilt range evenly.
+    """
+    if method != "odd_even":
+        raise ValueError(f"Tilts cannot be split by {method!r}.")
+    order = np.argsort(np.asarray(tilt_angles), kind="stable")
+    return np.sort(order[0::2]), np.sort(order[1::2])
+
+
+class _HalfStacks:
+    """Two loaders of the halves, whose stacks of subtomograms are shared."""
+
+    def __init__(self, loader0: LoaderBase, loader1: LoaderBase):
+        self.loaders = (loader0, loader1)
+        self._stacks: dict[tuple[int, ...], tuple[da.Array, da.Array]] = {}
+        self._lock = threading.Lock()
+
+    def stacks(
+        self, output_shape: tuple[int, int, int], backend: Backend | None = None
+    ) -> tuple[da.Array, da.Array]:
+        if backend is not None:
+            stack0, stack1 = (
+                loader.construct_dask(output_shape, backend) for loader in self.loaders
+            )
+            return stack0, stack1
+        key = tuple(int(s) for s in output_shape)
+        with self._lock:
+            if (out := self._stacks.get(key)) is None:
+                stack0, stack1 = (loader.construct_dask(key) for loader in self.loaders)
+                out = self._stacks[key] = (stack0, stack1)
+        return out
+
+
+class HalfMapLoader(LoaderBase):
+    """A loader of the sum or the difference of the subtomograms of two halves.
+
+    As the half tomograms have independent noise, the sum has the signal and the noise,
+    and the difference has only the noise of the same level. The loaders created
+    together by `sum_and_difference` share the subtomograms of the halves, so they are
+    reconstructed only once if the loaders are computed at the same time.
+    """
+
+    def __init__(self, halves: _HalfStacks, sign: Literal[1, -1]):
+        loader = halves.loaders[0]
+        super().__init__(
+            order=loader.order, scale=loader.scale, output_shape=loader.output_shape
+        )
+        self._halves = halves
+        self._sign = sign
+
+    @classmethod
+    def sum_and_difference(
+        cls, loader0: LoaderBase, loader1: LoaderBase
+    ) -> tuple[Self, Self]:
+        """Create the loaders of the sum and the difference of the two loaders."""
+        halves = _HalfStacks(loader0, loader1)
+        return cls(halves, 1), cls(halves, -1)
+
+    def __repr__(self) -> str:
+        kind = "sum" if self._sign > 0 else "difference"
+        return (
+            f"{type(self).__name__}({kind}, molecules={self.molecules!r}, "
+            f"output_shape={self.output_shape}, order={self.order}, "
+            f"scale={self.scale:.4f})"
+        )
+
+    @property
+    def molecules(self) -> Molecules:
+        return self._halves.loaders[0].molecules
+
+    @property
+    def half_loaders(self) -> tuple[LoaderBase, LoaderBase]:
+        """The loaders of the two halves."""
+        return self._halves.loaders
+
+    def construct_dask(
+        self,
+        output_shape: int | tuple[int, ...] | None = None,
+        backend: Backend | None = None,
+    ) -> da.Array:
+        output_shape = self._get_output_shape(output_shape)
+        stack0, stack1 = self._halves.stacks(output_shape, backend)
+        return stack0 + stack1 if self._sign > 0 else stack0 - stack1
+
+    def construct_loading_tasks(
+        self,
+        output_shape: int | tuple[int, ...] | None = None,
+        backend: Backend | None = None,
+    ):
+        from acryo._dask import DaskArrayList
+
+        return DaskArrayList(list(self.construct_dask(output_shape, backend)))
+
+    def replace(
+        self,
+        molecules: Molecules | None = None,
+        output_shape=None,
+        order: int | None = None,
+        scale: float | None = None,
+    ) -> Self:
+        loader0, loader1 = (
+            loader.replace(
+                molecules=molecules, output_shape=output_shape, order=order, scale=scale
+            )
+            for loader in self._halves.loaders
+        )
+        return type(self)(_HalfStacks(loader0, loader1), self._sign)
+
+    def binning(self, binsize: int = 2, *, compute: bool = True) -> Self:
+        loader0, loader1 = (
+            loader.binning(binsize, compute=compute) for loader in self._halves.loaders
+        )
+        return type(self)(_HalfStacks(loader0, loader1), self._sign)
+
+    def _default_align_kwargs(self) -> dict:
+        return self._halves.loaders[0]._default_align_kwargs()
 
 
 def make_loader(
