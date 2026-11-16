@@ -3169,7 +3169,8 @@ class SubtomogramAveraging(ChildWidget):
         _sigma = 0.8
         shape = (main.tomogram.nm2pixel(diameter + _sigma * 3, bin_size),) * 3
         _zeros = np.zeros(shape, dtype=np.float32)
-        mask = spherical_mask(diameter / 2, _sigma)(_zeros, loader.scale * bin_size)
+        # the scale of the loader is already that of the binned subtomograms
+        mask = spherical_mask(diameter / 2, _sigma)(_zeros, loader.scale)
         fsc, (img_0, img_1), img_mask = (
             loader.reshape(shape=shape)
             .order_optimize()
