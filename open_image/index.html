@@ -2993,7 +2993,7 @@ loaded image can also be inverted from the menu (see <a href="#invert-images">In
 </div>
 <div class="tabbed-block">
 <p><img alt="✨" class="twemoji" src="https://cdn.jsdelivr.net/gh/jdecked/twemoji@16.0.1/assets/svg/2728.svg" title=":sparkles:" /> <em>New in v1.3.0 (beta)</em></p>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="open_tilt_series(path, scale=None, reference_scale=2.0, tomo_hand=-1, tomo_height=300.0, ctf=True, bin_size=[2, 4], filter=None, save_coarse_tomogram=False)" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.open_tilt_series"><code>open_tilt_series</code></a> or <a class="autorefs autorefs-internal" title="open_tilt_series_with_reference(path, scale, reference_path, tomo_hand=-1, ctf=True, bin_size=[2, 4], filter=None, invert_reference=True)" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.open_tilt_series_with_reference"><code>open_tilt_series_with_reference</code></a>.</p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="open_tilt_series(path, scale=None, reference_scale=2.0, tomo_hand=-1, tomo_height=300.0, ctf=True, bin_size=[2, 4], filter=None, save_coarse_tomogram=False, halves=None)" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.open_tilt_series"><code>open_tilt_series</code></a> or <a class="autorefs autorefs-internal" title="open_tilt_series_with_reference(path, scale, reference_path, tomo_hand=-1, ctf=True, bin_size=[2, 4], filter=None, invert_reference=True, halves=None)" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.open_tilt_series_with_reference"><code>open_tilt_series_with_reference</code></a>.</p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>File &gt; Open tilt series</code></p>
 <p><img alt="open tilt series dialog" loading="lazy," src="../images/open_tilt_series_dialog.png" width="400px" /></p>
 <p>Bin-1 tomograms usually take up a lot of storage space and time to reconstruct.
@@ -3011,6 +3011,11 @@ subvolumes on demand. For visualization, a coarse tomogram will be generated.</p
    clever, <a href="#directory-specific-defaults">prepare a <code>.cylindra-defaults.toml</code> file</a>.
    Tomogram handedness depends on the image acquisition scheme you used. If you are
    unsure, see <a href=".././case_studies/check_handedness/">Checking Tomogram Handedness</a>.</li>
+<li>If you will use the methods that need half tomograms (such as the defect
+   detection without the shift to the background), select "Odd/even tilts" in
+   "Half tomograms". The tilts are assigned to two halves alternately in the order
+   of the tilt angles, and the subvolumes of the half tomograms are reconstructed
+   from the halves on demand. This is saved in the project.</li>
 <li>Click "Open tilt series" or "Open tilt series with reference" to start analysis.</li>
 </ol>
 <p>Tilt series requires preprocessing when any subvolumes are to be cropped. The

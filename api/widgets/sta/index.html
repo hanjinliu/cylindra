@@ -6171,7 +6171,8 @@
 <span class="normal">3210</span>
 <span class="normal">3211</span>
 <span class="normal">3212</span>
-<span class="normal">3213</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">widget_type</span><span class="o">=</span><span class="s2">"scrollable"</span><span class="p">,</span> <span class="n">use_native_menubar</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="normal">3213</span>
+<span class="normal">3214</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@magicclass</span><span class="p">(</span><span class="n">widget_type</span><span class="o">=</span><span class="s2">"scrollable"</span><span class="p">,</span> <span class="n">use_native_menubar</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="nd">@_shared_doc</span><span class="o">.</span><span class="n">update_cls</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">SubtomogramAveraging</span><span class="p">(</span><span class="n">ChildWidget</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Widget for subtomogram averaging."""</span>
@@ -8671,7 +8672,7 @@
         <span class="n">main</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_main</span><span class="p">()</span>
         <span class="n">model</span> <span class="o">=</span> <span class="n">_get_alignment</span><span class="p">(</span><span class="n">method</span><span class="p">)</span>
         <span class="n">mole</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">molecules</span>
-        <span class="k">if</span> <span class="n">shift_to_background</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">main</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">image_halves</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">shift_to_background</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">main</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">has_halves</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
                 <span class="s2">"Tomogram does not have half tomograms. "</span>
                 <span class="s2">"Please provide shift_to_background parameter."</span>
@@ -8683,7 +8684,8 @@
         <span class="n">_sigma</span> <span class="o">=</span> <span class="mf">0.8</span>
         <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">main</span><span class="o">.</span><span class="n">tomogram</span><span class="o">.</span><span class="n">nm2pixel</span><span class="p">(</span><span class="n">diameter</span> <span class="o">+</span> <span class="n">_sigma</span> <span class="o">*</span> <span class="mi">3</span><span class="p">,</span> <span class="n">bin_size</span><span class="p">),)</span> <span class="o">*</span> <span class="mi">3</span>
         <span class="n">_zeros</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
-        <span class="n">mask</span> <span class="o">=</span> <span class="n">spherical_mask</span><span class="p">(</span><span class="n">diameter</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="n">_sigma</span><span class="p">)(</span><span class="n">_zeros</span><span class="p">,</span> <span class="n">loader</span><span class="o">.</span><span class="n">scale</span> <span class="o">*</span> <span class="n">bin_size</span><span class="p">)</span>
+        <span class="c1"># the scale of the loader is already that of the binned subtomograms</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">spherical_mask</span><span class="p">(</span><span class="n">diameter</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="n">_sigma</span><span class="p">)(</span><span class="n">_zeros</span><span class="p">,</span> <span class="n">loader</span><span class="o">.</span><span class="n">scale</span><span class="p">)</span>
         <span class="n">fsc</span><span class="p">,</span> <span class="p">(</span><span class="n">img_0</span><span class="p">,</span> <span class="n">img_1</span><span class="p">),</span> <span class="n">img_mask</span> <span class="o">=</span> <span class="p">(</span>
             <span class="n">loader</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">shape</span><span class="p">)</span>
             <span class="o">.</span><span class="n">order_optimize</span><span class="p">()</span>

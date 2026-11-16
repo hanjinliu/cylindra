@@ -5406,7 +5406,11 @@
 <span class="normal">909</span>
 <span class="normal">910</span>
 <span class="normal">911</span>
-<span class="normal">912</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylindraProject</span><span class="p">(</span><span class="n">BaseProject</span><span class="p">):</span>
+<span class="normal">912</span>
+<span class="normal">913</span>
+<span class="normal">914</span>
+<span class="normal">915</span>
+<span class="normal">916</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CylindraProject</span><span class="p">(</span><span class="n">BaseProject</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""A project of cylindra."""</span>
 
     <span class="c1"># this allows extra fields in the json file, for backward compatibility</span>
@@ -5547,12 +5551,14 @@
         <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">ts</span><span class="o">.</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>
         <span class="n">tomo_hand</span> <span class="o">=</span> <span class="n">ts</span><span class="o">.</span><span class="n">tomo_hand</span>
         <span class="n">bin_size</span> <span class="o">=</span> <span class="n">ts</span><span class="o">.</span><span class="n">binsizes</span>
+        <span class="n">halves</span> <span class="o">=</span> <span class="s2">""</span> <span class="k">if</span> <span class="n">ts</span><span class="o">.</span><span class="n">halves</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">", halves=</span><span class="si">{</span><span class="n">ts</span><span class="o">.</span><span class="n">halves</span><span class="si">!r}</span><span class="s2">"</span>
         <span class="k">if</span> <span class="n">ts</span><span class="o">.</span><span class="n">reference</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">reference_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">ts</span><span class="o">.</span><span class="n">reference</span><span class="p">)</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>
             <span class="n">invert_reference</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">invert_reference</span>
             <span class="k">return</span> <span class="p">(</span>
                 <span class="sa">f</span><span class="s2">"ui.open_tilt_series_with_reference(</span><span class="si">{</span><span class="n">path</span><span class="si">=}</span><span class="s2">, </span><span class="si">{</span><span class="n">scale</span><span class="si">=:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">, "</span>
-                <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">reference_path</span><span class="si">=}</span><span class="s2">, </span><span class="si">{</span><span class="n">tomo_hand</span><span class="si">=}</span><span class="s2">, </span><span class="si">{</span><span class="n">bin_size</span><span class="si">=}</span><span class="s2">, </span><span class="si">{</span><span class="n">invert_reference</span><span class="si">=}</span><span class="s2">)"</span>
+                <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">reference_path</span><span class="si">=}</span><span class="s2">, </span><span class="si">{</span><span class="n">tomo_hand</span><span class="si">=}</span><span class="s2">, </span><span class="si">{</span><span class="n">bin_size</span><span class="si">=}</span><span class="s2">, </span><span class="si">{</span><span class="n">invert_reference</span><span class="si">=}</span><span class="s2">"</span>
+                <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">halves</span><span class="si">}</span><span class="s2">)"</span>
             <span class="p">)</span>
         <span class="c1"># same bin size from the pixel sizes rounded in the script</span>
         <span class="n">reference_scale</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">scale</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span> <span class="o">*</span> <span class="n">ts</span><span class="o">.</span><span class="n">reference_binsize</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span>
@@ -5563,7 +5569,7 @@
         <span class="k">return</span> <span class="p">(</span>
             <span class="sa">f</span><span class="s2">"ui.open_tilt_series(</span><span class="si">{</span><span class="n">path</span><span class="si">=}</span><span class="s2">, </span><span class="si">{</span><span class="n">scale</span><span class="si">=:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">reference_scale</span><span class="si">=}</span><span class="s2">, "</span>
             <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">tomo_hand</span><span class="si">=}</span><span class="s2">, </span><span class="si">{</span><span class="n">tomo_height</span><span class="si">=:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">bin_size</span><span class="si">=}</span><span class="s2">, "</span>
-            <span class="s2">"save_coarse_tomogram=False)"</span>
+            <span class="sa">f</span><span class="s2">"save_coarse_tomogram=False</span><span class="si">{</span><span class="n">halves</span><span class="si">}</span><span class="s2">)"</span>
         <span class="p">)</span>
 
     <span class="nd">@classmethod</span>
@@ -6055,6 +6061,8 @@
                     <span class="n">binsize</span><span class="o">=</span><span class="n">ts_info</span><span class="o">.</span><span class="n">binsizes</span><span class="p">,</span>
                     <span class="n">tomogram_center</span><span class="o">=</span><span class="n">ts_info</span><span class="o">.</span><span class="n">tomogram_center</span><span class="p">,</span>
                 <span class="p">)</span>
+                <span class="k">if</span> <span class="n">ts_info</span><span class="o">.</span><span class="n">halves</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">tomo</span><span class="o">.</span><span class="n">with_halves</span><span class="p">(</span><span class="n">ts_info</span><span class="o">.</span><span class="n">halves</span><span class="p">)</span>
                 <span class="c1"># The files in the project may be temporary (tar or zip). They are</span>
                 <span class="c1"># saved again when the project is saved.</span>
                 <span class="n">tomo</span><span class="o">.</span><span class="n">tilt_series</span><span class="o">.</span><span class="n">mark_unsaved</span><span class="p">(</span>
@@ -6561,9 +6569,7 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">204</span>
-<span class="normal">205</span>
-<span class="normal">206</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">206</span>
 <span class="normal">207</span>
 <span class="normal">208</span>
 <span class="normal">209</span>
@@ -6629,7 +6635,9 @@
 <span class="normal">269</span>
 <span class="normal">270</span>
 <span class="normal">271</span>
-<span class="normal">272</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">272</span>
+<span class="normal">273</span>
+<span class="normal">274</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">from_gui</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
     <span class="n">gui</span><span class="p">:</span> <span class="s2">"CylindraMainWidget"</span><span class="p">,</span>
@@ -6720,9 +6728,7 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">582</span>
-<span class="normal">583</span>
-<span class="normal">584</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">584</span>
 <span class="normal">585</span>
 <span class="normal">586</span>
 <span class="normal">587</span>
@@ -6740,7 +6746,9 @@
 <span class="normal">599</span>
 <span class="normal">600</span>
 <span class="normal">601</span>
-<span class="normal">602</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">iter_load_molecules</span><span class="p">(</span>
+<span class="normal">602</span>
+<span class="normal">603</span>
+<span class="normal">604</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">iter_load_molecules</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"Iterable[tuple[MoleculesInfo, Molecules]]"</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Load all molecules iteratively."""</span>
@@ -6783,9 +6791,7 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">529</span>
-<span class="normal">530</span>
-<span class="normal">531</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">531</span>
 <span class="normal">532</span>
 <span class="normal">533</span>
 <span class="normal">534</span>
@@ -6834,7 +6840,9 @@
 <span class="normal">577</span>
 <span class="normal">578</span>
 <span class="normal">579</span>
-<span class="normal">580</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">iter_load_splines</span><span class="p">(</span>
+<span class="normal">580</span>
+<span class="normal">581</span>
+<span class="normal">582</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">iter_load_splines</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">drop_columns</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
@@ -6908,9 +6916,7 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">515</span>
-<span class="normal">516</span>
-<span class="normal">517</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">517</span>
 <span class="normal">518</span>
 <span class="normal">519</span>
 <span class="normal">520</span>
@@ -6920,7 +6926,9 @@
 <span class="normal">524</span>
 <span class="normal">525</span>
 <span class="normal">526</span>
-<span class="normal">527</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">iter_spline_paths</span><span class="p">(</span>
+<span class="normal">527</span>
+<span class="normal">528</span>
+<span class="normal">529</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">iter_spline_paths</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"Iterable[tuple[int, Path]]"</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Iterate over the paths of splines and their indices."""</span>
@@ -7027,9 +7035,7 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">604</span>
-<span class="normal">605</span>
-<span class="normal">606</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">606</span>
 <span class="normal">607</span>
 <span class="normal">608</span>
 <span class="normal">609</span>
@@ -7058,7 +7064,9 @@
 <span class="normal">632</span>
 <span class="normal">633</span>
 <span class="normal">634</span>
-<span class="normal">635</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_molecules</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"Molecules"</span><span class="p">:</span>
+<span class="normal">635</span>
+<span class="normal">636</span>
+<span class="normal">637</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_molecules</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"Molecules"</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Load the molecule with the given name.</span>
 
 <span class="sd">    &gt;&gt;&gt; mole = project.load_molecules("Mole-0")  # load one with name "Mole-0"</span>
@@ -7200,9 +7208,7 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">457</span>
-<span class="normal">458</span>
-<span class="normal">459</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">459</span>
 <span class="normal">460</span>
 <span class="normal">461</span>
 <span class="normal">462</span>
@@ -7256,7 +7262,9 @@
 <span class="normal">510</span>
 <span class="normal">511</span>
 <span class="normal">512</span>
-<span class="normal">513</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_spline</span><span class="p">(</span>
+<span class="normal">513</span>
+<span class="normal">514</span>
+<span class="normal">515</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_spline</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -7335,11 +7343,7 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">782</span>
-<span class="normal">783</span>
-<span class="normal">784</span>
-<span class="normal">785</span>
-<span class="normal">786</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">786</span>
 <span class="normal">787</span>
 <span class="normal">788</span>
 <span class="normal">789</span>
@@ -7347,7 +7351,11 @@
 <span class="normal">791</span>
 <span class="normal">792</span>
 <span class="normal">793</span>
-<span class="normal">794</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_tilt_series_loader</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"BackProjectionLoader"</span><span class="p">:</span>
+<span class="normal">794</span>
+<span class="normal">795</span>
+<span class="normal">796</span>
+<span class="normal">797</span>
+<span class="normal">798</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_tilt_series_loader</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"BackProjectionLoader"</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Create the loader that reconstructs subtomograms from the tilt series."""</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">cylindra.components.tomogram</span><span class="w"> </span><span class="kn">import</span> <span class="n">_tilt_series</span> <span class="k">as</span> <span class="n">_ts</span>
 
@@ -7429,9 +7437,7 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">637</span>
-<span class="normal">638</span>
-<span class="normal">639</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">639</span>
 <span class="normal">640</span>
 <span class="normal">641</span>
 <span class="normal">642</span>
@@ -7554,7 +7560,11 @@
 <span class="normal">759</span>
 <span class="normal">760</span>
 <span class="normal">761</span>
-<span class="normal">762</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_tomogram</span><span class="p">(</span>
+<span class="normal">762</span>
+<span class="normal">763</span>
+<span class="normal">764</span>
+<span class="normal">765</span>
+<span class="normal">766</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">load_tomogram</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">compute</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
@@ -7610,6 +7620,8 @@
                 <span class="n">binsize</span><span class="o">=</span><span class="n">ts_info</span><span class="o">.</span><span class="n">binsizes</span><span class="p">,</span>
                 <span class="n">tomogram_center</span><span class="o">=</span><span class="n">ts_info</span><span class="o">.</span><span class="n">tomogram_center</span><span class="p">,</span>
             <span class="p">)</span>
+            <span class="k">if</span> <span class="n">ts_info</span><span class="o">.</span><span class="n">halves</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">tomo</span><span class="o">.</span><span class="n">with_halves</span><span class="p">(</span><span class="n">ts_info</span><span class="o">.</span><span class="n">halves</span><span class="p">)</span>
             <span class="c1"># The files in the project may be temporary (tar or zip). They are</span>
             <span class="c1"># saved again when the project is saved.</span>
             <span class="n">tomo</span><span class="o">.</span><span class="n">tilt_series</span><span class="o">.</span><span class="n">mark_unsaved</span><span class="p">(</span>
@@ -7702,13 +7714,13 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">821</span>
-<span class="normal">822</span>
-<span class="normal">823</span>
-<span class="normal">824</span>
-<span class="normal">825</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">825</span>
 <span class="normal">826</span>
-<span class="normal">827</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">make_component_viewer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">827</span>
+<span class="normal">828</span>
+<span class="normal">829</span>
+<span class="normal">830</span>
+<span class="normal">831</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">make_component_viewer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Build a molecules viewer widget from this project."""</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">cylindra.project._widgets</span><span class="w"> </span><span class="kn">import</span> <span class="n">ComponentsViewer</span>
 
@@ -7737,13 +7749,13 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">813</span>
-<span class="normal">814</span>
-<span class="normal">815</span>
-<span class="normal">816</span>
-<span class="normal">817</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">817</span>
 <span class="normal">818</span>
-<span class="normal">819</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">make_project_viewer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">819</span>
+<span class="normal">820</span>
+<span class="normal">821</span>
+<span class="normal">822</span>
+<span class="normal">823</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">make_project_viewer</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Build a project viewer widget from this project."""</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">cylindra.project._widgets</span><span class="w"> </span><span class="kn">import</span> <span class="n">ProjectViewer</span>
 
@@ -7883,11 +7895,7 @@
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">829</span>
-<span class="normal">830</span>
-<span class="normal">831</span>
-<span class="normal">832</span>
-<span class="normal">833</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">833</span>
 <span class="normal">834</span>
 <span class="normal">835</span>
 <span class="normal">836</span>
@@ -7911,7 +7919,11 @@
 <span class="normal">854</span>
 <span class="normal">855</span>
 <span class="normal">856</span>
-<span class="normal">857</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@contextmanager</span>
+<span class="normal">857</span>
+<span class="normal">858</span>
+<span class="normal">859</span>
+<span class="normal">860</span>
+<span class="normal">861</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@contextmanager</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">open_project</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Generator</span><span class="p">[</span><span class="n">Path</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">"""Open the project within this context."""</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">project_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -8009,11 +8021,7 @@ project directory.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">859</span>
-<span class="normal">860</span>
-<span class="normal">861</span>
-<span class="normal">862</span>
-<span class="normal">863</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">863</span>
 <span class="normal">864</span>
 <span class="normal">865</span>
 <span class="normal">866</span>
@@ -8042,7 +8050,11 @@ project directory.</p>
 <span class="normal">889</span>
 <span class="normal">890</span>
 <span class="normal">891</span>
-<span class="normal">892</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">rewrite</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">):</span>
+<span class="normal">892</span>
+<span class="normal">893</span>
+<span class="normal">894</span>
+<span class="normal">895</span>
+<span class="normal">896</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">rewrite</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Rewrite tar/zip file using given temporary directory.</span>
 
 <span class="sd">    This method is only used after some mutable operation on the</span>
@@ -8258,9 +8270,7 @@ project. Otherwise, it is reconstructed again when the project is opened.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>cylindra/project/_single.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">274</span>
-<span class="normal">275</span>
-<span class="normal">276</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">276</span>
 <span class="normal">277</span>
 <span class="normal">278</span>
 <span class="normal">279</span>
@@ -8328,7 +8338,9 @@ project. Otherwise, it is reconstructed again when the project is opened.</p>
 <span class="normal">341</span>
 <span class="normal">342</span>
 <span class="normal">343</span>
-<span class="normal">344</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">344</span>
+<span class="normal">345</span>
+<span class="normal">346</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">save_gui</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">:</span> <span class="s2">"type[CylindraProject]"</span><span class="p">,</span>
     <span class="n">gui</span><span class="p">:</span> <span class="s2">"CylindraMainWidget"</span><span class="p">,</span>
