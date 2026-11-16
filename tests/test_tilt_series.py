@@ -274,6 +274,147 @@ def test_analysis_with_tilt_series(tilt_series_files: TiltSeriesFiles):
     tomo.tilt_series.release_cache()
 
 
+def test_tilt_series_halves(tilt_series_files: TiltSeriesFiles, tmp_path: Path):
+    from cylindra.components.tomogram._tilt_series import HalfMapLoader, split_tilts
+    from cylindra.project import CylindraProject
+    from cylindra.project._base import TiltSeriesInfo
+
+    tomo = CylTomogram.from_tilt_series(
+        tilt_series_files.json,
+        ip.imread(tilt_series_files.reference),
+        tomo_hand=TOMO_HAND,
+    )
+    mole = Molecules.from_csv(TEST_DIR / "test_project_13pf" / "Mole-0.csv")
+    mole = mole.translate(tilt_series_files.offset).subset(slice(0, 26))
+    assert not tomo.has_halves
+    with pytest.raises(ValueError):
+        tomo.get_subtomogram_and_noise_loader(mole)
+    with pytest.raises(ValueError, match="not supported yet"):
+        tomo.with_halves("checkerboard")
+    with pytest.raises(ValueError):
+        tomo.with_halves("random")
+    with pytest.raises(ValueError):  # not from a tilt series
+        CylTomogram.dummy().with_halves()
+    assert not tomo.has_halves
+    assert tomo.with_halves() is tomo
+    assert tomo.has_halves
+    assert tomo.image_halves is None
+    src = tomo.tilt_series
+    assert src.halves_method == "odd_even"
+
+    # tilts are assigned to the halves alternately in the order of the tilt angles
+    loader0, loader1 = src.half_loaders()
+    angles = np.sort(src.tilt_series.tilt_angles)
+    np.testing.assert_allclose(loader0.tilt_series.tilt_angles, angles[0::2])
+    np.testing.assert_allclose(loader1.tilt_series.tilt_angles, angles[1::2])
+    idx0, idx1 = split_tilts([10.0, -10.0, 0.0, 20.0, -20.0])
+    np.testing.assert_array_equal(idx0, [2, 3, 4])
+    np.testing.assert_array_equal(idx1, [0, 1])
+
+    loader_s, loader_n = tomo.get_subtomogram_and_noise_loader(
+        mole, output_shape=(9.0, 9.0, 9.0), binsize=1
+    )
+    assert isinstance(loader_s, HalfMapLoader)
+    assert isinstance(loader_n, HalfMapLoader)
+    # the stacks of the halves are shared, so they are reconstructed only once
+    keys_s = set(loader_s.construct_dask().__dask_graph__().keys())
+    keys_n = set(loader_n.construct_dask().__dask_graph__().keys())
+    assert len(keys_s & keys_n) > 0
+    half0, half1 = src.get_half_loaders(mole, output_shape=(9, 9, 9))
+    sub0, sub1 = half0.asnumpy(), half1.asnumpy()
+    sub_s, sub_n = loader_s.asnumpy(), loader_n.asnumpy()
+    assert sub_s.shape == (26, 9, 9, 9)
+    np.testing.assert_allclose(sub_s, sub0 + sub1, rtol=1e-5, atol=1e-5)
+    np.testing.assert_allclose(sub_n, sub0 - sub1, rtol=1e-5, atol=1e-5)
+    # the simulated tilt series has no noise
+    full = tomo.get_subtomogram_loader(mole, (9.0, 9.0, 9.0), binsize=1).asnumpy()
+    assert _corr(sub_s, full) > 0.99
+    assert np.var(sub_n) < 0.1 * np.var(sub_s)
+    assert _cached_binsizes(tomo) == {1}
+    # halves are split again from the new tilt series
+    tomo.update_tilt_series(src.tilt_series.replace(tilt_axis_angle=0.5))
+    assert src.halves_method == "odd_even"
+    assert src.half_loaders()[0] is not loader0
+    np.testing.assert_allclose(src.half_loaders()[0].tilt_series.tilt_axis_angle, 0.5)
+    src.release_cache()
+
+    # the method is recorded in the project
+    info = TiltSeriesInfo(
+        path=tilt_series_files.json,
+        reference=tilt_series_files.reference,
+        reference_binsize=2,
+        tomogram_center=tuple(src.tomogram_center),
+        tomo_hand=TOMO_HAND,
+        halves="odd_even",
+    )
+    for halves in ["odd_even", None]:
+        info.halves = halves
+        path = tmp_path / f"project-{halves}"
+        CylindraProject.new(None, SCALE, tilt_series=info).save(path)
+        script = (path / "script.py").read_text()
+        assert ("halves='odd_even')" in script) == bool(halves)
+        tomo = CylindraProject.from_file(path).load_tomogram(compute=False)
+        assert tomo.tilt_series.halves_method == halves
+        tomo.tilt_series.release_cache()
+
+
+def test_detect_defects_with_tilt_series_halves(
+    ui: CylindraMainWidget,
+    tilt_series_files: TiltSeriesFiles,
+    tmp_path: Path,
+    qtbot,
+):
+    from cylindra.project import CylindraProject
+
+    kwargs = {
+        "scale": SCALE,
+        "reference_path": tilt_series_files.reference,
+        "tomo_hand": TOMO_HAND,
+        "bin_size": [1],
+        "filter": None,
+        "invert_reference": True,
+    }
+    mole = Molecules.from_csv(TEST_DIR / "test_project_13pf" / "Mole-0.csv")
+    mole = mole.translate(tilt_series_files.offset)
+    ui.open_tilt_series_with_reference(tilt_series_files.json, **kwargs)
+    assert not ui.tomogram.has_halves
+    layer = ui.add_molecules(mole, name="Mole-0")
+    with pytest.raises(ValueError), qtbot.capture_exceptions():  # no half tomograms
+        ui.sta.detect_defects(layer, bin_size=1)
+    with pytest.raises(ValueError), qtbot.capture_exceptions():
+        ui.open_tilt_series_with_reference(
+            tilt_series_files.json, **kwargs, halves="checkerboard"
+        )
+    with pytest.raises(ValueError), qtbot.capture_exceptions():
+        # before the reconstruction of the coarse tomogram
+        ui.open_tilt_series(tilt_series_files.json, scale=SCALE, halves="checkerboard")
+
+    ui.open_tilt_series_with_reference(
+        tilt_series_files.json, **kwargs, halves="odd_even"
+    )
+    assert "halves='odd_even'" in str(ui.macro[-1])
+    assert ui.tomogram.tilt_series.halves_method == "odd_even"
+    assert "Half tomograms: odd_even" in ui.GeneralInfo.image_info.value
+    layer = ui.add_molecules(mole, name="Mole-0")
+    ui.sta.detect_defects(layer, bin_size=1)
+    feat = layer.molecules.features
+    # the simulated tilt series has no defect
+    assert (feat["prob_defect"] < 0.5).mean() > 0.9
+    ui.sta.calculate_signal_noise_profiles(layer, bin_size=1)
+
+    ui.save_project(tmp_path / "project")
+    info = CylindraProject.from_file(tmp_path / "project").tilt_series
+    assert info is not None
+    assert info.halves == "odd_even"
+    script = (tmp_path / "project" / "script.py").read_text()
+    assert "halves='odd_even'" in script
+    ui.load_project(tmp_path / "project", filter=None)
+    assert ui.tomogram.tilt_series.halves_method == "odd_even"
+    assert "Half tomograms: odd_even" in ui.GeneralInfo.image_info.value
+    ui.sta.detect_defects("Mole-0", bin_size=1)
+    ui.tomogram.tilt_series.release_cache()
+
+
 def test_open_tilt_series(
     ui: CylindraMainWidget,
     tilt_series_files: TiltSeriesFiles,

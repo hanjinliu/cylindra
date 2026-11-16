@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Iterable, Literal, NamedTuple, Self, over
 import impy as ip
 import numpy as np
 from acryo import Molecules, SubtomogramLoader
+from acryo.loader import LoaderBase
 from acryo.tilt import NoWedge, TiltSeriesModel, single_axis
 from acryo.tilt.core import SingleAxisX, SingleAxisY, UnionAxes
 from numpy.typing import NDArray
@@ -508,6 +509,42 @@ class Tomogram:
         self._metadata.update(source=ts_path, scale=scale, reference=ref_path)
         return self
 
+    def with_halves(
+        self, method: Literal["odd_even", "checkerboard"] = "odd_even"
+    ) -> Self:
+        """Split the tilt series into halves to use half tomograms **in-place**.
+
+        Only for a tomogram opened from a tilt series. Same as the tomogram opened from
+        the image halves, methods that use half tomograms (such as `detect_defects`)
+        are available, but the half tomograms are not images. Their subtomograms are
+        reconstructed from the halves of the tilt series, which share the preprocessed
+        tilt images with the whole tilt series.
+
+        Parameters
+        ----------
+        method : {"odd_even", "checkerboard"}, default "odd_even"
+            Method to split the tilt series. "odd_even" assigns the tilts to the halves
+            alternately in the order of the tilt angles. "checkerboard" (splitting the
+            pixels of each tilt image) is not supported yet.
+        """
+        if self._tilt_series is None:
+            raise ValueError(
+                "Half tomograms can be created only for a tomogram opened from a tilt "
+                "series."
+            )
+        self._tilt_series.set_halves(method)
+        return self
+
+    @property
+    def has_halves(self) -> bool:
+        """True if half tomograms are available (image halves or tilt series halves)."""
+        if self._image_halves is not None:
+            return True
+        return (
+            self._tilt_series is not None
+            and self._tilt_series.halves_method is not None
+        )
+
     def with_cache_info(self, orig_path: Path, cached: bool = False) -> Self:
         """Set cache path."""
         orig_path = Path(orig_path)
@@ -534,7 +571,11 @@ class Tomogram:
 
     @property
     def image_halves(self) -> tuple[_ImageType, _ImageType] | None:
-        """Tomogram image halves data."""
+        """Tomogram image halves data.
+
+        This is None for a tomogram opened from a tilt series, even if it has halves
+        (see `with_halves` and `has_halves`).
+        """
         return self._image_halves
 
     @property
@@ -717,8 +758,24 @@ class Tomogram:
         output_shape: tuple[nm, nm, nm] | None = None,
         binsize: int = 1,
         order: int = 1,
-    ) -> tuple[SubtomogramLoader, SubtomogramLoader]:
-        img1, img2 = self.image_halves
+    ) -> tuple[LoaderBase, LoaderBase]:
+        """Create loaders of the sum and the difference of the half tomograms.
+
+        The sum has the signal and the noise, and the difference has only the noise of
+        the same level. If the tomogram is opened from a tilt series split into halves
+        (see `with_halves`), the subtomograms of the halves are reconstructed from the
+        halves of the tilt series.
+        """
+        if (ts := self._tilt_series) is not None and ts.halves_method is not None:
+            if output_shape is not None:
+                _shape = self.nm2pixel(output_shape, binsize=binsize)
+                output_shape = tuple(int(s) for s in _shape)
+            return ts.get_signal_noise_loaders(
+                mole, binsize=binsize, output_shape=output_shape, order=order
+            )
+        if self._image_halves is None:
+            raise ValueError("The tomogram does not have half tomograms.")
+        img1, img2 = self._image_halves
         if binsize > 1:
             tr = -self.multiscale_translation(binsize)
             mole = mole.translate([tr, tr, tr])

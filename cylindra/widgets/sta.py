@@ -3157,7 +3157,7 @@ class SubtomogramAveraging(ChildWidget):
         main = self._get_main()
         model = _get_alignment(method)
         mole = layer.molecules
-        if shift_to_background is None and main.tomogram.image_halves is None:
+        if shift_to_background is None and not main.tomogram.has_halves:
             raise ValueError(
                 "Tomogram does not have half tomograms. "
                 "Please provide shift_to_background parameter."

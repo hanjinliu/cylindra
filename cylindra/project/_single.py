@@ -182,12 +182,14 @@ class CylindraProject(BaseProject):
         path = Path(ts.path).as_posix()
         tomo_hand = ts.tomo_hand
         bin_size = ts.binsizes
+        halves = "" if ts.halves is None else f", halves={ts.halves!r}"
         if ts.reference is not None:
             reference_path = Path(ts.reference).as_posix()
             invert_reference = self.invert_reference
             return (
                 f"ui.open_tilt_series_with_reference({path=}, {scale=:.4f}, "
-                f"{reference_path=}, {tomo_hand=}, {bin_size=}, {invert_reference=})"
+                f"{reference_path=}, {tomo_hand=}, {bin_size=}, {invert_reference=}"
+                f"{halves})"
             )
         # same bin size from the pixel sizes rounded in the script
         reference_scale = round(round(scale, 4) * ts.reference_binsize, 6)
@@ -198,7 +200,7 @@ class CylindraProject(BaseProject):
         return (
             f"ui.open_tilt_series({path=}, {scale=:.4f}, {reference_scale=}, "
             f"{tomo_hand=}, {tomo_height=:.2f}, {bin_size=}, "
-            "save_coarse_tomogram=False)"
+            f"save_coarse_tomogram=False{halves})"
         )
 
     @classmethod
@@ -690,6 +692,8 @@ class CylindraProject(BaseProject):
                     binsize=ts_info.binsizes,
                     tomogram_center=ts_info.tomogram_center,
                 )
+                if ts_info.halves is not None:
+                    tomo.with_halves(ts_info.halves)
                 # The files in the project may be temporary (tar or zip). They are
                 # saved again when the project is saved.
                 tomo.tilt_series.mark_unsaved(
@@ -960,6 +964,7 @@ def _tilt_series_info(
         tomogram_center=tuple(float(c) for c in ts.tomogram_center),
         tomo_hand=ts.loader.tomo_hand,
         binsizes=ts.binsizes,
+        halves=ts.halves_method,
     )
 
 
