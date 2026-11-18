@@ -120,7 +120,10 @@ You can open a reconstructed tomogram or a tilt series project for analysis.
        "Half tomograms". The tilts are assigned to two halves alternately in the order
        of the tilt angles, and the subvolumes of the half tomograms are reconstructed
        from the halves on demand. This is saved in the project.
-    5. Click "Open tilt series" or "Open tilt series with reference" to start analysis.
+    5. "Perform patch CTF correction" is checked by default, and the CTF parameters in
+       the tilt series file are used to correct the CTF of the tilt images (including
+       the coarse tomogram). Uncheck it to ignore them. This is saved in the project.
+    6. Click "Open tilt series" or "Open tilt series with reference" to start analysis.
 
     Tilt series requires preprocessing when any subvolumes are to be cropped. The
     preprocessed tilt series images of each bin size will be cached in memory until next

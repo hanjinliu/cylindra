@@ -451,7 +451,8 @@ class Tomogram:
             Position of the origin of the tomogram space of the tilt series in nm. By
             default, it is determined from the shape of the reference tomogram.
         ctf : bool, default True
-            Whether to perform CTF correction.
+            Whether to perform CTF correction. If false, the CTF parameters of the tilt
+            series (file or object) are ignored.
 
         Returns
         -------
@@ -500,6 +501,7 @@ class Tomogram:
             reference_binsize=reference_binsize,
             binsizes=binsize,
             name=ts_path.stem if ts_path is not None else img_ref.name,
+            ctf=ctf,
         )
 
         self = cls()

@@ -155,6 +155,9 @@ class TiltSeriesInfo(BaseModel):
     halves: Literal["odd_even", "checkerboard"] | None = None
     """Method to split the tilt series into halves for the half tomograms (see
     `Tomogram.with_halves`), or None if the tilt series is not split."""
+    ctf: bool = True
+    """Whether the CTF of the tilt images is corrected using the CTF parameters of the
+    tilt series."""
 
     # NOTE: The files outside the project are saved with absolute paths, and the files
     # in the project with relative paths. The relative paths are not resolved here,

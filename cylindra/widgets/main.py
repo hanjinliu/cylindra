@@ -745,7 +745,7 @@ class CylindraMainWidget(MagicTemplate):
         path = Path(path)
         ref = _ts.prep_reference_tomogram(
             path, scale, reference_scale, tomo_hand, tomo_height,
-            save_coarse_tomogram=save_coarse_tomogram,
+            save_coarse_tomogram=save_coarse_tomogram, ctf=ctf,
         )  # fmt: skip
 
         yield thread_worker.description("Reading tilt series")

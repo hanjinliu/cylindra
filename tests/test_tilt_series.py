@@ -415,6 +415,114 @@ def test_detect_defects_with_tilt_series_halves(
     ui.tomogram.tilt_series.release_cache()
 
 
+def _write_tilt_series_with_ctf(files: TiltSeriesFiles, dir: Path) -> Path:
+    """Write the tilt series of the fixture with CTF parameters to a JSON file."""
+    from acryo.ctf import TiltSeriesCTF
+
+    from cylindra.components.tomogram import _tilt_series as _ts
+
+    ts = _ts.read_tilt_series(files.json)  # absolute path to the tilt images
+    ctf = TiltSeriesCTF(defocus_u=np.full(ts.ntilts, -3.0))
+    path = dir / "ts_ctf.json"
+    path.write_text(ts.replace(ctf=ctf).dump_json())
+    return path
+
+
+def test_tilt_series_ctf_disabled(tilt_series_files: TiltSeriesFiles, tmp_path: Path):
+    from cylindra.components.tomogram import _tilt_series as _ts
+    from cylindra.project import CylindraProject
+    from cylindra.project._base import TiltSeriesInfo
+    from cylindra.project._single import _tilt_series_info
+
+    json_path = _write_tilt_series_with_ctf(tilt_series_files, tmp_path)
+    assert _ts.read_tilt_series(json_path).ctf is not None
+    assert _ts.read_tilt_series(json_path, ctf=False).ctf is None
+
+    ref = ip.imread(tilt_series_files.reference)
+    for ctf in [True, False]:
+        tomo = CylTomogram.from_tilt_series(
+            json_path, ref, tomo_hand=TOMO_HAND, ctf=ctf
+        )
+        assert tomo.tilt_series.ctf is ctf
+        assert (tomo.tilt_series.tilt_series.ctf is not None) is ctf
+        assert _tilt_series_info(tomo).ctf is ctf
+    # the CTF parameters of a tilt series object and of a new tilt series (such as a
+    # refined one) are also ignored
+    ts = _ts.read_tilt_series(json_path)
+    src = CylTomogram.from_tilt_series(
+        ts, ref, tomo_hand=TOMO_HAND, ctf=False
+    ).tilt_series
+    assert src.tilt_series.ctf is None
+    src.set_tilt_series(ts.replace(tilt_axis_angle=0.5))
+    assert src.tilt_series.ctf is None
+
+    # saved in the project (the coarse tomogram is reconstructed when opened)
+    info = TiltSeriesInfo(
+        path=json_path,
+        reference=None,
+        reference_binsize=2,
+        reference_shape=ref.shape,
+        tomogram_center=tuple(src.tomogram_center),
+        tomo_hand=TOMO_HAND,
+    )
+    assert info.ctf  # default, as in the projects of older versions
+    for ctf in [True, False]:
+        info.ctf = ctf
+        path = tmp_path / f"project-{ctf}"
+        CylindraProject.new(None, SCALE, tilt_series=info).save(path)
+        script = (path / "script.py").read_text()
+        assert ("ctf=False" in script) is not ctf
+        project = CylindraProject.from_file(path)
+        assert project.tilt_series.ctf is ctf
+        tomo = project.load_tomogram(compute=False)
+        assert tomo.tilt_series.ctf is ctf
+        assert (tomo.tilt_series.tilt_series.ctf is not None) is ctf
+        assert (project.load_tilt_series_loader().tilt_series.ctf is not None) is ctf
+        tomo.tilt_series.release_cache()
+
+
+def test_open_tilt_series_without_ctf(
+    ui: CylindraMainWidget,
+    tilt_series_files: TiltSeriesFiles,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    from cylindra.components.tomogram import _tilt_series as _ts
+    from cylindra.project import CylindraProject
+
+    json_path = _write_tilt_series_with_ctf(tilt_series_files, tmp_path)
+    ctf_of_reference = []
+    _prep = _ts.prep_reference_tomogram
+
+    def _prep_spy(*args, **kwargs):
+        ctf_of_reference.append(kwargs.get("ctf", True))
+        return _prep(*args, **kwargs)
+
+    monkeypatch.setattr(_ts, "prep_reference_tomogram", _prep_spy)
+    ui.open_tilt_series(
+        json_path,
+        scale=SCALE,
+        reference_scale=2.104,  # bin 2
+        tomo_hand=TOMO_HAND,
+        tomo_height=38.0,
+        bin_size=[1],
+        filter=None,
+        ctf=False,
+    )
+    # the coarse tomogram is also reconstructed without the CTF correction
+    assert ctf_of_reference == [False]
+    assert "ctf=False" in str(ui.macro[-1])
+    assert ui.tomogram.tilt_series.tilt_series.ctf is None
+    assert "CTF: Not corrected" in ui.GeneralInfo.image_info.value
+
+    ui.save_project(tmp_path / "project")
+    assert CylindraProject.from_file(tmp_path / "project").tilt_series.ctf is False
+    ui.load_project(tmp_path / "project", filter=None)
+    assert ui.tomogram.tilt_series.ctf is False
+    assert ui.tomogram.tilt_series.tilt_series.ctf is None
+    ui.tomogram.tilt_series.release_cache()
+
+
 def test_open_tilt_series(
     ui: CylindraMainWidget,
     tilt_series_files: TiltSeriesFiles,
