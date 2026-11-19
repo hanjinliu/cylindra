@@ -183,13 +183,15 @@ class CylindraProject(BaseProject):
         tomo_hand = ts.tomo_hand
         bin_size = ts.binsizes
         halves = "" if ts.halves is None else f", halves={ts.halves!r}"
+        # options that are the defaults are omitted
+        extra = ("" if ts.ctf else ", ctf=False") + halves
         if ts.reference is not None:
             reference_path = Path(ts.reference).as_posix()
             invert_reference = self.invert_reference
             return (
                 f"ui.open_tilt_series_with_reference({path=}, {scale=:.4f}, "
                 f"{reference_path=}, {tomo_hand=}, {bin_size=}, {invert_reference=}"
-                f"{halves})"
+                f"{extra})"
             )
         # same bin size from the pixel sizes rounded in the script
         reference_scale = round(round(scale, 4) * ts.reference_binsize, 6)
@@ -200,7 +202,7 @@ class CylindraProject(BaseProject):
         return (
             f"ui.open_tilt_series({path=}, {scale=:.4f}, {reference_scale=}, "
             f"{tomo_hand=}, {tomo_height=:.2f}, {bin_size=}, "
-            f"save_coarse_tomogram=False{halves})"
+            f"save_coarse_tomogram=False{extra})"
         )
 
     @classmethod
@@ -676,7 +678,7 @@ class CylindraProject(BaseProject):
             if ts_path.exists() and (ref_path is None or ref_path.exists()):
                 if ref_path is None:
                     reference = _ts.reconstruct_coarse_tomogram(
-                        _ts.read_tilt_series(ts_path, self.scale),
+                        _ts.read_tilt_series(ts_path, self.scale, ctf=ts_info.ctf),
                         binsize=ts_info.reference_binsize,
                         shape=ts_info.reference_shape,
                         tomo_hand=ts_info.tomo_hand,
@@ -691,6 +693,7 @@ class CylindraProject(BaseProject):
                     tomo_hand=ts_info.tomo_hand,
                     binsize=ts_info.binsizes,
                     tomogram_center=ts_info.tomogram_center,
+                    ctf=ts_info.ctf,
                 )
                 if ts_info.halves is not None:
                     tomo.with_halves(ts_info.halves)
@@ -790,11 +793,13 @@ class CylindraProject(BaseProject):
         if (ts_info := self.tilt_series) is None:
             raise ValueError("The project is not opened from a tilt series.")
         if Path(ts_info.path).is_absolute():
-            tilt_series = _ts.read_tilt_series(ts_info.path, self.scale)
+            tilt_series = _ts.read_tilt_series(
+                ts_info.path, self.scale, ctf=ts_info.ctf
+            )
         else:  # in the project, which may be a tar or zip file
             with self.open_project() as dir:
                 path = _resolve_in(ts_info.path, dir)
-                tilt_series = _ts.read_tilt_series(path, self.scale)
+                tilt_series = _ts.read_tilt_series(path, self.scale, ctf=ts_info.ctf)
         return _ts.make_loader(tilt_series, ts_info.tomogram_center, ts_info.tomo_hand)
 
     def _archive_member_name(self, path: Path | None, dir: Path | None) -> str | None:
@@ -965,6 +970,7 @@ def _tilt_series_info(
         tomo_hand=ts.loader.tomo_hand,
         binsizes=ts.binsizes,
         halves=ts.halves_method,
+        ctf=ts.ctf,
     )
 
 

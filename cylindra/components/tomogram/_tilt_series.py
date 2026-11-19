@@ -66,6 +66,9 @@ class TiltSeriesSource:
         borders between chunks.
     chunk_cache_size : int, default 1 GiB
         Maximum memory (bytes) used to cache the reconstructed chunks.
+    ctf : bool, default True
+        Whether the CTF of the tilt images is corrected using the CTF parameters of the
+        tilt series. If false, the CTF parameters of the tilt series are ignored.
     """
 
     def __init__(
@@ -80,7 +83,10 @@ class TiltSeriesSource:
         chunk_size: int = 64,
         chunk_margin: int = 16,
         chunk_cache_size: int = 2**30,
+        ctf: bool = True,
     ):
+        if not ctf and loader.tilt_series.ctf is not None:
+            loader = loader.with_tilt_series(loader.tilt_series.replace(ctf=None))
         if chunk_size <= 0 or chunk_size % 2 != 0:
             raise ValueError(f"chunk_size must be a positive even number, got {chunk_size}.")  # fmt: skip
         if chunk_margin < 0:
@@ -89,6 +95,7 @@ class TiltSeriesSource:
         if any(b < 1 for b in self._binsizes):
             raise ValueError(f"Bin sizes must be positive, got {self._binsizes}.")
         self._loader = loader
+        self._ctf = bool(ctf)
         self._shape = tuple(int(s) for s in shape)
         self._reference = reference
         if reference is None:
@@ -142,6 +149,14 @@ class TiltSeriesSource:
         return self._shape
 
     @property
+    def ctf(self) -> bool:
+        """Whether CTF correction is enabled.
+
+        The CTF is corrected only if the tilt series also has the CTF parameters.
+        """
+        return self._ctf
+
+    @property
     def tomogram_center(self) -> NDArray[np.float64]:
         """Origin of the tomogram space of the tilt series in nm."""
         return self._loader.tomogram_center
@@ -186,8 +201,11 @@ class TiltSeriesSource:
 
         If the tilt images are the same, the preprocessed tilt images are kept. The
         reconstructed chunks are released. The reference is not updated. The halves
-        (see `set_halves`) are split again from the new tilt series.
+        (see `set_halves`) are split again from the new tilt series. The CTF parameters
+        of the new tilt series are ignored if the CTF is not corrected (see `ctf`).
         """
+        if not self._ctf and tilt_series.ctf is not None:
+            tilt_series = tilt_series.replace(ctf=None)
         with self._lock:
             self._loader = self._loader.with_tilt_series(tilt_series)
             self._chunks.clear()
@@ -684,7 +702,8 @@ def read_tilt_series(
         Pixel size of the tilt images in nm. If not given, the pixel size in the file
         is used. Required for IMOD, which does not store the pixel size.
     ctf : bool, default True
-        Whether to perform CTF correction.
+        Whether to perform CTF correction. If false, the CTF parameters of the tilt
+        series are not read (or removed from the JSON file).
     local_alignment : {"none", "shift"}, default "shift"
         Local alignment method for IMOD tilt series.
     """
@@ -697,6 +716,8 @@ def read_tilt_series(
             ts = ts.replace(image_path=_resolve_image_path(ts.image_path, path.parent))
         if scale is not None:
             ts = ts.replace(scale=scale)
+        if not ctf and ts.ctf is not None:
+            ts = ts.replace(ctf=None)
     elif path.suffix == ".edf":
         if scale is None:
             raise ValueError("Pixel size ('scale') is required for IMOD tilt series.")

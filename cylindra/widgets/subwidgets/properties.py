@@ -98,9 +98,9 @@ class LocalPropertiesWidget(ChildWidget):
         self.params.structure.txt = " -- "
 
     def _set_text(self, spl: "CylSpline", i: int):
-        self.params.spacing.txt = f" {spl.props.get_loc(H.spacing)[i]:.2f} nm"
-        self.params.twist.txt = f" {spl.props.get_loc(H.twist)[i]:.2f}°"
-        self.params.rise.txt = f" {spl.props.get_loc(H.rise)[i]:.2f}°"
+        self.params.spacing.txt = f" {_fmt_prop_loc(spl, H.spacing, i)} nm"
+        self.params.twist.txt = f" {_fmt_prop_loc(spl, H.twist, i)}°"
+        self.params.rise.txt = f" {_fmt_prop_loc(spl, H.rise, i)}°"
         npf = int(spl.props.get_loc(H.npf)[i])
         start = spl.props.get_loc(H.start)[i]
         self.params.structure.txt = f" {npf}_{start}"
@@ -256,5 +256,15 @@ class GlobalPropertiesWidget(MagicTemplate):
 def _fmt_prop(spl: "CylSpline", name: str) -> str:
     value = spl.props.get_glob(name, None)
     if value is None:
+        return " -- "
+    return f"{value:.2f}"
+
+
+def _fmt_prop_loc(spl: "CylSpline", name: str, i: int) -> str:
+    ser = spl.props.get_loc(name, None)
+    if ser is None:
+        return " -- "
+    value = ser[i]
+    if value != value:  # check for nan
         return " -- "
     return f"{value:.2f}"
