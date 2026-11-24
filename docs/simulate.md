@@ -174,11 +174,26 @@ tomogram can be opened at a time, only one NSR can be specified.
 :material-arrow-right-thin-circle-outline: GUI: `Simulator widget > Simulate > Simulate tilt series`
 
 This method is used to simulate tilt series images from the registered densities,
-without back-projection. The simulated tilt series will be saved as an image stack.
+without back-projection. The simulated tilt series will be saved as an image stack
+("image-{i}.mrc"), together with a JSON file of the tilt series ("image-{i}.json").
+The JSON file can be directly opened by
+[`open_tilt_series`][cylindra.widgets.main.CylindraMainWidget.open_tilt_series]
+(with the default handedness `tomo_hand=-1`), so that you can simulate the analysis of
+tilt series. If the CTF is simulated with `correct="none"`, the CTF parameters are
+written to the JSON file and the CTF is corrected when the tilt series is opened. A
+[`.cylindra-defaults.toml`](open_image.md#directory-specific-defaults) file is also
+saved in the directory, so that the "Scan" button of the dialog fills in the parameters
+determined by the simulation (pixel size, `tomo_hand = -1` and the height of the
+simulated tomogram).
 
-This method is usually combined with
+Because `open_tilt_series` expects the tilt series to be light-background, as in the
+cryo-EM images, set `light_background=True` to invert the intensity of the tilt series
+if you are going to open it as a tilt series.
+
+This method can also be combined with
 [the next reconstruction method](#4-simulate-tomogram-from-a-tilt-series)
-to repetitively generate multiple tomograms with different settings.
+to repetitively generate multiple tomograms with different settings. In this case, keep
+`light_background=False` (default).
 
 ### 4. Simulate tomogram from a tilt series
 

@@ -40,6 +40,7 @@ from cylindra.components import (
 from cylindra.const import INTERPOLATION_CHOICES, PREVIEW_LAYER_NAME, FileFilter, nm
 from cylindra.const import MoleculesHeader as Mole
 from cylindra.const import PropertyNames as H
+from cylindra.project._defaults import TOMOGRAM_DEFAULTS_PATH_NAME
 from cylindra.utils import ceilint, roundint
 from cylindra.widget_utils import POLARS_NAMESPACE, capitalize
 from cylindra.widgets._annotated import MoleculesLayerType, _as_layer_name, assert_layer
@@ -49,6 +50,8 @@ from cylindra.widgets.subwidgets._child_widget import ChildWidget
 
 if TYPE_CHECKING:
     import napari
+    from acryo.ctf import TiltSeriesCTF
+    from acryo.projection import TiltSeries
     from napari.layers import Layer
 
 _TiltRange = Annotated[
@@ -685,8 +688,18 @@ class Simulator(ChildWidget):
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         ctf: Annotated[CTFDict, {"widget_type": CTFParams}] = None,
         seed: Optional[Annotated[int, {"min": 0, "max": 1e8}]] = None,
+        light_background: bool = False,
     ):  # fmt: skip
         """Simulate tilt series using the current model and save the images.
+
+        Each tilt series is saved as an image stack ("image-{i}.mrc") together with a
+        JSON file of `acryo.projection.TiltSeries` ("image-{i}.json"), which can be
+        directly opened by `open_tilt_series` with `tomo_hand=-1` (default). The JSON
+        file describes the tilt series as saved: if the CTF is simulated without
+        correction, its parameters are written to the JSON file so that the CTF can be
+        corrected when the tilt series is opened. The default settings to open the tilt
+        series (pixel size, `tomo_hand=-1` and the height of the simulated tomogram) are
+        also saved as ".cylindra-defaults.toml" in the directory.
 
         Parameters
         ----------
@@ -694,12 +707,26 @@ class Simulator(ChildWidget):
             List of tuples of layer name and path to the template image.
         save_dir : Path
             Directory path where the tilt series will be saved.
+        nsr : list of float
+            Noise-to-signal ratio. It is defined by N/S, where S is the maximum
+            value of the true monomer density and N is the standard deviation of
+            the Gaussian noise. A tilt series is saved for each value.
         tilt_range : tuple of float
             Minimum and maximum tilt angles in degree.
         n_tilt : int
             Number of tilt angles between minimum and maximum angles.
         interpolation : int
             Interpolation method used during the simulation.
+        ctf : CTFDict
+            Parameters to construct a CTF (Contrast Transfer Function) model that will
+            be applied to the projections.
+        seed : int, optional
+            Random seed used for the Gaussian noise.
+        light_background : bool, default False
+            If true, the intensity of the tilt series is inverted so that the density
+            is dark on a light background, as in the cryo-EM images. Tilt series opened
+            by `open_tilt_series` are expected to be light-background. Set this to
+            false to pass the images to `simulate_tomogram_from_tilt_series`.
         """
         save_dir = _norm_save_dir(save_dir)
         components = _norm_components(components)
@@ -717,12 +744,25 @@ class Simulator(ChildWidget):
         imax = ts.max()
         _Logger.print("Convolving CTF ...")
         ts_conv = _ctf.convolve(ts)
+        tilt_series = _simulated_tilt_series(
+            degrees, scale, ts.shape[1:], ctf=_ctf.remaining_ctf(n_tilt)
+        )
         for i, nsr_val in enumerate(nsr):
             ts_noise = _ctf.recover(_add_noise(ts_conv, imax * nsr_val, rng))
+            if light_background:
+                ts_noise = -ts_noise
             save_path = save_dir / f"image-{i}.mrc"
             ts_noise.set_axes("zyx").set_scale(zyx=scale, unit="nm").imsave(save_path)
-            _Logger.print(f"{i}-th tilt series saved at {save_path}.")
-        self._get_main().save_project(save_dir / PROJECT_NAME, molecules_ext=".parquet")
+            json_path = save_path.with_suffix(".json")
+            # relative to the JSON file
+            ts_i = tilt_series.replace(image_path=Path(save_path.name))
+            json_path.write_text(ts_i.dump_json())
+            _Logger.print(
+                f"{i}-th tilt series saved at {save_path} ({json_path.name})."
+            )
+        main = self._get_main()
+        _write_tilt_series_defaults(save_dir, scale, main.tomogram.shape[0] * scale)
+        main.save_project(save_dir / PROJECT_NAME, molecules_ext=".parquet")
 
     @set_design(icon=_ICON_PATH / "expand.svg", location=SimulatorTools)
     def expand(
@@ -949,6 +989,49 @@ def _on_iradon_finished(rec: ip.ImgArray, title: str):
     return None
 
 
+def _simulated_tilt_series(
+    degrees: NDArray[np.floating],
+    scale: nm,
+    image_shape: tuple[int, int],
+    ctf: "TiltSeriesCTF | None" = None,
+) -> "TiltSeries":
+    """The tilt series of the projections of `TomogramSimulator.simulate_tilt_series`.
+
+    The tilt series reproduces the simulated tomogram if opened with `tomo_hand=-1`.
+    """
+    from acryo.projection import TiltSeries
+
+    # The tomogram is mirrored along the z axis if `tomo_hand=-1`, which inverts the
+    # tilt angles. The simulator projects the center of the tomogram to the pixel
+    # `(n - 1) / 2` of the tilt images, while the tilt series projects it to `n // 2`.
+    center_shift = np.array([(n - 1) / 2 - n // 2 for n in image_shape]) * scale
+    return TiltSeries(
+        tilt_angles=-np.asarray(degrees, dtype=np.float64),
+        tilt_axis_angle=0.0,
+        sample_translations=np.tile(center_shift, (len(degrees), 1)),
+        scale=scale,
+        ctf=ctf,
+    )
+
+
+def _write_tilt_series_defaults(save_dir: Path, scale: nm, height: nm) -> Path:
+    """Write the default settings to open the simulated tilt series.
+
+    The pixel size, the handedness and the height of the simulated tomogram are
+    determined by the simulation, so they are used by the "Scan" button of the dialog
+    of `open_tilt_series`.
+    """
+    path = save_dir / TOMOGRAM_DEFAULTS_PATH_NAME
+    path.write_text(
+        f"scale = {float(scale)!r}\n"
+        "\n"
+        "[tilt_series]\n"
+        "tomo_hand = -1\n"
+        f"tomo_height = {round(float(height), 4)!r}\n"
+    )
+    return path
+
+
 def _norm_save_dir(save_dir) -> Path:
     save_dir = Path(save_dir)
     if save_dir.suffix:
@@ -1123,6 +1206,21 @@ class _CTFInputTuple(NamedTuple):
     convolve: Callable[[ip.ImgArray], ip.ImgArray]
     recover: Callable[[ip.ImgArray], ip.ImgArray]
     ctf_model: CTFModel | None
+    kv: float | None = None
+    corrected: bool = False
+
+    def remaining_ctf(self, ntilts: int) -> "TiltSeriesCTF | None":
+        """CTF parameters of the CTF left in the simulated tilt images, if any."""
+        from acryo.ctf import TiltSeriesCTF
+
+        if self.ctf_model is None or self.corrected:
+            return None
+        return TiltSeriesCTF(
+            defocus_u=np.full(ntilts, self.ctf_model.defocus, dtype=np.float64),
+            voltage=self.kv,
+            spherical_aberration=self.ctf_model.spherical_aberration,
+            amplitude_contrast=self.ctf_model.amplitude,
+        )
 
     @classmethod
     def from_dict(cls, ctf: dict | None) -> "_CTFInputTuple":
@@ -1131,6 +1229,7 @@ class _CTFInputTuple(NamedTuple):
         ctf = ctf.copy()
         correction_method = ctf.pop("correct", "phaseflip")
         ctf_model = CTFModel.from_kv(**ctf)
+        kv = float(ctf["kv"])
 
         def convolve(img: ip.ImgArray) -> ip.ImgArray:
             out = ctf_model.apply_ctf(img.value, img.scale.x)
@@ -1147,4 +1246,5 @@ class _CTFInputTuple(NamedTuple):
 
             case _:
                 raise ValueError(f"Unknown CTF correction method: {correction_method}")
-        return _CTFInputTuple(convolve, recover, ctf_model)
+        corrected = correction_method != "none"
+        return _CTFInputTuple(convolve, recover, ctf_model, kv, corrected)

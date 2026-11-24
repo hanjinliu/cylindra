@@ -1342,6 +1342,8 @@ def test_open_tilt_series_dialog(
     dialog.path = json_path
     dialog.scan_header_or_defaults()
     assert dialog.create_reference  # no default settings yet
+    # the pixel size is read from the JSON file
+    assert float(dialog.scale.scale_value) == pytest.approx(SCALE, abs=1e-4)
 
     # the coarse tomogram is reconstructed and saved
     ui.open_tilt_series(

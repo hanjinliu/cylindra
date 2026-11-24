@@ -105,7 +105,7 @@ You can open a reconstructed tomogram or a tilt series project for analysis.
     subvolumes on demand. For visualization, a coarse tomogram will be generated.
 
     1. Click "Select file" to select a file that describes the tilt series. Currently,
-       IMOD directive file (`*.edf`), or a STAR file of RELION 5 tilt series (`tilt_series/*.star`) are supported.
+       IMOD directive file (`*.edf`), a STAR file of RELION 5 tilt series (`tilt_series/*.star`), or a JSON file of `acryo.projection.TiltSeries` (`*.json`, such as the ones saved by [`simulate_tilt_series`](simulate.md#3-simulate-tilt-series)) are supported.
     2. If a coarse tomogram is not generated yet, check "Create coarse tomogram" and
        provide the pixel size (nm) you want (usually >1.5 nm/pixel is enough, but do not
        exceed half of the periodicity you want to analyze!). The pixel size does not

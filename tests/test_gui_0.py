@@ -1,3 +1,4 @@
+import json
 import sys
 import warnings
 from itertools import product
@@ -1257,15 +1258,58 @@ def test_simulate_tilt_series(ui: CylindraMainWidget, tmpdir):
         25, (40, 42, 42), scale=0.5, yxrotation=10
     )
     ui.simulator.generate_molecules(0, 4.06, -0.05, 3, 13, 11.8, (0.0, 0.0))
+    components = [(ui.mole_layers.last().name, TEST_DIR / "beta-tubulin.mrc")]
+    kwargs = {"tilt_range": (-50.0, 60.0), "n_tilt": 11, "interpolation": 1}
+    tmpdir = Path(tmpdir)
     ui.simulator.simulate_tilt_series(
-        components=[(ui.mole_layers.last().name, TEST_DIR / "beta-tubulin.mrc")],
-        save_dir=tmpdir,
-        tilt_range=(-60.0, 60.0),
-        n_tilt=11,
-        interpolation=1,
+        components=components,
+        save_dir=tmpdir / "dark",
         nsr=[0],
+        **kwargs,
     )
-    ui.simulator.simulate_tomogram_from_tilt_series(Path(tmpdir) / "image-0.mrc")
+    ui.simulator.simulate_tilt_series(
+        components=components,
+        save_dir=tmpdir / "light",
+        nsr=[0],
+        ctf={
+            "kv": 300,
+            "spherical_aberration": 2.7,
+            "defocus": -3.0,
+            "correct": "none",
+        },
+        light_background=True,
+        **kwargs,
+    )
+    img_dark = ip.imread(tmpdir / "dark" / "image-0.mrc")
+    img_light = ip.imread(tmpdir / "light" / "image-0.mrc")
+    assert img_dark.mean() > 0
+    assert img_light.mean() < 0
+    # the remaining CTF is written to the JSON file
+    ts_json = json.loads((tmpdir / "light" / "image-0.json").read_text())
+    assert ts_json["image_path"] == "image-0.mrc"
+    assert ts_json["ctf"] is not None
+
+    ui.simulator.simulate_tomogram_from_tilt_series(tmpdir / "dark" / "image-0.mrc")
+
+    # the default settings determined by the simulation are scanned
+    dialog = ui.FileMenu.open_tilt_series_loader()
+    dialog.path = tmpdir / "light" / "image-0.json"
+    dialog.scan_header_or_defaults()
+    assert float(dialog.scale.scale_value) == pytest.approx(0.5)
+    assert dialog.tomo_hand == -1
+    assert dialog.tomo_height == pytest.approx(40.0)  # 80 slices of 0.5 nm
+    assert dialog.create_reference
+    ui.open_tilt_series(
+        tmpdir / "light" / "image-0.json",
+        reference_scale=1.0,
+        tomo_hand=dialog.tomo_hand,
+        tomo_height=dialog.tomo_height,
+        bin_size=[1],
+        filter=None,
+    )
+    assert ui.tomogram.tilt_series is not None
+    assert ui.tomogram.shape == (80, 84, 84)  # same as the simulated tomogram
+    assert ui.tomogram.tilt == {"kind": "y", "range": (-50.0, 60.0)}
     ui.simulator.close()
 
 
