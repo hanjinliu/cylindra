@@ -1,4 +1,6 @@
 
+
+
 <!doctype html>
 <html lang="en" class="no-js">
   <head>
@@ -7,6 +9,7 @@
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
         <meta name="description" content="Cryo-ET image analysis tool for cylindric periodic structures such as microtubules.">
+      
       
       
       
@@ -22,7 +25,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="zensical-0.1.2">
+      <meta name="generator" content="zensical-0.1.3">
     
     
       
@@ -39,6 +42,7 @@
           
         
         <link rel="stylesheet" href="../assets/stylesheets/classic/palette.813d4b3f.min.css">
+      
       
       
 
@@ -2996,7 +3000,7 @@ orientations. To do this, you can first create an empty image, and <a href="../f
 tagged with helical parameters measured by <a href="../lattice_params/">CFT</a>.</p>
 </div>
 <h2 id="simulate-cylinder-with-constant-periodicity">Simulate cylinder with constant periodicity</h2>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="generate_molecules(spline=0, spacing=1.0, twist=0.0, start=0, npf=2, radius=10.0, offsets=(0.0, 0.0), update_glob=True)" href="../api/widgets/subwidgets/#cylindra.widgets.subwidgets.Simulator.generate_molecules"><code>generate_molecules</code></a></p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="generate_molecules(spline=0, spacing=1.0, twist=0.0, start=3, npf=2, radius=10.0, offsets=(0.0, 0.0), update_glob=True)" href="../api/widgets/subwidgets/#cylindra.widgets.subwidgets.Simulator.generate_molecules"><code>generate_molecules</code></a></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Simulator widget &gt;</code> <img alt="" src="../images/toolbutton_generate_molecules.png" width="28px" /></p>
 <p>With <a href="../molecules/spline_to_molecules/">spline-to-molecules mapping functions</a>, the
 molecules were initialized based on the helical parameters of the spline. Instead of
@@ -3107,15 +3111,29 @@ but the noise level will be different.</p>
 but the simulated tomogram is immediately opened in the viewer. Because only one
 tomogram can be opened at a time, only one NSR can be specified.</p>
 <h3 id="3-simulate-tilt-series">3. Simulate tilt series</h3>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="simulate_tilt_series(components, save_dir, nsr=[0], tilt_range=(-60.0, 60.0), n_tilt=21, interpolation=3, ctf=None, seed=None)" href="../api/widgets/subwidgets/#cylindra.widgets.subwidgets.Simulator.simulate_tilt_series"><code>simulate_tilt_series</code></a></p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="simulate_tilt_series(components, save_dir, nsr=[0], tilt_range=(-60.0, 60.0), n_tilt=21, interpolation=3, ctf=None, seed=None, light_background=False)" href="../api/widgets/subwidgets/#cylindra.widgets.subwidgets.Simulator.simulate_tilt_series"><code>simulate_tilt_series</code></a></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Simulator widget &gt; Simulate &gt; Simulate tilt series</code></p>
 <p>This method is used to simulate tilt series images from the registered densities,
-without back-projection. The simulated tilt series will be saved as an image stack.</p>
-<p>This method is usually combined with
+without back-projection. The simulated tilt series will be saved as an image stack
+("image-{i}.mrc"), together with a JSON file of the tilt series ("image-{i}.json").
+The JSON file can be directly opened by
+<a class="autorefs autorefs-internal" title="open_tilt_series(path, scale=None, reference_scale=2.0, tomo_hand=-1, tomo_height=300.0, ctf=True, bin_size=[2, 4], filter=None, save_coarse_tomogram=False, halves=None)" href="../api/widgets/main/#cylindra.widgets.main.CylindraMainWidget.open_tilt_series"><code>open_tilt_series</code></a>
+(with the default handedness <code>tomo_hand=-1</code>), so that you can simulate the analysis of
+tilt series. If the CTF is simulated with <code>correct="none"</code>, the CTF parameters are
+written to the JSON file and the CTF is corrected when the tilt series is opened. A
+<a href="../open_image/#directory-specific-defaults"><code>.cylindra-defaults.toml</code></a> file is also
+saved in the directory, so that the "Scan" button of the dialog fills in the parameters
+determined by the simulation (pixel size, <code>tomo_hand = -1</code> and the height of the
+simulated tomogram).</p>
+<p>Because <code>open_tilt_series</code> expects the tilt series to be light-background, as in the
+cryo-EM images, set <code>light_background=True</code> to invert the intensity of the tilt series
+if you are going to open it as a tilt series.</p>
+<p>This method can also be combined with
 <a href="#4-simulate-tomogram-from-a-tilt-series">the next reconstruction method</a>
-to repetitively generate multiple tomograms with different settings.</p>
+to repetitively generate multiple tomograms with different settings. In this case, keep
+<code>light_background=False</code> (default).</p>
 <h3 id="4-simulate-tomogram-from-a-tilt-series">4. Simulate tomogram from a tilt series</h3>
-<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="simulate_tomogram_from_tilt_series(path, nsr=1.5, bin_size=[1], tilt_range=(-60.0, 60.0), height=50, ctf=None, interpolation=3, seed=None)" href="../api/widgets/subwidgets/#cylindra.widgets.subwidgets.Simulator.simulate_tomogram_from_tilt_series"><code>simulate_tomogram_from_tilt_series</code></a></p>
+<p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> API: <a class="autorefs autorefs-internal" title="simulate_tomogram_from_tilt_series(path, nsr=1.5, bin_size=[1], tilt_range=(-60.0, 60.0), height=50, ctf=None, interpolation=3, seed=None, invert=False)" href="../api/widgets/subwidgets/#cylindra.widgets.subwidgets.Simulator.simulate_tomogram_from_tilt_series"><code>simulate_tomogram_from_tilt_series</code></a></p>
 <p><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.03 12c0-4.41-3.62-8.03-8.03-8.03S3.97 7.59 3.97 12s3.62 8.03 8.03 8.03 8.03-3.62 8.03-8.03M22 12c0 5.54-4.46 10-10 10S2 17.54 2 12 6.46 2 12 2s10 4.46 10 10m-8.46 1v3l3.96-4-3.96-4v3H6.5v2"/></svg></span> GUI: <code>Simulator widget &gt; Simulate &gt; Simulate tomogram from tilt series</code></p>
 <p>This method simply back-projects the tilt series images to generate a tomogram. The tilt
 axis is always the y-axis. If the tilt series is generated by
@@ -3224,7 +3242,8 @@ correctly aligned.</p>
       <script id="__config" type="application/json">{"annotate":null,"base":"..","features":["content.code.annotate","content.code.copy","navigation.sections","navigation.indexes","navigation.footer","toc.follow","search.suggest","search.share"],"redirect":null,"search":"../assets/javascripts/workers/search.719e0d91.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","clipboard.error":"Could not copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
     
     
-      <script src="../assets/javascripts/bundle.3cb411a8.min.js"></script>
+      <script src="../assets/javascripts/bundle.9e76c64c.min.js"></script>
+      
       
         <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
       
