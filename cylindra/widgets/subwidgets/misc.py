@@ -1,4 +1,5 @@
 import glob
+import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -386,7 +387,15 @@ class TiltSeriesLoader(MagicTemplate):
 def _get_tilt_series_image_path(path) -> str | list[str] | None:
     """Get the tilt series image path(s) from the given tilt series info path."""
     path = Path(path)
-    if path.suffix == ".edf":  # IMOD
+    if path.suffix == ".json":  # acryo TiltSeries
+        image_path = json.loads(path.read_text()).get("image_path")
+        if image_path is None:
+            return None
+        # relative to the JSON file, as `read_tilt_series`
+        if isinstance(image_path, list):
+            return [(path.parent / p).as_posix() for p in image_path]
+        return (path.parent / image_path).as_posix()
+    elif path.suffix == ".edf":  # IMOD
         return path.with_name(f"{path.stem}.mrc").as_posix()
     elif path.suffix == ".star":  # RELION 5
         import starfile_rs
@@ -399,6 +408,10 @@ def _get_tilt_series_image_path(path) -> str | list[str] | None:
 
 def _infer_scale_for_tilt_series(path) -> float | None:
     """Infer the scale from the given tilt series info path."""
+    if Path(path).suffix == ".json":
+        # more precise than the pixel size in the image header
+        if (scale := json.loads(Path(path).read_text()).get("scale")) is not None:
+            return float(scale)
     path = _get_tilt_series_image_path(path)
     if path is None:
         return None

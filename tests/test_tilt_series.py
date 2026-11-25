@@ -1342,6 +1342,8 @@ def test_open_tilt_series_dialog(
     dialog.path = json_path
     dialog.scan_header_or_defaults()
     assert dialog.create_reference  # no default settings yet
+    # the pixel size is read from the JSON file
+    assert float(dialog.scale.scale_value) == pytest.approx(SCALE, abs=1e-4)
 
     # the coarse tomogram is reconstructed and saved
     ui.open_tilt_series(
@@ -1538,8 +1540,11 @@ def test_chunk_cache():
 
 
 def test_infer_tilt_series_scale(tmp_path: Path):
+    from acryo.projection import TiltSeries
+
     from cylindra.widgets.subwidgets.misc import (
         _format_nbytes,
+        _get_tilt_series_image_path,
         _infer_scale_for_tilt_series,
         _resolve_path_str,
     )
@@ -1558,7 +1563,23 @@ def test_infer_tilt_series_scale(tmp_path: Path):
         f"{image_path.as_posix()} 3.0\n{image_path.as_posix()} -3.0\n"
     )
     assert _infer_scale_for_tilt_series(star_path) == pytest.approx(0.25)
-    assert _infer_scale_for_tilt_series(tmp_path / "tilt_series.json") is None
+    # acryo TiltSeries: the pixel size in the JSON file is used
+    json_path = tmp_path / "tilt_series.json"
+    ts = TiltSeries(
+        tilt_angles=[3.0, -3.0],
+        tilt_axis_angle=0.0,
+        scale=0.2512,
+        image_path=Path("TS_01.mrc"),  # relative to the JSON file
+    )
+    json_path.write_text(ts.dump_json())
+    assert _infer_scale_for_tilt_series(json_path) == pytest.approx(0.2512)
+    assert _get_tilt_series_image_path(json_path) == image_path.as_posix()
+    # the pixel size in the image header if the JSON file does not have it
+    json_path.write_text(ts.replace(scale=None).dump_json())
+    assert _infer_scale_for_tilt_series(json_path) == pytest.approx(0.25)
+    # unknown without the tilt images
+    json_path.write_text(ts.replace(scale=None, image_path=None).dump_json())
+    assert _infer_scale_for_tilt_series(json_path) is None
 
     assert _format_nbytes(3 * 1024**3) == "3.00 GB"
     assert _format_nbytes(3 * 1024**2) == "3.00 MB"

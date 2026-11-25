@@ -31,6 +31,7 @@ from cylindra.widgets._main_utils import (
     normalize_offsets,
     normalize_radius,
 )
+from cylindra.widgets._widget_ext import IndexEdit
 from cylindra.widgets.main import CylindraMainWidget
 from cylindra.widgets.sta import SubtomogramAveraging
 
@@ -298,6 +299,28 @@ def _preview_filter_molecules(
         face_color_trans[:, 3] *= 0.2
         colors = np.where(out[:, np.newaxis], face_color, face_color_trans)
         layer.face_color = colors
+        yield
+
+
+@impl_preview(CylindraMainWidget.drop_molecules, auto_call=True)
+def _preview_drop_molecules(
+    self: CylindraMainWidget,
+    layer: MoleculesLayer,
+    indices: str = "",
+):
+    mole = layer.molecules
+    if spl := layer.source_spline:
+        npf = spl.props.get_glob(H.npf, None)
+    else:
+        npf = None
+    _to_drop = IndexEdit.parse_indices(indices, count=mole.count(), npf=npf)
+    sl_drop = np.array([i for i in range(mole.count()) if i in _to_drop])
+    with _temp_layer_colors(layer):
+        face_color = layer.face_color
+        face_color_trans = face_color.copy()
+        if sl_drop.size > 0:
+            face_color_trans[sl_drop, 3] *= 0.2
+        layer.face_color = face_color_trans
         yield
 
 
