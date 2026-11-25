@@ -331,7 +331,7 @@ class Simulator(ChildWidget):
         spline: Annotated[int, {"bind": _get_spline_idx}] = 0,
         spacing: Annotated[nm, {"min": 0.2, "max": 100.0, "step": 0.01, "label": "spacing (nm)"}] = 1.0,
         twist: Annotated[float, {"min": -45.0, "max": 45.0, "label": "twist (deg)"}] = 0.0,
-        start: Annotated[int, {"min": -50, "max": 50, "label": "start"}] = 0,
+        start: Annotated[int, {"min": -50, "max": 50, "label": "start"}] = 3,
         npf: Annotated[int, {"min": 1, "label": "number of PF"}] = 2,
         radius: Annotated[nm, {"min": 0.5, "max": 50.0, "step": 0.5, "label": "radius (nm)"}] = 10.0,
         offsets: tuple[float, float] = (0.0, 0.0),
@@ -524,6 +524,7 @@ class Simulator(ChildWidget):
         ctf: Annotated[CTFDict, {"widget_type": CTFParams}] = None,
         interpolation: Annotated[int, {"choices": INTERPOLATION_CHOICES}] = 3,
         seed: Optional[Annotated[int, {"min": 0, "max": 1e8}]] = None,
+        invert: bool = False,
     ):
         """Simulate tomographic images using a tilt series.
 
@@ -584,7 +585,7 @@ class Simulator(ChildWidget):
             rec, scale=scale, tilt=tilt_range, binsize=bin_size
         )
         main._init_macro_state()
-        return main._send_tomogram_to_viewer.with_args(tomo)
+        return main._send_tomogram_to_viewer.with_args(tomo, invert=invert)
 
     @set_design(text=capitalize, location=SimulateMenu)
     @dask_thread_worker.with_progress(desc="Simulating tomogram...")

@@ -594,6 +594,22 @@ class IndexEdit(LineEdit):
             ns["npf"] = npf
         return eval(string.strip(), ns, {})
 
+    @classmethod
+    def parse_indices(cls, indices, count: int, npf: int) -> set[int]:
+        _out = set[int]()
+        if isinstance(indices, str):
+            indices = cls.eval(indices, npf=npf, N=count)
+        if not hasattr(indices, "__iter__"):
+            indices = [indices]
+        for i in indices:
+            if isinstance(i, slice):
+                _out.update(range(*i.indices(count)))
+            elif isinstance(i, int | np.integer):
+                _out.add(int(i))
+            else:
+                raise ValueError(f"Indices must be integers, got {type(i)!r}.")
+        return _out
+
 
 def _not(x: Qt.CheckState) -> Qt.CheckState:
     if x == Qt.CheckState.Checked:

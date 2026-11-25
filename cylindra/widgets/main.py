@@ -3673,20 +3673,11 @@ class CylindraMainWidget(MagicTemplate):
         """
         layer = assert_layer(layer, self.parent_viewer)
         mole = layer.molecules
-        _to_drop = set[int]()
-        if isinstance(indices, str):
-            if spl := layer.source_spline:
-                npf = spl.props.get_glob(H.npf, None)
-            else:
-                npf = None
-            indices = IndexEdit.eval(indices, npf=npf, N=mole.count())
-        for i in indices:
-            if isinstance(i, slice):
-                _to_drop.update(range(*i.indices(mole.count())))
-            elif isinstance(i, int | np.integer):
-                _to_drop.add(int(i))
-            else:
-                raise ValueError(f"Indices must be integers, got {type(i)!r}.")
+        if spl := layer.source_spline:
+            npf = spl.props.get_glob(H.npf, None)
+        else:
+            npf = None
+        _to_drop = IndexEdit.parse_indices(indices, count=mole.count(), npf=npf)
         sl = np.array([i for i in range(mole.count()) if i not in _to_drop])
         out = mole.subset(sl)
         source = layer.source_component if inherit_source else None

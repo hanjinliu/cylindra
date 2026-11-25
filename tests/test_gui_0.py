@@ -606,6 +606,10 @@ def test_preview(ui: CylindraMainWidget):
     is_true = layer.face_color[:, 3] > 0.9
     assert is_true.sum() == layer.data.shape[0]
 
+    tester = mcls_testing.FunctionGuiTester(ui.drop_molecules)
+    tester.update_parameters(indices="5")
+    tester.click_preview()
+
     tester = mcls_testing.FunctionGuiTester(ui.paint_molecules)
     nlayer = len(ui.parent_viewer.layers)
     tester.click_preview()
@@ -1481,6 +1485,12 @@ def test_molecule_features(ui: CylindraMainWidget):
     ui.macro.undo()
     ui.drop_molecules("Mole-1", indices="5, 5 + npf")
     assert get_index() == get_expected([5, 5 + 14])
+    ui.macro.undo()
+    ui.drop_molecules("Mole-1", indices="5")
+    assert get_index() == get_expected([5])
+    ui.macro.undo()
+    ui.drop_molecules("Mole-1", indices="")
+    assert get_index() == get_expected([])
 
 
 def test_auto_align(ui: CylindraMainWidget):
